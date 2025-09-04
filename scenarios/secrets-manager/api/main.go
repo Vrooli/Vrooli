@@ -621,7 +621,7 @@ func main() {
 	corsOrigins := handlers.AllowedOrigins([]string{"*"})
 	
 	// Get port from environment
-	port := getEnvOrDefault("PORT", "28000")
+	port := getEnvOrDefault("API_PORT", getEnvOrDefault("PORT", ""))
 	
 	log.Printf("🔐 Secrets Manager API starting on port %s", port)
 	log.Printf("   📊 Health check: http://localhost:%s/health", port)

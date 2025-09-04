@@ -4,6 +4,7 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 
 // Manual proxy function for API calls
 function proxyToApi(req, res, apiPath) {
@@ -59,6 +60,17 @@ app.use(express.static(__dirname, {
         }
     }
 }));
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'swarm-manager',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 
 // Serve the main page
 app.get('/', (req, res) => {

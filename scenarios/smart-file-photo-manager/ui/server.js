@@ -4,9 +4,21 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 
 // Serve static files
 app.use(express.static(path.join(__dirname)));
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'smart-file-photo-manager',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 
 // Proxy API requests to the Go backend
 app.use('/api', createProxyMiddleware({

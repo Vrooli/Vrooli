@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{APP_DISPLAY_NAME}} - Loading</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, {{SPLASH_BACKGROUND_START}} 0%, {{SPLASH_BACKGROUND_END}} 100%);
+            color: {{SPLASH_TEXT_COLOR}};
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .splash-container {
+            text-align: center;
+            animation: fadeIn 0.8s ease-in-out;
+        }
+
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            animation: pulse 2s infinite;
+        }
+
+        .app-name {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .app-description {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-bottom: 32px;
+            max-width: 300px;
+            line-height: 1.4;
+        }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .loading-bar {
+            width: 200px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, {{SPLASH_ACCENT_COLOR}}, {{SPLASH_ACCENT_COLOR}}aa);
+            border-radius: 2px;
+            width: 0%;
+            animation: loadingProgress 3s ease-in-out infinite;
+        }
+
+        .loading-text {
+            font-size: 12px;
+            opacity: 0.7;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid {{SPLASH_ACCENT_COLOR}};
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        .powered-by {
+            position: absolute;
+            bottom: 20px;
+            font-size: 10px;
+            opacity: 0.5;
+            text-align: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes loadingProgress {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        /* Dark mode adjustments */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+                color: #ffffff;
+            }
+            
+            .loading-bar {
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* High contrast mode */
+        @media (prefers-contrast: high) {
+            body {
+                background: #000000;
+                color: #ffffff;
+            }
+            
+            .app-icon {
+                border: 2px solid #ffffff;
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            .splash-container,
+            .app-icon,
+            .loading-text,
+            .loading-progress {
+                animation: none;
+            }
+            
+            .spinner {
+                animation: none;
+                border: 2px solid {{SPLASH_ACCENT_COLOR}};
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="splash-container">
+        <img src="{{APP_ICON_PATH}}" alt="{{APP_DISPLAY_NAME}} Icon" class="app-icon" onerror="this.style.display='none'">
+        
+        <div class="app-name">{{APP_DISPLAY_NAME}}</div>
+        <div class="app-description">{{APP_DESCRIPTION}}</div>
+        
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <div class="loading-text">Starting application...</div>
+        </div>
+    </div>
+    
+    <div class="powered-by">
+        Powered by scenario-to-desktop
+    </div>
+
+    <script>
+        // Update loading text dynamically
+        const loadingText = document.querySelector('.loading-text');
+        const messages = [
+            'Initializing...',
+            'Loading components...',
+            'Starting server...',
+            'Preparing interface...',
+            'Almost ready...'
+        ];
+        
+        let messageIndex = 0;
+        const updateMessage = () => {
+            if (messageIndex < messages.length) {
+                loadingText.textContent = messages[messageIndex];
+                messageIndex++;
+                setTimeout(updateMessage, 800);
+            } else {
+                loadingText.textContent = 'Loading complete!';
+            }
+        };
+        
+        // Start message rotation after initial delay
+        setTimeout(updateMessage, 500);
+        
+        // Add some interactive feedback
+        document.addEventListener('click', () => {
+            document.body.style.transform = 'scale(0.98)';
+            setTimeout(() => {
+                document.body.style.transform = 'scale(1)';
+            }, 100);
+        });
+        
+        // Accessibility: Allow ESC to skip splash (for testing)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                console.log('Splash screen skip requested');
+                // This would be handled by the main process
+            }
+        });
+        
+        // Log splash screen load
+        console.log('{{APP_DISPLAY_NAME}} splash screen loaded');
+    </script>
+</body>
+</html>

@@ -158,7 +158,7 @@
         },
         {
           "name": "build-api", 
-          "run": "cd api && go mod download && go build -o travel-map-api main.go",
+          "run": "cd api && go mod download && go build -o travel-map-api .",
           "description": "Build Go API binary"
         },
         {
@@ -218,7 +218,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

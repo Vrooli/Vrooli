@@ -147,7 +147,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o notification-hub-api main.go",
+          "run": "cd api && go mod download && go build -o notification-hub-api .",
           "description": "Build Go API server binary"
         },
         {
@@ -213,12 +213,12 @@
         },
         {
           "name": "test-profile-creation",
-          "run": "cd api && go run main.go --test-profile-creation",
+          "run": "cd api && ./notification-hub-api --test-profile-creation",
           "description": "Test profile management functionality"
         },
         {
           "name": "test-notification-send",
-          "run": "cd api && go run main.go --test-notification-send",
+          "run": "cd api && ./notification-hub-api --test-notification-send",
           "description": "Test notification sending workflow"
         },
         {

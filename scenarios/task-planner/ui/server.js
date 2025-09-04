@@ -3,6 +3,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 
 // Serve static files
 app.use(express.static(__dirname));

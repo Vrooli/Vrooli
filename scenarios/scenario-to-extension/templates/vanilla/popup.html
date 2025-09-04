@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{APP_NAME}}</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 350px;
+            min-height: 400px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            font-size: 14px;
+            color: #333;
+            background: #f8f9fa;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .header .version {
+            font-size: 11px;
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+
+        .status-connected { background: #4CAF50; }
+        .status-disconnected { background: #FF9800; }
+        .status-error { background: #F44336; }
+
+        /* Main content */
+        .content {
+            padding: 16px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Auth section */
+        .auth-section {
+            text-align: center;
+        }
+
+        .login-form {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            gap: 6px;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #45a049;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #e8e8e8;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #4CAF50;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Actions */
+        .action-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 12px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .action-btn:hover {
+            border-color: #4CAF50;
+            background: #f8fff8;
+        }
+
+        .action-icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .action-label {
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Current page info */
+        .page-info {
+            background: white;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .page-url {
+            word-break: break-all;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .page-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Loading states */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e0e0e0;
+            border-top: 2px solid #4CAF50;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Error states */
+        .error {
+            background: #ffebee;
+            border: 1px solid #ffcdd2;
+            border-radius: 6px;
+            padding: 12px;
+            color: #c62828;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        .error-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        /* Success states */
+        .success {
+            background: #e8f5e8;
+            border: 1px solid #c8e6c9;
+            border-radius: 6px;
+            padding: 12px;
+            color: #2e7d32;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .footer-link {
+            font-size: 11px;
+            color: #666;
+            text-decoration: none;
+        }
+
+        .footer-link:hover {
+            color: #4CAF50;
+        }
+
+        /* Utility classes */
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
+        .mb-8 { margin-bottom: 8px; }
+        .mb-12 { margin-bottom: 12px; }
+        .mt-8 { margin-top: 8px; }
+        
+        /* Scenario-specific styles */
+        {{CUSTOM_CSS}}
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>
+            <span id="status-indicator" class="status-indicator status-disconnected"></span>
+            {{APP_NAME}}
+        </h1>
+        <div class="version">v{{VERSION}} | {{SCENARIO_NAME}}</div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="content">
+        <!-- Loading State -->
+        <div id="loading-section" class="section">
+            <div class="loading">
+                <div class="spinner"></div>
+                Initializing...
+            </div>
+        </div>
+
+        <!-- Authentication Section -->
+        <div id="auth-section" class="section auth-section hidden">
+            <div class="section-title">Connect to {{APP_NAME}}</div>
+            
+            <div class="login-form">
+                <div id="auth-error" class="error hidden">
+                    <div class="error-title">Connection Failed</div>
+                    <div id="auth-error-message">Please check your credentials and try again.</div>
+                </div>
+                
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="api-endpoint">API Endpoint</label>
+                        <input type="url" id="api-endpoint" placeholder="{{API_ENDPOINT}}" value="{{API_ENDPOINT}}">
+                    </div>
+                    
+                    {{AUTH_FIELDS}}
+                    
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <span id="login-btn-text">Connect</span>
+                        <div id="login-spinner" class="spinner hidden"></div>
+                    </button>
+                </form>
+                
+                <div class="mt-8 text-center">
+                    <a href="{{API_ENDPOINT}}/docs" target="_blank" class="footer-link">API Documentation</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard-section" class="section hidden">
+            <!-- User Info -->
+            <div class="section">
+                <div class="section-title">Status</div>
+                <div id="user-info" class="page-info">
+                    <div class="page-title">Connected as <span id="user-name">Unknown</span></div>
+                    <div class="page-url">Last sync: <span id="last-sync">Never</span></div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="section">
+                <div class="section-title">Statistics</div>
+                <div class="stats-grid">
+                    {{STATS_CARDS}}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="section">
+                <div class="section-title">Quick Actions</div>
+                <div class="action-grid">
+                    {{ACTION_BUTTONS}}
+                </div>
+            </div>
+
+            <!-- Current Page Info -->
+            <div class="section">
+                <div class="section-title">Current Page</div>
+                <div id="page-info" class="page-info">
+                    <div class="page-title" id="current-title">Loading...</div>
+                    <div class="page-url" id="current-url">about:blank</div>
+                </div>
+            </div>
+
+            <!-- Scenario-Specific Content -->
+            <div id="scenario-content">
+                {{SCENARIO_SPECIFIC_CONTENT}}
+            </div>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div id="success-message" class="success hidden">
+            <div id="success-text"></div>
+        </div>
+        
+        <div id="error-message" class="error hidden">
+            <div class="error-title">Error</div>
+            <div id="error-text"></div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="#" id="refresh-btn" class="footer-link">Refresh</a>
+            <a href="#" id="settings-btn" class="footer-link">Settings</a>
+            <a href="#" id="help-btn" class="footer-link">Help</a>
+        </div>
+    </footer>
+
+    <script src="popup.js"></script>
+</body>
+</html>

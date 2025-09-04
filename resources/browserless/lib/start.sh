@@ -28,6 +28,14 @@ function start_browserless() {
         return 0
     fi
     
+    # Check for existing stopped container and remove it
+    local container_status
+    container_status=$(get_container_status)
+    if [[ "$container_status" == "exited" ]] || [[ "$container_status" == "created" ]] || [[ "$container_status" == "dead" ]]; then
+        log::info "Removing existing stopped container"
+        docker rm -f "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1 || true
+    fi
+    
     # Ensure directories exist
     ensure_directories
     

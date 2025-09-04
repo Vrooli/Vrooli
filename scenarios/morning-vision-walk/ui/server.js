@@ -7,6 +7,17 @@ const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = process.env.API_URL || 'http://localhost:8900';
 
 // Middleware
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'morning-vision-walk',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use(cors());
 app.use(express.static(__dirname));
 

@@ -7,6 +7,17 @@ const PORT = process.env.UI_PORT || process.env.PORT;
 const API_URL = process.env.API_URL || 'http://localhost:8780';
 
 // Serve static files
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'palette-gen',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use(express.static(__dirname));
 
 // Proxy API requests

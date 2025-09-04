@@ -119,6 +119,11 @@
           "description": "Install resource experimenter CLI globally"
         },
         {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o resource-experimenter-api .",
+          "description": "Build Go API binary"
+        },
+        {
           "name": "show-urls",
           "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
           "description": "Display service access information"
@@ -130,7 +135,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && go run main.go",
+          "run": "cd api && ./resource-experimenter-api",
           "description": "Start Go API server in background",
           "background": true
         },
@@ -180,7 +185,7 @@
       "steps": [
         {
           "name": "stop-services",
-          "run": "pkill -f 'go run main.go' || true; pkill -f 'node server.js' || true",
+          "run": "pkill -f 'resource-experimenter-api' || true; pkill -f 'node server.js' || true",
           "description": "Stop API and UI processes"
         },
         {

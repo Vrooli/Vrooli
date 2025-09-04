@@ -615,7 +615,7 @@ investigate_issue() {
         fi
     else
         log_info "Using Claude Code investigation script directly..."
-        local script_path="/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/scripts/claude-investigator.sh"
+        local script_path="${APP_ROOT}/scenarios/app-issue-tracker/scripts/claude-investigator.sh"
         if [[ -f "$script_path" ]]; then
             "$script_path" investigate "$issue_id" "deep-investigator" "$(pwd)" "Investigate this issue thoroughly"
         else

@@ -235,7 +235,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod tidy && go mod download && go build -o system-monitor-api main.go",
+          "run": "cd api && go mod download && go build -o system-monitor-api .",
           "description": "Build Go API binary"
         },
         {
@@ -277,7 +277,7 @@
       "steps": [
         {
           "name": "test-api-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation"
         },
         {

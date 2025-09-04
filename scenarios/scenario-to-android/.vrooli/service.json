@@ -1,0 +1,330 @@
+{
+  "name": "scenario-to-android",
+  "version": "1.0.0",
+  "description": "Transform Vrooli scenarios into native Android applications with full device capabilities",
+  "type": "scenario",
+  "category": "deployment",
+  "keywords": ["android", "mobile", "apk", "native", "webview", "play-store", "deployment"],
+  "author": "Vrooli Platform",
+  "license": "MIT",
+  
+  "capabilities": [
+    "android_app_generation",
+    "apk_building",
+    "native_api_bridge", 
+    "offline_first_architecture",
+    "push_notifications",
+    "play_store_preparation"
+  ],
+  
+  "requirements": {
+    "node_version": ">=18.0.0",
+    "platform": ["linux", "darwin"],
+    "memory": "2GB",
+    "disk": "5GB",
+    "external_tools": ["android-sdk", "gradle", "java"]
+  },
+  
+  "services": {
+    "api": {
+      "enabled": true,
+      "path": "./api",
+      "port": 3204,
+      "healthcheck": "/api/v1/health"
+    },
+    "cli": {
+      "enabled": true,
+      "path": "./cli",
+      "binary": "scenario-to-android"
+    },
+    "ui": {
+      "enabled": true,
+      "path": "./ui",
+      "port": 3205
+    }
+  },
+  
+  "resources": {
+    "required": [
+      {
+        "name": "n8n",
+        "purpose": "Orchestrate Android build pipeline and workflow automation",
+        "integration": "initialization/n8n/android-builder.json"
+      }
+    ],
+    "optional": [
+      {
+        "name": "minio",
+        "purpose": "Store generated APKs and build artifacts",
+        "fallback": "Local filesystem storage"
+      },
+      {
+        "name": "redis",
+        "purpose": "Cache build configurations and templates",
+        "fallback": "Rebuild from scratch each time"
+      },
+      {
+        "name": "postgres",
+        "purpose": "Track build history and app metadata",
+        "fallback": "JSON file storage"
+      }
+    ]
+  },
+  
+  "apis": {
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/health",
+        "description": "Health check endpoint"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/status",
+        "description": "Android build system status"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/android/build",
+        "description": "Build Android APK from scenario"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/android/status/{build_id}",
+        "description": "Check build progress and status"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/android/sign",
+        "description": "Sign APK with keystore"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/android/test",
+        "description": "Test APK on emulator or device"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/android/optimize",
+        "description": "Optimize APK size with ProGuard/R8"
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/android/prepare-store",
+        "description": "Prepare for Google Play Store submission"
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/android/templates",
+        "description": "List available Android app templates"
+      }
+    ]
+  },
+  
+  "cli_commands": [
+    {
+      "name": "status",
+      "description": "Show Android SDK and build system status",
+      "flags": ["--json", "--verbose"]
+    },
+    {
+      "name": "build",
+      "description": "Build Android APK from scenario",
+      "arguments": ["scenario_name"],
+      "flags": ["--output", "--config", "--sign", "--optimize", "--arch"]
+    },
+    {
+      "name": "test",
+      "description": "Test APK on device or emulator",
+      "arguments": ["apk_path"],
+      "flags": ["--device", "--emulator", "--screenshots"]
+    },
+    {
+      "name": "sign",
+      "description": "Sign APK with keystore",
+      "arguments": ["apk_path"],
+      "flags": ["--keystore", "--alias", "--password"]
+    },
+    {
+      "name": "optimize",
+      "description": "Optimize APK size and performance",
+      "arguments": ["apk_path"],
+      "flags": ["--proguard", "--r8", "--minify"]
+    },
+    {
+      "name": "prepare-store",
+      "description": "Prepare for Google Play Store",
+      "arguments": ["apk_path"],
+      "flags": ["--screenshots", "--listing", "--aab"]
+    },
+    {
+      "name": "templates",
+      "description": "List available templates",
+      "flags": ["--json", "--detail"]
+    },
+    {
+      "name": "validate",
+      "description": "Validate APK structure and signing",
+      "arguments": ["apk_path"],
+      "flags": ["--strict", "--report"]
+    }
+  ],
+  
+  "events": {
+    "published": [
+      {
+        "name": "android.build.started",
+        "description": "Android app build started"
+      },
+      {
+        "name": "android.build.completed",
+        "description": "Android app build completed successfully"
+      },
+      {
+        "name": "android.build.failed",
+        "description": "Android app build failed"
+      },
+      {
+        "name": "android.signed",
+        "description": "APK signed successfully"
+      },
+      {
+        "name": "android.store.ready",
+        "description": "App ready for Play Store submission"
+      }
+    ],
+    "consumed": [
+      {
+        "name": "scenario.updated",
+        "description": "Scenario was updated, invalidate cached builds"
+      },
+      {
+        "name": "keystore.updated",
+        "description": "Signing keystore was updated"
+      }
+    ]
+  },
+  
+  "integrations": {
+    "provides_to": [
+      {
+        "scenario": "ANY",
+        "capability": "Mobile Android deployment for any scenario",
+        "interface": "API/CLI"
+      },
+      {
+        "scenario": "deployment-manager",
+        "capability": "Android APK generation and signing",
+        "interface": "API/Events"
+      },
+      {
+        "scenario": "distribution-hub",
+        "capability": "Mobile app distribution channel",
+        "interface": "API"
+      },
+      {
+        "scenario": "saas-billing-hub",
+        "capability": "In-app purchase integration",
+        "interface": "API"
+      }
+    ],
+    "consumes_from": [
+      {
+        "scenario": "scenario-to-desktop",
+        "capability": "Shared build patterns and templates",
+        "fallback": "Own template system"
+      },
+      {
+        "scenario": "code-signer",
+        "capability": "Certificate and keystore management",
+        "fallback": "Local keystore generation"
+      },
+      {
+        "scenario": "browserless",
+        "capability": "APK testing on virtual devices",
+        "fallback": "Manual testing"
+      }
+    ]
+  },
+  
+  "android_config": {
+    "min_sdk": 24,
+    "target_sdk": 34,
+    "compile_sdk": 34,
+    "build_tools": "34.0.0",
+    "gradle_version": "8.2.0",
+    "default_permissions": [
+      "INTERNET",
+      "ACCESS_NETWORK_STATE"
+    ],
+    "optional_features": [
+      "camera",
+      "location",
+      "notifications",
+      "storage",
+      "biometric"
+    ],
+    "architectures": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
+  },
+  
+  "deployment": {
+    "type": "service",
+    "auto_start": true,
+    "health_check_interval": 30,
+    "restart_policy": "on-failure",
+    "max_restarts": 3
+  },
+  
+  "monitoring": {
+    "metrics": [
+      "apks_generated",
+      "build_success_rate",
+      "average_build_time",
+      "apk_size_average",
+      "architecture_distribution",
+      "play_store_submissions"
+    ],
+    "logs": {
+      "level": "info",
+      "format": "json",
+      "rotation": "daily"
+    }
+  },
+  
+  "security": {
+    "permissions": ["file_system", "network", "process"],
+    "sandbox": false,
+    "keystore": {
+      "storage": "encrypted",
+      "backup": true,
+      "rotation": "annual"
+    },
+    "code_signing": {
+      "required": true,
+      "debug": true,
+      "release": true
+    }
+  },
+  
+  "development": {
+    "hot_reload": false,
+    "debug_mode": true,
+    "test_runner": "jest",
+    "linting": true,
+    "emulator": {
+      "auto_launch": false,
+      "device_profile": "Pixel_6_API_34"
+    }
+  },
+  
+  "metadata": {
+    "created": "2025-09-04",
+    "updated": "2025-09-04",
+    "status": "active",
+    "maturity": "beta",
+    "documentation": "README.md",
+    "repository": "https://github.com/vrooli/vrooli",
+    "issues": "https://github.com/vrooli/vrooli/issues",
+    "homepage": "https://vrooli.com/scenarios/scenario-to-android"
+  }
+}

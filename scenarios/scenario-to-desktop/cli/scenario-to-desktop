@@ -1,0 +1,895 @@
+#!/bin/bash
+
+# scenario-to-desktop CLI
+# Transform Vrooli scenarios into professional desktop applications
+
+set -e  # Exit on error
+
+# Configuration
+CLI_VERSION="1.0.0"
+API_BASE_URL="http://localhost:3202"
+DEFAULT_OUTPUT_DIR="./desktop-app"
+DEFAULT_FRAMEWORK="electron"
+DEFAULT_TEMPLATE="basic"
+DEFAULT_PLATFORMS="win,mac,linux"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+# Check dependencies
+check_dependencies() {
+    local missing_deps=()
+    
+    # Check Node.js
+    if ! command -v node &> /dev/null; then
+        missing_deps+=("node")
+    else
+        local node_version=$(node --version | sed 's/v//')
+        local required_version="18.0.0"
+        if ! version_gte "$node_version" "$required_version"; then
+            missing_deps+=("node (>= $required_version, found $node_version)")
+        fi
+    fi
+    
+    # Check npm
+    if ! command -v npm &> /dev/null; then
+        missing_deps+=("npm")
+    fi
+    
+    # Check curl for API calls
+    if ! command -v curl &> /dev/null; then
+        missing_deps+=("curl")
+    fi
+    
+    # Check jq for JSON processing
+    if ! command -v jq &> /dev/null; then
+        missing_deps+=("jq")
+    fi
+    
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        error "Missing dependencies:"
+        for dep in "${missing_deps[@]}"; do
+            echo "  - $dep"
+        done
+        echo
+        echo "Please install the missing dependencies and try again."
+        exit 1
+    fi
+}
+
+# Version comparison helper
+version_gte() {
+    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
+# API helper functions
+api_call() {
+    local method=$1
+    local endpoint=$2
+    local data=${3:-}
+    local headers=${4:-}
+    
+    local url="${API_BASE_URL}${endpoint}"
+    local curl_args=(-s -X "$method")
+    
+    if [ -n "$headers" ]; then
+        curl_args+=(-H "$headers")
+    fi
+    
+    if [ -n "$data" ]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl_args+=("$url")
+    
+    curl "${curl_args[@]}"
+}
+
+check_api_health() {
+    local response
+    response=$(api_call "GET" "/api/v1/health" 2>/dev/null) || {
+        error "Cannot connect to scenario-to-desktop API at $API_BASE_URL"
+        echo "Please ensure the API server is running:"
+        echo "  cd api && make run"
+        exit 1
+    }
+    
+    local status
+    status=$(echo "$response" | jq -r '.status // empty')
+    if [ "$status" != "healthy" ]; then
+        error "API health check failed"
+        exit 1
+    fi
+}
+
+# Command functions
+cmd_help() {
+    cat << 'EOF'
+scenario-to-desktop - Transform Vrooli scenarios into professional desktop applications
+
+USAGE:
+    scenario-to-desktop <COMMAND> [OPTIONS]
+
+COMMANDS:
+    help                Show this help message
+    version             Show version information
+    status              Show desktop generation system status
+    templates           List available desktop application templates
+    
+    generate <scenario> Generate desktop application for a scenario
+    build <path>        Build a desktop application project
+    test <path>         Test desktop application functionality
+    package <path>      Package desktop application for distribution
+
+GLOBAL OPTIONS:
+    --verbose, -v       Enable verbose output
+    --json             Output in JSON format (where applicable)
+    --api-url <url>    API base URL (default: http://localhost:3202)
+    --help, -h         Show help for specific command
+
+EXAMPLES:
+    # Generate desktop app for picker-wheel scenario
+    scenario-to-desktop generate picker-wheel
+
+    # Generate with specific options
+    scenario-to-desktop generate picker-wheel \
+        --framework electron \
+        --template advanced \
+        --platforms win,mac \
+        --output ./my-desktop-app
+
+    # Build generated desktop app
+    scenario-to-desktop build ./my-desktop-app
+
+    # Test desktop app functionality
+    scenario-to-desktop test ./my-desktop-app --headless
+
+    # Package for distribution
+    scenario-to-desktop package ./my-desktop-app --store microsoft
+
+For more information about a specific command:
+    scenario-to-desktop <command> --help
+
+Visit https://vrooli.com/scenarios/scenario-to-desktop for documentation.
+EOF
+}
+
+cmd_version() {
+    if [ "$FORMAT" = "json" ]; then
+        cat << EOF
+{
+  "version": "$CLI_VERSION",
+  "api_url": "$API_BASE_URL",
+  "framework_support": ["electron", "tauri", "neutralino"],
+  "template_support": ["basic", "advanced", "multi_window", "kiosk"]
+}
+EOF
+    else
+        echo "scenario-to-desktop CLI v$CLI_VERSION"
+        echo "API URL: $API_BASE_URL"
+        echo "Framework support: electron, tauri, neutralino"
+        echo "Template support: basic, advanced, multi_window, kiosk"
+    fi
+}
+
+cmd_status() {
+    check_api_health
+    
+    local response
+    response=$(api_call "GET" "/api/v1/status")
+    
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local service_name service_version service_status
+        service_name=$(echo "$response" | jq -r '.service.name')
+        service_version=$(echo "$response" | jq -r '.service.version')
+        service_status=$(echo "$response" | jq -r '.service.status')
+        
+        echo -e "${WHITE}Desktop Generation System Status${NC}"
+        echo "================================="
+        echo "Service: $service_name v$service_version"
+        echo "Status: $service_status"
+        echo
+        
+        echo -e "${WHITE}Statistics:${NC}"
+        echo "$response" | jq -r '.statistics | to_entries[] | "  \(.key): \(.value)"'
+        echo
+        
+        echo -e "${WHITE}Capabilities:${NC}"
+        echo "$response" | jq -r '.capabilities[] | "  - \(.)"'
+        echo
+        
+        echo -e "${WHITE}Supported Frameworks:${NC}"
+        echo "$response" | jq -r '.supported_frameworks[] | "  - \(.)"'
+        echo
+        
+        echo -e "${WHITE}Supported Templates:${NC}"
+        echo "$response" | jq -r '.supported_templates[] | "  - \(.)"'
+    fi
+}
+
+cmd_templates() {
+    check_api_health
+    
+    local response
+    response=$(api_call "GET" "/api/v1/templates")
+    
+    if [ "$FORMAT" = "json" ]; then
+        echo "$response" | jq .
+    else
+        local count
+        count=$(echo "$response" | jq -r '.count')
+        
+        echo -e "${WHITE}Available Desktop Application Templates${NC}"
+        echo "======================================"
+        echo "Total templates: $count"
+        echo
+        
+        echo "$response" | jq -r '.templates[] | "
+\u001b[1;37m\(.name)\u001b[0m (\(.type))
+  Description: \(.description)
+  Framework: \(.framework)
+  Complexity: \(.complexity)
+  Use cases: \(.use_cases | join(\", \"))
+  Features: \(.features | join(\", \"))
+  Examples: \(.examples | join(\", \"))
+"'
+    fi
+}
+
+cmd_generate() {
+    if [ $# -eq 0 ]; then
+        error "Scenario name is required"
+        echo "Usage: scenario-to-desktop generate <scenario-name> [OPTIONS]"
+        echo "Run 'scenario-to-desktop generate --help' for more information"
+        exit 1
+    fi
+    
+    local scenario_name="$1"
+    shift
+    
+    # Parse options
+    local framework="$DEFAULT_FRAMEWORK"
+    local template="$DEFAULT_TEMPLATE"
+    local platforms="$DEFAULT_PLATFORMS"
+    local output="$DEFAULT_OUTPUT_DIR"
+    local features=""
+    local config_file=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --framework)
+                framework="$2"
+                shift 2
+                ;;
+            --template)
+                template="$2"
+                shift 2
+                ;;
+            --platforms)
+                platforms="$2"
+                shift 2
+                ;;
+            --output)
+                output="$2"
+                shift 2
+                ;;
+            --features)
+                features="$2"
+                shift 2
+                ;;
+            --config)
+                config_file="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cmd_generate_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    # Build configuration
+    local config
+    if [ -n "$config_file" ] && [ -f "$config_file" ]; then
+        info "Using configuration file: $config_file"
+        config=$(cat "$config_file")
+    else
+        # Build default configuration
+        local platform_array
+        IFS=',' read -ra ADDR <<< "$platforms"
+        platform_array=$(printf '%s\n' "${ADDR[@]}" | jq -R . | jq -s .)
+        
+        config=$(cat << EOF
+{
+  "app_name": "${scenario_name}",
+  "app_display_name": "${scenario_name^} Desktop",
+  "app_description": "Desktop application for ${scenario_name} scenario",
+  "version": "1.0.0",
+  "author": "Vrooli Platform",
+  "license": "MIT",
+  "app_id": "com.vrooli.${scenario_name//-/.}",
+  "server_type": "node",
+  "server_port": 3000,
+  "server_path": "ui/server.js",
+  "api_endpoint": "http://localhost:3001/api",
+  "framework": "$framework",
+  "template_type": "$template",
+  "platforms": $platform_array,
+  "output_path": "$output",
+  "features": {
+    "splash": true,
+    "autoUpdater": true,
+    "devTools": true
+  },
+  "window": {
+    "width": 1200,
+    "height": 800,
+    "background": "#f5f5f5"
+  }
+}
+EOF
+)
+    fi
+    
+    log "Generating desktop application for $scenario_name..."
+    log "Framework: $framework"
+    log "Template: $template"
+    log "Platforms: $platforms"
+    log "Output: $output"
+    
+    local response
+    response=$(api_call "POST" "/api/v1/desktop/generate" "$config")
+    
+    local build_id status desktop_path
+    build_id=$(echo "$response" | jq -r '.build_id')
+    status=$(echo "$response" | jq -r '.status')
+    desktop_path=$(echo "$response" | jq -r '.desktop_path')
+    
+    if [ "$status" = "building" ]; then
+        info "Build started with ID: $build_id"
+        info "Desktop path: $desktop_path"
+        
+        # Poll for completion
+        cmd_wait_for_build "$build_id"
+    else
+        error "Failed to start build"
+        echo "$response" | jq .
+        exit 1
+    fi
+}
+
+cmd_generate_help() {
+    cat << 'EOF'
+Generate desktop application for a scenario
+
+USAGE:
+    scenario-to-desktop generate <scenario-name> [OPTIONS]
+
+OPTIONS:
+    --framework <framework>    Desktop framework (electron, tauri, neutralino) [default: electron]
+    --template <template>      Application template (basic, advanced, multi_window, kiosk) [default: basic]
+    --platforms <platforms>    Target platforms, comma-separated (win,mac,linux) [default: win,mac,linux]
+    --output <path>           Output directory for generated application [default: ./desktop-app]
+    --features <features>     Comma-separated list of features (tray,updater,menus)
+    --config <file>           Use JSON configuration file instead of command-line options
+
+EXAMPLES:
+    # Basic generation
+    scenario-to-desktop generate picker-wheel
+
+    # Advanced configuration
+    scenario-to-desktop generate picker-wheel \
+        --framework electron \
+        --template advanced \
+        --platforms win,mac \
+        --output ./picker-wheel-desktop \
+        --features tray,updater,menus
+
+    # Using configuration file
+    scenario-to-desktop generate picker-wheel --config config.json
+
+CONFIGURATION FILE FORMAT:
+    {
+      "app_name": "picker-wheel",
+      "app_display_name": "Picker Wheel Desktop",
+      "app_description": "Desktop picker wheel application",
+      "version": "1.0.0",
+      "author": "Your Name",
+      "framework": "electron",
+      "template_type": "basic",
+      "platforms": ["win", "mac", "linux"],
+      "output_path": "./desktop-app"
+    }
+EOF
+}
+
+cmd_build() {
+    if [ $# -eq 0 ]; then
+        error "Desktop application path is required"
+        echo "Usage: scenario-to-desktop build <desktop-path> [OPTIONS]"
+        exit 1
+    fi
+    
+    local desktop_path="$1"
+    shift
+    
+    # Parse options
+    local platforms=""
+    local sign=false
+    local publish=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platforms)
+                platforms="$2"
+                shift 2
+                ;;
+            --sign)
+                sign=true
+                shift
+                ;;
+            --publish)
+                publish=true
+                shift
+                ;;
+            --help|-h)
+                cmd_build_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    if [ ! -d "$desktop_path" ]; then
+        error "Desktop application directory not found: $desktop_path"
+        exit 1
+    fi
+    
+    local platform_array
+    if [ -n "$platforms" ]; then
+        IFS=',' read -ra ADDR <<< "$platforms"
+        platform_array=$(printf '%s\n' "${ADDR[@]}" | jq -R . | jq -s .)
+    else
+        platform_array='["win", "mac", "linux"]'
+    fi
+    
+    local config
+    config=$(cat << EOF
+{
+  "desktop_path": "$desktop_path",
+  "platforms": $platform_array,
+  "sign": $sign,
+  "publish": $publish
+}
+EOF
+)
+    
+    log "Building desktop application at $desktop_path..."
+    
+    local response
+    response=$(api_call "POST" "/api/v1/desktop/build" "$config")
+    
+    local build_id status
+    build_id=$(echo "$response" | jq -r '.build_id')
+    status=$(echo "$response" | jq -r '.status')
+    
+    if [ "$status" = "building" ]; then
+        info "Build started with ID: $build_id"
+        cmd_wait_for_build "$build_id"
+    else
+        error "Failed to start build"
+        echo "$response" | jq .
+        exit 1
+    fi
+}
+
+cmd_build_help() {
+    cat << 'EOF'
+Build a desktop application project
+
+USAGE:
+    scenario-to-desktop build <desktop-path> [OPTIONS]
+
+OPTIONS:
+    --platforms <platforms>    Platforms to build for (win,mac,linux or 'all') [default: all]
+    --sign                     Code sign the applications (requires certificates)
+    --publish                  Publish to configured distribution channels
+
+EXAMPLES:
+    # Build for all platforms
+    scenario-to-desktop build ./my-desktop-app
+
+    # Build for specific platforms
+    scenario-to-desktop build ./my-desktop-app --platforms win,mac
+
+    # Build with code signing
+    scenario-to-desktop build ./my-desktop-app --sign
+
+    # Build and publish
+    scenario-to-desktop build ./my-desktop-app --sign --publish
+EOF
+}
+
+cmd_test() {
+    if [ $# -eq 0 ]; then
+        error "Desktop application path is required"
+        echo "Usage: scenario-to-desktop test <app-path> [OPTIONS]"
+        exit 1
+    fi
+    
+    local app_path="$1"
+    shift
+    
+    # Parse options
+    local platforms=""
+    local headless=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --platforms)
+                platforms="$2"
+                shift 2
+                ;;
+            --headless)
+                headless=true
+                shift
+                ;;
+            --help|-h)
+                cmd_test_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    local platform_array
+    if [ -n "$platforms" ]; then
+        IFS=',' read -ra ADDR <<< "$platforms"
+        platform_array=$(printf '%s\n' "${ADDR[@]}" | jq -R . | jq -s .)
+    else
+        platform_array='[]'
+    fi
+    
+    local config
+    config=$(cat << EOF
+{
+  "app_path": "$app_path",
+  "platforms": $platform_array,
+  "headless": $headless
+}
+EOF
+)
+    
+    log "Testing desktop application at $app_path..."
+    
+    local response
+    response=$(api_call "POST" "/api/v1/desktop/test" "$config")
+    
+    local status
+    status=$(echo "$response" | jq -r '.status')
+    
+    if [ "$status" = "completed" ]; then
+        success "Tests completed successfully"
+        if [ "$FORMAT" = "json" ]; then
+            echo "$response" | jq .
+        else
+            echo -e "${WHITE}Test Results:${NC}"
+            echo "$response" | jq -r '.test_results | to_entries[] | "  \(.key): \(.value)"'
+        fi
+    else
+        error "Tests failed"
+        echo "$response" | jq .
+        exit 1
+    fi
+}
+
+cmd_test_help() {
+    cat << 'EOF'
+Test desktop application functionality
+
+USAGE:
+    scenario-to-desktop test <app-path> [OPTIONS]
+
+OPTIONS:
+    --platforms <platforms>    Platforms to test on (current platform by default)
+    --headless                 Run tests in headless mode
+
+EXAMPLES:
+    # Test desktop application
+    scenario-to-desktop test ./my-desktop-app
+
+    # Test in headless mode
+    scenario-to-desktop test ./my-desktop-app --headless
+
+    # Test on specific platforms
+    scenario-to-desktop test ./my-desktop-app --platforms linux
+EOF
+}
+
+cmd_package() {
+    if [ $# -eq 0 ]; then
+        error "Desktop application path is required"
+        echo "Usage: scenario-to-desktop package <app-path> [OPTIONS]"
+        exit 1
+    fi
+    
+    local app_path="$1"
+    shift
+    
+    # Parse options
+    local store=""
+    local enterprise=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --store)
+                store="$2"
+                shift 2
+                ;;
+            --enterprise)
+                enterprise=true
+                shift
+                ;;
+            --help|-h)
+                cmd_package_help
+                exit 0
+                ;;
+            *)
+                error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    local config
+    config=$(cat << EOF
+{
+  "app_path": "$app_path",
+  "store": "$store",
+  "enterprise": $enterprise
+}
+EOF
+)
+    
+    log "Packaging desktop application at $app_path..."
+    
+    local response
+    response=$(api_call "POST" "/api/v1/desktop/package" "$config")
+    
+    local status
+    status=$(echo "$response" | jq -r '.status')
+    
+    if [ "$status" = "completed" ]; then
+        success "Packaging completed successfully"
+        if [ "$FORMAT" = "json" ]; then
+            echo "$response" | jq .
+        else
+            echo -e "${WHITE}Package Results:${NC}"
+            echo "$response" | jq -r '.packages[] | "  - \(.)"'
+        fi
+    else
+        error "Packaging failed"
+        echo "$response" | jq .
+        exit 1
+    fi
+}
+
+cmd_package_help() {
+    cat << 'EOF'
+Package desktop application for distribution
+
+USAGE:
+    scenario-to-desktop package <app-path> [OPTIONS]
+
+OPTIONS:
+    --store <store>       Target store (microsoft, mac, snap, all)
+    --enterprise          Create enterprise deployment packages
+
+EXAMPLES:
+    # Package for all stores
+    scenario-to-desktop package ./my-desktop-app
+
+    # Package for specific store
+    scenario-to-desktop package ./my-desktop-app --store microsoft
+
+    # Create enterprise packages
+    scenario-to-desktop package ./my-desktop-app --enterprise
+EOF
+}
+
+cmd_wait_for_build() {
+    local build_id="$1"
+    local max_wait=600  # 10 minutes
+    local wait_interval=5
+    local elapsed=0
+    
+    info "Waiting for build to complete..."
+    
+    while [ $elapsed -lt $max_wait ]; do
+        local response
+        response=$(api_call "GET" "/api/v1/desktop/status/$build_id")
+        
+        local status
+        status=$(echo "$response" | jq -r '.status')
+        
+        case $status in
+            "building")
+                printf "."
+                sleep $wait_interval
+                elapsed=$((elapsed + wait_interval))
+                ;;
+            "ready")
+                echo
+                success "Build completed successfully!"
+                
+                local output_path
+                output_path=$(echo "$response" | jq -r '.output_path // empty')
+                if [ -n "$output_path" ]; then
+                    echo
+                    echo -e "${WHITE}Next steps:${NC}"
+                    echo "  cd $output_path"
+                    echo "  npm run dev"
+                    echo
+                    echo -e "${WHITE}Build for distribution:${NC}"
+                    echo "  npm run dist"
+                fi
+                return 0
+                ;;
+            "failed")
+                echo
+                error "Build failed!"
+                local error_log
+                error_log=$(echo "$response" | jq -r '.error_log[]? // empty')
+                if [ -n "$error_log" ]; then
+                    echo -e "${RED}Error details:${NC}"
+                    echo "$error_log"
+                fi
+                exit 1
+                ;;
+            *)
+                echo
+                error "Unknown build status: $status"
+                exit 1
+                ;;
+        esac
+    done
+    
+    echo
+    error "Build timed out after $max_wait seconds"
+    exit 1
+}
+
+# Main function
+main() {
+    # Global options
+    VERBOSE=false
+    FORMAT="text"
+    
+    # Parse global options
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --verbose|-v)
+                VERBOSE=true
+                shift
+                ;;
+            --json)
+                FORMAT="json"
+                shift
+                ;;
+            --api-url)
+                API_BASE_URL="$2"
+                shift 2
+                ;;
+            --help|-h)
+                cmd_help
+                exit 0
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    
+    # Check for command
+    if [ $# -eq 0 ]; then
+        cmd_help
+        exit 1
+    fi
+    
+    local command="$1"
+    shift
+    
+    # Check dependencies for most commands
+    case $command in
+        help|version)
+            # These commands don't need dependencies
+            ;;
+        *)
+            check_dependencies
+            ;;
+    esac
+    
+    # Route to appropriate command
+    case $command in
+        help|--help|-h)
+            cmd_help
+            ;;
+        version|--version|-V)
+            cmd_version
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        templates)
+            cmd_templates "$@"
+            ;;
+        generate)
+            cmd_generate "$@"
+            ;;
+        build)
+            cmd_build "$@"
+            ;;
+        test)
+            cmd_test "$@"
+            ;;
+        package)
+            cmd_package "$@"
+            ;;
+        *)
+            error "Unknown command: $command"
+            echo "Run 'scenario-to-desktop help' for available commands"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function with all arguments
+main "$@"

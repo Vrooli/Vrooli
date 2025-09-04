@@ -1,0 +1,19 @@
+{
+  "name": "scenario-to-extension-ui",
+  "version": "1.0.0",
+  "description": "Web UI for the Browser Extension Generator scenario",
+  "main": "app.js",
+  "scripts": {
+    "serve": "python3 -m http.server 3202",
+    "serve-alt": "python -m SimpleHTTPServer 3202"
+  },
+  "keywords": [
+    "browser-extension",
+    "generator",
+    "ui",
+    "vrooli",
+    "chrome-extension"
+  ],
+  "author": "Vrooli Scenario Generator",
+  "license": "MIT"
+}

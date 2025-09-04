@@ -180,7 +180,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o seo-optimizer-api main.go",
+          "run": "cd api && go mod download && go build -o seo-optimizer-api .",
           "description": "Build Go API binary"
         },
         {

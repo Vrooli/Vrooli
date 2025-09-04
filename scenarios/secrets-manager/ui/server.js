@@ -4,6 +4,7 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 
 // Manual proxy function for API calls
 function proxyToApi(req, res, apiPath) {
@@ -81,6 +82,17 @@ app.use(express.static(__dirname, {
         res.setHeader('X-Frame-Options', 'DENY');
         res.setHeader('X-XSS-Protection', '1; mode=block');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'secrets-manager',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
         
         if (path.endsWith('.js')) {
             res.setHeader('Cache-Control', 'no-cache');

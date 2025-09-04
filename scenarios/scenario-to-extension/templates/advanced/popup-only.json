@@ -1,0 +1,51 @@
+{
+    "name": "Popup Only",
+    "description": "Extension with only a popup UI. No background service worker or content scripts.",
+    "use_cases": [
+        "Quick access tools",
+        "Simple calculators or utilities",
+        "Bookmarks and shortcuts",
+        "Settings and preferences",
+        "Information display"
+    ],
+    "manifest_template": {
+        "manifest_version": 3,
+        "name": "{{APP_NAME}}",
+        "version": "{{VERSION}}",
+        "description": "{{APP_DESCRIPTION}}",
+        "permissions": [
+            "storage",
+            "activeTab"
+        ],
+        "action": {
+            "default_popup": "popup.html",
+            "default_title": "{{APP_NAME}}",
+            "default_icon": {
+                "16": "icons/icon-16.png",
+                "32": "icons/icon-32.png",
+                "48": "icons/icon-48.png",
+                "128": "icons/icon-128.png"
+            }
+        },
+        "icons": {
+            "16": "icons/icon-16.png",
+            "32": "icons/icon-32.png",
+            "48": "icons/icon-48.png",
+            "128": "icons/icon-128.png"
+        }
+    },
+    "files": [
+        "manifest.json",
+        "popup.html",
+        "popup.js",
+        "icons/"
+    ],
+    "excluded_files": [
+        "background.js",
+        "content.js"
+    ],
+    "template_variables": {
+        "DEBUG_MODE": false,
+        "SIMPLE_MODE": true
+    }
+}

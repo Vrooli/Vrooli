@@ -100,10 +100,7 @@ func listAppsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "30150"
-    }
+	port := getEnv("API_PORT", getEnv("PORT", ""))
     
     http.HandleFunc("/health", healthHandler)
     http.HandleFunc("/api/debug", debugHandler)
@@ -114,4 +111,11 @@ func main() {
     if err := http.ListenAndServe(":"+port, nil); err != nil {
         log.Fatal(err)
     }
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

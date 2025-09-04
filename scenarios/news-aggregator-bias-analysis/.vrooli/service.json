@@ -159,7 +159,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o news-bias-api main.go",
+          "run": "cd api && go mod download && go build -o news-bias-api .",
           "description": "Build Go API binary"
         },
         {

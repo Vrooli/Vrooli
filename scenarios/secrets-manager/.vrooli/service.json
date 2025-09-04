@@ -120,7 +120,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o secrets-manager-api main.go",
+          "run": "cd api && go mod download && go build -o secrets-manager-api .",
           "description": "Build Go secrets manager API binary"
         },
         {
@@ -188,7 +188,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

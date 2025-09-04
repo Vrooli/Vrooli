@@ -37,38 +37,56 @@
       "startup_grace_period": 10000
     },
     "setup": {
+      "description": "Initialize Product Manager Agent",
       "condition": {
         "checks": [
           {
-            "type": "dependency",
-            "service": "api",
-            "command": "test -f go.mod"
+            "type": "binaries",
+            "targets": [
+              "api/product-manager-agent-api"
+            ]
           },
           {
-            "type": "dependency",
-            "service": "ui",
-            "command": "test -d node_modules"
-          }
-        ],
-        "actions": [
-          {
-            "service": "api",
-            "command": "go mod download",
-            "condition": "test -f go.mod && ! test -d vendor"
-          },
-          {
-            "service": "ui",
-            "command": "npm install --no-fund --no-audit",
-            "condition": "test -f package.json && ! test -d node_modules"
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
           }
         ]
-      }
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o product-manager-agent-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install --no-fund --no-audit",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎯 Product Manager Agent initialized\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
     },
     "develop": {
       "steps": [
         {
           "name": "start_api",
-          "run": "cd api && go run main.go",
+          "run": "cd api && ./product-manager-agent-api",
           "description": "Start API server",
           "background": true
         },

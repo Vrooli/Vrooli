@@ -7,6 +7,17 @@ const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Middleware
 app.use(cors());
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'nutrition-tracker',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.use(express.json());
 app.use(express.static(__dirname));
 

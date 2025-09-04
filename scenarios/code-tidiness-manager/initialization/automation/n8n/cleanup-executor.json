@@ -1,0 +1,252 @@
+{
+  "name": "Cleanup Executor Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cleanup-executor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Test defaults for manual trigger\nreturn {\n  suggestion_ids: ['test_123'],\n  dry_run: true,\n  cleanup_scripts: [\n    'echo \"Would remove: /tmp/test.bak\"',\n    'echo \"Would remove: /tmp/test~\"'\n  ]\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and prepare cleanup execution\nconst input = $input.item.json;\n\n// Extract parameters\nconst suggestionIds = Array.isArray(input.suggestion_ids) ? input.suggestion_ids : [];\nconst cleanupScripts = Array.isArray(input.cleanup_scripts) ? input.cleanup_scripts : [];\nconst dryRun = input.dry_run === true;\nconst force = input.force === true;\n\nif (suggestionIds.length === 0 && cleanupScripts.length === 0) {\n  throw new Error('No cleanup scripts or suggestion IDs provided');\n}\n\n// Generate execution ID\nconst executionId = 'cleanup_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);\n\n// Prepare scripts for execution\nconst scriptsToRun = [];\n\nfor (const script of cleanupScripts) {\n  // Add safety checks\n  let safeScript = script;\n  \n  // Prevent dangerous operations\n  if (script.includes('rm -rf /') || script.includes('rm -fr /')) {\n    throw new Error('Dangerous cleanup script detected: ' + script);\n  }\n  \n  // Add dry-run prefix if needed\n  if (dryRun) {\n    safeScript = 'echo \"[DRY RUN] Would execute: ' + script.replace(/\"/g, '\\\\\"') + '\"';\n  }\n  \n  scriptsToRun.push({\n    original: script,\n    safe: safeScript,\n    dry_run: dryRun\n  });\n}\n\nreturn {\n  execution_id: executionId,\n  suggestion_ids: suggestionIds,\n  scripts_to_run: scriptsToRun,\n  dry_run: dryRun,\n  force: force,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "prepare_cleanup",
+      "name": "Prepare Cleanup",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split_batch",
+      "name": "Split in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.safe }}"
+      },
+      "id": "execute_cleanup",
+      "name": "Execute Cleanup",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process cleanup result\nconst commandResult = $input.item.json;\nconst scriptInfo = $('Split in Batches').item.json;\nconst prepareInfo = $('Prepare Cleanup').item.json;\n\nconst success = commandResult.exitCode === 0;\nconst output = commandResult.stdout ? commandResult.stdout.trim() : '';\nconst error = commandResult.stderr ? commandResult.stderr.trim() : '';\n\n// Parse files affected (if not dry run)\nlet filesModified = [];\nlet filesDeleted = [];\nlet bytesFreed = 0;\n\nif (!scriptInfo.dry_run && success) {\n  // Try to extract file information from output\n  const fileMatches = output.match(/removed?[:\\s]+'?([^']+)'?/gi) || [];\n  filesDeleted = fileMatches.map(m => m.replace(/removed?[:\\s]+/i, '').replace(/'/g, ''));\n}\n\nreturn {\n  script: scriptInfo.original,\n  success: success,\n  dry_run: scriptInfo.dry_run,\n  output: output,\n  error: error,\n  exit_code: commandResult.exitCode,\n  files_modified: filesModified,\n  files_deleted: filesDeleted,\n  bytes_freed: bytesFreed,\n  executed_at: new Date().toISOString()\n};"
+      },
+      "id": "process_result",
+      "name": "Process Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {},
+      "id": "combine_results",
+      "name": "Combine Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine all cleanup results\nconst allResults = $input.all();\nconst prepareInfo = $('Prepare Cleanup').item.json;\n\nlet totalExecuted = 0;\nlet totalSuccessful = 0;\nlet totalFailed = 0;\nlet allFilesDeleted = [];\nlet allFilesModified = [];\nlet totalBytesFreed = 0;\nlet errors = [];\nlet results = [];\n\nfor (const result of allResults) {\n  const data = result.json;\n  totalExecuted++;\n  \n  if (data.success) {\n    totalSuccessful++;\n  } else {\n    totalFailed++;\n    if (data.error) {\n      errors.push({\n        script: data.script,\n        error: data.error\n      });\n    }\n  }\n  \n  allFilesDeleted = allFilesDeleted.concat(data.files_deleted);\n  allFilesModified = allFilesModified.concat(data.files_modified);\n  totalBytesFreed += data.bytes_freed;\n  \n  results.push({\n    script: data.script,\n    success: data.success,\n    output: data.output,\n    files_affected: data.files_deleted.concat(data.files_modified)\n  });\n}\n\nreturn {\n  success: totalFailed === 0,\n  execution_id: prepareInfo.execution_id,\n  dry_run: prepareInfo.dry_run,\n  started_at: prepareInfo.timestamp,\n  completed_at: new Date().toISOString(),\n  statistics: {\n    total_executed: totalExecuted,\n    successful: totalSuccessful,\n    failed: totalFailed,\n    files_deleted: allFilesDeleted.length,\n    files_modified: allFilesModified.length,\n    bytes_freed: totalBytesFreed\n  },\n  results: results,\n  errors: errors\n};"
+      },
+      "id": "format_output",
+      "name": "Format Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseCode": "={{ $json.success ? 200 : 500 }}",
+          "responseHeaders": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond_to_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_test_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_test_defaults": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_triggers": {
+      "main": [
+        [
+          {
+            "node": "prepare_cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_cleanup": {
+      "main": [
+        [
+          {
+            "node": "split_batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split_batch": {
+      "main": [
+        [
+          {
+            "node": "execute_cleanup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_cleanup": {
+      "main": [
+        [
+          {
+            "node": "process_result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_result": {
+      "main": [
+        [
+          {
+            "node": "combine_results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "combine_results": {
+      "main": [
+        [
+          {
+            "node": "format_output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_output": {
+      "main": [
+        [
+          {
+            "node": "respond_to_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 120
+  },
+  "tags": [],
+  "updatedAt": "2024-09-04T00:00:00.000Z",
+  "id": "cleanup-executor"
+}

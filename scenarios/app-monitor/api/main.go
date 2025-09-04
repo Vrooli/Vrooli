@@ -114,7 +114,7 @@ func main() {
 }
 
 func NewServer() (*Server, error) {
-	port := getEnv("PORT", "8090")
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	postgresURL := getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/app_monitor?sslmode=disable")
 	redisURL := getEnv("REDIS_URL", "redis://localhost:6379")
 	n8nBaseURL := getEnv("N8N_BASE_URL", "http://localhost:5678")

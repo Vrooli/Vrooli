@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scenario to Desktop - Desktop App Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #718096;
+        }
+
+        .btn-success {
+            background: #48bb78;
+        }
+
+        .btn-danger {
+            background: #f56565;
+        }
+
+        .btn-full {
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .status-panel {
+            grid-column: 1 / -1;
+        }
+
+        .build-status {
+            display: none;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: #f7fafc;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .build-status.show {
+            display: block;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-building {
+            background: #fef5e7;
+            color: #744210;
+        }
+
+        .status-ready {
+            background: #f0fff4;
+            color: #22543d;
+        }
+
+        .status-failed {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .templates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .template-card {
+            padding: 1.5rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+
+        .template-card.selected {
+            border-color: #667eea;
+            background: #edf2f7;
+        }
+
+        .template-card h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+        }
+
+        .template-card p {
+            color: #718096;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .template-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .feature-tag {
+            padding: 0.25rem 0.5rem;
+            background: #e2e8f0;
+            color: #4a5568;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .logs-container {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+        }
+
+        .system-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.1);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-success {
+            background: #f0fff4;
+            color: #22543d;
+            border-left: 4px solid #48bb78;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #f56565;
+        }
+
+        .alert-info {
+            background: #ebf8ff;
+            color: #2a4365;
+            border-left: 4px solid #4299e1;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: rgba(255,255,255,0.8);
+        }
+
+        .footer a {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ Scenario to Desktop</h1>
+            <p>Transform Vrooli scenarios into professional desktop applications</p>
+        </div>
+
+        <!-- System Status -->
+        <div class="system-status" id="systemStatus">
+            <div class="stat-card">
+                <span class="stat-number" id="totalBuilds">0</span>
+                <span class="stat-label">Total Builds</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="activeBuilds">0</span>
+                <span class="stat-label">Active Builds</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="completedBuilds">0</span>
+                <span class="stat-label">Completed</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="failedBuilds">0</span>
+                <span class="stat-label">Failed</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Desktop App Generator -->
+            <div class="card">
+                <h2>🚀 Generate Desktop App</h2>
+                <form id="generateForm">
+                    <div class="form-group">
+                        <label for="scenarioName">Scenario Name</label>
+                        <input type="text" id="scenarioName" name="scenarioName" placeholder="e.g., picker-wheel" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="framework">Framework</label>
+                            <select id="framework" name="framework">
+                                <option value="electron">Electron</option>
+                                <option value="tauri">Tauri</option>
+                                <option value="neutralino">Neutralino</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="template">Template</label>
+                            <select id="template" name="template">
+                                <option value="basic">Basic</option>
+                                <option value="advanced">Advanced</option>
+                                <option value="multi_window">Multi-Window</option>
+                                <option value="kiosk">Kiosk Mode</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Target Platforms</label>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="platformWin" name="platforms" value="win" checked>
+                                <label for="platformWin">Windows</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="platformMac" name="platforms" value="mac" checked>
+                                <label for="platformMac">macOS</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="platformLinux" name="platforms" value="linux" checked>
+                                <label for="platformLinux">Linux</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="outputPath">Output Directory</label>
+                        <input type="text" id="outputPath" name="outputPath" placeholder="./desktop-app" value="./desktop-app">
+                    </div>
+
+                    <button type="submit" class="btn btn-full">Generate Desktop Application</button>
+                </form>
+            </div>
+
+            <!-- Template Browser -->
+            <div class="card">
+                <h2>📋 Available Templates</h2>
+                <div class="templates-grid" id="templatesGrid">
+                    <!-- Templates will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Build Status Panel -->
+        <div class="card status-panel">
+            <h2>📊 Build Status</h2>
+            
+            <div class="build-status" id="buildStatus">
+                <div class="status-item">
+                    <span>Build ID:</span>
+                    <span id="buildId">-</span>
+                </div>
+                <div class="status-item">
+                    <span>Status:</span>
+                    <span class="status-badge" id="statusBadge">-</span>
+                </div>
+                <div class="status-item">
+                    <span>Progress:</span>
+                    <span id="buildProgress">0%</span>
+                </div>
+                
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                
+                <div class="logs-container" id="buildLogs">
+                    No build logs available.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>
+            Built with ❤️ by the <a href="https://vrooli.com" target="_blank">Vrooli Platform</a>
+            | <a href="https://github.com/vrooli/vrooli" target="_blank">View on GitHub</a>
+            | <a href="/api/v1/status" target="_blank">API Status</a>
+        </p>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:3202';
+        const POLL_INTERVAL = 2000; // 2 seconds
+
+        // Global state
+        let currentBuildId = null;
+        let pollTimer = null;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemStatus();
+            loadTemplates();
+            setupEventListeners();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('generateForm').addEventListener('submit', handleGenerateSubmit);
+            document.getElementById('template').addEventListener('change', handleTemplateChange);
+        }
+
+        // Load system status
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/status`);
+                const data = await response.json();
+                
+                const stats = data.statistics || {};
+                document.getElementById('totalBuilds').textContent = stats.total_builds || 0;
+                document.getElementById('activeBuilds').textContent = stats.active_builds || 0;
+                document.getElementById('completedBuilds').textContent = stats.completed_builds || 0;
+                document.getElementById('failedBuilds').textContent = stats.failed_builds || 0;
+            } catch (error) {
+                console.error('Failed to load system status:', error);
+                showAlert('Failed to connect to API server. Please ensure it is running.', 'error');
+            }
+        }
+
+        // Load available templates
+        async function loadTemplates() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v1/templates`);
+                const data = await response.json();
+                
+                const templatesGrid = document.getElementById('templatesGrid');
+                templatesGrid.innerHTML = '';
+                
+                data.templates.forEach(template => {
+                    const templateCard = createTemplateCard(template);
+                    templatesGrid.appendChild(templateCard);
+                });
+            } catch (error) {
+                console.error('Failed to load templates:', error);
+                document.getElementById('templatesGrid').innerHTML = 
+                    '<div class="alert alert-error">Failed to load templates</div>';
+            }
+        }
+
+        // Create template card element
+        function createTemplateCard(template) {
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.dataset.templateType = template.type;
+            
+            card.innerHTML = `
+                <h3>${template.name}</h3>
+                <p>${template.description}</p>
+                <div class="template-features">
+                    ${template.features.map(feature => 
+                        `<span class="feature-tag">${feature}</span>`
+                    ).join('')}
+                </div>
+            `;
+            
+            card.addEventListener('click', () => {
+                // Update form selection
+                document.getElementById('template').value = template.type;
+                
+                // Update visual selection
+                document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+            });
+            
+            return card;
+        }
+
+        // Handle template selection change
+        function handleTemplateChange() {
+            const selectedTemplate = document.getElementById('template').value;
+            
+            // Update visual selection
+            document.querySelectorAll('.template-card').forEach(card => {
+                card.classList.remove('selected');
+                if (card.dataset.templateType === selectedTemplate) {
+                    card.classList.add('selected');
+                }
+            });
+        }
+
+        // Handle generate form submission
+        async function handleGenerateSubmit(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const platforms = Array.from(formData.getAll('platforms'));
+            
+            if (platforms.length === 0) {
+                showAlert('Please select at least one target platform.', 'error');
+                return;
+            }
+            
+            const config = {
+                app_name: formData.get('scenarioName'),
+                app_display_name: `${formData.get('scenarioName')} Desktop`,
+                app_description: `Desktop application for ${formData.get('scenarioName')} scenario`,
+                version: '1.0.0',
+                author: 'Vrooli Platform',
+                license: 'MIT',
+                app_id: `com.vrooli.${formData.get('scenarioName').replace(/-/g, '.')}`,
+                server_type: 'node',
+                server_port: 3000,
+                server_path: 'ui/server.js',
+                api_endpoint: 'http://localhost:3001/api',
+                framework: formData.get('framework'),
+                template_type: formData.get('template'),
+                platforms: platforms,
+                output_path: formData.get('outputPath'),
+                features: {
+                    splash: true,
+                    autoUpdater: true,
+                    devTools: true
+                },
+                window: {
+                    width: 1200,
+                    height: 800,
+                    background: '#f5f5f5'
+                }
+            };
+            
+            try {
+                showBuildStatus();
+                updateBuildStatus('Building...', 'building', 10, 'Starting desktop application generation...');
+                
+                const response = await fetch(`${API_BASE_URL}/api/v1/desktop/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.build_id) {
+                    currentBuildId = result.build_id;
+                    document.getElementById('buildId').textContent = result.build_id;
+                    startBuildPolling();
+                } else {
+                    throw new Error(result.message || 'Generation failed');
+                }
+            } catch (error) {
+                console.error('Generation failed:', error);
+                showAlert(`Generation failed: ${error.message}`, 'error');
+                updateBuildStatus('Failed', 'failed', 0, `Error: ${error.message}`);
+            }
+        }
+
+        // Start polling build status
+        function startBuildPolling() {
+            if (!currentBuildId) return;
+            
+            pollTimer = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/desktop/status/${currentBuildId}`);
+                    const buildData = await response.json();
+                    
+                    if (response.ok) {
+                        updateBuildFromData(buildData);
+                        
+                        if (buildData.status === 'ready' || buildData.status === 'failed') {
+                            stopBuildPolling();
+                        }
+                    } else {
+                        throw new Error('Failed to get build status');
+                    }
+                } catch (error) {
+                    console.error('Failed to poll build status:', error);
+                    stopBuildPolling();
+                }
+            }, POLL_INTERVAL);
+        }
+
+        // Stop polling build status
+        function stopBuildPolling() {
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+        }
+
+        // Update build status from data
+        function updateBuildFromData(buildData) {
+            let progress = 0;
+            let message = 'Processing...';
+            
+            switch (buildData.status) {
+                case 'building':
+                    progress = 50;
+                    message = 'Building desktop application...';
+                    break;
+                case 'ready':
+                    progress = 100;
+                    message = `Build completed successfully!\n\nNext steps:\n  cd ${buildData.output_path}\n  npm run dev`;
+                    showAlert('Desktop application generated successfully!', 'success');
+                    loadSystemStatus(); // Refresh stats
+                    break;
+                case 'failed':
+                    progress = 0;
+                    message = `Build failed.\n\nErrors:\n${(buildData.error_log || []).join('\n')}`;
+                    showAlert('Desktop application generation failed.', 'error');
+                    loadSystemStatus(); // Refresh stats
+                    break;
+            }
+            
+            updateBuildStatus(buildData.status, buildData.status, progress, message);
+        }
+
+        // Show build status panel
+        function showBuildStatus() {
+            document.getElementById('buildStatus').classList.add('show');
+        }
+
+        // Update build status display
+        function updateBuildStatus(statusText, statusClass, progress, logs) {
+            const statusBadge = document.getElementById('statusBadge');
+            statusBadge.textContent = statusText;
+            statusBadge.className = `status-badge status-${statusClass}`;
+            
+            document.getElementById('buildProgress').textContent = `${progress}%`;
+            document.getElementById('progressFill').style.width = `${progress}%`;
+            document.getElementById('buildLogs').textContent = logs;
+        }
+
+        // Show alert message
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            
+            // Insert at the top of the container
+            const container = document.querySelector('.container');
+            container.insertBefore(alertDiv, container.firstChild.nextSibling);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 5000);
+        }
+
+        // Refresh system status periodically
+        setInterval(loadSystemStatus, 30000); // Every 30 seconds
+    </script>
+</body>
+</html>

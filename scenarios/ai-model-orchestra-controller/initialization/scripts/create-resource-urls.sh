@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Get the directory of this script
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../../../.." && builtin pwd)}"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/ai-model-orchestra-controller/initialization/scripts"
 CONFIG_DIR="$SCRIPT_DIR/../configuration"
 RESOURCE_URLS_FILE="$CONFIG_DIR/resource-urls.json"

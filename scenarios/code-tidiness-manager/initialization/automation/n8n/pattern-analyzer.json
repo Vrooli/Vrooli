@@ -1,0 +1,252 @@
+{
+  "name": "Pattern Analyzer Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pattern-analyzer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Test defaults for manual trigger\nreturn {\n  analysis_type: 'duplicate_detection',\n  paths: ['/home/matthalloran8/Vrooli/scenarios/'],\n  deep_analysis: false\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare pattern analysis\nconst input = $input.item.json;\n\nconst analysisType = input.analysis_type || 'duplicate_detection';\nconst paths = Array.isArray(input.paths) ? input.paths : ['/home/matthalloran8/Vrooli/'];\nconst deepAnalysis = input.deep_analysis === true;\n\n// Generate analysis ID\nconst analysisId = 'analysis_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);\n\n// Build analysis commands based on type\nlet commands = [];\n\nswitch (analysisType) {\n  case 'duplicate_detection':\n    // Find potential duplicate scenarios by comparing directory structures\n    commands.push({\n      name: 'find_scenario_structures',\n      command: 'find ' + paths[0] + ' -maxdepth 2 -name \"PRD.md\" -o -name \"service.json\" | head -100'\n    });\n    break;\n    \n  case 'unused_imports':\n    // Find unused imports in JavaScript/TypeScript files\n    commands.push({\n      name: 'find_js_imports',\n      command: 'grep -r \"^import\\\\|^const.*require\" ' + paths[0] + ' --include=\"*.js\" --include=\"*.ts\" | head -200'\n    });\n    break;\n    \n  case 'dead_code':\n    // Find potentially unused functions\n    commands.push({\n      name: 'find_functions',\n      command: 'grep -r \"function\\\\|const.*=>\\\\|export\" ' + paths[0] + ' --include=\"*.js\" --include=\"*.ts\" | head -200'\n    });\n    break;\n    \n  case 'hardcoded_values':\n    // Find hardcoded URLs, ports, and credentials\n    commands.push({\n      name: 'find_hardcoded',\n      command: 'grep -r \"localhost:[0-9]\\\\|127.0.0.1\\\\|password.*=\\\\|api[_-]?key.*=\" ' + paths[0] + ' --include=\"*.js\" --include=\"*.ts\" --include=\"*.json\" | head -100'\n    });\n    break;\n    \n  case 'todo_comments':\n    // Find TODO, FIXME, HACK comments\n    commands.push({\n      name: 'find_todos',\n      command: 'grep -r \"TODO\\\\|FIXME\\\\|HACK\\\\|XXX\" ' + paths[0] + ' --include=\"*.js\" --include=\"*.ts\" --include=\"*.go\" | head -200'\n    });\n    break;\n    \n  default:\n    throw new Error('Unknown analysis type: ' + analysisType);\n}\n\nreturn {\n  analysis_id: analysisId,\n  analysis_type: analysisType,\n  paths: paths,\n  deep_analysis: deepAnalysis,\n  commands: commands,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "prepare_analysis",
+      "name": "Prepare Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split_batch",
+      "name": "Split in Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}"
+      },
+      "id": "execute_analysis",
+      "name": "Execute Analysis",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process analysis results\nconst commandResult = $input.item.json;\nconst cmdInfo = $('Split in Batches').item.json;\nconst analysisInfo = $('Prepare Analysis').item.json;\n\nconst output = commandResult.stdout ? commandResult.stdout.trim() : '';\nconst lines = output.split('\\n').filter(l => l.length > 0);\n\nlet patterns = [];\nlet issues = [];\n\nswitch (analysisInfo.analysis_type) {\n  case 'duplicate_detection':\n    // Group scenarios by similar structure\n    const scenarios = {};\n    lines.forEach(line => {\n      const match = line.match(/scenarios\\/([^\\/]+)/);\n      if (match) {\n        const scenario = match[1];\n        if (!scenarios[scenario]) scenarios[scenario] = [];\n        scenarios[scenario].push(line);\n      }\n    });\n    \n    // Find scenarios with similar files\n    const scenarioKeys = Object.keys(scenarios);\n    for (let i = 0; i < scenarioKeys.length - 1; i++) {\n      for (let j = i + 1; j < scenarioKeys.length; j++) {\n        const similarity = calculateSimilarity(scenarioKeys[i], scenarioKeys[j]);\n        if (similarity > 0.7) {\n          issues.push({\n            type: 'duplicate_scenario',\n            severity: 'medium',\n            description: 'Potential duplicate functionality: ' + scenarioKeys[i] + ' and ' + scenarioKeys[j],\n            requires_human_review: true,\n            confidence: similarity\n          });\n        }\n      }\n    }\n    break;\n    \n  case 'unused_imports':\n    // Parse import statements\n    lines.forEach(line => {\n      const parts = line.split(':');\n      if (parts.length >= 3) {\n        const file = parts[0];\n        const importMatch = parts.slice(1).join(':').match(/import\\s+([^\\s]+)/);\n        if (importMatch) {\n          patterns.push({\n            file: file,\n            import: importMatch[1],\n            type: 'import'\n          });\n        }\n      }\n    });\n    break;\n    \n  case 'hardcoded_values':\n    // Parse hardcoded values\n    lines.forEach(line => {\n      const parts = line.split(':');\n      if (parts.length >= 2) {\n        const file = parts[0];\n        const content = parts.slice(1).join(':');\n        \n        let issueType = 'hardcoded_value';\n        let severity = 'low';\n        \n        if (content.includes('password') || content.includes('api_key') || content.includes('secret')) {\n          issueType = 'potential_credential';\n          severity = 'critical';\n        } else if (content.includes('localhost') || content.includes('127.0.0.1')) {\n          issueType = 'hardcoded_url';\n          severity = 'medium';\n        }\n        \n        issues.push({\n          type: issueType,\n          severity: severity,\n          file: file,\n          description: 'Hardcoded value detected: ' + content.substring(0, 100),\n          requires_human_review: true,\n          confidence: 0.8\n        });\n      }\n    });\n    break;\n    \n  case 'todo_comments':\n    // Parse TODO comments\n    lines.forEach(line => {\n      const parts = line.split(':');\n      if (parts.length >= 3) {\n        const file = parts[0];\n        const lineNum = parts[1];\n        const comment = parts.slice(2).join(':').trim();\n        \n        let severity = 'low';\n        if (comment.includes('FIXME') || comment.includes('HACK')) {\n          severity = 'medium';\n        }\n        \n        issues.push({\n          type: 'todo_comment',\n          severity: severity,\n          file: file,\n          line: lineNum,\n          description: comment.substring(0, 200),\n          requires_human_review: false,\n          confidence: 1.0\n        });\n      }\n    });\n    break;\n}\n\n// Helper function to calculate string similarity\nfunction calculateSimilarity(str1, str2) {\n  const longer = str1.length > str2.length ? str1 : str2;\n  const shorter = str1.length > str2.length ? str2 : str1;\n  \n  if (longer.length === 0) return 1.0;\n  \n  const editDistance = getEditDistance(longer, shorter);\n  return (longer.length - editDistance) / longer.length;\n}\n\nfunction getEditDistance(s1, s2) {\n  const costs = [];\n  for (let i = 0; i <= s1.length; i++) {\n    let lastValue = i;\n    for (let j = 0; j <= s2.length; j++) {\n      if (i === 0) costs[j] = j;\n      else if (j > 0) {\n        let newValue = costs[j - 1];\n        if (s1.charAt(i - 1) !== s2.charAt(j - 1))\n          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;\n        costs[j - 1] = lastValue;\n        lastValue = newValue;\n      }\n    }\n    if (i > 0) costs[s2.length] = lastValue;\n  }\n  return costs[s2.length];\n}\n\nreturn {\n  analysis_type: analysisInfo.analysis_type,\n  command_name: cmdInfo.name,\n  patterns_found: patterns.length,\n  issues_found: issues.length,\n  patterns: patterns.slice(0, 50), // Limit for response\n  issues: issues.slice(0, 50) // Limit for response\n};"
+      },
+      "id": "process_patterns",
+      "name": "Process Patterns",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {},
+      "id": "combine_analysis",
+      "name": "Combine Analysis",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine and format all analysis results\nconst allResults = $input.all();\nconst analysisInfo = $('Prepare Analysis').item.json;\n\nlet totalPatterns = 0;\nlet totalIssues = 0;\nlet allPatterns = [];\nlet allIssues = [];\n\nfor (const result of allResults) {\n  const data = result.json;\n  totalPatterns += data.patterns_found;\n  totalIssues += data.issues_found;\n  allPatterns = allPatterns.concat(data.patterns);\n  allIssues = allIssues.concat(data.issues);\n}\n\n// Group issues by type and severity\nconst issuesByType = {};\nconst issuesBySeverity = {\n  critical: 0,\n  high: 0,\n  medium: 0,\n  low: 0\n};\n\nallIssues.forEach(issue => {\n  if (!issuesByType[issue.type]) {\n    issuesByType[issue.type] = [];\n  }\n  issuesByType[issue.type].push(issue);\n  issuesBySeverity[issue.severity]++;\n});\n\n// Generate recommendations\nconst recommendations = [];\n\nif (issuesBySeverity.critical > 0) {\n  recommendations.push({\n    priority: 'urgent',\n    action: 'Review critical issues immediately, especially potential credentials',\n    impact: 'Security risk mitigation'\n  });\n}\n\nif (analysisInfo.analysis_type === 'duplicate_detection' && totalIssues > 0) {\n  recommendations.push({\n    priority: 'high',\n    action: 'Consider merging duplicate scenarios or extracting shared functionality',\n    impact: 'Reduced maintenance burden and improved consistency'\n  });\n}\n\nif (analysisInfo.analysis_type === 'todo_comments' && totalIssues > 10) {\n  recommendations.push({\n    priority: 'medium',\n    action: 'Schedule technical debt sprint to address TODO items',\n    impact: 'Improved code quality and reduced future bugs'\n  });\n}\n\nreturn {\n  success: true,\n  analysis_id: analysisInfo.analysis_id,\n  analysis_type: analysisInfo.analysis_type,\n  started_at: analysisInfo.timestamp,\n  completed_at: new Date().toISOString(),\n  statistics: {\n    total_patterns: totalPatterns,\n    total_issues: totalIssues,\n    issues_by_severity: issuesBySeverity,\n    issue_types: Object.keys(issuesByType).length\n  },\n  issues_by_type: issuesByType,\n  recommendations: recommendations,\n  deep_analysis_performed: analysisInfo.deep_analysis\n};"
+      },
+      "id": "format_analysis",
+      "name": "Format Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1800, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond_to_webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "manual_trigger": {
+      "main": [
+        [
+          {
+            "node": "set_test_defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set_test_defaults": {
+      "main": [
+        [
+          {
+            "node": "merge_triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge_triggers": {
+      "main": [
+        [
+          {
+            "node": "prepare_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_analysis": {
+      "main": [
+        [
+          {
+            "node": "split_batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "split_batch": {
+      "main": [
+        [
+          {
+            "node": "execute_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "execute_analysis": {
+      "main": [
+        [
+          {
+            "node": "process_patterns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_patterns": {
+      "main": [
+        [
+          {
+            "node": "combine_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "combine_analysis": {
+      "main": [
+        [
+          {
+            "node": "format_analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "format_analysis": {
+      "main": [
+        [
+          {
+            "node": "respond_to_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveExecutionProgress": true,
+    "executionTimeout": 300
+  },
+  "tags": [],
+  "updatedAt": "2024-09-04T00:00:00.000Z",
+  "id": "pattern-analyzer"
+}

@@ -1,0 +1,166 @@
+{
+    "name": "Advanced Desktop App",
+    "description": "Full-featured desktop application with advanced OS integration, system tray, auto-updates, and professional features.",
+    "use_cases": [
+        "System monitoring and administration tools",
+        "Professional productivity applications",
+        "Background services with UI",
+        "Enterprise desktop software",
+        "Applications requiring deep OS integration"
+    ],
+    "features": {
+        "splash_screen": true,
+        "system_tray": true,
+        "auto_updater": true,
+        "native_menus": true,
+        "single_instance": true,
+        "dev_tools": true,
+        "file_operations": true,
+        "notifications": true,
+        "multi_window": false,
+        "deep_linking": true,
+        "global_shortcuts": true,
+        "context_menus": true,
+        "dock_menu": true,
+        "jump_lists": true
+    },
+    "window_config": {
+        "width": 1400,
+        "height": 900,
+        "min_width": 1000,
+        "min_height": 700,
+        "resizable": true,
+        "maximizable": true,
+        "minimizable": true,
+        "closable": true,
+        "frame": true,
+        "transparent": false,
+        "always_on_top": false,
+        "hide_on_close": true
+    },
+    "template_variables": {
+        "ENABLE_SPLASH": true,
+        "ENABLE_MENU": true,
+        "ENABLE_SYSTEM_TRAY": true,
+        "ENABLE_AUTO_UPDATER": true,
+        "ENABLE_SINGLE_INSTANCE": true,
+        "ENABLE_DEV_TOOLS": true,
+        "WINDOW_WIDTH": 1400,
+        "WINDOW_HEIGHT": 900,
+        "WINDOW_BACKGROUND": "#2e2c29",
+        "SPLASH_BACKGROUND_START": "#1a1a1a",
+        "SPLASH_BACKGROUND_END": "#2d2d2d",
+        "SPLASH_TEXT_COLOR": "#ffffff",
+        "SPLASH_ACCENT_COLOR": "#00d4ff"
+    },
+    "supported_server_types": [
+        "node",
+        "static",
+        "external",
+        "executable"
+    ],
+    "required_files": [
+        "main.ts",
+        "preload.ts", 
+        "splash.html",
+        "package.json.template",
+        "tsconfig.json"
+    ],
+    "additional_files": [
+        "src/tray-menu.ts",
+        "src/global-shortcuts.ts",
+        "src/window-manager.ts",
+        "assets/tray-icon.png",
+        "assets/tray-icon-dark.png"
+    ],
+    "excluded_files": [],
+    "build_config": {
+        "platforms": ["win", "mac", "linux"],
+        "auto_sign": true,
+        "publish_stores": true,
+        "enterprise_features": true,
+        "code_signing_required": true
+    },
+    "advanced_features": {
+        "system_tray_config": {
+            "tooltip": "{{APP_DISPLAY_NAME}}",
+            "context_menu": [
+                { "label": "Show {{APP_DISPLAY_NAME}}", "action": "show_window" },
+                { "label": "Settings", "action": "open_settings" },
+                { "type": "separator" },
+                { "label": "About", "action": "show_about" },
+                { "label": "Quit", "action": "quit_app" }
+            ],
+            "double_click_action": "toggle_window"
+        },
+        "global_shortcuts": [
+            { "accelerator": "CommandOrControl+Shift+{{APP_SHORTCUT_KEY}}", "action": "toggle_window" },
+            { "accelerator": "CommandOrControl+Alt+{{APP_SHORTCUT_KEY}}", "action": "quick_action" }
+        ],
+        "auto_updater_config": {
+            "check_interval": "1h",
+            "auto_download": true,
+            "auto_install": false,
+            "notify_user": true
+        },
+        "protocol_handling": {
+            "scheme": "{{APP_NAME}}",
+            "examples": [
+                "{{APP_NAME}}://open/file?path=/path/to/file",
+                "{{APP_NAME}}://action/quick?data=value"
+            ]
+        }
+    },
+    "customization_points": [
+        {
+            "name": "Advanced Menu Structure",
+            "description": "Comprehensive menu with advanced features and shortcuts",
+            "location": "main.ts:createAdvancedMenu"
+        },
+        {
+            "name": "System Tray Integration",
+            "description": "Full system tray with context menu and status updates",
+            "location": "src/tray-menu.ts"
+        },
+        {
+            "name": "Global Shortcuts",
+            "description": "System-wide keyboard shortcuts for quick access",
+            "location": "src/global-shortcuts.ts"
+        },
+        {
+            "name": "Window State Management",
+            "description": "Advanced window state persistence and restoration",
+            "location": "src/window-manager.ts"
+        },
+        {
+            "name": "Professional Splash Design",
+            "description": "Advanced splash screen with progress indicators",
+            "location": "splash.html"
+        }
+    ],
+    "platform_specific": {
+        "windows": {
+            "features": ["jump_lists", "taskbar_progress", "thumbnail_buttons"],
+            "installer_type": "nsis",
+            "auto_start": true
+        },
+        "macos": {
+            "features": ["dock_menu", "touch_bar", "handoff"],
+            "app_category": "public.app-category.productivity",
+            "notarization_required": true
+        },
+        "linux": {
+            "features": ["unity_launcher", "desktop_file", "system_tray"],
+            "package_formats": ["AppImage", "deb", "rpm"],
+            "desktop_integration": true
+        }
+    },
+    "example_scenarios": [
+        "system-monitor",
+        "app-debugger",
+        "document-manager",
+        "personal-digital-twin",
+        "research-assistant",
+        "competitor-change-monitor"
+    ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "ai-model-orchestra-controller-ui",
+  "version": "1.0.0",
+  "description": "UI server for ai-model-orchestra-controller",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

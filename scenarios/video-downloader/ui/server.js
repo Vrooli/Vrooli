@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
+const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 
 const mimeTypes = {
     '.html': 'text/html',
@@ -21,6 +23,18 @@ const mimeTypes = {
 const server = http.createServer((req, res) => {
     const parsedUrl = url.parse(req.url);
     let pathname = parsedUrl.pathname;
+
+    // Health check endpoint for orchestrator
+    if (pathname === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ 
+            status: 'healthy',
+            scenario: 'video-downloader',
+            port: PORT,
+            timestamp: new Date().toISOString()
+        }));
+        return;
+    }
 
     // Serve index.html for root path
     if (pathname === '/') {

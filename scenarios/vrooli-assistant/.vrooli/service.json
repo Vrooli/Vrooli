@@ -124,7 +124,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-assistant-api main.go",
+          "run": "cd api && go mod download && go build -o vrooli-assistant-api .",
           "description": "Build Go API binary"
         },
         {
@@ -137,11 +137,6 @@
     "develop": {
       "description": "Start Vrooli Assistant with Electron overlay and API server",
       "steps": [
-        {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/vrooli-assistant-api ]; then echo 'Building API...'; cd api && go mod download && go build -o vrooli-assistant-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
-          "description": "Ensure API binary exists"
-        },
         {
           "name": "start-api-server",
           "run": "cd api && ./vrooli-assistant-api",
@@ -174,7 +169,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation"
         },
         {

@@ -3,8 +3,7 @@ const path = require('path');
 const http = require('http');
 
 const app = express();
-const PORT = process.env.UI_PORT || 3000;
-const SCENARIO_NAME = process.env.SCENARIO_NAME || 'app-issue-tracker';
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 
 // Health check endpoint for orchestrator
