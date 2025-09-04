@@ -3,8 +3,19 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.UI_PORT || 3100;
-const API_PORT = process.env.API_PORT || 8100;
+const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
+
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'invoice-generator',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
 
 app.use(cors());
 app.use(express.static(__dirname));

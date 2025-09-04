@@ -7,6 +7,17 @@ const PORT = process.env.UI_PORT || process.env.PORT;
 // Serve static files
 app.use(express.static(path.join(__dirname)));
 
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'document-manager',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
+
 // API proxy configuration - forward API calls to backend
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:23250';
 

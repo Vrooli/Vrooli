@@ -1,0 +1,427 @@
+#!/bin/bash
+
+# Scenario to Android CLI
+# Main entry point for Android app generation from Vrooli scenarios
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+VERSION="1.0.0"
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_color() {
+    local color=$1
+    shift
+    echo -e "${color}$@${NC}"
+}
+
+show_help() {
+    cat << EOF
+Scenario to Android - Transform Vrooli scenarios into native Android apps
+
+Version: $VERSION
+
+Usage: scenario-to-android <command> [options]
+
+Commands:
+    build <scenario>     Build Android app from scenario
+    test <apk>          Test APK on device/emulator  
+    sign <apk>          Sign APK with keystore
+    optimize <apk>      Optimize APK size with ProGuard
+    prepare-store <apk> Prepare for Play Store submission
+    templates           List available templates
+    status              Show Android SDK status
+    help                Show this help message
+    version             Show version information
+
+Examples:
+    scenario-to-android build study-buddy
+    scenario-to-android build notes --output /tmp/my-app --sign
+    scenario-to-android test /tmp/notes.apk --device
+    scenario-to-android prepare-store /tmp/notes.apk --screenshots
+
+For detailed help on a command:
+    scenario-to-android <command> --help
+
+EOF
+}
+
+show_version() {
+    print_color $BLUE "Scenario to Android v$VERSION"
+    echo "Transform any Vrooli scenario into a native Android application"
+    echo ""
+    
+    # Check for Android SDK
+    if [ -n "$ANDROID_HOME" ]; then
+        print_color $GREEN "✓ Android SDK found: $ANDROID_HOME"
+        
+        # Check SDK version
+        if [ -f "$ANDROID_HOME/tools/bin/sdkmanager" ]; then
+            SDK_VERSION=$("$ANDROID_HOME/tools/bin/sdkmanager" --version 2>/dev/null | head -1)
+            [ -n "$SDK_VERSION" ] && echo "  SDK Manager: $SDK_VERSION"
+        fi
+    else
+        print_color $YELLOW "⚠ Android SDK not found (ANDROID_HOME not set)"
+    fi
+    
+    # Check for Java
+    if command -v java &> /dev/null; then
+        JAVA_VERSION=$(java -version 2>&1 | head -1 | cut -d'"' -f2)
+        print_color $GREEN "✓ Java found: $JAVA_VERSION"
+    else
+        print_color $YELLOW "⚠ Java not found"
+    fi
+    
+    # Check for Gradle
+    if command -v gradle &> /dev/null; then
+        GRADLE_VERSION=$(gradle --version 2>/dev/null | grep "Gradle" | awk '{print $2}')
+        print_color $GREEN "✓ Gradle found: $GRADLE_VERSION"
+    else
+        print_color $YELLOW "⚠ Gradle not found"
+    fi
+}
+
+show_status() {
+    print_color $BLUE "Android Build System Status"
+    print_color $BLUE "============================"
+    echo ""
+    
+    # Check prerequisites
+    local all_good=true
+    
+    # Android SDK
+    if [ -n "$ANDROID_HOME" ] && [ -d "$ANDROID_HOME" ]; then
+        print_color $GREEN "✓ Android SDK: $ANDROID_HOME"
+        
+        # Check for build tools
+        if [ -d "$ANDROID_HOME/build-tools" ]; then
+            BUILD_TOOLS=$(ls -1 "$ANDROID_HOME/build-tools" 2>/dev/null | tail -1)
+            [ -n "$BUILD_TOOLS" ] && echo "  Build Tools: $BUILD_TOOLS"
+        fi
+        
+        # Check for platform tools
+        if [ -d "$ANDROID_HOME/platform-tools" ]; then
+            echo "  Platform Tools: Available"
+        fi
+    else
+        print_color $RED "✗ Android SDK not found"
+        echo "  Install: https://developer.android.com/studio"
+        all_good=false
+    fi
+    
+    # Java
+    if command -v java &> /dev/null; then
+        JAVA_VERSION=$(java -version 2>&1 | head -1)
+        print_color $GREEN "✓ Java: Available"
+        echo "  $JAVA_VERSION"
+    else
+        print_color $RED "✗ Java not found"
+        echo "  Install: apt install openjdk-11-jdk"
+        all_good=false
+    fi
+    
+    # Gradle
+    if command -v gradle &> /dev/null; then
+        print_color $GREEN "✓ Gradle: $(gradle --version 2>/dev/null | grep Gradle | awk '{print $2}')"
+    else
+        print_color $YELLOW "⚠ Gradle not found (will use wrapper)"
+    fi
+    
+    # ADB
+    if command -v adb &> /dev/null; then
+        print_color $GREEN "✓ ADB: Available"
+        
+        # Check for connected devices
+        DEVICES=$(adb devices 2>/dev/null | tail -n +2 | grep -v "^$" | wc -l)
+        if [ "$DEVICES" -gt 0 ]; then
+            echo "  Connected devices: $DEVICES"
+        else
+            echo "  No devices connected"
+        fi
+    else
+        print_color $YELLOW "⚠ ADB not found"
+    fi
+    
+    # Emulator
+    if command -v emulator &> /dev/null; then
+        print_color $GREEN "✓ Emulator: Available"
+        
+        # List AVDs
+        AVDS=$(emulator -list-avds 2>/dev/null | wc -l)
+        if [ "$AVDS" -gt 0 ]; then
+            echo "  Available AVDs: $AVDS"
+        else
+            echo "  No AVDs configured"
+        fi
+    else
+        print_color $YELLOW "⚠ Emulator not found"
+    fi
+    
+    echo ""
+    if $all_good; then
+        print_color $GREEN "System ready for Android development!"
+    else
+        print_color $YELLOW "Some components missing. Basic functionality available."
+    fi
+}
+
+cmd_build() {
+    "$SCRIPT_DIR/convert.sh" "$@"
+}
+
+cmd_test() {
+    local APK_PATH="$1"
+    shift
+    
+    if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
+        print_color $RED "Error: APK file not found: $APK_PATH"
+        exit 1
+    fi
+    
+    print_color $BLUE "Testing APK: $(basename $APK_PATH)"
+    
+    # Check for ADB
+    if ! command -v adb &> /dev/null; then
+        print_color $RED "Error: ADB not found. Install Android SDK platform-tools"
+        exit 1
+    fi
+    
+    # Check for devices
+    DEVICES=$(adb devices | tail -n +2 | grep -v "^$")
+    if [ -z "$DEVICES" ]; then
+        print_color $YELLOW "No devices connected. Starting emulator..."
+        
+        if command -v emulator &> /dev/null; then
+            AVD=$(emulator -list-avds 2>/dev/null | head -1)
+            if [ -n "$AVD" ]; then
+                print_color $YELLOW "Starting AVD: $AVD"
+                emulator -avd "$AVD" &
+                
+                # Wait for emulator
+                print_color $YELLOW "Waiting for emulator to boot..."
+                adb wait-for-device
+                sleep 10
+            else
+                print_color $RED "No AVDs available. Create one in Android Studio"
+                exit 1
+            fi
+        else
+            print_color $RED "No devices connected and emulator not available"
+            exit 1
+        fi
+    fi
+    
+    # Install APK
+    print_color $YELLOW "Installing APK..."
+    if adb install -r "$APK_PATH"; then
+        print_color $GREEN "✓ APK installed successfully"
+        
+        # Get package name
+        if command -v aapt &> /dev/null; then
+            PACKAGE=$(aapt dump badging "$APK_PATH" | grep package: | awk '{print $2}' | sed s/name=//g | sed s/\'//g)
+            
+            if [ -n "$PACKAGE" ]; then
+                print_color $YELLOW "Launching app..."
+                adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1
+                print_color $GREEN "✓ App launched"
+            fi
+        fi
+    else
+        print_color $RED "✗ Installation failed"
+        exit 1
+    fi
+}
+
+cmd_sign() {
+    local APK_PATH="$1"
+    shift
+    
+    if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
+        print_color $RED "Error: APK file not found: $APK_PATH"
+        exit 1
+    fi
+    
+    print_color $BLUE "Signing APK: $(basename $APK_PATH)"
+    
+    # TODO: Implement APK signing
+    print_color $YELLOW "APK signing not yet implemented"
+    print_color $YELLOW "Use: jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore <keystore> <apk> <alias>"
+}
+
+cmd_optimize() {
+    local APK_PATH="$1"
+    
+    if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
+        print_color $RED "Error: APK file not found: $APK_PATH"
+        exit 1
+    fi
+    
+    print_color $BLUE "Optimizing APK: $(basename $APK_PATH)"
+    
+    # TODO: Implement APK optimization
+    print_color $YELLOW "APK optimization not yet implemented"
+    print_color $YELLOW "Use zipalign and apksigner for optimization"
+}
+
+cmd_prepare_store() {
+    local APK_PATH="$1"
+    
+    if [ -z "$APK_PATH" ] || [ ! -f "$APK_PATH" ]; then
+        print_color $RED "Error: APK file not found: $APK_PATH"
+        exit 1
+    fi
+    
+    print_color $BLUE "Preparing for Play Store: $(basename $APK_PATH)"
+    
+    # Create store assets directory
+    STORE_DIR="$(dirname $APK_PATH)/play-store-assets"
+    mkdir -p "$STORE_DIR"
+    
+    # Generate template files
+    cat > "$STORE_DIR/listing.txt" << EOF
+App Title: [Your App Name]
+Short Description (80 chars): [Brief app description]
+Full Description (4000 chars):
+[Detailed description of your app's features and benefits]
+
+Category: [Choose appropriate category]
+Content Rating: [Everyone/Teen/Mature]
+Contact Email: [support email]
+Website: [app website]
+Privacy Policy: [privacy policy URL]
+EOF
+    
+    cat > "$STORE_DIR/README.md" << EOF
+# Play Store Submission Checklist
+
+## Required Assets
+- [ ] App Icon (512x512 PNG)
+- [ ] Feature Graphic (1024x500 PNG)
+- [ ] Screenshots (min 2, max 8 per device type)
+  - Phone: 320-3840px wide
+  - Tablet: 320-3840px wide
+  - TV: 1280x720 or 1920x1080
+  - Wear OS: 384x384 or 400x400
+
+## App Information
+- [ ] App name (30 chars max)
+- [ ] Short description (80 chars)
+- [ ] Full description (4000 chars)
+- [ ] Category selection
+- [ ] Content rating questionnaire
+- [ ] Target audience and content
+- [ ] Privacy policy URL
+- [ ] Contact information
+
+## Technical Requirements
+- [ ] APK signed with release key
+- [ ] ProGuard/R8 optimization enabled
+- [ ] Version code incremented
+- [ ] Target API level 33+ (for new apps)
+- [ ] 64-bit support included
+
+## Testing
+- [ ] Test on multiple devices
+- [ ] Test all permissions
+- [ ] Verify offline functionality
+- [ ] Check for crashes (use Firebase Crashlytics)
+
+## Legal
+- [ ] Terms of Service
+- [ ] Privacy Policy
+- [ ] Data safety form completed
+- [ ] Age restrictions if applicable
+
+## Monetization (if applicable)
+- [ ] In-app purchases configured
+- [ ] Ad integration tested
+- [ ] Pricing set up
+
+Generated: $(date)
+APK: $(basename $APK_PATH)
+EOF
+    
+    print_color $GREEN "✓ Play Store assets template created: $STORE_DIR"
+    print_color $YELLOW ""
+    print_color $YELLOW "Next steps:"
+    print_color $YELLOW "1. Add app icon and graphics to $STORE_DIR"
+    print_color $YELLOW "2. Fill out listing.txt with your app information"
+    print_color $YELLOW "3. Take screenshots on different devices"
+    print_color $YELLOW "4. Create privacy policy and terms of service"
+    print_color $YELLOW "5. Sign up for Google Play Console ($25 one-time fee)"
+    print_color $YELLOW "6. Upload APK and assets to Play Console"
+}
+
+cmd_templates() {
+    print_color $BLUE "Available Android App Templates"
+    print_color $BLUE "==============================="
+    echo ""
+    
+    print_color $GREEN "webview-basic"
+    echo "  Basic WebView wrapper for scenario UI"
+    echo "  Features: Offline support, JavaScript bridge"
+    echo ""
+    
+    print_color $GREEN "webview-advanced"
+    echo "  Advanced WebView with native features"
+    echo "  Features: Camera, GPS, notifications, storage"
+    echo ""
+    
+    print_color $GREEN "native-hybrid"
+    echo "  Native UI with WebView content areas"
+    echo "  Features: Native navigation, better performance"
+    echo ""
+    
+    print_color $YELLOW "Coming soon:"
+    echo "  - react-native: React Native conversion"
+    echo "  - flutter: Flutter app template"
+    echo "  - kotlin-native: Full native Kotlin app"
+}
+
+# Main command dispatcher
+case "${1:-}" in
+    build)
+        shift
+        cmd_build "$@"
+        ;;
+    test)
+        shift
+        cmd_test "$@"
+        ;;
+    sign)
+        shift
+        cmd_sign "$@"
+        ;;
+    optimize)
+        shift
+        cmd_optimize "$@"
+        ;;
+    prepare-store)
+        shift
+        cmd_prepare_store "$@"
+        ;;
+    templates)
+        cmd_templates
+        ;;
+    status)
+        show_status
+        ;;
+    version|--version|-v)
+        show_version
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        print_color $RED "Unknown command: $1"
+        echo ""
+        show_help
+        exit 1
+        ;;
+esac

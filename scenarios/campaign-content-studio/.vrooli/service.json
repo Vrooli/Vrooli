@@ -172,7 +172,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o campaign-content-studio-api main.go",
+          "run": "cd api && go mod download && go build -o campaign-content-studio-api .",
           "description": "Build Go coordination API binary"
         },
         {
@@ -190,16 +190,6 @@
     "develop": {
       "description": "Start campaign content studio with Go API and Node.js UI servers",
       "steps": [
-        {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/campaign-content-studio-api ]; then echo 'Building API...'; cd api && go mod download && go build -o campaign-content-studio-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
-          "description": "Ensure API binary exists"
-        },
-        {
-          "name": "ensure-ui-dependencies",
-          "run": "if [ ! -d ui/node_modules ]; then echo 'Installing UI dependencies...'; cd ui && npm install && echo 'UI dependencies installed'; else echo 'UI dependencies already installed'; fi",
-          "description": "Ensure UI dependencies are installed"
-        },
         {
           "name": "start-api-server",
           "run": "cd api && ./campaign-content-studio-api",
@@ -240,7 +230,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

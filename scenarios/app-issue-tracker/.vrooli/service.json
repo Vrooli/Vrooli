@@ -126,7 +126,7 @@
         },
         {
           "name": "build-file-api",
-          "run": "cd api && go mod download && go build -o app-issue-tracker-api main.go",
+          "run": "cd api && go mod download && go build -o app-issue-tracker-api .",
           "description": "Build file-based Go API binary"
         },
         {
@@ -197,11 +197,8 @@
         },
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main_file_based.go && rm test-build",
-          "description": "Test Go compilation for file-based API",
-          "condition": {
-            "file_exists": "api/main_file_based.go"
-          }
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation for file-based API"
         },
         {
           "name": "test-file-api-health",

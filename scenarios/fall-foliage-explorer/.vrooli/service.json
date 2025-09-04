@@ -200,7 +200,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod tidy && go mod download && go build -o foliage-api main.go",
+          "run": "cd api && go mod download && go build -o foliage-api .",
           "description": "Build Go API binary"
         },
         {
@@ -215,7 +215,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && env PORT=$API_PORT ./foliage-api",
+          "run": "cd api && ./foliage-api",
           "description": "Start API server",
           "background": true
         },
@@ -226,7 +226,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && env PORT=$UI_PORT API_PORT=$API_PORT node server.js",
+          "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
@@ -242,7 +242,7 @@
       "steps": [
         {
           "name": "test-api-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation"
         },
         {

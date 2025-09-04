@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>{{APP_NAME}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            animation: fadeIn 1s ease-in;
+        }
+        
+        p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            animation: fadeIn 1s ease-in 0.5s both;
+        }
+        
+        .loading {
+            margin-top: 2rem;
+            animation: fadeIn 1s ease-in 1s both;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .native-test {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            animation: fadeIn 1s ease-in 1.5s both;
+        }
+        
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: transform 0.2s;
+        }
+        
+        button:active {
+            transform: scale(0.95);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{APP_NAME}}</h1>
+        <p>Loading scenario...</p>
+        
+        <div class="loading">
+            <div class="spinner"></div>
+        </div>
+        
+        <div class="native-test">
+            <p style="margin-bottom: 1rem; font-size: 0.9rem;">Test Native Features:</p>
+            <button onclick="testHaptic()">Haptic Feedback</button>
+            <button onclick="testDeviceInfo()">Device Info</button>
+            <button onclick="testShare()">Share</button>
+        </div>
+    </div>
+    
+    <script>
+        // Wait for native bridge to be ready
+        window.addEventListener('vrooliNativeReady', function() {
+            console.log('Native bridge ready!');
+            
+            // Redirect to actual scenario URL after a short delay
+            setTimeout(function() {
+                // This would be replaced with the actual scenario URL
+                // window.location.href = '{{SCENARIO_URL}}';
+            }, 2000);
+        });
+        
+        // Native feature tests
+        function testHaptic() {
+            if (window.vrooliNative && window.vrooliNative.hapticFeedback) {
+                window.vrooliNative.hapticFeedback('medium');
+            }
+        }
+        
+        function testDeviceInfo() {
+            if (window.vrooliNative && window.vrooliNative.getDeviceInfo) {
+                window.vrooliNative.getDeviceInfo();
+            }
+        }
+        
+        function testShare() {
+            if (window.vrooliNative && window.vrooliNative.share) {
+                window.vrooliNative.share('Check out this Vrooli app!', 'https://vrooli.com');
+            }
+        }
+        
+        // Handle callbacks from native
+        window.vrooliNativeCallback = function(type, data) {
+            console.log('Native callback:', type, data);
+            
+            switch(type) {
+                case 'deviceInfo':
+                    alert('Device: ' + JSON.stringify(data, null, 2));
+                    break;
+            }
+        };
+    </script>
+</body>
+</html>

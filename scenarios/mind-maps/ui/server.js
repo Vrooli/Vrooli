@@ -4,9 +4,21 @@ const cors = require('cors');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 
 // Enable CORS
 app.use(cors());
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'mind-maps',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 
 // Parse JSON bodies
 app.use(express.json());
@@ -15,7 +27,6 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 // API proxy endpoints (forward to Go API)
-const API_PORT = process.env.API_PORT || '8100';
 const API_URL = process.env.API_URL || `http://localhost:${API_PORT}`;
 
 app.use('/api', (req, res) => {

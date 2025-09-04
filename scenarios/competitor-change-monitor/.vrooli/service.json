@@ -162,7 +162,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o competitor-monitor-api main.go",
+          "run": "cd api && go mod download && go build -o competitor-monitor-api .",
           "description": "Build Go API binary"
         },
         {

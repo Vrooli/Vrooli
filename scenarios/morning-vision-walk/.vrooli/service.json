@@ -164,7 +164,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o vision-walk-api main.go",
+          "run": "cd api && go mod download && go build -o vision-walk-api .",
           "description": "Build Go API binary"
         },
         {

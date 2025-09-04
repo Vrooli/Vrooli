@@ -111,7 +111,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o core-debugger-api main.go",
+          "run": "cd api && go mod download && go build -o core-debugger-api .",
           "description": "Build Go API binary"
         },
         {
@@ -129,11 +129,6 @@
     "develop": {
       "description": "Start Core Debugger monitoring services",
       "steps": [
-        {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/core-debugger-api ]; then echo 'Building API...'; cd api && go mod download && go build -o core-debugger-api main.go; fi",
-          "description": "Ensure API binary exists"
-        },
         {
           "name": "start-api",
           "run": "cd api && ./core-debugger-api",
@@ -195,7 +190,7 @@
         },
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build && echo '✓ Go compilation successful' || echo '⚠ Go compilation failed'",
+          "run": "cd api && go build -o test-build . && rm test-build && echo '✓ Go compilation successful' || echo '⚠ Go compilation failed'",
           "description": "Test Go compilation"
         },
         {

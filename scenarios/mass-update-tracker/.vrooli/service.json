@@ -101,7 +101,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o mass-update-tracker-api main.go",
+          "run": "cd api && go mod download && go build -o mass-update-tracker-api .",
           "description": "Build Go API binary"
         },
         {
@@ -119,11 +119,6 @@
     "develop": {
       "description": "Start mass update tracker with API and UI servers",
       "steps": [
-        {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/mass-update-tracker-api ]; then echo 'Building API...'; cd api && go mod download && go build -o mass-update-tracker-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
-          "description": "Ensure API binary exists"
-        },
         {
           "name": "start-api-server",
           "run": "cd api && ./mass-update-tracker-api",
@@ -164,7 +159,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

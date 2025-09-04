@@ -453,6 +453,12 @@ class EnhancedAppOrchestrator:
             except asyncio.TimeoutError:
                 # Lifecycle is still running, probably needs more time
                 self.logger.warning(f"{app_name} lifecycle taking longer than expected (>{timeout}s)")
+                # Check if process actually terminated with an error
+                if app.process.returncode is not None and app.process.returncode > 0:
+                    app.status = "error"
+                    app.pid = None
+                    self.logger.error(f"✗ {app_name} lifecycle failed with exit code {app.process.returncode}")
+                    return False
             
             # Always check for actual service processes (lifecycle may have exited)
             actual_pids = []
@@ -500,10 +506,18 @@ class EnhancedAppOrchestrator:
                         self.logger.error(f"✗ {app_name} failed to start (exit code: {exit_code})")
                         return False
                 else:
-                    # Lifecycle completed but no services detected - might be delayed startup
-                    app.status = "running"
-                    self.logger.info(f"✓ {app_name} lifecycle executed (services may be starting)")
-                    return True
+                    # Lifecycle completed but no services detected
+                    # Check if lifecycle had a non-zero exit code (like 124 for timeout)
+                    if app.process and app.process.returncode is not None and app.process.returncode > 0:
+                        app.status = "error"
+                        app.pid = None
+                        self.logger.error(f"✗ {app_name} lifecycle failed with exit code {app.process.returncode}")
+                        return False
+                    else:
+                        # Lifecycle completed successfully but services might be delayed
+                        app.status = "running"
+                        self.logger.info(f"✓ {app_name} lifecycle executed (services may be starting)")
+                        return True
                 
         except Exception as e:
             app.status = "error"

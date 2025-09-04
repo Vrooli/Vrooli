@@ -7,6 +7,17 @@ const PORT = process.env.UI_PORT || process.env.PORT;
 // Serve static files
 app.use(express.static(__dirname));
 
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'product-manager-agent',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
+
 // API proxy endpoints (forward to the Go API)
 app.use('/api', (req, res) => {
     const apiUrl = `http://localhost:8800${req.url}`;

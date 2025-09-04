@@ -2,9 +2,20 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = process.env.UI_PORT || 3920;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 const mimeTypes = {
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'fall-foliage-explorer',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
     '.html': 'text/html',
     '.js': 'text/javascript',
     '.css': 'text/css',

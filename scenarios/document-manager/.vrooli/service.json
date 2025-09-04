@@ -48,11 +48,11 @@
       "initialization": [
         {
           "file": "initialization/storage/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         },
         {
           "file": "initialization/storage/postgres/seed.sql",
-          "type": "script"
+          "type": "seed"
         }
       ]
     },
@@ -181,7 +181,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o document-manager-api main.go",
+          "run": "cd api && go mod download && go build -o document-manager-api .",
           "description": "Build Go coordination API binary"
         },
         {
@@ -208,13 +208,8 @@
       "description": "Start document manager with coordination API and monitoring",
       "steps": [
         {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/document-manager-api ]; then echo 'Building API...'; cd api && go mod download && go build -o document-manager-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
-          "description": "Ensure API binary exists"
-        },
-        {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./document-manager-api",
+          "run": "cd api && ./document-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
@@ -222,16 +217,8 @@
           }
         },
         {
-          "name": "ensure-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Ensure UI dependencies are installed",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
           "name": "start-ui-server",
-          "run": "cd ui && env UI_PORT=$UI_PORT API_BASE_URL=http://localhost:$API_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true,
           "condition": {
@@ -240,21 +227,13 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 3 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 20,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "wait-for-ui",
           "run": "sleep 3 && curl -sf http://localhost:$UI_PORT/ui-health > /dev/null",
           "description": "Wait for UI server to be ready",
-          "retry": {
-            "max_attempts": 20,
-            "delay": 1
-          },
           "condition": {
             "file_exists": "ui/server.js"
           }
@@ -276,7 +255,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

@@ -154,7 +154,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o chore-tracker-api main.go",
+          "run": "cd api && go mod download && go build -o chore-tracker-api .",
           "description": "Build Go API binary"
         },
         {

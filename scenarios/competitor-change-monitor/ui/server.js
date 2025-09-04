@@ -2,10 +2,21 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 5240;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Serve static files
 app.use(express.static(__dirname));
+
+// Health check endpoint for orchestrator
+app.get('/health', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        scenario: 'competitor-change-monitor',
+        port: PORT,
+        timestamp: new Date().toISOString()
+    });
+});
+
 
 // API proxy configuration
 app.get('/config', (req, res) => {

@@ -32,28 +32,45 @@
       "startup_grace_period": 10000
     },
     "setup": {
+      "description": "Initialize Local Info Scout",
       "condition": {
         "checks": [
           {
-            "type": "dependency",
-            "service": "api",
-            "command": "test -f go.mod"
-          }
-        ],
-        "actions": [
-          {
-            "service": "api",
-            "command": "go mod download",
-            "condition": "test -f go.mod && ! test -d vendor"
+            "type": "binaries",
+            "targets": [
+              "api/local-info-scout-api"
+            ]
           }
         ]
-      }
+      },
+      "steps": [
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh . || echo \"Resource population skipped\"",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o local-info-scout-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🔍 Local Info Scout initialized\\n  API: http://localhost:${API_PORT}'",
+          "description": "Display service URLs"
+        }
+      ]
     },
     "develop": {
       "steps": [
         {
           "name": "start_api",
-          "run": "cd api && go run main.go",
+          "run": "cd api && ./local-info-scout-api",
           "description": "Start API server",
           "background": true
         },

@@ -4,7 +4,7 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
-
+const API_PORT = process.env.API_PORT;
 
 // Health check endpoint for orchestrator
 app.get('/health', (req, res) => {

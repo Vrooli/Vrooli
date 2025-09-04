@@ -79,7 +79,7 @@ var config Config
 
 func loadConfig() Config {
 	return Config{
-		Port:            getEnv("PORT", "8090"),
+		Port:            getEnv("API_PORT", getEnv("PORT", "")),
 		PostgresURL:     getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/document_manager?sslmode=disable"),
 		RedisURL:        getEnv("REDIS_URL", "redis://localhost:6379"),
 		QdrantURL:       getEnv("QDRANT_URL", "http://localhost:6333"),

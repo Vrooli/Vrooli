@@ -536,13 +536,7 @@ func getResourcePort(resourceName string) string {
 
 func main() {
 	// Load configuration
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = os.Getenv("API_PORT")
-		if port == "" {
-			port = defaultPort
-		}
-	}
+	port := getEnv("API_PORT", getEnv("PORT", ""))
 	
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
@@ -644,4 +638,12 @@ func main() {
 		logger.Error("Server failed", err)
 		os.Exit(1)
 	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 }

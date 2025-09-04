@@ -120,13 +120,13 @@
       "description": "Initialize Scenario",
       "steps": [
         {
-          "name": "base-setup",
-          "run": "bash scripts/lib/setup.sh",
-          "description": "Execute generic setup (e.g. network, system, git)"
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance"
         },
         {
           "name": "add-data",
-          "run": "scripts/resources/populate/populate.sh .",
+          "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Add app data to resources"
         },
         {
@@ -139,7 +139,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o api-server cmd/server/main.go",
+          "run": "cd api && go mod download && go build -o api-server ./cmd/server",
           "description": "Build Go API server",
           "condition": {
             "file_exists": "api/go.mod"
@@ -185,7 +185,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build cmd/server/main.go && rm test-build",
+          "run": "cd api && go build -o test-build ./cmd/server && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/go.mod"

@@ -87,13 +87,32 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
-          "type": "script"
+          "type": "schema"
         }
       ]
     }
   },
   "lifecycle": {
-    "version": "1.0.0",
+    "version": "2.0.0",
+    "health": {
+      "description": "Invoice Generator health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
     "setup": {
       "description": "Initialize Invoice Generator Pro",
       "condition": {
@@ -138,7 +157,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o invoice-generator-api main.go",
+          "run": "cd api && go mod download && go build -o invoice-generator-api .",
           "description": "Build Go API binary"
         },
         {
@@ -157,13 +176,8 @@
       "description": "Start Invoice Generator Pro with API server",
       "steps": [
         {
-          "name": "ensure-api-built",
-          "run": "if [ ! -f api/invoice-generator-api ]; then echo 'Building API...'; cd api && go mod download && go build -o invoice-generator-api main.go && echo 'API built successfully'; else echo 'API binary already exists'; fi",
-          "description": "Ensure API binary exists"
-        },
-        {
           "name": "start-api-server",
-          "run": "cd api && env PORT=$API_PORT ./invoice-generator-api",
+          "run": "cd api && ./invoice-generator-api",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
@@ -172,27 +186,19 @@
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 2 && curl -sf http://localhost:$API_PORT/health > /dev/null",
-          "description": "Wait for API server to be ready",
-          "retry": {
-            "max_attempts": 15,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$API_PORT/health 15 2",
+          "description": "Wait for API server to be ready"
         },
         {
           "name": "start-ui-server",
-          "run": "cd ui && env UI_PORT=$UI_PORT npm start",
+          "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
         },
         {
           "name": "wait-for-ui",
-          "run": "sleep 2 && curl -sf http://localhost:$UI_PORT > /dev/null",
-          "description": "Wait for UI server to be ready",
-          "retry": {
-            "max_attempts": 10,
-            "delay": 1
-          }
+          "run": "../../scripts/lib/utils/wait-for-service.sh http://localhost:$UI_PORT 10 2",
+          "description": "Wait for UI server to be ready"
         },
         {
           "name": "show-running-services",
@@ -206,7 +212,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/main.go"

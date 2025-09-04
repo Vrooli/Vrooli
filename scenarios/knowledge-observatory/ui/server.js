@@ -4,6 +4,7 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 const API_URL = process.env.API_URL || 'http://localhost:20260';
 
 app.use(express.static(__dirname));

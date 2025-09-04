@@ -4,6 +4,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.UI_PORT || process.env.PORT;
+const API_PORT = process.env.API_PORT;
 const API_URL = `http://localhost:${process.env.API_PORT || 22250}`;
 
 // Middleware
