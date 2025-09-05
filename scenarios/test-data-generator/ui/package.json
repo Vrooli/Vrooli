@@ -1,0 +1,23 @@
+{
+  "name": "test-data-generator-ui",
+  "version": "1.0.0",
+  "description": "Test Data Generator UI - Web interface for generating mock test data",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "keywords": [
+    "test-data",
+    "mock-data",
+    "generator",
+    "ui",
+    "web-interface"
+  ],
+  "author": "Vrooli",
+  "license": "MIT"
+}

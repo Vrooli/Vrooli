@@ -131,7 +131,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true

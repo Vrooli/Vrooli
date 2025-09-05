@@ -102,7 +102,7 @@ func (a *App) Initialize() {
 	// Get database URL from environment
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/workflow_scheduler?sslmode=disable"
+		log.Fatal("POSTGRES_URL environment variable is required")
 	}
 	
 	// Connect to database

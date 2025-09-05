@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Data Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧪 Test Data Generator</h1>
+            <p class="subtitle">Generate realistic mock data for development and testing</p>
+        </header>
+
+        <main>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="dataType">Data Type:</label>
+                    <select id="dataType">
+                        <option value="users">Users</option>
+                        <option value="companies">Companies</option>
+                        <option value="products">Products</option>
+                        <option value="orders">Orders</option>
+                        <option value="custom">Custom Schema</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="count">Count:</label>
+                    <input type="number" id="count" min="1" max="1000" value="10">
+                </div>
+
+                <div class="control-group">
+                    <label for="format">Format:</label>
+                    <select id="format">
+                        <option value="json">JSON</option>
+                        <option value="csv">CSV</option>
+                        <option value="xml">XML</option>
+                        <option value="sql">SQL</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="seed">Seed (optional):</label>
+                    <input type="text" id="seed" placeholder="Enter seed for consistent results">
+                </div>
+            </div>
+
+            <div id="fieldsSection" class="fields-section">
+                <h3>Fields:</h3>
+                <div id="fieldsList" class="fields-list">
+                    <!-- Fields will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div id="customSchemaSection" class="custom-schema-section" style="display: none;">
+                <h3>Custom Schema:</h3>
+                <div id="schemaBuilder" class="schema-builder">
+                    <div class="schema-field">
+                        <input type="text" placeholder="Field name" class="field-name">
+                        <select class="field-type">
+                            <option value="string">String</option>
+                            <option value="integer">Integer</option>
+                            <option value="decimal">Decimal</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="email">Email</option>
+                            <option value="phone">Phone</option>
+                            <option value="date">Date</option>
+                            <option value="uuid">UUID</option>
+                        </select>
+                        <button type="button" class="remove-field">Remove</button>
+                    </div>
+                </div>
+                <button type="button" id="addField" class="add-field">Add Field</button>
+            </div>
+
+            <div class="actions">
+                <button id="generateBtn" class="generate-btn">Generate Data</button>
+                <button id="clearBtn" class="clear-btn">Clear</button>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating data...</p>
+            </div>
+
+            <div id="output" class="output">
+                <div class="output-header">
+                    <h3>Generated Data</h3>
+                    <button id="copyBtn" class="copy-btn" style="display: none;">Copy to Clipboard</button>
+                    <button id="downloadBtn" class="download-btn" style="display: none;">Download</button>
+                </div>
+                <div id="outputContent" class="output-content">
+                    <p class="placeholder">Generated data will appear here...</p>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>🚀 Powered by <strong>Vrooli</strong> | <a href="/health" target="_blank">Health Check</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

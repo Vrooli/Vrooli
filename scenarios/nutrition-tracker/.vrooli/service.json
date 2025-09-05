@@ -206,17 +206,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Nutrition Tracker services",
+      "description": "Stop services",
       "steps": [
         {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
           "name": "stop-api",
-          "run": "pkill -f nutrition-tracker-api || true",
-          "description": "Stop API server"
+          "run": "pm::stop \"vrooli.develop.nutrition-tracker.start-api\" 2>/dev/null || pkill -f \"nutrition-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
+          "run": "pm::stop \"vrooli.develop.nutrition-tracker.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

@@ -156,7 +156,7 @@
       "description": "Start application services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && env PORT=$API_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./api-server &",
           "description": "Start Go API server in background",
           "background": true,

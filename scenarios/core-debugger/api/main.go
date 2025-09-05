@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -141,8 +142,12 @@ func checkAllComponents() []ComponentHealth {
 
 	for _, comp := range components {
 		start := time.Now()
-		cmd := exec.Command("bash", "-c", comp.HealthCheck)
-		cmd.Timeout = time.Duration(comp.TimeoutMs) * time.Millisecond
+		
+		// Create context with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(comp.TimeoutMs)*time.Millisecond)
+		defer cancel()
+		
+		cmd := exec.CommandContext(ctx, "bash", "-c", comp.HealthCheck)
 		
 		status := "healthy"
 		err := cmd.Run()

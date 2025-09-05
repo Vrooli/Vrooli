@@ -85,25 +85,45 @@
     "develop": {
       "steps": [
         {
-          "name": "start_api",
+          "name": "start-api",
           "run": "cd api && ./product-manager-agent-api",
           "description": "Start API server",
           "background": true
         },
         {
-          "name": "wait_for_api", 
+          "name": "wait_for_api",
           "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done' || echo 'API health check timeout'",
           "description": "Wait for API to be ready"
         },
         {
-          "name": "start_ui",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         }
       ]
     },
-    "timeout": 90
+    "timeout": 90,
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.product-manager-agent.start-api\" 2>/dev/null || pkill -f \"product-manager-agent-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.product-manager-agent.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   },
   "resources": {
     "redis": {

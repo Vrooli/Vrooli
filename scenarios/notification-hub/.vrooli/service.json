@@ -23,8 +23,18 @@
     ]
   },
   "ports": {
-    "API_PORT": 28100,
-    "UI_PORT": 32100
+    "api": {
+      "env_var": "API_PORT",
+      "port": 28100,
+      "fallback": "auto",
+      "description": "Notification Hub API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 32100,
+      "fallback": "auto",
+      "description": "Notification Hub dashboard port"
+    }
   },
   "resources": {
     "postgres": {
@@ -169,7 +179,7 @@
       "description": "Start Notification Hub with Go API server and Node.js dashboard",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && env POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/notification_hub REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} ./notification-hub-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -178,7 +188,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start Node.js dashboard server in background",
           "background": true,
@@ -219,22 +229,22 @@
       ]
     },
     "stop": {
-      "description": "Stop notification hub services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'notification-hub-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f \"ui/server.js\" || pkill -f \"node.*server.js\" || true",
-          "description": "Stop Node.js UI server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.notification-hub.start-api\" 2>/dev/null || pkill -f \"notification-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Notification Hub services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.notification-hub.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

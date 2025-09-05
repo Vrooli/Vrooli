@@ -1,0 +1,501 @@
+#!/bin/bash
+# Calendar CLI - Universal Scheduling Intelligence
+# Provides command-line interface to calendar API
+
+set -e
+
+# Configuration
+API_BASE_URL="${CALENDAR_API_URL:-http://localhost:3300}"
+AUTH_TOKEN="${CALENDAR_AUTH_TOKEN:-}"
+CONFIG_DIR="$HOME/.vrooli/calendar"
+CONFIG_FILE="$CONFIG_DIR/config.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}Warning: $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}$1${NC}"
+}
+
+# Load configuration if it exists
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # Simple key=value parsing
+        while IFS='=' read -r key value; do
+            case $key in
+                api_url) API_BASE_URL="$value" ;;
+                auth_token) AUTH_TOKEN="$value" ;;
+            esac
+        done < "$CONFIG_FILE"
+    fi
+}
+
+# Make authenticated API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    
+    local curl_args=("-s" "-w" "\n%{http_code}")
+    
+    if [[ -n "$AUTH_TOKEN" ]]; then
+        curl_args+=("-H" "Authorization: Bearer $AUTH_TOKEN")
+    fi
+    
+    curl_args+=("-H" "Content-Type: application/json")
+    curl_args+=("-X" "$method")
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=("-d" "$data")
+    fi
+    
+    curl_args+=("$API_BASE_URL$endpoint")
+    
+    local response
+    response=$(curl "${curl_args[@]}" 2>/dev/null)
+    
+    local body=$(echo "$response" | sed '$d')
+    local status=$(echo "$response" | tail -n1)
+    
+    if [[ "$status" -ge 200 && "$status" -lt 300 ]]; then
+        echo "$body"
+        return 0
+    else
+        print_error "API request failed (HTTP $status)"
+        if [[ -n "$body" ]]; then
+            echo "$body" | jq -r '.error // .message // .' 2>/dev/null || echo "$body"
+        fi
+        return 1
+    fi
+}
+
+# Check if jq is available for JSON formatting
+check_jq() {
+    if ! command -v jq >/dev/null 2>&1; then
+        print_warning "jq not found. Install jq for better JSON formatting."
+        return 1
+    fi
+    return 0
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if check_jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Show help
+show_help() {
+    cat << EOF
+Calendar CLI - Universal Scheduling Intelligence
+
+USAGE:
+    calendar [COMMAND] [OPTIONS]
+
+COMMANDS:
+    help                    Show this help message
+    version                 Show version information
+    status                  Show service status and upcoming events
+    
+    event create <title> <start> [OPTIONS]
+                           Create a new calendar event
+    event list [OPTIONS]   List upcoming events
+    event show <id>        Show event details
+    event delete <id>      Delete an event
+    
+    schedule chat <message>
+                           Natural language scheduling interface
+    schedule optimize <request>
+                           AI-powered schedule optimization
+    
+    remind test <event_id> Test notification delivery
+
+OPTIONS:
+    --json                 Output in JSON format
+    --verbose              Verbose output
+    --help                 Show help for specific command
+
+EVENT CREATE OPTIONS:
+    --end <time>          End time (defaults to 1 hour after start)
+    --location <place>    Event location
+    --type <type>         Event type (meeting, appointment, etc.)
+    --description <desc>  Event description
+    --recurring <pattern> Recurrence pattern (daily, weekly, monthly)
+    --remind <minutes>    Reminder time in minutes before event
+
+EVENT LIST OPTIONS:
+    --days <n>            Number of days to show (default: 7)
+    --type <type>         Filter by event type
+    --search <query>      Search events by title/description
+
+EXAMPLES:
+    calendar status
+    calendar event create "Team Meeting" "2024-01-15T10:00:00Z" --end "2024-01-15T11:00:00Z"
+    calendar event list --days 14 --type meeting
+    calendar schedule chat "schedule lunch with Sarah next Tuesday"
+    calendar schedule optimize "free up my schedule tonight"
+
+CONFIGURATION:
+    Config file: ~/.vrooli/calendar/config.yaml
+    Environment variables:
+        CALENDAR_API_URL      API base URL (default: http://localhost:3300)
+        CALENDAR_AUTH_TOKEN   Authentication token
+
+For more information, visit: https://vrooli.com/scenarios/calendar
+EOF
+}
+
+# Show version
+show_version() {
+    local api_version
+    api_version=$(api_request GET "/health" | jq -r '.version // "unknown"' 2>/dev/null || echo "unknown")
+    
+    cat << EOF
+Calendar CLI v1.0.0
+API Version: $api_version
+Configuration: $CONFIG_FILE
+API URL: $API_BASE_URL
+EOF
+}
+
+# Show status
+show_status() {
+    local json_flag=""
+    local verbose_flag=""
+    
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_flag="true"; shift ;;
+            --verbose) verbose_flag="true"; shift ;;
+            *) print_error "Unknown flag: $1"; exit 1 ;;
+        esac
+    done
+    
+    print_info "Checking calendar service status..."
+    
+    local health_response
+    if ! health_response=$(api_request GET "/health"); then
+        print_error "Calendar service is not available"
+        exit 1
+    fi
+    
+    if [[ "$json_flag" == "true" ]]; then
+        echo "$health_response" | format_json
+        return
+    fi
+    
+    local status=$(echo "$health_response" | jq -r '.status')
+    local timestamp=$(echo "$health_response" | jq -r '.timestamp')
+    
+    if [[ "$status" == "healthy" ]]; then
+        print_success "✅ Calendar service is healthy"
+    else
+        print_error "❌ Calendar service is unhealthy"
+    fi
+    
+    if [[ "$verbose_flag" == "true" ]]; then
+        echo ""
+        echo "Service Details:"
+        echo "$health_response" | jq -r '.services | to_entries[] | "  \(.key): \(.value)"'
+        echo ""
+        echo "Last Check: $timestamp"
+        
+        # Show upcoming events
+        echo ""
+        print_info "Upcoming Events (next 7 days):"
+        event_list --days 7
+    fi
+}
+
+# Create event
+event_create() {
+    local title="$1"
+    local start_time="$2"
+    shift 2
+    
+    if [[ -z "$title" || -z "$start_time" ]]; then
+        print_error "Usage: calendar event create <title> <start> [OPTIONS]"
+        return 1
+    fi
+    
+    # Parse additional options
+    local end_time=""
+    local location=""
+    local event_type=""
+    local description=""
+    local recurring=""
+    local remind_minutes=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --end) end_time="$2"; shift 2 ;;
+            --location) location="$2"; shift 2 ;;
+            --type) event_type="$2"; shift 2 ;;
+            --description) description="$2"; shift 2 ;;
+            --recurring) recurring="$2"; shift 2 ;;
+            --remind) remind_minutes="$2"; shift 2 ;;
+            *) print_error "Unknown option: $1"; return 1 ;;
+        esac
+    done
+    
+    # Default end time to 1 hour after start
+    if [[ -z "$end_time" ]]; then
+        if command -v date >/dev/null 2>&1; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                # macOS date
+                end_time=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$start_time" -v +1H "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
+            else
+                # GNU date
+                end_time=$(date -d "$start_time + 1 hour" -Iseconds 2>/dev/null || echo "")
+            fi
+        fi
+        
+        if [[ -z "$end_time" ]]; then
+            print_error "Could not calculate end time. Please specify --end option."
+            return 1
+        fi
+    fi
+    
+    # Build JSON payload
+    local json_payload
+    json_payload=$(jq -n \
+        --arg title "$title" \
+        --arg start_time "$start_time" \
+        --arg end_time "$end_time" \
+        --arg location "$location" \
+        --arg event_type "$event_type" \
+        --arg description "$description" \
+        '{
+            title: $title,
+            start_time: $start_time,
+            end_time: $end_time
+        }
+        | if $location != "" then .location = $location else . end
+        | if $event_type != "" then .event_type = $event_type else . end
+        | if $description != "" then .description = $description else . end
+        ')
+    
+    # Add reminders if specified
+    if [[ -n "$remind_minutes" ]]; then
+        json_payload=$(echo "$json_payload" | jq --argjson minutes "$remind_minutes" '.reminders = [{minutes_before: $minutes, type: "email"}]')
+    fi
+    
+    print_info "Creating event: $title"
+    
+    local response
+    if response=$(api_request POST "/api/v1/events" "$json_payload"); then
+        print_success "✅ Event created successfully"
+        echo "$response" | jq -r '"Event ID: " + .event.id'
+        if [[ -n "$remind_minutes" ]]; then
+            local reminder_count=$(echo "$response" | jq -r '.reminders_scheduled // 0')
+            echo "Reminders scheduled: $reminder_count"
+        fi
+    else
+        print_error "Failed to create event"
+        return 1
+    fi
+}
+
+# List events
+event_list() {
+    local days="7"
+    local event_type=""
+    local search=""
+    local json_flag=""
+    
+    # Parse options
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --days) days="$2"; shift 2 ;;
+            --type) event_type="$2"; shift 2 ;;
+            --search) search="$2"; shift 2 ;;
+            --json) json_flag="true"; shift ;;
+            *) print_error "Unknown option: $1"; return 1 ;;
+        esac
+    done
+    
+    # Build query parameters
+    local params=""
+    if [[ -n "$event_type" ]]; then
+        params="${params}&event_type=$event_type"
+    fi
+    if [[ -n "$search" ]]; then
+        params="${params}&search=$(printf '%s' "$search" | sed 's/ /%20/g')"
+    fi
+    
+    # Add date range (next N days)
+    if command -v date >/dev/null 2>&1; then
+        local start_date end_date
+        start_date=$(date -Iseconds)
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS date
+            end_date=$(date -v +"${days}d" -Iseconds)
+        else
+            # GNU date
+            end_date=$(date -d "+${days} days" -Iseconds)
+        fi
+        params="${params}&start_date=$start_date&end_date=$end_date"
+    fi
+    
+    local response
+    if response=$(api_request GET "/api/v1/events?${params#&}"); then
+        if [[ "$json_flag" == "true" ]]; then
+            echo "$response" | format_json
+            return
+        fi
+        
+        local event_count=$(echo "$response" | jq '.events | length')
+        
+        if [[ "$event_count" -eq 0 ]]; then
+            print_info "No events found for the next $days days"
+            return
+        fi
+        
+        print_info "Upcoming events (next $days days):"
+        echo ""
+        
+        # Format events in a table
+        printf "%-20s %-25s %-15s %s\n" "TITLE" "START TIME" "TYPE" "LOCATION"
+        printf "%-20s %-25s %-15s %s\n" "────────────────────" "─────────────────────────" "───────────────" "────────────"
+        
+        echo "$response" | jq -r '.events[] | [.title[0:19], .start_time, (.event_type // "meeting"), (.location // "")] | @tsv' | \
+        while IFS=$'\t' read -r title start_time type location; do
+            # Format timestamp
+            local formatted_time
+            if command -v date >/dev/null 2>&1; then
+                if [[ "$OSTYPE" == "darwin"* ]]; then
+                    # macOS date
+                    formatted_time=$(date -j -f "%Y-%m-%dT%H:%M:%SZ" "$start_time" "+%b %d, %H:%M" 2>/dev/null || echo "$start_time")
+                else
+                    # GNU date
+                    formatted_time=$(date -d "$start_time" "+%b %d, %H:%M" 2>/dev/null || echo "$start_time")
+                fi
+            else
+                formatted_time="$start_time"
+            fi
+            
+            printf "%-20s %-25s %-15s %s\n" "$title" "$formatted_time" "$type" "$location"
+        done
+        
+        echo ""
+        print_info "Total: $event_count events"
+    else
+        print_error "Failed to retrieve events"
+        return 1
+    fi
+}
+
+# Schedule chat
+schedule_chat() {
+    local message="$*"
+    
+    if [[ -z "$message" ]]; then
+        print_error "Usage: calendar schedule chat <message>"
+        return 1
+    fi
+    
+    local json_payload
+    json_payload=$(jq -n --arg message "$message" '{message: $message}')
+    
+    print_info "Processing: $message"
+    echo ""
+    
+    local response
+    if response=$(api_request POST "/api/v1/schedule/chat" "$json_payload"); then
+        local chat_response=$(echo "$response" | jq -r '.response')
+        local requires_confirmation=$(echo "$response" | jq -r '.requires_confirmation')
+        
+        print_success "Assistant: $chat_response"
+        
+        # Show suggested actions
+        local actions
+        actions=$(echo "$response" | jq -r '.suggested_actions[]?')
+        if [[ -n "$actions" ]]; then
+            echo ""
+            print_info "Suggested actions:"
+            echo "$response" | jq -r '.suggested_actions[] | "• \(.action) (confidence: \(.confidence * 100 | floor)%)"'
+        fi
+        
+        if [[ "$requires_confirmation" == "true" ]]; then
+            echo ""
+            print_warning "This action requires confirmation. Use the specific command to proceed."
+        fi
+    else
+        print_error "Failed to process scheduling request"
+        return 1
+    fi
+}
+
+# Main command dispatcher
+main() {
+    # Load configuration
+    load_config
+    
+    # Check for auth token
+    if [[ -z "$AUTH_TOKEN" ]]; then
+        print_warning "No authentication token found. Set CALENDAR_AUTH_TOKEN or configure in $CONFIG_FILE"
+    fi
+    
+    # Parse command
+    local command="${1:-help}"
+    shift || true
+    
+    case "$command" in
+        help|--help|-h)
+            show_help
+            ;;
+        version|--version|-v)
+            show_version
+            ;;
+        status)
+            show_status "$@"
+            ;;
+        event)
+            local subcommand="${1:-help}"
+            shift || true
+            case "$subcommand" in
+                create) event_create "$@" ;;
+                list) event_list "$@" ;;
+                *) print_error "Unknown event command: $subcommand"; exit 1 ;;
+            esac
+            ;;
+        schedule)
+            local subcommand="${1:-help}"
+            shift || true
+            case "$subcommand" in
+                chat) schedule_chat "$@" ;;
+                *) print_error "Unknown schedule command: $subcommand"; exit 1 ;;
+            esac
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

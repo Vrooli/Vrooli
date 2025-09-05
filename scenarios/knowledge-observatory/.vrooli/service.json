@@ -178,7 +178,7 @@
       "description": "Start Knowledge Observatory with API and UI",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && env QDRANT_URL=http://localhost:${RESOURCE_PORTS[qdrant]} ./knowledge-observatory-api",
           "description": "Start Go API server",
           "background": true,
@@ -187,7 +187,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && env PORT=$UI_PORT API_URL=http://localhost:$API_PORT npm run start",
           "description": "Start UI dashboard server",
           "background": true
@@ -241,22 +241,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Knowledge Observatory services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'knowledge-observatory-api' || true",
-          "description": "Stop Go API server"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'knowledge-observatory.*ui' || true",
-          "description": "Stop UI server"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.knowledge-observatory.start-api\" 2>/dev/null || pkill -f \"knowledge-observatory-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Knowledge Observatory services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.knowledge-observatory.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

@@ -156,7 +156,7 @@
       "description": "Start Make It Vegan services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./make-it-vegan-api",
           "description": "Start Go API server",
           "background": true,
@@ -165,7 +165,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
@@ -198,12 +198,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Make It Vegan services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'make-it-vegan-api' || true; pkill -f 'node server.js' || true",
-          "description": "Stop all services"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.make-it-vegan.start-api\" 2>/dev/null || pkill -f \"make-it-vegan-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.make-it-vegan.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

@@ -1,0 +1,19 @@
+{
+  "name": "visited-tracker-ui",
+  "version": "1.0.0",
+  "description": "Campaign management dashboard for visited tracker",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "keywords": [
+    "visited-tracker",
+    "campaign-tracking",
+    "file-operations",
+    "developer-tools"
+  ]
+}

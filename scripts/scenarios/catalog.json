@@ -3,6 +3,15 @@
   "last_updated": "2025-01-17",
   "scenarios": [
     {
+      "name": "algorithm-library",
+      "description": "Validated multi-language algorithm and data structure reference library with Judge0 execution",
+      "location": "algorithm-library",
+      "category": "technical-reference",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
       "name": "picker-wheel",
       "description": "Fun random selection wheel with customizable options and animated spinning",
       "location": "picker-wheel",

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#4f46e5">
+    
+    <title>Device Sync Hub</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%234f46e5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3E%3C/svg%3E">
+    
+    <!-- Apple touch icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%234f46e5' viewBox='0 0 24 24'%3E%3Cpath d='M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3E%3C/svg%3E">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Preconnect to API -->
+    <link rel="preconnect" href="http://localhost:3300">
+</head>
+<body>
+    <!-- Loading screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Connecting to Device Sync Hub...</p>
+    </div>
+
+    <!-- Auth screen -->
+    <div id="auth-screen" class="auth-screen hidden">
+        <div class="auth-container">
+            <div class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <h1>Device Sync Hub</h1>
+            </div>
+            <p class="auth-subtitle">Sync files and clipboard between your devices instantly</p>
+            
+            <div class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
+                <button type="button" id="login-btn" class="btn btn-primary">Sign In</button>
+            </div>
+            
+            <div class="auth-links">
+                <p>Don't have an account? <a href="http://localhost:3251/register" target="_blank">Sign up</a></p>
+            </div>
+            
+            <div id="auth-error" class="error-message hidden"></div>
+        </div>
+    </div>
+
+    <!-- Main app -->
+    <div id="main-app" class="main-app hidden">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="app-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Sync Hub
+                    </h1>
+                    <div class="connection-status" id="connection-status">
+                        <div class="status-indicator offline"></div>
+                        <span>Connecting...</span>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button class="btn btn-secondary" id="settings-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-secondary" id="logout-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Upload section -->
+        <section class="upload-section">
+            <div class="upload-tabs">
+                <button class="tab-btn active" data-tab="file">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                    </svg>
+                    Files
+                </button>
+                <button class="tab-btn" data-tab="text">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Text
+                </button>
+                <button class="tab-btn" data-tab="clipboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    Clipboard
+                </button>
+            </div>
+
+            <!-- File upload tab -->
+            <div class="tab-content active" data-tab="file">
+                <div class="file-upload-area" id="file-upload-area">
+                    <input type="file" id="file-input" multiple accept="*/*">
+                    <div class="upload-prompt">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <p>Tap to select files or drag and drop</p>
+                        <small>Any file type • Up to 10MB each</small>
+                    </div>
+                </div>
+                <div class="upload-progress hidden" id="upload-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <p class="progress-text">Uploading...</p>
+                </div>
+            </div>
+
+            <!-- Text upload tab -->
+            <div class="tab-content" data-tab="text">
+                <div class="text-upload-form">
+                    <textarea id="text-content" placeholder="Enter text to share across devices..." rows="6"></textarea>
+                    <button type="button" id="upload-text-btn" class="btn btn-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        Share Text
+                    </button>
+                </div>
+            </div>
+
+            <!-- Clipboard tab -->
+            <div class="tab-content" data-tab="clipboard">
+                <div class="clipboard-section">
+                    <button type="button" id="paste-btn" class="btn btn-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                        </svg>
+                        Paste from Clipboard
+                    </button>
+                    <div class="clipboard-preview hidden" id="clipboard-preview">
+                        <div class="preview-content"></div>
+                        <div class="preview-actions">
+                            <button type="button" id="share-clipboard-btn" class="btn btn-primary">Share Clipboard</button>
+                            <button type="button" id="clear-clipboard-btn" class="btn btn-secondary">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Items list -->
+        <section class="items-section">
+            <div class="section-header">
+                <h2>Synced Items</h2>
+                <div class="items-controls">
+                    <button class="btn btn-secondary" id="refresh-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                    <div class="filter-dropdown">
+                        <select id="content-filter">
+                            <option value="all">All Items</option>
+                            <option value="file">Files</option>
+                            <option value="text">Text</option>
+                            <option value="clipboard">Clipboard</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="items-list" id="items-list">
+                <div class="empty-state" id="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                    <p>No items synced yet</p>
+                    <small>Upload files or share text to get started</small>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Settings modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="modal-close" id="close-settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-group">
+                    <label>Default Expiry Time</label>
+                    <select id="default-expiry">
+                        <option value="1">1 hour</option>
+                        <option value="6">6 hours</option>
+                        <option value="24" selected>24 hours</option>
+                        <option value="168">1 week</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Max File Size</label>
+                    <p class="setting-value" id="max-file-size">10 MB</p>
+                </div>
+                <div class="setting-group">
+                    <label>Connection Status</label>
+                    <div class="connection-info">
+                        <div class="status-row">
+                            <span>API:</span>
+                            <span class="status-badge" id="api-status">Connected</span>
+                        </div>
+                        <div class="status-row">
+                            <span>WebSocket:</span>
+                            <span class="status-badge" id="ws-status">Connected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>

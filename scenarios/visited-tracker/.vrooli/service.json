@@ -1,0 +1,208 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "visited-tracker",
+    "displayName": "Visited Tracker",
+    "description": "Persistent file visit tracking with staleness detection for systematic code analysis",
+    "version": "1.0.0",
+    "tags": [
+      "file-tracking",
+      "visit-tracking",
+      "staleness-detection",
+      "code-analysis",
+      "coverage-tracking",
+      "developer-tools",
+      "prioritization",
+      "go-api",
+      "postgres-storage",
+      "systematic-review"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 20252,
+      "fallback": "auto",
+      "description": "Visited Tracker API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "port": 3252,
+      "fallback": "auto",
+      "description": "Visit tracking dashboard port"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Persistent storage for visit tracking, staleness scores, and metadata",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Optional caching layer for improved prioritization performance",
+      "initialization": []
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Visited Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Visited Tracker",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/visited-tracker-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "visited-tracker"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o visited-tracker-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Visited Tracker initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start visited tracker with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./visited-tracker-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/visited-tracker-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test visited tracker API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-visit-endpoint",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/visit -H 'Content-Type: application/json' -d '{\"files\":[\"test.js\"]}'",
+          "description": "Test visit recording endpoint"
+        },
+        {
+          "name": "test-coverage-endpoint",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/coverage",
+          "description": "Test coverage statistics endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && if [ -f visited-tracker.bats ]; then bats visited-tracker.bats; else echo 'CLI tests not implemented yet'; fi",
+          "description": "Run CLI test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.visited-tracker.start-api\" 2>/dev/null || pkill -f \"visited-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.visited-tracker.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

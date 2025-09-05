@@ -1,0 +1,109 @@
+version: 1.0
+scenario: device-sync-hub
+
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/package.json
+    - api/server.js
+    - cli/device-sync-hub
+    - cli/install.sh
+    - ui/index.html
+    - ui/style.css
+    - ui/app.js
+    - initialization/postgres/schema.sql
+    - initialization/n8n/auth-middleware.json
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - initialization
+    - initialization/n8n
+    - initialization/postgres
+    - test
+    - data
+
+resources:
+  required: [scenario-authenticator, postgres]
+  optional: [redis]
+  health_timeout: 60
+
+tests:
+  - name: "Authentication service is accessible"
+    type: http
+    service: scenario-authenticator
+    endpoint: /api/v1/auth/validate
+    method: GET
+    expect:
+      status: 401  # Expected without token
+      
+  - name: "Device Sync API responds to health check"
+    type: http  
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        healthy: true
+        service: device-sync-hub
+        
+  - name: "Web UI loads successfully"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET  
+    expect:
+      status: 200
+      
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/device-sync-hub version --json
+    expect:
+      exit_code: 0
+      output_contains: ["device-sync-hub", "1.0.0"]
+      
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('sync_items', 'device_sessions')"
+    expect:
+      rows: 
+        - count: 2
+        
+  - name: "Required database functions exist"
+    type: sql
+    service: postgres  
+    query: "SELECT COUNT(*) FROM information_schema.routines WHERE routine_name IN ('cleanup_expired_items', 'get_user_sync_stats')"
+    expect:
+      rows:
+        - count: 2
+        
+  - name: "Storage directories are created"
+    type: exec
+    command: ls -la data/
+    expect:
+      exit_code: 0
+      output_contains: ["files", "thumbnails"]
+      
+  - name: "CLI install script is executable"  
+    type: exec
+    command: test -x cli/install.sh
+    expect:
+      exit_code: 0
+      
+  - name: "n8n workflow is valid JSON"
+    type: exec  
+    command: jq empty initialization/n8n/auth-middleware.json
+    expect:
+      exit_code: 0
+      
+  - name: "API package.json has required dependencies"
+    type: exec
+    command: jq -e '.dependencies.express and .dependencies.ws and .dependencies.multer and .dependencies.pg' api/package.json
+    expect:
+      exit_code: 0

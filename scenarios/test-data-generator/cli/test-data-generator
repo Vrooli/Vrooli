@@ -1,0 +1,299 @@
+#!/bin/bash
+
+# Test Data Generator CLI
+# A command-line interface for generating mock test data
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+API_URL="${API_URL:-http://localhost:3001}"
+OUTPUT_DIR="${OUTPUT_DIR:-./generated-data}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_color() {
+    local color=$1
+    shift
+    echo -e "${color}$*${NC}"
+}
+
+print_error() {
+    print_color $RED "❌ Error: $*"
+}
+
+print_success() {
+    print_color $GREEN "✅ $*"
+}
+
+print_info() {
+    print_color $BLUE "ℹ️  $*"
+}
+
+print_warning() {
+    print_color $YELLOW "⚠️  $*"
+}
+
+# Show help
+show_help() {
+    cat << EOF
+Test Data Generator CLI
+
+USAGE:
+    test-data-generator <command> [options]
+
+COMMANDS:
+    generate <type>     Generate test data of specified type
+    types              List available data types
+    health             Check API health status
+    help               Show this help message
+
+GENERATE OPTIONS:
+    --count, -c        Number of records to generate (default: 10)
+    --format, -f       Output format: json, csv, xml, sql (default: json)
+    --output, -o       Output file path (default: stdout)
+    --fields           Comma-separated list of fields to include
+    --seed             Seed for consistent random data generation
+    --pretty           Pretty-print JSON output
+
+CUSTOM SCHEMA:
+    --schema           JSON string defining custom schema
+    
+EXAMPLES:
+    # Generate 5 users in JSON format
+    test-data-generator generate users --count 5
+
+    # Generate companies with specific fields
+    test-data-generator generate companies --fields id,name,website --count 10
+
+    # Save to file
+    test-data-generator generate products --count 100 --output products.json
+
+    # Generate with seed for consistent results
+    test-data-generator generate users --count 5 --seed 12345
+
+    # Custom schema
+    test-data-generator generate custom --schema '{"id":"uuid","title":"string","price":"decimal"}' --count 3
+
+ENVIRONMENT VARIABLES:
+    API_URL           Test Data Generator API URL (default: http://localhost:3001)
+    OUTPUT_DIR        Default output directory (default: ./generated-data)
+
+EOF
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -s "$API_URL/health" > /dev/null 2>&1; then
+        print_error "Cannot connect to API at $API_URL"
+        print_info "Make sure the Test Data Generator API is running:"
+        print_info "cd api && npm install && npm start"
+        exit 1
+    fi
+}
+
+# Get available data types
+get_types() {
+    check_api
+    
+    print_info "Available data types:"
+    echo
+    
+    response=$(curl -s "$API_URL/api/types")
+    if [ $? -ne 0 ]; then
+        print_error "Failed to fetch data types"
+        exit 1
+    fi
+    
+    echo "$response" | jq -r '.definitions | to_entries[] | "  \(.key): \(.value.description)"' 2>/dev/null || {
+        print_warning "Install 'jq' for better output formatting"
+        echo "$response"
+    }
+}
+
+# Check API health
+check_health() {
+    print_info "Checking API health..."
+    
+    response=$(curl -s "$API_URL/health")
+    if [ $? -ne 0 ]; then
+        print_error "API is not responding"
+        exit 1
+    fi
+    
+    status=$(echo "$response" | jq -r '.status' 2>/dev/null || echo "unknown")
+    
+    if [ "$status" = "healthy" ]; then
+        print_success "API is healthy"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        print_error "API is not healthy"
+        echo "$response"
+        exit 1
+    fi
+}
+
+# Generate data
+generate_data() {
+    local data_type="$1"
+    shift
+    
+    # Parse options
+    local count=10
+    local format="json"
+    local output=""
+    local fields=""
+    local seed=""
+    local pretty=false
+    local schema=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --count|-c)
+                count="$2"
+                shift 2
+                ;;
+            --format|-f)
+                format="$2"
+                shift 2
+                ;;
+            --output|-o)
+                output="$2"
+                shift 2
+                ;;
+            --fields)
+                fields="$2"
+                shift 2
+                ;;
+            --seed)
+                seed="$2"
+                shift 2
+                ;;
+            --schema)
+                schema="$2"
+                shift 2
+                ;;
+            --pretty)
+                pretty=true
+                shift
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    # Build request payload
+    local payload="{\"count\":$count,\"format\":\"$format\""
+    
+    if [ -n "$seed" ]; then
+        payload="$payload,\"seed\":\"$seed\""
+    fi
+    
+    if [ -n "$fields" ]; then
+        # Convert comma-separated fields to JSON array
+        local fields_array=$(echo "\"$fields\"" | sed 's/,/","/g' | sed 's/^/[/' | sed 's/$/]/')
+        payload="$payload,\"fields\":$fields_array"
+    fi
+    
+    if [ -n "$schema" ]; then
+        payload="$payload,\"schema\":$schema"
+    fi
+    
+    payload="$payload}"
+    
+    # Determine endpoint
+    local endpoint="/api/generate/$data_type"
+    if [ "$data_type" = "custom" ]; then
+        endpoint="/api/generate/custom"
+        if [ -z "$schema" ]; then
+            print_error "Custom data type requires --schema option"
+            exit 1
+        fi
+    fi
+    
+    print_info "Generating $count $data_type record(s) in $format format..."
+    
+    # Make API call
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "$API_URL$endpoint")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to generate data"
+        exit 1
+    fi
+    
+    # Check for API errors
+    success=$(echo "$response" | jq -r '.success' 2>/dev/null)
+    if [ "$success" != "true" ]; then
+        error_msg=$(echo "$response" | jq -r '.error' 2>/dev/null || echo "Unknown error")
+        print_error "$error_msg"
+        exit 1
+    fi
+    
+    print_success "Generated $(echo "$response" | jq -r '.count' 2>/dev/null || echo "?") records"
+    
+    # Extract data based on format
+    local data
+    if [ "$format" = "json" ]; then
+        if [ "$pretty" = true ]; then
+            data=$(echo "$response" | jq '.data' 2>/dev/null || echo "$response")
+        else
+            data=$(echo "$response" | jq -c '.data' 2>/dev/null || echo "$response")
+        fi
+    else
+        data=$(echo "$response" | jq -r '.data' 2>/dev/null || echo "$response")
+    fi
+    
+    # Output data
+    if [ -n "$output" ]; then
+        # Create output directory if needed
+        mkdir -p "$(dirname "$output")"
+        echo "$data" > "$output"
+        print_success "Data saved to: $output"
+    else
+        echo "$data"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    case "${1:-help}" in
+        generate)
+            if [ $# -lt 2 ]; then
+                print_error "Generate command requires a data type"
+                echo "Use 'test-data-generator types' to see available types"
+                exit 1
+            fi
+            generate_data "${@:2}"
+            ;;
+        types)
+            get_types
+            ;;
+        health)
+            check_health
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            print_error "Unknown command: $1"
+            echo
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

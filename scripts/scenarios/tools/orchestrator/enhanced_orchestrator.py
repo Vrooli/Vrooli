@@ -71,6 +71,29 @@ class EnhancedApp:
             else:
                 simple_ports[port_type] = port_config
         
+        # Calculate runtime duration if the app is running
+        runtime_seconds = None
+        runtime_formatted = None
+        if self.started_at and self.status == "running":
+            duration = datetime.now() - self.started_at
+            runtime_seconds = int(duration.total_seconds())
+            
+            # Format duration as human-readable string
+            days = duration.days
+            hours, remainder = divmod(duration.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            
+            parts = []
+            if days > 0:
+                parts.append(f"{days}d")
+            if hours > 0:
+                parts.append(f"{hours}h")
+            if minutes > 0:
+                parts.append(f"{minutes}m")
+            if seconds > 0 or not parts:  # Always show seconds if nothing else
+                parts.append(f"{seconds}s")
+            runtime_formatted = " ".join(parts)
+        
         return {
             "name": self.name,
             "enabled": self.enabled,
@@ -79,6 +102,8 @@ class EnhancedApp:
             "status": self.status,
             "started_at": self.started_at.isoformat() if self.started_at else None,
             "stopped_at": self.stopped_at.isoformat() if self.stopped_at else None,
+            "runtime_seconds": runtime_seconds,
+            "runtime_formatted": runtime_formatted,
             "restart_count": self.restart_count,
             "health_check_failures": self.health_check_failures,
             "log_file": str(self.log_file) if self.log_file else None
@@ -227,10 +252,42 @@ class EnhancedAppOrchestrator:
                                 prev_status = app.status
                                 app.pid = pid
                                 app.status = "running"
-                                app.started_at = datetime.fromtimestamp(proc.info['create_time'])
-                                app_detected = True
+                                # Only set started_at if status is changing from non-running to running
                                 if prev_status != "running":
-                                    status_changes.append((app_name, prev_status, "running"))
+                                    app.started_at = datetime.now()
+                                
+                                # Perform health check to determine actual status
+                                if app.allocated_ports:
+                                    total_ports = len(app.allocated_ports)
+                                    responding_ports = 0
+                                    listening_ports = 0
+                                    
+                                    for port_type, port_config in app.allocated_ports.items():
+                                        port_num = port_config.get("port") if isinstance(port_config, dict) else port_config
+                                        if port_num and not self.is_port_available(port_num):
+                                            listening_ports += 1
+                                            health_check = self.check_service_health(port_num, port_type, app_name)
+                                            if health_check["responding"]:
+                                                responding_ports += 1
+                                    
+                                    # Determine final status based on health
+                                    if responding_ports == total_ports:
+                                        # All ports responding - keep as running
+                                        final_status = "running"
+                                    elif responding_ports > 0 or listening_ports > 0:
+                                        # Some ports responding or listening - mark as degraded
+                                        app.status = "degraded"
+                                        final_status = "degraded"
+                                    else:
+                                        # No ports responding - mark as degraded
+                                        app.status = "degraded"
+                                        final_status = "degraded"
+                                else:
+                                    # No ports configured - assume healthy
+                                    final_status = "running"
+                                
+                                status_changes.append((app_name, prev_status, final_status))
+                                app_detected = True
                                 
                     except (psutil.NoSuchProcess, psutil.AccessDenied, KeyError):
                         continue
@@ -262,10 +319,11 @@ class EnhancedAppOrchestrator:
                                         prev_status = app.status
                                         app.pid = pid
                                         app.status = "running"
-                                        app.started_at = datetime.fromtimestamp(proc.create_time())
-                                        app_detected = True
+                                        # Only set started_at if status is changing from non-running to running
                                         if prev_status != "running":
+                                            app.started_at = datetime.now()
                                             status_changes.append((app_name, prev_status, "running"))
+                                        app_detected = True
                                     detected_ports.append(f"{port_type}:{port_num}")
                         except (subprocess.TimeoutExpired, ValueError, psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
@@ -1022,12 +1080,18 @@ class EnhancedAppOrchestrator:
             elif responding_ports > 0:
                 # Some ports responding
                 actual_health = "degraded"
+                app.status = "degraded"  # Update app status to match health
             elif listening_ports > 0:
                 # Ports bound but not responding
                 actual_health = "unhealthy"
+                app.status = "degraded"  # Update app status to match health
             else:
                 # No ports bound
                 actual_health = "degraded"
+                app.status = "degraded"  # Update app status to match health
+        elif app.status == "running" and total_ports == 0:
+            # App running but no ports configured - assume healthy
+            actual_health = "healthy"
         
         status["port_status"] = port_status
         status["actual_health"] = actual_health

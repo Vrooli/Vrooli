@@ -1,0 +1,641 @@
+#!/bin/bash
+
+# Visited Tracker CLI
+# Persistent file visit tracking with staleness detection
+
+set -e
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/visited-tracker/cli"
+API_PORT="${API_PORT:-20252}"
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+show_help() {
+    echo -e "${CYAN}🔍 Visited Tracker CLI${NC}"
+    echo
+    echo "Persistent file visit tracking with staleness detection for systematic code analysis"
+    echo
+    echo "Usage: visited-tracker [command] [options]"
+    echo
+    echo "Commands:"
+    echo "  visit FILE1 [FILE2...]       Record file visit(s) with optional context"
+    echo "  sync                         Sync file structure and detect changes"
+    echo "  least-visited                Get prioritized list of least visited files"
+    echo "  most-stale                   Get files with highest staleness scores"
+    echo "  coverage                     Show visit coverage statistics"
+    echo "  import FILE                  Import visited data from file"
+    echo "  export FILE                  Export visited data to file"
+    echo "  status                       Show tracking status and coverage summary"
+    echo "  help                         Show this help message"
+    echo "  version                      Show version information"
+    echo
+    echo "Visit Context Values:"
+    echo "  security, performance, bug, docs, general"
+    echo
+    echo "Options:"
+    echo "  --context CONTEXT            Visit context (security/performance/bug/docs)"
+    echo "  --agent AGENT                AI model or agent name"
+    echo "  --conversation ID            Conversation ID for grouping visits"
+    echo "  --limit N                    Number of files to return"
+    echo "  --patterns PATTERN           Glob patterns for filtering"
+    echo "  --json                       Output raw JSON"
+    echo
+    echo "Examples:"
+    echo "  visited-tracker visit 'src/**/*.js' --context security"
+    echo "  visited-tracker least-visited --limit 10 --context security"
+    echo "  visited-tracker most-stale --threshold 5.0"
+    echo "  visited-tracker coverage --group-by directory"
+    echo "  visited-tracker sync --patterns '**/*.js' --remove-deleted"
+}
+
+show_version() {
+    echo "visited-tracker CLI v1.0.0"
+    echo "API: ${API_URL}"
+}
+
+check_api() {
+    if ! curl -s "${API_URL}/health" >/dev/null 2>&1; then
+        echo -e "${RED}Error: API server not responding at ${API_URL}${NC}" >&2
+        echo "Please ensure the visited-tracker API is running" >&2
+        exit 1
+    fi
+}
+
+record_visit() {
+    local files=()
+    local context=""
+    local agent=""
+    local conversation=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --context)
+                context="$2"
+                shift 2
+                ;;
+            --agent)
+                agent="$2"
+                shift 2
+                ;;
+            --conversation)
+                conversation="$2"
+                shift 2
+                ;;
+            *)
+                files+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ${#files[@]} -eq 0 ]]; then
+        echo -e "${RED}Error: At least one file required${NC}" >&2
+        echo "Usage: visited-tracker visit FILE1 [FILE2...] [--context CONTEXT]" >&2
+        exit 1
+    fi
+    
+    # Build JSON payload
+    local files_json
+    files_json=$(printf '%s\n' "${files[@]}" | jq -R . | jq -s .)
+    
+    local payload
+    payload=$(jq -n \
+        --argjson files "$files_json" \
+        --arg context "$context" \
+        --arg agent "$agent" \
+        --arg conversation_id "$conversation" \
+        '{
+            files: $files,
+            context: (if $context == "" then null else $context end),
+            agent: (if $agent == "" then null else $agent end),
+            conversation_id: (if $conversation_id == "" then null else $conversation_id end)
+        }')
+    
+    check_api
+    
+    response=$(curl -s -X POST "${API_URL}/api/v1/visit" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        echo -e "${RED}Error recording visit:${NC}" >&2
+        echo "$response" | jq -r '.error' >&2
+        exit 1
+    fi
+    
+    local recorded
+    recorded=$(echo "$response" | jq -r '.recorded')
+    
+    echo -e "${GREEN}✓ Visit recorded successfully${NC}"
+    echo "Files recorded: $recorded"
+    
+    # Show visit counts for each file
+    echo "$response" | jq -r '.files[] | "  \(.file_path): \(.visit_count) visits"'
+}
+
+sync_structure() {
+    local patterns=()
+    local structure=""
+    local remove_deleted=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --patterns)
+                IFS=',' read -ra ADDR <<< "$2"
+                for i in "${ADDR[@]}"; do
+                    patterns+=("$i")
+                done
+                shift 2
+                ;;
+            --structure)
+                structure="$2"
+                shift 2
+                ;;
+            --remove-deleted)
+                remove_deleted=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Build JSON payload
+    local patterns_json
+    if [[ ${#patterns[@]} -gt 0 ]]; then
+        patterns_json=$(printf '%s\n' "${patterns[@]}" | jq -R . | jq -s .)
+    else
+        patterns_json="null"
+    fi
+    
+    local payload
+    payload=$(jq -n \
+        --argjson patterns "$patterns_json" \
+        --argjson remove_deleted "$remove_deleted" \
+        '{
+            patterns: $patterns,
+            remove_deleted: $remove_deleted
+        }')
+    
+    check_api
+    
+    response=$(curl -s -X POST "${API_URL}/api/v1/structure/sync" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        echo -e "${RED}Error syncing structure:${NC}" >&2
+        echo "$response" | jq -r '.error' >&2
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✓ Structure sync completed${NC}"
+    echo "Added: $(echo "$response" | jq -r '.added') files"
+    echo "Removed: $(echo "$response" | jq -r '.removed') files"
+    echo "Moved: $(echo "$response" | jq -r '.moved') files"
+    echo "Total: $(echo "$response" | jq -r '.total') files"
+}
+
+least_visited() {
+    local limit=10
+    local context=""
+    local include_unvisited=false
+    local json_output=false
+    local patterns=()
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --context)
+                context="$2"
+                shift 2
+                ;;
+            --include-unvisited)
+                include_unvisited=true
+                shift
+                ;;
+            --patterns)
+                IFS=',' read -ra ADDR <<< "$2"
+                for i in "${ADDR[@]}"; do
+                    patterns+=("$i")
+                done
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    local query_params="?limit=$limit&include_unvisited=$include_unvisited"
+    [[ -n "$context" ]] && query_params="${query_params}&context=$context"
+    
+    response=$(curl -s "${API_URL}/api/v1/prioritize/least-visited${query_params}")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+        return
+    fi
+    
+    echo -e "${CYAN}📊 Least Visited Files${NC}"
+    echo
+    
+    # Show coverage stats
+    local visited unvisited percentage
+    visited=$(echo "$response" | jq -r '.coverage.visited')
+    unvisited=$(echo "$response" | jq -r '.coverage.unvisited')
+    percentage=$(echo "$response" | jq -r '.coverage.percentage')
+    
+    echo "Coverage: ${percentage}% (${visited} visited, ${unvisited} unvisited)"
+    echo
+    
+    # List files
+    echo "$response" | jq -r '.files[] | "\(.file_path) - \(.visit_count) visits"'
+}
+
+most_stale() {
+    local limit=10
+    local threshold=""
+    local json_output=false
+    local patterns=()
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --threshold)
+                threshold="$2"
+                shift 2
+                ;;
+            --patterns)
+                IFS=',' read -ra ADDR <<< "$2"
+                for i in "${ADDR[@]}"; do
+                    patterns+=("$i")
+                done
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    local query_params="?limit=$limit"
+    [[ -n "$threshold" ]] && query_params="${query_params}&threshold=$threshold"
+    
+    response=$(curl -s "${API_URL}/api/v1/prioritize/most-stale${query_params}")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+        return
+    fi
+    
+    echo -e "${CYAN}🔥 Most Stale Files${NC}"
+    echo
+    
+    # Show staleness stats
+    local avg_staleness critical
+    avg_staleness=$(echo "$response" | jq -r '.average_staleness')
+    critical=$(echo "$response" | jq -r '.critical_count')
+    
+    echo "Average Staleness: $avg_staleness"
+    echo "Critical Files: $critical"
+    echo
+    
+    # List files
+    echo "$response" | jq -r '.files[] | "\(.file_path) - staleness: \(.staleness_score | tostring | .[0:5])"'
+}
+
+show_coverage() {
+    local patterns=()
+    local group_by=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --patterns)
+                IFS=',' read -ra ADDR <<< "$2"
+                for i in "${ADDR[@]}"; do
+                    patterns+=("$i")
+                done
+                shift 2
+                ;;
+            --group-by)
+                group_by="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    local query_params=""
+    [[ -n "$group_by" ]] && query_params="?group_by=$group_by"
+    
+    response=$(curl -s "${API_URL}/api/v1/coverage${query_params}")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+        return
+    fi
+    
+    echo -e "${CYAN}📈 Visit Coverage Statistics${NC}"
+    echo
+    
+    local total visited unvisited percentage avg_visits avg_staleness
+    total=$(echo "$response" | jq -r '.total_files')
+    visited=$(echo "$response" | jq -r '.visited_files')
+    unvisited=$(echo "$response" | jq -r '.unvisited_files')
+    percentage=$(echo "$response" | jq -r '.coverage_percentage')
+    avg_visits=$(echo "$response" | jq -r '.average_visits')
+    avg_staleness=$(echo "$response" | jq -r '.average_staleness')
+    
+    echo "Total Files: $total"
+    echo "Visited: $visited"
+    echo "Unvisited: $unvisited"
+    echo -e "${GREEN}Coverage: ${percentage}%${NC}"
+    echo "Average Visits: $avg_visits"
+    echo "Average Staleness: $avg_staleness"
+    
+    # Show groups if present
+    if [[ -n "$group_by" ]]; then
+        echo
+        echo "By $group_by:"
+        echo "$response" | jq -r '.groups | to_entries[] | "  \(.key): \(.value.coverage)%"'
+    fi
+}
+
+import_data() {
+    local file="$1"
+    local format=""
+    local merge="combine"
+    
+    if [[ -z "$file" ]]; then
+        echo -e "${RED}Error: Import file required${NC}" >&2
+        echo "Usage: visited-tracker import FILE [--format json|csv] [--merge replace|combine|max]" >&2
+        exit 1
+    fi
+    
+    shift
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --merge)
+                merge="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Auto-detect format if not specified
+    if [[ -z "$format" ]]; then
+        if [[ "$file" == *.json ]]; then
+            format="json"
+        elif [[ "$file" == *.csv ]]; then
+            format="csv"
+        else
+            format="json"  # Default
+        fi
+    fi
+    
+    if [[ ! -f "$file" ]]; then
+        echo -e "${RED}Error: File not found: $file${NC}" >&2
+        exit 1
+    fi
+    
+    local data
+    data=$(cat "$file")
+    
+    local payload
+    payload=$(jq -n \
+        --arg format "$format" \
+        --arg data "$data" \
+        --arg merge_strategy "$merge" \
+        '{
+            format: $format,
+            data: $data,
+            merge_strategy: $merge_strategy
+        }')
+    
+    check_api
+    
+    response=$(curl -s -X POST "${API_URL}/api/v1/import" \
+        -H "Content-Type: application/json" \
+        -d "$payload")
+    
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        echo -e "${RED}Error importing data:${NC}" >&2
+        echo "$response" | jq -r '.error' >&2
+        exit 1
+    fi
+    
+    echo -e "${GREEN}✓ Data imported successfully${NC}"
+    echo "Imported: $(echo "$response" | jq -r '.imported') files"
+    echo "Updated: $(echo "$response" | jq -r '.updated') files"
+    echo "Conflicts: $(echo "$response" | jq -r '.conflicts')"
+}
+
+export_data() {
+    local file="$1"
+    local format="json"
+    local include_history=false
+    local patterns=()
+    
+    if [[ -z "$file" ]]; then
+        echo -e "${RED}Error: Export file required${NC}" >&2
+        echo "Usage: visited-tracker export FILE [--format json|csv] [--include-history]" >&2
+        exit 1
+    fi
+    
+    shift
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --include-history)
+                include_history=true
+                shift
+                ;;
+            --patterns)
+                IFS=',' read -ra ADDR <<< "$2"
+                for i in "${ADDR[@]}"; do
+                    patterns+=("$i")
+                done
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    local query_params="?format=$format&include_history=$include_history"
+    
+    response=$(curl -s "${API_URL}/api/v1/export${query_params}")
+    
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        echo -e "${RED}Error exporting data:${NC}" >&2
+        echo "$response" | jq -r '.error' >&2
+        exit 1
+    fi
+    
+    # Extract and save data
+    echo "$response" | jq -r '.data' > "$file"
+    
+    local exported_count
+    exported_count=$(echo "$response" | jq -r '.exported_count')
+    
+    echo -e "${GREEN}✓ Data exported successfully${NC}"
+    echo "Exported: $exported_count files"
+    echo "Saved to: $file"
+}
+
+show_status() {
+    local json_output=false
+    local verbose=false
+    local context=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --context)
+                context="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    health_response=$(curl -s "${API_URL}/health")
+    coverage_response=$(curl -s "${API_URL}/api/v1/coverage")
+    
+    if [[ "$json_output" == true ]]; then
+        jq -n \
+            --argjson health "$health_response" \
+            --argjson coverage "$coverage_response" \
+            '{
+                health: $health,
+                coverage: $coverage
+            }'
+        return
+    fi
+    
+    echo -e "${CYAN}🔍 Visited Tracker Status${NC}"
+    echo
+    echo "API Status: $(echo "$health_response" | jq -r '.status')"
+    echo "Service: $(echo "$health_response" | jq -r '.service')"
+    echo "Version: $(echo "$health_response" | jq -r '.version // "1.0.0"')"
+    echo
+    
+    local total visited percentage
+    total=$(echo "$coverage_response" | jq -r '.total_files')
+    visited=$(echo "$coverage_response" | jq -r '.visited_files')
+    percentage=$(echo "$coverage_response" | jq -r '.coverage_percentage')
+    
+    echo "Total Files Tracked: $total"
+    echo "Files Visited: $visited"
+    echo -e "${GREEN}Coverage: ${percentage}%${NC}"
+}
+
+# Main command dispatch
+case "${1:-help}" in
+    visit)
+        shift
+        record_visit "$@"
+        ;;
+    sync)
+        shift
+        sync_structure "$@"
+        ;;
+    least-visited)
+        shift
+        least_visited "$@"
+        ;;
+    most-stale)
+        shift
+        most_stale "$@"
+        ;;
+    coverage)
+        shift
+        show_coverage "$@"
+        ;;
+    import)
+        shift
+        import_data "$@"
+        ;;
+    export)
+        shift
+        export_data "$@"
+        ;;
+    status)
+        shift
+        show_status "$@"
+        ;;
+    version)
+        show_version
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}" >&2
+        echo "Run 'visited-tracker help' for usage information" >&2
+        exit 1
+        ;;
+esac

@@ -148,9 +148,14 @@ func main() {
 }
 
 func loadConfig() Config {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	
 	return Config{
 		Port:        getEnv("API_PORT", getEnv("PORT", "")),
-		PostgresURL: getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/scraper_manager?sslmode=disable"),
+		PostgresURL: postgresURL,
 		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379"),
 		MinioURL:    getEnv("MINIO_URL", "http://localhost:9000"),
 		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),

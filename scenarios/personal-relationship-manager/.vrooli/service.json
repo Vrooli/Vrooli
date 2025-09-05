@@ -173,7 +173,7 @@
       "description": "Start Personal Relationship Manager with API and UI servers",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./personal-relationship-manager-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -182,7 +182,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -223,22 +223,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Personal Relationship Manager services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'personal-relationship-manager-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'npm.*start' || true",
-          "description": "Stop UI server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.personal-relationship-manager.start-api\" 2>/dev/null || pkill -f \"personal-relationship-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo 'Personal Relationship Manager services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.personal-relationship-manager.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

@@ -1,0 +1,68 @@
+{
+  "name": "test-data-generator",
+  "version": "1.0.0",
+  "description": "Standalone Node.js API service for generating realistic mock test data",
+  "type": "standalone-service",
+  "services": {
+    "api": {
+      "type": "nodejs",
+      "port": 3001,
+      "main": "server.js",
+      "directory": "api",
+      "environment": {
+        "NODE_ENV": "production",
+        "API_PORT": "3001"
+      }
+    },
+    "ui": {
+      "type": "nodejs",
+      "port": 3002,
+      "main": "server.js",
+      "directory": "ui",
+      "environment": {
+        "NODE_ENV": "production",
+        "UI_PORT": "3002",
+        "API_PORT": "3001"
+      }
+    }
+  },
+  "dependencies": {
+    "required": [],
+    "optional": []
+  },
+  "features": [
+    "data-generation",
+    "multiple-formats",
+    "custom-schemas",
+    "cli-interface",
+    "web-interface",
+    "seeded-generation"
+  ],
+  "data_types": [
+    "users",
+    "companies",
+    "products",
+    "orders",
+    "custom"
+  ],
+  "formats": [
+    "json",
+    "csv",
+    "xml",
+    "sql"
+  ],
+  "limits": {
+    "max_records": 10000,
+    "max_concurrent_requests": 10
+  },
+  "health_checks": {
+    "api": "http://localhost:3001/health",
+    "ui": "http://localhost:3002/health"
+  },
+  "urls": {
+    "api": "http://localhost:3001",
+    "ui": "http://localhost:3002",
+    "docs": "http://localhost:3002",
+    "swagger": "http://localhost:3001/api-docs"
+  }
+}

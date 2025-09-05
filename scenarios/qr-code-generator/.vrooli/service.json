@@ -149,13 +149,13 @@
       "description": "Start QR code generator services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && echo 'Starting API on port ${API_PORT}...' && PORT=${API_PORT} N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} REDIS_URL=redis://localhost:${RESOURCE_PORTS[redis]} ./qr-generator-api",
           "description": "Start API server",
           "background": true
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
@@ -183,12 +183,22 @@
       ]
     },
     "stop": {
-      "description": "Stop QR code generator",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'qr-generator-api' || true; pkill -f 'npm.*qr-code-generator' || true",
-          "description": "Stop all services"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.qr-code-generator.start-api\" 2>/dev/null || pkill -f \"qr-code-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.qr-code-generator.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

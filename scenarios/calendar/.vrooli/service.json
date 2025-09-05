@@ -1,0 +1,202 @@
+{
+  "metadata": {
+    "name": "calendar",
+    "description": "Universal scheduling intelligence system that enables time-aware workflows and cross-scenario temporal coordination",
+    "category": "automation",
+    "keywords": ["scheduling", "calendar", "events", "time", "automation", "ai", "notifications"],
+    "version": "1.0.0",
+    "author": "Vrooli AI",
+    "created": "2024-01-04",
+    "capabilities": [
+      "event-scheduling",
+      "recurring-patterns", 
+      "ai-search",
+      "natural-language-scheduling",
+      "event-automation",
+      "multi-user-calendars",
+      "notification-integration"
+    ],
+    "value_proposition": "Transforms any scenario into time-aware, schedulable system with AI-powered temporal intelligence"
+  },
+  
+  "services": {
+    "api": {
+      "port": 3300,
+      "health_endpoint": "/health",
+      "description": "Calendar REST API for event management and scheduling",
+      "startup_command": "cd api && go run main.go",
+      "dependencies": ["postgres", "qdrant", "scenario-authenticator", "notification-hub"],
+      "optional_dependencies": ["ollama", "n8n"],
+      "environment": {
+        "POSTGRES_URL": "postgres://vrooli:${POSTGRES_PASSWORD}@localhost:5433/calendar_system?sslmode=disable",
+        "QDRANT_URL": "http://localhost:6333",
+        "AUTH_SERVICE_URL": "http://localhost:3250",
+        "NOTIFICATION_SERVICE_URL": "http://localhost:28100",
+        "OLLAMA_URL": "http://localhost:11434",
+        "NOTIFICATION_PROFILE_ID": "calendar-system-prod",
+        "NOTIFICATION_API_KEY": "${NOTIFICATION_API_KEY}",
+        "JWT_SECRET": "${JWT_SECRET}"
+      }
+    },
+    
+    "ui": {
+      "port": 3301,
+      "health_endpoint": "/",
+      "description": "Professional calendar interface with week/month views",
+      "startup_command": "cd ui && python -m http.server 3301",
+      "static_files": true,
+      "proxy_api": "http://localhost:3300"
+    }
+  },
+  
+  "resources": {
+    "required": {
+      "postgres": {
+        "instance_name": "calendar-system",
+        "database": "calendar_system", 
+        "purpose": "Event storage, user schedules, recurring patterns",
+        "schema_file": "initialization/postgres/schema.sql",
+        "estimated_size": "10GB for 100K events",
+        "backup_frequency": "daily"
+      },
+      
+      "qdrant": {
+        "collection": "calendar_events",
+        "dimensions": 1536,
+        "distance": "Cosine",
+        "purpose": "AI-powered semantic event search and scheduling intelligence",
+        "estimated_vectors": "1M events with embeddings"
+      },
+      
+      "scenario-authenticator": {
+        "purpose": "Multi-user authentication and user context",
+        "api_endpoint": "/api/v1/auth/validate",
+        "required_version": "1.0.0"
+      },
+      
+      "notification-hub": {
+        "purpose": "Event reminders and schedule change notifications",
+        "profile_id": "calendar-system-prod", 
+        "required_version": "1.0.0",
+        "templates": ["event-reminder", "schedule-change", "event-conflict"]
+      }
+    },
+    
+    "optional": {
+      "ollama": {
+        "purpose": "Natural language processing for chat interface",
+        "model": "llama2:7b-chat",
+        "fallback": "Basic command parsing without AI enhancement"
+      },
+      
+      "n8n": {
+        "purpose": "Event-triggered workflow automation",
+        "workflows": ["calendar-reminder.json", "event-automation.json"],
+        "fallback": "Direct API calls without workflow orchestration"
+      }
+    }
+  },
+  
+  "initialization": {
+    "postgres": {
+      "schema_files": ["initialization/postgres/schema.sql"],
+      "seed_files": ["initialization/postgres/seed.sql"]
+    },
+    
+    "n8n": {
+      "workflows": [
+        {
+          "file": "initialization/n8n/calendar-reminder.json",
+          "active": true,
+          "description": "Automated reminder generation and notification sending"
+        }
+      ]
+    },
+    
+    "qdrant": {
+      "collections": [
+        {
+          "name": "calendar_events",
+          "config": {
+            "vectors": {
+              "size": 1536,
+              "distance": "Cosine"
+            }
+          }
+        }
+      ]
+    }
+  },
+  
+  "cli": {
+    "binary_name": "calendar",
+    "install_script": "cli/install.sh",
+    "description": "Calendar CLI for event management and scheduling",
+    "commands": {
+      "status": "Show calendar service status and upcoming events",
+      "event": "Event management commands (create, list, update, delete)",
+      "schedule": "AI-powered scheduling commands (chat, optimize)",
+      "remind": "Reminder management and testing"
+    }
+  },
+  
+  "integration": {
+    "provides": {
+      "api": {
+        "base_url": "http://localhost:3300/api/v1",
+        "key_endpoints": [
+          "POST /events - Create calendar events",
+          "GET /events - List and search events", 
+          "POST /schedule/chat - Natural language scheduling",
+          "POST /schedule/optimize - AI schedule optimization"
+        ]
+      },
+      
+      "events": {
+        "publishes": [
+          "calendar.event.created",
+          "calendar.event.starting", 
+          "calendar.schedule.optimized"
+        ]
+      },
+      
+      "capabilities": [
+        "time-based-workflow-orchestration",
+        "event-scheduling",
+        "ai-powered-time-optimization",
+        "multi-user-calendar-management"
+      ]
+    },
+    
+    "consumes": {
+      "scenario-authenticator": ["user-authentication", "jwt-validation"],
+      "notification-hub": ["multi-channel-notifications", "template-system"],
+      "ollama": ["natural-language-processing"]
+    }
+  },
+  
+  "deployment": {
+    "health_checks": [
+      "api:http://localhost:3300/health",
+      "ui:http://localhost:3301/",
+      "postgres:resource-postgres status calendar-system",
+      "qdrant:curl -f http://localhost:6333/collections/calendar_events"
+    ],
+    
+    "startup_timeout": 120,
+    "shutdown_timeout": 30,
+    
+    "monitoring": {
+      "metrics": ["api_response_time", "event_creation_rate", "search_accuracy"],
+      "alerts": ["high_api_latency", "notification_delivery_failure", "auth_service_down"]
+    }
+  },
+  
+  "security": {
+    "authentication": "JWT tokens via scenario-authenticator",
+    "authorization": "User-based event access control",
+    "data_encryption": "Event data encrypted at rest",
+    "audit_logging": "All calendar modifications logged",
+    "compliance": ["GDPR", "SOC2"]
+  }
+}

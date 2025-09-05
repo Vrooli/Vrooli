@@ -1,0 +1,644 @@
+#!/bin/bash
+
+# No Spoilers Book Talk CLI
+# CLI interface for spoiler-free book discussions
+
+set -e
+
+# Configuration
+CLI_NAME="no-spoilers-book-talk"
+CLI_VERSION="1.0.0"
+API_PORT="${API_PORT:-20300}"
+API_BASE_URL="http://localhost:${API_PORT}/api/v1"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Utility functions
+log_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+log_debug() {
+    if [[ "${DEBUG:-}" == "1" ]]; then
+        echo -e "${BLUE}[DEBUG]${NC} $1" >&2
+    fi
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -s "${API_BASE_URL%/api/v1}/health" >/dev/null 2>&1; then
+        log_error "API server not available at ${API_BASE_URL%/api/v1}"
+        log_error "Please ensure the book talk API is running"
+        exit 1
+    fi
+}
+
+# Format JSON output
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
+    else
+        cat
+    fi
+}
+
+# Show help
+show_help() {
+    cat << EOF
+📚 No Spoilers Book Talk CLI v${CLI_VERSION}
+
+A CLI tool for spoiler-free book discussions with AI.
+
+USAGE:
+    ${CLI_NAME} <command> [options]
+
+COMMANDS:
+    help                    Show this help message
+    status                  Show service status and book counts
+    version                 Show version information
+    
+    upload <file>           Upload a book for discussion
+    list                    List all books
+    show <book-id>          Show book details and progress
+    
+    chat <book-id> <msg>    Start a spoiler-free chat about a book
+    progress <book-id>      Update or view reading progress
+    conversations <book-id> View chat history for a book
+
+GLOBAL OPTIONS:
+    --user-id <id>         User identifier (default: current username)
+    --json                 Output in JSON format
+    --verbose              Enable verbose output
+    --debug                Enable debug output
+    --help                 Show help for specific command
+
+EXAMPLES:
+    # Upload a book
+    ${CLI_NAME} upload ~/books/pride-prejudice.txt --title "Pride and Prejudice"
+    
+    # List your books
+    ${CLI_NAME} list --user-id myname
+    
+    # Start a discussion
+    ${CLI_NAME} chat abc123 "What do you think of Elizabeth's character so far?"
+    
+    # Update reading progress
+    ${CLI_NAME} progress abc123 --set-position 25 --notes "Finished chapter 5"
+
+ENVIRONMENT:
+    API_PORT              API server port (default: 20300)
+    USER_ID               Default user identifier
+    DEBUG                 Enable debug output (1/true)
+
+For more information, visit: https://github.com/vrooli/scenarios/no-spoilers-book-talk
+EOF
+}
+
+# Show version
+show_version() {
+    if [[ "${1:-}" == "--json" ]]; then
+        cat << EOF
+{
+  "cli_version": "${CLI_VERSION}",
+  "api_base_url": "${API_BASE_URL}",
+  "api_port": "${API_PORT}"
+}
+EOF
+    else
+        echo "No Spoilers Book Talk CLI v${CLI_VERSION}"
+        echo "API: ${API_BASE_URL}"
+    fi
+}
+
+# Show status
+show_status() {
+    local json_output=false
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true ;;
+            --verbose) verbose=true ;;
+            *) log_warn "Unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    if ! curl -s "${API_BASE_URL%/api/v1}/health" >/dev/null 2>&1; then
+        if [[ "$json_output" == true ]]; then
+            echo '{"status": "unhealthy", "api_available": false}'
+        else
+            log_error "API server unavailable"
+        fi
+        exit 1
+    fi
+
+    local health_response
+    health_response=$(curl -s "${API_BASE_URL%/api/v1}/health")
+    
+    local book_count=""
+    if [[ "$verbose" == true ]]; then
+        book_count=$(curl -s "${API_BASE_URL}/books" | jq -r 'length' 2>/dev/null || echo "unknown")
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        echo "$health_response" | jq --arg book_count "$book_count" '. + {book_count: $book_count}'
+    else
+        echo "📚 No Spoilers Book Talk Status"
+        echo "Status: $(echo "$health_response" | jq -r '.status')"
+        echo "Service: $(echo "$health_response" | jq -r '.service')"
+        echo "Version: $(echo "$health_response" | jq -r '.version')"
+        if [[ "$verbose" == true && "$book_count" != "" ]]; then
+            echo "Total Books: $book_count"
+        fi
+        echo "API URL: $API_BASE_URL"
+    fi
+}
+
+# Upload a book
+upload_book() {
+    local file_path=""
+    local title=""
+    local author=""
+    local user_id="${USER_ID:-$(whoami)}"
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --title) title="$2"; shift ;;
+            --author) author="$2"; shift ;;
+            --user-id) user_id="$2"; shift ;;
+            --json) json_output=true ;;
+            -*) log_error "Unknown option: $1"; exit 1 ;;
+            *) 
+                if [[ -z "$file_path" ]]; then
+                    file_path="$1"
+                else
+                    log_error "Multiple file paths provided"
+                    exit 1
+                fi
+                ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$file_path" ]]; then
+        log_error "File path required"
+        echo "Usage: ${CLI_NAME} upload <file> [--title <title>] [--author <author>] [--user-id <id>]"
+        exit 1
+    fi
+
+    if [[ ! -f "$file_path" ]]; then
+        log_error "File not found: $file_path"
+        exit 1
+    fi
+
+    check_api
+
+    log_info "Uploading book: $file_path"
+    
+    local curl_args=()
+    curl_args+=(-X POST)
+    curl_args+=(-F "file=@$file_path")
+    curl_args+=(-F "user_id=$user_id")
+    
+    if [[ -n "$title" ]]; then
+        curl_args+=(-F "title=$title")
+    fi
+    if [[ -n "$author" ]]; then
+        curl_args+=(-F "author=$author")
+    fi
+
+    local response
+    if ! response=$(curl -s "${curl_args[@]}" "${API_BASE_URL}/books/upload"); then
+        log_error "Failed to upload book"
+        exit 1
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | format_json
+    else
+        local book_id
+        local book_title
+        book_id=$(echo "$response" | jq -r '.book_id')
+        book_title=$(echo "$response" | jq -r '.title')
+        
+        log_info "Book uploaded successfully!"
+        echo "Book ID: $book_id"
+        echo "Title: $book_title"
+        echo "Status: Processing..."
+        echo ""
+        echo "Use '${CLI_NAME} show $book_id' to check processing status"
+    fi
+}
+
+# List books
+list_books() {
+    local user_id="${USER_ID:-$(whoami)}"
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) user_id="$2"; shift ;;
+            --json) json_output=true ;;
+            *) log_warn "Unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    check_api
+
+    local response
+    if ! response=$(curl -s "${API_BASE_URL}/books?user_id=$user_id"); then
+        log_error "Failed to get books"
+        exit 1
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | format_json
+    else
+        local book_count
+        book_count=$(echo "$response" | jq 'length')
+        
+        if [[ "$book_count" == "0" ]]; then
+            echo "No books found for user: $user_id"
+            echo "Upload a book with: ${CLI_NAME} upload <file>"
+        else
+            echo "📚 Books for user: $user_id"
+            echo ""
+            echo "$response" | jq -r '.[] | "ID: \(.id)\nTitle: \(.title)\nAuthor: \(.author // "Unknown")\nStatus: \(.processing_status)\nProgress: \(.user_progress.percentage_complete // 0)%\n"'
+        fi
+    fi
+}
+
+# Show book details
+show_book() {
+    local book_id="$1"
+    local user_id="${USER_ID:-$(whoami)}"
+    local json_output=false
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) user_id="$2"; shift ;;
+            --json) json_output=true ;;
+            *) log_warn "Unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$book_id" ]]; then
+        log_error "Book ID required"
+        echo "Usage: ${CLI_NAME} show <book-id> [--user-id <id>]"
+        exit 1
+    fi
+
+    check_api
+
+    local response
+    if ! response=$(curl -s "${API_BASE_URL}/books/$book_id?user_id=$user_id"); then
+        log_error "Failed to get book details"
+        exit 1
+    fi
+
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        log_error "$(echo "$response" | jq -r '.error')"
+        exit 1
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | format_json
+    else
+        local book
+        local progress
+        book=$(echo "$response" | jq -r '.book')
+        progress=$(echo "$response" | jq -r '.user_progress // empty')
+
+        echo "📖 Book Details"
+        echo ""
+        echo "ID: $(echo "$book" | jq -r '.id')"
+        echo "Title: $(echo "$book" | jq -r '.title')"
+        echo "Author: $(echo "$book" | jq -r '.author // "Unknown"')"
+        echo "Type: $(echo "$book" | jq -r '.file_type')"
+        echo "Status: $(echo "$book" | jq -r '.processing_status')"
+        echo "Chunks: $(echo "$book" | jq -r '.total_chunks')"
+        echo "Words: $(echo "$book" | jq -r '.total_words')"
+        
+        if [[ -n "$progress" && "$progress" != "null" ]]; then
+            echo ""
+            echo "📊 Your Progress"
+            echo "Position: $(echo "$progress" | jq -r '.current_position')"
+            echo "Progress: $(echo "$progress" | jq -r '.percentage_complete')%"
+            echo "Sessions: $(echo "$progress" | jq -r '.reading_session_count')"
+            echo "Reading Time: $(echo "$progress" | jq -r '.total_reading_time_minutes') minutes"
+        fi
+    fi
+}
+
+# Chat with book
+chat_with_book() {
+    local book_id="$1"
+    local message="$2"
+    local user_id="${USER_ID:-$(whoami)}"
+    local position=""
+    local position_type="chunk"
+    local json_output=false
+
+    shift 2
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) user_id="$2"; shift ;;
+            --position) position="$2"; shift ;;
+            --position-type) position_type="$2"; shift ;;
+            --json) json_output=true ;;
+            *) log_warn "Unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$book_id" || -z "$message" ]]; then
+        log_error "Book ID and message required"
+        echo "Usage: ${CLI_NAME} chat <book-id> <message> [--position <pos>] [--user-id <id>]"
+        exit 1
+    fi
+
+    # Get current position if not provided
+    if [[ -z "$position" ]]; then
+        log_info "Getting current reading position..."
+        local book_response
+        if book_response=$(curl -s "${API_BASE_URL}/books/$book_id?user_id=$user_id"); then
+            position=$(echo "$book_response" | jq -r '.user_progress.current_position // 0')
+        else
+            position=0
+        fi
+    fi
+
+    check_api
+
+    local chat_payload
+    chat_payload=$(jq -n --arg msg "$message" --arg user_id "$user_id" --arg pos "$position" --arg pos_type "$position_type" '{
+        message: $msg,
+        user_id: $user_id,
+        current_position: ($pos | tonumber),
+        position_type: $pos_type
+    }')
+
+    log_info "Sending message (position: $position)..."
+    
+    local response
+    if ! response=$(curl -s -X POST -H "Content-Type: application/json" -d "$chat_payload" "${API_BASE_URL}/books/$book_id/chat"); then
+        log_error "Failed to send chat message"
+        exit 1
+    fi
+
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        log_error "$(echo "$response" | jq -r '.error')"
+        exit 1
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | format_json
+    else
+        echo ""
+        echo "🤖 AI Response:"
+        echo "$(echo "$response" | jq -r '.response')"
+        echo ""
+        echo "📍 Safe Content Used: $(echo "$response" | jq -r '.context_chunks_count') chunks (up to position $position)"
+        echo "⚡ Response Time: $(echo "$response" | jq -r '.processing_time_ms')ms"
+    fi
+}
+
+# Update or view progress
+manage_progress() {
+    local book_id="$1"
+    local user_id="${USER_ID:-$(whoami)}"
+    local set_position=""
+    local position_type="chunk"
+    local notes=""
+    local reading_time=0
+    local show_only=false
+    local json_output=false
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) user_id="$2"; shift ;;
+            --set-position) set_position="$2"; shift ;;
+            --position-type) position_type="$2"; shift ;;
+            --notes) notes="$2"; shift ;;
+            --reading-time) reading_time="$2"; shift ;;
+            --show) show_only=true ;;
+            --json) json_output=true ;;
+            *) log_warn "Unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$book_id" ]]; then
+        log_error "Book ID required"
+        echo "Usage: ${CLI_NAME} progress <book-id> [--set-position <pos>] [--notes <notes>] [--show]"
+        exit 1
+    fi
+
+    check_api
+
+    if [[ "$show_only" == true || -z "$set_position" ]]; then
+        # Show current progress
+        local response
+        if ! response=$(curl -s "${API_BASE_URL}/books/$book_id?user_id=$user_id"); then
+            log_error "Failed to get progress"
+            exit 1
+        fi
+
+        if [[ "$json_output" == true ]]; then
+            echo "$response" | jq '.user_progress'
+        else
+            local progress
+            progress=$(echo "$response" | jq -r '.user_progress // empty')
+            
+            if [[ -n "$progress" && "$progress" != "null" ]]; then
+                echo "📊 Reading Progress"
+                echo "Book: $(echo "$response" | jq -r '.book.title')"
+                echo "Current Position: $(echo "$progress" | jq -r '.current_position')"
+                echo "Progress: $(echo "$progress" | jq -r '.percentage_complete')%"
+                echo "Reading Sessions: $(echo "$progress" | jq -r '.reading_session_count')"
+                echo "Total Reading Time: $(echo "$progress" | jq -r '.total_reading_time_minutes') minutes"
+                if [[ -n "$(echo "$progress" | jq -r '.notes')" && "$(echo "$progress" | jq -r '.notes')" != "null" ]]; then
+                    echo "Notes: $(echo "$progress" | jq -r '.notes')"
+                fi
+            else
+                echo "No progress recorded for this book yet"
+                echo "Update progress with: ${CLI_NAME} progress $book_id --set-position <position>"
+            fi
+        fi
+    else
+        # Update progress
+        local update_payload
+        update_payload=$(jq -n --arg user_id "$user_id" --arg pos "$set_position" --arg pos_type "$position_type" --arg notes "$notes" --arg time "$reading_time" '{
+            user_id: $user_id,
+            current_position: ($pos | tonumber),
+            position_type: $pos_type,
+            notes: $notes,
+            reading_time_minutes: ($time | tonumber)
+        }')
+
+        log_info "Updating reading progress to position $set_position..."
+
+        local response
+        if ! response=$(curl -s -X PUT -H "Content-Type: application/json" -d "$update_payload" "${API_BASE_URL}/books/$book_id/progress"); then
+            log_error "Failed to update progress"
+            exit 1
+        fi
+
+        if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+            log_error "$(echo "$response" | jq -r '.error')"
+            exit 1
+        fi
+
+        if [[ "$json_output" == true ]]; then
+            echo "$response" | format_json
+        else
+            log_info "Progress updated successfully!"
+            echo "Position: $(echo "$response" | jq -r '.current_position')"
+            echo "Progress: $(echo "$response" | jq -r '.percentage_complete')%"
+            echo "Safe Content Available: $(echo "$response" | jq -r '.available_chunks') chunks"
+        fi
+    fi
+}
+
+# View conversation history
+view_conversations() {
+    local book_id="$1"
+    local user_id="${USER_ID:-$(whoami)}"
+    local limit=10
+    local json_output=false
+
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) user_id="$2"; shift ;;
+            --limit) limit="$2"; shift ;;
+            --json) json_output=true ;;
+            *) log_warn "Unknown option: $1" ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$book_id" ]]; then
+        log_error "Book ID required"
+        echo "Usage: ${CLI_NAME} conversations <book-id> [--user-id <id>] [--limit <n>]"
+        exit 1
+    fi
+
+    check_api
+
+    local response
+    if ! response=$(curl -s "${API_BASE_URL}/books/$book_id/conversations?user_id=$user_id&limit=$limit"); then
+        log_error "Failed to get conversations"
+        exit 1
+    fi
+
+    if echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+        log_error "$(echo "$response" | jq -r '.error')"
+        exit 1
+    fi
+
+    if [[ "$json_output" == true ]]; then
+        echo "$response" | format_json
+    else
+        local count
+        count=$(echo "$response" | jq -r '.count')
+        
+        if [[ "$count" == "0" ]]; then
+            echo "No conversations found for this book"
+        else
+            echo "💬 Recent Conversations ($count)"
+            echo ""
+            echo "$response" | jq -r '.conversations[] | "[\(.created_at)] Position: \(.user_position)\n👤 You: \(.user_message)\n🤖 AI: \(.ai_response)\n"'
+        fi
+    fi
+}
+
+# Parse global options
+parse_global_options() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) USER_ID="$2"; shift ;;
+            --json) JSON_OUTPUT=true ;;
+            --verbose) VERBOSE=true ;;
+            --debug) DEBUG=1 ;;
+            --help) 
+                if [[ -n "${2:-}" ]]; then
+                    show_command_help "$2"
+                else
+                    show_help
+                fi
+                exit 0
+                ;;
+            *) break ;;
+        esac
+        shift
+    done
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+
+    local command="$1"
+    shift
+
+    case "$command" in
+        help|--help|-h)
+            show_help
+            ;;
+        version|--version|-v)
+            show_version "$@"
+            ;;
+        status)
+            show_status "$@"
+            ;;
+        upload)
+            upload_book "$@"
+            ;;
+        list)
+            list_books "$@"
+            ;;
+        show)
+            show_book "$@"
+            ;;
+        chat)
+            chat_with_book "$@"
+            ;;
+        progress)
+            manage_progress "$@"
+            ;;
+        conversations|history)
+            view_conversations "$@"
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo "Use '${CLI_NAME} help' for available commands"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

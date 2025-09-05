@@ -87,7 +87,27 @@
         }
       ]
     },
-    "timeout": 60
+    "timeout": 60,
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.local-info-scout.start-api\" 2>/dev/null || pkill -f \"local-info-scout-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.local-info-scout.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   },
   "resources": {
     "redis": {

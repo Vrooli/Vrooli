@@ -1,0 +1,140 @@
+{
+  "name": "test-data-generator",
+  "version": "1.0.0",
+  "description": "Universal test data generator for all formats - JSON, YAML, CSV, XML, images, audio, video, PDFs",
+  "category": "generation",
+  "status": "testing",
+  "metadata": {
+    "author": "AI Agent",
+    "created": "2024-01-09",
+    "updated": "2024-01-09",
+    "tags": ["test", "mock", "data", "generation", "faker", "media"],
+    "revenue_potential": "5000-10000",
+    "reusability_score": 10,
+    "complexity": "medium"
+  },
+  "capabilities": [
+    "generate_json",
+    "generate_yaml", 
+    "generate_csv",
+    "generate_xml",
+    "generate_images",
+    "generate_audio",
+    "generate_video",
+    "generate_pdf",
+    "batch_generation",
+    "deterministic_seeds",
+    "schema_validation"
+  ],
+  "interfaces": {
+    "api": {
+      "enabled": true,
+      "port": 3001,
+      "base_path": "/api/v1",
+      "health_endpoint": "/health",
+      "docs_endpoint": "/docs"
+    },
+    "cli": {
+      "enabled": true,
+      "binary": "test-data-generator",
+      "install_path": "~/.vrooli/bin/"
+    },
+    "ui": {
+      "enabled": true,
+      "port": 3002,
+      "type": "web"
+    }
+  },
+  "resources": {
+    "required": [],
+    "optional": [
+      {
+        "name": "redis",
+        "purpose": "Caching frequently generated patterns",
+        "fallback": "In-memory cache"
+      },
+      {
+        "name": "minio", 
+        "purpose": "Store generated files for retrieval",
+        "fallback": "Temporary filesystem"
+      }
+    ]
+  },
+  "initialization": {
+    "scripts": [
+      "initialization/startup.sh"
+    ],
+    "dependencies": {
+      "system": ["nodejs", "npm", "ffmpeg"],
+      "npm": ["faker", "express", "canvas", "pdfkit", "fluent-ffmpeg"]
+    }
+  },
+  "deployment": {
+    "local": {
+      "type": "node",
+      "entry": "api/server.js",
+      "env": {
+        "NODE_ENV": "production",
+        "API_PORT": 3001,
+        "UI_PORT": 3002,
+        "CACHE_TTL": 3600,
+        "MAX_FILE_SIZE": 104857600
+      }
+    },
+    "docker": {
+      "image": "vrooli/test-data-generator:1.0.0",
+      "ports": ["3001:3001", "3002:3002"],
+      "volumes": ["/tmp/test-data:/app/temp"]
+    }
+  },
+  "cross_scenario": {
+    "provides": [
+      {
+        "capability": "test_data_generation",
+        "interface": "api",
+        "endpoints": [
+          "/generate/json",
+          "/generate/image",
+          "/generate/batch"
+        ]
+      }
+    ],
+    "consumes": []
+  },
+  "testing": {
+    "unit_tests": "tests/api.test.js",
+    "integration_tests": "tests/integration.test.sh",
+    "test_runner": "tests/run-tests.sh",
+    "coverage_target": 80
+  },
+  "monitoring": {
+    "health_check": {
+      "endpoint": "/health",
+      "interval": 30,
+      "timeout": 5
+    },
+    "metrics": {
+      "enabled": true,
+      "endpoint": "/metrics",
+      "track": ["requests", "cache_hits", "generation_time", "errors"]
+    }
+  },
+  "security": {
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 100
+    },
+    "max_request_size": "10MB",
+    "allowed_origins": ["http://localhost:*"],
+    "input_validation": true
+  },
+  "evolution": {
+    "current_version": "1.0.0",
+    "roadmap": {
+      "1.1.0": "Add Redis caching integration",
+      "1.2.0": "Complex media generation",
+      "2.0.0": "ML-powered realistic data"
+    },
+    "deprecations": []
+  }
+}

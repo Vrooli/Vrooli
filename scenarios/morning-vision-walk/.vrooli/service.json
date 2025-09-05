@@ -183,7 +183,7 @@
       "description": "Start Morning Vision Walk services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./vision-walk-api",
           "description": "Start API server",
           "background": true,
@@ -192,7 +192,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
@@ -220,12 +220,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Morning Vision Walk services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'vision-walk-api' || true; pkill -f 'npm.*vision-walk' || true",
-          "description": "Stop all services"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.morning-vision-walk.start-api\" 2>/dev/null || pkill -f \"morning-vision-walk-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.morning-vision-walk.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }
