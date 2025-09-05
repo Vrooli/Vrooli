@@ -324,7 +324,16 @@ stop_command() {
     
     # Source and execute stop manager
     # shellcheck disable=SC1090
-    source "$STOP_MANAGER"
+    source "$STOP_MANAGER" || {
+        log::error "Failed to source stop manager"
+        return 1
+    }
+    
+    # Verify the function exists
+    if ! command -v stop::main >/dev/null 2>&1; then
+        log::error "stop::main function not found after sourcing stop manager"
+        return 1
+    fi
     
     # Environment variables are already set (DRY_RUN, FORCE_STOP, etc.)
     # No need to pass arguments again since stop-commands.sh already parsed them

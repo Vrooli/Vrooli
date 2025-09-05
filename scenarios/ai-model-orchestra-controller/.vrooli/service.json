@@ -266,17 +266,22 @@
       ]
     },
     "stop": {
-      "description": "Stop AI orchestration services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-orchestrator",
-          "run": "pkill -f 'node api-server.js' || true",
-          "description": "Stop orchestrator API server"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 AI Model Orchestra Controller services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.ai-model-orchestra-controller.start-api\" 2>/dev/null || pkill -f \"ai-model-orchestra-controller-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.ai-model-orchestra-controller.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

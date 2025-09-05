@@ -76,7 +76,7 @@
         },
         {
           "name": "initialize-database",
-          "run": "resource-postgres exec < initialization/storage/postgres/schema.sql",
+          "run": "resource-postgres content execute --file initialization/storage/postgres/schema.sql",
           "description": "Create database schema",
           "condition": {
             "file_exists": "initialization/storage/postgres/schema.sql"

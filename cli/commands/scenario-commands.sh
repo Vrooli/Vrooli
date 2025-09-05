@@ -22,18 +22,23 @@ SUBCOMMANDS:
     run <name>              Run a scenario directly
     test <name>             Test a scenario
     list                    List available scenarios
-    logs <name> [--follow]  View logs for a scenario
+    logs <name> [options]   View logs for a scenario
     status [name] [--json]  Show scenario status from orchestrator
 
 OPTIONS FOR LOGS:
     --follow, -f            Follow log output (live view)
+    --step <name>           View specific background step log
+    --runtime               View all background process logs
+    --lifecycle             View lifecycle log (default behavior)
 
 EXAMPLES:
     vrooli scenario run make-it-vegan
     vrooli scenario test swarm-manager
     vrooli scenario list
-    vrooli scenario logs system-monitor
-    vrooli scenario logs system-monitor --follow
+    vrooli scenario logs system-monitor              # Shows lifecycle execution
+    vrooli scenario logs system-monitor --follow      # Follow lifecycle log
+    vrooli scenario logs swarm-manager --runtime      # Show all background logs
+    vrooli scenario logs swarm-manager --step start-api  # Show specific service
     vrooli scenario status              # Show all scenarios
     vrooli scenario status --json       # Show all scenarios in JSON format
     vrooli scenario status system-monitor  # Show specific scenario
@@ -77,19 +82,44 @@ main() {
             local scenario_name="${1:-}"
             [[ -z "$scenario_name" ]] && { 
                 log::error "Scenario name required"
-                log::info "Usage: vrooli scenario logs <name> [--follow|-f]"
+                log::info "Usage: vrooli scenario logs <name> [options]"
+                log::info "Options:"
+                log::info "  --follow, -f        Follow log output in real-time"
+                log::info "  --step <name>       View specific background step log"
+                log::info "  --runtime           View all background process logs"
+                log::info "  --lifecycle         View lifecycle log (default behavior)"
+                log::info ""
                 log::info "Available scenarios with logs:"
                 ls -1 "${HOME}/.vrooli/logs/scenarios/" 2>/dev/null || echo "  (none found)"
                 return 1
             }
             shift
             
-            # Check for follow flag
+            # Parse flags
             local follow=false
+            local step_name=""
+            local show_lifecycle=false
+            local show_runtime=false
             while [[ $# -gt 0 ]]; do
                 case "$1" in
                     --follow|-f)
                         follow=true
+                        shift
+                        ;;
+                    --step)
+                        step_name="${2:-}"
+                        if [[ -z "$step_name" ]]; then
+                            log::error "--step requires a step name"
+                            return 1
+                        fi
+                        shift 2
+                        ;;
+                    --lifecycle)
+                        show_lifecycle=true
+                        shift
+                        ;;
+                    --runtime)
+                        show_runtime=true
                         shift
                         ;;
                     *)
@@ -98,39 +128,209 @@ main() {
                 esac
             done
             
-            local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
-            if [[ ! -d "$logs_dir" ]]; then
-                log::warn "No logs found for scenario: $scenario_name"
-                log::info "Available scenarios with logs:"
-                ls -1 "${HOME}/.vrooli/logs/scenarios/" 2>/dev/null || echo "  (none found)"
-                return 1
+            # Show runtime logs if requested
+            if [[ "$show_runtime" == "true" ]]; then
+                local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
+                if [[ ! -d "$logs_dir" ]]; then
+                    log::warn "No runtime logs found for scenario: $scenario_name"
+                    return 1
+                fi
+                
+                # Check for log files
+                local log_files=("$logs_dir"/*.log)
+                if [[ ! -e "${log_files[0]}" ]]; then
+                    log::warn "No runtime log files found in $logs_dir"
+                    return 1
+                fi
+                
+                # Display runtime logs
+                if [[ "$follow" == "true" ]]; then
+                    log::info "Following runtime logs for scenario: $scenario_name"
+                    log::info "Press Ctrl+C to stop viewing"
+                    echo ""
+                    tail -f "$logs_dir"/*.log
+                else
+                    log::info "Showing recent runtime logs for scenario: $scenario_name"
+                    echo ""
+                    # Show last 50 lines from each log file
+                    for log_file in "$logs_dir"/*.log; do
+                        if [[ -f "$log_file" ]]; then
+                            echo "==> $(basename "$log_file") <=="
+                            tail -50 "$log_file"
+                            echo ""
+                        fi
+                    done
+                    log::info "Tip: Use --step <name> to view a specific background process log"
+                fi
+                return 0
             fi
             
-            # Check for log files
-            local log_files=("$logs_dir"/*.log)
-            if [[ ! -e "${log_files[0]}" ]]; then
-                log::warn "No log files found in $logs_dir"
-                return 1
-            fi
-            
-            # Display logs
-            if [[ "$follow" == "true" ]]; then
-                log::info "Following logs for scenario: $scenario_name"
-                log::info "Press Ctrl+C to stop viewing"
-                echo ""
-                tail -f "$logs_dir"/*.log
-            else
-                log::info "Showing recent logs for scenario: $scenario_name"
-                echo ""
-                # Show last 50 lines from each log file
-                for log_file in "$logs_dir"/*.log; do
+            # Show specific step log if requested
+            if [[ -n "$step_name" ]]; then
+                local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
+                
+                # Find log files matching the step name
+                local step_log=""
+                shopt -s nullglob
+                for log_file in "$logs_dir"/vrooli.*."${scenario_name}"."${step_name}".log; do
                     if [[ -f "$log_file" ]]; then
-                        echo "==> $(basename "$log_file") <=="
-                        tail -50 "$log_file"
-                        echo ""
+                        step_log="$log_file"
+                        break
                     fi
                 done
-                log::info "Tip: Use --follow or -f to watch logs in real-time"
+                shopt -u nullglob
+                
+                if [[ -z "$step_log" ]]; then
+                    log::error "No log found for step '$step_name'"
+                    log::info "This could mean:"
+                    log::info "  • The step hasn't been reached yet (check earlier steps)"
+                    log::info "  • The step isn't a background process (check --lifecycle)"
+                    log::info "  • The step name is incorrect"
+                    echo ""
+                    log::info "Available background step logs:"
+                    shopt -s nullglob
+                    for log_file in "$logs_dir"/vrooli.*.log; do
+                        if [[ -f "$log_file" ]]; then
+                            local basename=$(basename "$log_file")
+                            # Extract step name from log filename (format: vrooli.phase.scenario.step.log)
+                            local extracted_step=$(echo "$basename" | sed -E "s/vrooli\.[^.]+\.${scenario_name}\.(.+)\.log/\1/")
+                            echo "  • $extracted_step"
+                        fi
+                    done
+                    shopt -u nullglob
+                    return 1
+                fi
+                
+                if [[ "$follow" == "true" ]]; then
+                    log::info "Following log for step '$step_name' in scenario: $scenario_name"
+                    log::info "Press Ctrl+C to stop viewing"
+                    echo ""
+                    tail -f "$step_log"
+                else
+                    log::info "Showing recent log for step '$step_name' in scenario: $scenario_name"
+                    echo ""
+                    echo "==> $(basename "$step_log") <=="
+                    tail -100 "$step_log"
+                    echo ""
+                fi
+                return 0
+            fi
+            
+            # Default behavior: show lifecycle log with discovery information
+            local lifecycle_log="${HOME}/.vrooli/logs/${scenario_name}.log"
+            local logs_dir="${HOME}/.vrooli/logs/scenarios/${scenario_name}"
+            
+            # Check if lifecycle log exists
+            if [[ ! -f "$lifecycle_log" ]]; then
+                log::warn "No lifecycle log found for scenario: $scenario_name"
+                log::info "This scenario may not have been run yet"
+                
+                # Check if there are any background logs
+                if [[ -d "$logs_dir" ]]; then
+                    local log_files=("$logs_dir"/*.log)
+                    if [[ -e "${log_files[0]}" ]]; then
+                        log::info "Background process logs are available. Use --runtime to view them"
+                    fi
+                fi
+                return 1
+            fi
+            
+            # Display lifecycle log
+            if [[ "$follow" == "true" ]]; then
+                log::info "Following lifecycle log for scenario: $scenario_name"
+                log::info "Press Ctrl+C to stop viewing"
+                echo ""
+                tail -f "$lifecycle_log"
+            else
+                log::info "Showing recent lifecycle execution for scenario: $scenario_name"
+                echo ""
+                echo "==> Lifecycle execution log <=="
+                echo "────────────────────────────────────────────────────────"
+                # Show more lines from lifecycle log to capture full execution flow
+                tail -100 "$lifecycle_log"
+                echo ""
+                
+                # Show discovery information
+                echo "────────────────────────────────────────────────────────"
+                echo "📋 BACKGROUND STEP LOGS AVAILABLE:"
+                echo ""
+                
+                # Find service.json to determine expected background steps
+                local service_json=""
+                if [[ -f "${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json" ]]; then
+                    service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
+                elif [[ -f "${APP_ROOT}/scenarios/${scenario_name}/service.json" ]]; then
+                    service_json="${APP_ROOT}/scenarios/${scenario_name}/service.json"
+                fi
+                
+                # List available logs with step extraction
+                local found_steps=()
+                for log_file in "$logs_dir"/vrooli.*.log; do
+                    if [[ -f "$log_file" ]]; then
+                        local basename=$(basename "$log_file")
+                        # Extract phase and step from log filename (format: vrooli.phase.scenario.step.log)
+                        if [[ "$basename" =~ vrooli\.([^.]+)\.${scenario_name}\.(.+)\.log ]]; then
+                            local phase="${BASH_REMATCH[1]}"
+                            local step="${BASH_REMATCH[2]}"
+                            found_steps+=("${step}:${phase}")
+                            echo "  ✅ ${step} (${phase})"
+                            echo "     View: vrooli scenario logs ${scenario_name} --step ${step}"
+                            echo ""
+                        fi
+                    fi
+                done
+                
+                # Parse service.json to find expected background steps if possible
+                if [[ -n "$service_json" ]] && [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+                    # Look for background steps in all lifecycle phases
+                    local expected_steps=$(jq -r '
+                        .lifecycle | 
+                        to_entries[] | 
+                        select(.value | type == "object") |
+                        select(.value.steps) |
+                        .key as $phase |
+                        .value.steps[]? | 
+                        select(.background == true) | 
+                        "\(.name):\($phase)"
+                    ' "$service_json" 2>/dev/null || true)
+                    
+                    # Check for missing expected steps
+                    if [[ -n "$expected_steps" ]]; then
+                        while IFS= read -r expected; do
+                            local found=false
+                            for fs in "${found_steps[@]}"; do
+                                if [[ "$fs" == "$expected" ]]; then
+                                    found=true
+                                    break
+                                fi
+                            done
+                            
+                            if [[ "$found" == "false" ]]; then
+                                IFS=':' read -r step phase <<< "$expected"
+                                echo "  ⚠️  ${step} (${phase}) - [NOT FOUND]"
+                                echo "     Expected but missing - step may not have been reached"
+                                echo "     Would view with: vrooli scenario logs ${scenario_name} --step ${step}"
+                                echo ""
+                            fi
+                        done <<< "$expected_steps"
+                    fi
+                else
+                    # If we can't parse service.json, just note common missing steps
+                    if [[ ! -f "${logs_dir}/vrooli.develop.${scenario_name}.start-ui.log" ]] && \
+                       [[ -f "${logs_dir}/vrooli.develop.${scenario_name}.start-api.log" ]]; then
+                        echo "  ⚠️  start-ui (develop) - [NOT FOUND]"
+                        echo "     Expected but missing - step may not have been reached"
+                        echo "     Would view with: vrooli scenario logs ${scenario_name} --step start-ui"
+                        echo ""
+                    fi
+                fi
+                
+                echo "💡 Tips:"
+                echo "  • Use --runtime to view all background process logs"
+                echo "  • Use --step <name> to view a specific background process log"
+                echo "  • Use --follow or -f to watch logs in real-time"
+                echo "  • Missing logs usually mean the step wasn't reached"
+                echo "  • The lifecycle log above shows the complete execution sequence"
             fi
             ;;
         status)

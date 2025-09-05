@@ -178,7 +178,7 @@
       "description": "Start App Debugger services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./app-debugger-api",
           "description": "Start API server",
           "background": true,
@@ -187,7 +187,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
@@ -220,12 +220,22 @@
       ]
     },
     "stop": {
-      "description": "Stop App Debugger services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'app-debugger-api' || true; pkill -f 'npm.*app-debugger' || true",
-          "description": "Stop all services"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.app-debugger.start-api\" 2>/dev/null || pkill -f \"app-debugger-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.app-debugger.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

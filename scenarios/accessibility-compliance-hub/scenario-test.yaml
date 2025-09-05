@@ -1,0 +1,268 @@
+version: 1.0
+scenario: accessibility-compliance-hub
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - initialization/automation/n8n/accessibility-audit.json
+    - initialization/storage/postgres/schema.sql
+    - ui/index.html
+    - ui/styles.css
+    - ui/app.js
+    - scenario-test.yaml
+    
+  required_dirs:
+    - .vrooli
+    - initialization
+    - initialization/automation
+    - initialization/automation/n8n
+    - initialization/storage
+    - initialization/storage/postgres
+    - ui
+    - tests
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+    - n8n
+    - browserless
+    - ollama
+  optional: 
+    - redis
+    - qdrant
+  health_timeout: 60  # Seconds to wait for resources to be healthy
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "N8n is accessible"
+    type: http
+    service: n8n
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Browserless is accessible"
+    type: http
+    service: browserless
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Ollama is accessible"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests
+  - name: "API health check responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        
+  - name: "Can trigger accessibility audit"
+    type: http
+    service: api
+    endpoint: /api/v1/accessibility/audit
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      scenario_id: "test-scenario"
+      wcag_level: "AA"
+      auto_fix: false
+    expect:
+      status: 201
+      body:
+        report_id: "<not_null>"
+        score: "<not_null>"
+        
+  - name: "Dashboard endpoint returns data"
+    type: http
+    service: api
+    endpoint: /api/v1/accessibility/dashboard
+    method: GET
+    expect:
+      status: 200
+      body:
+        scenarios: "<array>"
+        overall_compliance: "<number>"
+        
+  - name: "Can retrieve accessible patterns"
+    type: http
+    service: api
+    endpoint: /api/v1/accessibility/patterns
+    method: GET
+    expect:
+      status: 200
+      body: "<array>"
+      
+  # CLI command tests
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/accessibility-compliance-hub status --json
+    expect:
+      exit_code: 0
+      output_contains: ["status", "resources"]
+      
+  - name: "CLI help command provides usage"
+    type: exec
+    command: ./cli/accessibility-compliance-hub help
+    expect:
+      exit_code: 0
+      output_contains: ["audit", "fix", "dashboard", "report"]
+      
+  - name: "CLI version command shows version"
+    type: exec
+    command: ./cli/accessibility-compliance-hub version
+    expect:
+      exit_code: 0
+      output_contains: ["1.0.0"]
+      
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    database: accessibility_hub
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+    expect:
+      rows: 
+        - count: 10  # Number of tables created
+        
+  - name: "Accessible patterns are seeded"
+    type: sql
+    service: postgres
+    database: accessibility_hub
+    query: "SELECT COUNT(*) as pattern_count FROM accessible_patterns"
+    expect:
+      rows:
+        - pattern_count: 4  # Default patterns inserted
+        
+  # N8n workflow tests
+  - name: "Accessibility audit workflow exists"
+    type: n8n
+    workflow: accessibility-audit
+    expect:
+      exists: true
+      active: true
+      node_count: 12  # Number of nodes in workflow
+      
+  # UI tests
+  - name: "Dashboard UI loads successfully"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      content_contains: 
+        - "Accessibility Compliance Hub"
+        - "Compliance Overview"
+        - "dashboard"
+        
+  - name: "Dashboard has skip navigation link"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      content_contains: ["Skip to main content"]
+      
+  - name: "Dashboard JavaScript loads"
+    type: http
+    service: ui
+    endpoint: /app.js
+    method: GET
+    expect:
+      status: 200
+      content_contains: ["loadDashboardData", "runAudit"]
+      
+  - name: "Dashboard CSS loads"
+    type: http
+    service: ui
+    endpoint: /styles.css
+    method: GET
+    expect:
+      status: 200
+      content_contains: ["--color-primary", "wcag"]
+      
+  # Integration tests
+  - name: "Can audit a mock scenario"
+    type: integration
+    steps:
+      - action: create_mock_scenario
+        data:
+          id: "integration-test-scenario"
+          name: "Test Scenario"
+          ui_url: "http://localhost:3000"
+      - action: trigger_audit
+        endpoint: /api/v1/accessibility/audit
+        body:
+          scenario_id: "integration-test-scenario"
+          wcag_level: "AA"
+      - action: verify_report_created
+        query: "SELECT * FROM audit_reports WHERE scenario_id = 'integration-test-scenario'"
+        expect:
+          row_count: 1
+          
+  # Accessibility meta-test (the dashboard itself must be accessible)
+  - name: "Dashboard passes its own accessibility audit"
+    type: accessibility
+    url: "http://localhost:3401"
+    wcag_level: "AAA"
+    expect:
+      violations: 0
+      score: 100
+
+# Performance requirements
+performance:
+  - name: "Audit completes within time limit"
+    type: api_latency
+    endpoint: /api/v1/accessibility/audit
+    method: POST
+    percentile_95: 30000  # 30 seconds
+    
+  - name: "Dashboard loads quickly"
+    type: page_load
+    url: "http://localhost:3401"
+    max_time: 1000  # 1 second
+    
+  - name: "Pattern retrieval is fast"
+    type: api_latency
+    endpoint: /api/v1/accessibility/patterns
+    method: GET
+    percentile_95: 500  # 500ms
+
+# Validation gates - all must pass
+gates:
+  - structure_complete: true
+  - resources_healthy: true
+  - api_responsive: true
+  - cli_functional: true
+  - database_initialized: true
+  - workflows_active: true
+  - ui_accessible: true
+  - performance_acceptable: true

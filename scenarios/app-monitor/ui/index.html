@@ -70,6 +70,7 @@
                     <h2>ACTIVE APPLICATIONS</h2>
                     <div class="panel-controls">
                         <input type="text" class="search-box" placeholder="SEARCH..." id="app-search">
+                        <button class="control-btn view-toggle" id="toggle-view" title="Toggle View">⊞</button>
                         <button class="control-btn" id="refresh-apps">⟳ REFRESH</button>
                     </div>
                 </div>
@@ -123,15 +124,24 @@
             <!-- Logs View -->
             <div class="view-panel" id="logs-view">
                 <div class="panel-header">
-                    <h2>SYSTEM LOGS</h2>
+                    <h2>APPLICATION LOGS</h2>
                     <div class="panel-controls">
+                        <select class="log-filter" id="app-selector">
+                            <option value="">SELECT APP...</option>
+                        </select>
+                        <select class="log-filter" id="log-type">
+                            <option value="both">ALL LOGS</option>
+                            <option value="lifecycle">LIFECYCLE</option>
+                            <option value="background">BACKGROUND</option>
+                        </select>
                         <select class="log-filter" id="log-level">
-                            <option value="all">ALL</option>
+                            <option value="all">ALL LEVELS</option>
                             <option value="error">ERROR</option>
                             <option value="warning">WARNING</option>
                             <option value="info">INFO</option>
                             <option value="debug">DEBUG</option>
                         </select>
+                        <button class="control-btn" id="refresh-logs">⟳ REFRESH</button>
                         <button class="control-btn" id="clear-logs">CLEAR</button>
                     </div>
                 </div>

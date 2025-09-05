@@ -248,12 +248,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Fall Foliage Explorer",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'foliage-api' || true; pkill -f 'node server.js' || true",
-          "description": "Stop all services"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.fall-foliage-explorer.start-api\" 2>/dev/null || pkill -f \"fall-foliage-explorer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.fall-foliage-explorer.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

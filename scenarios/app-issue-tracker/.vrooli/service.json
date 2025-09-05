@@ -157,7 +157,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start web UI server",
           "background": true,
@@ -213,22 +213,22 @@
       ]
     },
     "stop": {
-      "description": "Stop file-based issue tracker services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-file-api",
-          "run": "pkill -f 'app-issue-tracker-file-api' || true",
-          "description": "Stop file-based API server"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'python3.*http.server.*$UI_PORT' || true",
-          "description": "Stop UI server"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.app-issue-tracker.start-api\" 2>/dev/null || pkill -f \"app-issue-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 File-Based Issue Tracker services stopped\\n📁 Issue files remain at: ./issues/'",
-          "description": "Confirm services stopped, files preserved"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.app-issue-tracker.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     },

@@ -3,6 +3,8 @@
   "startup_timeout": 30,
   "startup_time_estimate": "8-15s",
   "dependencies": [],
-  "recovery_attempts": 2,
+  "recovery_attempts": 3,
+  "recovery_strategy": "restart",
+  "recovery_wait": 8,
   "priority": "low"
 }

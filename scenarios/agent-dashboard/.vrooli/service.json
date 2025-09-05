@@ -171,7 +171,7 @@
       "description": "Start Agent Dashboard with API and UI servers",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./agent-dashboard-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -180,7 +180,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -221,22 +221,22 @@
       ]
     },
     "stop": {
-      "description": "Stop Agent Dashboard services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'agent-dashboard-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'npm.*start' || true",
-          "description": "Stop UI server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.agent-dashboard.start-api\" 2>/dev/null || pkill -f \"agent-dashboard-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo 'Agent Dashboard services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.agent-dashboard.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

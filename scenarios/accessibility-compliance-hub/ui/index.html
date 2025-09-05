@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessibility Compliance Hub | Vrooli</title>
+    <meta name="description" content="Automated WCAG compliance testing and remediation dashboard">
+    <link rel="stylesheet" href="styles.css">
+    <!-- High contrast mode support -->
+    <link rel="stylesheet" href="high-contrast.css" media="(prefers-contrast: high)">
+</head>
+<body>
+    <a href="#main" class="skip-link">Skip to main content</a>
+    
+    <header role="banner" class="header">
+        <div class="container">
+            <h1 class="logo">
+                <svg role="img" aria-label="Accessibility icon" class="icon" viewBox="0 0 24 24" width="32" height="32">
+                    <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2M23 18H20L17.5 9.5C17.1 8.1 15.8 7 14.3 7H9.7C8.2 7 6.9 8.1 6.5 9.5L4 18H1C0.4 18 0 18.4 0 19S0.4 20 1 20H5.2L7 13.5V22H9V16H15V22H17V13.5L18.8 20H23C23.6 20 24 19.6 24 19S23.6 18 23 18Z"/>
+                </svg>
+                Accessibility Compliance Hub
+            </h1>
+            <nav role="navigation" aria-label="Main navigation">
+                <ul class="nav-list">
+                    <li><a href="#dashboard" aria-current="page">Dashboard</a></li>
+                    <li><a href="#scenarios">Scenarios</a></li>
+                    <li><a href="#patterns">Patterns</a></li>
+                    <li><a href="#reports">Reports</a></li>
+                    <li><a href="#settings">Settings</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main" role="main" class="main">
+        <div class="container">
+            <!-- Dashboard Overview -->
+            <section aria-labelledby="dashboard-heading" class="dashboard-section">
+                <h2 id="dashboard-heading">Compliance Overview</h2>
+                
+                <div class="metrics-grid" role="group" aria-label="Compliance metrics">
+                    <div class="metric-card">
+                        <span class="metric-label">Overall Compliance</span>
+                        <span class="metric-value" aria-live="polite">
+                            <span id="overall-score">--</span>%
+                        </span>
+                        <span class="metric-trend" aria-label="Trend: improving">↑ +3%</span>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <span class="metric-label">Active Scenarios</span>
+                        <span class="metric-value" aria-live="polite">
+                            <span id="active-scenarios">--</span>
+                        </span>
+                        <span class="metric-detail">12 compliant</span>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <span class="metric-label">Issues Fixed Today</span>
+                        <span class="metric-value" aria-live="polite">
+                            <span id="issues-fixed">--</span>
+                        </span>
+                        <span class="metric-detail">80% auto-fixed</span>
+                    </div>
+                    
+                    <div class="metric-card alert">
+                        <span class="metric-label">Critical Issues</span>
+                        <span class="metric-value" aria-live="assertive">
+                            <span id="critical-issues">--</span>
+                        </span>
+                        <span class="metric-detail">Requires attention</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Scenario Compliance Table -->
+            <section aria-labelledby="scenarios-heading" class="scenarios-section">
+                <h2 id="scenarios-heading">Scenario Compliance Status</h2>
+                
+                <div class="actions-bar">
+                    <button type="button" class="btn btn-primary" onclick="runAllAudits()">
+                        Run All Audits
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="exportReport()">
+                        Export Report
+                    </button>
+                    <div class="search-box">
+                        <label for="scenario-search" class="sr-only">Search scenarios</label>
+                        <input type="search" id="scenario-search" placeholder="Search scenarios..." 
+                               aria-label="Search scenarios">
+                    </div>
+                </div>
+                
+                <div class="table-wrapper" role="region" aria-label="Scenario compliance table" tabindex="0">
+                    <table class="compliance-table" aria-label="Scenario compliance details">
+                        <thead>
+                            <tr>
+                                <th scope="col">Scenario</th>
+                                <th scope="col">Score</th>
+                                <th scope="col">WCAG Level</th>
+                                <th scope="col">Issues</th>
+                                <th scope="col">Last Audit</th>
+                                <th scope="col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scenarios-table">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Issue Details Panel -->
+            <section aria-labelledby="issues-heading" class="issues-section" hidden>
+                <h2 id="issues-heading">Issue Details</h2>
+                <div id="issue-details" role="region" aria-live="polite">
+                    <!-- Populated when scenario selected -->
+                </div>
+            </section>
+
+            <!-- Accessible Pattern Library -->
+            <section aria-labelledby="patterns-heading" class="patterns-section">
+                <h2 id="patterns-heading">Accessible Pattern Library</h2>
+                <div class="pattern-grid" id="pattern-library">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer role="contentinfo" class="footer">
+        <div class="container">
+            <p>&copy; 2025 Vrooli. Built with accessibility first.</p>
+            <p>
+                <a href="#" onclick="toggleHighContrast()">Toggle High Contrast</a> | 
+                <a href="#" onclick="toggleAnimations()">Toggle Animations</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Notification area for screen readers -->
+    <div aria-live="polite" aria-atomic="true" class="sr-only" id="notifications"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

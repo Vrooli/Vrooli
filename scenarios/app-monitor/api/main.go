@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -200,6 +201,7 @@ func setupRoutes(s *Server) *gin.Engine {
 
 	// System endpoints
 	r.GET("/api/system/info", s.getSystemInfo)
+	r.GET("/api/system/metrics", s.getSystemMetrics)
 
 	// App management endpoints
 	r.GET("/api/apps", s.getApps)
@@ -207,6 +209,8 @@ func setupRoutes(s *Server) *gin.Engine {
 	r.POST("/api/apps/:id/start", s.startApp)
 	r.POST("/api/apps/:id/stop", s.stopApp)
 	r.GET("/api/apps/:id/logs", s.getAppLogs)
+	r.GET("/api/apps/:id/logs/lifecycle", s.getAppLifecycleLogs)
+	r.GET("/api/apps/:id/logs/background", s.getAppBackgroundLogs)
 	r.GET("/api/apps/:id/metrics", s.getAppMetrics)
 	
 	// Resource endpoints
@@ -275,6 +279,88 @@ func (s *Server) apiHealth(c *gin.Context) {
 		"version":   "1.0.0",
 		"timestamp": time.Now().Format(time.RFC3339),
 	})
+}
+
+func (s *Server) getSystemMetrics(c *gin.Context) {
+	// Get system metrics using standard Unix commands
+	metrics := make(map[string]interface{})
+	
+	// CPU usage - get idle percentage and calculate usage
+	cpuCmd := exec.Command("bash", "-c", "top -b -n1 | grep '%Cpu' | awk '{print 100-$8}'")
+	if cpuOutput, err := cpuCmd.Output(); err == nil {
+		cpuStr := strings.TrimSpace(string(cpuOutput))
+		// Remove any non-numeric characters
+		cpuStr = strings.TrimSuffix(cpuStr, "%")
+		if cpu, err := strconv.ParseFloat(cpuStr, 64); err == nil {
+			metrics["cpu"] = cpu
+		}
+	}
+	
+	// Fallback CPU calculation using /proc/stat
+	if _, ok := metrics["cpu"]; !ok {
+		cpuCmd2 := exec.Command("bash", "-c", "grep 'cpu ' /proc/stat | head -1 | awk '{idle=$5; total=0; for(i=2;i<=NF;i++){total+=$i}; print 100*(1-idle/total)}'")
+		if cpuOutput2, err := cpuCmd2.Output(); err == nil {
+			if cpu2, err := strconv.ParseFloat(strings.TrimSpace(string(cpuOutput2)), 64); err == nil {
+				metrics["cpu"] = cpu2
+			}
+		}
+	}
+	
+	// Memory usage - correct column mapping for modern free output
+	// $1: "Mem:", $2: total, $3: used
+	memCmd := exec.Command("bash", "-c", "free -m | awk 'NR==2{printf \"%.1f\", $3*100/$2}'")
+	memOutput, err := memCmd.Output()
+	if err == nil {
+		memStr := strings.TrimSpace(string(memOutput))
+		if mem, err := strconv.ParseFloat(memStr, 64); err == nil && mem <= 100 {
+			metrics["memory"] = mem
+		}
+	}
+	
+	// Another memory fallback using /proc/meminfo
+	if _, ok := metrics["memory"]; !ok {
+		memCmd2 := exec.Command("bash", "-c", "awk '/MemTotal:/ {total=$2} /MemAvailable:/ {available=$2} END {printf \"%.1f\", 100*(1-available/total)}' /proc/meminfo")
+		if memOutput2, err := memCmd2.Output(); err == nil {
+			if mem2, err := strconv.ParseFloat(strings.TrimSpace(string(memOutput2)), 64); err == nil && mem2 >= 0 && mem2 <= 100 {
+				metrics["memory"] = mem2
+			}
+		}
+	}
+	
+	// Disk usage
+	diskCmd := exec.Command("bash", "-c", "df / | awk 'NR==2 {print $5}' | sed 's/%//'")
+	if diskOutput, err := diskCmd.Output(); err == nil {
+		diskStr := strings.TrimSpace(string(diskOutput))
+		if disk, err := strconv.ParseFloat(diskStr, 64); err == nil && disk >= 0 && disk <= 100 {
+			metrics["disk"] = disk
+		}
+	}
+	
+	// Network I/O in MB/s (get total bytes and convert to MB)
+	netCmd := exec.Command("bash", "-c", "cat /proc/net/dev | grep -E 'eth|enp|wlan|wlp' | awk '{rx+=$2; tx+=$10} END {print (rx+tx)/1024/1024}'")
+	if netOutput, err := netCmd.Output(); err == nil {
+		netStr := strings.TrimSpace(string(netOutput))
+		if net, err := strconv.ParseFloat(netStr, 64); err == nil {
+			// This is total MB transferred, not rate - let's cap it for display
+			metrics["network"] = math.Min(net, 9999)
+		}
+	}
+	
+	// Add default values if metrics are missing or invalid
+	if cpu, ok := metrics["cpu"].(float64); !ok || cpu < 0 || cpu > 100 {
+		metrics["cpu"] = 0
+	}
+	if mem, ok := metrics["memory"].(float64); !ok || mem < 0 || mem > 100 {
+		metrics["memory"] = 0
+	}
+	if disk, ok := metrics["disk"].(float64); !ok || disk < 0 || disk > 100 {
+		metrics["disk"] = 0
+	}
+	if _, ok := metrics["network"]; !ok {
+		metrics["network"] = 0
+	}
+	
+	c.JSON(http.StatusOK, metrics)
 }
 
 func (s *Server) getSystemInfo(c *gin.Context) {
@@ -613,6 +699,140 @@ func (s *Server) getAppLogs(c *gin.Context) {
 		})
 	}
 
+	c.JSON(http.StatusOK, logs)
+}
+
+func (s *Server) getAppLifecycleLogs(c *gin.Context) {
+	id := c.Param("id")
+	
+	// Execute vrooli scenario logs command to get lifecycle logs
+	cmd := exec.Command("vrooli", "scenario", "logs", id)
+	cmd.Stderr = cmd.Stdout // Capture stderr as well
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Log but don't fail - there might just be no logs yet
+		log.Printf("Note: vrooli scenario logs returned error (may be normal): %v, output: %s", err, string(output))
+		// Check if it's a "scenario not found" error
+		if strings.Contains(string(output), "not found") || strings.Contains(string(output), "No such") {
+			c.String(http.StatusOK, "Scenario not started or no lifecycle logs available yet")
+			return
+		}
+	}
+	
+	// Return the raw logs as text
+	if len(output) == 0 {
+		c.String(http.StatusOK, "No lifecycle logs available")
+	} else {
+		c.String(http.StatusOK, string(output))
+	}
+}
+
+func (s *Server) getAppBackgroundLogs(c *gin.Context) {
+	id := c.Param("id")
+	
+	// Try different possible log locations
+	logs := []map[string]interface{}{}
+	logsFound := false
+	
+	// Try to get logs from the scenario's run directory
+	// First check the standard Vrooli scenario log location
+	vrooliLogDirs := []string{
+		fmt.Sprintf("/home/%s/.vrooli/scenarios/%s/logs", os.Getenv("USER"), id),
+		fmt.Sprintf("/tmp/vrooli/scenarios/%s/logs", id),
+		fmt.Sprintf("/var/log/vrooli/scenarios/%s", id),
+		fmt.Sprintf("./scenarios/%s/logs", id), // Relative path from current dir
+		fmt.Sprintf("/home/%s/Vrooli/scenarios/%s/logs", os.Getenv("USER"), id),
+	}
+	
+	for _, logDir := range vrooliLogDirs {
+		if files, err := os.ReadDir(logDir); err == nil {
+			log.Printf("Found log directory: %s", logDir)
+			for _, file := range files {
+				if !file.IsDir() && (strings.HasSuffix(file.Name(), ".log") || strings.Contains(file.Name(), "api") || strings.Contains(file.Name(), "ui")) {
+					logPath := fmt.Sprintf("%s/%s", logDir, file.Name())
+					if content, err := os.ReadFile(logPath); err == nil {
+						// Read last 100 lines to avoid huge responses
+						lines := strings.Split(string(content), "\n")
+						startIdx := 0
+						if len(lines) > 100 {
+							startIdx = len(lines) - 100
+						}
+						for i := startIdx; i < len(lines); i++ {
+							if lines[i] != "" {
+								logsFound = true
+								// Try to determine log level from content
+								level := "log"
+								lowerLine := strings.ToLower(lines[i])
+								if strings.Contains(lowerLine, "error") || strings.Contains(lowerLine, "err") {
+									level = "error"
+								} else if strings.Contains(lowerLine, "warn") {
+									level = "warning"
+								} else if strings.Contains(lowerLine, "info") {
+									level = "info"
+								} else if strings.Contains(lowerLine, "debug") {
+									level = "debug"
+								}
+								logs = append(logs, map[string]interface{}{
+									"level":   level,
+									"message": lines[i],
+									"source":  file.Name(),
+								})
+							}
+						}
+					}
+				}
+			}
+			if logsFound {
+				break // Stop after finding the first valid log directory
+			}
+		}
+	}
+	
+	// If still no logs, try to get process output using docker logs or systemd journal
+	if !logsFound && s.docker != nil {
+		ctx := context.Background()
+		containerName := id // Scenarios often use their name as container name
+		
+		// Try to get Docker container logs
+		if containerLogs, err := s.docker.ContainerLogs(ctx, containerName, types.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Tail:       "100",
+			Timestamps: true,
+		}); err == nil {
+			defer containerLogs.Close()
+			
+			buf := make([]byte, 4096)
+			for {
+				n, err := containerLogs.Read(buf)
+				if n > 0 {
+					lines := strings.Split(string(buf[:n]), "\n")
+					for _, line := range lines {
+						if line != "" {
+							logsFound = true
+							logs = append(logs, map[string]interface{}{
+								"level":   "log",
+								"message": line,
+								"source":  "docker",
+							})
+						}
+					}
+				}
+				if err != nil {
+					break
+				}
+			}
+		}
+	}
+	
+	if !logsFound {
+		logs = append(logs, map[string]interface{}{
+			"level":   "info",
+			"message": fmt.Sprintf("No background process logs found for %s. The scenario may not be running or may not produce background logs.", id),
+			"source":  "system",
+		})
+	}
+	
 	c.JSON(http.StatusOK, logs)
 }
 

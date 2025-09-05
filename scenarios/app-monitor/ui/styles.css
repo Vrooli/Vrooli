@@ -312,6 +312,84 @@ body {
     gap: 1.5rem;
 }
 
+/* List View Styles */
+.apps-list {
+    padding: 0;
+}
+
+.apps-table {
+    width: 100%;
+    background: var(--matrix-card);
+    border: 1px solid var(--matrix-border);
+}
+
+.table-header {
+    background: var(--matrix-dark);
+    border-bottom: 2px solid var(--matrix-green);
+    font-weight: 700;
+}
+
+.table-row {
+    display: grid;
+    grid-template-columns: 2.5fr 1fr 2fr 1.5fr;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--matrix-border);
+}
+
+.table-cell {
+    padding: 0 0.5rem;
+    color: var(--matrix-green);
+}
+
+.app-row {
+    transition: background 0.2s ease;
+}
+
+.app-row:hover {
+    background: rgba(0, 255, 65, 0.05);
+}
+
+.app-name-cell {
+    font-weight: 600;
+}
+
+.status-cell .app-status {
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    display: inline-block;
+}
+
+.port-tag {
+    display: inline-block;
+    background: var(--matrix-dark);
+    border: 1px solid var(--matrix-dark-green);
+    padding: 0.15rem 0.35rem;
+    margin: 0 0.2rem;
+    border-radius: 2px;
+    font-size: 0.8rem;
+    color: var(--matrix-light-green);
+}
+
+.actions-cell {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.app-btn.small {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.8rem;
+    min-width: 28px;
+    background: var(--matrix-dark);
+    border: 1px solid var(--matrix-border);
+}
+
+.app-btn.small:hover {
+    border-color: var(--matrix-green);
+    box-shadow: 0 0 5px rgba(0, 255, 65, 0.3);
+}
+
 .app-card {
     background: var(--matrix-card);
     border: 1px solid var(--matrix-border);
@@ -405,6 +483,14 @@ body {
     font-weight: bold;
 }
 
+.metric-data.port-number {
+    color: var(--matrix-light-green);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-shadow: 0 0 4px rgba(57, 255, 20, 0.4);
+    font-family: 'Orbitron', monospace;
+}
+
 .app-actions {
     display: flex;
     gap: 0.5rem;
@@ -494,6 +580,14 @@ body {
 
 .log-entry.debug {
     color: var(--matrix-dark-green);
+}
+
+.log-entry.success {
+    color: var(--matrix-light-green);
+}
+
+.log-entry.log {
+    color: var(--matrix-green);
 }
 
 .log-timestamp {
@@ -649,11 +743,11 @@ body {
     color: var(--matrix-red);
     font-size: 2rem;
     cursor: pointer;
-    transition: transform 0.3s ease;
+    transition: color 0.2s ease;
 }
 
 .modal-close:hover {
-    transform: rotate(90deg);
+    color: var(--matrix-light-green);
 }
 
 .modal-body {

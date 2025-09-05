@@ -1,0 +1,194 @@
+{
+  "name": "accessibility-compliance-hub",
+  "version": "1.0.0",
+  "description": "Automated WCAG compliance testing, remediation, and monitoring for all Vrooli scenarios",
+  "category": "compliance",
+  "status": "development",
+  "resources": {
+    "required": [
+      "postgres",
+      "n8n",
+      "browserless",
+      "ollama"
+    ],
+    "optional": [
+      "redis",
+      "qdrant"
+    ]
+  },
+  "api": {
+    "enabled": true,
+    "port": 3400,
+    "endpoints": [
+      {
+        "path": "/api/v1/accessibility/audit",
+        "method": "POST",
+        "description": "Trigger accessibility audit for a scenario"
+      },
+      {
+        "path": "/api/v1/accessibility/dashboard",
+        "method": "GET",
+        "description": "Get compliance overview for all scenarios"
+      },
+      {
+        "path": "/api/v1/accessibility/fix",
+        "method": "POST",
+        "description": "Apply specific accessibility fixes"
+      },
+      {
+        "path": "/api/v1/accessibility/report",
+        "method": "POST",
+        "description": "Generate compliance documentation"
+      },
+      {
+        "path": "/api/v1/accessibility/patterns",
+        "method": "GET",
+        "description": "Get accessible UI pattern library"
+      }
+    ],
+    "healthCheck": "/health"
+  },
+  "cli": {
+    "enabled": true,
+    "commands": [
+      "audit",
+      "fix",
+      "dashboard",
+      "report",
+      "status",
+      "help",
+      "version"
+    ],
+    "binary": "accessibility-compliance-hub"
+  },
+  "ui": {
+    "enabled": true,
+    "port": 3401,
+    "type": "react",
+    "features": [
+      "compliance-dashboard",
+      "audit-history",
+      "issue-tracker",
+      "pattern-library",
+      "report-generator"
+    ]
+  },
+  "workflows": {
+    "n8n": [
+      {
+        "name": "accessibility-audit",
+        "description": "Orchestrates accessibility audits across scenarios",
+        "triggers": [
+          "webhook",
+          "schedule",
+          "manual"
+        ],
+        "schedule": "0 2 * * *"
+      },
+      {
+        "name": "auto-remediate",
+        "description": "Applies automatic fixes for common accessibility issues",
+        "triggers": [
+          "webhook",
+          "manual"
+        ]
+      },
+      {
+        "name": "compliance-report",
+        "description": "Generates VPAT and compliance documentation",
+        "triggers": [
+          "webhook",
+          "manual"
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "postgres": {
+      "database": "accessibility_hub",
+      "tables": [
+        "audit_reports",
+        "accessibility_issues",
+        "remediation_history",
+        "accessible_patterns",
+        "compliance_metrics"
+      ]
+    },
+    "redis": {
+      "purpose": "Cache audit results and pattern matching",
+      "ttl": 3600
+    },
+    "qdrant": {
+      "purpose": "Vector storage for accessibility pattern matching",
+      "collections": [
+        "accessible_patterns",
+        "issue_embeddings"
+      ]
+    }
+  },
+  "integrations": {
+    "ollama": {
+      "model": "llama3.2",
+      "purpose": "Analyze complex accessibility issues and suggest fixes"
+    },
+    "browserless": {
+      "purpose": "DOM analysis and visual regression testing"
+    }
+  },
+  "events": {
+    "publishes": [
+      "accessibility.audit.completed",
+      "accessibility.fix.applied",
+      "accessibility.report.generated"
+    ],
+    "subscribes": [
+      "scenario.deployed",
+      "scenario.updated",
+      "ui.changed"
+    ]
+  },
+  "metadata": {
+    "author": "Vrooli AI",
+    "tags": [
+      "accessibility",
+      "compliance",
+      "wcag",
+      "ada",
+      "a11y",
+      "audit"
+    ],
+    "capabilities": [
+      "wcag-compliance-testing",
+      "auto-remediation",
+      "pattern-learning",
+      "compliance-reporting"
+    ],
+    "businessValue": {
+      "revenueRange": "$25K-$75K per enterprise",
+      "costSavings": "Prevents $50K-$500K ADA lawsuits",
+      "marketExpansion": "15% (users with disabilities)"
+    }
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.accessibility-compliance-hub.start-api\" 2>/dev/null || pkill -f \"accessibility-compliance-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.accessibility-compliance-hub.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

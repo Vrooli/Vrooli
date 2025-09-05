@@ -16,8 +16,7 @@ const wss = new WebSocket.Server({
 
 const API_BASE = process.env.API_BASE || `http://localhost:${API_PORT}`;
 
-// Serve static files
-app.use(express.static(__dirname));
+// Parse JSON bodies
 app.use(express.json());
 
 // Manual proxy function for API calls
@@ -218,10 +217,12 @@ function broadcastLogEntry() {
 }
 
 // Set up periodic broadcasts
-setInterval(broadcastAppUpdate, 10000);
-setInterval(broadcastLogEntry, 15000);
+// Note: Real-time updates should be triggered by actual events from the system,
+// not by periodic intervals with mock data
+// setInterval(broadcastAppUpdate, 10000);  // DISABLED - should use real events
+// setInterval(broadcastLogEntry, 15000);   // DISABLED - should use real events
 
-// Health check endpoint
+// Health check endpoint (before static files)
 app.get('/health', (req, res) => {
     res.json({
         status: 'healthy',
@@ -229,6 +230,38 @@ app.get('/health', (req, res) => {
         connections: wss.clients.size
     });
 });
+
+// Client-side routing support - serve index.html for all app routes
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/apps', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/metrics', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/logs', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/logs/:appId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/resources', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/terminal', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Serve static files AFTER routes
+app.use(express.static(__dirname));
 
 // Start server
 server.listen(PORT, () => {
@@ -243,7 +276,15 @@ server.listen(PORT, () => {
 ║  Access dashboard at:                      ║
 ║  http://localhost:${PORT}                     ║
 ╔════════════════════════════════════════════╗
-    boop`);
+    UPDATED_CODE
+    
+🔍 DIAGNOSTIC INFO (boop):
+Working Directory: ${process.cwd()}
+Script Path: ${__filename}
+Process ID: ${process.pid}
+Node Version: ${process.version}
+Arguments: ${process.argv.join(' ')}
+Environment: NODE_ENV=${process.env.NODE_ENV || 'undefined'}`);
 });
 
 // Graceful shutdown

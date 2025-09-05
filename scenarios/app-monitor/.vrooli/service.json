@@ -196,7 +196,7 @@
       "description": "Start app monitor with Go API server and automation workflows",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./app-monitor-api",
           "description": "Start Go coordination API server in background",
           "background": true,
@@ -205,7 +205,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI dashboard server in background",
           "background": true,
@@ -262,22 +262,22 @@
       ]
     },
     "stop": {
-      "description": "Stop app monitor services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'app-monitor-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.app-monitor.start-api\" 2>/dev/null || pkill -f \"app-monitor-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 App Monitor services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.app-monitor.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }
