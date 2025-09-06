@@ -77,7 +77,7 @@ func main() {
 
     postgresURL := os.Getenv("POSTGRES_URL")
     if postgresURL == "" {
-        postgresURL = "postgres://postgres:postgres@localhost:5432/typing_test?sslmode=disable"
+        log.Fatal("POSTGRES_URL environment variable is required")
     }
 
     n8nURL = os.Getenv("N8N_BASE_URL")

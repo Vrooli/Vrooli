@@ -52,7 +52,7 @@ log::echo_color() {
     # Use indirect variable expansion (no eval needed)
     color_value="${!color}"
 
-    printf '%s%s%s\n' "$color_value" "$message" "$RESET"
+    printf '%b%s%b\n' "$color_value" "$message" "$RESET"
 }
 
 log::header() {

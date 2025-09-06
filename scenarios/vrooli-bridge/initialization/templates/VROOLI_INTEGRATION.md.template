@@ -1,0 +1,157 @@
+# Vrooli Integration Guide
+
+**Last Updated**: {{date}}  
+**Vrooli Version**: {{vrooli_version}}  
+**Project Type**: {{project_type}}
+
+## 🚀 What is Vrooli?
+
+Vrooli is an intelligent development amplifier that provides AI-powered scenarios to enhance your development workflow. This project has been configured to leverage Vrooli's capabilities for improved productivity and code quality.
+
+## 🛠️ Available Scenarios
+
+### Core Development Scenarios
+
+- **test-genie** - Intelligent test generation and improvement
+  ```bash
+  vrooli scenario run test-genie
+  # Analyzes your codebase and generates comprehensive tests
+  ```
+
+- **code-sleuth** - Advanced code search and analysis
+  ```bash
+  vrooli scenario run code-sleuth
+  # Helps track down relevant code for specific tasks
+  ```
+
+- **research-assistant** - In-depth research and documentation
+  ```bash
+  vrooli scenario run research-assistant  
+  # Performs thorough research on technical topics
+  ```
+
+### {{project_type_specific}}
+
+## 🏃 Quick Start
+
+1. **Install Vrooli CLI** (if not already installed):
+   ```bash
+   curl -sSL https://get.vrooli.com | bash
+   ```
+
+2. **Check Vrooli status**:
+   ```bash
+   vrooli status
+   ```
+
+3. **Run your first scenario**:
+   ```bash
+   vrooli scenario run test-genie
+   ```
+
+## 📋 Common Commands
+
+### Scenario Management
+```bash
+# List available scenarios
+vrooli scenario list
+
+# Get help for a specific scenario  
+vrooli scenario help <scenario-name>
+
+# Run a scenario
+vrooli scenario run <scenario-name>
+
+# Stop a running scenario
+vrooli scenario stop <scenario-name>
+```
+
+### Development Workflow
+```bash
+# Start development environment (all scenarios)
+vrooli develop
+
+# Run tests across scenarios
+vrooli test
+
+# Check system health
+vrooli status --verbose
+```
+
+## 🎯 Recommended Workflow
+
+1. **Start with test-genie** to ensure good test coverage
+2. **Use code-sleuth** when working on unfamiliar code
+3. **Leverage research-assistant** for architectural decisions
+4. **Monitor with agent-dashboard** for ongoing projects
+
+## 🔧 Configuration
+
+Vrooli settings are managed in `~/.vrooli/config.yaml`. Key settings for this project:
+
+```yaml
+projects:
+  "{{project_name}}":
+    path: "{{project_path}}"
+    type: "{{project_type}}"
+    scenarios:
+      preferred: [{{preferred_scenarios}}]
+```
+
+## 🧠 Claude Code Integration
+
+This project includes Claude Code instructions for optimal Vrooli usage. When using Claude Code:
+
+1. **Reference this guide** - Claude Code knows about Vrooli capabilities
+2. **Ask for scenario recommendations** - Based on your current task
+3. **Request Vrooli commands** - Claude Code can run scenarios for you
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+**Scenario won't start**:
+```bash
+# Check resource status
+vrooli status --resources
+
+# Restart resources
+vrooli setup --resources
+```
+
+**Performance issues**:
+```bash
+# Check resource usage
+vrooli resource status --memory
+
+# Stop unused scenarios
+vrooli scenario stop --all
+```
+
+**Integration problems**:
+```bash
+# Verify integration health
+vrooli-bridge status --project "{{project_name}}"
+
+# Re-integrate if needed
+vrooli-bridge integrate "{{project_path}}" --force
+```
+
+## 📚 Learn More
+
+- **Vrooli Documentation**: https://docs.vrooli.com
+- **Scenario Catalog**: `vrooli scenario list --detailed`
+- **Community**: https://github.com/vrooli/community
+- **Support**: Create issue at https://github.com/vrooli/vrooli
+
+## 🔄 Keeping Updated
+
+Your Vrooli integration will be automatically updated when new scenarios become available. To manually check:
+
+```bash
+vrooli-bridge update "{{project_path}}"
+```
+
+---
+
+*This integration was created by Vrooli Bridge v{{bridge_version}} on {{date}}*

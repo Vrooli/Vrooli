@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -29,6 +30,7 @@ type Task struct {
 	Description       string                 `yaml:"description" json:"description"`
 	Type              string                 `yaml:"type" json:"type"`
 	Target            string                 `yaml:"target" json:"target"`
+	AssignedAgent     string                 `yaml:"assigned_agent" json:"assigned_agent"`
 	PriorityEstimates map[string]interface{} `yaml:"priority_estimates" json:"priority_estimates"`
 	PriorityScore     *float64               `yaml:"priority_score" json:"priority_score"`
 	Dependencies      []string               `yaml:"dependencies" json:"dependencies"`
@@ -121,6 +123,9 @@ func main() {
 
 	// Start agent system
 	startAgentSystem()
+	
+	// Start schedulers (replacing n8n workflows)
+	startSchedulers()
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -134,8 +139,11 @@ func main() {
 	// Routes
 	setupRoutes(app)
 
-	// Get port from environment
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - use scenario port allocation
+	port := getEnv("API_PORT", "8090")
+	if port == "" {
+		port = "8090"
+	}
 
 	// Start server
 	log.Printf("Swarm Manager API starting on port %s", port)
@@ -150,31 +158,12 @@ func getEnv(key, defaultValue string) string {
 }
 
 func initDB() {
-	// Get connection parameters from environment
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
-	
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		dbPort = "5433"
-	}
-	
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		dbUser = "vrooli"
-	}
-	
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "postgres"
-	}
-	
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		dbName = "vrooli"
-	}
+	// Get connection parameters from environment or use Vrooli defaults
+	dbHost := getEnv("POSTGRES_HOST", "localhost")
+	dbPort := getEnv("POSTGRES_PORT", "5433") // Vrooli's default PostgreSQL port
+	dbUser := getEnv("POSTGRES_USER", "vrooli")
+	dbPassword := getEnv("POSTGRES_PASSWORD", "postgres")
+	dbName := getEnv("POSTGRES_DB", "vrooli")
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
 		dbHost, dbPort, dbUser, dbPassword, dbName)
@@ -203,6 +192,7 @@ func setupRoutes(app *fiber.App) {
 	app.Delete("/api/tasks/:id", deleteTask)
 	app.Post("/api/tasks/:id/execute", executeTask)
 	app.Post("/api/tasks/:id/analyze", analyzeTask)
+	app.Get("/api/tasks/:id/logs", getTaskLogs)
 
 	// Agent endpoints
 	app.Get("/api/agents", getAgents)
@@ -379,6 +369,11 @@ func createTask(c *fiber.Ctx) error {
 	if task.CreatedBy == "" {
 		task.CreatedBy = "api"
 	}
+	
+	// Set default assigned agent if not provided
+	if task.AssignedAgent == "" {
+		task.AssignedAgent = "claude-code"
+	}
 
 	// Determine folder based on created_by
 	folder := filepath.Join(tasksDir, "backlog", "manual")
@@ -548,6 +543,44 @@ func analyzeTask(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Task analysis started",
 		"id": id,
+	})
+}
+
+func getTaskLogs(c *fiber.Ctx) error {
+	id := c.Params("id")
+	limit := c.QueryInt("limit", 100)
+	offset := c.QueryInt("offset", 0)
+	
+	// Get task execution history from database
+	executions, err := getTaskExecutions(id, limit, offset)
+	if err != nil {
+		log.Printf("Failed to get task executions: %v", err)
+		executions = []TaskExecution{} // Continue with empty executions
+	}
+	
+	// Get events from events.ndjson
+	events, err := getTaskEvents(id, limit)
+	if err != nil {
+		log.Printf("Failed to get task events: %v", err)
+		events = []TaskEvent{} // Continue with empty events
+	}
+	
+	// Get task file contents if it exists
+	taskPath := findTaskFile(id)
+	var taskContent string
+	if taskPath != "" {
+		if data, err := os.ReadFile(taskPath); err == nil {
+			taskContent = string(data)
+		}
+	}
+	
+	return c.JSON(fiber.Map{
+		"task_id": id,
+		"executions": executions,
+		"events": events,
+		"task_content": taskContent,
+		"total_executions": len(executions),
+		"total_events": len(events),
 	})
 }
 
@@ -914,6 +947,25 @@ type TaskEvent struct {
 	Error     string    `json:"error,omitempty"`
 }
 
+type TaskExecution struct {
+	ID              string                 `json:"id"`
+	TaskID          string                 `json:"task_id"`
+	TaskTitle       string                 `json:"task_title"`
+	TaskType        string                 `json:"task_type"`
+	ScenarioUsed    *string                `json:"scenario_used"`
+	Status          string                 `json:"status"`
+	PriorityScore   *float64               `json:"priority_score"`
+	Estimates       map[string]interface{} `json:"estimates"`
+	StartedAt       *time.Time             `json:"started_at"`
+	CompletedAt     *time.Time             `json:"completed_at"`
+	DurationSeconds *int                   `json:"duration_seconds"`
+	CommandsExecuted []interface{}         `json:"commands_executed"`
+	OutputSummary   *string                `json:"output_summary"`
+	ErrorDetails    *string                `json:"error_details"`
+	CreatedAt       time.Time              `json:"created_at"`
+	UpdatedAt       time.Time              `json:"updated_at"`
+}
+
 type ScenarioRegistry struct {
 	Scenarios map[string]struct {
 		CLI          string   `yaml:"cli"`
@@ -1025,13 +1077,13 @@ func selectScenario(task *Task) string {
 	registryBytes, err := os.ReadFile(registryPath)
 	if err != nil {
 		log.Printf("Failed to load scenario registry, using claude-code: %v", err)
-		return "claude-code"
+		return "resource-claude-code"
 	}
 	
 	var registry ScenarioRegistry
 	if err := yaml.Unmarshal(registryBytes, &registry); err != nil {
 		log.Printf("Failed to parse scenario registry, using claude-code: %v", err)
-		return "claude-code"
+		return "resource-claude-code"
 	}
 	
 	// Check selection rules
@@ -1040,15 +1092,54 @@ func selectScenario(task *Task) string {
 	taskType := strings.ToLower(task.Type)
 	searchText := title + " " + description + " " + taskType
 	
+	var selectedScenario string
 	for _, rule := range registry.SelectionRules {
 		for _, keyword := range rule.IfContains {
 			if strings.Contains(searchText, strings.ToLower(keyword)) {
-				return rule.Use
+				selectedScenario = rule.Use
+				break
 			}
+		}
+		if selectedScenario != "" {
+			break
 		}
 	}
 	
-	return registry.DefaultScenario
+	if selectedScenario == "" {
+		selectedScenario = registry.DefaultScenario
+	}
+	
+	// Check if scenario actually exists (except for resource CLIs)
+	if strings.HasPrefix(selectedScenario, "resource-") {
+		return selectedScenario
+	}
+	
+	if !scenarioExists(selectedScenario) {
+		log.Printf("Scenario %s not found, falling back to claude-code", selectedScenario)
+		return "resource-claude-code"
+	}
+	
+	return selectedScenario
+}
+
+func scenarioExists(name string) bool {
+	// Check if scenario exists using vrooli CLI
+	cmd := exec.Command("vrooli", "scenario", "list")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Failed to list scenarios: %v", err)
+		return false
+	}
+	
+	// Parse output to check if scenario exists
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, name) {
+			return true
+		}
+	}
+	
+	return false
 }
 
 func buildTaskPrompt(task *Task, scenario string) string {
@@ -1081,9 +1172,13 @@ func buildTaskPrompt(task *Task, scenario string) string {
 }
 
 func executeViaClaude(prompt string) (int, error) {
-	// Execute using resource-claude-code (following auto/ pattern)
-	cmd := exec.Command("resource-claude-code", "run", prompt)
+	// Execute using resource-claude-code
+	cmd := exec.Command("vrooli", "resource", "claude-code", "run", prompt)
 	cmd.Dir = getVrooliRoot() // Set working directory
+	cmd.Env = append(os.Environ(),
+		"CLAUDE_TASK_MODE=true",
+		"CLAUDE_MAX_TOKENS=8192",
+	)
 	
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
@@ -1095,16 +1190,38 @@ func executeViaClaude(prompt string) (int, error) {
 			exitCode = 1
 		}
 		log.Printf("Claude execution failed: %v\nOutput: %s", err, string(output))
+	} else {
+		log.Printf("Claude execution completed successfully")
 	}
 	
-	log.Printf("Claude execution completed with exit code %d", exitCode)
 	return exitCode, err
 }
 
 func executeViaScenario(scenario string, task *Task, prompt string) (int, error) {
-	// Execute using scenario CLI
-	cmd := exec.Command(scenario, "run", "--task-id", task.ID, "--prompt", prompt)
+	var cmd *exec.Cmd
+	
+	// Check if it's a resource CLI or a scenario
+	if strings.HasPrefix(scenario, "resource-") {
+		// Execute resource CLI directly
+		resourceName := strings.TrimPrefix(scenario, "resource-")
+		cmd = exec.Command("vrooli", "resource", resourceName, "run", prompt)
+	} else {
+		// Execute scenario using vrooli scenario run
+		// Write prompt to temp file for scenario to process
+		tmpFile := filepath.Join("/tmp", fmt.Sprintf("task-%s.txt", task.ID))
+		if err := os.WriteFile(tmpFile, []byte(prompt), 0644); err != nil {
+			return 1, fmt.Errorf("failed to write prompt file: %v", err)
+		}
+		defer os.Remove(tmpFile)
+		
+		cmd = exec.Command("vrooli", "scenario", "run", scenario, "--input", tmpFile)
+	}
+	
 	cmd.Dir = getVrooliRoot()
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("TASK_ID=%s", task.ID),
+		fmt.Sprintf("TASK_TYPE=%s", task.Type),
+	)
 	
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
@@ -1116,9 +1233,10 @@ func executeViaScenario(scenario string, task *Task, prompt string) (int, error)
 			exitCode = 1
 		}
 		log.Printf("Scenario %s execution failed: %v\nOutput: %s", scenario, err, string(output))
+	} else {
+		log.Printf("Scenario %s execution completed successfully", scenario)
 	}
 	
-	log.Printf("Scenario %s execution completed with exit code %d", scenario, exitCode)
 	return exitCode, err
 }
 
@@ -1658,6 +1776,315 @@ func stopAgentSystem() {
 	// For now, agents will stop when the process exits
 }
 
+// Scheduler System - Replaces n8n workflows
+
+func startSchedulers() {
+	log.Println("Starting schedulers...")
+	
+	// Start problem scanner (every 5 minutes)
+	go problemScanScheduler()
+	
+	// Start capacity checker (every minute)
+	go capacityCheckScheduler()
+	
+	// Start backlog generator (every 10 minutes)
+	go backlogGeneratorScheduler()
+	
+	// Start task mover (every 30 seconds)
+	go taskMoverScheduler()
+	
+	log.Println("Schedulers started")
+}
+
+func problemScanScheduler() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	
+	// Run immediately on start
+	performProblemScan()
+	
+	for range ticker.C {
+		performProblemScan()
+	}
+}
+
+func performProblemScan() {
+	log.Println("Performing problem scan...")
+	
+	vrooliRoot := getVrooliRoot()
+	scanPath := vrooliRoot
+	
+	// Find all PROBLEMS.md files
+	problemFiles, err := findProblemFiles(scanPath)
+	if err != nil {
+		log.Printf("Error scanning for problem files: %v", err)
+		return
+	}
+	
+	problemsFound := 0
+	tasksCreated := 0
+	
+	for _, file := range problemFiles {
+		problems, err := parseProblemsFromFile(file)
+		if err != nil {
+			log.Printf("Error parsing %s: %v", file, err)
+			continue
+		}
+		
+		for _, problem := range problems {
+			// Store problem in database
+			err := storeProblem(problem)
+			if err != nil {
+				log.Printf("Error storing problem %s: %v", problem.ID, err)
+				continue
+			}
+			
+			// Create task for critical/high problems if yolo mode is on
+			config, _ := getCurrentConfig()
+			if config.YoloMode && (problem.Severity == "critical" || problem.Severity == "high") {
+				if createTaskFromProblem(problem) {
+					tasksCreated++
+				}
+			}
+			problemsFound++
+		}
+	}
+	
+	log.Printf("Problem scan complete: %d problems found, %d tasks created", problemsFound, tasksCreated)
+}
+
+func capacityCheckScheduler() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		checkSystemCapacity()
+	}
+}
+
+func checkSystemCapacity() {
+	// Count tasks in each state
+	activeTasks := countTasksInFolder(filepath.Join(tasksDir, "active"))
+	stagedTasks := countTasksInFolder(filepath.Join(tasksDir, "staged"))
+	backlogManual := countTasksInFolder(filepath.Join(tasksDir, "backlog", "manual"))
+	backlogGenerated := countTasksInFolder(filepath.Join(tasksDir, "backlog", "generated"))
+	
+	config, _ := getCurrentConfig()
+	maxConcurrent := config.MaxConcurrentTasks
+	availableSlots := maxConcurrent - activeTasks
+	
+	log.Printf("Capacity check: %d/%d active, %d staged, %d in backlog, %d slots available",
+		activeTasks, maxConcurrent, stagedTasks, backlogManual+backlogGenerated, availableSlots)
+	
+	// Move tasks from staged to active if we have capacity
+	if availableSlots > 0 && stagedTasks > 0 {
+		moveTasksToActive(availableSlots)
+	}
+	
+	// Move tasks from backlog to staged if staged is low
+	if stagedTasks < 3 {
+		moveTasksToStaged(5 - stagedTasks)
+	}
+}
+
+func backlogGeneratorScheduler() {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		checkAndGenerateBacklog()
+	}
+}
+
+func checkAndGenerateBacklog() {
+	backlogManual := countTasksInFolder(filepath.Join(tasksDir, "backlog", "manual"))
+	backlogGenerated := countTasksInFolder(filepath.Join(tasksDir, "backlog", "generated"))
+	totalBacklog := backlogManual + backlogGenerated
+	
+	config, _ := getCurrentConfig()
+	minBacklog := config.MinBacklogSize
+	
+	if totalBacklog < minBacklog {
+		log.Printf("Backlog low (%d/%d), generating new tasks...", totalBacklog, minBacklog)
+		generateNewTasks(minBacklog - totalBacklog)
+	}
+}
+
+func taskMoverScheduler() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		// Clean up completed/failed tasks older than 7 days
+		cleanupOldTasks()
+	}
+}
+
+func countTasksInFolder(folderPath string) int {
+	count := 0
+	files, err := ioutil.ReadDir(folderPath)
+	if err != nil {
+		return 0
+	}
+	
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
+			count++
+		}
+	}
+	return count
+}
+
+func moveTasksToActive(slots int) {
+	stagedDir := filepath.Join(tasksDir, "staged")
+	activeDir := filepath.Join(tasksDir, "active")
+	
+	files, err := ioutil.ReadDir(stagedDir)
+	if err != nil {
+		return
+	}
+	
+	moved := 0
+	for _, file := range files {
+		if moved >= slots {
+			break
+		}
+		
+		if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
+			oldPath := filepath.Join(stagedDir, file.Name())
+			newPath := filepath.Join(activeDir, file.Name())
+			
+			if err := os.Rename(oldPath, newPath); err == nil {
+				moved++
+				log.Printf("Moved task %s to active", file.Name())
+			}
+		}
+	}
+}
+
+func moveTasksToStaged(count int) {
+	backlogDir := filepath.Join(tasksDir, "backlog", "manual")
+	stagedDir := filepath.Join(tasksDir, "staged")
+	
+	// First try manual tasks
+	files, err := ioutil.ReadDir(backlogDir)
+	if err != nil {
+		return
+	}
+	
+	moved := 0
+	for _, file := range files {
+		if moved >= count {
+			break
+		}
+		
+		if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
+			// Analyze task before staging
+			taskPath := filepath.Join(backlogDir, file.Name())
+			taskBytes, err := ioutil.ReadFile(taskPath)
+			if err != nil {
+				continue
+			}
+			
+			var task Task
+			if err := yaml.Unmarshal(taskBytes, &task); err != nil {
+				continue
+			}
+			
+			// Only stage tasks with priority scores
+			if task.PriorityScore == nil {
+				// Analyze task first
+				go analyzeTaskAsync(task.ID, taskPath)
+				continue
+			}
+			
+			oldPath := taskPath
+			newPath := filepath.Join(stagedDir, file.Name())
+			
+			if err := os.Rename(oldPath, newPath); err == nil {
+				moved++
+				log.Printf("Moved task %s to staged", file.Name())
+			}
+		}
+	}
+	
+	// If not enough manual tasks, try generated tasks
+	if moved < count {
+		backlogDir = filepath.Join(tasksDir, "backlog", "generated")
+		files, err = ioutil.ReadDir(backlogDir)
+		if err != nil {
+			return
+		}
+		
+		for _, file := range files {
+			if moved >= count {
+				break
+			}
+			
+			if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
+				oldPath := filepath.Join(backlogDir, file.Name())
+				newPath := filepath.Join(stagedDir, file.Name())
+				
+				if err := os.Rename(oldPath, newPath); err == nil {
+					moved++
+					log.Printf("Moved generated task %s to staged", file.Name())
+				}
+			}
+		}
+	}
+}
+
+func generateNewTasks(count int) {
+	log.Printf("Generating %d new tasks...", count)
+	
+	// Use Claude to generate task suggestions
+	prompt := fmt.Sprintf(`Generate %d task suggestions for improving the Vrooli system.
+Consider:
+- Current system problems and issues
+- Performance optimizations
+- New feature ideas
+- Documentation improvements
+- Test coverage gaps
+
+Return as YAML task entries with title, description, type, and priority_estimates.`, count)
+	
+	// Execute via claude-code
+	cmd := exec.Command("resource-claude-code", "run", prompt)
+	cmd.Dir = getVrooliRoot()
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Printf("Failed to generate tasks: %v", err)
+		return
+	}
+	
+	// Parse and save generated tasks
+	// This would need proper YAML parsing of the output
+	log.Printf("Generated tasks: %s", string(output))
+}
+
+func cleanupOldTasks() {
+	// Clean up completed tasks older than 7 days
+	completedDir := filepath.Join(tasksDir, "completed")
+	failedDir := filepath.Join(tasksDir, "failed")
+	
+	for _, dir := range []string{completedDir, failedDir} {
+		files, err := ioutil.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		
+		for _, file := range files {
+			if file.ModTime().Before(time.Now().AddDate(0, 0, -7)) {
+				filePath := filepath.Join(dir, file.Name())
+				if err := os.Remove(filePath); err == nil {
+					log.Printf("Cleaned up old task: %s", file.Name())
+				}
+			}
+		}
+	}
+}
+
 // Problem management handlers
 
 func scanProblems(c *fiber.Ctx) error {
@@ -2165,6 +2592,95 @@ func getVrooliRoot() string {
 	}
 	ex, _ := os.Executable()
 	return filepath.Dir(filepath.Dir(ex))
+}
+
+// Helper functions for log retrieval
+
+func getTaskExecutions(taskID string, limit, offset int) ([]TaskExecution, error) {
+	var executions []TaskExecution
+	
+	query := `
+		SELECT id, task_id, task_title, task_type, scenario_used, status,
+		       priority_score, estimates, started_at, completed_at, duration_seconds,
+		       commands_executed, output_summary, error_details, created_at, updated_at
+		FROM swarm_manager.task_executions 
+		WHERE task_id = $1 
+		ORDER BY created_at DESC 
+		LIMIT $2 OFFSET $3`
+	
+	rows, err := db.Query(query, taskID, limit, offset)
+	if err != nil {
+		return executions, err
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var exec TaskExecution
+		var estimatesJSON, commandsJSON []byte
+		
+		err := rows.Scan(
+			&exec.ID, &exec.TaskID, &exec.TaskTitle, &exec.TaskType, &exec.ScenarioUsed,
+			&exec.Status, &exec.PriorityScore, &estimatesJSON, &exec.StartedAt, &exec.CompletedAt,
+			&exec.DurationSeconds, &commandsJSON, &exec.OutputSummary, &exec.ErrorDetails,
+			&exec.CreatedAt, &exec.UpdatedAt)
+		
+		if err != nil {
+			continue
+		}
+		
+		// Parse JSON fields
+		if estimatesJSON != nil {
+			json.Unmarshal(estimatesJSON, &exec.Estimates)
+		}
+		if commandsJSON != nil {
+			json.Unmarshal(commandsJSON, &exec.CommandsExecuted)
+		}
+		
+		executions = append(executions, exec)
+	}
+	
+	return executions, nil
+}
+
+func getTaskEvents(taskID string, limit int) ([]TaskEvent, error) {
+	var events []TaskEvent
+	
+	eventsPath := filepath.Join(getBasePath(), "logs", "events.ndjson")
+	file, err := os.Open(eventsPath)
+	if err != nil {
+		return events, err
+	}
+	defer file.Close()
+	
+	scanner := bufio.NewScanner(file)
+	var allLines []string
+	
+	// Read all lines first
+	for scanner.Scan() {
+		allLines = append(allLines, scanner.Text())
+	}
+	
+	// Process lines in reverse order (newest first) and filter by task ID
+	count := 0
+	for i := len(allLines) - 1; i >= 0 && count < limit; i-- {
+		line := allLines[i]
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		
+		var event TaskEvent
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			continue
+		}
+		
+		// Filter by task ID
+		if event.ID == taskID {
+			events = append(events, event)
+			count++
+		}
+	}
+	
+	return events, scanner.Err()
 }
 
 func errorHandler(c *fiber.Ctx, err error) error {

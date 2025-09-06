@@ -19,9 +19,9 @@
   "ports": {
     "app": {
       "env_var": "API_PORT",
-      "port": 36250,
       "fallback": "auto",
-      "description": "Main application port"
+      "description": "Main application port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -124,11 +124,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.simple-test.start-api\" 2>/dev/null || pkill -f \"simple-test-api\" 2>/dev/null || true",

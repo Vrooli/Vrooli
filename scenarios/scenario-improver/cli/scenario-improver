@@ -1,0 +1,197 @@
+#!/bin/bash
+
+# Scenario Improver CLI
+# Provides command-line interface to the Scenario Improver API
+
+# Build API URL using environment variables
+API_PORT="${SCENARIO_IMPROVER_API_PORT:-${API_PORT:-30150}}"
+API_HOST="${SCENARIO_IMPROVER_API_HOST:-localhost}"
+API_URL="${SCENARIO_IMPROVER_API_URL:-http://${API_HOST}:${API_PORT}}"
+
+show_help() {
+    cat << EOF
+Scenario Improver CLI - Debug and improve Vrooli scenarios
+
+Usage: scenario-improver [command] [options]
+
+Commands:
+    health               Check API health status
+    scenarios            List all running scenarios  
+    queue                Show queue status
+    start                Start next improvement from queue
+    analyze <scenario>   Analyze scenario for errors
+    profile <scenario>   Profile scenario performance
+    add <title>          Add improvement task to queue
+    help                 Show this help message
+
+Examples:
+    scenario-improver scenarios
+    scenario-improver analyze scenario-generator-v1
+    scenario-improver profile resource-experimenter
+    scenario-improver start
+
+Environment:
+    SCENARIO_IMPROVER_API_URL    Full API endpoint (overrides host/port)
+    SCENARIO_IMPROVER_API_HOST   API host (default: localhost)
+    SCENARIO_IMPROVER_API_PORT   API port (default: 30150)
+    API_PORT                     Alternative API port variable
+EOF
+}
+
+check_health() {
+    echo "Checking Scenario Improver API health..."
+    curl -s "${API_URL}/health" | jq '.' 2>/dev/null || echo "API is not responding"
+}
+
+list_scenarios() {
+    echo "Fetching running scenarios..."
+    curl -s "${API_URL}/api/scenarios/list" | jq '.' 2>/dev/null || echo "Failed to fetch scenarios"
+}
+
+show_queue_status() {
+    echo "Fetching queue status..."
+    curl -s "${API_URL}/api/queue/status" | jq '.' 2>/dev/null || echo "Failed to fetch queue status"
+}
+
+start_improvement() {
+    echo "Starting next improvement from queue..."
+    curl -s -X POST "${API_URL}/api/improvement/start" | jq '.' 2>/dev/null || echo "Failed to start improvement"
+}
+
+analyze_scenario() {
+    local scenario_name="$1"
+    
+    if [[ -z "$scenario_name" ]]; then
+        echo "Error: Scenario name is required"
+        echo "Usage: scenario-improver analyze <scenario>"
+        exit 1
+    fi
+    
+    echo "Analyzing scenario: $scenario_name..."
+    
+    # Simulate error report for analysis
+    local error_data='{
+        "app_name": "'$scenario_name'",
+        "error_message": "Manual analysis request",
+        "stack_trace": "",
+        "context": {"analysis_type": "manual"}
+    }'
+    
+    curl -s -X POST "${API_URL}/api/error/analyze" \
+        -H "Content-Type: application/json" \
+        -d "$error_data" | \
+        jq '.' 2>/dev/null || echo "Failed to analyze scenario"
+}
+
+profile_performance() {
+    local scenario_name="$1"
+    
+    if [[ -z "$scenario_name" ]]; then
+        echo "Error: Scenario name is required"
+        echo "Usage: scenario-improver profile <scenario>"
+        exit 1
+    fi
+    
+    echo "Profiling performance for: $scenario_name..."
+    curl -s "${API_URL}/api/performance/profile?app=$scenario_name" | jq '.' 2>/dev/null || echo "Failed to profile performance"
+}
+
+add_improvement() {
+    local title="$1"
+    
+    if [[ -z "$title" ]]; then
+        echo "Error: Improvement title is required"
+        echo "Usage: scenario-improver add <title>"
+        exit 1
+    fi
+    
+    echo "Adding improvement task: $title"
+    echo "Enter description (press Ctrl+D when done):"
+    local description
+    description=$(cat)
+    
+    echo "Enter target scenario:"
+    read -r target
+    
+    if [[ -z "$target" ]]; then
+        echo "Error: Target scenario is required"
+        exit 1
+    fi
+    
+    echo "Enter priority (critical/high/medium/low):"
+    read -r priority
+    
+    echo "Enter type (fix/optimization/feature/documentation):"
+    read -r type
+    
+    # Create JSON payload for API submission
+    local json_payload
+    json_payload=$(cat << EOF
+{
+    "title": "$title",
+    "description": "$description",
+    "type": "${type:-improvement}",
+    "target": "$target",
+    "priority": "${priority:-medium}",
+    "estimates": {
+        "impact": 5,
+        "urgency": "${priority:-medium}",
+        "success_prob": 0.7,
+        "resource_cost": "moderate"
+    }
+}
+EOF
+)
+    
+    echo "Submitting improvement to API..."
+    
+    # Submit via API endpoint
+    local response
+    response=$(curl -s -X POST "${API_URL}/api/improvement/submit" \
+        -H "Content-Type: application/json" \
+        -d "$json_payload")
+    
+    if [[ $? -eq 0 ]]; then
+        echo "✅ Improvement submitted successfully!"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    else
+        echo "❌ Failed to submit improvement. Check that the API is running."
+        echo "API URL: ${API_URL}/api/improvement/submit"
+        exit 1
+    fi
+}
+
+# Main command handler
+case "$1" in
+    health)
+        check_health
+        ;;
+    scenarios)
+        list_scenarios
+        ;;
+    queue)
+        show_queue_status
+        ;;
+    start)
+        start_improvement
+        ;;
+    analyze)
+        analyze_scenario "$2"
+        ;;
+    profile)
+        profile_performance "$2"
+        ;;
+    add)
+        add_improvement "$2"
+        ;;
+    help|--help|-h)
+        show_help
+        ;;
+    *)
+        if [[ -n "$1" ]]; then
+            echo "Unknown command: $1"
+        fi
+        show_help
+        exit 1
+        ;;
+esac

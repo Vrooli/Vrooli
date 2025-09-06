@@ -7,7 +7,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TASKS_DIR="${SCRIPT_DIR}/tasks"
-API_BASE="http://localhost:8095"
+API_PORT="${API_PORT:-8090}"
+API_BASE="http://localhost:${API_PORT}"
 SERVICE_NAME="swarm-manager"
 
 # Get Vrooli root directory
@@ -113,11 +114,7 @@ start_service() {
         vrooli resource redis start || true
     fi
     
-    # Start n8n if not running
-    if ! curl -s http://localhost:5678/healthz &>/dev/null; then
-        echo "Starting n8n..."
-        vrooli resource n8n start || true
-    fi
+    # N8n no longer needed - using internal schedulers
     
     # Initialize database schema
     echo "Initializing database..."
@@ -126,43 +123,37 @@ start_service() {
     
     # Start API server
     echo "Starting API server..."
-    cd "${SCRIPT_DIR}/api/src"
+    cd "${SCRIPT_DIR}/api"
     
-    # Install Go dependencies if needed
-    if [ ! -f go.mod ]; then
-        go mod init swarm-manager
-        go get github.com/gofiber/fiber/v2
-        go get github.com/lib/pq
-        go get github.com/google/uuid
-        go get gopkg.in/yaml.v3
+    # Build if needed
+    if [ ! -f swarm-manager-api ]; then
+        echo "Building API server..."
+        go build -o swarm-manager-api main.go
     fi
     
-    # Build and run
-    go build -o swarm-manager-api main.go
-    API_PORT=8095 nohup ./swarm-manager-api > "${SCRIPT_DIR}/logs/api.log" 2>&1 &
+    # Use port from environment or default
+    API_PORT="${API_PORT:-8090}"
+    
+    # Run API server
+    API_PORT=$API_PORT nohup ./swarm-manager-api > "${SCRIPT_DIR}/logs/api.log" 2>&1 &
     echo $! > "${SCRIPT_DIR}/api.pid"
     
     # Start UI server
     echo "Starting UI server..."
     cd "${SCRIPT_DIR}/ui"
-    python3 -m http.server 4000 > "${SCRIPT_DIR}/logs/ui.log" 2>&1 &
+    
+    # Use port from environment or default
+    UI_PORT="${UI_PORT:-31011}"
+    
+    python3 -m http.server $UI_PORT > "${SCRIPT_DIR}/logs/ui.log" 2>&1 &
     echo $! > "${SCRIPT_DIR}/ui.pid"
     
-    # Import n8n workflows
-    echo "Importing workflows..."
-    for workflow in "${SCRIPT_DIR}/initialization/n8n"/*.json; do
-        if [ -f "$workflow" ]; then
-            echo "  Importing $(basename "$workflow")..."
-            curl -X POST http://localhost:5678/api/v1/workflows \
-                -H "Content-Type: application/json" \
-                -d "@$workflow" &>/dev/null || true
-        fi
-    done
+    # Start internal schedulers (handled by Go API)
     
     echo -e "${GREEN}✓ Swarm Manager started successfully${NC}"
     echo ""
-    echo "  API: http://localhost:8095"
-    echo "  UI:  http://localhost:4000"
+    echo "  API: http://localhost:${API_PORT}"
+    echo "  UI:  http://localhost:${UI_PORT}"
     echo ""
     echo "Run 'swarm-manager status' to check system status"
 }

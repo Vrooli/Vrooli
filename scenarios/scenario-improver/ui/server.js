@@ -20,13 +20,13 @@ app.get('/', (req, res) => {
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
-        service: 'app-debugger-ui',
+        service: 'scenario-improver-ui',
         timestamp: new Date().toISOString()
     });
 });
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`App Debugger UI running on port ${PORT}`);
-    console.log(`Access the debugger at http://localhost:${PORT}`);
+    console.log(`Scenario Improver UI running on port ${PORT}`);
+    console.log(`Access the UI at http://localhost:${PORT}`);
 });

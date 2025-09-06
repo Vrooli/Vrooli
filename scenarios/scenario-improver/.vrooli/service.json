@@ -4,7 +4,7 @@
   "service": {
     "name": "scenario-improver",
     "displayName": "Scenario Improver",
-    "description": "Continuous improvement system for existing Vrooli scenarios using PRD-driven validation and cross-scenario impact analysis",
+    "description": "Continuous improvement system for existing Vrooli scenarios using Claude Code intelligence for PRD-driven validation and cross-scenario impact analysis",
     "version": "1.0.0",
     "tags": [
       "vrooli-enhancement",
@@ -19,56 +19,26 @@
       "terminal-ui",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
-      "postgres-storage"
+      "claude-code-integration",
+      "postgres-storage",
+      "direct-ai-analysis"
     ]
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 21100,
       "fallback": "auto",
-      "description": "Scenario Improver API port"
+      "description": "Scenario Improver API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 30250,
       "fallback": "auto",
-      "description": "Scenario Improver UI port"
+      "description": "Scenario Improver UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "rate-limiter"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/error-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/fix-suggester.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/log-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/performance-profiler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/debug-orchestrator.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "postgres": {
       "type": "postgres",
       "enabled": true,
@@ -116,7 +86,7 @@
       "startup_grace_period": 10000
     },
     "setup": {
-      "description": "Initialize App Debugger",
+      "description": "Initialize Scenario Improver",
       "condition": {
         "checks": [
           {
@@ -128,6 +98,11 @@
           {
             "type": "cli",
             "command": "scenario-improver"
+          },
+          {
+            "type": "cli",
+            "command": "resource-claude-code",
+            "description": "Claude Code CLI (required for AI analysis)"
           },
           {
             "type": "dependencies",
@@ -154,7 +129,7 @@
         },
         {
           "name": "install-cli",
-          "run": "cd cli && chmod +x app-debugger && ln -sf $(pwd)/app-debugger ~/.local/bin/app-debugger 2>/dev/null || true",
+          "run": "cd cli && chmod +x scenario-improver && ln -sf $(pwd)/scenario-improver ~/.local/bin/scenario-improver 2>/dev/null || true",
           "description": "Install CLI command globally"
         },
         {
@@ -169,16 +144,16 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🐛 App Debugger initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🔧 Scenario Improver initialized\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
           "description": "Display service URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start App Debugger services",
+      "description": "Start Scenario Improver services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./scenario-improver-api",
           "description": "Start API server",
           "background": true,
@@ -187,20 +162,20 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
         },
         {
           "name": "show-running",
-          "run": "echo '🚀 App Debugger running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '🚀 Scenario Improver running:\n  UI: http://localhost:${UI_PORT}\n  API: http://localhost:${API_PORT}\n  CLI: scenario-improver --help'",
           "description": "Display running services"
         }
       ]
     },
     "test": {
-      "description": "Test App Debugger services",
+      "description": "Test Scenario Improver services",
       "steps": [
         {
           "name": "test-api",
@@ -208,24 +183,29 @@
           "description": "Test API health"
         },
         {
-          "name": "test-apps",
-          "run": "curl -sf http://localhost:$API_PORT/api/apps",
-          "description": "Test apps endpoint"
+          "name": "test-scenarios",
+          "run": "curl -sf http://localhost:$API_PORT/api/scenarios/list",
+          "description": "Test scenarios endpoint"
         },
         {
-          "name": "test-errors",
-          "run": "curl -sf http://localhost:$API_PORT/api/errors",
-          "description": "Test errors endpoint"
+          "name": "test-queue",
+          "run": "curl -sf http://localhost:$API_PORT/api/queue/status",
+          "description": "Test queue status endpoint"
         }
       ]
     },
     "stop": {
-      "description": "Stop App Debugger services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'app-debugger-api' || true; pkill -f 'npm.*app-debugger' || true",
-          "description": "Stop all services"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.scenario-improver.start-api\" 2>/dev/null || pkill -f \"scenario-improver-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.scenario-improver.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

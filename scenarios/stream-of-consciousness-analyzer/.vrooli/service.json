@@ -26,15 +26,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 30000,
       "fallback": "auto",
-      "description": "Stream analyzer API port"
+      "description": "Stream analyzer API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36500,
       "fallback": "auto",
-      "description": "Stream analyzer UI port"
+      "description": "Stream analyzer UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -208,12 +208,17 @@
       ]
     },
     "stop": {
-      "description": "Stop Stream Analyzer services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'npm.*start' || true",
-          "description": "Stop all services"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.stream-of-consciousness-analyzer.start-api\" 2>/dev/null || pkill -f \"stream-of-consciousness-analyzer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.stream-of-consciousness-analyzer.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

@@ -134,7 +134,7 @@ scenarios:
     typical_duration: 10-20 minutes
 
 # Fallback scenario for unmatched tasks
-default_scenario: claude-code
+default_scenario: resource-claude-code
 
 # Scenario selection rules
 selection_rules:

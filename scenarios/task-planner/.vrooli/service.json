@@ -25,15 +25,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 30750,
       "fallback": "auto",
-      "description": "Task planner API port"
+      "description": "Task planner API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31004,
       "fallback": "auto",
-      "description": "Task dashboard UI port"
+      "description": "Task dashboard UI port",
+      "range": "35000-39999"
     }
   },
   "sharedWorkflows": {
@@ -273,11 +273,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.task-planner.start-api\" 2>/dev/null || pkill -f \"task-planner-api\" 2>/dev/null || true",

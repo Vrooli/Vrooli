@@ -519,7 +519,7 @@ func main() {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 	
-	dbURL := os.Getenv("DATABASE_URL")
+	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
 		dbURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/task_planner?sslmode=disable", postgresPort)
 	}

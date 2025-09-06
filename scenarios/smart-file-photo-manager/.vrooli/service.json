@@ -28,15 +28,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 29750,
       "fallback": "auto",
-      "description": "Smart file manager coordination API port"
+      "description": "Smart file manager coordination API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31010,
       "fallback": "auto",
-      "description": "Smart File Photo Manager UI port"
+      "description": "Smart File Photo Manager UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -215,7 +215,7 @@
       "description": "Start smart file photo manager with Go API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./smart-file-photo-manager-api",
           "description": "Start Go coordination API server in background",
           "background": true,
@@ -232,7 +232,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start Node.js UI server in background",
           "background": true,
@@ -289,22 +289,17 @@
       ]
     },
     "stop": {
-      "description": "Stop smart file photo manager services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'smart-file-photo-manager-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.smart-file-photo-manager.start-api\" 2>/dev/null || pkill -f \"smart-file-photo-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop Node.js UI server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Smart File Photo Manager services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.smart-file-photo-manager.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

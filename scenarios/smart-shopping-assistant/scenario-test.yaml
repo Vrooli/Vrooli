@@ -1,0 +1,220 @@
+version: 1.0
+scenario: smart-shopping-assistant
+
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/smart-shopping-assistant
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/storage/redis/config.yaml
+    - ui/package.json
+    - ui/index.html
+    - ui/src/main.jsx
+    - ui/src/App.jsx
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - initialization/storage/redis
+    - ui
+    - ui/src
+    - ui/src/components
+    - tests
+
+resources:
+  required:
+    - postgres
+    - redis
+    - qdrant
+  optional:
+    - ollama
+    - browserless
+  health_timeout: 60
+
+tests:
+  # Resource health checks
+  - name: "PostgreSQL database is accessible"
+    type: exec
+    command: "psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -c 'SELECT 1' > /dev/null 2>&1"
+    expect:
+      exit_code: 0
+      
+  - name: "Redis cache is accessible"
+    type: exec
+    command: "redis-cli -p ${RESOURCE_PORTS[redis]} ping"
+    expect:
+      exit_code: 0
+      output_contains: ["PONG"]
+      
+  - name: "Qdrant vector DB is accessible"
+    type: http
+    service: qdrant
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      
+  # API tests
+  - name: "API health check"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        service: smart-shopping-assistant
+        
+  - name: "Shopping research endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/shopping/research
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      profile_id: "11111111-1111-1111-1111-111111111111"
+      query: "test product"
+      include_alternatives: true
+    expect:
+      status: 200
+      body_contains:
+        - products
+        - alternatives
+        - price_analysis
+        - recommendations
+        
+  - name: "Price tracking GET endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/shopping/tracking/11111111-1111-1111-1111-111111111111
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - active_alerts
+        - tracked_products
+        
+  - name: "Pattern analysis endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/shopping/pattern-analysis
+    method: POST
+    headers:
+      Content-Type: application/json
+    body:
+      profile_id: "11111111-1111-1111-1111-111111111111"
+      timeframe: "30d"
+    expect:
+      status: 200
+      body_contains:
+        - patterns
+        - predictions
+        - savings_opportunities
+        
+  # CLI tests
+  - name: "CLI installation check"
+    type: exec
+    command: "test -f cli/smart-shopping-assistant && test -x cli/smart-shopping-assistant"
+    expect:
+      exit_code: 0
+      
+  - name: "CLI help command"
+    type: exec
+    command: "./cli/smart-shopping-assistant help"
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Smart Shopping Assistant CLI"
+        - "research"
+        - "track"
+        - "analyze-patterns"
+        
+  - name: "CLI version command"
+    type: exec
+    command: "./cli/smart-shopping-assistant version"
+    expect:
+      exit_code: 0
+      output_contains: ["v1.0.0"]
+      
+  # Database tests
+  - name: "Database schema is initialized"
+    type: exec
+    command: "psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -c \"SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('shopping_profiles', 'products', 'price_history')\" -t"
+    expect:
+      exit_code: 0
+      output_contains: ["3"]
+      
+  - name: "Seed data is present"
+    type: exec
+    command: "psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -c \"SELECT COUNT(*) FROM shopping_profiles WHERE id = '11111111-1111-1111-1111-111111111111'\" -t"
+    expect:
+      exit_code: 0
+      output_contains: ["1"]
+      
+  # UI tests
+  - name: "UI build files exist"
+    type: exec
+    command: "test -f ui/package.json && test -f ui/index.html"
+    expect:
+      exit_code: 0
+      
+  - name: "UI dependencies can be installed"
+    type: exec
+    command: "cd ui && npm install --dry-run"
+    timeout: 30000
+    expect:
+      exit_code: 0
+      
+# Integration tests (when other scenarios are available)
+integration_tests:
+  - name: "Scenario authenticator integration"
+    type: integration
+    scenario: scenario-authenticator
+    enabled: false  # Enable when scenario-authenticator is available
+    test: profile_creation_and_retrieval
+    expect:
+      success: true
+      
+  - name: "Deep research integration"
+    type: integration
+    scenario: deep-research
+    enabled: false  # Enable when deep-research is available
+    test: product_analysis_request
+    expect:
+      success: true
+      
+  - name: "Contact book integration"
+    type: integration
+    scenario: contact-book
+    enabled: false  # Enable when contact-book is available
+    test: gift_recipient_lookup
+    expect:
+      success: true
+
+# Performance tests
+performance:
+  - name: "API response time"
+    type: http
+    service: api
+    endpoint: /api/v1/shopping/research
+    method: POST
+    body:
+      profile_id: "11111111-1111-1111-1111-111111111111"
+      query: "laptop"
+    iterations: 10
+    expect:
+      avg_response_time: 3000  # 3 seconds
+      max_response_time: 5000  # 5 seconds
+      success_rate: 100

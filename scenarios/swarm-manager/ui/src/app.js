@@ -94,6 +94,7 @@ function createTaskCard(task) {
         <div class="task-meta">
             <span class="task-type">${task.type || 'general'}</span>
             <span><i class="fas fa-bullseye"></i> ${task.target || 'none'}</span>
+            <span class="task-agent"><i class="fas fa-user-robot"></i> ${getAgentDisplayName(task.assigned_agent)}</span>
             ${task.created_by === 'ai' ? '<span><i class="fas fa-robot"></i> AI</span>' : ''}
         </div>
     `;
@@ -108,6 +109,9 @@ function showTaskDetails(task) {
     currentTask = task;
     
     document.getElementById('task-details-title').textContent = task.title || 'Task Details';
+    
+    // Reset tabs to details view
+    switchTaskTab('details');
     
     const content = document.getElementById('task-details-content');
     content.innerHTML = `
@@ -134,6 +138,9 @@ function showTaskDetails(task) {
             </div>
             <div class="detail-row">
                 <span>Priority Score:</span> <span>${task.priority_score || 'Not calculated'}</span>
+            </div>
+            <div class="detail-row">
+                <span>Assigned Agent:</span> <span class="agent-badge">${getAgentDisplayName(task.assigned_agent)}</span>
             </div>
         </div>
         ${task.priority_estimates ? `
@@ -167,6 +174,9 @@ function showTaskDetails(task) {
 function hideTaskDetails() {
     document.getElementById('task-details-modal').classList.remove('open');
     currentTask = null;
+    
+    // Reset to details tab
+    switchTaskTab('details');
 }
 
 // Load agents
@@ -252,7 +262,10 @@ function setSliderValue(sliderId, value) {
     const slider = document.getElementById(sliderId);
     if (slider) {
         slider.value = value;
-        slider.nextElementSibling.textContent = value;
+        const valueDisplay = slider.closest('.weight-input-group').querySelector('.weight-value');
+        if (valueDisplay) {
+            valueDisplay.textContent = parseFloat(value).toFixed(1);
+        }
     }
 }
 
@@ -433,6 +446,7 @@ function hideAddTaskModal() {
     document.getElementById('task-description').value = '';
     document.getElementById('task-type').value = 'feature';
     document.getElementById('task-target').value = '';
+    document.getElementById('task-agent').value = 'claude-code';
 }
 
 async function createTask() {
@@ -441,6 +455,7 @@ async function createTask() {
         description: document.getElementById('task-description').value,
         type: document.getElementById('task-type').value,
         target: document.getElementById('task-target').value,
+        assigned_agent: document.getElementById('task-agent').value,
         created_by: 'human'
     };
     
@@ -537,9 +552,212 @@ async function deleteCurrentTask() {
 // Update slider values in real-time
 document.querySelectorAll('input[type="range"]').forEach(slider => {
     slider.addEventListener('input', (e) => {
-        e.target.nextElementSibling.textContent = e.target.value;
+        const value = parseFloat(e.target.value).toFixed(1);
+        e.target.closest('.weight-input-group').querySelector('.weight-value').textContent = value;
     });
 });
+
+// Reset settings to defaults
+function resetSettings() {
+    if (!confirm('Reset all settings to default values?')) return;
+    
+    // Reset priority weights
+    setSliderValue('weight-impact', 1.0);
+    setSliderValue('weight-urgency', 0.8);
+    setSliderValue('weight-success', 0.6);
+    setSliderValue('weight-cost', 0.5);
+    
+    // Reset system settings
+    document.getElementById('yolo-mode').checked = false;
+    document.getElementById('max-concurrent').value = 5;
+    document.getElementById('min-backlog').value = 10;
+    document.getElementById('default-agent').value = 'claude-code';
+    
+    alert('Settings reset to defaults. Click "Save Settings" to apply.');
+}
+
+// Helper function to get display name for agents
+function getAgentDisplayName(agentId) {
+    const agentNames = {
+        'claude-code': 'Claude',
+        'general-ai': 'General AI',
+        'code-specialist': 'Code Specialist',
+        'system-admin': 'System Admin',
+        'data-analyst': 'Data Analyst',
+        'ui-designer': 'UI Designer'
+    };
+    return agentNames[agentId] || agentId || 'Claude';
+}
+
+// Task modal tab functions
+function switchTaskTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.task-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.querySelector(`[onclick="switchTaskTab('${tabName}')"]`).classList.add('active');
+    
+    // Update tab content
+    document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('active');
+    });
+    
+    if (tabName === 'details') {
+        document.getElementById('task-details-content').classList.add('active');
+    } else if (tabName === 'logs') {
+        document.getElementById('task-logs-content').classList.add('active');
+        loadTaskLogs();
+    } else if (tabName === 'history') {
+        document.getElementById('task-history-content').classList.add('active');
+        loadTaskHistory();
+    }
+}
+
+// Load task logs
+async function loadTaskLogs() {
+    if (!currentTask) return;
+    
+    const logsLoading = document.getElementById('logs-loading');
+    const logsEmpty = document.getElementById('logs-empty');
+    const logsList = document.getElementById('logs-list');
+    
+    // Show loading state
+    logsLoading.style.display = 'block';
+    logsEmpty.style.display = 'none';
+    logsList.innerHTML = '';
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/tasks/${currentTask.id}/logs`);
+        const data = await response.json();
+        
+        logsLoading.style.display = 'none';
+        
+        if (data.events.length === 0) {
+            logsEmpty.style.display = 'block';
+            return;
+        }
+        
+        // Display events
+        data.events.forEach(event => {
+            const logEntry = createLogEntry(event);
+            logsList.appendChild(logEntry);
+        });
+        
+    } catch (error) {
+        console.error('Failed to load task logs:', error);
+        logsLoading.style.display = 'none';
+        logsEmpty.style.display = 'block';
+        document.getElementById('logs-empty').innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed to load logs.';
+    }
+}
+
+// Create log entry element
+function createLogEntry(event) {
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    
+    const typeClass = event.type === 'start' ? 'start' : 
+                     event.type === 'finish' ? 'finish' : 'error';
+    
+    const typeIcon = event.type === 'start' ? 'play' : 
+                    event.type === 'finish' ? 'check' : 'exclamation-triangle';
+    
+    const timestamp = new Date(event.ts).toLocaleString();
+    const duration = event.duration_sec ? `${event.duration_sec}s` : '';
+    const exitCode = event.exit_code !== undefined ? `Exit: ${event.exit_code}` : '';
+    
+    entry.innerHTML = `
+        <div class="log-header">
+            <div class="log-type ${typeClass}">
+                <i class="fas fa-${typeIcon}"></i>
+                ${event.type.charAt(0).toUpperCase() + event.type.slice(1)} ${event.task}
+                ${event.scenario ? `<span class="log-scenario">${event.scenario}</span>` : ''}
+            </div>
+            <div class="log-timestamp">${timestamp}</div>
+        </div>
+        <div class="log-details">
+            PID: ${event.pid}
+            ${duration ? ` | Duration: ${duration}` : ''}
+            ${exitCode ? ` | ${exitCode}` : ''}
+        </div>
+        ${event.error ? `<div class="log-error">${event.error}</div>` : ''}
+    `;
+    
+    return entry;
+}
+
+// Load task execution history
+async function loadTaskHistory() {
+    if (!currentTask) return;
+    
+    const historyContainer = document.getElementById('execution-history');
+    historyContainer.innerHTML = '<div class="logs-loading"><i class="fas fa-spinner fa-pulse"></i> Loading execution history...</div>';
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/tasks/${currentTask.id}/logs`);
+        const data = await response.json();
+        
+        historyContainer.innerHTML = '';
+        
+        if (data.executions.length === 0) {
+            historyContainer.innerHTML = '<div class="logs-empty"><i class="fas fa-info-circle"></i> No execution history available.</div>';
+            return;
+        }
+        
+        // Display execution history
+        data.executions.forEach(execution => {
+            const historyEntry = createHistoryEntry(execution);
+            historyContainer.appendChild(historyEntry);
+        });
+        
+    } catch (error) {
+        console.error('Failed to load task history:', error);
+        historyContainer.innerHTML = '<div class="logs-empty"><i class="fas fa-exclamation-triangle"></i> Failed to load execution history.</div>';
+    }
+}
+
+// Create history entry element
+function createHistoryEntry(execution) {
+    const entry = document.createElement('div');
+    entry.className = 'execution-entry';
+    
+    const startTime = execution.started_at ? new Date(execution.started_at).toLocaleString() : 'Not started';
+    const endTime = execution.completed_at ? new Date(execution.completed_at).toLocaleString() : 'Not completed';
+    const duration = execution.duration_seconds ? `${execution.duration_seconds}s` : 'N/A';
+    
+    entry.innerHTML = `
+        <div class="execution-header">
+            <div class="execution-title">
+                <strong>${execution.task_title}</strong>
+                ${execution.scenario_used ? `<span class="log-scenario">${execution.scenario_used}</span>` : ''}
+            </div>
+            <div class="execution-status ${execution.status}">${execution.status}</div>
+        </div>
+        <div class="execution-details">
+            <div class="execution-detail">
+                <span>Started:</span> <strong>${startTime}</strong>
+            </div>
+            <div class="execution-detail">
+                <span>Completed:</span> <strong>${endTime}</strong>
+            </div>
+            <div class="execution-detail">
+                <span>Duration:</span> <strong>${duration}</strong>
+            </div>
+            <div class="execution-detail">
+                <span>Priority Score:</span> <strong>${execution.priority_score || 'N/A'}</strong>
+            </div>
+        </div>
+        ${execution.error_details ? `<div class="execution-error">${execution.error_details}</div>` : ''}
+        ${execution.output_summary ? `<div class="execution-summary">Output: ${execution.output_summary}</div>` : ''}
+    `;
+    
+    return entry;
+}
+
+// Refresh task logs
+function refreshTaskLogs() {
+    loadTaskLogs();
+}
 
 // Add styles for task details
 const style = document.createElement('style');
@@ -575,6 +793,26 @@ style.textContent = `
 
 .detail-row span:last-child {
     color: var(--text-primary);
+}
+
+.agent-badge {
+    background: linear-gradient(45deg, var(--cyber-cyan), var(--matrix-green)) !important;
+    color: var(--primary-bg) !important;
+    padding: 0.2rem 0.5rem !important;
+    border-radius: 12px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.task-agent {
+    background: var(--panel-bg);
+    color: var(--cyber-cyan);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    border: 1px solid var(--cyber-cyan);
 }
 `;
 document.head.appendChild(style);

@@ -1,0 +1,93 @@
+{
+  "npm": {
+    "name": "Node.js/JavaScript",
+    "detection": ["package.json"],
+    "preferred_scenarios": ["test-genie", "code-sleuth", "research-assistant"],
+    "specific_capabilities": "- **Package Analysis**: Understand dependencies and vulnerabilities\n- **Test Framework Integration**: Works with Jest, Mocha, Vitest\n- **Bundle Optimization**: Identify unused code and optimization opportunities\n- **API Documentation**: Generate comprehensive API docs from code",
+    "commands": [
+      "# Test your npm project with AI assistance",
+      "vrooli scenario run test-genie --framework jest",
+      "",
+      "# Analyze package dependencies", 
+      "vrooli scenario run code-sleuth --focus dependencies"
+    ]
+  },
+  "cargo": {
+    "name": "Rust",
+    "detection": ["Cargo.toml"],
+    "preferred_scenarios": ["test-genie", "code-sleuth", "performance-analyzer"],
+    "specific_capabilities": "- **Memory Safety Analysis**: Advanced ownership and borrowing insights\n- **Performance Profiling**: Identify bottlenecks and optimization opportunities\n- **Crate Ecosystem**: Navigate and understand Rust crate dependencies\n- **Unsafe Code Review**: Special focus on unsafe block analysis",
+    "commands": [
+      "# Generate comprehensive Rust tests",
+      "vrooli scenario run test-genie --framework cargo",
+      "",
+      "# Analyze Rust-specific patterns",
+      "vrooli scenario run code-sleuth --language rust"
+    ]
+  },
+  "python": {
+    "name": "Python",
+    "detection": ["requirements.txt", "pyproject.toml", "setup.py", "Pipfile"],
+    "preferred_scenarios": ["test-genie", "code-sleuth", "research-assistant", "data-analyzer"],
+    "specific_capabilities": "- **Type Hint Analysis**: Improve type safety and documentation\n- **Virtual Environment Management**: Optimize dependency isolation\n- **Performance Profiling**: Identify slow functions and memory usage\n- **Data Science Integration**: Special support for pandas, numpy workflows",
+    "commands": [
+      "# Generate Python tests with pytest integration",
+      "vrooli scenario run test-genie --framework pytest",
+      "",
+      "# Analyze Python code patterns and imports",
+      "vrooli scenario run code-sleuth --language python"
+    ]
+  },
+  "go": {
+    "name": "Go",
+    "detection": ["go.mod", "go.sum"],
+    "preferred_scenarios": ["test-genie", "code-sleuth", "performance-analyzer"],
+    "specific_capabilities": "- **Concurrency Analysis**: Goroutine and channel pattern insights\n- **Module Management**: Understand go.mod dependencies and versions\n- **Performance Benchmarking**: Generate and analyze Go benchmarks\n- **Interface Design**: Analyze interface usage and design patterns",
+    "commands": [
+      "# Generate Go tests and benchmarks",
+      "vrooli scenario run test-genie --framework go-test",
+      "",
+      "# Analyze Go-specific patterns",
+      "vrooli scenario run code-sleuth --language go"
+    ]
+  },
+  "java": {
+    "name": "Java",
+    "detection": ["pom.xml", "build.gradle", "gradle.properties"],
+    "preferred_scenarios": ["test-genie", "code-sleuth", "research-assistant"],
+    "specific_capabilities": "- **Maven/Gradle Integration**: Understand build configuration and dependencies\n- **JVM Analysis**: Memory usage and garbage collection insights\n- **Spring Framework**: Special support for Spring Boot applications\n- **Design Pattern Recognition**: Identify and suggest enterprise patterns",
+    "commands": [
+      "# Generate JUnit tests",
+      "vrooli scenario run test-genie --framework junit",
+      "",
+      "# Analyze Java enterprise patterns",
+      "vrooli scenario run code-sleuth --focus patterns"
+    ]
+  },
+  "csharp": {
+    "name": "C#/.NET",
+    "detection": ["*.csproj", "*.sln", "packages.config"],
+    "preferred_scenarios": ["test-genie", "code-sleuth", "research-assistant"],
+    "specific_capabilities": "- **.NET Framework Analysis**: Understand framework versions and compatibility\n- **NuGet Package Management**: Analyze package dependencies and conflicts\n- **LINQ Optimization**: Improve query performance and readability\n- **Async/Await Patterns**: Analyze and optimize asynchronous code",
+    "commands": [
+      "# Generate NUnit/MSTest tests",
+      "vrooli scenario run test-genie --framework nunit",
+      "",
+      "# Analyze C# code patterns",
+      "vrooli scenario run code-sleuth --language csharp"
+    ]
+  },
+  "generic": {
+    "name": "Generic Project",
+    "detection": [],
+    "preferred_scenarios": ["code-sleuth", "research-assistant"],
+    "specific_capabilities": "- **Universal Code Analysis**: Language-agnostic code insights\n- **Documentation Generation**: Create comprehensive project documentation\n- **Architecture Analysis**: Understand project structure and dependencies\n- **Best Practices**: Apply general software engineering principles",
+    "commands": [
+      "# Analyze project structure",
+      "vrooli scenario run code-sleuth --mode architecture",
+      "",
+      "# Research best practices for your domain",
+      "vrooli scenario run research-assistant"
+    ]
+  }
+}

@@ -1,7 +1,8 @@
 // App Debugger Interactive Terminal
-const API_BASE = window.location.hostname === 'localhost' 
-    ? 'http://localhost:30150' 
-    : `http://${window.location.hostname}:30150`;
+// API base URL - configurable via global variables or environment
+const API_HOST = window.SCENARIO_IMPROVER_API_HOST || window.location.hostname;
+const API_PORT = window.SCENARIO_IMPROVER_API_PORT || window.API_PORT || '30150';
+const API_BASE = window.SCENARIO_IMPROVER_API_URL || `${window.location.protocol}//${API_HOST}:${API_PORT}`;
 
 let selectedApp = null;
 let debugHistory = [];
@@ -19,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadApps();
     setupEventListeners();
     startClock();
-    simulateSystemStats();
+    updateSystemStats(); // Fetch real stats from API
 });
 
 function initializeTerminal() {
@@ -186,25 +187,18 @@ function clearTerminal() {
 }
 
 async function loadApps() {
-    addTerminalLine('Fetching running apps...');
+    addTerminalLine('Fetching running scenarios...');
     
     try {
-        const response = await fetch(`${API_BASE}/api/apps`);
-        const apps = await response.json();
+        const response = await fetch(`${API_BASE}/api/scenarios/list`);
+        const data = await response.json();
+        const scenarios = data.scenarios || [];
         
-        displayApps(apps);
-        addTerminalLine(`Found ${apps.length} apps`, 'success');
+        displayApps(scenarios);
+        addTerminalLine(`Found ${scenarios.length} scenarios`, 'success');
     } catch (error) {
-        // Use mock data if API fails
-        const mockApps = [
-            { name: 'app-monitor', status: 'running', health: 'healthy' },
-            { name: 'prompt-manager', status: 'running', health: 'warning' },
-            { name: 'idea-generator', status: 'stopped', health: 'unknown' },
-            { name: 'resume-screener', status: 'running', health: 'healthy' },
-            { name: 'study-buddy', status: 'running', health: 'error' }
-        ];
-        displayApps(mockApps);
-        addTerminalLine('Using mock data (API unreachable)', 'warning');
+        addTerminalLine(`Failed to fetch scenarios: ${error.message}`, 'error');
+        displayApps([]);
     }
 }
 
@@ -278,64 +272,68 @@ async function startDebugSession() {
         const result = await response.json();
         addTerminalLine(`Debug session ${result.status}: ${result.message}`, 'success');
         
-        // Simulate receiving debug data
-        setTimeout(() => {
-            simulateDebugData(debugMode);
-        }, 1000);
+        // Display actual debug results if available
+        if (result.data) {
+            displayDebugResults(result.data, debugMode);
+        }
     } catch (error) {
         addTerminalLine(`Failed to start debug session: ${error.message}`, 'error');
-        // Show mock debug data anyway
-        simulateDebugData(debugMode);
     }
 }
 
-function simulateDebugData(mode) {
+function displayDebugResults(data, mode) {
     switch(mode) {
         case 'errors':
             addTerminalLine('=== ERROR ANALYSIS ===', 'warning');
-            addTerminalLine('Found 3 errors in the last hour:');
-            addTerminalLine('1. TypeError: Cannot read property "map" of undefined');
-            addTerminalLine('   at processData (main.js:45)');
-            addTerminalLine('2. NetworkError: Failed to fetch from API endpoint');
-            addTerminalLine('   at fetchUserData (api.js:120)');
-            addTerminalLine('3. ValidationError: Invalid email format');
-            addTerminalLine('   at validateForm (validators.js:33)');
-            stats.errors += 3;
-            stats.pending += 3;
+            if (data.errors && data.errors.length > 0) {
+                addTerminalLine(`Found ${data.errors.length} errors:`);
+                data.errors.forEach((error, index) => {
+                    addTerminalLine(`${index + 1}. ${error.message}`);
+                    if (error.stack) {
+                        addTerminalLine(`   at ${error.stack}`);
+                    }
+                });
+                stats.errors += data.errors.length;
+                stats.pending += data.errors.length;
+            } else {
+                addTerminalLine('No errors found');
+            }
             updateStats();
             break;
             
         case 'logs':
             addTerminalLine('=== RECENT LOGS ===', 'warning');
-            addTerminalLine('[INFO] Application started successfully');
-            addTerminalLine('[INFO] Connected to database');
-            addTerminalLine('[WARN] High memory usage detected (85%)');
-            addTerminalLine('[ERROR] Failed to process webhook');
-            addTerminalLine('[INFO] Retrying webhook processing...');
-            addTerminalLine('[SUCCESS] Webhook processed on retry');
+            if (data.logs && data.logs.length > 0) {
+                data.logs.forEach(log => {
+                    addTerminalLine(log);
+                });
+            } else {
+                addTerminalLine('No recent logs available');
+            }
             break;
             
         case 'performance':
             addTerminalLine('=== PERFORMANCE METRICS ===', 'warning');
-            addTerminalLine('CPU Usage: 45%');
-            addTerminalLine('Memory: 512MB / 1024MB');
-            addTerminalLine('Response Time (avg): 235ms');
-            addTerminalLine('Request Rate: 120 req/min');
-            addTerminalLine('Error Rate: 0.3%');
-            addTerminalLine('Database Queries (avg): 12ms');
+            if (data.metrics) {
+                Object.entries(data.metrics).forEach(([key, value]) => {
+                    addTerminalLine(`${key}: ${value}`);
+                });
+            } else {
+                addTerminalLine('No performance data available');
+            }
             break;
             
         case 'fix':
             addTerminalLine('=== FIX SUGGESTIONS ===', 'warning');
-            addTerminalLine('For TypeError: Check if data exists before mapping');
-            addTerminalLine('Suggested fix:');
-            addTerminalLine('  const items = data?.items || [];');
-            addTerminalLine('  return items.map(item => item.name);');
-            addTerminalLine('');
-            addTerminalLine('For NetworkError: Implement retry logic');
-            addTerminalLine('For ValidationError: Update regex pattern');
-            stats.fixed++;
-            stats.pending = Math.max(0, stats.pending - 1);
+            if (data.suggestions && data.suggestions.length > 0) {
+                data.suggestions.forEach(suggestion => {
+                    addTerminalLine(suggestion);
+                });
+                stats.fixed++;
+                stats.pending = Math.max(0, stats.pending - 1);
+            } else {
+                addTerminalLine('No fix suggestions available');
+            }
             updateStats();
             break;
     }
@@ -345,7 +343,7 @@ async function analyzeError(errorText) {
     addTerminalLine('Analyzing error...');
     
     try {
-        const response = await fetch(`${API_BASE}/api/report-error`, {
+        const response = await fetch(`${API_BASE}/api/error/analyze`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -358,25 +356,20 @@ async function analyzeError(errorText) {
         
         const result = await response.json();
         
-        // Display analysis
-        const analysis = {
-            root_cause: 'Undefined variable access',
-            severity: 'medium',
-            fix_suggestion: 'Add null check before accessing property',
-            prevention: 'Use TypeScript or add validation'
-        };
-        
-        displayAnalysis(analysis);
+        // Display actual analysis from API
+        if (result.analysis) {
+            const analysis = {
+                root_cause: result.analysis.root_cause || 'Unknown',
+                severity: result.analysis.priority || result.analysis.severity || 'medium',
+                fix_suggestion: (result.analysis.suggestions && result.analysis.suggestions[0]) || 'No suggestions available',
+                prevention: result.analysis.prevention || 'Follow best practices'
+            };
+            displayAnalysis(analysis);
+        } else {
+            addTerminalLine('No analysis available', 'warning');
+        }
     } catch (error) {
-        // Mock analysis
-        const analysis = {
-            root_cause: 'Analyzing: ' + errorText.substring(0, 50) + '...',
-            severity: errorText.includes('Critical') ? 'critical' : 'medium',
-            fix_suggestion: 'Check error handling in the affected module',
-            prevention: 'Add comprehensive error boundaries'
-        };
-        
-        displayAnalysis(analysis);
+        addTerminalLine(`Failed to analyze error: ${error.message}`, 'error');
     }
 }
 
@@ -432,19 +425,44 @@ function submitError() {
     analyzeError(fullError);
 }
 
-function fetchLogs(appName) {
+async function fetchLogs(appName) {
     addTerminalLine(`Fetching logs for ${appName}...`);
-    simulateDebugData('logs');
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/logs/${appName}`);
+        const data = await response.json();
+        displayDebugResults({ logs: data.logs || [] }, 'logs');
+    } catch (error) {
+        addTerminalLine(`Failed to fetch logs: ${error.message}`, 'error');
+    }
 }
 
-function checkPerformance(appName) {
+async function checkPerformance(appName) {
     addTerminalLine(`Checking performance for ${appName}...`);
-    simulateDebugData('performance');
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/performance/profile?app=${appName}`);
+        const data = await response.json();
+        if (data.metrics) {
+            displayDebugResults({ metrics: data.metrics }, 'performance');
+        } else {
+            addTerminalLine('No performance data available', 'warning');
+        }
+    } catch (error) {
+        addTerminalLine(`Failed to check performance: ${error.message}`, 'error');
+    }
 }
 
-function suggestFixes(appName) {
+async function suggestFixes(appName) {
     addTerminalLine(`Generating fix suggestions for ${appName}...`);
-    simulateDebugData('fix');
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/fixes/${appName}`);
+        const data = await response.json();
+        displayDebugResults({ suggestions: data.suggestions || [] }, 'fix');
+    } catch (error) {
+        addTerminalLine(`Failed to get fix suggestions: ${error.message}`, 'error');
+    }
 }
 
 function showStats() {
@@ -507,17 +525,51 @@ function startClock() {
     setInterval(updateTime, 1000);
 }
 
-function simulateSystemStats() {
-    function update() {
-        const cpu = Math.floor(Math.random() * 30 + 20); // 20-50%
-        const mem = Math.floor(Math.random() * 200 + 300); // 300-500MB
-        
-        document.getElementById('cpu-usage').textContent = `${cpu}%`;
-        document.getElementById('mem-usage').textContent = `${mem}MB`;
+async function updateSystemStats() {
+    async function fetchStats() {
+        try {
+            const response = await fetch(`${API_BASE}/health`);
+            const data = await response.json();
+            
+            // Update CPU and memory if available in health response
+            if (data.scenarios && data.scenarios.length > 0) {
+                // Calculate average CPU and memory across all scenarios
+                let totalCpu = 0;
+                let totalMem = 0;
+                let count = 0;
+                
+                data.scenarios.forEach(scenario => {
+                    if (scenario.cpu_usage) {
+                        totalCpu += scenario.cpu_usage;
+                        count++;
+                    }
+                    if (scenario.memory_usage) {
+                        totalMem += scenario.memory_usage;
+                    }
+                });
+                
+                if (count > 0) {
+                    const avgCpu = Math.round(totalCpu / count);
+                    document.getElementById('cpu-usage').textContent = `${avgCpu}%`;
+                }
+                if (data.scenarios.length > 0) {
+                    const avgMem = Math.round(totalMem / data.scenarios.length);
+                    document.getElementById('mem-usage').textContent = `${avgMem}MB`;
+                }
+            } else {
+                // If no data available, show N/A
+                document.getElementById('cpu-usage').textContent = 'N/A';
+                document.getElementById('mem-usage').textContent = 'N/A';
+            }
+        } catch (error) {
+            // On error, show N/A
+            document.getElementById('cpu-usage').textContent = 'N/A';
+            document.getElementById('mem-usage').textContent = 'N/A';
+        }
     }
     
-    update();
-    setInterval(update, 3000);
+    fetchStats();
+    setInterval(fetchStats, 5000); // Update every 5 seconds
 }
 
 // Global functions for modal

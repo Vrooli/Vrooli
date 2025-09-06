@@ -1,0 +1,269 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "smart-shopping-assistant",
+    "displayName": "Smart Shopping Assistant",
+    "description": "Intelligent multi-profile shopping research with price tracking, alternatives analysis, and affiliate revenue generation",
+    "version": "1.0.0",
+    "tags": [
+      "shopping",
+      "research",
+      "price-tracking",
+      "affiliate",
+      "budget",
+      "gift-recommendations",
+      "alternatives",
+      "frugal-living",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "fallback": "auto",
+      "description": "Shopping Assistant API port",
+      "range": "3300-3399"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "fallback": "auto",
+      "description": "Shopping Assistant UI port",
+      "range": "3400-3499"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store user profiles, shopping history, price tracking data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache for price data, session management, rate limiting"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector storage for product embeddings and similarity search"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Local LLM for product analysis and recommendations",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": false,
+      "purpose": "Web scraping for price updates and inventory checks"
+    }
+  },
+  "integrations": {
+    "scenarios": [
+      {
+        "name": "scenario-authenticator",
+        "purpose": "Multi-profile user management",
+        "required": false
+      },
+      {
+        "name": "deep-research",
+        "purpose": "Comprehensive product research and analysis",
+        "required": false
+      },
+      {
+        "name": "contact-book",
+        "purpose": "Gift recommendations based on relationships",
+        "required": false
+      }
+    ]
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Smart Shopping Assistant health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Smart Shopping Assistant",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/smart-shopping-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "smart-shopping-assistant"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "init-database",
+          "run": "cd initialization/storage/postgres && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f schema.sql && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f seed.sql || echo 'Database initialization skipped'",
+          "description": "Initialize database schema and seed data"
+        },
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo 'Embeddings generation skipped (not critical)'",
+          "description": "Generate product embeddings for similarity search"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o smart-shopping-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm install && npm run build",
+          "description": "Build UI application"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🛒 Smart Shopping Assistant initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Smart Shopping Assistant with API and UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./smart-shopping-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/smart-shopping-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🛒 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: smart-shopping-assistant --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Smart Shopping Assistant API, UI, and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-research-endpoint",
+          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/shopping/research -H 'Content-Type: application/json' -d '{\"query\":\"test product\"}'",
+          "description": "Test shopping research endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats smart-shopping-assistant.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/smart-shopping-assistant.bats"
+          }
+        },
+        {
+          "name": "test-ui",
+          "run": "cd ui && npm test",
+          "description": "Run UI tests",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.smart-shopping-assistant.start-api\" 2>/dev/null || pkill -f \"smart-shopping-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.smart-shopping-assistant.start-ui\" 2>/dev/null || pkill -f \"npm run dev\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

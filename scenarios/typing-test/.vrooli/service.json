@@ -24,15 +24,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 31600,
       "fallback": "auto",
-      "description": "Main API port for typing test service"
+      "description": "Main API port for typing test service",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 37750,
       "fallback": "auto",
-      "description": "UI server port"
+      "description": "UI server port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -210,11 +210,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.typing-test.start-api\" 2>/dev/null || pkill -f \"typing-test-api\" 2>/dev/null || true",

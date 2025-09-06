@@ -29,15 +29,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 29500,
       "fallback": "auto",
-      "description": "SEO Optimizer API port"
+      "description": "SEO Optimizer API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36000,
       "fallback": "auto",
-      "description": "SEO Optimizer UI port"
+      "description": "SEO Optimizer UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -199,7 +199,7 @@
       "description": "Start SEO Optimizer services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./seo-optimizer-api",
           "description": "Start API server",
           "background": true,
@@ -208,7 +208,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server",
           "background": true
@@ -236,12 +236,17 @@
       ]
     },
     "stop": {
-      "description": "Stop SEO Optimizer services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'seo-optimizer-api' || true; pkill -f 'node.*server.js' || true",
-          "description": "Stop all services"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.seo-optimizer.start-api\" 2>/dev/null || pkill -f \"seo-optimizer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.seo-optimizer.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

@@ -25,15 +25,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 32000,
       "fallback": "auto",
-      "description": "Workflow Scheduler REST API port"
+      "description": "Workflow Scheduler REST API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 37500,
       "fallback": "auto",
-      "description": "Workflow Scheduler UI port"
+      "description": "Workflow Scheduler UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -243,11 +243,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.workflow-scheduler.start-api\" 2>/dev/null || pkill -f \"workflow-scheduler-api\" 2>/dev/null || true",

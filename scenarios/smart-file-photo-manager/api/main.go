@@ -150,7 +150,7 @@ func main() {
 func initDB() (*sql.DB, error) {
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/file_manager?sslmode=disable"
+		log.Fatal("POSTGRES_URL environment variable is required")
 	}
 
 	db, err := sql.Open("postgres", dbURL)

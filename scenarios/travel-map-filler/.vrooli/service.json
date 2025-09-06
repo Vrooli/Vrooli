@@ -25,15 +25,15 @@
   "ports": {
     "api": {
       "env_var": "PORT",
-      "port": 8760,
       "fallback": "auto",
-      "description": "Travel Map API port"
+      "description": "Travel Map API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 3760,
       "fallback": "auto",
-      "description": "Travel Map UI port"
+      "description": "Travel Map UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -57,7 +57,7 @@
       "initialization": [
         {
           "file": "initialization/qdrant/collections.json",
-          "type": "collections"
+          "type": "collection"
         }
       ]
     },
@@ -234,11 +234,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.travel-map-filler.start-api\" 2>/dev/null || pkill -f \"travel-map-filler-api\" 2>/dev/null || true",

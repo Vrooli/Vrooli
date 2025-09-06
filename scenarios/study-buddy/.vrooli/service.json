@@ -20,21 +20,22 @@
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
-      "ollama-ai"
+      "ollama-ai",
+      "kid-friendly"
     ]
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 30300,
       "fallback": "auto",
-      "description": "Study Buddy API port"
+      "description": "Study Buddy API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 36750,
       "fallback": "auto",
-      "description": "Study Buddy UI port"
+      "description": "Study Buddy UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -204,7 +205,7 @@
       "description": "Start Study Buddy with API and UI servers",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./study-buddy-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -213,7 +214,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -254,22 +255,17 @@
       ]
     },
     "stop": {
-      "description": "Stop Study Buddy services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'study-buddy-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.study-buddy.start-api\" 2>/dev/null || pkill -f \"study-buddy-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'npm.*start' || true",
-          "description": "Stop UI server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo 'Study Buddy services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.study-buddy.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

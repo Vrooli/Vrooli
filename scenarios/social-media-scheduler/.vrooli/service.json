@@ -32,7 +32,7 @@
       "range": "16000-19999"
     },
     "ui": {
-      "env_var": "UI_PORT", 
+      "env_var": "UI_PORT",
       "fallback": "auto",
       "description": "Social media scheduler UI port",
       "range": "36000-39999"
@@ -103,7 +103,7 @@
           "interval": 30000
         },
         {
-          "name": "ui_endpoint", 
+          "name": "ui_endpoint",
           "type": "http",
           "target": "http://localhost:${UI_PORT}/health",
           "critical": true,
@@ -245,7 +245,7 @@
           "description": "Test job queue health"
         },
         {
-          "name": "test-ui-health", 
+          "name": "test-ui-health",
           "run": "curl -sf http://localhost:$UI_PORT/health",
           "description": "Test React UI health endpoint"
         },
@@ -282,11 +282,6 @@
     "stop": {
       "description": "Stop all social media scheduler services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager utilities"
-        },
         {
           "name": "stop-job-processor",
           "run": "pm::stop \"vrooli.develop.social-media-scheduler.start-job-processor\" 2>/dev/null || pkill -f \"social-media-scheduler-api.*worker\" 2>/dev/null || true",

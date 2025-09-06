@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vrooli App Debugger - Terminal Interface</title>
+    <title>Vrooli Scenario Improver - Terminal Interface</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,42 +14,42 @@
                 <span class="control yellow"></span>
                 <span class="control green"></span>
             </div>
-            <div class="terminal-title">VROOLI DEBUG TERMINAL v2.0</div>
+            <div class="terminal-title">VROOLI IMPROVEMENT TERMINAL v2.0</div>
             <div class="terminal-status">
                 <span id="connection-status" class="status-indicator">● CONNECTED</span>
             </div>
         </div>
         
         <div class="main-layout">
-            <!-- Left Panel: App List -->
+            <!-- Left Panel: Scenario List -->
             <div class="panel app-list-panel">
                 <div class="panel-header">
-                    <span class="blink">▶</span> RUNNING APPS
-                    <button id="refresh-apps" class="mini-btn">↻</button>
+                    <span class="blink">▶</span> SCENARIOS
+                    <button id="refresh-scenarios" class="mini-btn">↻</button>
                 </div>
-                <div id="app-list" class="app-list">
-                    <!-- Apps will be loaded here -->
+                <div id="scenario-list" class="app-list">
+                    <!-- Scenarios will be loaded here -->
                 </div>
             </div>
             
-            <!-- Center Panel: Debug Console -->
+            <!-- Center Panel: Improvement Console -->
             <div class="panel debug-panel">
                 <div class="panel-header">
-                    <span class="blink">▶</span> DEBUG CONSOLE
-                    <select id="debug-mode" class="debug-select">
-                        <option value="errors">ERROR ANALYZER</option>
-                        <option value="logs">LOG MONITOR</option>
+                    <span class="blink">▶</span> IMPROVEMENT CONSOLE
+                    <select id="improvement-mode" class="debug-select">
+                        <option value="queue">QUEUE STATUS</option>
+                        <option value="analyze">ERROR ANALYZER</option>
                         <option value="performance">PERFORMANCE</option>
-                        <option value="fix">FIX SUGGESTER</option>
+                        <option value="improve">START IMPROVEMENT</option>
                     </select>
                 </div>
                 
                 <div class="debug-output" id="debug-output">
                     <div class="terminal-line">
-                        <span class="prompt">debug@vrooli:~$</span> Initializing debug environment...
+                        <span class="prompt">improve@vrooli:~$</span> Initializing improvement environment...
                     </div>
                     <div class="terminal-line success">
-                        <span class="prompt">debug@vrooli:~$</span> Debug terminal ready.
+                        <span class="prompt">improve@vrooli:~$</span> Improvement terminal ready.
                     </div>
                 </div>
                 
@@ -148,6 +148,13 @@
         </div>
     </div>
     
+    <script>
+        // API Configuration - can be overridden by environment variables
+        // Set these via server-side templating or environment injection
+        window.SCENARIO_IMPROVER_API_HOST = window.SCENARIO_IMPROVER_API_HOST || 'localhost';
+        window.SCENARIO_IMPROVER_API_PORT = window.SCENARIO_IMPROVER_API_PORT || window.API_PORT || '30150';
+        window.SCENARIO_IMPROVER_API_URL = window.SCENARIO_IMPROVER_API_URL || null; // Override full URL if needed
+    </script>
     <script src="script.js"></script>
 </body>
 </html>

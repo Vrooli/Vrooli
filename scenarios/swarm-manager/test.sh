@@ -129,10 +129,12 @@ done
 
 # Test 8: Check API source
 echo -e "\n${BLUE}Test 8: API Source${NC}"
-if [ -f "${SCRIPT_DIR}/api/src/main.go" ]; then
+if [ -f "${SCRIPT_DIR}/api/main.go" ]; then
     echo -e "${GREEN}✓ API source exists${NC}"
+elif [ -f "${SCRIPT_DIR}/api/swarm-manager-api" ]; then
+    echo -e "${GREEN}✓ API binary exists${NC}"
 else
-    echo -e "${RED}✗ API source missing${NC}"
+    echo -e "${RED}✗ API source/binary missing${NC}"
     exit 1
 fi
 
@@ -153,12 +155,12 @@ for file in "${ui_files[@]}"; do
     fi
 done
 
-# Test 10: Check n8n workflows
-echo -e "\n${BLUE}Test 10: N8N Workflows${NC}"
-if [ -f "${SCRIPT_DIR}/initialization/n8n/swarm-orchestrator.json" ]; then
-    echo -e "${GREEN}✓ Orchestrator workflow exists${NC}"
+# Test 10: Check schedulers implementation
+echo -e "\n${BLUE}Test 10: Scheduler Implementation${NC}"
+if grep -q "startSchedulers" "${SCRIPT_DIR}/api/main.go" 2>/dev/null; then
+    echo -e "${GREEN}✓ Internal schedulers implemented${NC}"
 else
-    echo -e "${RED}✗ Orchestrator workflow missing${NC}"
+    echo -e "${RED}✗ Schedulers not found in API${NC}"
     exit 1
 fi
 
@@ -169,7 +171,7 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 echo "To start using Swarm Manager:"
 echo "  1. Run: swarm-manager start"
-echo "  2. Open UI: http://localhost:4000"
+echo "  2. Open UI: http://localhost:31011"
 echo "  3. Add tasks: swarm-manager add-task 'Your task here'"
 echo ""
 echo "For full autonomy (YOLO mode):"

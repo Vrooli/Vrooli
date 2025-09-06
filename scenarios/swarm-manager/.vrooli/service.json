@@ -48,12 +48,6 @@
       "required": true,
       "description": "Task embeddings, pattern recognition, and learning system"
     },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "description": "Orchestration workflows and task execution pipelines"
-    },
     "claude-code": {
       "type": "claude-code",
       "enabled": true,
@@ -161,6 +155,21 @@
         {
           "name": "stop-services",
           "run": "pkill -f swarm-manager-api || true; pkill -f 'node server.js' || true"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.swarm-manager.start-api\" 2>/dev/null || pkill -f \"swarm-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.swarm-manager.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }
