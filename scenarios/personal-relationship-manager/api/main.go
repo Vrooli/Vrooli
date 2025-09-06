@@ -80,7 +80,7 @@ func initDB() {
 	}
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
-		dbPort = "5432"
+		dbPort = "5433"
 	}
 	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {

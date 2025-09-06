@@ -145,10 +145,15 @@ var db *sql.DB
 var config Config
 
 func loadConfig() Config {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	
 	return Config{
 		Port:        getEnv("API_PORT", getEnv("PORT", "")),
 		ChatPort:    getEnv("CHAT_PORT", "8201"),
-		PostgresURL: getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/digital_twin?sslmode=disable"),
+		PostgresURL: postgresURL,
 		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),
 		OllamaURL:   getEnv("OLLAMA_URL", "http://localhost:11434"),
 		N8NBaseURL:  getEnv("N8N_BASE_URL", "http://localhost:5678"),

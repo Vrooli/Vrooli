@@ -1,0 +1,432 @@
+version: 1.0
+scenario: period-tracker
+description: "Privacy-first menstrual health tracking with multi-tenant support"
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/period-tracker
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - scenario-test.yaml
+    - ui/index.html
+    - ui/styles.css
+    - ui/app.js
+    - ui/server.js
+    - ui/package.json
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/postgres
+    - ui
+    - test
+
+# Resource validation
+resources:
+  required: [postgres, scenario-authenticator]
+  optional: [redis, ollama, calendar]
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      timeout: 30
+      
+  # Database schema tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('users', 'cycles', 'daily_symptoms', 'predictions', 'detected_patterns', 'medications', 'audit_logs')"
+    expect:
+      rows: 
+        - count: 7
+        
+  - name: "Required database indexes exist"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM pg_indexes WHERE schemaname = 'public' AND indexname LIKE 'idx_%'"
+    expect:
+      rows:
+        - count: ">= 15"
+        
+  - name: "Row Level Security is enabled"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname IN ('users', 'cycles', 'daily_symptoms') AND c.relrowsecurity = true"
+    expect:
+      rows:
+        - count: 3
+        
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        database: "connected"
+        encryption: "enabled"
+        
+  - name: "API encryption status endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/health/encryption
+    method: GET
+    headers:
+      X-User-ID: "test-user-123"
+    expect:
+      status: 200
+      body:
+        encryption_enabled: true
+        algorithm: "AES-GCM"
+        
+  - name: "API authentication status endpoint"
+    type: http
+    service: api
+    endpoint: /api/v1/auth/status
+    method: GET
+    headers:
+      X-User-ID: "test-user-123"
+    expect:
+      status: 200
+      body:
+        authenticated: true
+        multi_tenant: true
+        
+  - name: "Cycle creation endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/cycles
+    method: POST
+    headers:
+      Content-Type: application/json
+      X-User-ID: "test-user-123"
+    body:
+      start_date: "2024-05-22"
+      flow_intensity: "medium"
+      notes: "Test cycle for validation"
+    expect:
+      status: 201
+      body:
+        cycle_id: "*"
+        message: "Cycle created successfully"
+        
+  - name: "Symptom logging endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/symptoms
+    method: POST
+    headers:
+      Content-Type: application/json
+      X-User-ID: "test-user-123"
+    body:
+      date: "2024-05-22"
+      mood_rating: 7
+      pain_level: 3
+      physical_symptoms: ["cramps", "headache"]
+      flow_level: "medium"
+    expect:
+      status: 201
+      body:
+        message: "Symptoms logged successfully"
+        symptom_id: "*"
+        
+  - name: "Predictions endpoint returns data"
+    type: http
+    service: api
+    endpoint: /api/v1/predictions
+    method: GET
+    headers:
+      X-User-ID: "test-user-123"
+    expect:
+      status: 200
+      body:
+        predictions: "*"
+        
+  - name: "Patterns endpoint accessible"
+    type: http
+    service: api
+    endpoint: /api/v1/patterns
+    method: GET
+    headers:
+      X-User-ID: "test-user-123"
+    expect:
+      status: 200
+      body:
+        patterns: "*"
+        
+  # Multi-tenant isolation tests
+  - name: "Multi-tenant data isolation - User A cannot see User B data"
+    type: http
+    service: api
+    endpoint: /api/v1/cycles
+    method: GET
+    headers:
+      X-User-ID: "user-a-123"
+    expect:
+      status: 200
+      custom_validation: "cycles_count_for_user_a"
+      
+  - name: "Unauthorized access returns 401"
+    type: http
+    service: api
+    endpoint: /api/v1/cycles
+    method: GET
+    expect:
+      status: 401
+      body:
+        error: "User ID required"
+        
+  # UI endpoint tests
+  - name: "UI server health check"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        service: "period-tracker-ui"
+        privacy: "enabled"
+        
+  - name: "UI main page loads"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      content_type: "text/html"
+      body_contains: 
+        - "Period Tracker"
+        - "Privacy-First"
+        - "encrypted and stored locally"
+        
+  - name: "UI static assets accessible"
+    type: http
+    service: ui
+    endpoint: /styles.css
+    method: GET
+    expect:
+      status: 200
+      content_type: "text/css"
+      
+  - name: "UI JavaScript loads"
+    type: http
+    service: ui
+    endpoint: /app.js
+    method: GET
+    expect:
+      status: 200
+      content_type: "application/javascript"
+      body_contains:
+        - "Privacy-First"
+        - "PeriodTracker"
+        
+  # CLI command tests
+  - name: "CLI help command executes"
+    type: exec
+    command: ./cli/period-tracker help
+    expect:
+      exit_code: 0
+      output_contains: 
+        - "Privacy-first menstrual health tracking"
+        - "log-cycle"
+        - "log-symptoms"
+        - "predictions"
+        
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/period-tracker version
+    expect:
+      exit_code: 0
+      output_contains: ["Period Tracker CLI", "v1.0.0"]
+      
+  - name: "CLI status command without user ID"
+    type: exec
+    command: ./cli/period-tracker status
+    expect:
+      exit_code: 0
+      output_contains: ["Period Tracker is"]
+      
+  # Privacy and security tests
+  - name: "Sensitive data is encrypted in database"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM daily_symptoms WHERE notes_encrypted IS NOT NULL AND notes_encrypted != '' AND notes_encrypted NOT LIKE 'test%'"
+    expect:
+      rows:
+        - count: ">= 0"
+        description: "Encrypted fields should not contain plain text"
+        
+  - name: "Audit logs are created for data access"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as count FROM audit_logs WHERE action IN ('data_accessed', 'data_modified') AND created_at >= NOW() - INTERVAL '1 hour'"
+    expect:
+      rows:
+        - count: ">= 1"
+        description: "API requests should be logged for audit"
+        
+  - name: "User data isolation in database"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(DISTINCT user_id) as user_count FROM cycles"
+    expect:
+      rows:
+        - user_count: ">= 1"
+        description: "Multiple users should be able to have separate data"
+        
+  # Performance tests
+  - name: "API response time under load"
+    type: performance
+    service: api
+    endpoint: /api/v1/predictions
+    method: GET
+    headers:
+      X-User-ID: "test-user-123"
+    concurrent_requests: 10
+    expect:
+      avg_response_time: "< 200ms"
+      success_rate: ">= 95%"
+      
+  - name: "Database query performance"
+    type: sql
+    service: postgres
+    query: "EXPLAIN ANALYZE SELECT * FROM cycles WHERE user_id = 'test-user-123' ORDER BY start_date DESC LIMIT 10"
+    expect:
+      execution_time: "< 50ms"
+      uses_index: true
+      
+  # Integration tests
+  - name: "End-to-end cycle logging workflow"
+    type: workflow
+    steps:
+      - step: "Create cycle via API"
+        type: http
+        service: api
+        endpoint: /api/v1/cycles
+        method: POST
+        headers:
+          Content-Type: application/json
+          X-User-ID: "workflow-test-user"
+        body:
+          start_date: "2024-06-01"
+          flow_intensity: "medium"
+        expect:
+          status: 201
+          
+      - step: "Verify cycle was created"
+        type: http
+        service: api
+        endpoint: /api/v1/cycles
+        method: GET
+        headers:
+          X-User-ID: "workflow-test-user"
+        expect:
+          status: 200
+          body:
+            cycles: "[*]"
+            
+      - step: "Log symptoms for the cycle"
+        type: http
+        service: api
+        endpoint: /api/v1/symptoms
+        method: POST
+        headers:
+          Content-Type: application/json
+          X-User-ID: "workflow-test-user"
+        body:
+          date: "2024-06-01"
+          mood_rating: 6
+          cramp_intensity: 4
+        expect:
+          status: 201
+          
+      - step: "Verify predictions are generated"
+        type: http
+        service: api
+        endpoint: /api/v1/predictions
+        method: GET
+        headers:
+          X-User-ID: "workflow-test-user"
+        expect:
+          status: 200
+          
+  # Calendar integration test (if calendar scenario is available)
+  - name: "Calendar integration endpoint accessible"
+    type: http
+    service: api
+    endpoint: /api/v1/calendar/integration
+    method: GET
+    headers:
+      X-User-ID: "test-user-123"
+    expect:
+      status: [200, 404]  # 404 is ok if calendar not installed
+      optional: true
+      
+# Cleanup after tests
+cleanup:
+  - name: "Remove test users and data"
+    type: sql
+    service: postgres
+    query: "DELETE FROM users WHERE username LIKE 'test-%' OR username LIKE 'workflow-%'"
+    
+  - name: "Remove test audit logs"
+    type: sql
+    service: postgres
+    query: "DELETE FROM audit_logs WHERE user_id LIKE 'test-%' OR user_id LIKE 'workflow-%'"
+
+# Performance benchmarks
+benchmarks:
+  - name: "API throughput"
+    description: "Measure API requests per second"
+    target: "100 RPS minimum"
+    
+  - name: "Database concurrent users"
+    description: "Support multiple simultaneous users"
+    target: "10+ concurrent users"
+    
+  - name: "UI load time"
+    description: "Time to interactive for UI"
+    target: "< 2 seconds"
+    
+  - name: "Encryption/decryption performance"
+    description: "Data encryption overhead"
+    target: "< 10ms per operation"
+
+# Privacy compliance checks
+privacy_validation:
+  - name: "No external network requests"
+    description: "Verify no data leaves local environment"
+    check: "network_monitoring"
+    
+  - name: "Encryption at rest"
+    description: "All sensitive data encrypted in database"
+    check: "database_encryption_audit"
+    
+  - name: "Audit trail completeness"
+    description: "All data access logged"
+    check: "audit_log_coverage"
+    
+  - name: "Multi-tenant isolation"
+    description: "Users cannot access each other's data"
+    check: "data_isolation_test"

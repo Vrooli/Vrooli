@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pregnancy Tracker - Private & Secure</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>🤰 Pregnancy Tracker</h1>
+                <div class="header-actions">
+                    <button id="searchToggle" class="icon-btn" aria-label="Search">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                    </button>
+                    <button id="emergencyCard" class="emergency-btn" aria-label="Emergency Info">
+                        🚨 Emergency
+                    </button>
+                    <button id="userMenu" class="icon-btn" aria-label="User menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z"></path>
+                            <path d="M12 14c-4.42 0-8 1.79-8 4v2h16v-2c0-2.21-3.58-4-8-4z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search Bar (Hidden by default) -->
+        <div id="searchBar" class="search-bar hidden">
+            <input type="text" id="searchInput" placeholder="Search symptoms, tips, appointments..." aria-label="Search">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+
+        <!-- Main Navigation -->
+        <nav class="main-nav">
+            <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+            <button class="nav-btn" data-tab="daily-log">Daily Log</button>
+            <button class="nav-btn" data-tab="timeline">Timeline</button>
+            <button class="nav-btn" data-tab="appointments">Appointments</button>
+            <button class="nav-btn" data-tab="tools">Tools</button>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <div class="pregnancy-overview">
+                    <div class="week-display">
+                        <h2 id="weekNumber">Week 0</h2>
+                        <p id="daysRemaining">Loading...</p>
+                    </div>
+                    <div class="progress-ring">
+                        <svg width="200" height="200">
+                            <circle cx="100" cy="100" r="90" fill="none" stroke="#e0e0e0" stroke-width="10"/>
+                            <circle id="progressCircle" cx="100" cy="100" r="90" fill="none" stroke="#b19cd9" stroke-width="10" 
+                                stroke-dasharray="565" stroke-dashoffset="565" transform="rotate(-90 100 100)"/>
+                        </svg>
+                        <div class="progress-text">
+                            <span id="progressPercent">0%</span>
+                            <span class="progress-label">Complete</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="week-info-card">
+                    <h3>Your Baby This Week</h3>
+                    <div id="weekInfo" class="week-info-content">
+                        <p>Enter your pregnancy details to see development information.</p>
+                    </div>
+                    <button id="viewCitations" class="text-btn">View Scientific Sources</button>
+                </div>
+
+                <div class="quick-actions">
+                    <button class="action-btn" id="logSymptom">
+                        <span class="action-icon">📝</span>
+                        <span>Log Symptom</span>
+                    </button>
+                    <button class="action-btn" id="kickCounter">
+                        <span class="action-icon">👶</span>
+                        <span>Kick Counter</span>
+                    </button>
+                    <button class="action-btn" id="contractionTimer">
+                        <span class="action-icon">⏱️</span>
+                        <span>Contractions</span>
+                    </button>
+                    <button class="action-btn" id="photoJournal">
+                        <span class="action-icon">📷</span>
+                        <span>Bump Photo</span>
+                    </button>
+                </div>
+
+                <div class="today-tip">
+                    <h3>Today's Tip</h3>
+                    <p id="dailyTip">Stay hydrated! Aim for 8-10 glasses of water daily during pregnancy.</p>
+                </div>
+            </div>
+
+            <!-- Daily Log Tab -->
+            <div id="daily-log" class="tab-content">
+                <h2>Daily Log</h2>
+                <form id="dailyLogForm" class="log-form">
+                    <div class="form-section">
+                        <h3>Physical Symptoms</h3>
+                        <div class="symptom-grid">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="nausea">
+                                <span>Nausea</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="fatigue">
+                                <span>Fatigue</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="headache">
+                                <span>Headache</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="backache">
+                                <span>Back Pain</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="cramping">
+                                <span>Cramping</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="symptoms" value="swelling">
+                                <span>Swelling</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Measurements</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="weight">Weight</label>
+                                <input type="number" id="weight" name="weight" step="0.1" placeholder="lbs or kg">
+                            </div>
+                            <div class="form-group">
+                                <label for="bloodPressure">Blood Pressure</label>
+                                <input type="text" id="bloodPressure" name="bloodPressure" placeholder="120/80">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>How are you feeling?</h3>
+                        <div class="mood-selector">
+                            <label>Mood (1-10)</label>
+                            <input type="range" id="mood" name="mood" min="1" max="10" value="5">
+                            <span id="moodValue">5</span>
+                        </div>
+                        <div class="mood-selector">
+                            <label>Energy (1-10)</label>
+                            <input type="range" id="energy" name="energy" min="1" max="10" value="5">
+                            <span id="energyValue">5</span>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <label for="notes">Notes</label>
+                        <textarea id="notes" name="notes" rows="4" placeholder="Any additional notes about today..."></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Save Daily Log</button>
+                </form>
+            </div>
+
+            <!-- Timeline Tab -->
+            <div id="timeline" class="tab-content">
+                <h2>Pregnancy Timeline</h2>
+                <div class="timeline-container">
+                    <div class="trimester-labels">
+                        <span class="trimester-label">First Trimester</span>
+                        <span class="trimester-label">Second Trimester</span>
+                        <span class="trimester-label">Third Trimester</span>
+                    </div>
+                    <div class="timeline-track">
+                        <div id="timelineProgress" class="timeline-progress"></div>
+                        <div id="timelineMarker" class="timeline-marker"></div>
+                    </div>
+                    <div class="milestone-list" id="milestoneList">
+                        <!-- Milestones will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Appointments Tab -->
+            <div id="appointments" class="tab-content">
+                <h2>Appointments</h2>
+                <button id="addAppointment" class="add-btn">+ Add Appointment</button>
+                <div id="appointmentsList" class="appointments-list">
+                    <!-- Appointments will be populated here -->
+                </div>
+            </div>
+
+            <!-- Tools Tab -->
+            <div id="tools" class="tab-content">
+                <h2>Pregnancy Tools</h2>
+                <div class="tools-grid">
+                    <div class="tool-card" id="kickCounterTool">
+                        <h3>👶 Kick Counter</h3>
+                        <p>Track baby's movements</p>
+                        <button class="tool-btn">Start Counting</button>
+                    </div>
+                    <div class="tool-card" id="contractionTimerTool">
+                        <h3>⏱️ Contraction Timer</h3>
+                        <p>Time your contractions</p>
+                        <button class="tool-btn">Start Timer</button>
+                    </div>
+                    <div class="tool-card" id="dueDateCalculator">
+                        <h3>📅 Due Date Calculator</h3>
+                        <p>Calculate your due date</p>
+                        <button class="tool-btn">Calculate</button>
+                    </div>
+                    <div class="tool-card" id="exportData">
+                        <h3>📄 Export Data</h3>
+                        <p>Download your pregnancy data</p>
+                        <button class="tool-btn">Export PDF</button>
+                        <button class="tool-btn">Export JSON</button>
+                    </div>
+                    <div class="tool-card" id="partnerAccess">
+                        <h3>👥 Partner Access</h3>
+                        <p>Share limited access with partner</p>
+                        <button class="tool-btn">Manage Access</button>
+                    </div>
+                    <div class="tool-card" id="askAI">
+                        <h3>🤖 Ask Questions</h3>
+                        <p>Get AI-powered answers (not medical advice)</p>
+                        <button class="tool-btn">Ask Question</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <div id="modalOverlay" class="modal-overlay hidden"></div>
+        
+        <!-- Emergency Card Modal -->
+        <div id="emergencyModal" class="modal hidden">
+            <div class="modal-content emergency-content">
+                <h2>Emergency Medical Information</h2>
+                <div class="emergency-info">
+                    <div class="info-row">
+                        <strong>Blood Type:</strong>
+                        <span id="bloodType">Not set</span>
+                    </div>
+                    <div class="info-row">
+                        <strong>Allergies:</strong>
+                        <span id="allergies">None</span>
+                    </div>
+                    <div class="info-row">
+                        <strong>Current Medications:</strong>
+                        <span id="medications">None</span>
+                    </div>
+                    <div class="info-row">
+                        <strong>OB/GYN:</strong>
+                        <span id="obContact">Not set</span>
+                    </div>
+                    <div class="info-row">
+                        <strong>Hospital:</strong>
+                        <span id="hospital">Not set</span>
+                    </div>
+                    <div class="info-row">
+                        <strong>Emergency Contact:</strong>
+                        <span id="emergencyContact">Not set</span>
+                    </div>
+                </div>
+                <button class="edit-btn">Edit Information</button>
+                <button class="close-btn">Close</button>
+            </div>
+        </div>
+
+        <!-- Setup Modal (First Time) -->
+        <div id="setupModal" class="modal">
+            <div class="modal-content setup-content">
+                <h2>Welcome to Pregnancy Tracker</h2>
+                <p class="privacy-notice">🔒 All your data stays on your device. Nothing is sent to external servers.</p>
+                <form id="setupForm" class="setup-form">
+                    <div class="form-group">
+                        <label for="userId">User ID (for multi-user support)</label>
+                        <input type="text" id="userId" required placeholder="e.g., your-name">
+                    </div>
+                    <div class="form-group">
+                        <label>Calculate due date from:</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="dateType" value="lmp" checked>
+                                Last Menstrual Period (LMP)
+                            </label>
+                            <label>
+                                <input type="radio" name="dateType" value="conception">
+                                Conception Date
+                            </label>
+                            <label>
+                                <input type="radio" name="dateType" value="due">
+                                Due Date
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="dateInput">Date</label>
+                        <input type="date" id="dateInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="importPeriodData">
+                            Import data from Period Tracker (if available)
+                        </label>
+                    </div>
+                    <button type="submit" class="submit-btn">Start Tracking</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

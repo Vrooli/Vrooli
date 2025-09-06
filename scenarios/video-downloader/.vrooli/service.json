@@ -5,14 +5,14 @@
   "enabled": true,
   "ports": {
     "api": {
-      "port": 28100,
       "env_var": "API_PORT",
-      "fallback": "auto"
+      "fallback": "auto",
+      "range": "15000-19999"
     },
     "ui": {
-      "port": 38100,
       "env_var": "UI_PORT",
-      "fallback": "auto"
+      "fallback": "auto",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {

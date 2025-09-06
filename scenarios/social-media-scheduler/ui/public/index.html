@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-powered social media scheduler with multi-platform optimization">
+    <meta name="keywords" content="social media, scheduler, automation, twitter, instagram, linkedin, facebook">
+    <meta name="author" content="Vrooli Social Media Scheduler">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    
+    <!-- Open Graph / Social Media -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Social Media Scheduler - Vrooli">
+    <meta property="og:description" content="Schedule and optimize your social media content across multiple platforms with AI">
+    <meta property="og:image" content="/og-image.png">
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Social Media Scheduler - Vrooli">
+    <meta name="twitter:description" content="Schedule and optimize your social media content across multiple platforms with AI">
+    <meta name="twitter:image" content="/twitter-image.png">
+    
+    <!-- Preconnect to external resources for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer">
+    
+    <title>Social Media Scheduler - Vrooli</title>
+    
+    <style>
+        /* Loading screen styles */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 24px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .loading-subtext {
+            font-size: 14px;
+            opacity: 0.8;
+            text-align: center;
+            max-width: 300px;
+        }
+        
+        .loading-dots {
+            display: inline-block;
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+        
+        /* Platform icons styles */
+        .platform-icons {
+            display: flex;
+            gap: 16px;
+            margin-top: 32px;
+            opacity: 0.7;
+        }
+        
+        .platform-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            animation: pulse 2s infinite;
+        }
+        
+        .platform-icon:nth-child(1) { animation-delay: 0s; }
+        .platform-icon:nth-child(2) { animation-delay: 0.2s; }
+        .platform-icon:nth-child(3) { animation-delay: 0.4s; }
+        .platform-icon:nth-child(4) { animation-delay: 0.6s; }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        
+        /* Hide loading screen when app loads */
+        .app-loaded #loading-screen {
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-out;
+        }
+        
+        /* Base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        /* App container */
+        #root {
+            min-height: 100vh;
+        }
+        
+        /* Ensure smooth transitions */
+        * {
+            transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Social Media Scheduler</div>
+        <div class="loading-subtext">
+            Loading your intelligent social media command center<span class="loading-dots">...</span>
+        </div>
+        <div class="platform-icons">
+            <div class="platform-icon"><i class="fab fa-twitter"></i></div>
+            <div class="platform-icon"><i class="fab fa-instagram"></i></div>
+            <div class="platform-icon"><i class="fab fa-linkedin"></i></div>
+            <div class="platform-icon"><i class="fab fa-facebook"></i></div>
+        </div>
+    </div>
+    
+    <!-- React App Root -->
+    <div id="root"></div>
+    
+    <!-- React Development Bundle -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel for JSX transformation in development -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Socket.IO for real-time updates -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Axios for API calls -->
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+    
+    <!-- Date formatting library -->
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/index.min.js"></script>
+    
+    <!-- Main Application -->
+    <script type="text/babel" src="/app.js"></script>
+    
+    <!-- Remove loading screen when app is ready -->
+    <script>
+        // Hide loading screen after a delay or when React app signals ready
+        setTimeout(() => {
+            document.body.classList.add('app-loaded');
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.remove();
+                }
+            }, 500);
+        }, 2000);
+        
+        // API health check
+        fetch('/health')
+            .then(response => response.json())
+            .then(data => {
+                console.log('UI Server Status:', data);
+            })
+            .catch(error => {
+                console.warn('UI Health Check Failed:', error);
+            });
+        
+        // Global error handling
+        window.addEventListener('error', (event) => {
+            console.error('Global Error:', event.error);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled Promise Rejection:', event.reason);
+        });
+        
+        // Performance monitoring
+        if ('performance' in window) {
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const perfData = window.performance.getEntriesByType('navigation')[0];
+                    console.log('Page Load Performance:', {
+                        loadTime: perfData.loadEventEnd - perfData.loadEventStart,
+                        domContentLoaded: perfData.domContentLoadedEventEnd - perfData.domContentLoadedEventStart,
+                        totalTime: perfData.loadEventEnd - perfData.navigationStart
+                    });
+                }, 100);
+            });
+        }
+    </script>
+    
+    <!-- Favicon and app icons -->
+    <script>
+        // Create dynamic favicon if not provided
+        if (!document.querySelector('link[rel="icon"]')) {
+            const favicon = document.createElement('link');
+            favicon.rel = 'icon';
+            favicon.href = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">📅</text></svg>';
+            document.head.appendChild(favicon);
+        }
+    </script>
+</body>
+</html>

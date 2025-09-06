@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Period Tracker - Privacy-First Health Tracking</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🩸</text></svg>">
+</head>
+<body>
+    <!-- Privacy Notice Banner -->
+    <div id="privacy-banner" class="privacy-banner">
+        <div class="banner-content">
+            <span class="privacy-icon">🔒</span>
+            <span class="banner-text">Your health data is encrypted and stored locally only. No external sharing.</span>
+            <button class="banner-close" onclick="dismissPrivacyBanner()">&times;</button>
+        </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="app-header">
+        <div class="header-content">
+            <div class="app-logo">
+                <span class="logo-icon">🩸</span>
+                <h1 class="app-title">Period Tracker</h1>
+            </div>
+            <div class="header-controls">
+                <button id="theme-toggle" class="icon-button" onclick="toggleTheme()" title="Toggle theme">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button id="user-menu" class="icon-button" onclick="toggleUserMenu()" title="User menu">
+                    <span class="user-icon">👤</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- User Menu Dropdown -->
+    <div id="user-dropdown" class="user-dropdown hidden">
+        <div class="dropdown-content">
+            <div class="user-info">
+                <span class="user-id-label">User ID:</span>
+                <span id="current-user-id" class="user-id">Not set</span>
+            </div>
+            <button onclick="showUserIdDialog()" class="dropdown-item">Change User ID</button>
+            <button onclick="exportData()" class="dropdown-item">Export Data</button>
+            <button onclick="showPrivacyInfo()" class="dropdown-item">Privacy Info</button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Overview -->
+        <section class="dashboard-section">
+            <div class="section-header">
+                <h2 class="section-title">Your Cycle Overview</h2>
+                <div class="section-actions">
+                    <button id="refresh-data" class="secondary-button" onclick="refreshData()">
+                        <span class="refresh-icon">🔄</span>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <!-- Next Period Prediction -->
+                <div class="dashboard-card prediction-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Next Period Prediction</h3>
+                        <span class="prediction-icon">🔮</span>
+                    </div>
+                    <div class="card-content">
+                        <div id="next-period-info" class="prediction-info">
+                            <div class="prediction-date">Loading...</div>
+                            <div class="prediction-confidence">Loading...</div>
+                            <div class="prediction-days-until">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Cycle Status -->
+                <div class="dashboard-card cycle-status-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Current Cycle</h3>
+                        <span class="cycle-icon">📅</span>
+                    </div>
+                    <div class="card-content">
+                        <div id="cycle-status-info" class="cycle-status-info">
+                            <div class="cycle-day">Day - of Cycle</div>
+                            <div class="cycle-phase">Loading...</div>
+                            <div class="cycle-length">Average: - days</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="dashboard-card actions-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Quick Actions</h3>
+                        <span class="actions-icon">⚡</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="quick-actions">
+                            <button class="action-button period-start-btn" onclick="showCycleStartDialog()">
+                                Start Period
+                            </button>
+                            <button class="action-button symptoms-btn" onclick="showSymptomsDialog()">
+                                Log Symptoms
+                            </button>
+                            <button class="action-button end-period-btn" onclick="showCycleEndDialog()">
+                                End Period
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Patterns -->
+                <div class="dashboard-card patterns-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Health Patterns</h3>
+                        <span class="patterns-icon">📊</span>
+                    </div>
+                    <div class="card-content">
+                        <div id="patterns-info" class="patterns-info">
+                            <div class="patterns-loading">Analyzing patterns...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Activity -->
+        <section class="activity-section">
+            <div class="section-header">
+                <h2 class="section-title">Recent Activity</h2>
+            </div>
+            <div id="recent-activity" class="activity-timeline">
+                <div class="activity-loading">Loading recent activity...</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    
+    <!-- User ID Dialog -->
+    <div id="user-id-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Set User ID</h3>
+                <button class="modal-close" onclick="closeModal('user-id-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Enter your unique user ID for multi-tenant support. This ensures your data is kept private and separate from other users.</p>
+                <div class="form-group">
+                    <label for="user-id-input" class="form-label">User ID:</label>
+                    <input type="text" id="user-id-input" class="form-input" placeholder="e.g., user123 or UUID">
+                    <div class="form-help">Use a UUID for maximum privacy, or a memorable username.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-button" onclick="closeModal('user-id-modal')">Cancel</button>
+                <button class="primary-button" onclick="setUserId()">Set User ID</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cycle Start Dialog -->
+    <div id="cycle-start-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Start New Cycle</h3>
+                <button class="modal-close" onclick="closeModal('cycle-start-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="cycle-start-date" class="form-label">Start Date:</label>
+                    <input type="date" id="cycle-start-date" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label for="flow-intensity" class="form-label">Flow Intensity:</label>
+                    <select id="flow-intensity" class="form-select">
+                        <option value="">Select intensity</option>
+                        <option value="spotting">Spotting</option>
+                        <option value="light">Light</option>
+                        <option value="medium">Medium</option>
+                        <option value="heavy">Heavy</option>
+                        <option value="very_heavy">Very Heavy</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="cycle-notes" class="form-label">Notes (Optional):</label>
+                    <textarea id="cycle-notes" class="form-textarea" rows="3" placeholder="Any additional notes about this cycle..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-button" onclick="closeModal('cycle-start-modal')">Cancel</button>
+                <button class="primary-button" onclick="startCycle()">Start Cycle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Symptoms Dialog -->
+    <div id="symptoms-modal" class="modal hidden">
+        <div class="modal-content symptoms-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Log Daily Symptoms</h3>
+                <button class="modal-close" onclick="closeModal('symptoms-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="symptom-date" class="form-label">Date:</label>
+                    <input type="date" id="symptom-date" class="form-input">
+                </div>
+
+                <!-- Ratings -->
+                <div class="ratings-grid">
+                    <div class="rating-group">
+                        <label class="form-label">Mood (1-10):</label>
+                        <div class="rating-slider">
+                            <input type="range" id="mood-rating" min="1" max="10" value="5" class="slider">
+                            <div class="slider-value">5</div>
+                        </div>
+                    </div>
+
+                    <div class="rating-group">
+                        <label class="form-label">Energy Level (1-10):</label>
+                        <div class="rating-slider">
+                            <input type="range" id="energy-rating" min="1" max="10" value="5" class="slider">
+                            <div class="slider-value">5</div>
+                        </div>
+                    </div>
+
+                    <div class="rating-group">
+                        <label class="form-label">Pain Level (0-10):</label>
+                        <div class="rating-slider">
+                            <input type="range" id="pain-rating" min="0" max="10" value="0" class="slider">
+                            <div class="slider-value">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Physical Symptoms -->
+                <div class="form-group">
+                    <label class="form-label">Physical Symptoms:</label>
+                    <div class="symptoms-checkboxes">
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="cramps"> Cramps
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="headache"> Headache
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="breast_tenderness"> Breast Tenderness
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="back_pain"> Back Pain
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="bloating"> Bloating
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="fatigue"> Fatigue
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="nausea"> Nausea
+                        </label>
+                        <label class="checkbox-item">
+                            <input type="checkbox" value="acne"> Acne
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Flow Level -->
+                <div class="form-group">
+                    <label for="flow-level" class="form-label">Flow Level:</label>
+                    <select id="flow-level" class="form-select">
+                        <option value="none">None</option>
+                        <option value="spotting">Spotting</option>
+                        <option value="light">Light</option>
+                        <option value="medium">Medium</option>
+                        <option value="heavy">Heavy</option>
+                        <option value="very_heavy">Very Heavy</option>
+                    </select>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-group">
+                    <label for="symptom-notes" class="form-label">Additional Notes:</label>
+                    <textarea id="symptom-notes" class="form-textarea" rows="3" placeholder="Any other symptoms or observations..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-button" onclick="closeModal('symptoms-modal')">Cancel</button>
+                <button class="primary-button" onclick="logSymptoms()">Log Symptoms</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Information Modal -->
+    <div id="privacy-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">🔒 Privacy & Security</h3>
+                <button class="modal-close" onclick="closeModal('privacy-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="privacy-info">
+                    <div class="privacy-section">
+                        <h4>🔐 Data Encryption</h4>
+                        <p>All sensitive health data is encrypted using AES-256 encryption before being stored in your local database.</p>
+                    </div>
+                    
+                    <div class="privacy-section">
+                        <h4>🏠 Local Storage Only</h4>
+                        <p>Your period and health data never leaves your device. Everything is stored locally on your own server.</p>
+                    </div>
+                    
+                    <div class="privacy-section">
+                        <h4>👥 Multi-Tenant Support</h4>
+                        <p>Multiple users can safely use the same Vrooli instance with complete data isolation.</p>
+                    </div>
+                    
+                    <div class="privacy-section">
+                        <h4>🛡️ No External Tracking</h4>
+                        <p>No analytics, tracking, or data sharing with external services. Your privacy is guaranteed.</p>
+                    </div>
+                    
+                    <div class="privacy-section">
+                        <h4>📋 Audit Logging</h4>
+                        <p>All data access is logged locally for your security and compliance with privacy standards.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="primary-button" onclick="closeModal('privacy-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="notification-toast hidden">
+        <div class="toast-content">
+            <span class="toast-icon">ℹ️</span>
+            <span class="toast-message">Notification message</span>
+            <button class="toast-close" onclick="hideNotification()">&times;</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

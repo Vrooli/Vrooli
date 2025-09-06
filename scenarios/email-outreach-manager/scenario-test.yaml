@@ -1,0 +1,193 @@
+version: 1.0
+scenario: email-outreach-manager
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/email-outreach-manager
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - scenario-test.yaml
+    - ui/index.html
+    - ui/package.json
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - ui
+    - test
+
+# Resource validation
+resources:
+  required: [postgres, ollama, mail-in-a-box]
+  optional: [redis, contact-book]
+  health_timeout: 120  # Seconds to wait for resources to be healthy
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Ollama is accessible"
+    type: http
+    service: ollama
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Mail-in-a-Box is accessible"
+    type: http
+    service: mail-in-a-box
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests
+  - name: "API health endpoint responds correctly"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+
+  - name: "Campaigns endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/campaigns
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Template generation endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/templates/generate
+    method: POST
+    body:
+      purpose: "Test email template"
+      tone: "professional"
+      documents: []
+    expect:
+      status: 201
+      body:
+        template_id: "*"
+        
+  # CLI command tests
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/email-outreach-manager status --json
+    expect:
+      exit_code: 0
+      output_contains: ["healthy"]
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/email-outreach-manager help
+    expect:
+      exit_code: 0
+      output_contains: ["create-campaign", "send-campaign", "analytics"]
+
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/email-outreach-manager version --json
+    expect:
+      exit_code: 0
+      output_contains: ["version"]
+      
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('campaigns', 'templates', 'email_recipients', 'drip_sequences')"
+    expect:
+      rows: 
+        - count: 4
+
+  - name: "Database can insert campaign"
+    type: sql
+    service: postgres
+    query: "INSERT INTO campaigns (id, name, description, status) VALUES ('test-campaign-id', 'Test Campaign', 'Test Description', 'draft') RETURNING id"
+    expect:
+      rows:
+        - id: "test-campaign-id"
+        
+  # Integration tests
+  - name: "Contact-book integration works (if available)"
+    type: exec
+    command: bash test/test-contact-integration.sh
+    expect:
+      exit_code: 0
+    optional: true  # Skip if contact-book not available
+
+  - name: "Template generation integration works"
+    type: exec
+    command: ./cli/email-outreach-manager preview-template "Product announcement" --tone professional
+    expect:
+      exit_code: 0
+      output_contains: ["Subject:", "Template generated"]
+
+  # UI tests
+  - name: "UI health endpoint responds"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+    optional: true  # UI might not be running in all test environments
+
+  - name: "UI serves main page"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      output_contains: ["Email Outreach Manager", "Campaign"]
+    optional: true
+
+# Performance validation
+performance_tests:
+  - name: "Template generation performance"
+    type: exec
+    command: time ./cli/email-outreach-manager preview-template "Quick test" --tone casual
+    expect:
+      max_duration: 30000  # 30 seconds max
+      
+  - name: "Campaign creation performance"
+    type: api_timing
+    endpoint: /api/v1/campaigns
+    method: POST
+    expect:
+      max_response_time: 5000  # 5 seconds max
+
+# Load tests (optional, for CI/CD)
+load_tests:
+  - name: "Multiple template generation"
+    type: concurrent_exec
+    command: ./cli/email-outreach-manager preview-template "Load test" --tone professional
+    concurrency: 5
+    iterations: 10
+    expect:
+      success_rate: 100
+      avg_duration: 15000  # 15 seconds average
+    optional: true

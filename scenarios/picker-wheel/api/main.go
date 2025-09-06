@@ -50,9 +50,9 @@ var history []SpinResult
 
 func initDB() {
     var err error
-    dbURL := os.Getenv("DATABASE_URL")
+    dbURL := os.Getenv("POSTGRES_URL")
     if dbURL == "" {
-        log.Println("DATABASE_URL not set, using in-memory fallback")
+        log.Println("POSTGRES_URL not set, using in-memory fallback")
         return
     }
     

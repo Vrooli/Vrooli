@@ -1,0 +1,268 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "email-outreach-manager",
+    "displayName": "Email Outreach Manager",
+    "description": "AI-powered personalized email campaign generation and execution with contact intelligence integration",
+    "version": "1.0.0",
+    "tags": [
+      "email-marketing",
+      "ai-template-generation", 
+      "contact-personalization",
+      "campaign-automation",
+      "drip-sequences",
+      "contact-book-integration",
+      "mail-in-a-box-integration",
+      "ollama-ai",
+      "go-api",
+      "postgres-storage",
+      "redis-queue",
+      "marketing-intelligence",
+      "relationship-aware-communications"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "EMAIL_OUTREACH_API_PORT",
+      "fallback": "auto",
+      "description": "Email Outreach Manager API port for campaign management services",
+      "range": "16000-16999"
+    },
+    "ui": {
+      "env_var": "EMAIL_OUTREACH_UI_PORT", 
+      "fallback": "auto",
+      "description": "Email Outreach Manager UI port for campaign management dashboard",
+      "range": "3200-3299"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Primary storage for campaigns, templates, recipients, drip sequences, and analytics data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql", 
+          "type": "seed"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "AI template generation and email personalization using shared ollama.json workflow"
+    },
+    "mail-in-a-box": {
+      "type": "mail-in-a-box",
+      "enabled": true,
+      "required": true,
+      "purpose": "Email delivery infrastructure for sending campaigns with proper SMTP handling"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Campaign sending queue, rate limiting, and performance optimization"
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "contact-book": {
+        "required": false,
+        "purpose": "Recipient data enrichment and personalization intelligence",
+        "fallback": "Manual recipient data entry with warning indicators"
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Email Outreach Manager health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint", 
+          "type": "http",
+          "target": "http://localhost:${EMAIL_OUTREACH_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http", 
+          "target": "http://localhost:${EMAIL_OUTREACH_UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "query": "SELECT COUNT(*) FROM campaigns",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 20000
+    },
+    "setup": {
+      "description": "Initialize Email Outreach Manager with database schema and dependencies",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/email-outreach-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "email-outreach-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o email-outreach-manager-api .",
+          "description": "Build Go API server binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize PostgreSQL schema and seed data"
+        },
+        {
+          "name": "verify-dependencies",
+          "run": "echo \"Verifying dependencies...\" && (command -v contact-book &>/dev/null && echo \"✅ contact-book CLI available\" || echo \"⚠️  contact-book CLI not found - manual data entry will be used\")",
+          "description": "Check optional dependencies"
+        },
+        {
+          "name": "install-ui-dependencies",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Email Outreach Manager initialized\\n  API: http://localhost:${EMAIL_OUTREACH_API_PORT}\\n  UI: http://localhost:${EMAIL_OUTREACH_UI_PORT}\\n  CLI: email-outreach-manager --help\\n  Database: PostgreSQL ready'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Email Outreach Manager API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./email-outreach-manager-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/email-outreach-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server", 
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Email Outreach Manager running:\\n  API: http://localhost:$EMAIL_OUTREACH_API_PORT\\n  UI: http://localhost:$EMAIL_OUTREACH_UI_PORT\\n  CLI: email-outreach-manager --help\\n  Health: http://localhost:$EMAIL_OUTREACH_API_PORT/health'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Email Outreach Manager API, CLI, and integrations",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$EMAIL_OUTREACH_API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-campaigns-endpoint",
+          "run": "curl -sf http://localhost:$EMAIL_OUTREACH_API_PORT/api/v1/campaigns",
+          "description": "Test campaigns API endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats email-outreach-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/email-outreach-manager.bats"
+          }
+        },
+        {
+          "name": "test-template-generation",
+          "run": "email-outreach-manager preview-template 'Product launch announcement' --tone professional",
+          "description": "Test AI template generation integration"
+        },
+        {
+          "name": "test-contact-book-integration",
+          "run": "bash test/test-contact-integration.sh",
+          "description": "Test contact-book integration if available"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Email Outreach Manager services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.email-outreach-manager.start-api\" 2>/dev/null || pkill -f \"email-outreach-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.email-outreach-manager.start-ui\" 2>/dev/null || pkill -f \"ui.*dev\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -113,7 +113,7 @@ func initConfig() *Config {
 
 	return &Config{
 		Port:                   getEnvOrDefault("PORT", "3300"),
-		PostgresURL:           getEnvOrDefault("POSTGRES_URL", "postgres://vrooli:password@localhost:5433/calendar_system?sslmode=disable"),
+		PostgresURL:           requireEnv("POSTGRES_URL"),
 		QdrantURL:             getEnvOrDefault("QDRANT_URL", "http://localhost:6333"),
 		AuthServiceURL:        getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:3250"),
 		NotificationServiceURL: getEnvOrDefault("NOTIFICATION_SERVICE_URL", "http://localhost:28100"),
@@ -129,6 +129,14 @@ func getEnvOrDefault(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func requireEnv(key string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	log.Fatalf("%s environment variable is required", key)
+	return ""
 }
 
 // Initialize database connection

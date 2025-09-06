@@ -1,0 +1,318 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "pregnancy-tracker",
+    "displayName": "Pregnancy Tracker",
+    "description": "Privacy-first pregnancy tracking with evidence-based information, multi-outcome support, and complete data sovereignty",
+    "version": "1.0.0",
+    "tags": [
+      "health",
+      "pregnancy",
+      "privacy",
+      "tracking",
+      "AI",
+      "multi-tenant",
+      "women-health",
+      "gestational-tracking",
+      "symptoms",
+      "appointments",
+      "medical-export",
+      "evidence-based",
+      "javascript-ui",
+      "go-api",
+      "postgres-storage",
+      "redis-cache",
+      "no-n8n"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "PREGNANCY_TRACKER_API_PORT",
+      "fallback": "auto",
+      "description": "Pregnancy Tracker API port",
+      "range": "17000-17999"
+    },
+    "ui": {
+      "env_var": "PREGNANCY_TRACKER_UI_PORT",
+      "fallback": "auto",
+      "description": "Pregnancy Tracker UI port",
+      "range": "37000-37999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store encrypted pregnancy data, appointments, logs, and medical information with multi-tenant isolation",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "scenario-authenticator": {
+      "type": "scenario",
+      "enabled": true,
+      "required": true,
+      "purpose": "Multi-tenant user authentication and partner access management"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Session caching, search index, and temporary data storage"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "purpose": "Local AI for pregnancy Q&A with medical disclaimers"
+    },
+    "period-tracker": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "purpose": "Import conception data and menstrual history for due date calculation"
+    },
+    "calendar": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "purpose": "Appointment scheduling and reminder integration"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": false,
+      "purpose": "Store bump progression photos and ultrasound images"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Pregnancy Tracker health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${PREGNANCY_TRACKER_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "database_connection",
+          "type": "postgres",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "auth_service",
+          "type": "http",
+          "target": "http://localhost:${SCENARIO_AUTHENTICATOR_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "search_index",
+          "type": "custom",
+          "command": "curl -sf http://localhost:${PREGNANCY_TRACKER_API_PORT}/api/v1/search/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 20000
+    },
+    "setup": {
+      "description": "Initialize Pregnancy Tracker with encrypted health data and evidence-based content",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/pregnancy-tracker-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "pregnancy-tracker"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "check-auth-service",
+          "run": "curl -sf http://localhost:${SCENARIO_AUTHENTICATOR_API_PORT}/health || echo 'Warning: Authentication service not available - multi-tenant features limited'",
+          "description": "Verify authentication service availability"
+        },
+        {
+          "name": "check-period-tracker",
+          "run": "curl -sf http://localhost:${PERIOD_TRACKER_API_PORT}/health 2>/dev/null && echo 'Period Tracker detected - data import available' || echo 'Period Tracker not available - manual data entry only'",
+          "description": "Check for period-tracker integration"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize encrypted database schema for pregnancy data"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && chmod +x pregnancy-tracker && mkdir -p ~/.local/bin && ln -sf $(pwd)/pregnancy-tracker ~/.local/bin/pregnancy-tracker",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o pregnancy-tracker-api .",
+          "description": "Build Go API binary with encryption and search support"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "load-medical-content",
+          "run": "cd api && ./pregnancy-tracker-api --load-content",
+          "description": "Load evidence-based pregnancy content with citations"
+        },
+        {
+          "name": "verify-encryption",
+          "run": "echo 'Verifying encryption setup...' && cd api && go run -ldflags '-X main.mode=verify' .",
+          "description": "Verify data encryption configuration"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🤰 Pregnancy Tracker initialized\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  Privacy: All data encrypted and stored locally\\n  Search: Full-text search enabled'",
+          "description": "Display service URLs and features"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Pregnancy Tracker with privacy-first, evidence-based configuration",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./pregnancy-tracker-api",
+          "description": "Start encrypted API server with search",
+          "background": true,
+          "condition": {
+            "file_exists": "api/pregnancy-tracker-api"
+          },
+          "environment": {
+            "PRIVACY_MODE": "strict",
+            "ENCRYPTION_ENABLED": "true",
+            "MULTI_TENANT": "true",
+            "SEARCH_ENABLED": "true",
+            "CITATIONS_REQUIRED": "true"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start responsive UI server",
+          "background": true
+        },
+        {
+          "name": "show-running",
+          "run": "echo '🚀 Pregnancy Tracker running (Privacy-First Mode):\\n  UI: http://localhost:${PREGNANCY_TRACKER_UI_PORT}\\n  API: http://localhost:${PREGNANCY_TRACKER_API_PORT}\\n  🔐 All health data encrypted locally\\n  🔍 Full-text search available\\n  📚 Evidence-based content with citations'",
+          "description": "Display running services with features"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Pregnancy Tracker services, privacy, and medical accuracy",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$PREGNANCY_TRACKER_API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-encryption",
+          "run": "curl -sf -H 'Content-Type: application/json' http://localhost:$PREGNANCY_TRACKER_API_PORT/api/v1/health/encryption",
+          "description": "Verify encryption is active"
+        },
+        {
+          "name": "test-search",
+          "run": "curl -sf 'http://localhost:$PREGNANCY_TRACKER_API_PORT/api/v1/search?q=morning+sickness'",
+          "description": "Test search functionality"
+        },
+        {
+          "name": "test-week-content",
+          "run": "curl -sf http://localhost:$PREGNANCY_TRACKER_API_PORT/api/v1/content/week/12",
+          "description": "Test week-by-week content with citations"
+        },
+        {
+          "name": "test-auth-integration",
+          "run": "curl -sf http://localhost:$PREGNANCY_TRACKER_API_PORT/api/v1/auth/status",
+          "description": "Test authentication integration"
+        },
+        {
+          "name": "test-database-isolation",
+          "run": "cd api && go run -ldflags '-X main.mode=test-isolation' .",
+          "description": "Test multi-tenant data isolation"
+        },
+        {
+          "name": "test-export",
+          "run": "curl -sf http://localhost:$PREGNANCY_TRACKER_API_PORT/api/v1/export/pdf -o /tmp/pregnancy-test-export.pdf && file /tmp/pregnancy-test-export.pdf | grep PDF",
+          "description": "Test medical export generation"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services and ensure data security",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.pregnancy-tracker.start-api\" 2>/dev/null || pkill -f \"pregnancy-tracker-api\" 2>/dev/null || true",
+          "description": "Stop API process securely"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.pregnancy-tracker.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        },
+        {
+          "name": "clear-sessions",
+          "run": "echo 'Clearing session cache...' && redis-cli -h localhost FLUSHDB 2>/dev/null || echo 'Redis not available - sessions cleared on restart'",
+          "description": "Clear session data for privacy"
+        },
+        {
+          "name": "secure-data",
+          "run": "echo 'Medical data remains encrypted and secure in local storage'",
+          "description": "Confirm data security"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,509 @@
+#!/bin/bash
+
+# Social Media Scheduler CLI
+# Usage: social-media-scheduler <command> [options]
+
+set -euo pipefail
+
+# Configuration
+API_PORT="${API_PORT:-18000}"
+UI_PORT="${UI_PORT:-38000}"
+API_URL="http://localhost:${API_PORT}"
+CLI_NAME="social-media-scheduler"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+# API helper function
+api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local token="${4:-}"
+    
+    local curl_cmd="curl -s -X $method"
+    
+    if [ -n "$token" ]; then
+        curl_cmd="$curl_cmd -H 'Authorization: Bearer $token'"
+    fi
+    
+    curl_cmd="$curl_cmd -H 'Content-Type: application/json'"
+    
+    if [ -n "$data" ]; then
+        curl_cmd="$curl_cmd -d '$data'"
+    fi
+    
+    curl_cmd="$curl_cmd $API_URL$endpoint"
+    
+    eval "$curl_cmd"
+}
+
+# Token management
+get_token() {
+    if [ -f "$HOME/.social-media-scheduler/token" ]; then
+        cat "$HOME/.social-media-scheduler/token"
+    else
+        echo ""
+    fi
+}
+
+save_token() {
+    local token="$1"
+    mkdir -p "$HOME/.social-media-scheduler"
+    echo "$token" > "$HOME/.social-media-scheduler/token"
+    chmod 600 "$HOME/.social-media-scheduler/token"
+}
+
+clear_token() {
+    rm -f "$HOME/.social-media-scheduler/token"
+}
+
+# Check if API is running
+check_api() {
+    if ! curl -s "$API_URL/health" >/dev/null 2>&1; then
+        error "API server is not running on $API_URL"
+        info "Please start the API server first:"
+        info "  cd api && go run ."
+        exit 1
+    fi
+}
+
+# Authentication commands
+cmd_login() {
+    local email="$1"
+    local password="$2"
+    
+    check_api
+    
+    local data=$(cat <<EOF
+{
+    "email": "$email",
+    "password": "$password"
+}
+EOF
+)
+    
+    log "Logging in as $email..."
+    local response=$(api_call "POST" "/api/v1/auth/login" "$data")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        local token=$(echo "$response" | jq -r '.data.token')
+        local user_email=$(echo "$response" | jq -r '.data.user.email')
+        
+        save_token "$token"
+        success "Logged in successfully as $user_email"
+    else
+        local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        error "Login failed: $error_msg"
+        exit 1
+    fi
+}
+
+cmd_register() {
+    local email="$1"
+    local password="$2"
+    local first_name="${3:-}"
+    local last_name="${4:-}"
+    
+    check_api
+    
+    local data=$(cat <<EOF
+{
+    "email": "$email",
+    "password": "$password",
+    "first_name": "$first_name",
+    "last_name": "$last_name",
+    "timezone": "$(date +%Z)"
+}
+EOF
+)
+    
+    log "Registering new user: $email..."
+    local response=$(api_call "POST" "/api/v1/auth/register" "$data")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        local token=$(echo "$response" | jq -r '.data.token')
+        local user_email=$(echo "$response" | jq -r '.data.user.email')
+        
+        save_token "$token"
+        success "Registration successful! Logged in as $user_email"
+    else
+        local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        error "Registration failed: $error_msg"
+        exit 1
+    fi
+}
+
+cmd_logout() {
+    clear_token
+    success "Logged out successfully"
+}
+
+cmd_whoami() {
+    local token=$(get_token)
+    if [ -z "$token" ]; then
+        error "Not logged in. Use '$CLI_NAME login <email> <password>' to login."
+        exit 1
+    fi
+    
+    check_api
+    
+    local response=$(api_call "GET" "/api/v1/auth/me" "" "$token")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        local user_data=$(echo "$response" | jq -r '.data')
+        echo "$user_data" | jq .
+    else
+        error "Failed to get user info. Please login again."
+        clear_token
+        exit 1
+    fi
+}
+
+# Post management commands
+cmd_schedule() {
+    local token=$(get_token)
+    if [ -z "$token" ]; then
+        error "Please login first: $CLI_NAME login <email> <password>"
+        exit 1
+    fi
+    
+    local title="$1"
+    local content="$2"
+    local platforms="$3"  # comma-separated
+    local scheduled_at="$4"  # ISO format
+    
+    check_api
+    
+    # Convert comma-separated platforms to JSON array
+    local platforms_json=$(echo "\"$platforms\"" | sed 's/,/","/g' | sed 's/^/"[/' | sed 's/$/"]/') 
+    platforms_json=$(echo "$platforms" | jq -R 'split(",")' 2>/dev/null || echo '["twitter"]')
+    
+    local data=$(cat <<EOF
+{
+    "title": "$title",
+    "content": "$content",
+    "platforms": $platforms_json,
+    "scheduled_at": "$scheduled_at",
+    "timezone": "$(date +%Z)",
+    "auto_optimize": true
+}
+EOF
+)
+    
+    log "Scheduling post for platforms: $platforms"
+    local response=$(api_call "POST" "/api/v1/posts/schedule" "$data" "$token")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        local post_id=$(echo "$response" | jq -r '.data.id')
+        success "Post scheduled successfully! ID: $post_id"
+        info "Scheduled for: $scheduled_at"
+        info "Platforms: $platforms"
+    else
+        local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        error "Failed to schedule post: $error_msg"
+        exit 1
+    fi
+}
+
+cmd_list() {
+    local token=$(get_token)
+    if [ -z "$token" ]; then
+        error "Please login first: $CLI_NAME login <email> <password>"
+        exit 1
+    fi
+    
+    check_api
+    
+    local start_date="${1:-$(date -d '7 days ago' -I)}"
+    local end_date="${2:-$(date -d '7 days' -I)}"
+    
+    log "Fetching posts from $start_date to $end_date..."
+    local response=$(api_call "GET" "/api/v1/posts/calendar?start_date=${start_date}&end_date=${end_date}" "" "$token")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        local posts=$(echo "$response" | jq -r '.data')
+        local count=$(echo "$posts" | jq length)
+        
+        if [ "$count" -eq 0 ]; then
+            info "No posts found in the specified date range"
+        else
+            success "Found $count posts:"
+            echo "$posts" | jq -r '.[] | "\(.id) | \(.title) | \(.status) | \(.scheduled_at) | \(.platforms | join(","))"' | \
+            while IFS='|' read -r id title status scheduled_at platforms; do
+                echo -e "  ${CYAN}ID:${NC} $id"
+                echo -e "  ${BLUE}Title:${NC} $title"
+                echo -e "  ${YELLOW}Status:${NC} $status"
+                echo -e "  ${GREEN}Scheduled:${NC} $scheduled_at"
+                echo -e "  ${PURPLE}Platforms:${NC} $platforms"
+                echo ""
+            done
+        fi
+    else
+        local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        error "Failed to fetch posts: $error_msg"
+        exit 1
+    fi
+}
+
+cmd_status() {
+    local post_id="$1"
+    local token=$(get_token)
+    if [ -z "$token" ]; then
+        error "Please login first: $CLI_NAME login <email> <password>"
+        exit 1
+    fi
+    
+    check_api
+    
+    log "Getting status for post $post_id..."
+    local response=$(api_call "GET" "/api/v1/posts/$post_id" "" "$token")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        echo "$response" | jq '.data'
+    else
+        local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        error "Failed to get post status: $error_msg"
+        exit 1
+    fi
+}
+
+# Platform management commands
+cmd_platforms() {
+    check_api
+    
+    log "Fetching supported platforms..."
+    local response=$(api_call "GET" "/api/v1/auth/platforms")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        echo "$response" | jq -r '.data[] | "Platform: \(.display_name) (\(.platform))\nMax Characters: \(.max_chars)\nFeatures: \(.features | join(", "))\n"'
+    else
+        error "Failed to fetch platform information"
+        exit 1
+    fi
+}
+
+cmd_accounts() {
+    local token=$(get_token)
+    if [ -z "$token" ]; then
+        error "Please login first: $CLI_NAME login <email> <password>"
+        exit 1
+    fi
+    
+    check_api
+    
+    log "Fetching connected social accounts..."
+    local response=$(api_call "GET" "/api/v1/user/accounts" "" "$token")
+    
+    if echo "$response" | jq -e '.success' >/dev/null; then
+        local accounts=$(echo "$response" | jq -r '.data')
+        local count=$(echo "$accounts" | jq length)
+        
+        if [ "$count" -eq 0 ]; then
+            info "No social accounts connected"
+            info "Use the web UI to connect social media accounts"
+        else
+            success "Connected accounts:"
+            echo "$accounts" | jq -r '.[] | "  \(.platform): @\(.username) (\(.display_name)) - Active: \(.is_active)"'
+        fi
+    else
+        local error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+        error "Failed to fetch accounts: $error_msg"
+        exit 1
+    fi
+}
+
+# System commands
+cmd_health() {
+    info "Checking API health..."
+    
+    if curl -s "$API_URL/health" | jq -e '.status == "healthy"' >/dev/null; then
+        success "API is healthy"
+    else
+        error "API is not healthy"
+        exit 1
+    fi
+    
+    info "Checking queue health..."
+    if curl -s "$API_URL/health/queue" | jq -e '.success' >/dev/null; then
+        success "Job queue is healthy"
+    else
+        warn "Job queue may have issues"
+    fi
+}
+
+cmd_version() {
+    echo "$CLI_NAME version 1.0.0"
+    echo "Social Media Scheduler CLI for Vrooli"
+}
+
+# Help command
+cmd_help() {
+    cat <<EOF
+${CYAN}Social Media Scheduler CLI${NC}
+
+${YELLOW}USAGE:${NC}
+    $CLI_NAME <command> [options]
+
+${YELLOW}AUTHENTICATION:${NC}
+    login <email> <password>        Login to your account
+    register <email> <password>     Register a new account
+    logout                          Logout from current session
+    whoami                          Show current user info
+
+${YELLOW}POST MANAGEMENT:${NC}
+    schedule <title> <content> <platforms> <date>  Schedule a new post
+        Platforms: comma-separated list (twitter,instagram,linkedin,facebook)
+        Date: ISO format (e.g., 2024-07-15T14:00:00Z)
+        
+    list [start_date] [end_date]    List scheduled posts
+    status <post_id>                Get status of a specific post
+
+${YELLOW}PLATFORM MANAGEMENT:${NC}
+    platforms                       List supported platforms
+    accounts                        List connected social accounts
+
+${YELLOW}SYSTEM:${NC}
+    health                          Check system health
+    version                         Show CLI version
+    help                           Show this help message
+
+${YELLOW}EXAMPLES:${NC}
+    $CLI_NAME login user@example.com mypassword
+    $CLI_NAME schedule "Product Launch" "Exciting news about our new product! 🚀" "twitter,linkedin" "2024-07-15T14:00:00Z"
+    $CLI_NAME list
+    $CLI_NAME accounts
+
+${YELLOW}NOTES:${NC}
+    - Make sure the API server is running before using CLI commands
+    - Use the web UI to connect social media accounts (OAuth)
+    - Posts are automatically optimized for each platform when auto_optimize is true
+
+EOF
+}
+
+# Main command dispatcher
+main() {
+    if [ $# -eq 0 ]; then
+        cmd_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        "login")
+            if [ $# -lt 2 ]; then
+                error "Usage: $CLI_NAME login <email> <password>"
+                exit 1
+            fi
+            cmd_login "$1" "$2"
+            ;;
+        "register")
+            if [ $# -lt 2 ]; then
+                error "Usage: $CLI_NAME register <email> <password> [first_name] [last_name]"
+                exit 1
+            fi
+            cmd_register "$1" "$2" "${3:-}" "${4:-}"
+            ;;
+        "logout")
+            cmd_logout
+            ;;
+        "whoami")
+            cmd_whoami
+            ;;
+        "schedule")
+            if [ $# -lt 4 ]; then
+                error "Usage: $CLI_NAME schedule <title> <content> <platforms> <scheduled_date>"
+                error "Example: $CLI_NAME schedule 'My Post' 'Hello world!' 'twitter,linkedin' '2024-07-15T14:00:00Z'"
+                exit 1
+            fi
+            cmd_schedule "$1" "$2" "$3" "$4"
+            ;;
+        "list")
+            cmd_list "${1:-}" "${2:-}"
+            ;;
+        "status")
+            if [ $# -lt 1 ]; then
+                error "Usage: $CLI_NAME status <post_id>"
+                exit 1
+            fi
+            cmd_status "$1"
+            ;;
+        "platforms")
+            cmd_platforms
+            ;;
+        "accounts")
+            cmd_accounts
+            ;;
+        "health")
+            cmd_health
+            ;;
+        "version")
+            cmd_version
+            ;;
+        "help"|"-h"|"--help")
+            cmd_help
+            ;;
+        *)
+            error "Unknown command: $command"
+            echo ""
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+# Check dependencies
+check_dependencies() {
+    local missing_deps=()
+    
+    if ! command -v curl >/dev/null 2>&1; then
+        missing_deps+=("curl")
+    fi
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        missing_deps+=("jq")
+    fi
+    
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        error "Missing required dependencies: ${missing_deps[*]}"
+        info "Please install the missing dependencies:"
+        for dep in "${missing_deps[@]}"; do
+            echo "  - $dep"
+        done
+        exit 1
+    fi
+}
+
+# Initialize
+check_dependencies
+main "$@"
