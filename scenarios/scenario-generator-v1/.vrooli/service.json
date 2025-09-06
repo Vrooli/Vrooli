@@ -15,7 +15,7 @@
       "scenario-builder",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
+      "pipeline-orchestration",
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
@@ -36,24 +36,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "claude-code-executor",
-        "workflow-creator-fixer",
-        "file-list-writer"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/scenario-generator-orchestrator.json",
-          "type": "workflow",
-          "description": "Main orchestration workflow for scenario generation"
-        }
-      ]
-    },
     "claude-code": {
       "type": "claude-code",
       "enabled": true,
@@ -164,7 +146,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario Generator V1 initialized\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
+          "run": "echo '🚀 Scenario Generator V1 initialized\\n  API: http://localhost:${API_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
           "description": "Display service access information"
         }
       ]
@@ -215,17 +197,22 @@
       ]
     },
     "stop": {
-      "description": "Stop scenario generator services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'scenario-generator-v1-api' || true; pkill -f 'node server.js' || true",
-          "description": "Stop API and UI processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Scenario Generator V1 services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.scenario-generator-v1.start-api\" 2>/dev/null || pkill -f \"scenario-generator-v1-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.scenario-generator-v1.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

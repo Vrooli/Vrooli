@@ -25,12 +25,12 @@
   "ports": {
     "api": {
       "env_var": "AUTH_API_PORT",
-      "port": 3250,
+      "port": 3252,
       "description": "Authentication API server port"
     },
     "ui": {
       "env_var": "AUTH_UI_PORT",
-      "port": 3251,
+      "port": 3253,
       "description": "Authentication UI server port"
     }
   },
@@ -158,13 +158,8 @@
       "steps": [
         {
           "name": "initialize-database",
-          "run": "resource-postgres create-database scenario-authenticator || true",
+          "run": "resource-postgres content create-database --name scenario_authenticator",
           "description": "Create authentication database"
-        },
-        {
-          "name": "configure-redis",
-          "run": "resource-redis set-config maxmemory 256mb || true",
-          "description": "Configure Redis for session storage"
         },
         {
           "name": "add-data",
@@ -205,7 +200,7 @@
       "description": "Start Authentication Service with API and UI",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./scenario-authenticator-api",
           "description": "Start authentication API server",
           "background": true,
@@ -214,7 +209,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start authentication UI server",
           "background": true
@@ -258,17 +253,22 @@
       ]
     },
     "stop": {
-      "description": "Stop authentication services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f scenario-authenticator-api || true",
-          "description": "Stop authentication API server"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "clear-sessions",
-          "run": "resource-redis flush-db 0 || true",
-          "description": "Clear active sessions from Redis"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.scenario-authenticator.start-api\" 2>/dev/null || pkill -f \"scenario-authenticator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.scenario-authenticator.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }
@@ -295,7 +295,7 @@
       }
     ],
     "example_integration": {
-      "api": "const isValid = await fetch('http://localhost:3250/api/v1/auth/validate', { headers: { 'Authorization': `Bearer ${token}` } });",
+      "api": "const isValid = await fetch('http://localhost:3252/api/v1/auth/validate', { headers: { 'Authorization': `Bearer ${token}` } });",
       "cli": "scenario-authenticator token validate $TOKEN",
       "workflow": "Use auth-validator.json workflow with webhook trigger"
     }

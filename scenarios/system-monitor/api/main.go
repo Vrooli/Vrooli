@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -32,6 +31,150 @@ type MetricsResponse struct {
 	MemoryUsage    float64 `json:"memory_usage"`
 	TCPConnections int     `json:"tcp_connections"`
 	Timestamp      string  `json:"timestamp"`
+}
+
+// Enhanced metric structures for expandable cards
+type ProcessInfo struct {
+	PID         int     `json:"pid"`
+	Name        string  `json:"name"`
+	CPUPercent  float64 `json:"cpu_percent"`
+	MemoryMB    float64 `json:"memory_mb"`
+	Connections int     `json:"connections"`
+	Threads     int     `json:"threads"`
+	FDs         int     `json:"file_descriptors"`
+	Status      string  `json:"status"`
+	Goroutines  int     `json:"goroutines,omitempty"`
+}
+
+type TCPConnectionStates struct {
+	Established int `json:"established"`
+	TimeWait    int `json:"time_wait"`
+	CloseWait   int `json:"close_wait"`
+	FinWait1    int `json:"fin_wait1"`
+	FinWait2    int `json:"fin_wait2"`
+	SynSent     int `json:"syn_sent"`
+	SynRecv     int `json:"syn_recv"`
+	Closing     int `json:"closing"`
+	LastAck     int `json:"last_ack"`
+	Listen      int `json:"listen"`
+	Total       int `json:"total"`
+}
+
+type ConnectionPoolInfo struct {
+	Name        string `json:"name"`
+	Active      int    `json:"active"`
+	Idle        int    `json:"idle"`
+	MaxSize     int    `json:"max_size"`
+	Waiting     int    `json:"waiting"`
+	Healthy     bool   `json:"healthy"`
+	LeakRisk    string `json:"leak_risk"`
+}
+
+type NetworkStats struct {
+	BandwidthInMbps  float64 `json:"bandwidth_in_mbps"`
+	BandwidthOutMbps float64 `json:"bandwidth_out_mbps"`
+	PacketLoss       float64 `json:"packet_loss"`
+	DNSSuccessRate   float64 `json:"dns_success_rate"`
+	DNSLatencyMs     float64 `json:"dns_latency_ms"`
+}
+
+type SystemHealthDetails struct {
+	FileDescriptors struct {
+		Used     int `json:"used"`
+		Max      int `json:"max"`
+		Percent  float64 `json:"percent"`
+	} `json:"file_descriptors"`
+	ServiceDependencies []ServiceHealth `json:"service_dependencies"`
+	Certificates        []CertificateInfo `json:"certificates"`
+}
+
+type ServiceHealth struct {
+	Name       string  `json:"name"`
+	Status     string  `json:"status"`
+	LatencyMs  float64 `json:"latency_ms"`
+	LastCheck  string  `json:"last_check"`
+	Endpoint   string  `json:"endpoint"`
+}
+
+type CertificateInfo struct {
+	Domain      string `json:"domain"`
+	DaysToExpiry int   `json:"days_to_expiry"`
+	Status      string `json:"status"`
+}
+
+// Detailed metric responses for expandable cards
+type DetailedMetricsResponse struct {
+	CPUDetails struct {
+		Usage        float64       `json:"usage"`
+		TopProcesses []ProcessInfo `json:"top_processes"`
+		LoadAverage  []float64     `json:"load_average"`
+		ContextSwitches int64      `json:"context_switches"`
+		Goroutines   int           `json:"total_goroutines"`
+	} `json:"cpu_details"`
+	MemoryDetails struct {
+		Usage        float64       `json:"usage"`
+		TopProcesses []ProcessInfo `json:"top_processes"`
+		GrowthPatterns []struct {
+			Process   string  `json:"process"`
+			GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
+			RiskLevel string  `json:"risk_level"`
+		} `json:"growth_patterns"`
+		SwapUsage struct {
+			Used    int64   `json:"used"`
+			Total   int64   `json:"total"`
+			Percent float64 `json:"percent"`
+		} `json:"swap_usage"`
+		DiskUsage struct {
+			Used    int64   `json:"used"`
+			Total   int64   `json:"total"`
+			Percent float64 `json:"percent"`
+		} `json:"disk_usage"`
+	} `json:"memory_details"`
+	NetworkDetails struct {
+		TCPStates      TCPConnectionStates   `json:"tcp_states"`
+		PortUsage      struct {
+			Used  int `json:"used"`
+			Total int `json:"total"`
+		} `json:"port_usage"`
+		NetworkStats   NetworkStats          `json:"network_stats"`
+		ConnectionPools []ConnectionPoolInfo `json:"connection_pools"`
+	} `json:"network_details"`
+	SystemDetails  SystemHealthDetails   `json:"system_details"`
+	Timestamp      string               `json:"timestamp"`
+}
+
+type ProcessMonitorResponse struct {
+	ProcessHealth struct {
+		TotalProcesses int           `json:"total_processes"`
+		ZombieProcesses []ProcessInfo `json:"zombie_processes"`
+		HighThreadCount []ProcessInfo `json:"high_thread_count"`
+		LeakCandidates  []ProcessInfo `json:"leak_candidates"`
+	} `json:"process_health"`
+	ResourceMatrix []ProcessInfo `json:"resource_matrix"`
+	Timestamp      string        `json:"timestamp"`
+}
+
+type InfrastructureMonitorResponse struct {
+	DatabasePools   []ConnectionPoolInfo `json:"database_pools"`
+	HTTPClientPools []ConnectionPoolInfo `json:"http_client_pools"`
+	MessageQueues struct {
+		RedisPubSub struct {
+			Subscribers int `json:"subscribers"`
+			Channels    int `json:"channels"`
+		} `json:"redis_pubsub"`
+		BackgroundJobs struct {
+			Pending   int `json:"pending"`
+			Active    int `json:"active"`
+			Failed    int `json:"failed"`
+		} `json:"background_jobs"`
+	} `json:"message_queues"`
+	StorageIO struct {
+		DiskQueueDepth float64 `json:"disk_queue_depth"`
+		IOWaitPercent  float64 `json:"io_wait_percent"`
+		ReadMBPerSec   float64 `json:"read_mb_per_sec"`
+		WriteMBPerSec  float64 `json:"write_mb_per_sec"`
+	} `json:"storage_io"`
+	Timestamp       string               `json:"timestamp"`
 }
 
 type Investigation struct {
@@ -77,6 +220,9 @@ func main() {
 
 	// Metrics endpoints
 	r.HandleFunc("/api/metrics/current", getCurrentMetricsHandler).Methods("GET")
+	r.HandleFunc("/api/metrics/detailed", getDetailedMetricsHandler).Methods("GET")
+	r.HandleFunc("/api/metrics/processes", getProcessMonitorHandler).Methods("GET")
+	r.HandleFunc("/api/metrics/infrastructure", getInfrastructureMonitorHandler).Methods("GET")
 
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
@@ -92,9 +238,15 @@ func main() {
 
 	// Test endpoints for anomaly simulation
 	r.HandleFunc("/api/test/anomaly/cpu", simulateHighCPUHandler).Methods("GET")
+	
+	// Debug logs endpoint for UI troubleshooting
+	r.HandleFunc("/api/logs", getLogsHandler).Methods("GET")
 
 	// Enable CORS
 	r.Use(corsMiddleware)
+	
+	// Enable comprehensive request/response logging
+	r.Use(loggingMiddleware)
 
 	log.Printf("System Monitor API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))
@@ -105,6 +257,55 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		
+		// Log incoming request
+		reqMsg := fmt.Sprintf(">>> INCOMING REQUEST: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		log.Printf(reqMsg)
+		addLogEntry("INFO", reqMsg, "http-server")
+		
+		headerMsg := fmt.Sprintf("    Headers: %+v", r.Header)
+		log.Printf(headerMsg)
+		addLogEntry("DEBUG", headerMsg, "http-server")
+		
+		userAgentMsg := fmt.Sprintf("    User-Agent: %s", r.UserAgent())
+		log.Printf(userAgentMsg)
+		addLogEntry("DEBUG", userAgentMsg, "http-server")
+		
+		// Create a response writer that captures status and size
+		rw := &responseWriter{ResponseWriter: w, statusCode: 200}
+		
+		// Call the next handler
+		next.ServeHTTP(rw, r)
+		
+		// Log response
+		duration := time.Since(start)
+		respMsg := fmt.Sprintf("<<< RESPONSE: %s %s - Status: %d - Duration: %v", 
+			r.Method, r.URL.Path, rw.statusCode, duration)
+		log.Printf(respMsg)
+		addLogEntry("INFO", respMsg, "http-server")
+		
+		// Log any errors
+		if rw.statusCode >= 400 {
+			errorMsg := fmt.Sprintf("!!! ERROR RESPONSE: %s %s returned %d", r.Method, r.URL.Path, rw.statusCode)
+			log.Printf(errorMsg)
+			addLogEntry("ERROR", errorMsg, "http-server")
+		}
+	})
+}
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -301,6 +502,248 @@ func getTCPConnections() int {
 		return 0
 	}
 	return count
+}
+
+// Get detailed TCP connection states
+func getTCPConnectionStates() TCPConnectionStates {
+	states := TCPConnectionStates{}
+	
+	// Parse netstat output for connection states
+	cmd := exec.Command("bash", "-c", "netstat -tn 2>/dev/null | awk 'NR>2 {print $6}' | sort | uniq -c")
+	output, err := cmd.Output()
+	if err != nil {
+		return states
+	}
+	
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		parts := strings.Fields(line)
+		if len(parts) != 2 {
+			continue
+		}
+		
+		count, err := strconv.Atoi(parts[0])
+		if err != nil {
+			continue
+		}
+		
+		state := strings.ToUpper(parts[1])
+		switch state {
+		case "ESTABLISHED":
+			states.Established = count
+		case "TIME_WAIT":
+			states.TimeWait = count
+		case "CLOSE_WAIT":
+			states.CloseWait = count
+		case "FIN_WAIT1":
+			states.FinWait1 = count
+		case "FIN_WAIT2":
+			states.FinWait2 = count
+		case "SYN_SENT":
+			states.SynSent = count
+		case "SYN_RECV":
+			states.SynRecv = count
+		case "CLOSING":
+			states.Closing = count
+		case "LAST_ACK":
+			states.LastAck = count
+		case "LISTEN":
+			states.Listen = count
+		}
+		
+		states.Total += count
+	}
+	
+	return states
+}
+
+// Get top processes by CPU usage
+func getTopProcessesByCPU(limit int) []ProcessInfo {
+	var processes []ProcessInfo
+	
+	// Use ps to get process info sorted by CPU
+	cmd := exec.Command("bash", "-c", 
+		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,nlwp --sort=-%%cpu --no-headers | head -%d", limit))
+	output, err := cmd.Output()
+	if err != nil {
+		return processes
+	}
+	
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		fields := strings.Fields(line)
+		if len(fields) < 5 {
+			continue
+		}
+		
+		pid, _ := strconv.Atoi(fields[0])
+		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
+		memoryPercent, _ := strconv.ParseFloat(fields[3], 64)
+		threads, _ := strconv.Atoi(fields[4])
+		
+		// Get memory in MB (rough calculation)
+		memoryMB := memoryPercent * getSystemMemoryGB() * 1024 / 100
+		
+		// Get file descriptors for this process
+		fdCount := getProcessFileDescriptors(pid)
+		
+		processes = append(processes, ProcessInfo{
+			PID:         pid,
+			Name:        fields[1],
+			CPUPercent:  cpuPercent,
+			MemoryMB:    memoryMB,
+			Threads:     threads,
+			FDs:         fdCount,
+			Status:      "running",
+			Goroutines:  getProcessGoroutines(fields[1], pid),
+		})
+	}
+	
+	return processes
+}
+
+// Get top processes by memory usage
+func getTopProcessesByMemory(limit int) []ProcessInfo {
+	var processes []ProcessInfo
+	
+	// Use ps to get process info sorted by memory
+	cmd := exec.Command("bash", "-c", 
+		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,nlwp,rss --sort=-%%mem --no-headers | head -%d", limit))
+	output, err := cmd.Output()
+	if err != nil {
+		return processes
+	}
+	
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		fields := strings.Fields(line)
+		if len(fields) < 6 {
+			continue
+		}
+		
+		pid, _ := strconv.Atoi(fields[0])
+		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
+		_ = fields[3] // ignore memory percent, we use RSS instead
+		threads, _ := strconv.Atoi(fields[4])
+		rssKB, _ := strconv.ParseFloat(fields[5], 64)
+		
+		// Convert RSS from KB to MB
+		memoryMB := rssKB / 1024
+		
+		// Get file descriptors for this process
+		fdCount := getProcessFileDescriptors(pid)
+		
+		processes = append(processes, ProcessInfo{
+			PID:         pid,
+			Name:        fields[1],
+			CPUPercent:  cpuPercent,
+			MemoryMB:    memoryMB,
+			Threads:     threads,
+			FDs:         fdCount,
+			Status:      "running",
+			Goroutines:  getProcessGoroutines(fields[1], pid),
+		})
+	}
+	
+	return processes
+}
+
+// Helper functions
+func getSystemMemoryGB() float64 {
+	cmd := exec.Command("bash", "-c", "free -g | grep Mem | awk '{print $2}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return 8.0 // fallback
+	}
+	
+	memGB, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+	if err != nil {
+		return 8.0
+	}
+	return memGB
+}
+
+func getProcessFileDescriptors(pid int) int {
+	// Count files in /proc/PID/fd/
+	fdDir := fmt.Sprintf("/proc/%d/fd", pid)
+	files, err := os.ReadDir(fdDir)
+	if err != nil {
+		return 0
+	}
+	return len(files)
+}
+
+func getProcessGoroutines(processName string, pid int) int {
+	// Only check for Go processes
+	if !strings.Contains(processName, "api") && !strings.Contains(processName, "go") {
+		return 0
+	}
+	
+	// Try to get goroutine count from pprof endpoint (if available)
+	// This is a mock implementation - in real world you'd query the actual pprof endpoint
+	return 0
+}
+
+func getLoadAverage() []float64 {
+	cmd := exec.Command("bash", "-c", "cat /proc/loadavg | awk '{print $1, $2, $3}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return []float64{0.0, 0.0, 0.0}
+	}
+	
+	fields := strings.Fields(strings.TrimSpace(string(output)))
+	if len(fields) < 3 {
+		return []float64{0.0, 0.0, 0.0}
+	}
+	
+	load1, _ := strconv.ParseFloat(fields[0], 64)
+	load5, _ := strconv.ParseFloat(fields[1], 64)
+	load15, _ := strconv.ParseFloat(fields[2], 64)
+	
+	return []float64{load1, load5, load15}
+}
+
+func getContextSwitches() int64 {
+	cmd := exec.Command("bash", "-c", "grep '^ctxt' /proc/stat | awk '{print $2}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	
+	ctxt, _ := strconv.ParseInt(strings.TrimSpace(string(output)), 10, 64)
+	return ctxt
+}
+
+func getSystemFileDescriptors() (int, int) {
+	// Get current FD count
+	cmd1 := exec.Command("bash", "-c", "lsof 2>/dev/null | wc -l")
+	output1, err1 := cmd1.Output()
+	used := 0
+	if err1 == nil {
+		used, _ = strconv.Atoi(strings.TrimSpace(string(output1)))
+	}
+	
+	// Get max FD limit
+	cmd2 := exec.Command("bash", "-c", "cat /proc/sys/fs/file-max")
+	output2, err2 := cmd2.Output()
+	max := 65536 // fallback
+	if err2 == nil {
+		max, _ = strconv.Atoi(strings.TrimSpace(string(output2)))
+	}
+	
+	return used, max
 }
 
 func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
@@ -542,7 +985,7 @@ func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpCon
 
 	// Try each path until we find the file
 	for _, path := range promptPaths {
-		promptContent, err = ioutil.ReadFile(path)
+		promptContent, err = os.ReadFile(path)
 		if err == nil {
 			log.Printf("Loaded prompt from: %s", path)
 			break
@@ -693,4 +1136,549 @@ func addInvestigationStepHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "step_added"})
+}
+
+// Log storage for debugging
+var (
+	logBuffer []LogEntry
+	logMutex sync.RWMutex
+	maxLogs = 1000 // Keep last 1000 log entries
+)
+
+type LogEntry struct {
+	Timestamp string `json:"timestamp"`
+	Level     string `json:"level"`
+	Message   string `json:"message"`
+	Source    string `json:"source"`
+}
+
+func addLogEntry(level, message, source string) {
+	logMutex.Lock()
+	defer logMutex.Unlock()
+	
+	entry := LogEntry{
+		Timestamp: time.Now().Format(time.RFC3339),
+		Level:     level,
+		Message:   message,
+		Source:    source,
+	}
+	
+	logBuffer = append(logBuffer, entry)
+	if len(logBuffer) > maxLogs {
+		logBuffer = logBuffer[1:] // Remove oldest entry
+	}
+}
+
+func getLogsHandler(w http.ResponseWriter, r *http.Request) {
+	logMutex.RLock()
+	defer logMutex.RUnlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"logs": logBuffer,
+		"count": len(logBuffer),
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
+}
+
+// New handlers for enhanced metrics
+func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	timestamp := time.Now().Format(time.RFC3339)
+	
+	// Gather all detailed metrics
+	cpuUsage := getCPUUsage()
+	memoryUsage := getMemoryUsage()
+	tcpStates := getTCPConnectionStates()
+	topCPUProcesses := getTopProcessesByCPU(5)
+	topMemoryProcesses := getTopProcessesByMemory(5)
+	loadAvg := getLoadAverage()
+	contextSwitches := getContextSwitches()
+	fdUsed, fdMax := getSystemFileDescriptors()
+	
+	response := DetailedMetricsResponse{
+		CPUDetails: struct {
+			Usage        float64       `json:"usage"`
+			TopProcesses []ProcessInfo `json:"top_processes"`
+			LoadAverage  []float64     `json:"load_average"`
+			ContextSwitches int64      `json:"context_switches"`
+			Goroutines   int           `json:"total_goroutines"`
+		}{
+			Usage:           cpuUsage,
+			TopProcesses:    topCPUProcesses,
+			LoadAverage:     loadAvg,
+			ContextSwitches: contextSwitches,
+			Goroutines:      getTotalGoroutines(),
+		},
+		MemoryDetails: struct {
+			Usage        float64       `json:"usage"`
+			TopProcesses []ProcessInfo `json:"top_processes"`
+			GrowthPatterns []struct {
+				Process   string  `json:"process"`
+				GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
+				RiskLevel string  `json:"risk_level"`
+			} `json:"growth_patterns"`
+			SwapUsage struct {
+				Used    int64   `json:"used"`
+				Total   int64   `json:"total"`
+				Percent float64 `json:"percent"`
+			} `json:"swap_usage"`
+			DiskUsage struct {
+				Used    int64   `json:"used"`
+				Total   int64   `json:"total"`
+				Percent float64 `json:"percent"`
+			} `json:"disk_usage"`
+		}{
+			Usage:        memoryUsage,
+			TopProcesses: topMemoryProcesses,
+			GrowthPatterns: getMemoryGrowthPatterns(),
+			SwapUsage:    getSwapUsage(),
+			DiskUsage:    getDiskUsage(),
+		},
+		NetworkDetails: struct {
+			TCPStates      TCPConnectionStates   `json:"tcp_states"`
+			PortUsage      struct {
+				Used  int `json:"used"`
+				Total int `json:"total"`
+			} `json:"port_usage"`
+			NetworkStats   NetworkStats          `json:"network_stats"`
+			ConnectionPools []ConnectionPoolInfo `json:"connection_pools"`
+		}{
+			TCPStates:      tcpStates,
+			PortUsage:      getPortUsage(),
+			NetworkStats:   getNetworkStats(),
+			ConnectionPools: getHTTPConnectionPools(),
+		},
+		SystemDetails: SystemHealthDetails{
+			FileDescriptors: struct {
+				Used     int `json:"used"`
+				Max      int `json:"max"`
+				Percent  float64 `json:"percent"`
+			}{
+				Used:    fdUsed,
+				Max:     fdMax,
+				Percent: float64(fdUsed) / float64(fdMax) * 100,
+			},
+			ServiceDependencies: checkServiceDependencies(),
+			Certificates:        checkCertificates(),
+		},
+		Timestamp: timestamp,
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}
+
+func getProcessMonitorHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	zombieProcesses := getZombieProcesses()
+	highThreadProcesses := getHighThreadCountProcesses()
+	leakCandidates := getResourceLeakCandidates()
+	resourceMatrix := getTopProcessesByCPU(10) // Top 10 for resource matrix
+	
+	response := ProcessMonitorResponse{
+		ProcessHealth: struct {
+			TotalProcesses int           `json:"total_processes"`
+			ZombieProcesses []ProcessInfo `json:"zombie_processes"`
+			HighThreadCount []ProcessInfo `json:"high_thread_count"`
+			LeakCandidates  []ProcessInfo `json:"leak_candidates"`
+		}{
+			TotalProcesses: getTotalProcessCount(),
+			ZombieProcesses: zombieProcesses,
+			HighThreadCount: highThreadProcesses,
+			LeakCandidates: leakCandidates,
+		},
+		ResourceMatrix: resourceMatrix,
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}
+
+func getInfrastructureMonitorHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	response := InfrastructureMonitorResponse{
+		DatabasePools:   getDatabasePools(),
+		HTTPClientPools: getHTTPConnectionPools(),
+		MessageQueues: struct {
+			RedisPubSub struct {
+				Subscribers int `json:"subscribers"`
+				Channels    int `json:"channels"`
+			} `json:"redis_pubsub"`
+			BackgroundJobs struct {
+				Pending   int `json:"pending"`
+				Active    int `json:"active"`
+				Failed    int `json:"failed"`
+			} `json:"background_jobs"`
+		}{
+			RedisPubSub:    getRedisPubSubStats(),
+			BackgroundJobs: getBackgroundJobStats(),
+		},
+		StorageIO: getStorageIOStats(),
+		Timestamp: time.Now().Format(time.RFC3339),
+	}
+	
+	json.NewEncoder(w).Encode(response)
+}
+
+// Additional helper functions for detailed metrics
+func getTotalGoroutines() int {
+	// Mock implementation - in reality you'd sum up goroutines from all Go processes
+	return 0
+}
+
+func getMemoryGrowthPatterns() []struct {
+	Process   string  `json:"process"`
+	GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
+	RiskLevel string  `json:"risk_level"`
+} {
+	// Mock implementation - in reality you'd track memory usage over time
+	return []struct {
+		Process   string  `json:"process"`
+		GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
+		RiskLevel string  `json:"risk_level"`
+	}{
+		{Process: "scenario-api-1", GrowthMBPerHour: 15.0, RiskLevel: "medium"},
+		{Process: "postgres", GrowthMBPerHour: 2.0, RiskLevel: "low"},
+	}
+}
+
+func getSwapUsage() struct {
+	Used    int64   `json:"used"`
+	Total   int64   `json:"total"`
+	Percent float64 `json:"percent"`
+} {
+	cmd := exec.Command("bash", "-c", "free -b | grep Swap | awk '{print $2, $3}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return struct {
+			Used    int64   `json:"used"`
+			Total   int64   `json:"total"`
+			Percent float64 `json:"percent"`
+		}{0, 0, 0.0}
+	}
+	
+	fields := strings.Fields(strings.TrimSpace(string(output)))
+	if len(fields) < 2 {
+		return struct {
+			Used    int64   `json:"used"`
+			Total   int64   `json:"total"`
+			Percent float64 `json:"percent"`
+		}{0, 0, 0.0}
+	}
+	
+	total, _ := strconv.ParseInt(fields[0], 10, 64)
+	used, _ := strconv.ParseInt(fields[1], 10, 64)
+	percent := 0.0
+	if total > 0 {
+		percent = float64(used) / float64(total) * 100
+	}
+	
+	return struct {
+		Used    int64   `json:"used"`
+		Total   int64   `json:"total"`
+		Percent float64 `json:"percent"`
+	}{used, total, percent}
+}
+
+func getDiskUsage() struct {
+	Used    int64   `json:"used"`
+	Total   int64   `json:"total"`
+	Percent float64 `json:"percent"`
+} {
+	cmd := exec.Command("bash", "-c", "df -B1 / | tail -1 | awk '{print $2, $3}'")
+	output, err := cmd.Output()
+	if err != nil {
+		return struct {
+			Used    int64   `json:"used"`
+			Total   int64   `json:"total"`
+			Percent float64 `json:"percent"`
+		}{0, 0, 0.0}
+	}
+	
+	fields := strings.Fields(strings.TrimSpace(string(output)))
+	if len(fields) < 2 {
+		return struct {
+			Used    int64   `json:"used"`
+			Total   int64   `json:"total"`
+			Percent float64 `json:"percent"`
+		}{0, 0, 0.0}
+	}
+	
+	total, _ := strconv.ParseInt(fields[0], 10, 64)
+	used, _ := strconv.ParseInt(fields[1], 10, 64)
+	percent := 0.0
+	if total > 0 {
+		percent = float64(used) / float64(total) * 100
+	}
+	
+	return struct {
+		Used    int64   `json:"used"`
+		Total   int64   `json:"total"`
+		Percent float64 `json:"percent"`
+	}{used, total, percent}
+}
+
+func getPortUsage() struct {
+	Used  int `json:"used"`
+	Total int `json:"total"`
+} {
+	// Count used ephemeral ports
+	cmd := exec.Command("bash", "-c", "netstat -tn 2>/dev/null | grep -E ':([3-6][0-9]{4})' | wc -l")
+	output, err := cmd.Output()
+	used := 0
+	if err == nil {
+		used, _ = strconv.Atoi(strings.TrimSpace(string(output)))
+	}
+	
+	// Typical ephemeral port range is 32768-65535
+	return struct {
+		Used  int `json:"used"`
+		Total int `json:"total"`
+	}{used, 32767}
+}
+
+func getNetworkStats() NetworkStats {
+	// Mock implementation - in reality you'd read from /proc/net/dev
+	return NetworkStats{
+		BandwidthInMbps:  12.5,
+		BandwidthOutMbps: 8.2,
+		PacketLoss:       0.1,
+		DNSSuccessRate:   99.2,
+		DNSLatencyMs:     15.0,
+	}
+}
+
+func getHTTPConnectionPools() []ConnectionPoolInfo {
+	// Mock implementation - in reality you'd query application metrics
+	return []ConnectionPoolInfo{
+		{
+			Name:     "scenario-api-1->ollama",
+			Active:   3,
+			Idle:     7,
+			MaxSize:  10,
+			Waiting:  0,
+			Healthy:  true,
+			LeakRisk: "low",
+		},
+		{
+			Name:     "scenario-api-2->n8n",
+			Active:   10,
+			Idle:     0,
+			MaxSize:  10,
+			Waiting:  5,
+			Healthy:  false,
+			LeakRisk: "high",
+		},
+	}
+}
+
+func checkServiceDependencies() []ServiceHealth {
+	// Check common services
+	services := []struct {
+		name     string
+		endpoint string
+	}{
+		{"postgres", "localhost:5432"},
+		{"redis", "localhost:6379"},
+		{"n8n", "localhost:5678"},
+		{"ollama", "localhost:11434"},
+	}
+	
+	var results []ServiceHealth
+	for _, service := range services {
+		status := "healthy"
+		latency := 0.0
+		
+		// Quick TCP connection test
+		start := time.Now()
+		cmd := exec.Command("timeout", "2", "bash", "-c", 
+			fmt.Sprintf("echo > /dev/tcp/%s", service.endpoint))
+		err := cmd.Run()
+		latency = float64(time.Since(start).Milliseconds())
+		
+		if err != nil {
+			status = "unhealthy"
+			latency = -1
+		}
+		
+		results = append(results, ServiceHealth{
+			Name:      service.name,
+			Status:    status,
+			LatencyMs: latency,
+			LastCheck: time.Now().Format(time.RFC3339),
+			Endpoint:  service.endpoint,
+		})
+	}
+	
+	return results
+}
+
+func checkCertificates() []CertificateInfo {
+	// Mock implementation - in reality you'd check actual certificates
+	return []CertificateInfo{
+		{
+			Domain:       "api.local",
+			DaysToExpiry: 89,
+			Status:       "valid",
+		},
+	}
+}
+
+func getZombieProcesses() []ProcessInfo {
+	// Find zombie processes
+	cmd := exec.Command("bash", "-c", "ps -eo pid,comm,stat | grep ' Z' | head -10")
+	output, err := cmd.Output()
+	if err != nil {
+		return []ProcessInfo{}
+	}
+	
+	var zombies []ProcessInfo
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			pid, _ := strconv.Atoi(fields[0])
+			zombies = append(zombies, ProcessInfo{
+				PID:    pid,
+				Name:   fields[1],
+				Status: "zombie",
+			})
+		}
+	}
+	
+	return zombies
+}
+
+func getHighThreadCountProcesses() []ProcessInfo {
+	// Find processes with high thread counts
+	cmd := exec.Command("bash", "-c", "ps -eo pid,comm,nlwp --sort=-nlwp --no-headers | head -5")
+	output, err := cmd.Output()
+	if err != nil {
+		return []ProcessInfo{}
+	}
+	
+	var processes []ProcessInfo
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		
+		fields := strings.Fields(line)
+		if len(fields) >= 3 {
+			pid, _ := strconv.Atoi(fields[0])
+			threads, _ := strconv.Atoi(fields[2])
+			
+			if threads > 20 { // Only include processes with >20 threads
+				processes = append(processes, ProcessInfo{
+					PID:     pid,
+					Name:    fields[1],
+					Threads: threads,
+					Status:  "high_threads",
+				})
+			}
+		}
+	}
+	
+	return processes
+}
+
+func getResourceLeakCandidates() []ProcessInfo {
+	// Mock implementation - in reality you'd analyze FD growth, memory growth, etc.
+	return []ProcessInfo{
+		{
+			PID:    1234,
+			Name:   "scenario-api-1",
+			Status: "fd_leak_risk",
+			FDs:    512,
+		},
+	}
+}
+
+func getTotalProcessCount() int {
+	cmd := exec.Command("bash", "-c", "ps -e --no-headers | wc -l")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+	
+	count, _ := strconv.Atoi(strings.TrimSpace(string(output)))
+	return count
+}
+
+func getDatabasePools() []ConnectionPoolInfo {
+	// Mock implementation - in reality you'd query database metrics
+	return []ConnectionPoolInfo{
+		{
+			Name:     "postgres-main",
+			Active:   8,
+			Idle:     2,
+			MaxSize:  10,
+			Waiting:  0,
+			Healthy:  true,
+			LeakRisk: "low",
+		},
+		{
+			Name:     "redis-main",
+			Active:   45,
+			Idle:     55,
+			MaxSize:  100,
+			Waiting:  0,
+			Healthy:  true,
+			LeakRisk: "low",
+		},
+	}
+}
+
+func getRedisPubSubStats() struct {
+	Subscribers int `json:"subscribers"`
+	Channels    int `json:"channels"`
+} {
+	// Mock implementation
+	return struct {
+		Subscribers int `json:"subscribers"`
+		Channels    int `json:"channels"`
+	}{12, 5}
+}
+
+func getBackgroundJobStats() struct {
+	Pending   int `json:"pending"`
+	Active    int `json:"active"`
+	Failed    int `json:"failed"`
+} {
+	// Mock implementation
+	return struct {
+		Pending   int `json:"pending"`
+		Active    int `json:"active"`
+		Failed    int `json:"failed"`
+	}{3, 1, 0}
+}
+
+func getStorageIOStats() struct {
+	DiskQueueDepth float64 `json:"disk_queue_depth"`
+	IOWaitPercent  float64 `json:"io_wait_percent"`
+	ReadMBPerSec   float64 `json:"read_mb_per_sec"`
+	WriteMBPerSec  float64 `json:"write_mb_per_sec"`
+} {
+	// Get I/O wait from /proc/stat
+	cmd := exec.Command("bash", "-c", "grep '^cpu ' /proc/stat | awk '{print ($5/($2+$3+$4+$5+$6+$7+$8))*100}'")
+	output, err := cmd.Output()
+	iowait := 0.0
+	if err == nil {
+		iowait, _ = strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+	}
+	
+	return struct {
+		DiskQueueDepth float64 `json:"disk_queue_depth"`
+		IOWaitPercent  float64 `json:"io_wait_percent"`
+		ReadMBPerSec   float64 `json:"read_mb_per_sec"`
+		WriteMBPerSec  float64 `json:"write_mb_per_sec"`
+	}{0.2, iowait, 15.0, 8.0}
 }

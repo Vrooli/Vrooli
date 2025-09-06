@@ -24,44 +24,13 @@
       }
     },
 
-    "n8n": {
-      "host": "localhost",
-      "port": "${N8N_PORT}",
-      "protocol": "http",
-      "base_url": "http://localhost:${N8N_PORT}",
-      "admin_url": "http://localhost:${N8N_PORT}",
-      "api": {
-        "base": "/api/v1",
-        "endpoints": {
-          "workflows": "/api/v1/workflows",
-          "executions": "/api/v1/executions", 
-          "credentials": "/api/v1/credentials"
-        }
-      },
-      "webhooks": {
-        "base": "/webhook",
-        "endpoints": {
-          "generate_scenario": "/webhook/generate-scenario",
-          "main_pipeline": "/webhook/main-pipeline",
-          "planning_workflow": "/webhook/planning-workflow",
-          "implementation_workflow": "/webhook/implementation-workflow",
-          "validation_workflow": "/webhook/validation-workflow"
-        }
-      },
-      "health_check": {
-        "type": "http",
-        "endpoint": "http://localhost:${N8N_PORT}/healthz",
-        "timeout_ms": 5000
-      }
-    },
 
-
-    "claude_code": {
-      "type": "cli",
-      "command": "claude",
-      "available": "${CLAUDE_CODE_AVAILABLE}",
-      "version_command": "claude --version",
-      "test_command": "claude chat --help",
+    "vrooli_claude": {
+      "type": "vrooli_resource",
+      "command": "vrooli resource claude",
+      "available": true,
+      "version_command": "vrooli resource claude --version",
+      "test_command": "echo 'test' | vrooli resource claude chat",
       "rate_limits": {
         "requests_per_minute": 20,
         "requests_per_hour": 200,
@@ -69,7 +38,7 @@
       },
       "health_check": {
         "type": "command",
-        "command": "claude --version",
+        "command": "vrooli resource claude --version",
         "timeout_ms": 10000,
         "success_pattern": "claude"
       }
@@ -124,31 +93,24 @@
       }
     },
 
-    "minio": {
+    "api_server": {
       "host": "localhost",
-      "port": "${MINIO_PORT}",
+      "port": "${API_PORT}",
       "protocol": "http",
-      "base_url": "http://localhost:${MINIO_PORT}",
-      "admin_url": "http://localhost:${MINIO_CONSOLE_PORT}",
+      "base_url": "http://localhost:${API_PORT}",
       "api": {
-        "base": "/",
+        "base": "/api",
         "endpoints": {
-          "bucket_ops": "/",
-          "object_ops": "/"
+          "health": "/health",
+          "scenarios": "/api/scenarios",
+          "generate": "/api/generate",
+          "backlog": "/api/backlog",
+          "templates": "/api/templates"
         }
-      },
-      "credentials": {
-        "access_key": "${MINIO_ACCESS_KEY}",
-        "secret_key": "${MINIO_SECRET_KEY}"
-      },
-      "buckets": {
-        "generated_scenarios": "scenario-generator",
-        "templates": "scenario-templates",
-        "cache": "scenario-cache"
       },
       "health_check": {
         "type": "http",
-        "endpoint": "http://localhost:${MINIO_PORT}/minio/health/ready",
+        "endpoint": "http://localhost:${API_PORT}/health",
         "timeout_ms": 5000
       }
     }
@@ -156,8 +118,8 @@
 
   "service_dependencies": {
     "scenario_generation": {
-      "required": ["postgres", "n8n", "claude_code"],
-      "optional": ["redis", "ollama", "minio"]
+      "required": ["postgres", "vrooli_claude"],
+      "optional": ["redis", "ollama"]
     },
     "template_system": {
       "required": ["postgres"],

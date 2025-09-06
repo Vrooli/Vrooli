@@ -152,6 +152,16 @@ body {
     transition: all 0.3s ease;
 }
 
+/* Expandable card styles */
+.metric-card.expandable {
+    cursor: pointer;
+}
+
+.metric-card.expanded {
+    border-color: var(--matrix-bright-green);
+    box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+}
+
 .metric-card:hover {
     border-color: var(--matrix-bright-green);
     box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
@@ -162,6 +172,41 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
+}
+
+.metric-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.alert-badge {
+    background: var(--danger-red);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    min-width: 20px;
+    text-align: center;
+    display: none; /* Hidden by default, shown when alerts > 0 */
+}
+
+.alert-badge.visible {
+    display: inline-block;
+}
+
+.expand-arrow {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    transition: transform 0.3s ease, color 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+}
+
+.expand-arrow.expanded {
+    transform: rotate(180deg);
+    color: var(--matrix-bright-green);
 }
 
 .metric-label {
@@ -502,6 +547,361 @@ body {
     opacity: 0.6;
     cursor: not-allowed;
     background: var(--text-dim) !important;
+}
+
+/* Expandable metric details */
+.metric-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--text-dim);
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.metric-details.expanded {
+    opacity: 1;
+    max-height: 500px;
+    overflow: visible;
+    display: block;
+}
+
+.detail-section {
+    margin-bottom: 1rem;
+}
+
+.detail-section h4 {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.detail-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex: 1;
+    min-width: 150px;
+}
+
+.detail-label {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+.detail-value {
+    color: var(--text-primary);
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+/* Process and connection lists */
+.process-list, .connection-states, .connection-pools, 
+.service-list, .certificate-list {
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--text-dim);
+    border-radius: 3px;
+    padding: 0.75rem;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.process-item, .connection-item, .service-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    font-size: 0.8rem;
+}
+
+.process-item:last-child, .connection-item:last-child, .service-item:last-child {
+    border-bottom: none;
+}
+
+.process-name, .service-name {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.process-stat, .service-stat {
+    color: var(--text-secondary);
+}
+
+.risk-high {
+    color: var(--danger-red);
+}
+
+.risk-medium {
+    color: var(--warning-orange);
+}
+
+.risk-low {
+    color: var(--success-green);
+}
+
+/* Growth patterns */
+.growth-patterns {
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--text-dim);
+    border-radius: 3px;
+    padding: 0.75rem;
+}
+
+.growth-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.8rem;
+}
+
+.growth-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Monitoring panels */
+.monitoring-panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 2rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.1);
+}
+
+.monitoring-panel .panel-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.monitoring-panel .panel-header:hover {
+    background: rgba(0, 255, 0, 0.05);
+}
+
+.panel-content {
+    padding: 1.5rem;
+    opacity: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.panel-content.expanded {
+    opacity: 1;
+    max-height: 1000px;
+    display: block;
+}
+
+.monitor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.monitor-section {
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--text-dim);
+    border-radius: 3px;
+    padding: 1rem;
+}
+
+.monitor-section h3 {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.health-stats, .queue-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.stat-item.alert {
+    color: var(--danger-red);
+}
+
+.stat-label {
+    color: var(--text-dim);
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+.stat-group {
+    margin-bottom: 1rem;
+}
+
+.stat-group h4 {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Process alerts and lists */
+.process-alerts, .thread-list, .leak-list, .pool-list {
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--text-dim);
+    border-radius: 3px;
+    padding: 0.75rem;
+    min-height: 80px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.alert-item, .thread-item, .leak-item, .pool-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    font-size: 0.85rem;
+}
+
+.alert-item.zombie {
+    border-left: 3px solid var(--danger-red);
+}
+
+.thread-item.high {
+    border-left: 3px solid var(--warning-orange);
+}
+
+.leak-item.critical {
+    border-left: 3px solid var(--danger-red);
+}
+
+.pool-item.unhealthy {
+    border-left: 3px solid var(--danger-red);
+}
+
+.pool-item.healthy {
+    border-left: 3px solid var(--success-green);
+}
+
+/* Resource matrix table */
+.resource-matrix {
+    margin-top: 2rem;
+}
+
+.matrix-table {
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--text-dim);
+    border-radius: 3px;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.matrix-header, .matrix-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    font-size: 0.8rem;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+}
+
+.matrix-header {
+    color: var(--text-secondary);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.matrix-row:last-child {
+    border-bottom: none;
+}
+
+.matrix-cell {
+    color: var(--text-primary);
+}
+
+/* Storage I/O section */
+.storage-io {
+    background: rgba(0, 255, 0, 0.05);
+    border: 1px solid var(--text-dim);
+    border-radius: 3px;
+    padding: 1rem;
+}
+
+.storage-io h3 {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.io-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* Clickable panels */
+.clickable {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Responsive adjustments for new elements */
+@media (max-width: 768px) {
+    .monitor-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .detail-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .detail-item {
+        min-width: auto;
+    }
+    
+    .matrix-header, .matrix-row {
+        grid-template-columns: repeat(3, 1fr);
+        font-size: 0.7rem;
+    }
+    
+    .io-stats {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Pulse animation for loading states */

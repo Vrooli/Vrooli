@@ -6,11 +6,9 @@ This scenario creates an autonomous scenario development pipeline that uses Clau
 ## Core Architecture
 
 ### Resources Required
-- **n8n** (5678): Orchestrate the entire generation pipeline 
 - **postgres** (5433): Store campaigns, scenarios, generation logs, and improvement analytics
-- **minio** (9000): Store generated scenario files, plans, and artifacts
 - **claude-code**: AI-driven scenario generation and refinement
-- **redis** (6380): Queue management and session caching
+- **redis** (6380): Queue management and session caching [optional]
 
 ### File Structure
 ```
@@ -19,11 +17,7 @@ scenario-generator-v1/
 ├── IMPLEMENTATION_PLAN.md            # This plan (for tracking progress)
 ├── initialization/
 │   ├── automation/
-│   │   ├── n8n/
-│   │   │   ├── main-pipeline.json           # Master orchestration workflow
-│   │   │   ├── planning-workflow.json       # Plan generation & refinement
-│   │   │   ├── building-workflow.json       # Scenario implementation
-│   │   │   └── validation-workflow.json     # Testing & deployment
+│   │   └── triggers.yaml             # Pipeline automation configuration
 │   ├── configuration/
 │   │   ├── app-config.json           # UI settings, generation parameters
 │   │   ├── claude-prompts.json       # All prompt templates
@@ -50,11 +44,11 @@ scenario-generator-v1/
 - [ ] Design PostgreSQL schema for campaigns, scenarios, analytics
 - [ ] Create basic configuration files
 
-### Phase 2: Core Pipeline Workflows
-- [ ] Create master orchestration n8n workflow
-- [ ] Build planning workflow (generation + refinement loops)
-- [ ] Build implementation workflow (coding + bug fixing loops) 
-- [ ] Build validation workflow (dry-run + deployment)
+### Phase 2: Core Pipeline Implementation
+- [x] Create Go-based pipeline orchestrator
+- [x] Build planning phase with iterative refinement
+- [x] Build implementation phase with code generation
+- [x] Build validation phase with testing and fixes
 
 ### Phase 3: User Interface
 - [ ] Complete React UI with scenario management
@@ -80,8 +74,8 @@ scenario-generator-v1/
 
 **Step 1: Initial Planning**
 - User enters scenario request in React web interface
-- n8n triggers Claude Code with comprehensive planning prompt
-- Generated plan stored in MinIO with version control
+- Pipeline triggers Claude via `resource-claude-code` with comprehensive planning prompt
+- Generated plan analyzed for quality and completeness
 - Plan metadata stored in PostgreSQL
 
 **Step 2: Plan Refinement Loop** (configurable 1-5 iterations)
@@ -201,13 +195,13 @@ Use this checklist to track implementation progress:
 - [ ] service.json created with all required resources
 - [ ] PostgreSQL schema designed and tested
 - [ ] Basic configuration files created
-- [ ] MinIO bucket structure established
+- [ ] File storage structure established
 
-### Workflows (Phase 2)
-- [ ] Master orchestration workflow implemented
-- [ ] Planning workflow with refinement loops
-- [ ] Implementation workflow with bug fixing
-- [ ] Validation workflow with deployment
+### Pipeline (Phase 2)
+- [ ] Master pipeline orchestrator implemented
+- [ ] Planning phase with refinement loops
+- [ ] Implementation phase with bug fixing
+- [ ] Validation phase with deployment
 
 ### UI (Phase 3)
 - [ ] React application with tab navigation

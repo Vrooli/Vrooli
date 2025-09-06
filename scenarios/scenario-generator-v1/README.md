@@ -22,25 +22,23 @@ The Scenario Generator V1 transforms customer requests into fully functional Vro
 ## 🏗️ Architecture
 
 ### Resources Used
-- **n8n** (5678): Orchestrates the entire generation pipeline 
 - **postgres** (5433): Stores campaigns, scenarios, generation logs, and improvement analytics
-- **minio** (9000): Stores generated scenario files, plans, and artifacts
-- **claude-code**: AI-driven scenario generation and refinement
-- **redis** (6380): Queue management and session caching
+- **claude-code**: AI-driven scenario generation and refinement via Vrooli's Claude Code integration
+- **redis** (6380): Queue management and session caching (optional)
 
 ### Pipeline Phases
 
 #### 1. Planning Phase
 - User submits scenario request through React web interface
-- Claude Code analyzes requirements and creates implementation plan
+- Claude analyzes requirements via `vrooli resource claude` and creates implementation plan
 - Configurable refinement iterations (1-5) improve plan quality
-- Final plan stored in MinIO with complete architecture and specifications
+- Final plan includes complete architecture and specifications
 
 #### 2. Implementation Phase  
-- Claude Code generates all scenario files from refined plan
-- Includes database schemas, workflows, configurations, and documentation
+- Claude generates all scenario files from refined plan via `vrooli resource claude`
+- Includes database schemas, API code, configurations, and documentation
 - Bug fixing iterations (1-5) improve code quality and completeness
-- All generated files stored in MinIO with version control
+- All generated files tracked and managed by the pipeline
 
 #### 3. Validation Phase
 - Direct scenario validation using `vrooli scenario test`
@@ -58,10 +56,9 @@ The Scenario Generator V1 transforms customer requests into fully functional Vro
 ### Prerequisites
 Ensure the following resources are available:
 - PostgreSQL (port 5433)
-- n8n (port 5678) 
-- MinIO (port 9000)
-- Redis (port 6380)
-- Claude Code CLI installed and authenticated
+- Redis (port 6380) [optional]
+- Vrooli installation with Claude resource configured
+- Go 1.21+ for API compilation
 
 ### Deployment
 
@@ -184,10 +181,6 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=
 
 # Service Endpoints  
-N8N_HOST=localhost
-N8N_PORT=5678
-MINIO_HOST=localhost
-MINIO_PORT=9000
 REDIS_HOST=localhost
 REDIS_PORT=6380
 
@@ -214,7 +207,7 @@ CLAUDE_CODE_AVAILABLE=true
 
 ### Test Coverage
 - Database schema and connectivity
-- n8n workflow validation
+- Pipeline orchestration validation
 - React UI functionality
 - Claude Code integration
 - File structure and JSON validity
@@ -239,7 +232,7 @@ The system automatically learns from:
 
 **Common Issues:**
 - **Claude Code Authentication**: Run `claude auth login` to authenticate
-- **Workflow Failures**: Check n8n logs for execution errors
+- **Pipeline Failures**: Check API logs for execution errors
 - **Database Connection**: Verify PostgreSQL credentials and connectivity
 - **Validation Errors**: Review direct scenario test output for specific issues
 
@@ -248,13 +241,13 @@ The system automatically learns from:
 # Check Claude Code status
 resource-claude-code status
 
-# View n8n workflows
-curl http://localhost:5678/api/v1/workflows
+# View API health
+curl http://localhost:8080/health
 
 # Check database connectivity
 psql -h localhost -p 5433 -U postgres -d vrooli -c "SELECT COUNT(*) FROM scenarios;"
 
-# Monitor Redis queues
+# Monitor Redis queues (if enabled)
 redis-cli -p 6380 LLEN scenario-planning-queue
 ```
 
@@ -316,7 +309,7 @@ To extend the Scenario Generator V1:
 1. **Add New Prompt Templates**: Create specialized prompts for specific scenario types
 2. **Enhance Pattern Learning**: Improve the analytics and learning algorithms
 3. **Extend Validation**: Add more comprehensive testing and quality checks
-4. **Optimize Workflows**: Improve n8n workflow efficiency and error handling
+4. **Optimize Pipeline**: Improve generation pipeline efficiency and error handling
 5. **Expand UI Features**: Add more dashboard capabilities and user experience improvements
 
 The modular architecture makes it easy to enhance individual components without affecting the overall system.

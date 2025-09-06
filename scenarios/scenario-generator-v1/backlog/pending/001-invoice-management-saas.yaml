@@ -23,7 +23,7 @@ prompt: |
   Technical Requirements:
   - PostgreSQL for data storage
   - Redis for caching and session management
-  - n8n for workflow automation
+  - Claude Code for AI-powered features
   - React frontend with modern UI/UX
   - RESTful API design
   - PDF generation for invoices
@@ -57,7 +57,6 @@ metadata:
 resources_required:
   - postgres
   - redis
-  - n8n
   - claude-code
   - minio
 

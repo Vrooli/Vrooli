@@ -34,9 +34,16 @@ warn() {
 test_api_health() {
     info "Testing API health endpoint..."
     
-    if curl -sf "http://localhost:$API_PORT/health" > /dev/null; then
-        success "API health check passed"
-        return 0
+    response=$(curl -sf "http://localhost:$API_PORT/health" 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        # Check if pipeline is active
+        if echo "$response" | grep -q '"pipeline":"active"'; then
+            success "API health check passed - Pipeline active"
+            return 0
+        else
+            warn "API running but pipeline status unknown"
+            return 1
+        fi
     else
         error "API health check failed"
         return 1

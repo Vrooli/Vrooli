@@ -160,7 +160,7 @@
       "description": "Start retro game launcher with custom UI and Go API",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./retro-game-launcher-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -221,22 +221,22 @@
       ]
     },
     "stop": {
-      "description": "Stop retro game launcher services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'retro-game-launcher-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'react-scripts' || true",
-          "description": "Stop React UI development server"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.retro-game-launcher.start-api\" 2>/dev/null || pkill -f \"retro-game-launcher-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Retro Game Launcher services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.retro-game-launcher.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

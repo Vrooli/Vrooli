@@ -370,6 +370,15 @@
       "validated": false,
       "enabled": true,
       "ui": true
+    },
+    {
+      "name": "data-backup-manager",
+      "description": "Comprehensive backup and data governance system for all Vrooli resources and scenarios with automated scheduling and compliance monitoring",
+      "location": "data-backup-manager",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
     }
   ]
 }

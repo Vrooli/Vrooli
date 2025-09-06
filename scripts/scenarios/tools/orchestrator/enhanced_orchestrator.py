@@ -148,6 +148,9 @@ class EnhancedAppOrchestrator:
         self.api_server = None
         self.api_thread = None
         
+        # Load resource ports for RESOURCE_PORTS expansion
+        self.resource_ports = self.load_resource_ports()
+        
         # Setup logging
         self.setup_logging()
         
@@ -183,8 +186,7 @@ class EnhancedAppOrchestrator:
                 
                 if config_path.exists():
                     try:
-                        with open(config_path) as f:
-                            config = json.load(f)
+                        config = self.load_service_json(config_path)
                         
                         app_name = scenario_dir.name
                         enabled = config.get("enabled", True)  # Default to enabled
@@ -334,8 +336,7 @@ class EnhancedAppOrchestrator:
                 config_path = self.scenarios_dir / app_name / ".vrooli" / "service.json"
                 if config_path.exists():
                     try:
-                        with open(config_path) as f:
-                            config = json.load(f)
+                        config = self.load_service_json(config_path)
                         # For running apps, load ALL ports from config (not just available ones)
                         ports_config = config.get("ports", {})
                         allocated = {}
@@ -520,9 +521,8 @@ class EnhancedAppOrchestrator:
             timeout = 60.0  # Default timeout increased from 10 to 60 seconds
             if config_path.exists():
                 try:
-                    with open(config_path) as f:
-                        config = json.load(f)
-                        # Check for lifecycle.timeout or startup_timeout in config
+                    config = self.load_service_json(config_path)
+                    # Check for lifecycle.timeout or startup_timeout in config
                         timeout = float(config.get('lifecycle', {}).get('timeout', 
                                       config.get('startup_timeout', timeout)))
                 except:
@@ -671,9 +671,8 @@ class EnhancedAppOrchestrator:
             return None
             
         try:
-            with open(config_path) as f:
-                config = json.load(f)
-                return config.get("lifecycle", {}).get("health", None)
+            config = self.load_service_json(config_path)
+            return config.get("lifecycle", {}).get("health", None)
         except:
             return None
     
@@ -752,6 +751,83 @@ class EnhancedAppOrchestrator:
                 # Legacy format (just the port number)
                 port_env[f"{port_type.upper()}_PORT"] = str(port_config)
         return port_env
+    
+    def load_resource_ports(self) -> Dict[str, str]:
+        """Load RESOURCE_PORTS mapping from port_registry.sh"""
+        resource_ports = {}
+        port_registry_path = self.vrooli_root / "scripts" / "resources" / "port_registry.sh"
+        
+        if not port_registry_path.exists():
+            self.logger.warning(f"Port registry not found at {port_registry_path}")
+            return resource_ports
+        
+        try:
+            # Execute the port registry script to extract RESOURCE_PORTS array
+            import subprocess
+            
+            script = f"""
+            source {port_registry_path}
+            # Print all RESOURCE_PORTS entries
+            for key in "${{!RESOURCE_PORTS[@]}}"; do
+                echo "$key=${{RESOURCE_PORTS[$key]}}"
+            done
+            """
+            
+            result = subprocess.run(
+                ["bash", "-c", script],
+                capture_output=True,
+                text=True,
+                cwd=str(self.vrooli_root)
+            )
+            
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if '=' in line and line.strip():
+                        key, value = line.split('=', 1)
+                        resource_ports[key] = value
+                        
+                self.logger.debug(f"Loaded {len(resource_ports)} resource ports")
+            else:
+                self.logger.warning(f"Failed to load port registry: {result.stderr}")
+                
+        except Exception as e:
+            self.logger.warning(f"Failed to load port registry: {e}")
+        
+        return resource_ports
+    
+    def expand_resource_ports(self, content: str) -> str:
+        """Expand ${RESOURCE_PORTS[...]} syntax in service.json content"""
+        import re
+        
+        def replace_match(match):
+            resource_name = match.group(1)
+            if resource_name in self.resource_ports:
+                return self.resource_ports[resource_name]
+            else:
+                self.logger.warning(f"Unknown resource port: {resource_name}")
+                return match.group(0)  # Return original if not found
+        
+        # Replace ${RESOURCE_PORTS[resource_name]} with actual port
+        expanded = re.sub(r'\$\{RESOURCE_PORTS\[([^}]+)\]\}', replace_match, content)
+        return expanded
+    
+    def load_service_json(self, config_path: Path) -> dict:
+        """Load and preprocess service.json with RESOURCE_PORTS expansion"""
+        try:
+            with open(config_path, 'r') as f:
+                raw_content = f.read()
+            
+            # Expand RESOURCE_PORTS references
+            expanded_content = self.expand_resource_ports(raw_content)
+            
+            # Parse JSON
+            import json
+            config = json.loads(expanded_content)
+            return config
+            
+        except Exception as e:
+            self.logger.error(f"Failed to load service.json from {config_path}: {e}")
+            return {}
     
     def _check_http(self, target: str, timeout_ms: int = 5000, method: str = "GET", expected_status: List[int] = None, app_name: str = None) -> Tuple[str, str]:
         """Perform HTTP health check"""

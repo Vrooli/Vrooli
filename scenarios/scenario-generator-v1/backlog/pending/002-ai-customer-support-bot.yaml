@@ -58,7 +58,7 @@ resources_required:
   - qdrant
   - postgres
   - redis
-  - n8n
+  - claude-code
 
 validation_criteria:
   - "Chatbot responds accurately to common queries"

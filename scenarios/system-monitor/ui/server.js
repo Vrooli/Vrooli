@@ -71,15 +71,8 @@ app.use(express.static(__dirname, {
     }
 }));
 
-// Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'system-monitor',
-        port: PORT,
-        timestamp: new Date().toISOString()
-    });
-});
+// Health check endpoint for orchestrator - removed to avoid conflict with API proxy
+// All /health requests should be forwarded to the API via the proxy above
 
 
 // Serve script.js with same-origin URL injection

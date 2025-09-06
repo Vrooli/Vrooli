@@ -47,11 +47,16 @@ type SearchResponse struct {
 }
 
 func loadConfig() *Config {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	
 	return &Config{
 		Port:          getEnv("API_PORT", getEnv("PORT", "")),
 		N8NBaseURL:    getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
-		PostgresURL:   getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/resume_screening"),
+		PostgresURL:   postgresURL,
 		QdrantURL:     getEnv("QDRANT_URL", "http://localhost:6333"),
 	}
 }

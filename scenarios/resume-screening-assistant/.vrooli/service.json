@@ -175,7 +175,7 @@
       "description": "Start resume screening assistant with Go API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./resume-screening-assistant-api",
           "description": "Start Go coordination API server in background",
           "background": true,
@@ -184,7 +184,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -238,22 +238,22 @@
       ]
     },
     "stop": {
-      "description": "Stop resume screening assistant services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'resume-screening-assistant-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node.*server.js' || true",
-          "description": "Stop UI server process"
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.resume-screening-assistant.start-api\" 2>/dev/null || pkill -f \"resume-screening-assistant-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Resume Screening Assistant services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.resume-screening-assistant.start-ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

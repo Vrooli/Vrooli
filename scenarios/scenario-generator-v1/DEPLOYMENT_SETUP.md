@@ -4,54 +4,26 @@ This guide provides step-by-step instructions for setting up the Scenario Genera
 
 ## Prerequisites
 
-- n8n instance running and accessible at `http://localhost:5678`
 - PostgreSQL database running and accessible
-- MinIO running and accessible
 - Redis running (optional but recommended)
-- Claude Code CLI installed and authenticated
+- Vrooli installation with Claude resource configured
+- Go 1.21+ for compiling the API
 
-## Required Credentials Setup
+## Database Setup
 
-Before deploying the scenario, you must configure the following credentials in your n8n instance:
+### PostgreSQL Configuration
 
-### 1. PostgreSQL Credential
+Ensure PostgreSQL is running and create the required database:
 
-1. Open n8n web interface at `http://localhost:5678`
-2. Go to **Settings** → **Credentials**
-3. Click **+ Create New**
-4. Select **PostgreSQL** credential type
-5. Configure with these details:
-   - **Name**: `PostgreSQL - Scenario Generator`
-   - **ID**: `postgres-scenario-generator`
-   - **Host**: `localhost` (or your PostgreSQL host)
-   - **Port**: `5433` (or your PostgreSQL port)
-   - **Database**: `vrooli` (or your database name)
-   - **User**: `postgres` (or your username)
-   - **Password**: Your PostgreSQL password
-   - **SSL**: `false` (unless you're using SSL)
+```bash
+psql -U postgres -c "CREATE DATABASE vrooli;"
+```
 
-### 2. MinIO S3 Credential
+### Initialize Schema
 
-1. In n8n, create a new **S3** credential
-2. Configure with these details:
-   - **Name**: `MinIO - Scenario Generator`
-   - **ID**: `minio-scenario-generator`
-   - **Access Key ID**: Your MinIO access key
-   - **Secret Access Key**: Your MinIO secret key
-   - **Region**: `us-east-1` (or your preferred region)
-   - **Custom Endpoint**: `http://localhost:9000` (or your MinIO URL)
-   - **Force Path Style**: `true` (important for MinIO)
-
-### 3. Redis Credential (Optional)
-
-1. In n8n, create a new **Redis** credential
-2. Configure with these details:
-   - **Name**: `Redis - Scenario Generator`
-   - **ID**: `redis-scenario-generator`
-   - **Host**: `localhost` (or your Redis host)
-   - **Port**: `6380` (or your Redis port)
-   - **Password**: Your Redis password (if set)
-   - **Database**: `0`
+```bash
+psql -U postgres -d vrooli < initialization/postgres/schema.sql
+```
 
 ## Environment Variables
 
@@ -64,10 +36,7 @@ export POSTGRES_PORT="5433"
 export POSTGRES_DB="vrooli"
 export POSTGRES_USER="postgres"
 export POSTGRES_PASSWORD="your_password"
-export N8N_HOST="localhost"
-export N8N_PORT="5678"
-export MINIO_HOST="localhost"
-export MINIO_PORT="9000"
+export API_PORT="8080"
 export REDIS_HOST="localhost"
 export REDIS_PORT="6380"
 ```
@@ -86,13 +55,12 @@ export REDIS_PORT="6380"
    ./deployment/startup.sh deploy
    ```
 
-3. **Import n8n Workflows**:
-   - The workflows should be automatically imported during deployment
-   - If manual import is needed:
-     1. Open n8n at `http://localhost:5678`
-     2. Go to **Workflows**
-     3. Click **Import from file**
-     4. Import each workflow from `initialization/automation/n8n/`
+3. **Build and Start API**:
+   ```bash
+   cd api
+   go build -o scenario-generator-api
+   ./scenario-generator-api
+   ```
 
 4. **Verify Deployment**:
    ```bash
@@ -102,17 +70,18 @@ export REDIS_PORT="6380"
 
 ## Troubleshooting
 
-### Credential Errors
-If workflows fail with credential errors:
+### Pipeline Errors
+If generation fails:
 
-1. **Check credential IDs**: Ensure the credential IDs in n8n match exactly:
-   - `postgres-scenario-generator`
-   - `minio-scenario-generator` 
-   - `redis-scenario-generator`
+1. **Check Vrooli Claude Resource**: Ensure `vrooli resource claude` command works:
+   ```bash
+   echo "Hello" | vrooli resource claude chat
+   ```
 
-2. **Test connections**: In n8n, test each credential connection before saving
-
-3. **Check permissions**: Ensure database user has sufficient permissions for the scenario schema
+2. **Check Database Connection**: Verify PostgreSQL is accessible:
+   ```bash
+   psql -h localhost -p 5433 -U postgres -d vrooli
+   ```
 
 ### Service Connection Issues
 
@@ -120,26 +89,24 @@ If workflows fail with credential errors:
    - Verify connection: `psql -h localhost -p 5433 -U postgres -d vrooli`
    - Check if database exists and schema is applied
 
-2. **MinIO**:
-   - Verify connection: `curl http://localhost:9000/minio/health/live`
-   - Check if buckets exist (they should be auto-created)
+2. **API Service**:
+   - Verify API is running: `curl http://localhost:8080/health`
+   - Check pipeline status in health response
 
 3. **Claude Code**:
    - Verify installation: `claude --version`
    - Check authentication: `claude auth whoami`
 
-### Workflow Import Issues
+### API Build Issues
 
-1. **Manual Import**: If automatic import fails, import workflows manually:
+1. **Go Module Dependencies**: Update dependencies if needed:
    ```bash
-   # Using n8n CLI (if installed)
-   n8n import:workflow --file=initialization/automation/n8n/main-workflow.json
-   n8n import:workflow --file=initialization/automation/n8n/planning-workflow.json  
-   n8n import:workflow --file=initialization/automation/n8n/building-workflow.json
-   n8n import:workflow --file=initialization/automation/n8n/validation-workflow.json
+   cd api
+   go mod tidy
+   go mod download
    ```
 
-2. **Credential References**: After import, check that all nodes have their credentials properly assigned
+2. **Pipeline Package**: Ensure pipeline package is properly imported and compiled
 
 ## Usage
 
@@ -155,9 +122,9 @@ Once deployed successfully:
    - Click "Generate Scenario"
 
 3. **Monitor Progress**:
-   - View workflow execution in n8n at `http://localhost:5678`
-   - Check database for scenario progress updates
-   - Monitor MinIO buckets for generated files
+   - View API logs for generation progress
+   - Check database for scenario status updates
+   - Monitor backlog folders for item movement
 
 ## Support
 

@@ -28,45 +28,261 @@
         <div class="container">
             <!-- Real-time Metrics Grid -->
             <section class="metrics-grid">
-                <div class="metric-card">
+                <!-- CPU & Processing Card -->
+                <div class="metric-card expandable" id="cpu-card" onclick="toggleCard('cpu')">
                     <div class="metric-header">
                         <span class="metric-label">CPU USAGE</span>
-                        <span class="metric-unit">%</span>
+                        <div class="metric-header-right">
+                            <span class="alert-badge" id="cpu-alerts">0</span>
+                            <span class="metric-unit">%</span>
+                            <span class="expand-arrow" id="cpu-arrow">▼</span>
+                        </div>
                     </div>
                     <div class="metric-value" id="cpu-value">--</div>
                     <div class="metric-bar">
                         <div class="metric-fill" id="cpu-fill"></div>
                     </div>
+                    
+                    <!-- Expandable Content -->
+                    <div class="metric-details" id="cpu-details" style="display: none;">
+                        <div class="detail-section">
+                            <h4>Top Processes by CPU:</h4>
+                            <div class="process-list" id="cpu-processes"></div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">Load Average:</span>
+                                <span class="detail-value" id="load-average">--</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Context Switches:</span>
+                                <span class="detail-value" id="context-switches">--</span>
+                            </div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Total Goroutines:</span>
+                            <span class="detail-value" id="total-goroutines">--</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="metric-card">
+                <!-- Memory & Storage Card -->
+                <div class="metric-card expandable" id="memory-card" onclick="toggleCard('memory')">
                     <div class="metric-header">
-                        <span class="metric-label">MEMORY USAGE</span>
-                        <span class="metric-unit">%</span>
+                        <span class="metric-label">MEMORY & STORAGE</span>
+                        <div class="metric-header-right">
+                            <span class="alert-badge" id="memory-alerts">0</span>
+                            <span class="metric-unit">%</span>
+                            <span class="expand-arrow" id="memory-arrow">▼</span>
+                        </div>
                     </div>
                     <div class="metric-value" id="memory-value">--</div>
                     <div class="metric-bar">
                         <div class="metric-fill" id="memory-fill"></div>
                     </div>
+                    
+                    <!-- Expandable Content -->
+                    <div class="metric-details" id="memory-details" style="display: none;">
+                        <div class="detail-section">
+                            <h4>Top Processes by Memory:</h4>
+                            <div class="process-list" id="memory-processes"></div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Memory Growth Patterns:</h4>
+                            <div class="growth-patterns" id="growth-patterns"></div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">Swap Usage:</span>
+                                <span class="detail-value" id="swap-usage">--</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Disk Usage:</span>
+                                <span class="detail-value" id="disk-usage">--</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="metric-card">
+                <!-- Network & Connections Card -->
+                <div class="metric-card expandable" id="network-card" onclick="toggleCard('network')">
                     <div class="metric-header">
-                        <span class="metric-label">TCP CONNECTIONS</span>
-                        <span class="metric-unit">#</span>
+                        <span class="metric-label">NETWORK & CONNECTIONS</span>
+                        <div class="metric-header-right">
+                            <span class="alert-badge" id="network-alerts">0</span>
+                            <span class="metric-unit">#</span>
+                            <span class="expand-arrow" id="network-arrow">▼</span>
+                        </div>
                     </div>
                     <div class="metric-value" id="tcp-value">--</div>
                     <div class="metric-bar">
                         <div class="metric-fill" id="tcp-fill"></div>
                     </div>
+                    
+                    <!-- Expandable Content -->
+                    <div class="metric-details" id="network-details" style="display: none;">
+                        <div class="detail-section">
+                            <h4>Connection States:</h4>
+                            <div class="connection-states" id="connection-states"></div>
+                        </div>
+                        <div class="detail-row">
+                            <div class="detail-item">
+                                <span class="detail-label">Port Usage:</span>
+                                <span class="detail-value" id="port-usage">--</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Bandwidth:</span>
+                                <span class="detail-value" id="bandwidth">--</span>
+                            </div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>HTTP Connection Pools:</h4>
+                            <div class="connection-pools" id="connection-pools"></div>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">DNS Health:</span>
+                            <span class="detail-value" id="dns-health">--</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="metric-card">
+                <!-- System Health Card -->
+                <div class="metric-card expandable" id="system-card" onclick="toggleCard('system')">
                     <div class="metric-header">
-                        <span class="metric-label">SYSTEM STATUS</span>
-                        <span class="metric-unit">STATE</span>
+                        <span class="metric-label">SYSTEM HEALTH</span>
+                        <div class="metric-header-right">
+                            <span class="alert-badge" id="system-alerts">0</span>
+                            <span class="metric-unit">STATE</span>
+                            <span class="expand-arrow" id="system-arrow">▼</span>
+                        </div>
                     </div>
                     <div class="metric-value status-value" id="system-status">ONLINE</div>
+                    
+                    <!-- Expandable Content -->
+                    <div class="metric-details" id="system-details" style="display: none;">
+                        <div class="detail-item">
+                            <span class="detail-label">File Descriptors:</span>
+                            <span class="detail-value" id="file-descriptors">--</span>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Service Dependencies:</h4>
+                            <div class="service-list" id="service-dependencies"></div>
+                        </div>
+                        <div class="detail-section">
+                            <h4>Certificates:</h4>
+                            <div class="certificate-list" id="certificates"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Process Monitor Panel -->
+            <section class="monitoring-panel collapsible">
+                <div class="panel-header clickable" onclick="togglePanel('process')">
+                    <h2>🔍 PROCESS MONITOR</h2>
+                    <span class="expand-arrow" id="process-panel-arrow">▼</span>
+                </div>
+                <div class="panel-content" id="process-panel" style="display: none;">
+                    <div class="monitor-grid">
+                        <div class="monitor-section">
+                            <h3>Process Health:</h3>
+                            <div class="health-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Total Processes:</span>
+                                    <span class="stat-value" id="total-processes">--</span>
+                                </div>
+                                <div class="stat-item alert">
+                                    <span class="stat-label">Zombie Processes:</span>
+                                    <span class="stat-value" id="zombie-count">--</span>
+                                </div>
+                            </div>
+                            <div class="process-alerts" id="zombie-processes"></div>
+                        </div>
+                        <div class="monitor-section">
+                            <h3>High Thread Count:</h3>
+                            <div class="thread-list" id="high-thread-processes"></div>
+                        </div>
+                        <div class="monitor-section">
+                            <h3>Resource Leak Candidates:</h3>
+                            <div class="leak-list" id="leak-candidates"></div>
+                        </div>
+                    </div>
+                    <div class="resource-matrix">
+                        <h3>Process Resource Matrix:</h3>
+                        <div class="matrix-table" id="resource-matrix"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Infrastructure Monitor Panel -->
+            <section class="monitoring-panel collapsible">
+                <div class="panel-header clickable" onclick="togglePanel('infrastructure')">
+                    <h2>⚡ INFRASTRUCTURE MONITOR</h2>
+                    <span class="expand-arrow" id="infrastructure-panel-arrow">▼</span>
+                </div>
+                <div class="panel-content" id="infrastructure-panel" style="display: none;">
+                    <div class="monitor-grid">
+                        <div class="monitor-section">
+                            <h3>Database Pools:</h3>
+                            <div class="pool-list" id="database-pools"></div>
+                        </div>
+                        <div class="monitor-section">
+                            <h3>HTTP Client Pools:</h3>
+                            <div class="pool-list" id="http-pools"></div>
+                        </div>
+                        <div class="monitor-section">
+                            <h3>Message Queues:</h3>
+                            <div class="queue-stats">
+                                <div class="stat-group">
+                                    <h4>Redis Pub/Sub:</h4>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Subscribers:</span>
+                                        <span class="stat-value" id="redis-subscribers">--</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Channels:</span>
+                                        <span class="stat-value" id="redis-channels">--</span>
+                                    </div>
+                                </div>
+                                <div class="stat-group">
+                                    <h4>Background Jobs:</h4>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Pending:</span>
+                                        <span class="stat-value" id="jobs-pending">--</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Active:</span>
+                                        <span class="stat-value" id="jobs-active">--</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Failed:</span>
+                                        <span class="stat-value" id="jobs-failed">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="storage-io">
+                        <h3>Storage I/O:</h3>
+                        <div class="io-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Disk Queue Depth:</span>
+                                <span class="stat-value" id="disk-queue-depth">--</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">I/O Wait:</span>
+                                <span class="stat-value" id="io-wait">--</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Read Rate:</span>
+                                <span class="stat-value" id="read-rate">--</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Write Rate:</span>
+                                <span class="stat-value" id="write-rate">--</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 

@@ -58,9 +58,8 @@ metadata:
 resources_required:
   - postgres    # Database
   - redis       # Cache/Queue
-  - n8n         # Workflow automation
-  - ollama      # Local LLM
   - claude-code # AI code generation
+  - ollama      # Local LLM
   - qdrant      # Vector database
   - minio       # Object storage
   # Add others as needed

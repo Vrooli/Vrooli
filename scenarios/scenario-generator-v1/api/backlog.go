@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"gopkg.in/yaml.v3"
+	
+	"scenario-generator-api/pipeline"
 )
 
 // BacklogItem represents a scenario in the backlog queue
@@ -473,11 +476,38 @@ func (s *APIServer) handleGenerateFromBacklog(w http.ResponseWriter, r *http.Req
 		return
 	}
 	
-	// TODO: Trigger actual generation via n8n or Claude Code
-	// For now, just return success
+	// Trigger generation via pipeline
+	pipelineReq := pipeline.GenerationRequest{
+		Name:        foundItem.Name,
+		Description: foundItem.Description,
+		Prompt:      foundItem.Prompt,
+		Complexity:  foundItem.Complexity,
+		Category:    foundItem.Category,
+		Resources:   foundItem.ResourcesRequired,
+		Iterations: pipeline.IterationLimits{
+			Planning:       3,
+			Implementation: 2,
+			Validation:     5,
+		},
+	}
+	
+	// Start async generation
+	go func() {
+		result, err := s.pipeline.Generate(pipelineReq)
+		if err != nil {
+			log.Printf("Backlog generation failed for %s: %v", insertedID, err)
+			// Move back to pending on failure
+			s.moveBacklogItem(foundItem, backlogInProgress, backlogFailed)
+		} else {
+			log.Printf("Backlog generation completed for %s", insertedID)
+			// Move to completed on success
+			s.moveBacklogItem(foundItem, backlogInProgress, backlogCompleted)
+		}
+		_ = result
+	}()
 	
 	response := map[string]interface{}{
-		"message": "Generation started",
+		"message": "Generation started via AI pipeline",
 		"scenario_id": insertedID,
 		"backlog_item": foundItem,
 	}

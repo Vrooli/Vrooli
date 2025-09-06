@@ -4,18 +4,16 @@ scenario: scenario-generator-v1
 # Structure validation
 structure:
   required_files:
-    - .vrooli/service.json
+    - service.json
     - README.md
     - IMPLEMENTATION_PLAN.md
-    - initialization/storage/schema.sql
-    - initialization/storage/seed.sql
-    - initialization/automation/n8n/main-workflow.json
-    - initialization/automation/n8n/planning-workflow.json
-    - initialization/automation/triggers.yaml
-    - initialization/configuration/app-config.json
-    - initialization/configuration/config.json
-    - initialization/configuration/feature-flags.json
-    - initialization/configuration/resource-urls.json
+    - initialization/postgres/schema.sql
+    - api/main.go
+    - api/pipeline/pipeline.go
+    - api/pipeline/claude_client.go
+    - api/pipeline/planning.go
+    - api/pipeline/implementation.go
+    - api/pipeline/validation.go
     - deployment/startup.sh
     - deployment/monitor.sh
     - test.sh
@@ -39,8 +37,8 @@ structure:
 
 # Resource requirements
 resources:
-  required: [postgres, n8n, minio, claude-code]
-  optional: [redis, ollama]
+  required: [postgres]
+  optional: [redis]
   health_timeout: 60
 
 # Declarative tests
@@ -56,23 +54,6 @@ tests:
         type: json
 
 
-  - name: "N8N Workflow Engine Ready"
-    type: http
-    service: n8n
-    endpoint: /api/v1/info
-    method: GET
-    expect:
-      status: 200
-      body:
-        type: json
-
-  - name: "Object Storage Ready"
-    type: http
-    service: minio
-    endpoint: /minio/health/ready
-    method: GET
-    expect:
-      status: 200
 
   - name: "Database Connection"
     type: tcp
@@ -91,7 +72,7 @@ validation:
   revenue_potential: 300000  # Total estimate from service.json (ultra-high)
   business_criteria:
     - "AI-powered SaaS generation platform operational"
-    - "Claude Code integration for autonomous development validated"
+    - "Vrooli resource Claude integration for autonomous development validated"
     - "Complete application generation from requirements functional"
-    - "Meta-scenario system capable of recursive improvement verified"
-    - "Revolutionary no-code development capabilities confirmed"
+    - "Direct Go pipeline implementation verified"
+    - "Backlog-based scenario queue management confirmed"

@@ -1,22 +1,20 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
 	_ "github.com/lib/pq"
 	"github.com/google/uuid"
+	
+	"scenario-generator-api/pipeline"
 )
 
 type Scenario struct {
@@ -80,7 +78,7 @@ type GenerationLog struct {
 
 type APIServer struct {
 	db         *sql.DB
-	claudeAvailable bool
+	pipeline   *pipeline.Pipeline
 }
 
 func main() {
@@ -107,12 +105,12 @@ func main() {
 		log.Fatal("Failed to ping database:", err)
 	}
 
-	// Check Claude Code availability
-	claudeAvailable := checkClaudeCode()
+	// Initialize generation pipeline
+	generationPipeline := pipeline.NewPipeline(db)
 
 	server := &APIServer{
-		db:              db,
-		claudeAvailable: claudeAvailable,
+		db:       db,
+		pipeline: generationPipeline,
 	}
 
 	router := mux.NewRouter()
@@ -139,7 +137,6 @@ func main() {
 	
 	// Generation endpoints
 	api.HandleFunc("/generate", server.generateScenario).Methods("POST")
-	api.HandleFunc("/generate/n8n", server.generateScenarioN8N).Methods("POST")
 	api.HandleFunc("/generate/status/{id}", server.getGenerationStatus).Methods("GET")
 	
 	// Templates endpoints
@@ -169,7 +166,7 @@ func main() {
 
 	log.Printf("🚀 Scenario Generator API starting on port %s", port)
 	log.Printf("🗄️  Database: %s", postgresURL)
-	log.Printf("🤖 Claude Code: %v", claudeAvailable)
+	log.Printf("🤖 Pipeline: Active (using resource-claude-code)")
 	log.Printf("📁 Backlog watcher: Active")
 
 	handler := corsHandler(router)
@@ -183,11 +180,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-func checkClaudeCode() bool {
-	cmd := exec.Command("claude", "--version")
-	err := cmd.Run()
-	return err == nil
-}
 
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -197,7 +189,8 @@ func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Unix(),
 		"services": map[string]interface{}{
 			"database": s.checkDatabase(),
-			"claude_code": s.checkClaudeCodeStatus(),
+			"pipeline": "active",
+			"vrooli_resource": "claude",
 		},
 	}
 
@@ -209,13 +202,6 @@ func (s *APIServer) checkDatabase() string {
 		return "unhealthy"
 	}
 	return "healthy"
-}
-
-func (s *APIServer) checkClaudeCodeStatus() string {
-	if s.claudeAvailable {
-		return "available"
-	}
-	return "unavailable"
 }
 
 func (s *APIServer) getScenarios(w http.ResponseWriter, r *http.Request) {
@@ -358,42 +344,34 @@ func (s *APIServer) generateScenario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !s.claudeAvailable {
-		http.Error(w, "Claude Code is not available", http.StatusServiceUnavailable)
-		return
+	// Convert to pipeline request
+	pipelineReq := pipeline.GenerationRequest{
+		Name:        req.Name,
+		Description: req.Description,
+		Prompt:      req.Prompt,
+		Complexity:  req.Complexity,
+		Category:    req.Category,
+		Resources:   req.Resources,
+		Iterations: pipeline.IterationLimits{
+			Planning:       3,
+			Implementation: 2,
+			Validation:     5,
+		},
 	}
 
-	// Generate unique generation ID
-	generationID := uuid.New().String()
-
-	// Create scenario record
-	scenarioID := uuid.New().String()
-	now := time.Now()
-
-	query := `
-		INSERT INTO scenarios (id, name, description, prompt, status, generation_id,
-		                      complexity, category, estimated_revenue, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
-
-	_, err := s.db.Exec(query,
-		scenarioID, req.Name, req.Description, req.Prompt, "generating", generationID,
-		req.Complexity, req.Category, estimateRevenue(req.Complexity), now, now,
-	)
-
+	// Start async generation
+	scenarioID, err := s.pipeline.GenerateAsync(pipelineReq)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to start generation: %v", err), http.StatusInternalServerError)
 		return
 	}
-
-	// Start generation process in background
-	go s.runScenarioGeneration(scenarioID, req)
 
 	response := map[string]interface{}{
-		"generation_id": generationID,
-		"scenario_id":   scenarioID,
-		"status":        "generating",
-		"prompt":        req.Prompt,
-		"estimated_time": "2-5 minutes",
+		"scenario_id":    scenarioID,
+		"status":         "generating",
+		"prompt":         req.Prompt,
+		"estimated_time": "3-8 minutes",
+		"message":        "Scenario generation started using AI pipeline",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -401,241 +379,13 @@ func (s *APIServer) generateScenario(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (s *APIServer) generateScenarioN8N(w http.ResponseWriter, r *http.Request) {
-	var req map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 
-	// Validate required fields
-	scenarioName, ok := req["scenario_name"].(string)
-	if !ok || scenarioName == "" {
-		http.Error(w, "scenario_name is required", http.StatusBadRequest)
-		return
-	}
-	
-	description, ok := req["description"].(string)
-	if !ok || description == "" {
-		http.Error(w, "description is required", http.StatusBadRequest)
-		return
-	}
 
-	// Call n8n workflow
-	n8nURL := os.Getenv("N8N_WEBHOOK_URL")
-	if n8nURL == "" {
-		n8nPort := os.Getenv("N8N_PORT")
-		if n8nPort == "" {
-			n8nPort = "5678"
-		}
-		n8nURL = fmt.Sprintf("http://localhost:%s/webhook/generate-scenario", n8nPort)
-	}
 
-	// Prepare request body
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		http.Error(w, "Failed to prepare request", http.StatusInternalServerError)
-		return
-	}
 
-	// Call n8n workflow
-	client := &http.Client{Timeout: 180 * time.Second}
-	resp, err := client.Post(n8nURL, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		log.Printf("Error calling n8n workflow: %v", err)
-		http.Error(w, "Failed to call generation workflow", http.StatusServiceUnavailable)
-		return
-	}
-	defer resp.Body.Close()
 
-	// Read response
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read workflow response", http.StatusInternalServerError)
-		return
-	}
 
-	// Parse response
-	var n8nResp map[string]interface{}
-	if err := json.Unmarshal(body, &n8nResp); err != nil {
-		http.Error(w, "Invalid workflow response", http.StatusInternalServerError)
-		return
-	}
 
-	// Store scenario in database if successful
-	if summary, ok := n8nResp["summary"].(map[string]interface{}); ok {
-		if success, ok := summary["success"].(bool); ok && success {
-			// Create database record
-			scenarioID := uuid.New().String()
-			generationID := uuid.New().String()
-			if genID, ok := summary["generation_id"].(string); ok {
-				generationID = genID
-			}
-			
-			now := time.Now()
-			complexity := "intermediate"
-			if c, ok := req["complexity"].(string); ok {
-				complexity = c
-			}
-			
-			category := "saas-applications"
-			if cat, ok := req["category"].(string); ok {
-				category = cat
-			}
-
-			query := `
-				INSERT INTO scenarios (id, name, description, prompt, status, generation_id,
-				                      complexity, category, estimated_revenue, created_at, updated_at, completed_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-
-			_, err = s.db.Exec(query,
-				scenarioID, scenarioName, description, "", "completed", generationID,
-				complexity, category, estimateRevenue(complexity), now, now, now,
-			)
-			
-			if err != nil {
-				log.Printf("Failed to store scenario in database: %v", err)
-			}
-		}
-	}
-
-	// Return n8n response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(resp.StatusCode)
-	w.Write(body)
-}
-
-func (s *APIServer) runScenarioGeneration(scenarioID string, req GenerationRequest) {
-	log.Printf("Starting scenario generation for %s", scenarioID)
-	
-	// Build Claude Code prompt
-	promptFile := "prompts/scenario-generation-prompt.md"
-	claudePrompt := buildClaudePrompt(req, promptFile)
-	
-	// Log generation start
-	s.logGenerationStep(scenarioID, "generation_start", claudePrompt, nil, true, nil)
-	
-	// Run Claude Code
-	response, err := s.runClaudeCode(claudePrompt)
-	
-	if err != nil {
-		// Log error and update scenario
-		errorMsg := err.Error()
-		s.logGenerationStep(scenarioID, "generation_error", claudePrompt, &response, false, &errorMsg)
-		s.updateScenarioStatus(scenarioID, "failed", nil, &claudePrompt, &response, &errorMsg)
-		return
-	}
-	
-	// Log success and update scenario
-	s.logGenerationStep(scenarioID, "generation_complete", claudePrompt, &response, true, nil)
-	
-	// Parse files from response (simplified - just store the response)
-	files := map[string]string{
-		"claude_output": response,
-	}
-	
-	now := time.Now()
-	s.updateScenarioStatus(scenarioID, "completed", &now, &claudePrompt, &response, nil)
-	s.updateScenarioFiles(scenarioID, files)
-	
-	log.Printf("Completed scenario generation for %s", scenarioID)
-}
-
-func (s *APIServer) runClaudeCode(prompt string) (string, error) {
-	// Create temporary file for prompt
-	tmpFile := fmt.Sprintf("/tmp/claude_prompt_%d.md", time.Now().Unix())
-	
-	// Write prompt to file
-	err := os.WriteFile(tmpFile, []byte(prompt), 0644)
-	if err != nil {
-		return "", fmt.Errorf("failed to write prompt file: %v", err)
-	}
-	defer os.Remove(tmpFile)
-	
-	// Run Claude Code CLI
-	cmd := exec.Command("claude", "chat", "--file", tmpFile)
-	output, err := cmd.CombinedOutput()
-	
-	if err != nil {
-		return "", fmt.Errorf("claude code failed: %v - %s", err, string(output))
-	}
-	
-	return string(output), nil
-}
-
-func buildClaudePrompt(req GenerationRequest, promptFile string) string {
-	// Read prompt template if it exists, otherwise use default
-	template := ""
-	if data, err := os.ReadFile(promptFile); err == nil {
-		template = string(data)
-	} else {
-		template = `# Vrooli Scenario Generation
-
-You are an expert at creating Vrooli scenarios. Generate a complete scenario based on this request:
-
-**Name:** {{NAME}}
-**Description:** {{DESCRIPTION}}
-**Prompt:** {{PROMPT}}
-**Complexity:** {{COMPLEXITY}}
-**Category:** {{CATEGORY}}
-
-Create a complete scenario including:
-1. Service configuration (service.json)
-2. Database schema if needed
-3. API endpoints
-4. CLI commands
-5. UI components
-6. Deployment scripts
-7. Documentation
-
-Focus on practical, deployable solutions that provide real business value.`
-	}
-	
-	// Replace placeholders
-	prompt := strings.ReplaceAll(template, "{{NAME}}", req.Name)
-	prompt = strings.ReplaceAll(prompt, "{{DESCRIPTION}}", req.Description)
-	prompt = strings.ReplaceAll(prompt, "{{PROMPT}}", req.Prompt)
-	prompt = strings.ReplaceAll(prompt, "{{COMPLEXITY}}", req.Complexity)
-	prompt = strings.ReplaceAll(prompt, "{{CATEGORY}}", req.Category)
-	
-	return prompt
-}
-
-func estimateRevenue(complexity string) int {
-	switch complexity {
-	case "simple":
-		return 15000
-	case "intermediate":
-		return 25000
-	case "advanced":
-		return 40000
-	default:
-		return 20000
-	}
-}
-
-func (s *APIServer) logGenerationStep(scenarioID, step, prompt string, response *string, success bool, errorMsg *string) {
-	query := `
-		INSERT INTO generation_logs (scenario_id, step, prompt, response, success, error_message, started_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`
-	
-	s.db.Exec(query, scenarioID, step, prompt, response, success, errorMsg, time.Now())
-}
-
-func (s *APIServer) updateScenarioStatus(scenarioID, status string, completedAt *time.Time, claudePrompt, claudeResponse, errorMsg *string) {
-	query := `
-		UPDATE scenarios 
-		SET status = $1, updated_at = $2, completed_at = $3, claude_prompt = $4, claude_response = $5, generation_error = $6
-		WHERE id = $7`
-	
-	s.db.Exec(query, status, time.Now(), completedAt, claudePrompt, claudeResponse, errorMsg, scenarioID)
-}
-
-func (s *APIServer) updateScenarioFiles(scenarioID string, files map[string]string) {
-	filesJSON, _ := json.Marshal(files)
-	query := `UPDATE scenarios SET files_generated = $1, updated_at = $2 WHERE id = $3`
-	s.db.Exec(query, filesJSON, time.Now(), scenarioID)
-}
 
 func (s *APIServer) getTemplates(w http.ResponseWriter, r *http.Request) {
 	query := `
@@ -745,41 +495,165 @@ func (s *APIServer) searchScenarios(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(scenarios)
 }
 
-// Stub implementations for remaining endpoints
+// updateScenario updates an existing scenario's metadata
 func (s *APIServer) updateScenario(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	scenarioID := vars["id"]
+	
+	// Parse request body
+	var updates map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	// Build dynamic UPDATE query based on provided fields
+	var setClause []string
+	var args []interface{}
+	argCount := 1
+	
+	// Allowed fields for update
+	allowedFields := map[string]bool{
+		"name": true, "description": true, "prompt": true,
+		"complexity": true, "category": true, "estimated_revenue": true,
+		"status": true, "generation_error": true, "notes": true,
+	}
+	
+	for field, value := range updates {
+		if !allowedFields[field] {
+			continue // Skip non-allowed fields
+		}
+		setClause = append(setClause, fmt.Sprintf("%s = $%d", field, argCount))
+		args = append(args, value)
+		argCount++
+	}
+	
+	if len(setClause) == 0 {
+		http.Error(w, "No valid fields to update", http.StatusBadRequest)
+		return
+	}
+	
+	// Add updated_at timestamp
+	setClause = append(setClause, fmt.Sprintf("updated_at = $%d", argCount))
+	args = append(args, time.Now())
+	argCount++
+	
+	// Add scenario ID as last parameter
+	args = append(args, scenarioID)
+	
+	// Execute update query
+	query := fmt.Sprintf(`
+		UPDATE scenarios 
+		SET %s 
+		WHERE id = $%d
+		RETURNING id, name, description, prompt, status, complexity, category, 
+		          estimated_revenue, created_at, updated_at
+	`, strings.Join(setClause, ", "), argCount)
+	
+	var scenario Scenario
+	err := s.db.QueryRow(query, args...).Scan(
+		&scenario.ID, &scenario.Name, &scenario.Description, &scenario.Prompt,
+		&scenario.Status, &scenario.Complexity, &scenario.Category,
+		&scenario.EstimatedRevenue, &scenario.CreatedAt, &scenario.UpdatedAt,
+	)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "Scenario not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Failed to update scenario: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Log the update
+	log.Printf("Updated scenario %s: %v", scenarioID, updates)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(scenario)
 }
 
+// deleteScenario removes a scenario and its associated data
 func (s *APIServer) deleteScenario(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	scenarioID := vars["id"]
+	
+	// Start transaction for cascade delete
+	tx, err := s.db.Begin()
+	if err != nil {
+		http.Error(w, "Failed to start transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+	
+	// Check if scenario exists
+	var exists bool
+	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM scenarios WHERE id = $1)", scenarioID).Scan(&exists)
+	if err != nil {
+		http.Error(w, "Database error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	if !exists {
+		http.Error(w, "Scenario not found", http.StatusNotFound)
+		return
+	}
+	
+	// Delete associated generation logs (cascade should handle this, but being explicit)
+	_, err = tx.Exec("DELETE FROM generation_logs WHERE scenario_id = $1", scenarioID)
+	if err != nil {
+		http.Error(w, "Failed to delete generation logs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Delete the scenario
+	result, err := tx.Exec("DELETE FROM scenarios WHERE id = $1", scenarioID)
+	if err != nil {
+		http.Error(w, "Failed to delete scenario: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Check if deletion actually occurred
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, "Failed to verify deletion: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	if rowsAffected == 0 {
+		http.Error(w, "Scenario not found", http.StatusNotFound)
+		return
+	}
+	
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Log the deletion
+	log.Printf("Deleted scenario %s and its associated data", scenarioID)
+	
+	// Return 204 No Content on successful deletion
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *APIServer) getGenerationStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	generationID := vars["id"]
+	scenarioID := vars["id"]
 	
-	query := `SELECT status, updated_at FROM scenarios WHERE generation_id = $1`
-	
-	var status string
-	var updatedAt time.Time
-	err := s.db.QueryRow(query, generationID).Scan(&status, &updatedAt)
-	
-	if err == sql.ErrNoRows {
-		http.Error(w, "Generation not found", http.StatusNotFound)
+	// Use pipeline to get status
+	status, err := s.pipeline.GetStatus(scenarioID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Scenario not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	response := map[string]interface{}{
-		"generation_id": generationID,
-		"status": status,
-		"updated_at": updatedAt,
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(status)
 }
 
 func (s *APIServer) getTemplate(w http.ResponseWriter, r *http.Request) {
