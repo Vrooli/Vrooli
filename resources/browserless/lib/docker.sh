@@ -45,14 +45,25 @@ browserless::docker::create_container() {
         "--security-opt" "seccomp=${BROWSERLESS_DOCKER_SECCOMP:-unconfined}"
     )
     
-    # Port mappings and volumes
-    local port_mappings="${BROWSERLESS_PORT}:3000"
+    # Port mappings and volumes - conditionally configure for host networking
+    local port_mappings
     local volumes="${BROWSERLESS_DATA_DIR}:/workspace"
+    local health_cmd
     
-    # Health check command
-    local health_cmd="curl -f http://localhost:3000/introspection || exit 1"
+    if [[ "${BROWSERLESS_USE_HOST_NETWORK:-yes}" == "yes" ]]; then
+        # Host networking: container uses host's network directly
+        docker_opts+=("--network" "host")
+        port_mappings=""  # No port mapping needed with host networking
+        health_cmd="curl -f http://localhost:${BROWSERLESS_PORT}/pressure || exit 1"
+        log::info "Using host networking for browserless - can access localhost services"
+    else
+        # Bridge networking: container uses Docker bridge network
+        port_mappings="${BROWSERLESS_PORT}:3000"
+        health_cmd="curl -f http://localhost:3000/pressure || exit 1"
+        log::info "Using bridge networking for browserless - localhost services not accessible"
+    fi
     
-    # Use advanced creation function
+    # Use advanced creation function (network parameter is ignored when using --network host)
     if docker_resource::create_service_advanced \
         "$BROWSERLESS_CONTAINER_NAME" \
         "$BROWSERLESS_IMAGE" \
@@ -117,11 +128,21 @@ browserless::docker::remove() {
 # Show connection information
 #######################################
 browserless::docker::show_connection_info() {
+    local networking_mode="bridge"
+    local localhost_access="No - use Docker bridge IP or container names"
+    
+    if [[ "${BROWSERLESS_USE_HOST_NETWORK:-yes}" == "yes" ]]; then
+        networking_mode="host"
+        localhost_access="Yes - can access localhost services"
+    fi
+    
     local additional_info=(
         "WebSocket: ws://localhost:${BROWSERLESS_PORT}"
         "Status: http://localhost:${BROWSERLESS_PORT}/introspection"
         "API Version: http://localhost:${BROWSERLESS_PORT}/json/version"
         "Concurrent browsers: ${BROWSERLESS_MAX_BROWSERS:-5}"
+        "Network mode: ${networking_mode}"
+        "Localhost access: ${localhost_access}"
     )
     
     docker_resource::show_connection_info "Browserless" "http://localhost:${BROWSERLESS_PORT}" "${additional_info[@]}"

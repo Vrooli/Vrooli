@@ -1,0 +1,263 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "prompt-injection-arena",
+    "displayName": "Prompt Injection Arena",
+    "description": "Defensive security platform for prompt injection testing and research with competitive leaderboards",
+    "version": "1.0.0",
+    "tags": [
+      "security",
+      "prompt-injection",
+      "ai-safety",
+      "testing",
+      "research",
+      "defensive-security",
+      "leaderboards",
+      "go-api",
+      "postgres-storage",
+      "ollama-integration",
+      "n8n-workflows",
+      "qdrant-vectors"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "fallback": "auto",
+      "description": "Prompt injection arena API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "fallback": "auto",
+      "description": "Arena web interface port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store injection library, agent configs, test results, leaderboards",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "mistral",
+        "codellama",
+        "qwen2.5:7b",
+        "nomic-embed-text"
+      ],
+      "purpose": "Execute agent configurations against injection tests safely"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Vector database for semantic similarity of injection techniques - enables clustering and discovery of related attack patterns"
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/security-sandbox.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/injection-tester.json",
+          "type": "workflow"
+        }
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Prompt injection arena health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Prompt Injection Arena",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/prompt-injection-arena-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "prompt-injection-arena"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o prompt-injection-arena-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "setup-ui",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add scenario data to resources"
+        },
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate injection technique embeddings for similarity search"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Prompt Injection Arena initialized\\n  Web UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start prompt injection arena with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./prompt-injection-arena-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/prompt-injection-arena-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Arena UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: prompt-injection-arena --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test prompt injection arena API, CLI and security sandbox",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-injection-library",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/injections/library",
+          "description": "Test injection library endpoint"
+        },
+        {
+          "name": "test-agent-endpoint",
+          "run": "bash test/test-agent-security.sh",
+          "description": "Test agent security evaluation endpoint"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats prompt-injection-arena.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/prompt-injection-arena.bats"
+          }
+        },
+        {
+          "name": "test-security-sandbox",
+          "run": "bash test/test-security-sandbox.sh",
+          "description": "Validate security sandbox isolation"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.prompt-injection-arena.start-api\" 2>/dev/null || pkill -f \"prompt-injection-arena-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.prompt-injection-arena.start-ui\" 2>/dev/null || pkill -f \"npm run dev\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

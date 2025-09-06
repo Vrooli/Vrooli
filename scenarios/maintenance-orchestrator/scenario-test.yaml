@@ -1,0 +1,209 @@
+version: 1.0
+scenario: maintenance-orchestrator
+
+# Structure validation - required files and directories
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/maintenance-orchestrator
+    - cli/install.sh
+    - ui/index.html
+    - scenario-test.yaml
+    
+  required_dirs:
+    - .vrooli
+    - api
+    - cli
+    - ui
+    - initialization
+
+# Resource requirements
+resources:
+  required: []
+  optional:
+    - postgres
+    - redis
+    - n8n
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  # API health check
+  - name: "API is healthy"
+    type: http
+    service: api
+    endpoint: /api/health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        
+  # Get scenarios endpoint
+  - name: "Can list scenarios"
+    type: http
+    service: api
+    endpoint: /api/v1/scenarios
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - scenarios
+        
+  # Get status endpoint
+  - name: "Can get orchestrator status"
+    type: http
+    service: api
+    endpoint: /api/v1/status
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - health
+        - totalScenarios
+        - activeScenarios
+        - inactiveScenarios
+        
+  # Get presets endpoint
+  - name: "Can list presets"
+    type: http
+    service: api
+    endpoint: /api/v1/presets
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - presets
+        
+  # Test scenario activation (with mock scenario)
+  - name: "Can activate a scenario"
+    type: http
+    service: api
+    endpoint: /api/v1/scenarios/test-maintenance/activate
+    method: POST
+    expect:
+      status_codes: [200, 404]  # 404 if test-maintenance doesn't exist yet
+      
+  # Test scenario deactivation (with mock scenario)
+  - name: "Can deactivate a scenario"
+    type: http
+    service: api
+    endpoint: /api/v1/scenarios/test-maintenance/deactivate
+    method: POST
+    expect:
+      status_codes: [200, 404]  # 404 if test-maintenance doesn't exist yet
+      
+  # Test preset application
+  - name: "Can apply a preset"
+    type: http
+    service: api
+    endpoint: /api/v1/presets/minimal/apply
+    method: POST
+    expect:
+      status: 200
+      body:
+        success: true
+        preset: minimal
+        
+  # Test emergency stop
+  - name: "Emergency stop endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/stop-all
+    method: POST
+    expect:
+      status: 200
+      body:
+        success: true
+        
+  # CLI tests
+  - name: "CLI shows help"
+    type: exec
+    command: ./cli/maintenance-orchestrator help
+    expect:
+      exit_code: 0
+      output_contains:
+        - "Maintenance Orchestrator CLI"
+        - "Commands:"
+        - "status"
+        - "list"
+        
+  - name: "CLI can get status"
+    type: exec
+    command: ./cli/maintenance-orchestrator status --json
+    expect:
+      exit_code: 0
+      output_is_json: true
+      
+  - name: "CLI can list scenarios"
+    type: exec
+    command: ./cli/maintenance-orchestrator list --json
+    expect:
+      exit_code: 0
+      output_is_json: true
+      
+  - name: "CLI can show version"
+    type: exec
+    command: ./cli/maintenance-orchestrator version
+    expect:
+      exit_code: 0
+      output_contains:
+        - "maintenance-orchestrator version"
+        
+  # UI availability test
+  - name: "UI is accessible"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      body_contains:
+        - "Maintenance Orchestrator"
+        - "Mission Control"
+
+# Performance validation
+performance:
+  - name: "API response time"
+    type: http
+    service: api
+    endpoint: /api/v1/status
+    method: GET
+    iterations: 10
+    expect:
+      avg_response_time: 200  # ms
+      max_response_time: 500  # ms
+      
+  - name: "Scenario discovery speed"
+    type: startup_metric
+    metric: discovery_time
+    expect:
+      max_value: 5000  # 5 seconds
+
+# Integration validation
+integration:
+  - name: "Default presets are loaded"
+    type: http
+    service: api
+    endpoint: /api/v1/presets
+    method: GET
+    expect:
+      body_json_path: "$.presets[*].id"
+      contains_all:
+        - full-maintenance
+        - security-only
+        - performance
+        - off-hours
+        - minimal
+        
+  - name: "All maintenance scenarios start inactive"
+    type: invariant
+    description: "Verify all discovered scenarios have isActive=false on startup"
+    check: |
+      response=$(curl -s http://localhost:3250/api/v1/scenarios)
+      active_count=$(echo "$response" | jq '[.scenarios[] | select(.isActive == true)] | length')
+      [ "$active_count" -eq 0 ]

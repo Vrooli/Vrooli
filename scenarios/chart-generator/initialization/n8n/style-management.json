@@ -1,0 +1,96 @@
+{
+  "name": "Chart Style Management",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "styles",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return available chart styles\nconst styles = [\n  {\n    id: 'professional',\n    name: 'Professional',\n    category: 'business',\n    description: 'Clean, corporate styling perfect for business reports',\n    is_default: true\n  },\n  {\n    id: 'minimal',\n    name: 'Minimal', \n    category: 'clean',\n    description: 'Ultra-clean, distraction-free design',\n    is_default: false\n  },\n  {\n    id: 'vibrant',\n    name: 'Vibrant',\n    category: 'creative', \n    description: 'Bold, eye-catching colors for presentations',\n    is_default: false\n  }\n];\n\nreturn {\n  styles: styles,\n  count: styles.length,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "get_styles",
+      "name": "Get Styles",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [600, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Styles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Styles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Styles": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "style-management",
+  "tags": [
+    {
+      "createdAt": "2025-09-05T00:00:00.000Z",
+      "updatedAt": "2025-09-05T00:00:00.000Z",
+      "id": "style-management",
+      "name": "style-management"
+    }
+  ]
+}

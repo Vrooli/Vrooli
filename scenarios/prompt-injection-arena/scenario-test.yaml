@@ -1,0 +1,132 @@
+version: 1.0
+scenario: prompt-injection-arena
+
+# Structure validation - files and directories that MUST exist:
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/prompt-injection-arena
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - initialization/n8n/security-sandbox.json
+    - initialization/n8n/injection-tester.json
+    - scenario-test.yaml
+    - ui/index.html
+    - ui/package.json
+    
+  required_dirs:
+    - api
+    - cli  
+    - initialization
+    - initialization/postgres
+    - initialization/n8n
+    - ui
+    - test
+    - data
+
+# Resource validation:
+resources:
+  required: [postgres, ollama, n8n]
+  optional: [qdrant]
+  health_timeout: 60
+
+# Declarative tests:
+tests:
+  # Resource health checks:
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Ollama is accessible" 
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests:
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        
+  - name: "Injection library endpoint works"
+    type: http  
+    service: api
+    endpoint: /api/v1/injections/library
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["techniques", "total_count"]
+      
+  - name: "Leaderboard endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/leaderboards/agents
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["leaderboard"]
+        
+  # CLI command tests:
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/prompt-injection-arena status --json
+    expect:
+      exit_code: 0
+      output_contains: ["healthy"]
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/prompt-injection-arena help
+    expect:
+      exit_code: 0
+      output_contains: ["prompt-injection-arena"]
+      
+  # Database tests:
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('injection_techniques', 'agent_configurations', 'test_results')"
+    expect:
+      rows: 
+        - count: 3
+        
+  # UI tests:
+  - name: "UI serves main page"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["Prompt Injection Arena"]
+        
+  # Security sandbox test:
+  - name: "Security sandbox workflow is active"
+    type: n8n
+    workflow: security-sandbox
+    expect:
+      active: true
+      
+  # Integration test:
+  - name: "Agent testing integration works"
+    type: exec
+    command: bash test/test-agent-security.sh
+    expect:
+      exit_code: 0

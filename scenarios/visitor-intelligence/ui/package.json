@@ -1,0 +1,23 @@
+{
+  "name": "visitor-intelligence-tracker",
+  "version": "1.0.0",
+  "description": "JavaScript tracking library for Vrooli visitor intelligence",
+  "main": "tracker.js",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js --watch",
+    "test": "node test/tracker.test.js"
+  },
+  "keywords": [
+    "analytics",
+    "visitor-tracking", 
+    "fingerprinting",
+    "behavior-tracking",
+    "vrooli"
+  ],
+  "author": "Vrooli",
+  "license": "MIT",
+  "devDependencies": {
+    "terser": "^5.19.2"
+  }
+}

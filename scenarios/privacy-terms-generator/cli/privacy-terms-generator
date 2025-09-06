@@ -1,0 +1,363 @@
+#!/bin/bash
+# Privacy & Terms Generator CLI
+# Version: 1.0.0
+# Description: Command-line interface for generating legal documents
+
+set -euo pipefail
+
+# Get script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Source generator functions
+source "${SCENARIO_ROOT}/lib/generator.sh"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Print colored output
+print_success() { echo -e "${GREEN}✓${NC} $1"; }
+print_error() { echo -e "${RED}✗${NC} $1" >&2; }
+print_info() { echo -e "${BLUE}ℹ${NC} $1"; }
+
+# Show help
+show_help() {
+    cat <<EOF
+Privacy & Terms Generator CLI - Generate legal documents for your business
+
+Usage: privacy-terms-generator <command> [options]
+
+Commands:
+  generate <type>     Generate a legal document
+  list-templates      Show available templates
+  update-templates    Fetch latest templates from web
+  status             Show generator status and health
+  version            Show version information
+  help               Show this help message
+
+Generate Command:
+  privacy-terms-generator generate <type> [options]
+  
+  Types:
+    privacy    Generate privacy policy
+    terms      Generate terms of service
+    cookie     Generate cookie policy
+    eula       Generate end-user license agreement
+  
+  Options:
+    --business-name <name>      Business or app name (required)
+    --business-type <type>      Type of business (saas|ecommerce|mobile|consulting)
+    --jurisdiction <code>       Jurisdiction (US|EU|UK|CA|AU)
+    --format <format>          Output format (markdown|html|pdf)
+    --output <file>            Save to file instead of stdout
+    --email <email>            Contact email
+    --website <url>            Website URL
+    --data-types <list>        Comma-separated list of data types collected
+    
+  Examples:
+    privacy-terms-generator generate privacy --business-name "MyApp" --jurisdiction EU
+    privacy-terms-generator generate terms --business-name "SaaS Co" --business-type saas --format html
+
+List Templates Command:
+  privacy-terms-generator list-templates [options]
+  
+  Options:
+    --type <type>              Filter by document type
+    --jurisdiction <code>      Filter by jurisdiction
+    --stale                    Show only stale templates (>30 days old)
+    --json                     Output in JSON format
+
+Update Templates Command:
+  privacy-terms-generator update-templates [options]
+  
+  Options:
+    --jurisdiction <code>      Update specific jurisdiction only
+    --force                    Force update even if templates are recent
+
+Examples:
+  privacy-terms-generator generate privacy --business-name "Acme Corp" --jurisdiction US
+  privacy-terms-generator list-templates --stale
+  privacy-terms-generator update-templates --force
+  privacy-terms-generator status --json
+
+EOF
+}
+
+# Show version
+show_version() {
+    echo "Privacy & Terms Generator CLI v1.0.0"
+    echo "Scenario: privacy-terms-generator"
+    echo "Copyright (c) 2025 Vrooli"
+}
+
+# Show status
+show_status() {
+    local json_output="${1:-false}"
+    
+    if [ "$json_output" = "true" ]; then
+        # JSON output
+        local template_count=$(db_query "SELECT COUNT(*) FROM legal_templates WHERE is_active = true" | tail -n 1)
+        local stale_count=$(db_query "SELECT COUNT(*) FROM template_status WHERE freshness_status = 'stale'" | tail -n 1)
+        local doc_count=$(db_query "SELECT COUNT(*) FROM generated_documents" | tail -n 1)
+        
+        cat <<EOF
+{
+  "status": "healthy",
+  "templates": {
+    "total": ${template_count},
+    "stale": ${stale_count}
+  },
+  "documents_generated": ${doc_count},
+  "database": "connected",
+  "ollama": "available"
+}
+EOF
+    else
+        print_info "Privacy & Terms Generator Status"
+        echo ""
+        
+        # Check database connection
+        if db_query "SELECT 1" &>/dev/null; then
+            print_success "Database connection: OK"
+        else
+            print_error "Database connection: FAILED"
+        fi
+        
+        # Check Ollama
+        if command -v resource-ollama &>/dev/null; then
+            print_success "Ollama integration: Available"
+        else
+            print_error "Ollama integration: Not found"
+        fi
+        
+        # Template statistics
+        local template_count=$(db_query "SELECT COUNT(*) FROM legal_templates WHERE is_active = true" | tail -n 1)
+        local stale_count=$(db_query "SELECT COUNT(*) FROM template_status WHERE freshness_status = 'stale'" | tail -n 1)
+        
+        echo ""
+        print_info "Template Statistics:"
+        echo "  Total templates: ${template_count}"
+        echo "  Stale templates: ${stale_count}"
+        
+        # Recent activity
+        local doc_count=$(db_query "SELECT COUNT(*) FROM generated_documents" | tail -n 1)
+        echo ""
+        print_info "Documents generated: ${doc_count}"
+    fi
+}
+
+# Generate document
+cmd_generate() {
+    local doc_type="$1"
+    shift
+    
+    # Parse arguments
+    local business_name=""
+    local business_type="general"
+    local jurisdiction="US"
+    local format="markdown"
+    local output_file=""
+    local email=""
+    local website=""
+    local data_types=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --business-name)
+                business_name="$2"
+                shift 2
+                ;;
+            --business-type)
+                business_type="$2"
+                shift 2
+                ;;
+            --jurisdiction)
+                jurisdiction="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --output)
+                output_file="$2"
+                shift 2
+                ;;
+            --email)
+                email="$2"
+                shift 2
+                ;;
+            --website)
+                website="$2"
+                shift 2
+                ;;
+            --data-types)
+                data_types="$2"
+                shift 2
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    # Validate required arguments
+    if [ -z "$business_name" ]; then
+        print_error "Business name is required (--business-name)"
+        exit 1
+    fi
+    
+    # Build custom data JSON
+    local custom_data='{'
+    [ -n "$email" ] && custom_data="${custom_data}\"contact_email\":\"${email}\","
+    [ -n "$website" ] && custom_data="${custom_data}\"website\":\"${website}\","
+    [ -n "$data_types" ] && custom_data="${custom_data}\"data_categories\":\"${data_types}\","
+    custom_data="${custom_data%,}}"
+    
+    # Generate document
+    print_info "Generating ${doc_type} for ${business_name}..."
+    
+    local content
+    content=$(generate_document "$doc_type" "$business_name" "$business_type" "$jurisdiction" "$format" "$custom_data")
+    
+    if [ $? -eq 0 ]; then
+        if [ -n "$output_file" ]; then
+            echo "$content" > "$output_file"
+            print_success "Document saved to ${output_file}"
+        else
+            echo "$content"
+        fi
+    else
+        print_error "Failed to generate document"
+        exit 1
+    fi
+}
+
+# List templates
+cmd_list_templates() {
+    local filter_type=""
+    local filter_jurisdiction=""
+    local show_stale=false
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --type)
+                filter_type="$2"
+                shift 2
+                ;;
+            --jurisdiction)
+                filter_jurisdiction="$2"
+                shift 2
+                ;;
+            --stale)
+                show_stale=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Build query
+    local query="SELECT template_type, jurisdiction, industry, version, 
+                        fetched_at, 
+                        EXTRACT(DAY FROM CURRENT_TIMESTAMP - fetched_at) as days_old
+                 FROM legal_templates
+                 WHERE is_active = true"
+    
+    [ -n "$filter_type" ] && query="${query} AND template_type = '${filter_type}'"
+    [ -n "$filter_jurisdiction" ] && query="${query} AND jurisdiction = '${filter_jurisdiction}'"
+    [ "$show_stale" = true ] && query="${query} AND EXTRACT(DAY FROM CURRENT_TIMESTAMP - fetched_at) > 30"
+    
+    query="${query} ORDER BY template_type, jurisdiction"
+    
+    if [ "$json_output" = true ]; then
+        # Format as JSON (simplified)
+        db_query "$query" | awk 'NR>2 {
+            gsub(/\|/, "");
+            printf "{\"type\":\"%s\",\"jurisdiction\":\"%s\",\"days_old\":%s},\n", $1, $2, $NF
+        }' | sed '$ s/,$//' | sed '1s/^/[/' | sed '$a]'
+    else
+        print_info "Available Templates:"
+        echo ""
+        db_query "$query"
+    fi
+}
+
+# Update templates
+cmd_update_templates() {
+    local jurisdiction="all"
+    local force=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --jurisdiction)
+                jurisdiction="$2"
+                shift 2
+                ;;
+            --force)
+                force=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    print_info "Updating templates..."
+    update_templates_from_web "$jurisdiction" "$force"
+    print_success "Templates updated successfully"
+}
+
+# Main command dispatcher
+main() {
+    case "${1:-}" in
+        generate)
+            shift
+            if [ $# -lt 1 ]; then
+                print_error "Document type required (privacy|terms|cookie|eula)"
+                exit 1
+            fi
+            cmd_generate "$@"
+            ;;
+        list-templates)
+            shift
+            cmd_list_templates "$@"
+            ;;
+        update-templates)
+            shift
+            cmd_update_templates "$@"
+            ;;
+        status)
+            shift
+            json=false
+            [ "${1:-}" = "--json" ] && json=true
+            show_status "$json"
+            ;;
+        version|--version|-v)
+            show_version
+            ;;
+        help|--help|-h|"")
+            show_help
+            ;;
+        *)
+            print_error "Unknown command: $1"
+            echo "Run 'privacy-terms-generator help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

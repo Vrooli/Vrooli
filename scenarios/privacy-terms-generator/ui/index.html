@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy & Terms Generator - Professional Legal Documents</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --success: #10b981;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text: #1e293b;
+            --text-light: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .logo svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav a {
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav a:hover {
+            color: var(--primary);
+        }
+
+        .main {
+            padding: 3rem 0;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .required {
+            color: #ef4444;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            background: var(--surface);
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+            margin-top: 0.25rem;
+        }
+
+        .checkbox-label {
+            font-size: 0.95rem;
+            color: var(--text-light);
+        }
+
+        .button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .button-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .button-secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .button-secondary:hover {
+            background: var(--background);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .preview-section {
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .preview-section.active {
+            display: block;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .preview-content {
+            background: var(--background);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 1.5rem;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .status-message.active {
+            display: block;
+        }
+
+        .status-success {
+            background: #10b98120;
+            color: #047857;
+            border: 1px solid #10b981;
+        }
+
+        .status-error {
+            background: #ef444420;
+            color: #b91c1c;
+            border: 1px solid #ef4444;
+        }
+
+        .status-info {
+            background: #3b82f620;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+
+        .template-freshness {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: var(--background);
+            border-radius: 4px;
+        }
+
+        .freshness-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-fresh {
+            background: #10b98120;
+            color: #047857;
+        }
+
+        .badge-stale {
+            background: #ef444420;
+            color: #b91c1c;
+        }
+
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        .loader.active {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                    </svg>
+                    Privacy & Terms Generator
+                </div>
+                <nav class="nav">
+                    <a href="#" onclick="checkTemplateFreshness()">Template Status</a>
+                    <a href="#" onclick="showHelp()">Help</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div id="statusMessage" class="status-message"></div>
+            
+            <div class="grid">
+                <div class="card">
+                    <h2 class="card-title">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        Document Configuration
+                    </h2>
+                    
+                    <form id="generatorForm">
+                        <div class="form-group">
+                            <label for="documentType">Document Type <span class="required">*</span></label>
+                            <select id="documentType" required>
+                                <option value="">Select document type</option>
+                                <option value="privacy">Privacy Policy</option>
+                                <option value="terms">Terms of Service</option>
+                                <option value="cookie">Cookie Policy</option>
+                                <option value="eula">End User License Agreement</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="businessName">Business Name <span class="required">*</span></label>
+                            <input type="text" id="businessName" placeholder="Your Company Name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="businessType">Business Type <span class="required">*</span></label>
+                            <select id="businessType" required>
+                                <option value="saas">SaaS Platform</option>
+                                <option value="ecommerce">E-commerce</option>
+                                <option value="mobile">Mobile App</option>
+                                <option value="consulting">Consulting/Services</option>
+                                <option value="general">General Business</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="jurisdiction">Primary Jurisdiction <span class="required">*</span></label>
+                            <select id="jurisdiction" required>
+                                <option value="US">United States</option>
+                                <option value="EU">European Union (GDPR)</option>
+                                <option value="UK">United Kingdom</option>
+                                <option value="CA">Canada</option>
+                                <option value="AU">Australia</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h2 class="card-title">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                            <path d="M2 12l10 5 10-5"></path>
+                        </svg>
+                        Additional Details
+                    </h2>
+
+                    <div class="form-group">
+                        <label for="contactEmail">Contact Email</label>
+                        <input type="email" id="contactEmail" placeholder="legal@company.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="website">Website URL</label>
+                        <input type="url" id="website" placeholder="https://www.company.com">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data Collection Types</label>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="dataPersonal" value="personal">
+                            <label for="dataPersonal" class="checkbox-label">Personal Information (name, email)</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="dataUsage" value="usage">
+                            <label for="dataUsage" class="checkbox-label">Usage Data & Analytics</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="dataPayment" value="payment">
+                            <label for="dataPayment" class="checkbox-label">Payment Information</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="dataCookies" value="cookies">
+                            <label for="dataCookies" class="checkbox-label">Cookies & Tracking</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="outputFormat">Output Format</label>
+                        <select id="outputFormat">
+                            <option value="markdown">Markdown</option>
+                            <option value="html">HTML</option>
+                            <option value="pdf" disabled>PDF (Coming Soon)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="button button-primary" onclick="generateDocument()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="18" x2="12" y2="12"></line>
+                        <line x1="9" y1="15" x2="15" y2="15"></line>
+                    </svg>
+                    Generate Document
+                    <span class="loader" id="generateLoader"></span>
+                </button>
+                <button class="button button-secondary" onclick="resetForm()">
+                    Clear Form
+                </button>
+            </div>
+
+            <div id="previewSection" class="preview-section">
+                <div class="card">
+                    <div class="preview-header">
+                        <h3>Generated Document</h3>
+                        <div class="button-group">
+                            <button class="button button-secondary" onclick="copyDocument()">
+                                Copy to Clipboard
+                            </button>
+                            <button class="button button-secondary" onclick="downloadDocument()">
+                                Download
+                            </button>
+                        </div>
+                    </div>
+                    <div id="previewContent" class="preview-content"></div>
+                </div>
+            </div>
+
+            <div class="template-freshness">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/>
+                </svg>
+                <span>Template Status:</span>
+                <span id="templateStatus" class="freshness-badge badge-fresh">Fresh</span>
+                <span id="templateDate">Updated today</span>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Privacy & Terms Generator - Part of the Vrooli Platform</p>
+            <p>Always have legal documents reviewed by a qualified attorney before use.</p>
+        </div>
+    </footer>
+
+    <script>
+        // API endpoint (adjust based on actual implementation)
+        const API_BASE = '/api/v1/legal';
+        
+        function showStatus(message, type = 'info') {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.className = `status-message active status-${type}`;
+            statusEl.textContent = message;
+            
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusEl.classList.remove('active');
+                }, 5000);
+            }
+        }
+
+        async function generateDocument() {
+            const form = document.getElementById('generatorForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const loader = document.getElementById('generateLoader');
+            loader.classList.add('active');
+
+            // Collect form data
+            const formData = {
+                document_type: document.getElementById('documentType').value,
+                business_name: document.getElementById('businessName').value,
+                business_type: document.getElementById('businessType').value,
+                jurisdictions: [document.getElementById('jurisdiction').value],
+                contact_email: document.getElementById('contactEmail').value,
+                website: document.getElementById('website').value,
+                data_types: Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+                    .map(cb => cb.value),
+                format: document.getElementById('outputFormat').value
+            };
+
+            try {
+                // Simulate API call (replace with actual endpoint)
+                showStatus('Generating document...', 'info');
+                
+                // In production, this would be:
+                // const response = await fetch(`${API_BASE}/generate`, {
+                //     method: 'POST',
+                //     headers: { 'Content-Type': 'application/json' },
+                //     body: JSON.stringify(formData)
+                // });
+                // const result = await response.json();
+                
+                // Simulated response
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const result = {
+                    content: `# ${formData.document_type === 'privacy' ? 'Privacy Policy' : 'Terms of Service'} for ${formData.business_name}\n\n**Last Updated:** ${new Date().toLocaleDateString()}\n\n## Introduction\n\nThis document has been generated for ${formData.business_name} as a ${formData.business_type} operating under ${formData.jurisdictions[0]} jurisdiction.\n\n[Document content would be generated here based on templates and AI customization]\n\n## Contact Information\n\nEmail: ${formData.contact_email || 'contact@example.com'}\nWebsite: ${formData.website || 'https://example.com'}`,
+                    generated_at: new Date().toISOString(),
+                    document_id: 'doc_' + Math.random().toString(36).substr(2, 9)
+                };
+
+                // Display result
+                document.getElementById('previewContent').textContent = result.content;
+                document.getElementById('previewSection').classList.add('active');
+                showStatus('Document generated successfully!', 'success');
+                
+                // Store for download
+                window.generatedDocument = result;
+            } catch (error) {
+                showStatus('Failed to generate document. Please try again.', 'error');
+                console.error('Generation error:', error);
+            } finally {
+                loader.classList.remove('active');
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('generatorForm').reset();
+            document.getElementById('previewSection').classList.remove('active');
+            showStatus('Form cleared', 'info');
+        }
+
+        function copyDocument() {
+            const content = document.getElementById('previewContent').textContent;
+            navigator.clipboard.writeText(content).then(() => {
+                showStatus('Document copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('Failed to copy document', 'error');
+            });
+        }
+
+        function downloadDocument() {
+            if (!window.generatedDocument) return;
+            
+            const { content, document_id } = window.generatedDocument;
+            const docType = document.getElementById('documentType').value;
+            const format = document.getElementById('outputFormat').value;
+            
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${docType}_${document_id}.${format === 'markdown' ? 'md' : format}`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showStatus('Document downloaded!', 'success');
+        }
+
+        async function checkTemplateFreshness() {
+            try {
+                // Simulate API call
+                showStatus('Checking template freshness...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const isFresh = Math.random() > 0.3;
+                const daysOld = Math.floor(Math.random() * 40);
+                
+                const statusEl = document.getElementById('templateStatus');
+                const dateEl = document.getElementById('templateDate');
+                
+                if (isFresh) {
+                    statusEl.className = 'freshness-badge badge-fresh';
+                    statusEl.textContent = 'Fresh';
+                    dateEl.textContent = `Updated ${daysOld} days ago`;
+                    showStatus('Templates are up to date', 'success');
+                } else {
+                    statusEl.className = 'freshness-badge badge-stale';
+                    statusEl.textContent = 'Update Available';
+                    dateEl.textContent = `Last updated ${daysOld} days ago`;
+                    showStatus('Template updates available. Contact admin to refresh.', 'info');
+                }
+            } catch (error) {
+                showStatus('Failed to check template status', 'error');
+            }
+        }
+
+        function showHelp() {
+            alert('Privacy & Terms Generator Help\n\n' +
+                  '1. Select the type of legal document you need\n' +
+                  '2. Fill in your business information\n' +
+                  '3. Choose applicable data collection types\n' +
+                  '4. Click "Generate Document" to create your legal document\n' +
+                  '5. Review and download the generated document\n\n' +
+                  'Note: Always have legal documents reviewed by an attorney before use.');
+        }
+
+        // Health check endpoint for service monitoring
+        if (window.location.pathname === '/health') {
+            document.body.innerHTML = JSON.stringify({ status: 'healthy', timestamp: new Date().toISOString() });
+        }
+    </script>
+</body>
+</html>

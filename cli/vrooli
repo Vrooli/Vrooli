@@ -132,6 +132,12 @@ main() {
 			exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
 			;;
 		
+		# Process cleanup command
+		cleanup)
+			shift
+			exec "${VROOLI_ROOT}/scripts/lib/cleanup-orphaned-processes.sh" "$@"
+			;;
+		
 		# Status command
 		status)
 			# Clear source guards to allow status-command.sh to load functions properly
@@ -271,9 +277,12 @@ filter_shell_arguments() {
 					# Additional validation: single digits at end are usually FDs
 					continue
 				fi
+				filtered+=("$arg")
+				;;
+			*)
+				filtered+=("$arg")
 				;;
 		esac
-		filtered+=("$arg")
 	done
 	
 	# Only output if we have actual arguments to avoid creating empty string elements

@@ -25,21 +25,21 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 20500,
       "fallback": "auto",
-      "description": "Main AI orchestration API port"
+      "description": "Main AI orchestration API port",
+      "range": "15000-19999"
     },
     "monitoring": {
       "env_var": "MONITORING_PORT",
-      "port": 20750,
       "fallback": "auto",
-      "description": "Monitoring and metrics endpoint port"
+      "description": "Monitoring and metrics endpoint port",
+      "range": "23000-23999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 30850,
       "fallback": "auto",
-      "description": "AI Model Orchestra Controller UI port"
+      "description": "AI Model Orchestra Controller UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -209,7 +209,12 @@
           "description": "Generate dynamic resource URLs configuration"
         },
         {
-          "name": "start-api-server",
+          "name": "install-api-deps",
+          "run": "cd initialization/configuration && npm install",
+          "description": "Install API server dependencies"
+        },
+        {
+          "name": "start-api",
           "run": "cd initialization/configuration && node api-server.js &",
           "description": "Start AI orchestration API server",
           "background": true
@@ -224,6 +229,14 @@
     "develop": {
       "description": "Start AI orchestration development environment",
       "steps": [
+        {
+          "name": "install-deps",
+          "run": "cd initialization/configuration && npm install",
+          "description": "Install API dependencies",
+          "condition": {
+            "file_exists": "initialization/configuration/package.json"
+          }
+        },
         {
           "name": "start-orchestrator",
           "run": "cd initialization/configuration && PORT=$API_PORT node api-server.js",

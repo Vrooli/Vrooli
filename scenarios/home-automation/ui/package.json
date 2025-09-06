@@ -1,0 +1,29 @@
+{
+  "name": "home-automation-ui",
+  "version": "1.0.0",
+  "description": "Intelligent Home Automation Dashboard - Self-evolving home control with AI-generated automations",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "home-automation",
+    "iot",
+    "smart-home",
+    "device-control",
+    "ai-automation",
+    "dashboard"
+  ],
+  "author": "Vrooli AI",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "ws": "^8.13.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

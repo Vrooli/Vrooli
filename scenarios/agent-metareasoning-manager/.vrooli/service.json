@@ -25,9 +25,9 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 20250,
       "fallback": "auto",
-      "description": "Main coordination API port"
+      "description": "Main coordination API port",
+      "range": "15000-19999"
     }
   },
   "resources": {

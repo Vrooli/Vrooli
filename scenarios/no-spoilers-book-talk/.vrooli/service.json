@@ -1,0 +1,252 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "no-spoilers-book-talk",
+    "displayName": "No Spoilers Book Talk",
+    "description": "AI-powered spoiler-free book discussions with progress-aware content filtering",
+    "version": "1.0.0",
+    "tags": [
+      "education",
+      "literature",
+      "reading",
+      "spoiler-free",
+      "discussion",
+      "progress-tracking",
+      "rag-pipeline",
+      "vector-search",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "qdrant-vectors",
+      "position-aware-filtering",
+      "book-analysis",
+      "literary-discussion"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "fallback": "auto",
+      "description": "Book talk API server port",
+      "range": "15000-19999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store book metadata, user progress, and conversation history",
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for book content embeddings with position metadata for spoiler-free search"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "Local LLM for text embeddings and chat responses",
+      "models": [
+        "mxbai-embed-large",
+        "llama3.2",
+        "phi3.5",
+        "nomic-embed-text"
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "purpose": "Automation workflows for book processing and chat orchestration",
+      "initialization": [
+        {
+          "file": "initialization/n8n/book-processor.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/safe-chat-orchestrator.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": false,
+      "required": false,
+      "purpose": "Original book file storage and backup (fallback to local filesystem)"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "No Spoilers Book Talk health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "qdrant_connection",
+          "type": "http",
+          "target": "http://localhost:${RESOURCE_PORTS[qdrant]}/health",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize No Spoilers Book Talk scenario",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/no-spoilers-book-talk-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "no-spoilers-book-talk"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-data-directory",
+          "run": "mkdir -p data/books data/uploads data/temp",
+          "description": "Create data directories for book storage"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o no-spoilers-book-talk-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "initialize-qdrant-collections",
+          "run": "vrooli resource qdrant collection create book-content --vector-size 1024 --distance cosine || echo 'Collection may already exist'",
+          "description": "Create Qdrant collection for book embeddings"
+        },
+        {
+          "name": "populate-resources",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add scenario data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '📚 No Spoilers Book Talk initialized\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  CLI: no-spoilers-book-talk --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start book talk with API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./no-spoilers-book-talk-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/no-spoilers-book-talk-api"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '📚 No Spoilers Book Talk running:\\n  API: http://localhost:$API_PORT\\n  Upload books: POST /api/v1/books/upload\\n  Start chat: POST /api/v1/books/{book_id}/chat\\n  CLI: no-spoilers-book-talk --help'",
+          "description": "Display running service information"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test No Spoilers Book Talk API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "timeout 10 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 1; done'",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-upload-endpoint",
+          "run": "bash test/test-book-upload.sh",
+          "description": "Test book upload functionality",
+          "condition": {
+            "file_exists": "test/test-book-upload.sh"
+          }
+        },
+        {
+          "name": "test-spoiler-prevention",
+          "run": "bash test/test-spoiler-prevention.sh",
+          "description": "Test position-based spoiler filtering",
+          "condition": {
+            "file_exists": "test/test-spoiler-prevention.sh"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats no-spoilers-book-talk.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/no-spoilers-book-talk.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.no-spoilers-book-talk.start-api\" 2>/dev/null || pkill -f \"no-spoilers-book-talk-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        }
+      ]
+    }
+  }
+}

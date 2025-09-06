@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visitor Intelligence Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .demo-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .button {
+            background: #007cba;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #005a8b;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .stats {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .code {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Visitor Intelligence Demo</h1>
+    <p>This page demonstrates the Vrooli Visitor Intelligence tracking system. Open your browser's developer tools to see tracking events.</p>
+
+    <div class="demo-section">
+        <h2>Integration Example</h2>
+        <p>To add visitor tracking to any Vrooli scenario, just include this single script tag:</p>
+        <div class="code">
+            &lt;script src="http://localhost:${API_PORT}/tracker.js" data-scenario="my-scenario-name"&gt;&lt;/script&gt;
+        </div>
+        <p>The tracker automatically identifies visitors and tracks:</p>
+        <ul>
+            <li>Page views and session duration</li>
+            <li>Clicks and form interactions</li>
+            <li>Scroll behavior and engagement</li>
+            <li>Browser fingerprinting for identification</li>
+        </ul>
+    </div>
+
+    <div class="demo-section">
+        <h2>Test Interactions</h2>
+        <p>Try these interactions to see tracking in action:</p>
+        
+        <button class="button" onclick="testClick('primary_button')">Primary Action</button>
+        <button class="button" onclick="testClick('secondary_button')">Secondary Action</button>
+        <button class="button" onclick="window.VisitorIntelligence && window.VisitorIntelligence.track('custom_event', {test: true})">Custom Event</button>
+        
+        <div class="form-group">
+            <label>Test Form (focus triggers tracking):</label>
+            <input type="email" placeholder="Enter your email" onfocus="console.log('Form focus tracked')">
+        </div>
+        
+        <div class="form-group">
+            <label>Message:</label>
+            <textarea placeholder="Type a message..." rows="3"></textarea>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>Visitor Information</h2>
+        <div class="stats">
+            <strong>Visitor ID:</strong> <span id="visitor-id">Loading...</span><br>
+            <strong>Session Start:</strong> <span id="session-start">Loading...</span><br>
+            <strong>Page Views:</strong> <span id="page-views">0</span><br>
+            <strong>Fingerprint:</strong> <span id="fingerprint">Loading...</span>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>Privacy Controls</h2>
+        <p>The tracking system respects user privacy:</p>
+        <ul>
+            <li>Honors "Do Not Track" browser settings</li>
+            <li>No personally identifiable information collected</li>
+            <li>First-party data only (no external services)</li>
+            <li>GDPR compliant with opt-out mechanisms</li>
+        </ul>
+        <button class="button" onclick="disableTracking()">Disable Tracking</button>
+        <button class="button" onclick="enableTracking()">Enable Tracking</button>
+    </div>
+
+    <div class="demo-section">
+        <h2>Integration with Other Scenarios</h2>
+        <p>Here's how different scenario types can leverage visitor intelligence:</p>
+        
+        <h3>E-commerce Scenarios</h3>
+        <ul>
+            <li>Cart abandonment detection and recovery</li>
+            <li>Product recommendation based on browsing history</li>
+            <li>Personalized pricing and promotions</li>
+        </ul>
+        
+        <h3>Content Scenarios</h3>
+        <ul>
+            <li>Reading time and engagement tracking</li>
+            <li>Content personalization by interests</li>
+            <li>Newsletter subscription triggers</li>
+        </ul>
+        
+        <h3>SaaS Scenarios</h3>
+        <ul>
+            <li>Feature usage analytics</li>
+            <li>User onboarding optimization</li>
+            <li>Churn prediction and retention</li>
+        </ul>
+    </div>
+
+    <!-- Include the visitor intelligence tracker -->
+    <script src="tracker.js" data-scenario="visitor-intelligence-demo"></script>
+    
+    <script>
+        function testClick(buttonType) {
+            console.log('Button clicked:', buttonType);
+            if (window.VisitorIntelligence) {
+                window.VisitorIntelligence.track('button_click', {
+                    button_type: buttonType,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+
+        function disableTracking() {
+            localStorage.setItem('visitor_tracking_disabled', 'true');
+            alert('Tracking disabled (demo - would need implementation)');
+        }
+
+        function enableTracking() {
+            localStorage.removeItem('visitor_tracking_disabled');
+            alert('Tracking enabled');
+        }
+
+        // Update visitor info display
+        function updateVisitorInfo() {
+            if (window.VisitorIntelligence) {
+                const vi = window.VisitorIntelligence;
+                document.getElementById('visitor-id').textContent = vi.getVisitorId() || 'Generating...';
+                document.getElementById('fingerprint').textContent = vi.fingerprint || 'Generating...';
+                document.getElementById('session-start').textContent = new Date(vi.sessionStartTime).toLocaleTimeString();
+                document.getElementById('page-views').textContent = vi.pageViews || '0';
+            }
+        }
+
+        // Update info every 2 seconds
+        setInterval(updateVisitorInfo, 2000);
+        
+        // Log tracking events to console for demo
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            if (args[0].includes('/api/v1/visitor/track')) {
+                console.log('📊 Visitor tracking event:', JSON.parse(args[1].body));
+            }
+            return originalFetch.apply(this, args);
+        };
+        
+        // Scroll tracking demo
+        let scrollCount = 0;
+        window.addEventListener('scroll', () => {
+            scrollCount++;
+            if (scrollCount % 10 === 0) {
+                console.log(`Scroll tracking: ${Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100)}%`);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -403,11 +403,11 @@ main() {
                 echo ""
                 
                 if [[ "$total" -gt 0 ]]; then
-                    echo "SCENARIO                          STATUS      PORT(S)"
-                    echo "────────────────────────────────────────────────────────"
+                    echo "SCENARIO                          STATUS      RUNTIME         PORT(S)"
+                    echo "───────────────────────────────────────────────────────────────────────────"
                     
-                    # Parse individual apps - format ports in jq to avoid shell parsing issues
-                    echo "$response" | jq -r '.apps[] | "\(.name)|\(.status)|" + (.allocated_ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):\(.value)") | join(", ")) end) + "|" + (.actual_health // "unknown")' 2>/dev/null | while IFS='|' read -r name status port_list health; do
+                    # Parse individual apps - format ports as clickable URLs
+                    echo "$response" | jq -r '.apps[] | "\(.name)|\(.status)|" + (.runtime_formatted // "-") + "|" + (.allocated_ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):http://localhost:\(.value)") | join(", ")) end) + "|" + (.actual_health // "unknown")' 2>/dev/null | while IFS='|' read -r name status runtime port_list health; do
                         # Color code status based on actual health
                         local status_display
                         if [ "$status" = "running" ]; then
@@ -442,7 +442,7 @@ main() {
                             esac
                         fi
                         
-                        printf "%-33s %-11s %s\n" "$name" "$status_display" "$port_list"
+                        printf "%-33s %-11s %-15s %s\n" "$name" "$status_display" "$runtime" "$port_list"
                     done
                 fi
             else
@@ -472,12 +472,13 @@ main() {
                 fi
                 
                 # Parse and display detailed status
-                local status pid started_at stopped_at restart_count port_info
+                local status pid started_at stopped_at restart_count port_info runtime_formatted
                 status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
                 pid=$(echo "$response" | jq -r '.pid // "N/A"' 2>/dev/null)
                 started_at=$(echo "$response" | jq -r '.started_at // "never"' 2>/dev/null)
                 stopped_at=$(echo "$response" | jq -r '.stopped_at // "N/A"' 2>/dev/null)
                 restart_count=$(echo "$response" | jq -r '.restart_count // 0' 2>/dev/null)
+                runtime_formatted=$(echo "$response" | jq -r '.runtime_formatted // "N/A"' 2>/dev/null)
                 
                 echo "📋 SCENARIO: $scenario_name"
                 echo "═══════════════════════════════════════"
@@ -503,6 +504,7 @@ main() {
                 
                 [[ "$pid" != "null" ]] && [[ "$pid" != "N/A" ]] && echo "Process ID:    $pid"
                 [[ "$started_at" != "null" ]] && [[ "$started_at" != "never" ]] && echo "Started:       $started_at"
+                [[ "$runtime_formatted" != "null" ]] && [[ "$runtime_formatted" != "N/A" ]] && echo "Runtime:       $runtime_formatted"
                 [[ "$stopped_at" != "null" ]] && [[ "$stopped_at" != "N/A" ]] && echo "Stopped:       $stopped_at"
                 [[ "$restart_count" != "0" ]] && echo "Restarts:      $restart_count"
                 
@@ -521,7 +523,7 @@ main() {
                 if [[ "$port_status" != "{}" ]] && [[ "$port_status" != "null" ]]; then
                     echo ""
                     echo "Port Status:"
-                    echo "$port_status" | jq -r 'to_entries[] | "  \(.key): port \(.value.port) - \(if .value.listening then "✓ listening" else "✗ not listening" end)"' 2>/dev/null
+                    echo "$port_status" | jq -r 'to_entries[] | "  \(.key): http://localhost:\(.value.port) - \(if .value.listening then "✓ listening" else "✗ not listening" end)"' 2>/dev/null
                 fi
                 
                 echo ""

@@ -1,0 +1,232 @@
+{
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "data-backup-manager",
+    "displayName": "Data Backup Manager",
+    "description": "Comprehensive backup management system for all Vrooli resources and scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "maintenance",
+      "backup",
+      "data-protection",
+      "infrastructure",
+      "automation",
+      "postgres-backup",
+      "file-backup",
+      "go-api",
+      "n8n-workflows"
+    ],
+    "license": "MIT"
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/backup-orchestrator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/backup-scheduler.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/backup-validator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/backup-monitor.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "fallback": "auto",
+      "description": "Data Backup Manager API port",
+      "range": "15000-19999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Data Backup Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "backup_status",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/backup/status",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Data Backup Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/data-backup-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "data-backup-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o data-backup-manager-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/data-backup-manager && ln -sf $(pwd)/cli/data-backup-manager ~/.local/bin/data-backup-manager 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "create-backup-dirs",
+          "run": "mkdir -p data/backups/postgres data/backups/files data/backups/scenarios data/backups/metadata",
+          "description": "Create backup directory structure"
+        },
+        {
+          "name": "set-permissions",
+          "run": "chmod -R 755 data/backups",
+          "description": "Set backup directory permissions"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo 'Data Backup Manager initialized - API: http://localhost:${API_PORT} - CLI: data-backup-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Data Backup Manager API server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./data-backup-manager-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/data-backup-manager-api"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo 'Services running - API: http://localhost:${API_PORT} - CLI: data-backup-manager --help'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Data Backup Manager API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-backup-status",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/backup/status",
+          "description": "Test backup status endpoint"
+        },
+        {
+          "name": "test-cli-status",
+          "run": "data-backup-manager status",
+          "description": "Test CLI status command"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.data-backup-manager.start-api\" 2>/dev/null || pkill -f \"data-backup-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "shared_workflows": [
+      "file-system-ops",
+      "postgres-utils",
+      "storage-manager"
+    ]
+  },
+  "runtime": {
+    "protected": true,
+    "protection_reason": "Critical infrastructure component - protects all Vrooli data"
+  },
+  "metadata": {
+    "category": "maintenance",
+    "importance": "critical",
+    "auto_start": false
+  }
+}

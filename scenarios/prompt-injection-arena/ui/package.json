@@ -1,0 +1,27 @@
+{
+  "name": "prompt-injection-arena-ui",
+  "version": "1.0.0",
+  "description": "Web interface for the Prompt Injection Arena - defensive security platform",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'No build step required for vanilla JS app'",
+    "test": "echo 'No tests specified'"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "prompt-injection",
+    "security",
+    "ai-safety",
+    "testing",
+    "arena",
+    "leaderboard"
+  ],
+  "author": "Vrooli Team",
+  "license": "MIT"
+}

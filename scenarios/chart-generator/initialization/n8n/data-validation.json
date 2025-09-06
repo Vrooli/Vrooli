@@ -1,0 +1,184 @@
+{
+  "name": "Chart Data Validation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validate-data",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test data for manual trigger\nreturn {\n  data: [\n    { x: 'A', y: 10 },\n    { x: 'B', y: 20 },\n    { x: 'C', y: 15 }\n  ],\n  chart_type: 'bar'\n};"
+      },
+      "id": "set_test_data",
+      "name": "Set Test Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate chart data\nconst input = $input.item.json;\nlet data = input.data;\nconst chartType = input.chart_type || 'bar';\n\n// Handle different input structures\nif (input.json && input.json.data) {\n  data = input.json.data;\n}\n\n// Validation results\nconst validation = {\n  valid: true,\n  errors: [],\n  warnings: [],\n  data_points: 0,\n  chart_type: chartType\n};\n\n// Check if data exists\nif (!data) {\n  validation.valid = false;\n  validation.errors.push('Missing data field');\n  return validation;\n}\n\n// Check if data is array\nif (!Array.isArray(data)) {\n  validation.valid = false;\n  validation.errors.push('Data must be an array');\n  return validation;\n}\n\n// Check if data is not empty\nif (data.length === 0) {\n  validation.valid = false;\n  validation.errors.push('Data array cannot be empty');\n  return validation;\n}\n\nvalidation.data_points = data.length;\n\n// Check data structure based on chart type\nfor (let i = 0; i < Math.min(data.length, 5); i++) {\n  const point = data[i];\n  \n  if (typeof point !== 'object') {\n    validation.valid = false;\n    validation.errors.push(`Data point ${i} must be an object`);\n    continue;\n  }\n  \n  if (chartType === 'pie') {\n    if ((!point.x && !point.label) || (!point.y && !point.value)) {\n      validation.errors.push(`Pie chart point ${i} must have label/x and value/y properties`);\n      validation.valid = false;\n    }\n  } else {\n    if (point.x === undefined || point.y === undefined) {\n      validation.errors.push(`Point ${i} must have x and y properties`);\n      validation.valid = false;\n    }\n  }\n}\n\n// Add warnings for large datasets\nif (data.length > 1000) {\n  validation.warnings.push('Large dataset detected - generation may take longer');\n}\n\n// Add success message if valid\nif (validation.valid) {\n  validation.message = `Data validation successful: ${validation.data_points} data points`;\n}\n\nreturn validation;"
+      },
+      "id": "validate_data",
+      "name": "Validate Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_valid",
+      "name": "Check Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 400,
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1200, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Data": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Check Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Valid": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "data-validation",
+  "tags": [
+    {
+      "createdAt": "2025-09-05T00:00:00.000Z",
+      "updatedAt": "2025-09-05T00:00:00.000Z",
+      "id": "data-validation",
+      "name": "data-validation"
+    }
+  ]
+}

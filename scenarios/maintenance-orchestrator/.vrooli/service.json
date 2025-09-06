@@ -1,0 +1,116 @@
+{
+  "name": "maintenance-orchestrator",
+  "displayName": "Maintenance Orchestrator",
+  "description": "Centralized control plane for all maintenance-related scenarios",
+  "version": "1.0.0",
+  "category": "system",
+  "tags": ["system", "orchestration", "maintenance", "control"],
+  "enabled": true,
+  "type": "local",
+  "priority": 100,
+  "ports": {
+    "api": 3250,
+    "ui": 3251
+  },
+  "dependencies": {
+    "required": [],
+    "optional": ["postgres", "redis", "calendar"]
+  },
+  "resources": {
+    "n8n": {
+      "enabled": false,
+      "workflows": [
+        "initialization/n8n/maintenance-state-manager.json"
+      ]
+    },
+    "postgres": {
+      "enabled": false,
+      "optional": true,
+      "database": "maintenance_orchestrator"
+    }
+  },
+  "api": {
+    "enabled": true,
+    "port": 3250,
+    "healthEndpoint": "/api/health",
+    "docsEndpoint": "/api/docs"
+  },
+  "ui": {
+    "enabled": true,
+    "port": 3251,
+    "type": "react",
+    "buildCommand": "npm run build",
+    "startCommand": "npm run dev"
+  },
+  "cli": {
+    "enabled": true,
+    "installPath": "~/.vrooli/bin/maintenance-orchestrator",
+    "commands": [
+      "status",
+      "list",
+      "activate",
+      "deactivate",
+      "preset",
+      "stop-all"
+    ]
+  },
+  "initialization": {
+    "order": 1,
+    "timeout": 30,
+    "retries": 3
+  },
+  "monitoring": {
+    "healthCheck": {
+      "enabled": true,
+      "interval": 30,
+      "endpoint": "/api/health"
+    },
+    "metrics": {
+      "enabled": true,
+      "endpoint": "/api/metrics"
+    }
+  },
+  "features": {
+    "autoDiscovery": true,
+    "presets": true,
+    "scheduling": false,
+    "notifications": false,
+    "persistence": false
+  },
+  "defaults": {
+    "maintenanceState": "inactive",
+    "discoveryInterval": 60,
+    "presets": [
+      {
+        "id": "full-maintenance",
+        "name": "Full Maintenance",
+        "description": "Activate all maintenance scenarios",
+        "pattern": "*"
+      },
+      {
+        "id": "security-only",
+        "name": "Security Only",
+        "description": "Security-related maintenance only",
+        "tags": ["security"]
+      },
+      {
+        "id": "performance",
+        "name": "Performance",
+        "description": "Performance optimization scenarios",
+        "tags": ["performance", "optimization"]
+      },
+      {
+        "id": "off-hours",
+        "name": "Off Hours",
+        "description": "Heavy maintenance for quiet periods",
+        "tags": ["heavy", "backup", "cleanup"]
+      },
+      {
+        "id": "minimal",
+        "name": "Minimal",
+        "description": "Essential maintenance only",
+        "tags": ["essential", "critical"]
+      }
+    ]
+  }
+}

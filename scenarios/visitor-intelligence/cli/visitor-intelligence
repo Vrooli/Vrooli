@@ -1,0 +1,502 @@
+#!/bin/bash
+
+# Visitor Intelligence CLI
+# Thin wrapper over API endpoints for visitor tracking and analytics management
+
+set -e
+
+# Configuration
+API_PORT="${API_PORT:-8080}"
+API_BASE="http://localhost:${API_PORT}/api/v1"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Utility functions
+log_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}✗${NC} $1" >&2
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -s "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
+        log_error "Visitor Intelligence API is not running on port ${API_PORT}"
+        log_info "Start the API with: vrooli scenario run visitor-intelligence"
+        exit 1
+    fi
+}
+
+# Format JSON output for human readability
+format_json() {
+    local json_flag=""
+    for arg in "$@"; do
+        if [[ "$arg" == "--json" ]]; then
+            json_flag="--json"
+            break
+        fi
+    done
+    
+    if [[ "$json_flag" == "--json" ]]; then
+        cat
+    else
+        python3 -m json.tool 2>/dev/null || jq . 2>/dev/null || cat
+    fi
+}
+
+# Make API call with error handling
+api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local response
+    local status_code
+    
+    if [[ "$method" == "POST" && -n "$data" ]]; then
+        response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            "${API_BASE}${endpoint}")
+    else
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "${API_BASE}${endpoint}")
+    fi
+    
+    status_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
+    
+    if [[ "$status_code" -ge 200 && "$status_code" -lt 300 ]]; then
+        echo "$body"
+        return 0
+    else
+        log_error "API call failed with status $status_code"
+        echo "$body" | format_json
+        return 1
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    local json_flag=""
+    for arg in "$@"; do
+        case "$arg" in
+            --json) json_flag="--json" ;;
+            --verbose) verbose="true" ;;
+            --help) 
+                echo "Usage: visitor-intelligence status [--json] [--verbose]"
+                echo "Show operational status and resource health"
+                echo ""
+                echo "Options:"
+                echo "  --json      Output in JSON format"
+                echo "  --verbose   Show detailed status information"
+                return 0
+                ;;
+        esac
+    done
+    
+    log_info "Checking Visitor Intelligence status..."
+    
+    local health_response
+    if health_response=$(curl -s "http://localhost:${API_PORT}/health"); then
+        if [[ "$json_flag" == "--json" ]]; then
+            echo "$health_response"
+        else
+            echo "$health_response" | format_json
+            log_success "Visitor Intelligence is healthy"
+        fi
+    else
+        log_error "Failed to get health status"
+        return 1
+    fi
+}
+
+cmd_track() {
+    local event_type=""
+    local scenario=""
+    local properties="{}"
+    local page_url=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                echo "Usage: visitor-intelligence track EVENT_TYPE SCENARIO [options]"
+                echo "Manually track a visitor event"
+                echo ""
+                echo "Arguments:"
+                echo "  EVENT_TYPE  Type of event (pageview, click, form_focus, etc.)"
+                echo "  SCENARIO    Scenario name generating the event"
+                echo ""
+                echo "Options:"
+                echo "  --page-url URL         Page URL for the event"
+                echo "  --properties JSON      JSON properties object"
+                echo "  --json                 Output response in JSON format"
+                return 0
+                ;;
+            --page-url)
+                page_url="$2"
+                shift 2
+                ;;
+            --properties)
+                properties="$2"
+                shift 2
+                ;;
+            --json)
+                json_flag="--json"
+                shift
+                ;;
+            *)
+                if [[ -z "$event_type" ]]; then
+                    event_type="$1"
+                elif [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                else
+                    log_error "Unknown argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$event_type" || -z "$scenario" ]]; then
+        log_error "EVENT_TYPE and SCENARIO are required"
+        echo "Use --help for usage information"
+        return 1
+    fi
+    
+    if [[ -z "$page_url" ]]; then
+        page_url="http://localhost:${API_PORT}/cli-tracking"
+    fi
+    
+    local fingerprint="cli-$(date +%s)-$(whoami)"
+    
+    local payload=$(cat <<EOF
+{
+    "fingerprint": "$fingerprint",
+    "event_type": "$event_type",
+    "scenario": "$scenario",
+    "page_url": "$page_url",
+    "properties": $properties
+}
+EOF
+)
+    
+    log_info "Tracking event: $event_type for scenario: $scenario"
+    
+    if api_call "POST" "/visitor/track" "$payload"; then
+        log_success "Event tracked successfully"
+    else
+        return 1
+    fi
+}
+
+cmd_profile() {
+    local visitor_id=""
+    local include_events=""
+    local include_sessions=""
+    local json_flag=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                echo "Usage: visitor-intelligence profile VISITOR_ID [options]"
+                echo "Retrieve visitor profile and analytics"
+                echo ""
+                echo "Arguments:"
+                echo "  VISITOR_ID  Visitor ID to retrieve"
+                echo ""
+                echo "Options:"
+                echo "  --events     Include visitor events in output"
+                echo "  --sessions   Include session data in output"
+                echo "  --json       Output in JSON format"
+                return 0
+                ;;
+            --events)
+                include_events="true"
+                shift
+                ;;
+            --sessions)
+                include_sessions="true"
+                shift
+                ;;
+            --json)
+                json_flag="--json"
+                shift
+                ;;
+            *)
+                if [[ -z "$visitor_id" ]]; then
+                    visitor_id="$1"
+                else
+                    log_error "Unknown argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$visitor_id" ]]; then
+        log_error "VISITOR_ID is required"
+        echo "Use --help for usage information"
+        return 1
+    fi
+    
+    log_info "Retrieving profile for visitor: $visitor_id"
+    
+    local endpoint="/visitor/$visitor_id"
+    local query_params=""
+    
+    if [[ -n "$include_events" ]]; then
+        query_params+="include_events=true&"
+    fi
+    if [[ -n "$include_sessions" ]]; then
+        query_params+="include_sessions=true&"
+    fi
+    
+    if [[ -n "$query_params" ]]; then
+        endpoint+="?${query_params%&}"
+    fi
+    
+    if response=$(api_call "GET" "$endpoint"); then
+        echo "$response" | format_json "$@"
+        log_success "Profile retrieved successfully"
+    else
+        return 1
+    fi
+}
+
+cmd_analytics() {
+    local scenario=""
+    local timeframe="7d"
+    local format="table"
+    local json_flag=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --help)
+                echo "Usage: visitor-intelligence analytics SCENARIO [options]"
+                echo "Get analytics for a specific scenario"
+                echo ""
+                echo "Arguments:"
+                echo "  SCENARIO  Scenario name for analytics"
+                echo ""
+                echo "Options:"
+                echo "  --timeframe PERIOD   Time period (1d, 7d, 30d, 90d) [default: 7d]"
+                echo "  --format FORMAT      Output format (table, json, csv) [default: table]"
+                echo "  --json               Same as --format json"
+                return 0
+                ;;
+            --timeframe)
+                timeframe="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                json_flag="--json"
+                shift
+                ;;
+            *)
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                else
+                    log_error "Unknown argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$scenario" ]]; then
+        log_error "SCENARIO is required"
+        echo "Use --help for usage information"
+        return 1
+    fi
+    
+    log_info "Retrieving analytics for scenario: $scenario (timeframe: $timeframe)"
+    
+    local endpoint="/analytics/scenario/$scenario?timeframe=$timeframe"
+    
+    if response=$(api_call "GET" "$endpoint"); then
+        case "$format" in
+            json)
+                echo "$response" | format_json "$@"
+                ;;
+            csv)
+                # Convert JSON to CSV format
+                echo "metric,value"
+                echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(f'unique_visitors,{data.get(\"unique_visitors\", 0)}')
+print(f'total_sessions,{data.get(\"total_sessions\", 0)}')
+print(f'avg_session_duration,{data.get(\"avg_session_duration\", 0):.2f}')
+print(f'total_page_views,{data.get(\"total_page_views\", 0)}')
+print(f'bounce_rate,{data.get(\"bounce_rate\", 0):.3f}')
+print(f'identified_visitors,{data.get(\"identified_visitors\", 0)}')
+" 2>/dev/null || echo "$response"
+                ;;
+            *)
+                # Table format
+                echo "$response" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print('Analytics for scenario: {}\\n'.format(data.get('scenario', 'unknown')))
+print(f'📊 Unique Visitors:      {data.get(\"unique_visitors\", 0):,}')
+print(f'🔄 Total Sessions:       {data.get(\"total_sessions\", 0):,}')
+print(f'⏱️  Avg Session Duration: {data.get(\"avg_session_duration\", 0):.1f}s')
+print(f'📄 Total Page Views:     {data.get(\"total_page_views\", 0):,}')
+print(f'📈 Bounce Rate:          {data.get(\"bounce_rate\", 0):.1%}')
+print(f'👤 Identified Visitors:  {data.get(\"identified_visitors\", 0):,}')
+" 2>/dev/null || echo "$response" | format_json
+                ;;
+        esac
+        log_success "Analytics retrieved successfully"
+    else
+        return 1
+    fi
+}
+
+cmd_version() {
+    local json_flag=""
+    for arg in "$@"; do
+        if [[ "$arg" == "--json" ]]; then
+            json_flag="--json"
+        elif [[ "$arg" == "--help" ]]; then
+            echo "Usage: visitor-intelligence version [--json]"
+            echo "Show CLI and API version information"
+            return 0
+        fi
+    done
+    
+    local cli_version="1.0.0"
+    local api_version=""
+    
+    # Try to get API version from health endpoint
+    if health_response=$(curl -s "http://localhost:${API_PORT}/health" 2>/dev/null); then
+        api_version=$(echo "$health_response" | python3 -c "
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    print(data.get('version', 'unknown'))
+except:
+    print('unknown')
+" 2>/dev/null || echo "unknown")
+    else
+        api_version="unavailable"
+    fi
+    
+    if [[ "$json_flag" == "--json" ]]; then
+        cat <<EOF
+{
+    "cli_version": "$cli_version",
+    "api_version": "$api_version",
+    "api_port": "$API_PORT"
+}
+EOF
+    else
+        echo "Visitor Intelligence CLI"
+        echo "CLI Version: $cli_version"
+        echo "API Version: $api_version"
+        echo "API Port: $API_PORT"
+    fi
+}
+
+cmd_help() {
+    cat <<EOF
+Visitor Intelligence CLI
+
+USAGE:
+    visitor-intelligence <COMMAND> [OPTIONS]
+
+COMMANDS:
+    status      Show operational status and resource health
+    track       Manually track a visitor event
+    profile     Retrieve visitor profile and analytics
+    analytics   Get analytics for a specific scenario
+    version     Show CLI and API version information
+    help        Show this help message
+
+GLOBAL OPTIONS:
+    --help      Show command-specific help
+    --json      Output in JSON format (where applicable)
+
+EXAMPLES:
+    visitor-intelligence status
+    visitor-intelligence track pageview my-scenario
+    visitor-intelligence profile visitor-123 --events
+    visitor-intelligence analytics my-scenario --timeframe 30d
+    visitor-intelligence version
+
+For more information on a specific command, use:
+    visitor-intelligence <COMMAND> --help
+
+API Configuration:
+    API_PORT environment variable controls the API port (default: 8080)
+    Current API endpoint: http://localhost:${API_PORT}
+EOF
+}
+
+# Main command dispatch
+main() {
+    if [[ $# -eq 0 ]]; then
+        cmd_help
+        return 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        status)
+            check_api
+            cmd_status "$@"
+            ;;
+        track)
+            check_api
+            cmd_track "$@"
+            ;;
+        profile)
+            check_api
+            cmd_profile "$@"
+            ;;
+        analytics)
+            check_api
+            cmd_analytics "$@"
+            ;;
+        version)
+            cmd_version "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            cmd_help
+            return 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

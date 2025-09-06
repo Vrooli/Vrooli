@@ -43,8 +43,8 @@ The traditional approach using `.env` files:
 ```bash
 # .env-dev example
 SECRETS_SOURCE=file
-DB_USER=vrooli_dev
-DB_PASSWORD=dev_password_123
+POSTGRES_USER=vrooli_dev
+POSTGRES_PASSWORD=dev_password_123
 REDIS_PASSWORD=redis_dev_123
 API_URL=http://localhost:5329
 ```

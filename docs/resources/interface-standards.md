@@ -103,7 +103,7 @@ resources/<name>/
 │       └── test-unit.sh     # Library validation (REQUIRED)
 └── config/
     ├── defaults.sh          # Default configuration (REQUIRED)
-    └── exports.sh           # Environment variable exports (OPTIONAL, v2.0)
+    └── exports.sh           # Environment variable exports (OPTIONAL)
 ```
 
 ## 📊 Performance Requirements

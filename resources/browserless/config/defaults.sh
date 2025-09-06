@@ -64,6 +64,11 @@ browserless::export_config() {
     fi
 
     # Network configuration (only set if not already defined)
+    if [[ -z "${BROWSERLESS_USE_HOST_NETWORK:-}" ]]; then
+        BROWSERLESS_USE_HOST_NETWORK="${BROWSERLESS_HOST_NETWORKING:-yes}"
+        readonly BROWSERLESS_USE_HOST_NETWORK
+        export BROWSERLESS_USE_HOST_NETWORK
+    fi
     if [[ -z "${BROWSERLESS_NETWORK_NAME:-}" ]]; then
         BROWSERLESS_NETWORK_NAME="browserless-network"
         readonly BROWSERLESS_NETWORK_NAME

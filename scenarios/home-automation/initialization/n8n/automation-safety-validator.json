@@ -1,0 +1,277 @@
+{
+  "name": "Automation Safety Validator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "validate-automation",
+        "options": {}
+      },
+      "id": "validation-webhook",
+      "name": "Automation Validation Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "automation-safety-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate AI-generated automation for safety\nconst payload = $input.all()[0].json;\n\n// Required fields validation\nif (!payload.automation_code) {\n  throw new Error('automation_code is required');\n}\n\nif (!payload.description) {\n  throw new Error('description is required');\n}\n\nif (!payload.user_id && !payload.profile_id) {\n  throw new Error('user_id or profile_id is required');\n}\n\n// Parse automation data\nconst automationCode = payload.automation_code;\nconst description = payload.description;\nconst targetDevices = payload.target_devices || [];\nconst scheduleConfig = payload.schedule_config || {};\n\nreturn {\n  automation_id: payload.automation_id || `auto_${Date.now()}`,\n  automation_code: automationCode,\n  description: description,\n  user_id: payload.user_id,\n  profile_id: payload.profile_id,\n  target_devices: targetDevices,\n  schedule_config: scheduleConfig,\n  generated_by: payload.generated_by || 'claude-code',\n  validation_timestamp: new Date().toISOString(),\n  request_id: `val_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};"
+      },
+      "id": "parse-automation",
+      "name": "Parse Automation Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Security validation for automation code\nconst data = $input.all()[0].json;\nconst code = data.automation_code;\nconst description = data.description.toLowerCase();\n\nconst securityIssues = [];\nconst warnings = [];\n\n// 1. Dangerous command patterns\nconst dangerousPatterns = [\n  /rm\\s+-rf/i,           // File deletion\n  /sudo\\s+/i,            // Elevated privileges\n  /exec\\s*\\(/i,          // Code execution\n  /system\\s*\\(/i,        // System calls\n  /eval\\s*\\(/i,          // Dynamic evaluation\n  /\\$\\{.*\\}/,            // Variable injection\n  /\\bopen\\s*\\(/i,        // File operations\n  /import\\s+subprocess/i, // Process spawning\n  /os\\.system/i,         // OS commands\n  /shell=True/i,         // Shell execution\n  /curl\\s+/i,            // Network requests\n  /wget\\s+/i,            // Downloads\n  /ssh\\s+/i,             // Remote access\n  /password/i,           // Credential handling\n  /secret/i,             // Secret exposure\n  /api[_\\-]?key/i        // API key exposure\n];\n\nfor (const pattern of dangerousPatterns) {\n  if (pattern.test(code)) {\n    securityIssues.push({\n      type: 'dangerous_pattern',\n      pattern: pattern.toString(),\n      severity: 'high',\n      message: `Potentially dangerous pattern detected: ${pattern.toString()}`\n    });\n  }\n}\n\n// 2. Resource usage limits\nif (code.length > 10000) {\n  warnings.push({\n    type: 'code_size',\n    severity: 'medium',\n    message: 'Automation code is very large (>10KB) - may impact performance'\n  });\n}\n\n// 3. Network access detection\nconst networkPatterns = [\n  /http[s]?:\\/\\//i,\n  /fetch\\s*\\(/i,\n  /requests\\./i,\n  /urllib/i\n];\n\nfor (const pattern of networkPatterns) {\n  if (pattern.test(code)) {\n    warnings.push({\n      type: 'network_access',\n      severity: 'medium',\n      message: 'Automation contains network requests - ensure they are to trusted endpoints'\n    });\n  }\n}\n\n// 4. Device safety checks\nconst unsafeDevicePatterns = [\n  /lock.*unlock/i,       // Unlocking doors\n  /security.*disable/i,  // Disabling security\n  /alarm.*off/i,         // Turning off alarms  \n  /temp.*[89]\\d|temp.*100/i, // Dangerous temperatures\n  /bright.*100/i         // Maximum brightness (potential seizure risk)\n];\n\nfor (const pattern of unsafeDevicePatterns) {\n  if (pattern.test(description) || pattern.test(code)) {\n    securityIssues.push({\n      type: 'unsafe_device_operation',\n      pattern: pattern.toString(),\n      severity: 'high',\n      message: 'Automation may perform unsafe device operations'\n    });\n  }\n}\n\n// 5. Time-based safety (prevent infinite loops or too frequent execution)\nconst timePatterns = {\n  every_second: /every\\s+(second|1\\s*sec)/i,\n  too_frequent: /every\\s+[1-9]\\s*(second|sec)/i\n};\n\nfor (const [key, pattern] of Object.entries(timePatterns)) {\n  if (pattern.test(description) || pattern.test(code)) {\n    warnings.push({\n      type: 'execution_frequency',\n      severity: 'medium', \n      message: 'Automation may execute too frequently - consider rate limiting'\n    });\n  }\n}\n\nconst hasCriticalIssues = securityIssues.some(issue => issue.severity === 'high');\n\nreturn {\n  ...data,\n  security_validation: {\n    passed: !hasCriticalIssues,\n    security_issues: securityIssues,\n    warnings: warnings,\n    risk_level: hasCriticalIssues ? 'high' : warnings.length > 0 ? 'medium' : 'low'\n  }\n};"
+      },
+      "id": "security-validation",
+      "name": "Security Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Check user permissions for automation creation\nconst data = $input.all()[0].json;\nconst targetDevices = data.target_devices;\n\n// Mock permission check - in real implementation:\n// 1. Query scenario-authenticator for user details\n// 2. Query home_profiles table for automation permissions\n// 3. Validate user can control target devices\n// 4. Check if user has automation_create permission\n\nconst mockUserPermissions = {\n  '550e8400-e29b-41d4-a716-446655440001': {\n    automation_create: true,\n    allowed_devices: ['*'], // Admin can control all devices\n    max_automations: 50\n  },\n  '550e8400-e29b-41d4-a716-446655440002': {\n    automation_create: false, // Family member cannot create automations\n    allowed_devices: ['light.living_room', 'switch.coffee_maker'],\n    max_automations: 0\n  },\n  '550e8400-e29b-41d4-a716-446655440003': {\n    automation_create: false, // Kid cannot create automations\n    allowed_devices: ['light.bedroom_kid'],\n    max_automations: 0\n  }\n};\n\nconst userPerms = mockUserPermissions[data.user_id] || {\n  automation_create: false,\n  allowed_devices: [],\n  max_automations: 0\n};\n\nconst permissionIssues = [];\n\n// Check if user can create automations\nif (!userPerms.automation_create) {\n  permissionIssues.push({\n    type: 'insufficient_permissions',\n    severity: 'high',\n    message: 'User does not have permission to create automations'\n  });\n}\n\n// Check device permissions\nfor (const deviceId of targetDevices) {\n  const canControl = userPerms.allowed_devices.includes('*') || \n                    userPerms.allowed_devices.includes(deviceId);\n  \n  if (!canControl) {\n    permissionIssues.push({\n      type: 'device_permission_denied',\n      device_id: deviceId,\n      severity: 'high',\n      message: `User does not have permission to control device: ${deviceId}`\n    });\n  }\n}\n\n// Check automation count limits (mock query)\nconst currentAutomationCount = 5; // Would query automation_rules table\nif (currentAutomationCount >= userPerms.max_automations) {\n  permissionIssues.push({\n    type: 'automation_limit_exceeded',\n    severity: 'high',\n    message: `User has reached automation limit (${userPerms.max_automations})`\n  });\n}\n\nconst hasPermissionIssues = permissionIssues.some(issue => issue.severity === 'high');\n\nreturn {\n  ...data,\n  permission_validation: {\n    passed: !hasPermissionIssues,\n    permission_issues: permissionIssues,\n    user_permissions: {\n      can_create: userPerms.automation_create,\n      allowed_devices: userPerms.allowed_devices.length,\n      automation_count: currentAutomationCount,\n      automation_limit: userPerms.max_automations\n    }\n  }\n};"
+      },
+      "id": "permission-validation", 
+      "name": "Permission Validation",
+      "type": "n8n-nodes-base.function",\n      "typeVersion": 1,\n      "position": [800, 300]\n    },\n    {\n      "parameters": {\n        "functionCode": "// Validate automation logic and device compatibility\\nconst data = $input.all()[0].json;\\nconst code = data.automation_code;\\nconst targetDevices = data.target_devices;\\nconst scheduleConfig = data.schedule_config;\\n\\nconst logicIssues = [];\\nconst suggestions = [];\\n\\n// 1. Device compatibility check\\nconst deviceTypes = {\\n  'light.': ['turn_on', 'turn_off', 'set_brightness', 'set_color'],\\n  'switch.': ['turn_on', 'turn_off', 'toggle'],\\n  'climate.': ['set_temperature', 'set_mode', 'set_fan_speed'],\\n  'lock.': ['lock', 'unlock'],\\n  'sensor.': ['read_value'] // Sensors are typically read-only\\n};\\n\\nfor (const deviceId of targetDevices) {\\n  const deviceType = Object.keys(deviceTypes).find(type => deviceId.startsWith(type));\\n  \\n  if (!deviceType) {\\n    logicIssues.push({\\n      type: 'unknown_device_type',\\n      device_id: deviceId,\\n      severity: 'medium',\\n      message: `Unknown device type for ${deviceId} - validation limited`\\n    });\\n    continue;\\n  }\\n  \\n  const supportedActions = deviceTypes[deviceType];\\n  \\n  // Check if automation code uses unsupported actions\\n  for (const action of ['turn_on', 'turn_off', 'set_brightness', 'set_temperature']) {\\n    if (code.includes(action) && !supportedActions.includes(action)) {\\n      logicIssues.push({\\n        type: 'unsupported_action',\\n        device_id: deviceId,\\n        action: action,\\n        severity: 'high',\\n        message: `Action '${action}' not supported by device ${deviceId}`\\n      });\\n    }\\n  }\\n}\\n\\n// 2. Schedule validation\\nif (scheduleConfig.frequency) {\\n  const freq = scheduleConfig.frequency.toLowerCase();\\n  \\n  if (['every second', 'every 1 second'].includes(freq)) {\\n    logicIssues.push({\\n      type: 'excessive_frequency',\\n      severity: 'high',\\n      message: 'Automation runs too frequently - may overwhelm devices'\\n    });\\n  }\\n  \\n  if (freq.includes('every day') && code.includes('turn_on') && code.includes('coffee')) {\\n    suggestions.push({\\n      type: 'optimization',\\n      message: 'Consider checking if someone is home before starting coffee maker'\\n    });\\n  }\\n}\\n\\n// 3. Logic conflict detection\\nif (code.includes('turn_on') && code.includes('turn_off') && !code.includes('delay')) {\\n  logicIssues.push({\\n    type: 'conflicting_actions',\\n    severity: 'medium',\\n    message: 'Automation turns devices on and off without delays - may cause flickering'\\n  });\\n}\\n\\n// 4. Energy efficiency suggestions\\nif (targetDevices.some(d => d.startsWith('climate.')) && code.includes('temperature')) {\\n  suggestions.push({\\n    type: 'energy_efficiency',\\n    message: 'Consider adding presence detection to avoid heating/cooling empty spaces'\\n  });\\n}\\n\\n// 5. Safety suggestions for lighting\\nif (targetDevices.some(d => d.startsWith('light.')) && code.includes('brightness.*100')) {\\n  suggestions.push({\\n    type: 'safety',\\n    message: 'Maximum brightness may be uncomfortable - consider gradual transitions'\\n  });\\n}\\n\\nconst hasLogicIssues = logicIssues.some(issue => issue.severity === 'high');\\n\\nreturn {\\n  ...data,\\n  logic_validation: {\\n    passed: !hasLogicIssues,\\n    logic_issues: logicIssues,\\n    suggestions: suggestions,\\n    device_compatibility: 'validated',\\n    schedule_safety: scheduleConfig.frequency ? 'checked' : 'not_applicable'\\n  }\\n};"
+      },
+      "id": "logic-validation",
+      "name": "Logic Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.security_validation.passed && $json.permission_validation.passed && $json.logic_validation.passed}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-overall-validation",
+      "name": "All Validations Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare approval-ready automation\\nconst data = $input.all()[0].json;\\n\\n// Create sanitized automation ready for user approval\\nconst approvedAutomation = {\\n  automation_id: data.automation_id,\\n  name: data.description.substring(0, 100), // Limit name length\\n  description: data.description,\\n  source_code: data.automation_code,\\n  created_by: data.user_id,\\n  target_devices: data.target_devices,\\n  schedule_config: data.schedule_config,\\n  generated_by_ai: true,\\n  validation_status: 'approved',\\n  risk_level: data.security_validation.risk_level,\\n  requires_user_approval: true,\\n  created_at: new Date().toISOString()\\n};\\n\\n// Generate user-friendly summary\\nconst summary = {\\n  automation_name: approvedAutomation.name,\\n  target_devices: data.target_devices.length,\\n  risk_level: approvedAutomation.risk_level,\\n  warnings_count: data.security_validation.warnings.length + data.logic_validation.suggestions.length,\\n  ready_for_approval: true\\n};\\n\\nconsole.log('Automation validation passed:', JSON.stringify(summary, null, 2));\\n\\n// In real implementation: INSERT INTO automation_rules with approval_required=true\\n\\nreturn {\\n  success: true,\\n  validation_status: 'passed',\\n  automation: approvedAutomation,\\n  summary: summary,\\n  next_step: 'user_approval_required',\\n  message: 'Automation validated successfully and ready for user approval'\\n};"
+      },
+      "id": "prepare-for-approval",
+      "name": "Prepare for Approval",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Handle validation failure\\nconst data = $input.all()[0].json;\\n\\nconst allIssues = [\\n  ...data.security_validation.security_issues,\\n  ...data.permission_validation.permission_issues,\\n  ...data.logic_validation.logic_issues\\n];\\n\\nconst criticalIssues = allIssues.filter(issue => issue.severity === 'high');\\nconst warnings = [\\n  ...data.security_validation.warnings,\\n  ...data.logic_validation.suggestions\\n];\\n\\n// Create failure report\\nconst failureReport = {\\n  automation_id: data.automation_id,\\n  validation_status: 'failed',\\n  critical_issues: criticalIssues,\\n  warnings: warnings,\\n  blocked_reasons: criticalIssues.map(issue => issue.message),\\n  suggestion: 'Please review the automation code and address critical security/permission issues',\\n  failed_at: new Date().toISOString()\\n};\\n\\nconsole.log('Automation validation failed:', JSON.stringify(failureReport, null, 2));\\n\\n// In real implementation: Log failure to database and notify user\\n\\nreturn {\\n  success: false,\\n  validation_status: 'failed',\\n  failure_report: failureReport,\\n  message: `Automation validation failed due to ${criticalIssues.length} critical issues`,\\n  retry_allowed: true\\n};"
+      },
+      "id": "handle-validation-failure",
+      "name": "Handle Validation Failure", 
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{$json}}"
+      },
+      "id": "webhook-response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual"
+      },
+      "id": "manual-trigger",
+      "name": "Manual Test Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [40, 600]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate test automation for validation\\nreturn {\\n  automation_id: 'test_automation_001',\\n  automation_code: `\\n# AI-Generated Automation: Smart Morning Routine\\n\\nif calendar.has_work_today() and time.is_between('06:00', '07:00'):\\n    if presence.is_home():\\n        # Turn on coffee maker\\n        device.control('switch.coffee_maker', 'turn_on')\\n        \\n        # Gradual lighting\\n        device.control('light.living_room', 'turn_on', {'brightness': 60})\\n        time.sleep(300)  # 5 minutes\\n        device.control('light.living_room', 'set_brightness', {'brightness': 80})\\n        \\n        # Comfortable temperature\\n        device.control('climate.thermostat', 'set_temperature', {'temperature': 72})\\n`,\\n  description: 'Start coffee and adjust lighting/temperature for work mornings',\\n  user_id: '550e8400-e29b-41d4-a716-446655440001',\\n  target_devices: ['switch.coffee_maker', 'light.living_room', 'climate.thermostat'],\\n  schedule_config: {\\n    frequency: 'daily',\\n    time: '06:30',\\n    days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']\\n  },\\n  generated_by: 'claude-code-test'\\n};"
+      },
+      "id": "generate-test-automation",
+      "name": "Generate Test Automation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [200, 600]
+    }
+  ],
+  "connections": {
+    "Automation Validation Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Automation Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Automation Request": {
+      "main": [
+        [
+          {
+            "node": "Security Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security Validation": {
+      "main": [
+        [
+          {
+            "node": "Permission Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Permission Validation": {
+      "main": [
+        [
+          {
+            "node": "Logic Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logic Validation": {
+      "main": [
+        [
+          {
+            "node": "All Validations Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Validations Passed?": {
+      "main": [
+        [
+          {
+            "node": "Prepare for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Validation Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for Approval": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Validation Failure": {
+      "main": [
+        [
+          {
+            "node": "Send Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Test Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Test Automation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Test Automation": {
+      "main": [
+        [
+          {
+            "node": "Parse Automation Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "timezone": "America/New_York"
+  },
+  "staticData": null,
+  "tags": ["home-automation", "ai-validation", "safety", "shared-workflow"],
+  "meta": {
+    "description": "Shared workflow for validating AI-generated automations before deployment. Performs security, permission, and logic validation to ensure safe automation execution.",
+    "usage": "POST to webhook with automation code and metadata for comprehensive safety validation",
+    "validation_stages": [
+      "Security: Scans for dangerous patterns, network access, credential exposure",
+      "Permissions: Verifies user can create automations and control target devices", 
+      "Logic: Validates device compatibility, schedule safety, and conflict detection"
+    ],
+    "safety_features": [
+      "Dangerous command detection",
+      "Permission boundary enforcement", 
+      "Device compatibility checking",
+      "Execution frequency limits",
+      "Conflict resolution suggestions",
+      "User approval requirements"
+    ],
+    "examples": [
+      {
+        "description": "Validate morning routine automation",
+        "payload": {
+          "automation_code": "device.control('switch.coffee_maker', 'turn_on')",
+          "description": "Start coffee in the morning",
+          "user_id": "user-uuid",
+          "target_devices": ["switch.coffee_maker"]
+        }
+      }
+    ],
+    "response_types": {
+      "success": "Automation approved and ready for user confirmation",
+      "failure": "Validation failed with specific security/permission issues"
+    }
+  }
+}

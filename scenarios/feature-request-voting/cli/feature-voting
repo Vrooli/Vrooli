@@ -1,0 +1,520 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# Feature Voting CLI
+# Manage feature requests and voting across Vrooli scenarios
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+API_HOST="${FEATURE_VOTING_API_HOST:-localhost}"
+API_PORT="${API_PORT:-8080}"
+API_URL="http://${API_HOST}:${API_PORT}"
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}$1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}$1${NC}"
+}
+
+# Check if jq is installed
+check_dependencies() {
+    if ! command -v jq &> /dev/null; then
+        print_error "jq is required but not installed. Please install jq."
+        exit 1
+    fi
+    
+    if ! command -v curl &> /dev/null; then
+        print_error "curl is required but not installed. Please install curl."
+        exit 1
+    fi
+}
+
+# API call helper
+api_call() {
+    local method=$1
+    local endpoint=$2
+    local data=${3:-}
+    
+    local curl_args=(-s -X "$method" "${API_URL}${endpoint}")
+    
+    if [ -n "${USER_ID:-}" ]; then
+        curl_args+=(-H "X-User-ID: ${USER_ID}")
+    fi
+    
+    if [ -n "${SESSION_ID:-}" ]; then
+        curl_args+=(-H "X-Session-ID: ${SESSION_ID}")
+    fi
+    
+    if [ -n "$data" ]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    local response
+    response=$(curl "${curl_args[@]}" 2>/dev/null)
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to connect to API at ${API_URL}"
+        exit 1
+    fi
+    
+    echo "$response"
+}
+
+# Command: status
+cmd_status() {
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --verbose|-v)
+                verbose=true
+                shift
+                ;;
+            --json)
+                local response
+                response=$(api_call GET "/health")
+                echo "$response"
+                return
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_call GET "/health")
+    
+    if echo "$response" | jq -e '.status == "healthy"' > /dev/null 2>&1; then
+        print_success "✓ Feature Voting API is healthy"
+        
+        if [ "$verbose" = true ]; then
+            echo ""
+            print_info "API URL: ${API_URL}"
+            print_info "Timestamp: $(echo "$response" | jq -r '.timestamp')"
+        fi
+    else
+        print_error "Feature Voting API is not healthy"
+        exit 1
+    fi
+}
+
+# Command: list
+cmd_list() {
+    local scenario=""
+    local status=""
+    local sort="votes"
+    local format="table"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --scenario|-s)
+                scenario="$2"
+                shift 2
+                ;;
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            --sort)
+                sort="$2"
+                shift 2
+                ;;
+            --json)
+                format="json"
+                shift
+                ;;
+            *)
+                scenario="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$scenario" ]; then
+        print_error "Scenario is required. Usage: feature-voting list <scenario> [options]"
+        exit 1
+    fi
+    
+    local query_params=""
+    [ -n "$status" ] && query_params="${query_params}&status=${status}"
+    [ -n "$sort" ] && query_params="${query_params}&sort=${sort}"
+    query_params="${query_params#&}"
+    [ -n "$query_params" ] && query_params="?${query_params}"
+    
+    local response
+    response=$(api_call GET "/api/v1/scenarios/${scenario}/feature-requests${query_params}")
+    
+    if [ "$format" = "json" ]; then
+        echo "$response" | jq '.'
+    else
+        echo ""
+        print_info "Feature Requests for: $scenario"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        echo "$response" | jq -r '.requests[] | 
+            "[\(.status | ascii_upcase | .[0:3])] \(.title) (↑\(.vote_count))\n  Priority: \(.priority) | Comments: \(.comment_count) | ID: \(.id[0:8])\n"'
+        
+        local total
+        total=$(echo "$response" | jq -r '.total')
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_info "Total: $total feature requests"
+    fi
+}
+
+# Command: create
+cmd_create() {
+    local title=""
+    local description=""
+    local scenario=""
+    local priority="medium"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --scenario|-s)
+                scenario="$2"
+                shift 2
+                ;;
+            --priority|-p)
+                priority="$2"
+                shift 2
+                ;;
+            --title|-t)
+                title="$2"
+                shift 2
+                ;;
+            --description|-d)
+                description="$2"
+                shift 2
+                ;;
+            *)
+                if [ -z "$title" ]; then
+                    title="$1"
+                elif [ -z "$description" ]; then
+                    description="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$title" ] || [ -z "$description" ] || [ -z "$scenario" ]; then
+        print_error "Title, description, and scenario are required"
+        echo "Usage: feature-voting create <title> <description> --scenario <scenario> [--priority low|medium|high|critical]"
+        exit 1
+    fi
+    
+    local data
+    data=$(jq -n \
+        --arg title "$title" \
+        --arg desc "$description" \
+        --arg scenario "$scenario" \
+        --arg priority "$priority" \
+        '{title: $title, description: $desc, scenario_id: $scenario, priority: $priority}')
+    
+    local response
+    response=$(api_call POST "/api/v1/feature-requests" "$data")
+    
+    if echo "$response" | jq -e '.success == true' > /dev/null 2>&1; then
+        local id
+        id=$(echo "$response" | jq -r '.id')
+        print_success "✓ Feature request created successfully!"
+        print_info "ID: $id"
+    else
+        print_error "Failed to create feature request"
+        echo "$response" | jq -r '.error // .'
+        exit 1
+    fi
+}
+
+# Command: vote
+cmd_vote() {
+    local request_id=""
+    local value=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --up|--upvote)
+                value="1"
+                shift
+                ;;
+            --down|--downvote)
+                value="-1"
+                shift
+                ;;
+            *)
+                if [ -z "$request_id" ]; then
+                    request_id="$1"
+                elif [ -z "$value" ]; then
+                    value="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$request_id" ] || [ -z "$value" ]; then
+        print_error "Request ID and vote value are required"
+        echo "Usage: feature-voting vote <request-id> <1|-1>"
+        echo "   or: feature-voting vote <request-id> --up/--down"
+        exit 1
+    fi
+    
+    if [ "$value" != "1" ] && [ "$value" != "-1" ]; then
+        print_error "Vote value must be 1 (upvote) or -1 (downvote)"
+        exit 1
+    fi
+    
+    local data
+    data=$(jq -n --arg value "$value" '{value: ($value | tonumber)}')
+    
+    local response
+    response=$(api_call POST "/api/v1/feature-requests/${request_id}/vote" "$data")
+    
+    if echo "$response" | jq -e '.success == true' > /dev/null 2>&1; then
+        local vote_count
+        vote_count=$(echo "$response" | jq -r '.vote_count')
+        if [ "$value" = "1" ]; then
+            print_success "✓ Upvoted! Total votes: $vote_count"
+        else
+            print_success "✓ Downvoted! Total votes: $vote_count"
+        fi
+    else
+        print_error "Failed to record vote"
+        echo "$response" | jq -r '.error // .'
+        exit 1
+    fi
+}
+
+# Command: update
+cmd_update() {
+    local request_id=""
+    local status=""
+    local priority=""
+    local title=""
+    local description=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --title)
+                title="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            *)
+                request_id="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$request_id" ]; then
+        print_error "Request ID is required"
+        echo "Usage: feature-voting update <request-id> [--status <status>] [--priority <priority>] [--title <title>] [--description <description>]"
+        exit 1
+    fi
+    
+    # Build update data
+    local data="{}"
+    [ -n "$status" ] && data=$(echo "$data" | jq --arg s "$status" '.status = $s')
+    [ -n "$priority" ] && data=$(echo "$data" | jq --arg p "$priority" '.priority = $p')
+    [ -n "$title" ] && data=$(echo "$data" | jq --arg t "$title" '.title = $t')
+    [ -n "$description" ] && data=$(echo "$data" | jq --arg d "$description" '.description = $d')
+    
+    if [ "$data" = "{}" ]; then
+        print_error "No fields to update"
+        exit 1
+    fi
+    
+    local response
+    response=$(api_call PUT "/api/v1/feature-requests/${request_id}" "$data")
+    
+    if echo "$response" | jq -e '.success == true' > /dev/null 2>&1; then
+        print_success "✓ Feature request updated successfully!"
+    else
+        print_error "Failed to update feature request"
+        echo "$response" | jq -r '.error // .'
+        exit 1
+    fi
+}
+
+# Command: scenarios
+cmd_scenarios() {
+    local format="table"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                format="json"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_call GET "/api/v1/scenarios")
+    
+    if [ "$format" = "json" ]; then
+        echo "$response" | jq '.'
+    else
+        echo ""
+        print_info "Available Scenarios"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        echo "$response" | jq -r '.[] | 
+            "\(.display_name) (\(.name))\n  \(.description // "No description")\n  Auth: \(.auth_config.mode)\n"'
+    fi
+}
+
+# Command: help
+cmd_help() {
+    cat << EOF
+Feature Request Voting CLI
+
+USAGE:
+    feature-voting <command> [options]
+
+COMMANDS:
+    status              Check API health status
+    list <scenario>     List feature requests for a scenario
+    create              Create a new feature request
+    vote <id> <value>   Vote on a feature request
+    update <id>         Update a feature request
+    scenarios           List all available scenarios
+    help               Show this help message
+    version            Show version information
+
+OPTIONS:
+    --json             Output in JSON format
+    --verbose, -v      Show detailed information
+    --scenario, -s     Specify scenario ID or name
+    --status           Filter by status (proposed, under_review, in_development, shipped, wont_fix)
+    --sort             Sort by: votes (default), date, priority
+    --priority         Priority level: low, medium, high, critical
+    --up, --upvote     Vote up (value = 1)
+    --down, --downvote Vote down (value = -1)
+
+EXAMPLES:
+    # List all feature requests for study-buddy scenario
+    feature-voting list study-buddy
+
+    # Create a new feature request
+    feature-voting create "Dark mode" "Add dark mode support" --scenario study-buddy --priority high
+
+    # Vote on a feature request
+    feature-voting vote abc123 --up
+
+    # Update feature request status
+    feature-voting update abc123 --status in_development
+
+ENVIRONMENT VARIABLES:
+    FEATURE_VOTING_API_HOST  API host (default: localhost)
+    API_PORT                  API port (default: 8080)
+    USER_ID                   User ID for authenticated requests
+    SESSION_ID               Session ID for anonymous voting
+
+EOF
+}
+
+# Command: version
+cmd_version() {
+    local json=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [ "$json" = true ]; then
+        jq -n '{version: "1.0.0", api_version: "1.0.0"}'
+    else
+        echo "Feature Voting CLI v1.0.0"
+        echo "API Version: 1.0.0"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    check_dependencies
+    
+    if [ $# -eq 0 ]; then
+        cmd_help
+        exit 0
+    fi
+    
+    local command=$1
+    shift
+    
+    case $command in
+        status)
+            cmd_status "$@"
+            ;;
+        list|ls)
+            cmd_list "$@"
+            ;;
+        create|new|add)
+            cmd_create "$@"
+            ;;
+        vote)
+            cmd_vote "$@"
+            ;;
+        update|edit)
+            cmd_update "$@"
+            ;;
+        scenarios)
+            cmd_scenarios "$@"
+            ;;
+        help|--help|-h)
+            cmd_help
+            ;;
+        version|--version|-v)
+            cmd_version "$@"
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo "Run 'feature-voting help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Backup Manager - Vrooli Infrastructure</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛡️ Data Backup Manager</h1>
+            <div class="status-bar">
+                <span class="status-indicator" id="system-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Checking...</span>
+                </span>
+                <span class="last-backup" id="last-backup">Last backup: Never</span>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-button active" data-tab="dashboard">Dashboard</button>
+            <button class="tab-button" data-tab="backups">Backups</button>
+            <button class="tab-button" data-tab="schedules">Schedules</button>
+            <button class="tab-button" data-tab="compliance">Compliance</button>
+            <button class="tab-button" data-tab="settings">Settings</button>
+        </nav>
+
+        <main>
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Backup Success Rate</h3>
+                        <div class="metric-value">
+                            <span class="big-number" id="success-rate">--</span>
+                            <span class="metric-unit">%</span>
+                        </div>
+                        <div class="metric-trend" id="success-trend"></div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Storage Usage</h3>
+                        <div class="metric-value">
+                            <span class="big-number" id="storage-used">--</span>
+                            <span class="metric-unit">GB</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="storage-progress"></div>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Compliance Score</h3>
+                        <div class="metric-value">
+                            <span class="big-number" id="compliance-score">--</span>
+                            <span class="metric-unit">%</span>
+                        </div>
+                        <div class="compliance-indicator" id="compliance-status"></div>
+                    </div>
+
+                    <div class="metric-card">
+                        <h3>Protected Items</h3>
+                        <div class="metric-value">
+                            <span class="big-number" id="protected-count">--</span>
+                            <span class="metric-unit">items</span>
+                        </div>
+                        <div class="item-breakdown" id="item-breakdown"></div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h2>Recent Activity</h2>
+                    <div class="activity-list" id="activity-list">
+                        <div class="activity-placeholder">Loading activity...</div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <h2>Quick Actions</h2>
+                    <div class="action-buttons">
+                        <button class="action-btn primary" onclick="backup.createBackup()">
+                            <span class="action-icon">💾</span>
+                            Create Backup Now
+                        </button>
+                        <button class="action-btn" onclick="backup.verifyBackups()">
+                            <span class="action-icon">✓</span>
+                            Verify All Backups
+                        </button>
+                        <button class="action-btn" onclick="backup.runComplianceCheck()">
+                            <span class="action-icon">📋</span>
+                            Run Compliance Check
+                        </button>
+                        <button class="action-btn warning" onclick="backup.showRestoreModal()">
+                            <span class="action-icon">♻️</span>
+                            Restore from Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backups Tab -->
+            <div id="backups" class="tab-content">
+                <div class="backups-header">
+                    <h2>Available Backups</h2>
+                    <div class="backup-filters">
+                        <select id="backup-filter-type">
+                            <option value="all">All Types</option>
+                            <option value="postgres">PostgreSQL</option>
+                            <option value="files">Files</option>
+                            <option value="scenarios">Scenarios</option>
+                            <option value="resources">Resources</option>
+                        </select>
+                        <input type="date" id="backup-filter-date" placeholder="Filter by date">
+                        <button class="filter-btn" onclick="backup.filterBackups()">Apply</button>
+                    </div>
+                </div>
+
+                <div class="backups-list" id="backups-list">
+                    <div class="backup-placeholder">Loading backups...</div>
+                </div>
+            </div>
+
+            <!-- Schedules Tab -->
+            <div id="schedules" class="tab-content">
+                <div class="schedules-header">
+                    <h2>Backup Schedules</h2>
+                    <button class="btn-primary" onclick="backup.showScheduleModal()">
+                        + Add Schedule
+                    </button>
+                </div>
+
+                <div class="schedules-list" id="schedules-list">
+                    <div class="schedule-placeholder">Loading schedules...</div>
+                </div>
+            </div>
+
+            <!-- Compliance Tab -->
+            <div id="compliance" class="tab-content">
+                <div class="compliance-header">
+                    <h2>Data Compliance Report</h2>
+                    <button class="btn-secondary" onclick="backup.exportComplianceReport()">
+                        Export Report
+                    </button>
+                </div>
+
+                <div class="compliance-overview">
+                    <div class="compliance-chart" id="compliance-chart"></div>
+                    <div class="compliance-details" id="compliance-details"></div>
+                </div>
+
+                <div class="non-compliant-items">
+                    <h3>Non-Compliant Items</h3>
+                    <div class="issues-list" id="compliance-issues">
+                        <div class="issues-placeholder">Scanning for compliance issues...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content">
+                <div class="settings-section">
+                    <h2>Backup Configuration</h2>
+                    
+                    <div class="setting-group">
+                        <label for="backup-path">Backup Storage Path</label>
+                        <input type="text" id="backup-path" value="/data/backups" />
+                        <p class="setting-help">Primary location for storing backup files</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="retention-days">Retention Period (days)</label>
+                        <input type="number" id="retention-days" value="30" min="7" max="365" />
+                        <p class="setting-help">How long to keep backup files before automatic deletion</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label for="compression-level">Compression Level</label>
+                        <select id="compression-level">
+                            <option value="none">None</option>
+                            <option value="low">Low (Fast)</option>
+                            <option value="medium" selected>Medium (Balanced)</option>
+                            <option value="high">High (Slow)</option>
+                        </select>
+                        <p class="setting-help">Higher compression saves space but takes longer</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="enable-encryption" checked />
+                            Enable Encryption
+                        </label>
+                        <p class="setting-help">Encrypt backup files at rest</p>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>
+                            <input type="checkbox" id="enable-agent" checked />
+                            Enable Maintenance Agent
+                        </label>
+                        <p class="setting-help">Allow automated compliance checking and backup orchestration</p>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h2>External Backup Locations</h2>
+                    
+                    <div class="external-locations" id="external-locations">
+                        <div class="location-card">
+                            <h4>Cloud Storage (S3)</h4>
+                            <div class="location-status disconnected">Not Configured</div>
+                            <button class="btn-secondary" onclick="backup.configureS3()">Configure</button>
+                        </div>
+
+                        <div class="location-card">
+                            <h4>External Drive</h4>
+                            <div class="location-status disconnected">Not Connected</div>
+                            <button class="btn-secondary" onclick="backup.detectExternalDrives()">Detect Drives</button>
+                        </div>
+
+                        <div class="location-card">
+                            <h4>Network Storage (NAS)</h4>
+                            <div class="location-status disconnected">Not Configured</div>
+                            <button class="btn-secondary" onclick="backup.configureNAS()">Configure</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button class="btn-primary" onclick="backup.saveSettings()">Save Settings</button>
+                    <button class="btn-secondary" onclick="backup.resetSettings()">Reset to Defaults</button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <div id="restore-modal" class="modal">
+            <div class="modal-content">
+                <h2>Restore from Backup</h2>
+                <div class="restore-options">
+                    <select id="restore-backup-select">
+                        <option>Select backup to restore...</option>
+                    </select>
+                    <div class="restore-preview" id="restore-preview"></div>
+                    <div class="restore-warnings">
+                        ⚠️ Warning: Restoring will overwrite existing data
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-danger" onclick="backup.confirmRestore()">Restore</button>
+                    <button class="btn-secondary" onclick="backup.closeModal('restore-modal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="schedule-modal" class="modal">
+            <div class="modal-content">
+                <h2>Add Backup Schedule</h2>
+                <div class="schedule-form">
+                    <div class="form-group">
+                        <label for="schedule-name">Schedule Name</label>
+                        <input type="text" id="schedule-name" placeholder="e.g., Daily Database Backup" />
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-type">Backup Type</label>
+                        <select id="schedule-type">
+                            <option value="full">Full Backup</option>
+                            <option value="incremental">Incremental</option>
+                            <option value="differential">Differential</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-cron">Schedule (Cron Expression)</label>
+                        <input type="text" id="schedule-cron" placeholder="0 2 * * *" />
+                        <p class="help-text">Daily at 2:00 AM</p>
+                    </div>
+                    <div class="form-group">
+                        <label for="schedule-targets">Targets</label>
+                        <div class="checkbox-group">
+                            <label><input type="checkbox" name="target" value="postgres" /> PostgreSQL</label>
+                            <label><input type="checkbox" name="target" value="files" /> Files</label>
+                            <label><input type="checkbox" name="target" value="scenarios" /> Scenarios</label>
+                            <label><input type="checkbox" name="target" value="resources" /> Resources</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-primary" onclick="backup.createSchedule()">Create Schedule</button>
+                    <button class="btn-secondary" onclick="backup.closeModal('schedule-modal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

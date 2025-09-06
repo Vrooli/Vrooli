@@ -39,13 +39,14 @@ function start_browserless() {
     # Ensure directories exist
     ensure_directories
     
-    # Prepare environment variables
+    # Prepare Docker arguments with conditional host networking
     local docker_args=(
         "--name" "$BROWSERLESS_CONTAINER_NAME"
         "--restart" "unless-stopped"
-        "-p" "${BROWSERLESS_PORT}:3000"
         "-v" "${BROWSERLESS_WORKSPACE_DIR}:/workspace"
         "--shm-size" "2gb"
+        "--cap-add" "SYS_ADMIN"
+        "--security-opt" "seccomp=unconfined"
         "-e" "CONNECTION_TIMEOUT=60000"
         "-e" "MAX_CONCURRENT_SESSIONS=${BROWSERLESS_MAX_CONCURRENT_SESSIONS}"
         "-e" "WORKSPACE_DIR=/workspace"
@@ -53,6 +54,16 @@ function start_browserless() {
         "-e" "PREBOOT_CHROME=true"
         "-e" "KEEP_ALIVE=true"
     )
+    
+    # Configure networking - use host networking for localhost access
+    if [[ "${BROWSERLESS_USE_HOST_NETWORK:-yes}" == "yes" ]]; then
+        docker_args+=("--network" "host")
+        docker_args+=("-e" "PORT=${BROWSERLESS_PORT}")
+        log::info "Using host networking for browserless - can access localhost services on port ${BROWSERLESS_PORT}"
+    else
+        docker_args+=("-p" "${BROWSERLESS_PORT}:3000")
+        log::info "Using bridge networking for browserless - localhost services not accessible"
+    fi
     
     # Add token if configured
     if [[ -n "${BROWSERLESS_TOKEN}" ]]; then

@@ -1,0 +1,284 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "db-schema-explorer",
+    "displayName": "Database Schema Explorer",
+    "description": "Visual database schema exploration with AI-powered query generation and pattern learning",
+    "version": "1.0.0",
+    "tags": [
+      "database",
+      "schema-visualization",
+      "er-diagram",
+      "sql-generation",
+      "query-builder",
+      "postgres",
+      "ai-powered",
+      "react-ui",
+      "go-api",
+      "n8n-workflows",
+      "qdrant-vectors",
+      "ollama-integration"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "fallback": "auto",
+      "description": "Schema explorer API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "fallback": "auto",
+      "description": "React UI server port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Primary database for schema introspection, query execution, and metadata storage",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector storage for query history embeddings and semantic search capabilities"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "codellama",
+        "nomic-embed-text"
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/schema-inspector.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/query-generator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/query-optimizer.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Query result caching for improved performance"
+    },
+    "browserless": {
+      "type": "browserless",
+      "enabled": false,
+      "required": false,
+      "purpose": "High-quality diagram export as images"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Database Schema Explorer health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Database Schema Explorer",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/db-schema-explorer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "db-schema-explorer"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install React UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o db-schema-explorer-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "generate-initial-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --context database-schemas || echo \"Initial embeddings generation skipped\"",
+          "description": "Generate initial query pattern embeddings"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Database Schema Explorer initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start schema explorer with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./db-schema-explorer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/db-schema-explorer-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start React UI development server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Schema Explorer UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: db-schema-explorer --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test schema explorer API, UI and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-schema-endpoint",
+          "run": "curl -sf http://localhost:${API_PORT}/api/v1/schema/list",
+          "description": "Test schema listing endpoint"
+        },
+        {
+          "name": "test-query-generation",
+          "run": "bash tests/test-query-generation.sh",
+          "description": "Test natural language to SQL generation"
+        },
+        {
+          "name": "test-ui-build",
+          "run": "cd ui && npm test -- --watchAll=false",
+          "description": "Run UI test suite",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats db-schema-explorer.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/db-schema-explorer.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.db-schema-explorer.start-api\" 2>/dev/null || pkill -f \"db-schema-explorer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.db-schema-explorer.start-ui\" 2>/dev/null || pkill -f \"npm run dev\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

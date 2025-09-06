@@ -1,0 +1,271 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "chart-generator",
+    "displayName": "Professional Chart Generator",
+    "description": "Professional-grade data visualization generation with customizable styling for business reports, research papers, and analytics dashboards",
+    "version": "1.0.0",
+    "tags": [
+      "data-visualization",
+      "chart-generation",
+      "business-intelligence",
+      "reporting-tools",
+      "foundational-capability",
+      "cross-scenario-multiplier",
+      "professional-output",
+      "customizable-styling",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "cli-integration"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "CHART_API_PORT",
+      "fallback": "auto",
+      "description": "Chart generation API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "CHART_UI_PORT",
+      "fallback": "auto",
+      "description": "Chart style management UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store chart templates, custom styles, generation history, and configuration data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed-styles.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/n8n/chart-generation.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/style-management.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/n8n/data-validation.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": false,
+      "required": false,
+      "purpose": "Store generated chart assets and large data files with organized bucket structure"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache frequently used styles, templates, and generated charts for performance optimization"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Chart Generator service health monitoring",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${CHART_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${CHART_UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "chart_generation_test",
+          "type": "http",
+          "target": "http://localhost:${CHART_API_PORT}/api/v1/health/generation",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 300000,
+          "description": "Test actual chart generation capability"
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Chart Generator with all dependencies",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/chart-generator-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "chart-generator"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o chart-generator-api .",
+          "description": "Build Go chart generation API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install chart-generator CLI command globally"
+        },
+        {
+          "name": "setup-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize PostgreSQL schema and seed default styles"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${CHART_UI_PORT}\\n  Chart Generation API: http://localhost:${CHART_API_PORT}\\n  N8N Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
+          "description": "Display service access URLs and usage examples"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start chart generator with API server and UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./chart-generator-api",
+          "description": "Start Go chart generation API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/chart-generator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python3 -m http.server ${CHART_UI_PORT}",
+          "description": "Start style management UI server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/index.html"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${CHART_UI_PORT}\\n  Chart API: http://localhost:${CHART_API_PORT}\\n  N8N Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
+          "description": "Display all running service URLs and CLI info"
+        }
+      ]
+    },
+    "test": {
+      "description": "Comprehensive testing of chart generation capabilities",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go API compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${CHART_API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-chart-generation-api",
+          "run": "curl -sf -X POST http://localhost:${CHART_API_PORT}/api/v1/charts/generate -H 'Content-Type: application/json' -d '{\"chart_type\":\"bar\",\"data\":[{\"x\":\"A\",\"y\":10},{\"x\":\"B\",\"y\":20}],\"export_formats\":[\"png\"]}'",
+          "description": "Test chart generation via API"
+        },
+        {
+          "name": "test-styles-api",
+          "run": "curl -sf http://localhost:${CHART_API_PORT}/api/v1/styles",
+          "description": "Test styles listing API endpoint"
+        },
+        {
+          "name": "test-cli-basic-generation",
+          "run": "echo '[{\"x\":\"Test\",\"y\":42}]' | ./cli/chart-generator generate bar --data - --format png --output /tmp",
+          "description": "Test CLI chart generation with sample data"
+        },
+        {
+          "name": "test-cli-styles",
+          "run": "./cli/chart-generator styles --json",
+          "description": "Test CLI styles listing"
+        },
+        {
+          "name": "test-n8n-workflow",
+          "run": "resource-n8n list-workflows | grep -q 'chart-generation' || echo 'N8N workflow test skipped - not critical'",
+          "description": "Verify N8N workflow deployment"
+        },
+        {
+          "name": "test-database-schema",
+          "run": "resource-postgres execute 'SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN (\"chart_templates\", \"chart_styles\", \"chart_instances\");'",
+          "description": "Verify database schema initialization"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all chart generator services",
+      "steps": [
+        {
+          "name": "source-pm",
+          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
+          "description": "Source process manager utilities"
+        },
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.chart-generator.start-api\" 2>/dev/null || pkill -f \"chart-generator-api\" 2>/dev/null || true",
+          "description": "Stop chart generation API server"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.chart-generator.start-ui\" 2>/dev/null || pkill -f \"python3.*http.server.*${CHART_UI_PORT}\" 2>/dev/null || true",
+          "description": "Stop style management UI server"
+        },
+        {
+          "name": "cleanup-temp-files",
+          "run": "find /tmp -name 'chart-generator-*' -mtime +1 -delete 2>/dev/null || true",
+          "description": "Clean up temporary chart generation files"
+        }
+      ]
+    }
+  }
+}

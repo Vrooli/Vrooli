@@ -1,0 +1,225 @@
+{
+  "name": "Query Performance Optimizer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "query/optimize",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Return test defaults for manual trigger\nreturn {\n  sql: 'SELECT * FROM large_table WHERE status = \\'active\\' ORDER BY created_at DESC',\n  database_name: 'main',\n  analyze: true\n};"
+      },
+      "id": "set_test_defaults",
+      "name": "Set Test Defaults",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {},
+      "id": "merge_triggers",
+      "name": "Merge Triggers",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [600, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Analyze query and suggest optimizations\nconst input = $input.item.json;\n\n// Validate SQL query\nif (!input.sql || typeof input.sql !== 'string') {\n  throw new Error('SQL query is required');\n}\n\nconst sql = input.sql.trim();\nconst databaseName = (input.database_name || 'main').trim();\nconst runAnalyze = input.analyze === true;\n\n// Build EXPLAIN ANALYZE query\nconst explainQuery = runAnalyze \n  ? `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) ${sql}`\n  : `EXPLAIN (FORMAT JSON) ${sql}`;\n\nconst timestamp = Date.now();\nconst randomId = Math.random().toString(36).substring(2, 8);\nconst queryFile = `/tmp/explain_query_${timestamp}_${randomId}.sql`;\n\n// Escape query for shell\nconst escapedQuery = explainQuery.replace(/'/g, \"'\\\"'\\\"'\");\n\n// Build command\nconst command = `\nquery_file=\"${queryFile}\"\necho '${escapedQuery}' > \"$query_file\"\nexplain_result=$(vrooli resource postgres query \"$(cat \"$query_file\")\" --database \"${databaseName}\" --format json 2>&1)\nrm -f \"$query_file\"\necho \"$explain_result\"\n`;\n\nreturn {\n  command: command,\n  query_meta: {\n    original_sql: sql,\n    database_name: databaseName,\n    analyze_mode: runAnalyze,\n    execution_id: `optimize_${timestamp}_${randomId}`,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "prepare_explain",
+      "name": "Prepare Explain",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "run_explain",
+      "name": "Run Explain",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process EXPLAIN results and generate optimization suggestions\nconst explainResult = $input.item.json;\nconst queryMeta = $('Prepare Explain').item.json.query_meta;\n\nlet result = {\n  success: false,\n  original_sql: queryMeta.original_sql,\n  database_name: queryMeta.database_name,\n  execution_plan: null,\n  optimizations: [],\n  performance_metrics: null,\n  optimized_sql: null,\n  error: null\n};\n\nif (explainResult.exitCode === 0 && explainResult.stdout) {\n  try {\n    // Parse EXPLAIN output\n    const output = explainResult.stdout.trim();\n    let explainData = null;\n    \n    // Try to extract JSON from output\n    const jsonMatch = output.match(/\\[.*\\]/s);\n    if (jsonMatch) {\n      explainData = JSON.parse(jsonMatch[0]);\n    } else {\n      // Try parsing the whole output\n      explainData = JSON.parse(output);\n    }\n    \n    if (explainData && explainData[0] && explainData[0]['Plan']) {\n      const plan = explainData[0]['Plan'];\n      result.execution_plan = plan;\n      result.success = true;\n      \n      // Extract performance metrics if ANALYZE was used\n      if (queryMeta.analyze_mode && plan['Actual Total Time']) {\n        result.performance_metrics = {\n          total_time_ms: plan['Actual Total Time'],\n          planning_time_ms: explainData[0]['Planning Time'] || 0,\n          execution_time_ms: explainData[0]['Execution Time'] || plan['Actual Total Time'],\n          rows_returned: plan['Actual Rows'] || 0,\n          loops: plan['Actual Loops'] || 1\n        };\n      }\n      \n      // Analyze plan and generate optimization suggestions\n      const suggestions = [];\n      \n      // Check for sequential scans on large tables\n      const checkForSeqScans = (node) => {\n        if (node['Node Type'] === 'Seq Scan') {\n          const rows = node['Plan Rows'] || node['Actual Rows'] || 0;\n          if (rows > 1000) {\n            suggestions.push({\n              type: 'INDEX',\n              severity: 'HIGH',\n              description: `Sequential scan on ${node['Relation Name'] || 'table'} scanning ${rows} rows`,\n              suggestion: `Consider adding an index on frequently filtered columns`,\n              impact: 'Could reduce query time by 50-90%'\n            });\n          }\n        }\n        \n        // Recursively check child nodes\n        if (node['Plans']) {\n          node['Plans'].forEach(child => checkForSeqScans(child));\n        }\n      };\n      \n      checkForSeqScans(plan);\n      \n      // Check for missing LIMIT on large result sets\n      const sqlLower = queryMeta.original_sql.toLowerCase();\n      if (sqlLower.includes('select') && !sqlLower.includes('limit')) {\n        const estimatedRows = plan['Plan Rows'] || 0;\n        if (estimatedRows > 100) {\n          suggestions.push({\n            type: 'QUERY',\n            severity: 'MEDIUM',\n            description: `Query may return ${estimatedRows} rows without LIMIT`,\n            suggestion: 'Add a LIMIT clause to reduce result set size',\n            impact: 'Reduces memory usage and network transfer'\n          });\n        }\n      }\n      \n      // Check for expensive sorts\n      const checkForSorts = (node) => {\n        if (node['Node Type'] === 'Sort') {\n          const cost = node['Total Cost'] || 0;\n          if (cost > 1000) {\n            suggestions.push({\n              type: 'INDEX',\n              severity: 'MEDIUM',\n              description: `Expensive sort operation with cost ${cost}`,\n              suggestion: 'Consider adding an index on ORDER BY columns',\n              impact: 'Could eliminate sort operation entirely'\n            });\n          }\n        }\n        if (node['Plans']) {\n          node['Plans'].forEach(child => checkForSorts(child));\n        }\n      };\n      \n      checkForSorts(plan);\n      \n      // Check for SELECT *\n      if (sqlLower.includes('select *')) {\n        suggestions.push({\n          type: 'QUERY',\n          severity: 'LOW',\n          description: 'Query uses SELECT * which fetches all columns',\n          suggestion: 'Specify only the columns you need',\n          impact: 'Reduces data transfer and memory usage'\n        });\n      }\n      \n      result.optimizations = suggestions;\n      \n      // Generate optimized SQL if we have suggestions\n      if (suggestions.length > 0 && suggestions.some(s => s.type === 'QUERY')) {\n        let optimizedSql = queryMeta.original_sql;\n        \n        // Add LIMIT if missing\n        if (!sqlLower.includes('limit') && sqlLower.includes('select')) {\n          optimizedSql = optimizedSql.replace(/;?\\s*$/, ' LIMIT 100;');\n        }\n        \n        result.optimized_sql = optimizedSql;\n      }\n    }\n  } catch (error) {\n    result.error = {\n      message: 'Failed to analyze query: ' + error.message,\n      details: explainResult.stdout\n    };\n  }\n} else {\n  result.error = {\n    message: 'Failed to run EXPLAIN',\n    stderr: explainResult.stderr,\n    exit_code: explainResult.exitCode\n  };\n}\n\nreturn result;"
+      },
+      "id": "analyze_plan",
+      "name": "Analyze Plan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1200, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_success",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1600, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Defaults": {
+      "main": [
+        [
+          {
+            "node": "Merge Triggers",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Triggers": {
+      "main": [
+        [
+          {
+            "node": "Prepare Explain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Explain": {
+      "main": [
+        [
+          {
+            "node": "Run Explain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Explain": {
+      "main": [
+        [
+          {
+            "node": "Analyze Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Plan": {
+      "main": [
+        [
+          {
+            "node": "Success Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Check": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-06T00:00:00.000Z",
+  "versionId": "db-schema-explorer-v1"
+}
