@@ -74,9 +74,9 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 21750,
       "fallback": "auto",
-      "description": "Personalization API port"
+      "description": "Personalization API port",
+      "range": "15000-19999"
     }
   },
   "lifecycle": {
@@ -201,11 +201,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.app-personalizer.start-api\" 2>/dev/null || pkill -f \"app-personalizer-api\" 2>/dev/null || true",

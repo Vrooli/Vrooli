@@ -1,0 +1,139 @@
+.app-card {
+  background: var(--matrix-card);
+  border: 1px solid var(--matrix-border);
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.app-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--matrix-green);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.app-card:hover {
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+}
+
+.app-card:hover::before {
+  transform: scaleX(1);
+}
+
+.app-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.app-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--matrix-light-green);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.app-status {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+  border-radius: 3px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.app-status.running {
+  background: rgba(0, 255, 65, 0.2);
+  color: var(--matrix-green);
+  border: 1px solid var(--matrix-green);
+}
+
+.app-status.stopped {
+  background: rgba(255, 0, 64, 0.2);
+  color: var(--matrix-red);
+  border: 1px solid var(--matrix-red);
+}
+
+.app-status.error {
+  background: rgba(255, 176, 0, 0.2);
+  color: var(--matrix-yellow);
+  border: 1px solid var(--matrix-yellow);
+}
+
+.app-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.app-metric {
+  padding: 0.5rem;
+  background: var(--matrix-dark);
+  border: 1px solid var(--matrix-border);
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  color: var(--matrix-dark-green);
+  margin-bottom: 0.2rem;
+}
+
+.metric-data {
+  font-size: 1rem;
+  color: var(--matrix-cyan);
+  font-weight: bold;
+}
+
+.metric-data.port-number {
+  color: var(--matrix-light-green);
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-shadow: 0 0 4px rgba(57, 255, 20, 0.4);
+  font-family: 'Orbitron', monospace;
+}
+
+.app-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.app-btn {
+  flex: 1;
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--matrix-dark-green);
+  color: var(--matrix-green);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+}
+
+.app-btn:hover:not(:disabled) {
+  background: var(--matrix-green);
+  color: var(--matrix-bg);
+  border-color: var(--matrix-green);
+}
+
+.app-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.app-btn.loading {
+  animation: pulse 0.5s ease-in-out infinite;
+}

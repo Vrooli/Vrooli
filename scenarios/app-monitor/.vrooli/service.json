@@ -9,6 +9,7 @@
     "tags": [
       "business-application",
       "monitoring",
+      "maintenance",
       "dashboard",
       "docker",
       "health-check",
@@ -181,13 +182,23 @@
           "description": "Build Go coordination API binary"
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies for React app"
+        },
+        {
           "name": "verify-docker-access",
           "run": "docker version > /dev/null && echo '✅ Docker access verified' || echo '❌ Docker access required for app monitoring'",
           "description": "Verify Docker access for app monitoring"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -205,17 +216,25 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React app for production",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI dashboard server in background",
+          "run": "cd ui && NODE_ENV=production node server.js",
+          "description": "Start Express server with built React app",
           "background": true,
           "condition": {
-            "file_exists": "ui/server.js"
+            "file_exists": "ui/dist/index.html"
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:$API_PORT\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -264,11 +283,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.app-monitor.start-api\" 2>/dev/null || pkill -f \"app-monitor-api\" 2>/dev/null || true",

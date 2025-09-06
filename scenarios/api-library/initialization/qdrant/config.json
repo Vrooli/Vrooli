@@ -1,0 +1,48 @@
+{
+  "collection_name": "api_embeddings",
+  "vector_config": {
+    "size": 768,
+    "distance": "Cosine",
+    "hnsw_config": {
+      "m": 16,
+      "ef_construct": 100,
+      "full_scan_threshold": 10000
+    }
+  },
+  "optimizers_config": {
+    "deleted_threshold": 0.2,
+    "vacuum_min_vector_number": 1000,
+    "default_segment_number": 4
+  },
+  "indexes": {
+    "payload_indexes": [
+      {
+        "field_name": "api_id",
+        "field_type": "keyword"
+      },
+      {
+        "field_name": "provider",
+        "field_type": "keyword"
+      },
+      {
+        "field_name": "category",
+        "field_type": "keyword"
+      },
+      {
+        "field_name": "capabilities",
+        "field_type": "keyword",
+        "is_array": true
+      }
+    ]
+  },
+  "schema": {
+    "api_id": "string",
+    "name": "string",
+    "provider": "string",
+    "description": "string",
+    "category": "string",
+    "capabilities": ["string"],
+    "tags": ["string"],
+    "configured": "boolean"
+  }
+}

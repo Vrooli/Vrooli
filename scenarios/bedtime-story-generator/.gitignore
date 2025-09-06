@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+api/bedtime-story-api
+ui/dist/
+*.exe
+
+# Environment files
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+*.cover
+
+# Temporary files
+*.tmp
+/tmp/

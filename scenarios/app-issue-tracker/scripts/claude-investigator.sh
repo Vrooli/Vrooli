@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Claude Code Investigation Script
-# Interfaces between N8N workflows and Claude Code CLI for issue investigation
+# Direct interface to Claude Code CLI for issue investigation
 
 set -euo pipefail
 
@@ -99,10 +99,17 @@ EOF
 
     log "Created investigation prompt: $prompt_file"
     
-    # Check if claude-code is available
-    if ! command -v claude-code &> /dev/null; then
-        error "claude-code CLI not found. Please install Claude Code."
+    # Check if resource-claude-code is available
+    if ! command -v resource-claude-code &> /dev/null; then
+        error "resource-claude-code CLI not found. Please ensure the resource is installed."
         return 1
+    fi
+    
+    # Check resource status
+    log "Checking Claude Code resource status..."
+    if ! resource-claude-code status &> /dev/null; then
+        warn "Claude Code resource may not be running. Attempting to start..."
+        resource-claude-code start &> /dev/null || true
     fi
     
     # Run Claude Code investigation
@@ -117,12 +124,16 @@ EOF
         cd "$project_path"
     fi
     
-    # Execute Claude Code with the investigation prompt
-    if claude-code --file "$prompt_file" > "$investigation_output" 2>&1; then
+    # Execute Claude Code with the investigation prompt using resource-claude-code run
+    if cat "$prompt_file" | resource-claude-code run - > "$investigation_output" 2>&1; then
         success "Claude Code investigation completed successfully"
     else
         claude_exit_code=$?
         error "Claude Code investigation failed with exit code: $claude_exit_code"
+        # Try to show the error content for debugging
+        if [[ -f "$investigation_output" ]]; then
+            warn "Error output: $(head -n 20 "$investigation_output")"
+        fi
         cd "$original_dir"
         return $claude_exit_code
     fi
@@ -165,7 +176,7 @@ EOF
         affected_files=$(echo "$report_content" | sed -n '/### Affected Components/,/###/p' | head -n -1 | tail -n +2 | grep -oE '[a-zA-Z0-9/_.-]+\.(js|ts|py|go|java|cpp|c|h)' | head -10 | tr '\n' ',' | sed 's/,$//')
     fi
     
-    # Generate JSON output for N8N
+    # Generate JSON output for API response
     local json_output=$(cat << EOF
 {
   "issue_id": "$issue_id",
@@ -250,10 +261,21 @@ EOF
         cd "$project_path"
     fi
     
-    if claude-code --file "$fix_prompt" > "$fix_output" 2>&1; then
+    # Check resource-claude-code is available
+    if ! command -v resource-claude-code &> /dev/null; then
+        error "resource-claude-code CLI not found"
+        cd "$original_dir"
+        return 1
+    fi
+    
+    # Run fix generation using resource-claude-code
+    if cat "$fix_prompt" | resource-claude-code run - > "$fix_output" 2>&1; then
         success "Fix generation completed successfully"
     else
         error "Fix generation failed"
+        if [[ -f "$fix_output" ]]; then
+            warn "Error output: $(head -n 20 "$fix_output")"
+        fi
         cd "$original_dir"
         return 1
     fi

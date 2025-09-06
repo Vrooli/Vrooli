@@ -22,15 +22,15 @@
   "ports": {
     "api": {
       "env_var": "CTM_API_PORT",
-      "port": 20260,
       "fallback": "auto",
-      "description": "Code Tidiness Manager API port"
+      "description": "Code Tidiness Manager API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "CTM_UI_PORT",
-      "port": 20261,
       "fallback": "auto",
-      "description": "Cleanup dashboard UI port"
+      "description": "Cleanup dashboard UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -264,11 +264,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.code-tidiness-manager.start-api\" 2>/dev/null || pkill -f \"code-tidiness-manager-api\" 2>/dev/null || true",

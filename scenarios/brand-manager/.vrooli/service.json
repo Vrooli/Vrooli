@@ -28,15 +28,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 22250,
       "fallback": "auto",
-      "description": "Brand Manager coordination API port"
+      "description": "Brand Manager coordination API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31006,
       "fallback": "auto",
-      "description": "Brand Manager web UI port"
+      "description": "Brand Manager web UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -303,11 +303,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.brand-manager.start-api\" 2>/dev/null || pkill -f \"brand-manager-api\" 2>/dev/null || true",

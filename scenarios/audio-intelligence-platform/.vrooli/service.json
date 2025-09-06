@@ -26,15 +26,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 22000,
       "fallback": "auto",
-      "description": "Audio intelligence API port"
+      "description": "Audio intelligence API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31005,
       "fallback": "auto",
-      "description": "Audio Intelligence Platform UI port"
+      "description": "Audio Intelligence Platform UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -249,11 +249,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.audio-intelligence-platform.start-api\" 2>/dev/null || pkill -f \"audio-intelligence-platform-api\" 2>/dev/null || true",

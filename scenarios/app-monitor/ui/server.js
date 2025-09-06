@@ -85,20 +85,8 @@ wss.on('connection', (ws) => {
         return;
     }
 
-    // Simulate real-time updates (in production, this would connect to actual monitoring)
-    const metricsInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: 'metric_update',
-                payload: {
-                    cpu: Math.floor(Math.random() * 100),
-                    memory: Math.floor(Math.random() * 2048),
-                    network: Math.floor(Math.random() * 1000),
-                    disk: Math.floor(Math.random() * 100)
-                }
-            }));
-        }
-    }, 5000);
+    // Real-time metric updates removed - UI now uses initial API fetch for accurate data
+    // Mock setInterval was sending memory values up to 2048, causing >100% displays
 
     // Handle client messages
     ws.on('message', (message) => {
@@ -124,7 +112,7 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         console.log('WebSocket client disconnected');
-        clearInterval(metricsInterval);
+        // No intervals to clear - metrics come from API calls
     });
 
     ws.on('error', (error) => {
@@ -167,54 +155,8 @@ async function processCommand(command) {
     }
 }
 
-// Simulate app status updates
-function broadcastAppUpdate() {
-    const mockUpdate = {
-        type: 'app_update',
-        payload: {
-            id: `app${Math.floor(Math.random() * 5) + 1}`,
-            status: ['running', 'stopped', 'error'][Math.floor(Math.random() * 3)],
-            cpu: Math.floor(Math.random() * 100),
-            memory: Math.floor(Math.random() * 1024)
-        }
-    };
-
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(mockUpdate));
-        }
-    });
-}
-
-// Simulate log entries
-function broadcastLogEntry() {
-    const levels = ['info', 'warning', 'error', 'debug'];
-    const messages = [
-        'Application started successfully',
-        'Health check completed',
-        'Resource allocation updated',
-        'Connection established',
-        'Cache cleared',
-        'Configuration reloaded',
-        'Backup completed',
-        'API request processed'
-    ];
-
-    const mockLog = {
-        type: 'log_entry',
-        payload: {
-            level: levels[Math.floor(Math.random() * levels.length)],
-            message: messages[Math.floor(Math.random() * messages.length)],
-            timestamp: new Date().toISOString()
-        }
-    };
-
-    wss.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(mockLog));
-        }
-    });
-}
+// WebSocket broadcasts removed - all real-time data comes from actual system events
+// Mock broadcasts were causing fake metric data (memory > 100%) to be sent to clients
 
 // Set up periodic broadcasts
 // Note: Real-time updates should be triggered by actual events from the system,
@@ -231,37 +173,102 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Client-side routing support - serve index.html for all app routes
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/apps', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/metrics', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/logs', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/logs/:appId', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/resources', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-app.get('/terminal', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// Serve static files AFTER routes
-app.use(express.static(__dirname));
+// In production, serve built React files
+if (process.env.NODE_ENV === 'production') {
+    const staticPath = path.join(__dirname, 'dist');
+    app.use(express.static(staticPath));
+    
+    // Catch all routes for client-side routing in production
+    app.get('*', (req, res) => {
+        // Skip API routes
+        if (req.path.startsWith('/api')) {
+            return res.status(404).json({ error: 'Not found' });
+        }
+        res.sendFile(path.join(staticPath, 'index.html'));
+    });
+} else {
+    // In development, show helpful message
+    app.get('/', (req, res) => {
+        const vitePort = process.env.VITE_PORT || 5173;
+        res.send(`
+            <html>
+                <head>
+                    <title>App Monitor - Express Server</title>
+                    <style>
+                        body {
+                            background: #0a0a0a;
+                            color: #00ff41;
+                            font-family: 'Courier New', monospace;
+                            padding: 2rem;
+                            text-align: center;
+                        }
+                        h1 { color: #39ff14; }
+                        a {
+                            color: #00ffff;
+                            font-size: 1.2rem;
+                        }
+                        .info {
+                            margin: 2rem;
+                            padding: 1rem;
+                            border: 1px solid #00ff41;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h1>🚀 App Monitor Express Server</h1>
+                    <div class="info">
+                        <p>This is the Express backend server (port ${PORT})</p>
+                        <p>It handles API proxying and WebSocket connections only.</p>
+                        <br>
+                        <p><strong>To access the React UI, go to:</strong></p>
+                        <h2><a href="http://localhost:${vitePort}">http://localhost:${vitePort}</a></h2>
+                        <br>
+                        <p>If Vite is not running, start it with: <code>npm run dev</code></p>
+                    </div>
+                    <div class="info">
+                        <p>Available endpoints on this server:</p>
+                        <ul style="text-align: left; display: inline-block;">
+                            <li>/api/* - Proxied to Go API server</li>
+                            <li>/ws - WebSocket endpoint</li>
+                            <li>/health - Health check</li>
+                        </ul>
+                    </div>
+                </body>
+            </html>
+        `);
+    });
+    
+    // Catch all other routes in development with helpful message
+    app.get('*', (req, res) => {
+        if (req.path.startsWith('/api')) {
+            return res.status(404).json({ error: 'API endpoint not found' });
+        }
+        const vitePort = process.env.VITE_PORT || 5173;
+        res.status(404).send(`
+            <html>
+                <head>
+                    <title>404 - Wrong Server</title>
+                    <style>
+                        body {
+                            background: #0a0a0a;
+                            color: #ff0040;
+                            font-family: 'Courier New', monospace;
+                            padding: 2rem;
+                            text-align: center;
+                        }
+                        a { color: #00ffff; }
+                    </style>
+                </head>
+                <body>
+                    <h1>❌ 404 - Wrong Server</h1>
+                    <p>You're accessing the Express backend server.</p>
+                    <p>The React UI is running on the Vite dev server:</p>
+                    <h2><a href="http://localhost:${vitePort}${req.path}">http://localhost:${vitePort}${req.path}</a></h2>
+                </body>
+            </html>
+        `);
+    });
+}
 
 // Start server
 server.listen(PORT, () => {

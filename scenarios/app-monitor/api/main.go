@@ -115,34 +115,46 @@ func main() {
 }
 
 func NewServer() (*Server, error) {
-	port := getEnv("API_PORT", getEnv("PORT", ""))
-	postgresURL := getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/app_monitor?sslmode=disable")
-	redisURL := getEnv("REDIS_URL", "redis://localhost:6379")
+	port := getEnv("API_PORT", getEnv("PORT", "8080"))
+	postgresURL := getEnv("POSTGRES_URL", "")
+	redisURL := getEnv("REDIS_URL", "")
 	n8nBaseURL := getEnv("N8N_BASE_URL", "http://localhost:5678")
 	nodeRedURL := getEnv("NODE_RED_BASE_URL", "http://localhost:1880")
 
 	// Initialize database connection (optional for now since we use vrooli CLI)
-	db, err := sql.Open("postgres", postgresURL)
-	if err != nil {
-		log.Printf("Warning: failed to connect to database: %v (continuing without DB)", err)
-		db = nil
-	} else if err := db.Ping(); err != nil {
-		log.Printf("Warning: failed to ping database: %v (continuing without DB)", err)
+	var db *sql.DB
+	if postgresURL != "" {
+		var err error
+		db, err = sql.Open("postgres", postgresURL)
+		if err != nil {
+			log.Printf("Warning: failed to connect to database: %v (continuing without DB)", err)
+			db = nil
+		} else if err := db.Ping(); err != nil {
+			log.Printf("Warning: failed to ping database: %v (continuing without DB)", err)
+			db = nil
+		}
+	} else {
+		log.Printf("Warning: POSTGRES_URL not provided (continuing without DB)")
 		db = nil
 	}
 
 	// Initialize Redis connection (optional)
 	var rdb *redis.Client
-	redisOpts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		log.Printf("Warning: failed to parse Redis URL: %v (continuing without Redis)", err)
-		rdb = nil
-	} else {
-		rdb = redis.NewClient(redisOpts)
-		if err := rdb.Ping(context.Background()).Err(); err != nil {
-			log.Printf("Warning: failed to connect to Redis: %v (continuing without Redis)", err)
+	if redisURL != "" {
+		redisOpts, err := redis.ParseURL(redisURL)
+		if err != nil {
+			log.Printf("Warning: failed to parse Redis URL: %v (continuing without Redis)", err)
 			rdb = nil
+		} else {
+			rdb = redis.NewClient(redisOpts)
+			if err := rdb.Ping(context.Background()).Err(); err != nil {
+				log.Printf("Warning: failed to connect to Redis: %v (continuing without Redis)", err)
+				rdb = nil
+			}
 		}
+	} else {
+		log.Printf("Warning: REDIS_URL not provided (continuing without Redis)")
+		rdb = nil
 	}
 
 	// Initialize Docker client (optional)
@@ -212,6 +224,9 @@ func setupRoutes(s *Server) *gin.Engine {
 	r.GET("/api/apps/:id/logs/lifecycle", s.getAppLifecycleLogs)
 	r.GET("/api/apps/:id/logs/background", s.getAppBackgroundLogs)
 	r.GET("/api/apps/:id/metrics", s.getAppMetrics)
+	
+	// Log endpoints for scenarios using app name
+	r.GET("/api/logs/:appName", s.getScenarioLogs)
 	
 	// Resource endpoints
 	r.GET("/api/resources", s.getResources)
@@ -336,13 +351,23 @@ func (s *Server) getSystemMetrics(c *gin.Context) {
 		}
 	}
 	
-	// Network I/O in MB/s (get total bytes and convert to MB)
-	netCmd := exec.Command("bash", "-c", "cat /proc/net/dev | grep -E 'eth|enp|wlan|wlp' | awk '{rx+=$2; tx+=$10} END {print (rx+tx)/1024/1024}'")
+	// Network I/O rate using vnstat if available, fallback to simple calculation
+	netCmd := exec.Command("bash", "-c", "command -v vnstat >/dev/null && vnstat -i eth0 --json | jq -r '.interfaces[0].traffic.total.rx + .interfaces[0].traffic.total.tx' 2>/dev/null || echo '0'")
 	if netOutput, err := netCmd.Output(); err == nil {
 		netStr := strings.TrimSpace(string(netOutput))
-		if net, err := strconv.ParseFloat(netStr, 64); err == nil {
-			// This is total MB transferred, not rate - let's cap it for display
-			metrics["network"] = math.Min(net, 9999)
+		if net, err := strconv.ParseFloat(netStr, 64); err == nil && net > 0 {
+			// Convert from bytes to KB/s (approximation since vnstat gives totals)
+			kbPerSec := net / 1024 / 60 // Rough estimate assuming 1-minute average
+			metrics["network"] = math.Min(math.Round(kbPerSec*100)/100, 10000) // Cap at reasonable max
+		} else {
+			// Fallback: use ss command to get current connection bandwidth usage
+			ssCmd := exec.Command("bash", "-c", "ss -i | grep -E 'bytes_sent|bytes_received' | awk '{sum+=$2} END {print sum/1024}' 2>/dev/null || echo '0'")
+			if ssOutput, err := ssCmd.Output(); err == nil {
+				ssStr := strings.TrimSpace(string(ssOutput))
+				if ssNet, err := strconv.ParseFloat(ssStr, 64); err == nil {
+					metrics["network"] = math.Round(ssNet*100) / 100
+				}
+			}
 		}
 	}
 	
@@ -834,6 +859,102 @@ func (s *Server) getAppBackgroundLogs(c *gin.Context) {
 	}
 	
 	c.JSON(http.StatusOK, logs)
+}
+
+func (s *Server) getScenarioLogs(c *gin.Context) {
+	appName := c.Param("appName")
+	logType := c.DefaultQuery("type", "both")
+	
+	// Response structure expected by frontend
+	type LogResponse struct {
+		Logs  []string `json:"logs"`
+		Error string   `json:"error,omitempty"`
+	}
+	
+	var logs []string
+	
+	// Helper function to execute vrooli command and get output
+	executeVrooliLogs := func(args []string) (string, error) {
+		cmd := exec.Command("vrooli", args...)
+		cmd.Stderr = cmd.Stdout
+		output, err := cmd.CombinedOutput()
+		return string(output), err
+	}
+	
+	// Get lifecycle logs if requested
+	if logType == "lifecycle" || logType == "both" {
+		output, err := executeVrooliLogs([]string{"scenario", "logs", appName})
+		if err == nil && len(output) > 0 {
+			// Add header for lifecycle logs
+			logs = append(logs, "=== LIFECYCLE LOGS ===")
+			logs = append(logs, strings.Split(strings.TrimSpace(output), "\n")...)
+			logs = append(logs, "") // Empty line for separation
+		} else if err != nil && !strings.Contains(output, "not found") && !strings.Contains(output, "No such") {
+			// Log error but continue
+			log.Printf("Error getting lifecycle logs for %s: %v", appName, err)
+		}
+	}
+	
+	// Get background logs if requested
+	if logType == "background" || logType == "both" {
+		// Try to get logs from various background steps
+		steps := []string{"api", "ui", "server", "main", "worker", "background"}
+		
+		for _, step := range steps {
+			output, err := executeVrooliLogs([]string{"scenario", "logs", appName, "--step", step})
+			if err == nil && len(output) > 0 && !strings.Contains(output, "not found") && !strings.Contains(output, "No logs available") {
+				// Add header for this step
+				logs = append(logs, fmt.Sprintf("=== BACKGROUND LOGS (%s) ===", strings.ToUpper(step)))
+				logs = append(logs, strings.Split(strings.TrimSpace(output), "\n")...)
+				logs = append(logs, "") // Empty line for separation
+			}
+		}
+		
+		// If no background logs found but we're looking for them, try alternative locations
+		if (logType == "background" && len(logs) == 0) || (logType == "both" && !strings.Contains(strings.Join(logs, "\n"), "BACKGROUND")) {
+			// Try reading from the scenario's local log files
+			scenarioDirs := []string{
+				fmt.Sprintf("/home/%s/Vrooli/scenarios/%s", os.Getenv("USER"), appName),
+				fmt.Sprintf("/home/%s/.vrooli/scenarios/%s", os.Getenv("USER"), appName),
+				fmt.Sprintf("./scenarios/%s", appName),
+			}
+			
+			for _, dir := range scenarioDirs {
+				logDir := fmt.Sprintf("%s/logs", dir)
+				if files, err := os.ReadDir(logDir); err == nil {
+					for _, file := range files {
+						if !file.IsDir() && strings.HasSuffix(file.Name(), ".log") {
+							logPath := fmt.Sprintf("%s/%s", logDir, file.Name())
+							if content, err := os.ReadFile(logPath); err == nil {
+								logs = append(logs, fmt.Sprintf("=== LOG FILE: %s ===", file.Name()))
+								// Get last 50 lines to avoid huge responses
+								lines := strings.Split(string(content), "\n")
+								startIdx := 0
+								if len(lines) > 50 {
+									startIdx = len(lines) - 50
+								}
+								logs = append(logs, lines[startIdx:]...)
+								logs = append(logs, "")
+							}
+						}
+					}
+					break // Found logs directory
+				}
+			}
+		}
+	}
+	
+	// If no logs found at all
+	if len(logs) == 0 {
+		logs = append(logs, fmt.Sprintf("No logs available for scenario '%s'. The scenario may not be running or hasn't produced logs yet.", appName))
+	}
+	
+	// Return the response in the format expected by frontend
+	response := LogResponse{
+		Logs: logs,
+	}
+	
+	c.JSON(http.StatusOK, response)
 }
 
 func (s *Server) getAppMetrics(c *gin.Context) {

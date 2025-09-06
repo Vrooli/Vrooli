@@ -246,11 +246,6 @@
       "description": "Stop all chart generator services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager utilities"
-        },
-        {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.chart-generator.start-api\" 2>/dev/null || pkill -f \"chart-generator-api\" 2>/dev/null || true",
           "description": "Stop chart generation API server"

@@ -619,7 +619,7 @@ func main() {
 
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/app_personalizer?sslmode=disable"
+		log.Fatal("POSTGRES_URL environment variable is required")
 	}
 
 	// Connect to database

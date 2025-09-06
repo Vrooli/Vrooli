@@ -1,0 +1,234 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "ai-chatbot-manager",
+    "displayName": "AI Chatbot Manager",
+    "description": "Build and manage AI-powered chatbots for 24/7 sales and support integration on websites",
+    "version": "1.0.0",
+    "tags": [
+      "ai-chatbots",
+      "sales-automation",
+      "customer-support",
+      "website-integration",
+      "ollama-integration",
+      "real-time-chat",
+      "embeddable-widgets",
+      "go-api",
+      "postgres-storage",
+      "websockets",
+      "analytics",
+      "lead-generation",
+      "business-intelligence"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "fallback": "auto",
+      "description": "Main chatbot API and WebSocket server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "fallback": "auto",
+      "description": "React management dashboard",
+      "range": "3000-8999"
+    }
+  },
+  "resources": {
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "models": [
+        "llama3.2",
+        "mistral",
+        "nomic-embed-text"
+      ],
+      "purpose": "AI-powered conversation engine for chatbots"
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store chatbot configs, conversations, user data, analytics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "AI Chatbot Manager health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize AI Chatbot Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/ai-chatbot-manager-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "ai-chatbot-manager"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o ai-chatbot-manager-api .",
+          "description": "Build Go API server with WebSocket support"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "setup-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install React dashboard dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize database with schema and seed data"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 AI Chatbot Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: ai-chatbot-manager --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start AI Chatbot Manager with API server and React dashboard",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./ai-chatbot-manager-api",
+          "description": "Start Go API server with WebSocket support",
+          "background": true,
+          "condition": {
+            "file_exists": "api/ai-chatbot-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm start",
+          "description": "Start React development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  CLI: ai-chatbot-manager --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test AI Chatbot Manager API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-chatbot-endpoints",
+          "run": "bash test/test-chatbot-api.sh",
+          "description": "Test chatbot CRUD endpoints"
+        },
+        {
+          "name": "test-websocket",
+          "run": "bash test/test-websocket.sh",
+          "description": "Test WebSocket chat functionality"
+        },
+        {
+          "name": "test-widget-generation",
+          "run": "bash test/test-widget-generation.sh",
+          "description": "Test embeddable widget generation"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats ai-chatbot-manager.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/ai-chatbot-manager.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pm::stop \"vrooli.develop.ai-chatbot-manager.start-api\" 2>/dev/null || pkill -f \"ai-chatbot-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pm::stop \"vrooli.develop.ai-chatbot-manager.start-ui\" 2>/dev/null || pkill -f \"ui.*ai-chatbot-manager\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

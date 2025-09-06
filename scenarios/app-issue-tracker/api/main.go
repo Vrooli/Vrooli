@@ -23,7 +23,6 @@ type Config struct {
 	Port        string
 	QdrantURL   string
 	IssuesDir   string
-	N8NBaseURL  string
 }
 
 type Server struct {
@@ -132,7 +131,6 @@ func loadConfig() *Config {
 		Port:       getEnv("API_PORT", getEnv("PORT", "")),
 		QdrantURL:  getEnv("QDRANT_URL", "http://localhost:6333"),
 		IssuesDir:  getEnv("ISSUES_DIR", defaultIssuesDir),
-		N8NBaseURL: getEnv("N8N_BASE_URL", "http://localhost:5678"),
 	}
 }
 
@@ -638,9 +636,99 @@ func (s *Server) triggerInvestigationHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}
 	
-	// Trigger N8N workflow or direct investigation
+	// Trigger direct investigation via script
 	runID := fmt.Sprintf("run_%d", time.Now().Unix())
 	investigationID := fmt.Sprintf("inv_%d", time.Now().Unix())
+	
+	// Execute investigation script in background
+	go func() {
+		// Prepare command with proper arguments
+		scriptPath := filepath.Join(filepath.Dir(s.config.IssuesDir), "scripts", "claude-investigator.sh")
+		projectPath := filepath.Dir(s.config.IssuesDir)
+		
+		// Default agent if not specified
+		agentID := req.AgentID
+		if agentID == "" {
+			agentID = "deep-investigator"
+		}
+		
+		// Create a prompt template based on issue details
+		promptTemplate := fmt.Sprintf("Investigate issue: %s", issue.Title)
+		if issue.ErrorContext.ErrorMessage != "" {
+			promptTemplate += fmt.Sprintf(". Error: %s", issue.ErrorContext.ErrorMessage)
+		}
+		
+		cmd := exec.Command("bash", scriptPath, "investigate", req.IssueID, agentID, projectPath, promptTemplate)
+		cmd.Dir = filepath.Dir(s.config.IssuesDir)
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("Investigation script failed: %v\nOutput: %s", err, output)
+			// Try to update issue status to failed
+			s.moveIssue(req.IssueID, "failed")
+			return
+		}
+		
+		log.Printf("Investigation completed for issue %s", req.IssueID)
+		
+		// Parse the JSON output from the investigation script
+		var result struct {
+			IssueID              string `json:"issue_id"`
+			InvestigationReport  string `json:"investigation_report"`
+			RootCause           string `json:"root_cause"`
+			SuggestedFix        string `json:"suggested_fix"`
+			ConfidenceScore     int    `json:"confidence_score"`
+			AffectedFiles       []string `json:"affected_files"`
+			Status              string `json:"status"`
+		}
+		
+		if err := json.Unmarshal(output, &result); err != nil {
+			log.Printf("Failed to parse investigation result: %v", err)
+			return
+		}
+		
+		// Update the issue with investigation results
+		filePath, _, err := s.findIssueFile(req.IssueID)
+		if err != nil {
+			log.Printf("Failed to find issue file: %v", err)
+			return
+		}
+		
+		issue, err := s.loadIssueFromFile(filePath)
+		if err != nil {
+			log.Printf("Failed to load issue: %v", err)
+			return
+		}
+		
+		// Update investigation fields
+		completedAt := time.Now().UTC().Format(time.RFC3339)
+		issue.Investigation.CompletedAt = completedAt
+		issue.Investigation.Report = result.InvestigationReport
+		issue.Investigation.RootCause = result.RootCause
+		issue.Investigation.SuggestedFix = result.SuggestedFix
+		confidenceScore := result.ConfidenceScore
+		issue.Investigation.ConfidenceScore = &confidenceScore
+		
+		// Calculate duration
+		if issue.Investigation.StartedAt != "" {
+			if startTime, err := time.Parse(time.RFC3339, issue.Investigation.StartedAt); err == nil {
+				duration := int(time.Since(startTime).Minutes())
+				issue.Investigation.InvestigationDurationMinutes = &duration
+			}
+		}
+		
+		// Update affected files in error context
+		if len(result.AffectedFiles) > 0 {
+			issue.ErrorContext.AffectedFiles = result.AffectedFiles
+		}
+		
+		// Save the updated issue
+		if err := s.saveIssueToFile(issue, "investigating"); err != nil {
+			log.Printf("Failed to save investigation results: %v", err)
+		} else {
+			log.Printf("Investigation results saved for issue %s", req.IssueID)
+		}
+	}()
 	
 	response := ApiResponse{
 		Success: true,
@@ -775,6 +863,137 @@ func (s *Server) getAgentsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func (s *Server) triggerFixGenerationHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		IssueID     string `json:"issue_id"`
+		AutoApply   bool   `json:"auto_apply"`
+		BackupEnabled bool `json:"backup_enabled"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	
+	if req.IssueID == "" {
+		http.Error(w, "Issue ID is required", http.StatusBadRequest)
+		return
+	}
+	
+	// Find issue file
+	filePath, currentFolder, err := s.findIssueFile(req.IssueID)
+	if err != nil {
+		http.Error(w, "Issue not found", http.StatusNotFound)
+		return
+	}
+	
+	// Load issue to check if investigation is complete
+	issue, err := s.loadIssueFromFile(filePath)
+	if err != nil {
+		http.Error(w, "Failed to load issue", http.StatusInternalServerError)
+		return
+	}
+	
+	// Check if investigation exists
+	if issue.Investigation.Report == "" {
+		http.Error(w, "Issue must be investigated before generating fixes", http.StatusBadRequest)
+		return
+	}
+	
+	// Generate fix in background
+	runID := fmt.Sprintf("fix_run_%d", time.Now().Unix())
+	fixID := fmt.Sprintf("fix_%d", time.Now().Unix())
+	
+	go func() {
+		// Prepare command
+		scriptPath := filepath.Join(filepath.Dir(s.config.IssuesDir), "scripts", "claude-fix-generator.sh")
+		projectPath := filepath.Dir(s.config.IssuesDir)
+		
+		// Set POSTGRES_PASSWORD if not set (use a default for file-based mode)
+		if os.Getenv("POSTGRES_PASSWORD") == "" {
+			os.Setenv("POSTGRES_PASSWORD", "unused-in-file-mode")
+		}
+		
+		autoApplyStr := "false"
+		if req.AutoApply {
+			autoApplyStr = "true"
+		}
+		
+		backupStr := "true"
+		if !req.BackupEnabled {
+			backupStr = "false"
+		}
+		
+		cmd := exec.Command("bash", scriptPath, "generate", req.IssueID, projectPath, autoApplyStr, backupStr)
+		cmd.Dir = filepath.Dir(s.config.IssuesDir)
+		
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("Fix generation script failed: %v\nOutput: %s", err, output)
+			return
+		}
+		
+		log.Printf("Fix generation completed for issue %s", req.IssueID)
+		
+		// Parse the JSON output
+		var result struct {
+			IssueID           string `json:"issue_id"`
+			FixGenerationStatus string `json:"fix_generation_status"`
+			FixReport         string `json:"fix_report"`
+			FixSummary        string `json:"fix_summary"`
+			ImplementationPlan string `json:"implementation_steps"`
+			RollbackPlan      string `json:"rollback_plan"`
+			RiskLevel         string `json:"risk_level"`
+			AutoApplyResult   string `json:"auto_apply_result"`
+		}
+		
+		if err := json.Unmarshal(output, &result); err != nil {
+			log.Printf("Failed to parse fix generation result: %v", err)
+			return
+		}
+		
+		// Update issue with fix information
+		issue, err := s.loadIssueFromFile(filePath)
+		if err != nil {
+			log.Printf("Failed to reload issue: %v", err)
+			return
+		}
+		
+		// Update fix fields
+		issue.Fix.SuggestedFix = result.FixSummary
+		issue.Fix.ImplementationPlan = result.ImplementationPlan
+		if req.AutoApply && result.AutoApplyResult == "success" {
+			issue.Fix.Applied = true
+			issue.Fix.AppliedAt = time.Now().UTC().Format(time.RFC3339)
+		}
+		
+		// Move to in-progress if not already there
+		if currentFolder != "in-progress" && currentFolder != "fixed" {
+			s.moveIssue(req.IssueID, "in-progress")
+		} else {
+			s.saveIssueToFile(issue, currentFolder)
+		}
+		
+		log.Printf("Fix information saved for issue %s", req.IssueID)
+	}()
+	
+	response := ApiResponse{
+		Success: true,
+		Message: "Fix generation triggered successfully",
+		Data: map[string]interface{}{
+			"run_id":       runID,
+			"fix_id":       fixID,
+			"issue_id":     req.IssueID,
+			"auto_apply":   req.AutoApply,
+			"backup_enabled": req.BackupEnabled,
+			"status":       "queued",
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func (s *Server) getAppsHandler(w http.ResponseWriter, r *http.Request) {
 	// Count issues per app
 	allIssues, _ := s.getAllIssues("", "", "", 0)
@@ -875,6 +1094,7 @@ func main() {
 	api.HandleFunc("/agents", server.getAgentsHandler).Methods("GET")
 	api.HandleFunc("/apps", server.getAppsHandler).Methods("GET")
 	api.HandleFunc("/investigate", server.triggerInvestigationHandler).Methods("POST")
+	api.HandleFunc("/generate-fix", server.triggerFixGenerationHandler).Methods("POST")
 	api.HandleFunc("/stats", server.getStatsHandler).Methods("GET")
 	
 	// Apply CORS middleware

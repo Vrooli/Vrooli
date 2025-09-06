@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vrooli API Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            display: block;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .vulnerability {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            border-radius: 8px;
+            background: #fff5f5;
+            border-left: 4px solid #e53e3e;
+        }
+
+        .vulnerability.medium {
+            background: #fffbeb;
+            border-left-color: #dd6b20;
+        }
+
+        .vulnerability.low {
+            background: #f0fff4;
+            border-left-color: #38a169;
+        }
+
+        .vulnerability-severity {
+            font-weight: bold;
+            margin-right: 1rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        .severity-high { background: #feb2b2; color: #742a2a; }
+        .severity-medium { background: #fbd38d; color: #744210; }
+        .severity-low { background: #9ae6b4; color: #22543d; }
+
+        .scenario-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin: 0.5rem 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .scenario-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .scenario-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-active {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border: 1px solid #feb2b2;
+        }
+
+        .actions {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        #status {
+            color: white;
+            text-align: center;
+            margin: 1rem 0;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🔍 Vrooli API Manager</h1>
+            <p>Automated API Security & Intelligence Platform</p>
+            <div id="status">Checking system status...</div>
+        </header>
+
+        <div class="actions">
+            <button class="btn" onclick="discoverScenarios()">🔎 Discover Scenarios</button>
+            <button class="btn" onclick="refreshData()">🔄 Refresh Data</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="card">
+                <h2>📊 System Overview</h2>
+                <div class="stats" id="systemStats">
+                    <div class="stat">
+                        <span class="stat-number" id="scenarioCount">-</span>
+                        <div class="stat-label">Active Scenarios</div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="vulnerabilityCount">-</span>
+                        <div class="stat-label">Open Vulnerabilities</div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="endpointCount">-</span>
+                        <div class="stat-label">Tracked Endpoints</div>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" id="healthStatus">-</span>
+                        <div class="stat-label">System Health</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🎯 Managed Scenarios</h2>
+                <div id="scenariosList">
+                    <div class="loading"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🚨 Security Vulnerabilities</h2>
+                <div id="vulnerabilitiesList">
+                    <div class="loading"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        
+        async function apiCall(endpoint) {
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
+        async function loadSystemStatus() {
+            try {
+                const status = await apiCall('/system/status');
+                
+                document.getElementById('scenarioCount').textContent = status.active_scenarios;
+                document.getElementById('vulnerabilityCount').textContent = status.open_vulnerabilities;
+                document.getElementById('endpointCount').textContent = status.tracked_endpoints;
+                
+                const healthElement = document.getElementById('healthStatus');
+                const statusElement = document.getElementById('status');
+                
+                if (status.status === 'operational') {
+                    healthElement.textContent = '✅';
+                    healthElement.parentNode.querySelector('.stat-label').textContent = 'Operational';
+                    statusElement.innerHTML = '✅ System operational - All services running normally';
+                    statusElement.style.color = '#48bb78';
+                } else {
+                    healthElement.textContent = '❌';
+                    healthElement.parentNode.querySelector('.stat-label').textContent = 'Issues Detected';
+                    statusElement.innerHTML = '⚠️ System degraded - Check logs for details';
+                    statusElement.style.color = '#ed8936';
+                }
+            } catch (error) {
+                document.getElementById('status').innerHTML = '❌ Cannot connect to API Manager';
+                document.getElementById('status').style.color = '#e53e3e';
+                console.error('Failed to load system status:', error);
+            }
+        }
+
+        async function loadScenarios() {
+            try {
+                const data = await apiCall('/scenarios');
+                const container = document.getElementById('scenariosList');
+                
+                if (data.scenarios && data.scenarios.length > 0) {
+                    container.innerHTML = data.scenarios.map(scenario => `
+                        <div class="scenario-item">
+                            <div>
+                                <div class="scenario-name">${scenario.name}</div>
+                                <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">
+                                    ${scenario.description || 'No description'}
+                                </div>
+                            </div>
+                            <div>
+                                <span class="scenario-status status-${scenario.status}">${scenario.status}</span>
+                                <button class="btn btn-small" onclick="scanScenario('${scenario.name}')">
+                                    🔍 Scan
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: #666; padding: 2rem;">
+                            <p>No scenarios found.</p>
+                            <p style="margin-top: 0.5rem;">Click "Discover Scenarios" to scan for APIs.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('scenariosList').innerHTML = 
+                    `<div class="error">Failed to load scenarios: ${error.message}</div>`;
+            }
+        }
+
+        async function loadVulnerabilities() {
+            try {
+                const data = await apiCall('/vulnerabilities');
+                const container = document.getElementById('vulnerabilitiesList');
+                
+                if (data.vulnerabilities && data.vulnerabilities.length > 0) {
+                    container.innerHTML = data.vulnerabilities.slice(0, 5).map(vuln => `
+                        <div class="vulnerability ${vuln.severity}">
+                            <span class="vulnerability-severity severity-${vuln.severity}">
+                                ${vuln.severity.toUpperCase()}
+                            </span>
+                            <div style="flex-grow: 1;">
+                                <div style="font-weight: 600;">${vuln.title}</div>
+                                <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">
+                                    ${vuln.scenario_name} - ${vuln.category}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    
+                    if (data.vulnerabilities.length > 5) {
+                        container.innerHTML += `
+                            <div style="text-align: center; margin-top: 1rem; color: #666;">
+                                ... and ${data.vulnerabilities.length - 5} more vulnerabilities
+                            </div>
+                        `;
+                    }
+                } else {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: #48bb78; padding: 2rem;">
+                            <div style="font-size: 3rem;">✅</div>
+                            <p>No vulnerabilities detected!</p>
+                            <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
+                                All scanned APIs are secure.
+                            </p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('vulnerabilitiesList').innerHTML = 
+                    `<div class="error">Failed to load vulnerabilities: ${error.message}</div>`;
+            }
+        }
+
+        async function discoverScenarios() {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.innerHTML = '<div class="loading"></div> Discovering...';
+            button.disabled = true;
+
+            try {
+                await apiCall('/system/discover');
+                setTimeout(() => {
+                    refreshData();
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }, 2000);
+            } catch (error) {
+                alert(`Discovery failed: ${error.message}`);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        async function scanScenario(scenarioName) {
+            const button = event.target;
+            const originalText = button.textContent;
+            button.innerHTML = '⏳ Scanning...';
+            button.disabled = true;
+
+            try {
+                await apiCall(`/scenarios/${scenarioName}/scan`);
+                setTimeout(() => {
+                    loadVulnerabilities();
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }, 1000);
+            } catch (error) {
+                alert(`Scan failed: ${error.message}`);
+                button.textContent = originalText;
+                button.disabled = false;
+            }
+        }
+
+        async function refreshData() {
+            await Promise.all([
+                loadSystemStatus(),
+                loadScenarios(),
+                loadVulnerabilities()
+            ]);
+        }
+
+        // Initialize dashboard
+        window.addEventListener('DOMContentLoaded', refreshData);
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadSystemStatus, 30000);
+    </script>
+</body>
+</html>

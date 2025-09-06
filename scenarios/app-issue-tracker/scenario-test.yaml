@@ -7,8 +7,6 @@ resources:
     - postgres
     - qdrant
     - redis
-    - windmill
-    - n8n
     - claude-code
     - ollama
     - agent-s2
@@ -28,22 +26,7 @@ tests:
     expected:
       status: 200
       
-  - name: Windmill UI Access
-    type: http
-    method: GET
-    url: http://localhost:8000
-    expected:
-      status: 200
-      
-  - name: N8N Workflow Engine
-    type: http
-    method: GET
-    url: http://localhost:5678/healthz
-    expected:
-      status: 200
-      body:
-        status: ok
-        
+  
   - name: Create Test Issue
     type: postgres
     operation: INSERT
@@ -73,24 +56,13 @@ tests:
       body:
         agents: []
         
-  - name: Issue Investigation Workflow
-    type: n8n
-    workflow: issue-investigation
-    trigger: webhook
-    payload:
-      issue_id: "${TEST_ISSUE_ID}"
+  - name: Issue Investigation Script
+    type: command
+    command: bash scripts/claude-investigator.sh "${TEST_ISSUE_ID}" "deep-investigator"
     expected:
-      execution:
-        status: success
-        nodes:
-          - webhook_trigger
-          - get_issue_details
-          - prepare_investigation
-          - claude_investigation
-          - parse_response
-          - update_issue
-          - update_vector_db
-          - webhook_response
+      exit_code: 0
+      output:
+        contains: "Investigation completed"
           
   - name: CLI Issue Creation
     type: command
@@ -110,10 +82,6 @@ validation:
         port: 6333
       - service: redis
         port: 6379
-      - service: windmill
-        port: 8000
-      - service: n8n
-        port: 5678
       - service: api
         port: 8090
         

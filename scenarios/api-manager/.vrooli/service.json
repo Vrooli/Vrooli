@@ -1,0 +1,183 @@
+{
+  "version": "2.0.0",
+  "name": "api-manager",
+  "description": "Automated API analysis, security auditing, and improvement system for Vrooli scenarios",
+  "type": "scenario",
+  "main": {
+    "ui": {
+      "enabled": true,
+      "path": "ui/server.js",
+      "port": 8420,
+      "environment": {
+        "API_PORT": "8421",
+        "NODE_ENV": "development"
+      }
+    },
+    "api": {
+      "enabled": true,
+      "path": "api/main.go",
+      "port": 8421,
+      "build": "go build -o api-manager-api .",
+      "environment": {
+        "API_PORT": "8421",
+        "POSTGRES_HOST": "localhost",
+        "POSTGRES_PORT": "5433",
+        "POSTGRES_DB": "vrooli_api_manager",
+        "POSTGRES_USER": "postgres",
+        "POSTGRES_PASSWORD": "",
+        "OLLAMA_URL": "http://localhost:11434",
+        "N8N_URL": "http://localhost:5678"
+      }
+    },
+    "cli": {
+      "enabled": true,
+      "path": "cli/api-manager",
+      "install_script": "cli/install.sh"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "enabled": true,
+      "databases": ["vrooli_api_manager"]
+    },
+    "ollama": {
+      "enabled": true,
+      "models": ["llama3.1:8b", "nomic-embed-text"]
+    },
+    "n8n": {
+      "enabled": true
+    },
+    "qdrant": {
+      "enabled": true,
+      "collections": ["api_patterns", "vulnerability_signatures"]
+    }
+  },
+  "initialization": {
+    "storage": {
+      "postgres": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "database": "vrooli_api_manager"
+        }
+      ]
+    },
+    "automation": {
+      "n8n": [
+        {
+          "file": "initialization/automation/n8n/api-scanner.json",
+          "name": "API Scanner Workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/security-auditor.json", 
+          "name": "Security Audit Workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/fix-generator.json",
+          "name": "Automated Fix Generation"
+        }
+      ]
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize API manager with database and workflows",
+      "steps": [
+        {
+          "name": "create-directories",
+          "run": "mkdir -p api cli ui initialization/storage/postgres initialization/automation/n8n data",
+          "description": "Create required directories"
+        },
+        {
+          "name": "initialize-database",
+          "run": "resource-postgres content execute --database vrooli_api_manager --file initialization/storage/postgres/schema.sql",
+          "description": "Create database schema",
+          "condition": {
+            "file_exists": "initialization/storage/postgres/schema.sql"
+          }
+        },
+        {
+          "name": "deploy-workflows", 
+          "run": "vrooli resource n8n deploy-workflows initialization/automation/n8n/",
+          "description": "Deploy N8n automation workflows",
+          "condition": {
+            "directory_exists": "initialization/automation/n8n"
+          }
+        }
+      ]
+    },
+    "build": {
+      "description": "Build API manager components",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o api-manager-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "build-cli",
+          "run": "cd cli && go build -o api-manager .",
+          "description": "Build CLI tool"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        }
+      ]
+    },
+    "start": {
+      "description": "Start API manager services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./api-manager-api",
+          "description": "Start API server",
+          "background": true,
+          "health_check": {
+            "url": "http://localhost:8421/api/v1/health",
+            "timeout": 10
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start web interface", 
+          "background": true,
+          "health_check": {
+            "url": "http://localhost:8420/health",
+            "timeout": 10
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop API manager services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'api-manager-api' || true",
+          "description": "Stop API server"
+        },
+        {
+          "name": "stop-ui", 
+          "run": "pkill -f 'node.*server.js.*api-manager' || true",
+          "description": "Stop web interface"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "tags": ["api", "security", "automation", "analysis", "documentation", "maintenance"],
+    "category": "infrastructure",
+    "priority": "high",
+    "author": "AI Agent", 
+    "status": "development",
+    "capabilities": [
+      "api-scanning",
+      "security-auditing", 
+      "documentation-generation",
+      "performance-analysis",
+      "automated-fixes"
+    ]
+  }
+}

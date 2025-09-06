@@ -1,0 +1,105 @@
+.logs-view {
+  animation: fadeIn 0.5s ease;
+}
+
+.log-filter {
+  padding: 0.5rem 1rem;
+  background: var(--matrix-dark);
+  border: 1px solid var(--matrix-border);
+  color: var(--matrix-green);
+  font-family: inherit;
+  min-width: 150px;
+  cursor: pointer;
+}
+
+.log-filter:focus {
+  outline: none;
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 5px var(--matrix-green);
+}
+
+.logs-container {
+  background: var(--matrix-dark);
+  border: 1px solid var(--matrix-border);
+  padding: 1rem;
+  height: 600px;
+  overflow-y: auto;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+.log-entry {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid rgba(0, 255, 65, 0.1);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  word-break: break-all;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-entry.error {
+  color: var(--matrix-red);
+}
+
+.log-entry.warning {
+  color: var(--matrix-yellow);
+}
+
+.log-entry.info {
+  color: var(--matrix-cyan);
+}
+
+.log-entry.debug {
+  color: var(--matrix-dark-green);
+}
+
+.log-entry.success {
+  color: var(--matrix-light-green);
+}
+
+.log-entry.log {
+  color: var(--matrix-green);
+}
+
+.log-timestamp {
+  color: var(--matrix-dark-green);
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+.log-content {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.loading-message,
+.empty-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--matrix-dark-green);
+  font-size: 1.1rem;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@media (max-width: 768px) {
+  .panel-controls {
+    flex-wrap: wrap;
+  }
+  
+  .log-filter {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  .logs-container {
+    height: 400px;
+    font-size: 0.8rem;
+  }
+}

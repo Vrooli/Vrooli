@@ -14,7 +14,12 @@ BACKUP_DIR="${PROJECT_DIR}/backup/migration-$(date +%Y%m%d-%H%M%S)"
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
+# Validate POSTGRES_PASSWORD is set
+if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+    error "POSTGRES_PASSWORD environment variable must be set"
+    echo "Please export POSTGRES_PASSWORD with a secure password before running this script" >&2
+    exit 1
+fi
 POSTGRES_DB="${POSTGRES_DB:-issue_tracker}"
 
 # Colors for output

@@ -1,18 +1,44 @@
 {
   "name": "app-monitor-ui",
+  "private": true,
   "version": "1.0.0",
   "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
-  "main": "server.js",
   "scripts": {
+    "dev": "concurrently \"VITE_PORT=${VITE_PORT:-5173} vite\" \"node server.js\"",
+    "dev:vite": "VITE_PORT=${VITE_PORT:-5173} vite",
+    "dev:server": "nodemon server.js",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "debug": "VITE_PORT=${VITE_PORT:-5173} vite --debug --force",
+    "clean": "rm -rf dist node_modules .vite"
   },
   "dependencies": {
+    "axios": "^1.6.2",
+    "clsx": "^2.1.0",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "ws": "^8.14.2",
-    "dotenv": "^16.3.1"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.21.0",
+    "react-use-websocket": "^4.5.0",
+    "ws": "^8.14.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "nodemon": "^3.0.1",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
   }
 }

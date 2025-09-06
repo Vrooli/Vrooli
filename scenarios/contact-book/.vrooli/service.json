@@ -204,11 +204,6 @@
       "description": "Stop Contact Book services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.contact-book.start-api\" 2>/dev/null || pkill -f \"contact-book-api\" 2>/dev/null || true",
           "description": "Stop API process"

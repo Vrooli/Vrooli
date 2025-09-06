@@ -1,0 +1,13 @@
+{
+  "name": "api-manager-ui",
+  "version": "1.0.0",
+  "description": "Web interface for Vrooli API Manager",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

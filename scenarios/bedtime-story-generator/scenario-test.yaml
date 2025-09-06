@@ -1,0 +1,108 @@
+version: 1.0
+scenario: bedtime-story-generator
+
+# Structure validation
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/bedtime-story
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - ui/package.json
+    - ui/src/App.jsx
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+
+# Resource validation
+resources:
+  required: 
+    - postgres
+    - ollama
+  optional:
+    - redis
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: resource
+    service: postgres
+    expect:
+      status: healthy
+      
+  - name: "Ollama is accessible"
+    type: resource  
+    service: ollama
+    expect:
+      status: healthy
+      
+  # API endpoint tests
+  - name: "API health check responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+        
+  - name: "Story generation endpoint exists"
+    type: http
+    service: api
+    endpoint: /api/v1/stories/generate
+    method: POST
+    body:
+      age_group: "6-8"
+      theme: "Adventure"
+    expect:
+      status: 201
+      
+  # CLI command tests
+  - name: "CLI status command works"
+    type: exec
+    command: ./cli/bedtime-story status
+    expect:
+      exit_code: 0
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/bedtime-story help
+    expect:
+      exit_code: 0
+      output_contains: ["generate", "list", "read"]
+      
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('stories', 'reading_sessions', 'story_themes')"
+    expect:
+      rows:
+        - count: 3
+        
+  # Scenario metadata tests
+  - name: "Scenario has kid-friendly tag"
+    type: config
+    file: .vrooli/service.json
+    expect:
+      json_path: $.service.tags
+      contains: "kid-friendly"
+      
+  - name: "UI port configuration exists"
+    type: config
+    file: .vrooli/service.json
+    expect:
+      json_path: $.ports.ui.env_var
+      value: "UI_PORT"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Test n8n investigation workflow
+# Test investigation workflow
 
 set -euo pipefail
 
 API_URL="${ISSUE_TRACKER_API_URL:-http://localhost:8090/api}"
-N8N_URL="${N8N_BASE_URL:-http://localhost:5678}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -71,15 +71,15 @@ test_investigation_trigger() {
     fi
 }
 
-# Test workflow health
-test_workflow_health() {
-    log_info "Testing n8n workflow health..."
+# Test investigation script availability
+test_script_availability() {
+    log_info "Testing investigation script availability..."
     
-    if curl -sf "$N8N_URL/healthz" > /dev/null 2>&1; then
-        log_success "n8n is healthy"
+    if [ -f "$SCRIPT_DIR/scripts/claude-investigator.sh" ]; then
+        log_success "Investigation script is available"
         return 0
     else
-        log_error "n8n is not available at $N8N_URL"
+        log_error "Investigation script not found at $SCRIPT_DIR/scripts/claude-investigator.sh"
         return 1
     fi
 }
@@ -92,9 +92,9 @@ if ! curl -sf "$API_URL/../health" > /dev/null; then
 fi
 log_success "API is healthy"
 
-# Test workflow engine
-if ! test_workflow_health; then
-    log_error "Workflow engine tests failed"
+# Test investigation script
+if ! test_script_availability; then
+    log_error "Investigation script tests failed"
     exit 1
 fi
 

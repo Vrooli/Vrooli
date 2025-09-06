@@ -65,11 +65,26 @@ var db *sql.DB
 
 func initDB() {
     var err error
-    dbHost := getEnv("DB_HOST", "localhost")
-    dbPort := getEnv("DB_PORT", "5432")
-    dbUser := getEnv("DB_USER", "postgres")
-    dbPassword := getEnv("DB_PASSWORD", "postgres")
-    dbName := getEnv("DB_NAME", "chore_tracking")
+    dbHost := getEnv("POSTGRES_HOST", "")
+    if dbHost == "" {
+        log.Fatal("POSTGRES_HOST environment variable is required")
+    }
+    dbPort := getEnv("POSTGRES_PORT", "")
+    if dbPort == "" {
+        log.Fatal("POSTGRES_PORT environment variable is required")
+    }
+    dbUser := getEnv("POSTGRES_USER", "")
+    if dbUser == "" {
+        log.Fatal("POSTGRES_USER environment variable is required")
+    }
+    dbPassword := getEnv("POSTGRES_PASSWORD", "")
+    if dbPassword == "" {
+        log.Fatal("POSTGRES_PASSWORD environment variable is required")
+    }
+    dbName := getEnv("POSTGRES_DB", "")
+    if dbName == "" {
+        log.Fatal("POSTGRES_DB environment variable is required")
+    }
 
     connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
         dbHost, dbPort, dbUser, dbPassword, dbName)

@@ -20,7 +20,18 @@ QDRANT_PORT=${QDRANT_PORT:-6333}
 QDRANT_URL="http://localhost:${QDRANT_PORT}"
 COLLECTION_NAME="issue_embeddings"
 VECTOR_SIZE=1536  # OpenAI text-embedding-ada-002 size
-POSTGRES_URL=${POSTGRES_URL:-"postgres://postgres:postgres@localhost:5432/issue_tracker?sslmode=disable"}
+# PostgreSQL configuration
+POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+POSTGRES_USER=${POSTGRES_USER:-"postgres"}
+# Validate POSTGRES_PASSWORD is set
+if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+    error "POSTGRES_PASSWORD environment variable must be set"
+    echo "Please export POSTGRES_PASSWORD with a secure password before running this script" >&2
+    exit 1
+fi
+POSTGRES_DB=${POSTGRES_DB:-"issue_tracker"}
+POSTGRES_URL=${POSTGRES_URL:-"postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable"}
 
 # Logging functions
 log() {
@@ -132,7 +143,7 @@ generate_embeddings() {
     # Check if we have any issues
     local issue_count
     if command -v psql &> /dev/null; then
-        issue_count=$(PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d issue_tracker -t -c "SELECT COUNT(*) FROM issues;" | xargs)
+        issue_count=$(PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -t -c "SELECT COUNT(*) FROM issues;" | xargs)
         log "Found $issue_count issues in database"
     else
         warn "psql not available, skipping issue count check"
@@ -160,7 +171,17 @@ import time
 # Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 QDRANT_URL = os.getenv('QDRANT_URL', 'http://localhost:6333')
-POSTGRES_URL = os.getenv('POSTGRES_URL', 'postgres://postgres:postgres@localhost:5432/issue_tracker?sslmode=disable')
+# Get PostgreSQL configuration from environment
+POSTGRES_HOST = os.getenv('POSTGRES_HOST', 'localhost')
+POSTGRES_PORT = os.getenv('POSTGRES_PORT', '5432')
+POSTGRES_USER = os.getenv('POSTGRES_USER', 'postgres')
+POSTGRES_PASSWORD = os.getenv('POSTGRES_PASSWORD')
+if not POSTGRES_PASSWORD:
+    print("ERROR: POSTGRES_PASSWORD environment variable must be set", file=sys.stderr)
+    print("Please export POSTGRES_PASSWORD with a secure password before running this script", file=sys.stderr)
+    sys.exit(1)
+POSTGRES_DB = os.getenv('POSTGRES_DB', 'issue_tracker')
+POSTGRES_URL = os.getenv('POSTGRES_URL', f'postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}?sslmode=disable')
 COLLECTION_NAME = 'issue_embeddings'
 
 def get_embedding(text: str) -> List[float]:

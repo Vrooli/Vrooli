@@ -145,12 +145,19 @@ EOF
 }
 
 show_version() {
-    local api_version
-    api_version=$(api_request GET "/health" | parse_json "version")
-    
     echo "Contact Book CLI v1.0.0"
-    if [[ -n "$api_version" ]]; then
-        echo "API Version: $api_version"
+    
+    # Try to get API version, but don't fail if API is not available
+    if curl -sf "${API_BASE_URL}/health" >/dev/null 2>&1; then
+        local api_version
+        api_version=$(api_request GET "/health" 2>/dev/null | parse_json "version" 2>/dev/null)
+        if [[ -n "$api_version" && "$api_version" != "null" ]]; then
+            echo "API Version: $api_version"
+        else
+            echo "API Version: Available but version unknown"
+        fi
+    else
+        echo "API Version: Not available (API not running)"
     fi
 }
 

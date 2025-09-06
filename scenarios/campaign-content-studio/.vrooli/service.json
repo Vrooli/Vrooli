@@ -27,15 +27,15 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 22500,
       "fallback": "auto",
-      "description": "Campaign content studio API port"
+      "description": "Campaign content studio API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31007,
       "fallback": "auto",
-      "description": "Campaign content studio UI port"
+      "description": "Campaign content studio UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -254,11 +254,6 @@
     "stop": {
       "description": "Stop services",
       "steps": [
-        {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
         {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.campaign-content-studio.start-api\" 2>/dev/null || pkill -f \"campaign-content-studio-api\" 2>/dev/null || true",

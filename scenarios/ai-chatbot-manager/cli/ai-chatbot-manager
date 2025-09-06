@@ -1,0 +1,583 @@
+#!/bin/bash
+
+# AI Chatbot Manager CLI
+# Provides command-line interface to the AI Chatbot Manager API
+
+set -e
+
+# Configuration
+API_BASE_URL="${API_BASE_URL:-http://localhost:8090}"
+CLI_VERSION="1.0.0"
+SCRIPT_NAME="ai-chatbot-manager"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Utility functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -s "${API_BASE_URL}/health" >/dev/null 2>&1; then
+        log_error "API server is not available at ${API_BASE_URL}"
+        log_info "Make sure the API server is running: 'vrooli scenario run ai-chatbot-manager'"
+        exit 1
+    fi
+}
+
+# API helper functions
+api_get() {
+    local endpoint="$1"
+    curl -s "${API_BASE_URL}${endpoint}" \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json"
+}
+
+api_post() {
+    local endpoint="$1"
+    local data="$2"
+    curl -s "${API_BASE_URL}${endpoint}" \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json" \
+        -X POST \
+        -d "$data"
+}
+
+# Format JSON output
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq '.'
+    else
+        python3 -m json.tool 2>/dev/null || cat
+    fi
+}
+
+# Format table output
+format_table() {
+    local json="$1"
+    local format="$2"
+    
+    if command -v jq >/dev/null 2>&1; then
+        case "$format" in
+            "chatbots")
+                echo "$json" | jq -r '["ID", "NAME", "ACTIVE", "CREATED"] as $header | [$header] + [.[] | [.id[0:8] + "...", .name, (.is_active | tostring), (.created_at | split("T")[0])]] | .[] | @tsv' | column -t
+                ;;
+            "analytics")
+                echo "$json" | jq -r '["METRIC", "VALUE"] as $header | [$header, ["Conversations", (.total_conversations | tostring)], ["Messages", (.total_messages | tostring)], ["Leads", (.leads_captured | tostring)], ["Conversion Rate", ((.conversion_rate | tostring) + "%")], ["Engagement", (.engagement_score | tostring)]] | .[] | @tsv' | column -t
+                ;;
+            *)
+                echo "$json" | format_json
+                ;;
+        esac
+    else
+        echo "$json" | format_json
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    local json_output=false
+    local verbose=false
+    
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            *)
+                log_error "Unknown flag: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    log_info "Checking AI Chatbot Manager status..."
+    
+    local health_response
+    health_response=$(api_get "/health")
+    
+    if [[ $json_output == true ]]; then
+        echo "$health_response" | format_json
+        return
+    fi
+    
+    local status
+    status=$(echo "$health_response" | jq -r '.status // "unknown"')
+    
+    if [[ "$status" == "healthy" ]]; then
+        log_success "AI Chatbot Manager is running"
+        
+        if [[ $verbose == true ]]; then
+            local version
+            local database
+            local ollama
+            version=$(echo "$health_response" | jq -r '.version // "unknown"')
+            database=$(echo "$health_response" | jq -r '.database // "unknown"')
+            ollama=$(echo "$health_response" | jq -r '.ollama // "unknown"')
+            
+            echo "  Version: $version"
+            echo "  Database: $database"
+            echo "  Ollama: $ollama"
+            echo "  API URL: $API_BASE_URL"
+            
+            # Show chatbot count
+            local chatbots
+            chatbots=$(api_get "/api/v1/chatbots")
+            local count
+            count=$(echo "$chatbots" | jq 'length')
+            echo "  Active chatbots: $count"
+        fi
+    else
+        log_error "AI Chatbot Manager is not healthy"
+        exit 1
+    fi
+}
+
+cmd_create() {
+    local name=""
+    local personality="You are a helpful assistant."
+    local description=""
+    local knowledge_base=""
+    local model="llama3.2"
+    
+    # Parse arguments and flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --personality)
+                personality="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --knowledge-base)
+                knowledge_base="$2"
+                shift 2
+                ;;
+            --model)
+                model="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$name" ]]; then
+                    name="$1"
+                else
+                    log_error "Unknown argument: $1"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" ]]; then
+        log_error "Chatbot name is required"
+        echo "Usage: $SCRIPT_NAME create <name> [--personality <text>] [--description <text>] [--knowledge-base <text>] [--model <model>]"
+        exit 1
+    fi
+    
+    log_info "Creating chatbot: $name"
+    
+    local data
+    data=$(cat <<EOF
+{
+    "name": "$name",
+    "description": "$description",
+    "personality": "$personality",
+    "knowledge_base": "$knowledge_base",
+    "model_config": {
+        "model": "$model",
+        "temperature": 0.7,
+        "max_tokens": 1000
+    }
+}
+EOF
+)
+    
+    local response
+    response=$(api_post "/api/v1/chatbots" "$data")
+    
+    if echo "$response" | jq -e '.chatbot.id' >/dev/null 2>&1; then
+        local chatbot_id
+        chatbot_id=$(echo "$response" | jq -r '.chatbot.id')
+        log_success "Chatbot created successfully!"
+        echo "  ID: $chatbot_id"
+        echo "  Name: $name"
+        
+        # Show embed code
+        local embed_code
+        embed_code=$(echo "$response" | jq -r '.widget_embed_code // "Not available"')
+        if [[ "$embed_code" != "Not available" ]]; then
+            echo ""
+            echo "Widget embed code:"
+            echo "$embed_code"
+        fi
+    else
+        log_error "Failed to create chatbot"
+        echo "$response" | format_json
+        exit 1
+    fi
+}
+
+cmd_list() {
+    local active_only=false
+    local json_output=false
+    
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --active-only)
+                active_only=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                log_error "Unknown flag: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    local endpoint="/api/v1/chatbots"
+    if [[ $active_only == true ]]; then
+        endpoint="${endpoint}?active=true"
+    fi
+    
+    local response
+    response=$(api_get "$endpoint")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return
+    fi
+    
+    local count
+    count=$(echo "$response" | jq 'length')
+    
+    if [[ $count -eq 0 ]]; then
+        log_info "No chatbots found"
+        return
+    fi
+    
+    log_info "Found $count chatbot(s):"
+    echo ""
+    echo "$response" | format_table "chatbots"
+}
+
+cmd_chat() {
+    local chatbot_id="$1"
+    
+    if [[ -z "$chatbot_id" ]]; then
+        log_error "Chatbot ID is required"
+        echo "Usage: $SCRIPT_NAME chat <chatbot_id>"
+        exit 1
+    fi
+    
+    # Verify chatbot exists
+    local chatbot
+    chatbot=$(api_get "/api/v1/chatbots/$chatbot_id")
+    
+    if ! echo "$chatbot" | jq -e '.id' >/dev/null 2>&1; then
+        log_error "Chatbot not found: $chatbot_id"
+        exit 1
+    fi
+    
+    local chatbot_name
+    chatbot_name=$(echo "$chatbot" | jq -r '.name')
+    
+    log_info "Starting chat with: $chatbot_name"
+    log_info "Type 'exit' or 'quit' to end the conversation"
+    echo ""
+    
+    local session_id
+    session_id="cli-session-$(date +%s)"
+    
+    while true; do
+        echo -n "You: "
+        read -r user_input
+        
+        if [[ "$user_input" == "exit" || "$user_input" == "quit" ]]; then
+            log_info "Ending conversation..."
+            break
+        fi
+        
+        if [[ -z "$user_input" ]]; then
+            continue
+        fi
+        
+        local chat_data
+        chat_data=$(cat <<EOF
+{
+    "message": "$user_input",
+    "session_id": "$session_id",
+    "context": {"source": "cli"}
+}
+EOF
+)
+        
+        local response
+        response=$(api_post "/api/v1/chat/$chatbot_id" "$chat_data")
+        
+        if echo "$response" | jq -e '.response' >/dev/null 2>&1; then
+            local ai_response
+            ai_response=$(echo "$response" | jq -r '.response')
+            echo "Bot: $ai_response"
+            echo ""
+        else
+            log_error "Failed to get response from chatbot"
+            echo "$response" | format_json
+        fi
+    done
+}
+
+cmd_analytics() {
+    local chatbot_id="$1"
+    local days="7"
+    local json_output=false
+    
+    shift # Remove chatbot_id from args
+    
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --days)
+                days="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                log_error "Unknown flag: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$chatbot_id" ]]; then
+        log_error "Chatbot ID is required"
+        echo "Usage: $SCRIPT_NAME analytics <chatbot_id> [--days <number>] [--json]"
+        exit 1
+    fi
+    
+    local response
+    response=$(api_get "/api/v1/analytics/$chatbot_id?days=$days")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+        return
+    fi
+    
+    log_info "Analytics for chatbot $chatbot_id (last $days days):"
+    echo ""
+    echo "$response" | format_table "analytics"
+    
+    # Show top intents if available
+    local intents
+    intents=$(echo "$response" | jq -r '.top_intents[]? | "  \(.name): \(.count)"')
+    if [[ -n "$intents" ]]; then
+        echo ""
+        echo "Top Intents:"
+        echo "$intents"
+    fi
+}
+
+cmd_help() {
+    local command="$1"
+    
+    case "$command" in
+        "create")
+            echo "Create a new chatbot"
+            echo ""
+            echo "Usage:"
+            echo "  $SCRIPT_NAME create <name> [options]"
+            echo ""
+            echo "Options:"
+            echo "  --personality <text>     Set chatbot personality (default: helpful assistant)"
+            echo "  --description <text>     Set chatbot description"
+            echo "  --knowledge-base <text>  Set domain-specific knowledge"
+            echo "  --model <model>          Set AI model (default: llama3.2)"
+            echo ""
+            echo "Example:"
+            echo "  $SCRIPT_NAME create \"Sales Bot\" --personality \"You are a sales expert\" --model llama3.2"
+            ;;
+        "list")
+            echo "List all chatbots"
+            echo ""
+            echo "Usage:"
+            echo "  $SCRIPT_NAME list [options]"
+            echo ""
+            echo "Options:"
+            echo "  --active-only   Show only active chatbots"
+            echo "  --json          Output in JSON format"
+            ;;
+        "chat")
+            echo "Start interactive chat with a chatbot"
+            echo ""
+            echo "Usage:"
+            echo "  $SCRIPT_NAME chat <chatbot_id>"
+            echo ""
+            echo "Example:"
+            echo "  $SCRIPT_NAME chat 123e4567-e89b-12d3-a456-426614174000"
+            ;;
+        "analytics")
+            echo "Show chatbot analytics and metrics"
+            echo ""
+            echo "Usage:"
+            echo "  $SCRIPT_NAME analytics <chatbot_id> [options]"
+            echo ""
+            echo "Options:"
+            echo "  --days <number>   Number of days to analyze (default: 7)"
+            echo "  --json            Output in JSON format"
+            echo ""
+            echo "Example:"
+            echo "  $SCRIPT_NAME analytics 123e4567-e89b-12d3-a456-426614174000 --days 30"
+            ;;
+        "status")
+            echo "Check service status and health"
+            echo ""
+            echo "Usage:"
+            echo "  $SCRIPT_NAME status [options]"
+            echo ""
+            echo "Options:"
+            echo "  --json      Output in JSON format"
+            echo "  --verbose   Show detailed status information"
+            ;;
+        *)
+            echo "AI Chatbot Manager CLI v$CLI_VERSION"
+            echo ""
+            echo "Build and manage AI-powered chatbots for 24/7 sales and support"
+            echo ""
+            echo "Usage:"
+            echo "  $SCRIPT_NAME <command> [arguments] [options]"
+            echo ""
+            echo "Commands:"
+            echo "  status                    Check service status and health"
+            echo "  create <name>             Create a new chatbot"
+            echo "  list                      List all chatbots"
+            echo "  chat <chatbot_id>         Start interactive chat session"
+            echo "  analytics <chatbot_id>    Show analytics and metrics"
+            echo "  help [command]            Show help for specific command"
+            echo "  version                   Show version information"
+            echo ""
+            echo "Global Options:"
+            echo "  --json                    Output in JSON format (where supported)"
+            echo ""
+            echo "Examples:"
+            echo "  $SCRIPT_NAME status --verbose"
+            echo "  $SCRIPT_NAME create \"Support Bot\" --personality \"You help with technical issues\""
+            echo "  $SCRIPT_NAME list --active-only"
+            echo "  $SCRIPT_NAME chat 123e4567-e89b-12d3-a456-426614174000"
+            echo ""
+            echo "Environment Variables:"
+            echo "  API_BASE_URL              API server URL (default: http://localhost:8090)"
+            echo ""
+            echo "For more help on a specific command:"
+            echo "  $SCRIPT_NAME help <command>"
+            ;;
+    esac
+}
+
+cmd_version() {
+    local json_output=false
+    
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                log_error "Unknown flag: $1"
+                exit 1
+                ;;
+        esac
+    done
+    
+    if [[ $json_output == true ]]; then
+        echo "{\"cli_version\": \"$CLI_VERSION\", \"api_base_url\": \"$API_BASE_URL\"}"
+    else
+        echo "AI Chatbot Manager CLI v$CLI_VERSION"
+        echo "API Base URL: $API_BASE_URL"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    local command="$1"
+    
+    if [[ $# -eq 0 ]]; then
+        cmd_help
+        exit 0
+    fi
+    
+    shift # Remove command from arguments
+    
+    case "$command" in
+        "status")
+            check_api
+            cmd_status "$@"
+            ;;
+        "create")
+            check_api
+            cmd_create "$@"
+            ;;
+        "list")
+            check_api
+            cmd_list "$@"
+            ;;
+        "chat")
+            check_api
+            cmd_chat "$@"
+            ;;
+        "analytics")
+            check_api
+            cmd_analytics "$@"
+            ;;
+        "help")
+            cmd_help "$@"
+            ;;
+        "version")
+            cmd_version "$@"
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            cmd_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

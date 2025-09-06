@@ -1,0 +1,181 @@
+{
+  "name": "Security Audit Workflow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "security-audit",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "manualTriggerConfiguration": "afterPrevious"
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger", 
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 120]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "scenario_name",
+              "value": "{{ $json.scenario || 'test-scenario' }}"
+            },
+            {
+              "name": "file_path",
+              "value": "scenarios/{{ $json.scenario || 'test-scenario' }}/api/main.go"
+            }
+          ]
+        }
+      },
+      "id": "set-target",
+      "name": "Set Target",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "command": "if [ -f '{{ $json.file_path }}' ]; then cat '{{ $json.file_path }}'; else echo 'File not found: {{ $json.file_path }}'; fi"
+      },
+      "id": "read-source-code",
+      "name": "Read Source Code",
+      "type": "n8n-nodes-base.executeCommand", 
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "command": "echo 'Security Audit Results for {{ $json.scenario_name }}:' && echo '' && echo 'Checking for common vulnerabilities...' && echo '{{ $('Read Source Code').first().json.stdout }}' | grep -n -E '(sql\\.Query|fmt\\.Sprintf.*%s|os\\.Getenv.*password|\\*\\*\\*|TODO.*security|FIXME.*auth)' || echo 'No obvious security issues found in basic scan'"
+      },
+      "id": "basic-security-scan",
+      "name": "Basic Security Scan",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "model": "llama3.1:8b",
+        "prompt": "Analyze this Go API code for security vulnerabilities. Look for:\n1. SQL injection risks\n2. Missing input validation\n3. Weak authentication/authorization\n4. CORS misconfigurations\n5. Information disclosure\n6. Missing rate limiting\n\nCode:\n```go\n{{ $('Read Source Code').first().json.stdout }}\n```\n\nProvide specific recommendations with line numbers if possible.",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "ai-security-analysis",
+      "name": "AI Security Analysis",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [960, 300],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ollama-default",
+          "name": "Ollama Default"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": {
+          "status": "completed",
+          "scenario": "{{ $json.scenario_name }}",
+          "basic_scan_results": "{{ $('Basic Security Scan').first().json.stdout }}",
+          "ai_analysis": "{{ $('AI Security Analysis').first().json.response }}",
+          "recommendations": [
+            "Review SQL query patterns for injection risks",
+            "Implement input validation middleware", 
+            "Add rate limiting to all endpoints",
+            "Review CORS configuration",
+            "Implement proper error handling"
+          ],
+          "timestamp": "{{ $now.toISOString() }}"
+        }
+      },
+      "id": "audit-response",
+      "name": "Audit Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1140, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Target",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Target": {
+      "main": [
+        [
+          {
+            "node": "Read Source Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Source Code": {
+      "main": [
+        [
+          {
+            "node": "Basic Security Scan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic Security Scan": {
+      "main": [
+        [
+          {
+            "node": "AI Security Analysis", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Security Analysis": {
+      "main": [
+        [
+          {
+            "node": "Audit Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

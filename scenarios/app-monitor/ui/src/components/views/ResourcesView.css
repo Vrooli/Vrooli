@@ -1,0 +1,106 @@
+.resources-view {
+  animation: fadeIn 0.5s ease;
+}
+
+.resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.resource-card {
+  background: var(--matrix-card);
+  border: 1px solid var(--matrix-border);
+  padding: 1.5rem;
+  text-align: center;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.resource-card:hover {
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+  transform: translateY(-2px);
+}
+
+.resource-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 0 10px var(--matrix-cyan));
+}
+
+.resource-name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  color: var(--matrix-light-green);
+  text-shadow: 0 0 5px currentColor;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.resource-type {
+  font-size: 0.8rem;
+  color: var(--matrix-dark-green);
+  margin-bottom: 0.8rem;
+  letter-spacing: 0.1em;
+}
+
+.resource-status {
+  padding: 0.3rem 0.8rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  display: inline-block;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.resource-status.online {
+  background: rgba(0, 255, 65, 0.2);
+  color: var(--matrix-green);
+  border: 1px solid var(--matrix-green);
+}
+
+.resource-status.offline {
+  background: rgba(255, 0, 64, 0.2);
+  color: var(--matrix-red);
+  border: 1px solid var(--matrix-red);
+}
+
+.resource-status.error {
+  background: rgba(255, 176, 0, 0.2);
+  color: var(--matrix-yellow);
+  border: 1px solid var(--matrix-yellow);
+}
+
+.resource-description {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--matrix-green);
+  opacity: 0.8;
+  line-height: 1.4;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--matrix-cyan);
+}
+
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: var(--matrix-dark-green);
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .resources-grid {
+    grid-template-columns: 1fr;
+  }
+}

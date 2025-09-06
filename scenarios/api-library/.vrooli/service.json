@@ -1,0 +1,167 @@
+{
+  "name": "api-library",
+  "displayName": "API Library",
+  "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
+  "version": "1.0.0",
+  "category": "research",
+  "tags": ["api", "discovery", "integration", "pricing", "search"],
+  "status": "development",
+  "ports": {
+    "api": "${VROOLI_API_LIBRARY_API_PORT:-9200}",
+    "ui": "${VROOLI_API_LIBRARY_UI_PORT:-3200}"
+  },
+  "dependencies": {
+    "required": ["postgres", "qdrant"],
+    "optional": ["redis", "ollama", "research-assistant"]
+  },
+  "resources": {
+    "postgres": {
+      "enabled": true,
+      "database": "api_library",
+      "initialization": {
+        "schema": "initialization/postgres/schema.sql",
+        "seed": "initialization/postgres/seed.sql"
+      }
+    },
+    "qdrant": {
+      "enabled": true,
+      "collection": "api_embeddings",
+      "initialization": {
+        "config": "initialization/qdrant/config.json"
+      }
+    },
+    "redis": {
+      "enabled": false,
+      "purpose": "API data caching"
+    },
+    "ollama": {
+      "enabled": false,
+      "model": "nomic-embed-text",
+      "purpose": "Generate embeddings for semantic search"
+    }
+  },
+  "lifecycle": {
+    "startup": {
+      "order": ["postgres", "qdrant", "api", "ui"],
+      "healthChecks": {
+        "postgres": {
+          "endpoint": "${service.postgres.url}/health",
+          "timeout": 30
+        },
+        "qdrant": {
+          "endpoint": "${service.qdrant.url}/health",
+          "timeout": 30
+        },
+        "api": {
+          "endpoint": "http://localhost:${ports.api}/health",
+          "timeout": 60
+        },
+        "ui": {
+          "endpoint": "http://localhost:${ports.ui}",
+          "timeout": 60
+        }
+      }
+    },
+    "shutdown": {
+      "gracePeriod": 10,
+      "order": ["ui", "api", "qdrant", "postgres"]
+    }
+  },
+  "api": {
+    "basePath": "/api/v1",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/search",
+        "description": "Semantic search for APIs by capability"
+      },
+      {
+        "method": "GET",
+        "path": "/apis/:id",
+        "description": "Get detailed API information"
+      },
+      {
+        "method": "POST",
+        "path": "/apis",
+        "description": "Add new API to library"
+      },
+      {
+        "method": "PUT",
+        "path": "/apis/:id",
+        "description": "Update API information"
+      },
+      {
+        "method": "POST",
+        "path": "/apis/:id/notes",
+        "description": "Add notes or gotchas to an API"
+      },
+      {
+        "method": "POST",
+        "path": "/request-research",
+        "description": "Request research for new APIs"
+      },
+      {
+        "method": "GET",
+        "path": "/configured",
+        "description": "List APIs with configured credentials"
+      }
+    ]
+  },
+  "cli": {
+    "binary": "api-library",
+    "commands": [
+      "search <query>",
+      "show <api-id>",
+      "add-note <api-id> <note>",
+      "request-research <capability>",
+      "list-configured",
+      "status",
+      "help",
+      "version"
+    ]
+  },
+  "capabilities": {
+    "provides": [
+      "api-discovery",
+      "cost-analysis",
+      "integration-patterns",
+      "gotcha-tracking"
+    ],
+    "consumes": [
+      "research-automation"
+    ]
+  },
+  "monitoring": {
+    "metrics": {
+      "searches_per_minute": {
+        "type": "counter",
+        "description": "Number of API searches performed"
+      },
+      "apis_discovered": {
+        "type": "gauge",
+        "description": "Total APIs in library"
+      },
+      "research_requests": {
+        "type": "counter",
+        "description": "Research requests initiated"
+      }
+    },
+    "alerts": {
+      "high_search_latency": {
+        "condition": "p95_latency > 200ms",
+        "severity": "warning"
+      },
+      "database_growth": {
+        "condition": "db_size > 10GB",
+        "severity": "info"
+      }
+    }
+  },
+  "metadata": {
+    "author": "Vrooli AI",
+    "created": "2024-01-09",
+    "lastModified": "2024-01-09",
+    "prdLink": "PRD.md",
+    "testSuite": "scenario-test.yaml"
+  }
+}

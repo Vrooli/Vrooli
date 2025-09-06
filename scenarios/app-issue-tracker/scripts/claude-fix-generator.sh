@@ -8,6 +8,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
 
+# Get Vrooli root directory
+get_vrooli_root() {
+    if [ -n "${VROOLI_ROOT:-}" ]; then
+        echo "$VROOLI_ROOT"
+    elif git rev-parse --show-toplevel &>/dev/null; then
+        git rev-parse --show-toplevel
+    else
+        echo "$(dirname "$(dirname "$SCRIPT_DIR")")"
+    fi
+}
+VROOLI_ROOT="$(get_vrooli_root)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,8 +28,20 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-ISSUES_DIR="${ISSUES_DIR:-/home/matthalloran8/Vrooli/scenarios/app-issue-tracker/issues}"
+ISSUES_DIR="${ISSUES_DIR:-$VROOLI_ROOT/scenarios/app-issue-tracker/issues}"
 API_BASE_URL="http://localhost:8090/api"
+
+# PostgreSQL configuration
+POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
+POSTGRES_PORT=${POSTGRES_PORT:-5432}
+POSTGRES_USER=${POSTGRES_USER:-"postgres"}
+# Validate POSTGRES_PASSWORD is set
+if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
+    error "POSTGRES_PASSWORD environment variable must be set"
+    echo "Please export POSTGRES_PASSWORD with a secure password before running this script" >&2
+    exit 1
+fi
+POSTGRES_DB=${POSTGRES_DB:-"issue_tracker"}
 
 # Logging functions
 log() {
@@ -187,10 +211,17 @@ EOF
 
     log "Generated fix prompt: $fix_prompt_file"
     
-    # Check if claude-code is available
-    if ! command -v claude-code &> /dev/null; then
-        error "claude-code CLI not found. Please install Claude Code."
+    # Check if resource-claude-code is available
+    if ! command -v resource-claude-code &> /dev/null; then
+        error "resource-claude-code CLI not found. Please ensure the resource is installed."
         return 1
+    fi
+    
+    # Check resource status
+    log "Checking Claude Code resource status..."
+    if ! resource-claude-code status &> /dev/null; then
+        warn "Claude Code resource may not be running. Attempting to start..."
+        resource-claude-code start &> /dev/null || true
     fi
     
     # Run Claude Code fix generation
@@ -205,12 +236,16 @@ EOF
         cd "$project_path"
     fi
     
-    # Execute Claude Code with the fix prompt
-    if claude-code --file "$fix_prompt_file" > "$fix_output" 2>&1; then
+    # Execute Claude Code with the fix prompt using resource-claude-code run
+    if cat "$fix_prompt_file" | resource-claude-code run - > "$fix_output" 2>&1; then
         success "Claude Code fix generation completed successfully"
     else
         claude_exit_code=$?
         error "Claude Code fix generation failed with exit code: $claude_exit_code"
+        # Show error output for debugging
+        if [[ -f "$fix_output" ]]; then
+            warn "Error output: $(head -n 20 "$fix_output")"
+        fi
         cd "$original_dir"
         return $claude_exit_code
     fi
@@ -365,7 +400,7 @@ update_issue_status() {
         # Escape the fix report for SQL
         local escaped_report=$(echo "$fix_report" | sed "s/'/''/g")
         
-        PGPASSWORD=postgres psql -h localhost -p 5432 -U postgres -d issue_tracker -c \
+        PGPASSWORD="${POSTGRES_PASSWORD}" psql -h "${POSTGRES_HOST}" -p "${POSTGRES_PORT}" -U "${POSTGRES_USER}" -d "${POSTGRES_DB}" -c \
             "UPDATE issues SET status = '$status', suggested_fix = '$escaped_report', updated_at = CURRENT_TIMESTAMP WHERE id = '$issue_id';" \
             >/dev/null 2>&1
         

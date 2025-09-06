@@ -282,11 +282,6 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
           "run": "pm::stop \"vrooli.develop.ai-model-orchestra-controller.start-api\" 2>/dev/null || pkill -f \"ai-model-orchestra-controller-api\" 2>/dev/null || true",
           "description": "Stop API process"

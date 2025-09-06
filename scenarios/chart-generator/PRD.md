@@ -1,0 +1,595 @@
+# Product Requirements Document (PRD) - Chart Generator
+
+## 🎯 Capability Definition
+
+### Core Capability
+**What permanent capability does this scenario add to Vrooli?**
+Professional-grade data visualization generation with customizable styling, supporting all major chart types (bar, line, pie, gantt, scatter, heatmap, treemap). This becomes the foundational charting engine that every business report, research analysis, financial dashboard, and data presentation scenario can leverage programmatically.
+
+### Intelligence Amplification
+**How does this capability make future agents smarter?**
+- **Report Quality Multiplier**: Every scenario that generates reports (business proposals, research summaries, financial analysis) instantly gains professional visualization capabilities
+- **Data Communication**: Complex data becomes instantly comprehensible through appropriate chart selection and styling
+- **Style Library Compounds**: Each custom style created becomes a reusable asset for all future visualizations
+- **Cross-Scenario Integration**: API-first design enables any scenario to generate charts via CLI/API calls
+
+### Recursive Value
+**What new scenarios become possible after this exists?**
+1. **Business Intelligence Dashboard**: Real-time KPI visualization pulling from multiple data sources
+2. **Financial Reporting Suite**: Automated quarterly reports with consistent professional styling
+3. **Research Data Analyzer**: Academic papers with publication-ready visualizations
+4. **Marketing Analytics Platform**: Campaign performance dashboards with branded styling
+5. **Project Management Visualizer**: Gantt charts, burndown charts, resource allocation displays
+
+## 📊 Success Metrics
+
+### Functional Requirements
+- **Must Have (P0)**
+  - [x] Core chart types: bar, line, pie, scatter, area charts with configurable data inputs
+  - [x] JSON/CSV/direct data object ingestion with automatic data type detection
+  - [x] Default professional styling themes (light, dark, corporate, minimal)
+  - [x] CLI interface for programmatic chart generation by other scenarios
+  - [x] Export capabilities: PNG, SVG formats for different use cases
+  - [x] PostgreSQL integration for chart template and style persistence
+  - [x] Web UI for style management and preview with mock data
+  
+- **Should Have (P1)**
+  - [ ] Advanced chart types: gantt, heatmap, treemap, candlestick charts
+  - [ ] Custom style builder with live preview and color palette management
+  - [ ] Chart animation and interactivity options for web displays
+  - [ ] PDF export with vector graphics for print-quality reports
+  - [ ] Chart composition (multiple charts in single canvas)
+  - [ ] Data transformation pipeline (aggregation, filtering, sorting)
+  - [ ] Template library with industry-specific presets
+  
+- **Nice to Have (P2)**
+  - [ ] Real-time data streaming for live dashboard updates
+  - [ ] 3D chart capabilities for advanced data visualization
+  - [ ] Chart annotation system for explanatory text and arrows
+  - [ ] Multi-language support for chart labels and legends
+  - [ ] Chart versioning and diff capabilities
+  - [ ] Integration with external design systems (Material, Bootstrap themes)
+
+### Performance Criteria
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| Chart Generation Time | < 2s for complex charts (1000+ data points) | API monitoring |
+| Throughput | 50 charts/minute per instance | Load testing |
+| Export Quality | Vector-perfect SVG, 300+ DPI PNG | Visual validation |
+| Memory Usage | < 512MB per chart generation process | System monitoring |
+| Style Compilation | < 500ms for custom theme application | Performance profiling |
+
+### Quality Gates
+- [x] All P0 requirements implemented and tested
+- [ ] Integration tests pass with PostgreSQL and n8n workflows
+- [ ] Performance targets met under concurrent load
+- [ ] Documentation complete (README, API docs, CLI help)
+- [ ] Chart output quality validated across all export formats
+- [ ] Cross-browser compatibility verified for web UI
+
+## 🏗️ Technical Architecture
+
+### Resource Dependencies
+```yaml
+required:
+  - resource_name: postgres
+    purpose: Store chart templates, custom styles, and generation history
+    integration_pattern: Shared workflow for reliable database operations
+    access_method: resource-postgres via n8n workflow
+    
+  - resource_name: n8n
+    purpose: Orchestrate chart generation pipeline and data processing
+    integration_pattern: Custom workflows for chart generation orchestration
+    access_method: shared workflow initialization/n8n/chart-generation.json
+    
+optional:
+  - resource_name: minio
+    purpose: Store generated chart assets and large data files
+    fallback: Local file system storage with cleanup policies
+    access_method: resource-minio CLI commands
+    
+  - resource_name: redis
+    purpose: Cache frequently used styles and chart templates
+    fallback: In-memory caching with LRU eviction
+    access_method: resource-redis CLI commands
+```
+
+### Resource Integration Standards
+```yaml
+integration_priorities:
+  1_shared_workflows:
+    - workflow: chart-generation.json
+      location: initialization/n8n/
+      purpose: Orchestrate data ingestion, chart rendering, and export pipeline
+    - workflow: style-management.json
+      location: initialization/n8n/
+      purpose: CRUD operations for custom styles and templates
+  
+  2_resource_cli:
+    - command: resource-postgres execute
+      purpose: Direct database queries for complex chart data retrieval
+    - command: resource-minio upload
+      purpose: Store generated chart assets with proper organization
+  
+  3_direct_api:
+    - justification: Chart rendering requires direct control over graphics libraries
+      endpoint: Internal chart rendering service API
+```
+
+### Data Models
+```yaml
+primary_entities:
+  - name: ChartTemplate
+    storage: postgres
+    schema: |
+      {
+        id: UUID,
+        name: string,
+        chart_type: enum(bar|line|pie|scatter|area|gantt|heatmap|treemap),
+        default_config: jsonb,
+        style_id: UUID,
+        created_by: string,
+        created_at: timestamp,
+        version: semver
+      }
+    relationships: Links to ChartStyle, used by ChartInstance
+    
+  - name: ChartStyle
+    storage: postgres
+    schema: |
+      {
+        id: UUID,
+        name: string,
+        category: enum(professional|creative|technical|branded),
+        color_palette: jsonb,
+        typography: jsonb,
+        spacing: jsonb,
+        animations: jsonb,
+        is_public: boolean,
+        created_at: timestamp
+      }
+    relationships: Used by ChartTemplate, can be shared across charts
+    
+  - name: ChartInstance
+    storage: postgres
+    schema: |
+      {
+        id: UUID,
+        template_id: UUID,
+        data_source: jsonb,
+        config_overrides: jsonb,
+        generated_files: jsonb,
+        generation_metadata: jsonb,
+        created_at: timestamp,
+        expires_at: timestamp
+      }
+    relationships: References ChartTemplate, stores actual generated charts
+```
+
+### API Contract
+```yaml
+endpoints:
+  - method: POST
+    path: /api/v1/charts/generate
+    purpose: Generate chart from data and configuration
+    input_schema: |
+      {
+        chart_type: string,
+        data: object | array,
+        style_id?: UUID,
+        config?: object,
+        export_formats: string[]
+      }
+    output_schema: |
+      {
+        chart_id: UUID,
+        files: {
+          png?: string,
+          svg?: string,
+          pdf?: string
+        },
+        metadata: {
+          generation_time_ms: number,
+          data_point_count: number,
+          style_applied: string
+        }
+      }
+    sla:
+      response_time: 2000ms
+      availability: 99.5%
+      
+  - method: GET
+    path: /api/v1/styles
+    purpose: List available chart styles for selection
+    output_schema: |
+      {
+        styles: [{
+          id: UUID,
+          name: string,
+          category: string,
+          preview_url: string,
+          is_default: boolean
+        }]
+      }
+    
+  - method: POST
+    path: /api/v1/styles
+    purpose: Create custom chart style
+    input_schema: |
+      {
+        name: string,
+        category: string,
+        color_palette: object,
+        typography: object,
+        spacing: object
+      }
+```
+
+### Event Interface
+```yaml
+published_events:
+  - name: chart.generation.completed
+    payload: { chart_id: UUID, files: object, metadata: object }
+    subscribers: [business-reports, research-analyzer, financial-dashboard]
+    
+  - name: style.created
+    payload: { style_id: UUID, name: string, category: string }
+    subscribers: [chart-style-gallery, template-manager]
+    
+consumed_events:
+  - name: data.updated
+    action: Regenerate dependent charts with fresh data
+  - name: style.updated  
+    action: Invalidate cached charts using the modified style
+```
+
+## 🖥️ CLI Interface Contract
+
+### Command Structure
+```yaml
+cli_binary: chart-generator
+install_script: cli/install.sh
+
+required_commands:
+  - name: status
+    description: Show chart generation service status and resource health
+    flags: [--json, --verbose]
+    
+  - name: help
+    description: Display command help and usage examples
+    flags: [--all, --command <name>]
+    
+  - name: version
+    description: Show CLI and API version information
+    flags: [--json]
+
+custom_commands:
+  - name: generate
+    description: Generate chart from data file or stdin
+    api_endpoint: /api/v1/charts/generate
+    arguments:
+      - name: chart_type
+        type: string
+        required: true
+        description: Type of chart (bar, line, pie, scatter, area)
+    flags:
+      - name: --data
+        description: Path to data file (JSON/CSV) or '-' for stdin
+      - name: --style
+        description: Style ID or name to apply
+      - name: --output
+        description: Output directory for generated files
+      - name: --format
+        description: Export formats (png,svg,pdf)
+    output: Chart generation results and file paths
+    
+  - name: styles
+    description: List available chart styles
+    api_endpoint: /api/v1/styles
+    flags:
+      - name: --category
+        description: Filter by style category
+      - name: --json
+        description: Output in JSON format
+        
+  - name: create-style
+    description: Create custom chart style from configuration
+    api_endpoint: /api/v1/styles
+    arguments:
+      - name: config_file
+        type: string
+        required: true
+        description: Path to style configuration JSON file
+```
+
+## 🔄 Integration Requirements
+
+### Upstream Dependencies
+**What capabilities must exist before this can function?**
+- **PostgreSQL**: Essential for persisting chart templates, styles, and generation history
+- **N8N Workflows**: Chart generation orchestration and data processing pipelines
+- **File System/MinIO**: Storage for generated chart assets and temporary files
+
+### Downstream Enablement
+**What future capabilities does this unlock?**
+- **Business Report Generator**: Professional reports with embedded visualizations
+- **Research Analysis Platform**: Academic papers with publication-quality charts
+- **Financial Dashboard**: Real-time KPI visualization with branded styling
+- **Marketing Analytics**: Campaign performance tracking with visual insights
+- **Project Management Tools**: Gantt charts, burndown charts, resource allocation
+
+### Cross-Scenario Interactions
+```yaml
+provides_to:
+  - scenario: business-reports
+    capability: Professional chart generation for proposals and presentations
+    interface: CLI command integration
+  - scenario: financial-analyzer
+    capability: Financial chart generation (candlestick, trend analysis)
+    interface: API endpoint calls
+  - scenario: research-assistant
+    capability: Academic-quality visualizations for research papers
+    interface: Chart generation workflows
+    
+consumes_from:
+  - scenario: data-analyzer
+    capability: Processed datasets for visualization
+    fallback: Direct data input via API/CLI
+  - scenario: style-manager
+    capability: Corporate branding and design system integration
+    fallback: Use built-in professional themes
+```
+
+## 🎨 Style and Branding Requirements
+
+### UI/UX Style Guidelines
+```yaml
+style_profile:
+  category: professional
+  inspiration: Modern data visualization tools (Tableau, Power BI) with clean interface
+  
+  visual_style:
+    color_scheme: light
+    typography: modern
+    layout: dashboard
+    animations: subtle
+  
+  personality:
+    tone: professional
+    mood: focused
+    target_feeling: Confidence in data presentation quality
+```
+
+### Target Audience Alignment
+- **Primary Users**: Business analysts, researchers, report generators, other scenarios
+- **User Expectations**: Professional, publication-ready visualizations with minimal configuration
+- **Accessibility**: WCAG 2.1 AA compliance for all chart outputs and management interface
+- **Responsive Design**: Desktop-first for chart creation, mobile-friendly for preview
+
+### Brand Consistency Rules
+- **Professional Design**: Clean, modern interface that inspires confidence in output quality
+- **Vrooli Integration**: Seamlessly integrates as foundational capability
+- **Business Tool Focus**: Function over form, but with polished professional aesthetic
+
+## 💰 Value Proposition
+
+### Business Value
+- **Primary Value**: Transforms raw data into professional visualizations for any business context
+- **Revenue Potential**: $15K - $40K per deployment (business reporting, analytics dashboards)
+- **Cost Savings**: Eliminates need for expensive visualization tools and manual chart creation
+- **Market Differentiator**: Built-in professional visualization in every generated business application
+
+### Technical Value
+- **Reusability Score**: 9/10 - Nearly every data-driven scenario can leverage this capability
+- **Complexity Reduction**: Complex data visualization becomes a single CLI command
+- **Innovation Enablement**: Unlocks sophisticated business intelligence and reporting scenarios
+
+## 🧬 Evolution Path
+
+### Version 1.0 (Current)
+- Core chart types with professional styling
+- JSON/CSV data ingestion
+- CLI and API interfaces
+- PostgreSQL persistence
+
+### Version 2.0 (Planned)
+- Advanced chart types (gantt, heatmap, treemap)
+- Real-time data streaming capabilities
+- Custom style builder with live preview
+- Chart composition and multi-chart layouts
+
+### Long-term Vision
+- AI-powered chart type recommendation based on data characteristics
+- Natural language chart generation ("create a sales trend chart for Q4")
+- Integration with external design systems and corporate branding platforms
+
+## 🔄 Scenario Lifecycle Integration
+
+### Direct Scenario Deployment
+```yaml
+direct_execution:
+  supported: true
+  structure_compliance:
+    - service.json with chart generation service configuration
+    - Database schema initialization for chart templates and styles
+    - N8N workflow deployment for chart generation pipeline
+    - Web UI for style management and preview
+    
+  deployment_targets:
+    - local: Docker Compose with PostgreSQL and chart rendering service
+    - kubernetes: Helm chart with persistent storage for generated assets
+    - cloud: Scalable chart generation service with CDN integration
+    
+  revenue_model:
+    - type: usage-based
+    - pricing_tiers: Based on charts generated per month
+    - trial_period: 30 days unlimited charts
+```
+
+### Capability Discovery
+```yaml
+discovery:
+  registry_entry:
+    name: chart-generator
+    category: generation
+    capabilities: [data-visualization, chart-generation, style-management]
+    interfaces:
+      - api: /api/v1/charts
+      - cli: chart-generator
+      - events: chart.generation.*
+      
+  metadata:
+    description: Professional data visualization generation with customizable styling
+    keywords: [charts, graphs, visualization, data, business-intelligence]
+    dependencies: [postgres, n8n]
+    enhances: [business-reports, research-assistant, financial-analyzer]
+```
+
+## 🚨 Risk Mitigation
+
+### Technical Risks
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| Chart rendering performance degradation | Medium | High | Implement caching, optimize rendering pipeline |
+| Style compilation complexity | Low | Medium | Validate styles on creation, provide error feedback |
+| Data format compatibility issues | Medium | Medium | Robust data parsing with clear error messages |
+| Export quality inconsistencies | Low | High | Comprehensive quality validation for all formats |
+
+### Operational Risks
+- **Style Drift Prevention**: Version control for chart templates and styles
+- **Data Privacy**: Ensure generated charts don't persist sensitive data beyond expiration
+- **Resource Scaling**: Auto-scaling for high-volume chart generation periods
+- **Cross-Scenario Compatibility**: Maintain stable API contract across versions
+
+## ✅ Validation Criteria
+
+### Declarative Test Specification
+```yaml
+version: 1.0
+scenario: chart-generator
+
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/chart-generator
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/n8n/chart-generation.json
+    - ui/index.html
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - initialization
+    - initialization/n8n
+    - initialization/storage
+
+resources:
+  required: [postgres, n8n]
+  optional: [minio, redis]
+  health_timeout: 60
+
+tests:
+  - name: "PostgreSQL chart schema exists"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('chart_templates', 'chart_styles', 'chart_instances')"
+    expect:
+      rows: 
+        - count: 3
+        
+  - name: "Chart generation API responds"
+    type: http
+    service: api
+    endpoint: /api/v1/charts/generate
+    method: POST
+    body:
+      chart_type: "bar"
+      data: [{"x": "A", "y": 10}, {"x": "B", "y": 20}]
+      export_formats: ["png", "svg"]
+    expect:
+      status: 201
+      body:
+        chart_id: exists
+        files: contains("png", "svg")
+        
+  - name: "CLI chart generation works"
+    type: exec
+    command: echo '[{"x":"A","y":10},{"x":"B","y":20}]' | ./cli/chart-generator generate bar --data - --format png --output /tmp
+    expect:
+      exit_code: 0
+      output_contains: ["Chart generated successfully"]
+      
+  - name: "N8N chart workflow is active"
+    type: n8n
+    workflow: chart-generation
+    expect:
+      active: true
+      node_count: 5
+```
+
+### Performance Validation
+- [ ] Chart generation completes within 2 seconds for 1000+ data points
+- [ ] Memory usage stays below 512MB per generation process
+- [ ] Concurrent generation of 50 charts/minute sustained
+- [ ] Export quality meets professional publication standards
+
+### Integration Validation
+- [ ] API endpoints respond correctly with proper error handling
+- [ ] CLI commands execute successfully with comprehensive help
+- [ ] Database schema properly initialized with required tables
+- [ ] N8N workflows deploy and activate without errors
+- [ ] Cross-scenario CLI integration tested with sample scenarios
+
+## 📝 Implementation Notes
+
+### Design Decisions
+**Chart Library Selection**: D3.js for maximum flexibility and professional output quality
+- Alternative considered: Chart.js for simplicity, Plotly for built-in interactivity
+- Decision driver: D3.js provides finest control over output quality and customization
+- Trade-offs: Increased complexity for better professional output and style flexibility
+
+**Style Management Architecture**: Database-backed with JSON configuration
+- Alternative considered: File-based style templates
+- Decision driver: Enables programmatic style creation and sharing across scenarios
+- Trade-offs: Database dependency for enhanced functionality and persistence
+
+### Known Limitations
+- **Chart Type Coverage**: Initial release focuses on core business chart types
+  - Workaround: Extensible architecture allows adding new chart types incrementally
+  - Future fix: Version 2.0 includes advanced and specialized chart types
+
+### Security Considerations
+- **Data Protection**: Generated charts automatically expire to prevent data persistence
+- **Access Control**: Style creation requires scenario authentication
+- **Audit Trail**: All chart generation events logged for traceability
+
+## 🔗 References
+
+### Documentation
+- README.md - User-facing chart generation guide
+- docs/api.md - Complete API specification with examples  
+- docs/cli.md - CLI command reference and usage patterns
+- docs/styles.md - Style creation and customization guide
+
+### Related PRDs
+- business-reports - Leverages chart generation for professional presentations
+- research-assistant - Uses academic-quality visualizations
+- financial-analyzer - Requires specialized financial chart types
+
+### External Resources
+- D3.js Documentation - Chart rendering library
+- Color Theory for Data Visualization - Professional styling guidelines
+- Accessibility Guidelines for Charts - WCAG compliance standards
+
+---
+
+**Last Updated**: 2025-09-05  
+**Status**: Draft  
+**Owner**: Claude Code Assistant  
+**Review Cycle**: Weekly validation against implementation progress

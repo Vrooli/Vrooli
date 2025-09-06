@@ -1,0 +1,168 @@
+{
+  "name": "API Scanner Workflow",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scan-trigger",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "manualTriggerConfiguration": "afterPrevious"
+      },
+      "id": "manual-trigger", 
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 120]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "scenario_name",
+              "value": "{{ $json.scenario || 'test-scenario' }}"
+            },
+            {
+              "name": "scan_type", 
+              "value": "{{ $json.scan_type || 'security' }}"
+            }
+          ]
+        }
+      },
+      "id": "set-defaults",
+      "name": "Set Defaults",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "command": "find scenarios/{{ $json.scenario_name }} -name '*.go' -path '*/api/*' 2>/dev/null || echo 'No Go API files found'"
+      },
+      "id": "find-api-files",
+      "name": "Find API Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "command": "echo 'API Scanner: Found files for {{ $json.scenario_name }}' && echo '{{ $('Find API Files').first().json.stdout }}'"
+      },
+      "id": "log-findings",
+      "name": "Log Findings", 
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.API_MANAGER_URL || 'http://localhost:8421' }}/api/v1/scenarios/{{ $json.scenario_name }}/scan",
+        "requestMethod": "POST",
+        "jsonParameters": true,
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "notify-api-manager",
+      "name": "Notify API Manager",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": {
+          "status": "success",
+          "message": "API scan completed for {{ $json.scenario_name }}",
+          "files_found": "{{ $('Find API Files').first().json.stdout.split('\\n').length }}",
+          "timestamp": "{{ $now.toISOString() }}"
+        }
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook", 
+      "typeVersion": 1,
+      "position": [1140, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Defaults", 
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Defaults": {
+      "main": [
+        [
+          {
+            "node": "Find API Files",
+            "type": "main", 
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find API Files": {
+      "main": [
+        [
+          {
+            "node": "Log Findings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Findings": {
+      "main": [
+        [
+          {
+            "node": "Notify API Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify API Manager": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

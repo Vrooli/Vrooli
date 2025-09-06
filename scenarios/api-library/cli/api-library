@@ -1,0 +1,330 @@
+#!/usr/bin/env bash
+
+# API Library CLI
+# Provides command-line access to the API Library service
+
+set -e
+
+# Configuration
+API_BASE_URL="${VROOLI_API_LIBRARY_URL:-http://localhost:9200}"
+CONFIG_FILE="$HOME/.vrooli/api-library/config.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}$1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}$1${NC}"
+}
+
+# Check if jq is installed
+check_dependencies() {
+    if ! command -v jq &> /dev/null; then
+        print_error "jq is required but not installed. Please install jq."
+        exit 1
+    fi
+    
+    if ! command -v curl &> /dev/null; then
+        print_error "curl is required but not installed. Please install curl."
+        exit 1
+    fi
+}
+
+# API request helper
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local output_json="${4:-false}"
+    
+    local url="${API_BASE_URL}/api/v1${endpoint}"
+    local response
+    
+    if [ "$method" = "GET" ]; then
+        response=$(curl -s -X GET "$url")
+    elif [ "$method" = "POST" ]; then
+        response=$(curl -s -X POST "$url" -H "Content-Type: application/json" -d "$data")
+    elif [ "$method" = "PUT" ]; then
+        response=$(curl -s -X PUT "$url" -H "Content-Type: application/json" -d "$data")
+    elif [ "$method" = "DELETE" ]; then
+        response=$(curl -s -X DELETE "$url")
+    fi
+    
+    if [ "$output_json" = "true" ]; then
+        echo "$response"
+    else
+        echo "$response" | jq .
+    fi
+}
+
+# Command functions
+
+cmd_search() {
+    local query="$1"
+    local limit="${2:-10}"
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    if [ -z "$query" ]; then
+        print_error "Search query is required"
+        echo "Usage: api-library search <query> [limit]"
+        exit 1
+    fi
+    
+    local data=$(jq -n --arg q "$query" --arg l "$limit" '{query: $q, limit: ($l | tonumber)}')
+    local response=$(api_request "POST" "/search" "$data" true)
+    
+    if [ "$json_output" = "true" ]; then
+        echo "$response"
+    else
+        print_info "Search results for: $query"
+        echo ""
+        
+        echo "$response" | jq -r '.results[] | 
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "Name: \(.name)\n" +
+            "Provider: \(.provider)\n" +
+            "Category: \(.category // "N/A")\n" +
+            "Configured: \(if .configured then "✓" else "✗" end)\n" +
+            "Relevance: \(.relevance_score | tostring[0:4])\n" +
+            "Description: \(.description // "No description")\n" +
+            "Pricing: \(.pricing_summary // "N/A")"'
+        
+        local count=$(echo "$response" | jq '.count')
+        echo ""
+        print_success "Found $count results"
+    fi
+}
+
+cmd_show() {
+    local api_id="$1"
+    local json_output="${JSON_OUTPUT:-false}"
+    
+    if [ -z "$api_id" ]; then
+        print_error "API ID is required"
+        echo "Usage: api-library show <api-id>"
+        exit 1
+    fi
+    
+    local response=$(api_request "GET" "/apis/$api_id" "" true)
+    
+    if [ "$json_output" = "true" ]; then
+        echo "$response"
+    else
+        local api=$(echo "$response" | jq '.api')
+        local notes=$(echo "$response" | jq '.notes')
+        
+        echo "$api" | jq -r '
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "API Details\n" +
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" +
+            "Name: \(.name)\n" +
+            "Provider: \(.provider)\n" +
+            "Category: \(.category // "N/A")\n" +
+            "Status: \(.status // "active")\n" +
+            "Auth Type: \(.auth_type // "N/A")\n\n" +
+            "Description:\n\(.description // "No description")\n\n" +
+            "URLs:\n" +
+            "  Base: \(.base_url // "N/A")\n" +
+            "  Docs: \(.documentation_url // "N/A")\n" +
+            "  Pricing: \(.pricing_url // "N/A")\n\n" +
+            "Tags: \(.tags // [] | join(", "))\n" +
+            "Capabilities: \(.capabilities // [] | join(", "))"'
+        
+        if [ "$(echo "$notes" | jq '. | length')" -gt 0 ]; then
+            echo ""
+            print_info "Notes & Gotchas:"
+            echo "$notes" | jq -r '.[] | 
+                "  [\(.type | ascii_upcase)] \(.content)\n" +
+                "  - By \(.created_by) on \(.created_at[0:10])\n"'
+        fi
+    fi
+}
+
+cmd_add_note() {
+    local api_id="$1"
+    local content="$2"
+    local note_type="${3:-tip}"
+    
+    if [ -z "$api_id" ] || [ -z "$content" ]; then
+        print_error "API ID and note content are required"
+        echo "Usage: api-library add-note <api-id> <content> [type]"
+        echo "Types: gotcha, tip, warning, example, success, failure"
+        exit 1
+    fi
+    
+    local data=$(jq -n --arg c "$content" --arg t "$note_type" '{content: $c, type: $t}')
+    local response=$(api_request "POST" "/apis/$api_id/notes" "$data" true)
+    
+    if [ "$(echo "$response" | jq -r '.id // empty')" ]; then
+        print_success "Note added successfully"
+    else
+        print_error "Failed to add note"
+    fi
+}
+
+cmd_list_configured() {
+    local json_output="${JSON_OUTPUT:-false}"
+    local response=$(api_request "GET" "/configured" "" true)
+    
+    if [ "$json_output" = "true" ]; then
+        echo "$response"
+    else
+        print_info "Configured APIs:"
+        echo ""
+        
+        echo "$response" | jq -r '.[] | 
+            "• \(.name) (\(.provider))\n" +
+            "  Category: \(.category)\n" +
+            "  Environment: \(.environment)\n" +
+            "  Configured: \(.configuration_date[0:10])\n"'
+    fi
+}
+
+cmd_request_research() {
+    local capability="$1"
+    
+    if [ -z "$capability" ]; then
+        print_error "Capability description is required"
+        echo "Usage: api-library request-research <capability>"
+        exit 1
+    fi
+    
+    local data=$(jq -n --arg c "$capability" '{capability: $c}')
+    local response=$(api_request "POST" "/request-research" "$data" true)
+    
+    local research_id=$(echo "$response" | jq -r '.research_id // empty')
+    if [ -n "$research_id" ]; then
+        print_success "Research request created"
+        echo "Research ID: $research_id"
+        echo "Status: $(echo "$response" | jq -r '.status')"
+        echo "Estimated time: $(echo "$response" | jq -r '.estimated_time') seconds"
+    else
+        print_error "Failed to create research request"
+    fi
+}
+
+cmd_status() {
+    local response=$(api_request "GET" "/../health" "" true)
+    local status=$(echo "$response" | jq -r '.status // "unknown"')
+    
+    if [ "$status" = "healthy" ]; then
+        print_success "API Library service is healthy"
+    else
+        print_error "API Library service is not responding properly"
+    fi
+    
+    # Try to get some stats
+    local apis_response=$(api_request "GET" "/apis" "" true)
+    local api_count=$(echo "$apis_response" | jq '. | length' 2>/dev/null || echo "0")
+    
+    echo "Total APIs in library: $api_count"
+}
+
+cmd_help() {
+    cat << EOF
+API Library CLI - Semantic API discovery and management
+
+Usage: api-library <command> [options]
+
+Commands:
+    search <query> [limit]          Search for APIs by capability
+    show <api-id>                   Show detailed API information
+    add-note <api-id> <note> [type] Add a note or gotcha to an API
+    list-configured                 List APIs with configured credentials
+    request-research <capability>   Request research for new APIs
+    status                          Show service status
+    version                         Show CLI version
+    help                            Show this help message
+
+Options:
+    --json                          Output results as JSON
+
+Environment Variables:
+    VROOLI_API_LIBRARY_URL          API base URL (default: http://localhost:9200)
+    JSON_OUTPUT=true                Enable JSON output mode
+
+Examples:
+    api-library search "send emails"
+    api-library show 123e4567-e89b-12d3-a456-426614174000
+    api-library add-note api-id "Rate limits are strict" gotcha
+    api-library request-research "payment processing in Europe"
+
+Note Types for add-note:
+    gotcha   - Unexpected behavior or limitation
+    tip      - Helpful advice for using the API
+    warning  - Important caution about the API
+    example  - Example usage or code snippet
+    success  - Successful integration story
+    failure  - Failed integration or issue
+EOF
+}
+
+cmd_version() {
+    echo "API Library CLI v1.0.0"
+}
+
+# Main command dispatcher
+main() {
+    check_dependencies
+    
+    # Check for --json flag
+    if [[ "$*" == *"--json"* ]]; then
+        export JSON_OUTPUT=true
+        # Remove --json from arguments
+        set -- "${@/--json/}"
+    fi
+    
+    case "${1:-}" in
+        search)
+            shift
+            cmd_search "$@"
+            ;;
+        show)
+            shift
+            cmd_show "$@"
+            ;;
+        add-note)
+            shift
+            cmd_add_note "$@"
+            ;;
+        list-configured)
+            cmd_list_configured
+            ;;
+        request-research)
+            shift
+            cmd_request_research "$@"
+            ;;
+        status)
+            cmd_status
+            ;;
+        version)
+            cmd_version
+            ;;
+        help|--help|-h|"")
+            cmd_help
+            ;;
+        *)
+            print_error "Unknown command: $1"
+            echo "Run 'api-library help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
