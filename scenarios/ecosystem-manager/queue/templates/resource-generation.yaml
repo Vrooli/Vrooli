@@ -1,0 +1,90 @@
+# Resource Generation Task Template
+id: "resource-generator-CHANGEME-{{ timestamp }}"
+title: "Generate [RESOURCE_NAME] resource for [PURPOSE]"
+
+# Core classification
+type: "resource"
+operation: "generator"  
+category: "CHANGEME"  # ai-ml | communication | data | security | automation | monitoring
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "4h"
+urgency: "normal"
+impact_score: 7
+
+# Resource generation requirements
+requirements:
+  base_template: "CHANGEME"  # basic | ai-ml | communication | data | security
+  research_focus:
+    - "Existing similar resources analysis"
+    - "v2.0 contract requirements"
+    - "Port allocation needs"
+    - "Integration patterns"
+  
+  deliverables:
+    - "Comprehensive PRD.md with complete requirements checklist"
+    - "Full directory structure with all v2.0 contract files"
+    - "Health check implementation"
+    - "CLI integration scripts"
+    - "Docker configuration if needed"
+    - "Documentation with examples"
+  
+  specific_needs:
+    - "CHANGEME - describe specific requirements"
+  
+  port_requirements:
+    main_port: "auto"  # or specific port number
+    additional_ports: []
+
+# Dependencies and relationships  
+dependencies: []
+blocks: []
+related_scenarios: []  # scenarios that would benefit from this resource
+related_resources: []  # resources this depends on
+
+# Resource allocation
+assigned_resources:
+  claude_code: true
+  postgres: true
+  qdrant: true
+  web_search: true  # Generators need web research
+
+# Progress tracking
+status: "pending"
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+
+# Quality gates for resource generation
+validation_criteria:
+  - "PRD.md is comprehensive and accurate"
+  - "All v2.0 contract files present"
+  - "Health checks implemented and working"
+  - "CLI commands functional"
+  - "Port allocation successful"
+  - "Documentation complete with examples"
+  - "No conflicts with existing resources"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["new-resource", "generation"]
+notes: "Template for generating new resources"
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    test_coverage_percentage: 0
+    documentation_score: 0
+  artifacts:
+    prd_location: ""
+    readme_location: ""
+    resource_directory: ""

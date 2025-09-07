@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ecosystem Manager - Vrooli</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="header-title">
+                    <i class="fas fa-cogs"></i>
+                    Ecosystem Manager
+                </h1>
+                <div class="header-subtitle">Unified Resource & Scenario Management</div>
+            </div>
+            
+            <div class="header-right">
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Tasks</span>
+                        <span class="stat-value" id="total-tasks">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Active</span>
+                        <span class="stat-value" id="active-tasks">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Completed</span>
+                        <span class="stat-value" id="completed-tasks">0</span>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="openCreateTaskModal()">
+                    <i class="fas fa-plus"></i>
+                    New Task
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filters -->
+    <section class="filters">
+        <div class="filter-group">
+            <label class="filter-label">Type:</label>
+            <select id="filter-type" class="filter-select" onchange="applyFilters()">
+                <option value="">All Types</option>
+                <option value="resource">Resources</option>
+                <option value="scenario">Scenarios</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label class="filter-label">Operation:</label>
+            <select id="filter-operation" class="filter-select" onchange="applyFilters()">
+                <option value="">All Operations</option>
+                <option value="generator">Generators</option>
+                <option value="improver">Improvers</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label class="filter-label">Category:</label>
+            <select id="filter-category" class="filter-select" onchange="applyFilters()">
+                <option value="">All Categories</option>
+                <option value="ai-ml">AI/ML</option>
+                <option value="communication">Communication</option>
+                <option value="data">Data</option>
+                <option value="security">Security</option>
+                <option value="automation">Automation</option>
+                <option value="monitoring">Monitoring</option>
+                <option value="productivity">Productivity</option>
+                <option value="business">Business</option>
+                <option value="personal">Personal</option>
+                <option value="entertainment">Entertainment</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label class="filter-label">Priority:</label>
+            <select id="filter-priority" class="filter-select" onchange="applyFilters()">
+                <option value="">All Priorities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <button class="btn btn-secondary" onclick="clearFilters()">
+                <i class="fas fa-times"></i>
+                Clear Filters
+            </button>
+        </div>
+        
+        <div class="filter-group filter-search">
+            <input 
+                type="text" 
+                id="search-input" 
+                class="search-input" 
+                placeholder="Search tasks..."
+                oninput="applyFilters()"
+            >
+            <i class="fas fa-search search-icon"></i>
+        </div>
+    </section>
+
+    <!-- Kanban Board -->
+    <main class="kanban-board">
+        <!-- Pending Column -->
+        <div class="kanban-column" data-status="pending">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-clock"></i>
+                    <span>Pending</span>
+                    <span class="task-count" id="pending-count">0</span>
+                </div>
+                <div class="column-actions">
+                    <button class="btn-icon" onclick="refreshColumn('pending')" title="Refresh">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="column-content" id="pending-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="kanban-column" data-status="in-progress">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>In Progress</span>
+                    <span class="task-count" id="in-progress-count">0</span>
+                </div>
+                <div class="column-actions">
+                    <button class="btn-icon" onclick="refreshColumn('in-progress')" title="Refresh">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="column-content" id="in-progress-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Review Column -->
+        <div class="kanban-column" data-status="review">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-eye"></i>
+                    <span>Review</span>
+                    <span class="task-count" id="review-count">0</span>
+                </div>
+                <div class="column-actions">
+                    <button class="btn-icon" onclick="refreshColumn('review')" title="Refresh">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="column-content" id="review-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Completed Column -->
+        <div class="kanban-column" data-status="completed">
+            <div class="column-header">
+                <div class="column-title">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Completed</span>
+                    <span class="task-count" id="completed-count">0</span>
+                </div>
+                <div class="column-actions">
+                    <button class="btn-icon" onclick="refreshColumn('completed')" title="Refresh">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                    <button class="btn-icon" onclick="toggleCompletedVisibility()" title="Show/Hide All" id="toggle-completed">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="column-content" id="completed-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Failed Column -->
+        <div class="kanban-column" data-status="failed">
+            <div class="column-header error">
+                <div class="column-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Failed</span>
+                    <span class="task-count" id="failed-count">0</span>
+                </div>
+                <div class="column-actions">
+                    <button class="btn-icon" onclick="refreshColumn('failed')" title="Refresh">
+                        <i class="fas fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="column-content" id="failed-tasks">
+                <!-- Tasks will be loaded here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Task Modal -->
+    <div id="create-task-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Task</h3>
+                <button class="modal-close" onclick="closeCreateTaskModal()">&times;</button>
+            </div>
+            
+            <form id="create-task-form">
+                <div class="form-group">
+                    <label for="task-title">Title *</label>
+                    <input type="text" id="task-title" name="title" required 
+                           placeholder="e.g., Generate Matrix Synapse resource">
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-type">Type *</label>
+                        <select id="task-type" name="type" required onchange="updateFormForType()">
+                            <option value="">Select type...</option>
+                            <option value="resource">Resource</option>
+                            <option value="scenario">Scenario</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-operation">Operation *</label>
+                        <select id="task-operation" name="operation" required onchange="updateFormForOperation()">
+                            <option value="">Select operation...</option>
+                            <option value="generator">Generator (Create New)</option>
+                            <option value="improver">Improver (Enhance Existing)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-category">Category *</label>
+                        <select id="task-category" name="category" required>
+                            <option value="">Select category...</option>
+                            <!-- Options will be populated based on type -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="task-priority">Priority</label>
+                        <select id="task-priority" name="priority">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="task-effort">Estimated Effort</label>
+                    <select id="task-effort" name="effort_estimate">
+                        <option value="1h">1 hour</option>
+                        <option value="2h">2 hours</option>
+                        <option value="4h" selected>4 hours</option>
+                        <option value="8h">8 hours</option>
+                        <option value="16h+">16+ hours</option>
+                    </select>
+                </div>
+                
+                <!-- Target field for improver operations -->
+                <div class="form-group" id="target-group" style="display: none;">
+                    <label for="task-target">Target (for improvements) *</label>
+                    <select id="task-target" name="target">
+                        <option value="">Select target to improve...</option>
+                    </select>
+                    <small class="form-help">Choose the resource/scenario to improve</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="task-notes">Notes</label>
+                    <textarea id="task-notes" name="notes" rows="3" 
+                              placeholder="Additional details, requirements, or context..."></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCreateTaskModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i>
+                        Create Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Task Details Modal -->
+    <div id="task-details-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="task-details-title">Task Details</h3>
+                <button class="modal-close" onclick="closeTaskDetailsModal()">&times;</button>
+            </div>
+            
+            <div id="task-details-content">
+                <!-- Task details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner fa-spin"></i>
+            <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

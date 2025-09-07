@@ -222,7 +222,7 @@ published_events:
     
   - name: dependency.optimization.identified
     payload: {scenario: STRING, optimization_type: STRING, potential_savings: OBJECT}
-    subscribers: [scenario-improver, resource-cost-analyzer]
+    subscribers: [ecosystem-manager, resource-cost-analyzer]
     
 consumed_events:
   - name: scenario.created
@@ -343,12 +343,12 @@ provides_to:
     capability: Capability gap analysis and development roadmaps
     interface: API + Events
     
-  - scenario: scenario-generator-v1
+  - scenario: ecosystem-manager
     capability: Dependency predictions for generated scenarios
     interface: API
     
 consumes_from:
-  - scenario: scenario-improver
+  - scenario: ecosystem-manager
     capability: Notifications when scenarios are updated
     fallback: Periodic full system scans
 ```

@@ -1,0 +1,92 @@
+# Resource Improvement Task Template
+id: "resource-improver-CHANGEME-{{ timestamp }}"
+title: "Improve [RESOURCE_NAME] resource - [IMPROVEMENT_AREA]"
+
+# Core classification
+type: "resource"
+operation: "improver"
+category: "improvement"  # Always improvement for improver tasks
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "2h"
+urgency: "normal"
+impact_score: 6
+
+# Resource improvement requirements
+requirements:
+  target_resource: "CHANGEME"  # specific resource to improve
+  
+  improvement_areas:
+    - "CHANGEME"  # v2_contract_compliance | health_checks | cli_standardization | documentation | performance
+  
+  assessment_focus:
+    - "Current v2.0 contract compliance status"
+    - "Existing PRD accuracy validation"
+    - "Health check robustness analysis"
+    - "CLI command completeness review"
+    - "Documentation quality assessment"
+  
+  deliverables:
+    - "Updated PRD.md with corrected status"
+    - "Improved health check implementation"
+    - "Enhanced CLI commands"
+    - "Better error handling"
+    - "Updated documentation"
+  
+  prd_focus:
+    - "Validate existing checkmarks are accurate"
+    - "Complete missing P0 requirements"
+    - "Add any missing requirements"
+    - "Update completion percentages"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: []  # scenarios affected by this resource
+related_resources: []  # other resources that might be impacted
+
+# Resource allocation
+assigned_resources:
+  claude_code: true
+  postgres: true
+  qdrant: true
+  web_search: false  # Improvers focus on existing code analysis
+
+# Progress tracking
+status: "pending"
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+
+# Quality gates for resource improvement
+validation_criteria:
+  - "PRD.md accurately reflects current state"
+  - "Health checks are robust with proper error handling"
+  - "CLI commands follow standard patterns"
+  - "All improvements are backward compatible"
+  - "Documentation is updated and accurate"
+  - "No regressions introduced"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["resource-improvement", "maintenance"]
+notes: "Template for improving existing resources"
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    improvements_made: 0
+    regression_tests_passed: 0
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    test_results: ""

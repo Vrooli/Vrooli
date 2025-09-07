@@ -1,0 +1,288 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "ecosystem-manager",
+    "displayName": "Ecosystem Manager",
+    "description": "Unified system for generating and improving resources and scenarios",
+    "version": "1.0.0",
+    "tags": [
+      "management",
+      "resource-generator", 
+      "scenario-generator",
+      "ai-orchestration",
+      "metadata"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "port": 30500,
+      "description": "Ecosystem Manager API port"
+    }
+  },
+  "resources": {
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "description": "AI for resource and scenario generation"
+    },
+    "postgres": {
+      "type": "postgres", 
+      "enabled": true,
+      "required": true,
+      "description": "Task queue and metadata storage"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "description": "Semantic search and similarity matching"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "description": "Optional caching layer"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Ecosystem Manager health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Ecosystem Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/ecosystem-manager-api"
+            ]
+          },
+          {
+            "type": "directories",
+            "targets": [
+              "queue/pending",
+              "queue/in-progress", 
+              "queue/completed",
+              "queue/failed",
+              "data",
+              "logs"
+            ]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-directories",
+          "run": "mkdir -p queue/{pending,in-progress,completed,failed,templates} data logs",
+          "description": "Create required directory structure"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && if [ ! -f go.sum ]; then go mod tidy; fi && go build -o ecosystem-manager-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps", 
+          "run": "cd ui && if [ -f package.json ]; then npm install --silent; fi",
+          "description": "Install UI dependencies if package.json exists",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "validate-prompts",
+          "run": "python3 -c \"import yaml; yaml.safe_load(open('prompts/sections.yaml'))\" || echo 'Warning: Prompts configuration may have YAML errors'",
+          "description": "Validate prompts configuration",
+          "condition": {
+            "file_exists": "prompts/sections.yaml"
+          }
+        },
+        {
+          "name": "set-permissions",
+          "run": "chmod +x api/ecosystem-manager-api || true",
+          "description": "Set executable permissions"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Ecosystem Manager services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./ecosystem-manager-api",
+          "description": "Start Ecosystem Manager API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/ecosystem-manager-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.dev"
+          }
+        },
+        {
+          "name": "show-status",
+          "run": "echo \"🎉 Ecosystem Manager is running at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${API_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\""
+        }
+      ]
+    },
+    "test": {
+      "description": "Run Ecosystem Manager tests",
+      "steps": [
+        {
+          "name": "api-tests",
+          "run": "cd api && go test ./...",
+          "description": "Run Go API tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Ecosystem Manager services",
+      "steps": [
+        {
+          "name": "stop-by-port",
+          "run": "lsof -ti:${API_PORT} 2>/dev/null | xargs -r kill -TERM || true",
+          "description": "Stop processes by port"
+        },
+        {
+          "name": "stop-by-name", 
+          "run": "pgrep -f ecosystem-manager-api | xargs -r kill -TERM || true",
+          "description": "Stop processes by name pattern"
+        },
+        {
+          "name": "cleanup-stale-tasks",
+          "run": "find queue/in-progress -name '*.yaml' -mmin +120 2>/dev/null | xargs -I {} mv {} queue/pending/ || true",
+          "description": "Move stale in-progress tasks back to pending"
+        }
+      ]
+    }
+  },
+  "api": {
+    "base_url": "http://localhost:${API_PORT}/api",
+    "endpoints": [
+      {
+        "path": "/tasks",
+        "method": "GET",
+        "description": "Get tasks with optional filters (status, type, operation, category)"
+      },
+      {
+        "path": "/tasks",
+        "method": "POST", 
+        "description": "Create new task"
+      },
+      {
+        "path": "/tasks/{id}",
+        "method": "GET",
+        "description": "Get specific task"
+      },
+      {
+        "path": "/tasks/{id}/status",
+        "method": "PUT",
+        "description": "Update task status and progress"
+      },
+      {
+        "path": "/tasks/{id}/prompt",
+        "method": "GET",
+        "description": "Get prompt configuration for task"
+      },
+      {
+        "path": "/operations",
+        "method": "GET",
+        "description": "Get available operation types"
+      }
+    ]
+  },
+  "ui": {
+    "enabled": true,
+    "path": "/",
+    "description": "Trello-like task management interface"
+  },
+  "cli": {
+    "command": "ecosystem-manager",
+    "install_script": "./cli/install.sh"
+  },
+  "metadata": {
+    "operations": {
+      "resource-generator": {
+        "description": "Generate new resources with v2.0 compliance",
+        "effort_estimate": "4h",
+        "deliverables": ["PRD.md", "Directory structure", "Health checks", "CLI integration"]
+      },
+      "resource-improver": {
+        "description": "Improve existing resources for compliance and reliability", 
+        "effort_estimate": "2h",
+        "deliverables": ["Updated PRD.md", "Enhanced health checks", "Better CLI"]
+      },
+      "scenario-generator": {
+        "description": "Generate new scenarios with comprehensive PRDs",
+        "effort_estimate": "6h", 
+        "deliverables": ["PRD.md", "API implementation", "UI", "Tests", "Documentation"]
+      },
+      "scenario-improver": {
+        "description": "Improve existing scenarios for PRD completion",
+        "effort_estimate": "3h",
+        "deliverables": ["PRD progression", "Feature enhancements", "Better UX"]
+      }
+    },
+    "categories": {
+      "resource_categories": [
+        "ai-ml",
+        "storage", 
+        "automation",
+        "monitoring",
+        "communication",
+        "security"
+      ],
+      "scenario_categories": [
+        "productivity",
+        "ai-tools",
+        "business", 
+        "personal",
+        "automation",
+        "entertainment"
+      ]
+    },
+    "queue": {
+      "statuses": ["pending", "in-progress", "completed", "failed"],
+      "max_concurrent": 3,
+      "retry_attempts": 2,
+      "cooldown_minutes": 15
+    },
+    "monitoring": {
+      "metrics": [
+        "tasks_created",
+        "tasks_completed", 
+        "success_rate",
+        "average_completion_time",
+        "prd_completion_percentage"
+      ]
+    }
+  }
+}

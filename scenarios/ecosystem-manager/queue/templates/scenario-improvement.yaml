@@ -1,0 +1,98 @@
+# Scenario Improvement Task Template
+id: "scenario-improver-CHANGEME-{{ timestamp }}"
+title: "Improve [SCENARIO_NAME] scenario - [IMPROVEMENT_AREA]"
+
+# Core classification
+type: "scenario"
+operation: "improver"
+category: "improvement"  # Always improvement for improver tasks
+
+# Priority and scheduling  
+priority: "medium"
+effort_estimate: "3h"
+urgency: "normal"
+impact_score: 7
+
+# Scenario improvement requirements
+requirements:
+  target_scenario: "CHANGEME"  # specific scenario to improve
+  
+  improvement_areas:
+    - "CHANGEME"  # prd_compliance | ui_enhancement | api_optimization | test_coverage | documentation | revenue_optimization
+  
+  assessment_focus:
+    - "Current PRD completion status validation"
+    - "User workflow analysis and pain points"
+    - "API performance and reliability review"
+    - "UI/UX effectiveness evaluation"
+    - "Test coverage and quality assessment"
+    - "Revenue generation analysis"
+  
+  deliverables:
+    - "Updated PRD.md with accurate completion status"
+    - "Enhanced user workflows"
+    - "Optimized API performance"
+    - "Improved UI/UX elements"
+    - "Expanded test coverage"
+    - "Updated documentation"
+  
+  prd_focus:
+    - "Verify all checkmarks are accurate"
+    - "Complete missing P0 and P1 requirements"
+    - "Identify and implement missing features"
+    - "Update completion percentages across all categories"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: []  # scenarios that might benefit from these improvements
+related_resources: []  # resources that might need updates
+
+# Resource allocation
+assigned_resources:
+  claude_code: true
+  postgres: true  
+  qdrant: true
+  web_search: false  # Improvers focus on existing implementation analysis
+
+# Progress tracking
+status: "pending"
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+
+# Quality gates for scenario improvement
+validation_criteria:
+  - "PRD.md accurately reflects current implementation"
+  - "All P0 requirements are completed"  
+  - "User workflows are smooth and intuitive"
+  - "API response times are acceptable"
+  - "UI is polished and user-friendly"
+  - "Test coverage meets or exceeds target"
+  - "No regressions in existing functionality"
+  - "Revenue metrics show improvement"
+
+# Metadata
+created_by: "user"
+created_at: "{{ timestamp }}"
+updated_at: "{{ timestamp }}"
+tags: ["scenario-improvement", "enhancement"]
+notes: "Template for improving existing scenarios"
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    performance_improvement: ""
+    user_satisfaction_score: 0
+    revenue_impact: ""
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    performance_report: ""
+    user_feedback: ""

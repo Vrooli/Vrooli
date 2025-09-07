@@ -1,0 +1,286 @@
+# Unified Ecosystem Manager Prompt Configuration
+# Supports all 4 operations: resource/scenario generation/improvement
+
+name: ecosystem-manager
+type: unified
+target: ecosystem
+description: Unified system for generating and improving resources and scenarios
+
+# Base sections used by all operations
+base_sections:
+  # Core knowledge (all operations need these)
+  - shared/core/vrooli-context
+  - shared/core/memory-system
+  - shared/core/validation-gates
+  
+  # Methodologies (shared across all operations)
+  - shared/methodologies/prd-methodology
+  - shared/methodologies/implementation-methodology
+  
+  # Operational procedures (shared across all operations)
+  - shared/operational/queue-processing
+  - shared/operational/selection-algorithms
+  - shared/operational/failure-recovery
+  - shared/operational/collision-avoidance
+
+# Operation-specific section configurations
+operations:
+  resource-generator:
+    name: resource-generator
+    type: generator
+    target: resources
+    description: Creates new resources with v2.0 contract compliance and proper scaffolding
+    
+    additional_sections:
+      # Methodologies specific to generators
+      - shared/methodologies/research-methodology
+      
+      # Generator-specific sections
+      - shared/generator-specific/research-phase
+      - shared/generator-specific/web-research
+      - shared/generator-specific/qdrant-deep-search
+      - shared/generator-specific/duplicate-detection
+      - shared/generator-specific/prd-creation-phase
+      - shared/generator-specific/scaffolding-phase
+      - shared/generator-specific/seeding-guidelines
+      
+      # Resource-specific knowledge
+      - shared/resource-specific/v2-contract
+      - shared/resource-specific/port-allocation
+      - shared/resource-specific/health-checks
+      - shared/resource-specific/cli-integration
+    
+    variables:
+      scenario_type: "resource"
+      focus: "one-time creation of new resources"
+      primary_output: "v2.0 compliant resource with PRD"
+      research_percentage: 40
+      prd_percentage: 40
+      implementation_percentage: 20
+    
+    effort_allocation:
+      research: "40% - Check for existing resources, patterns, and best practices"
+      prd_creation: "40% - Comprehensive PRD with technical specifications"
+      scaffolding: "20% - v2.0 compliant structure with health checks"
+    
+    success_criteria:
+      - "Unique resource (not duplicating existing)"
+      - "v2.0 contract compliance"
+      - "Health checks working"
+      - "Lifecycle hooks implemented"
+      - "CLI integration functional"
+      - "Port allocation successful"
+      - "PRD complete and accurate"
+    
+    principles:
+      - "v2.0 contract is mandatory"
+      - "Health checks are critical"
+      - "Port allocation must not conflict"
+      - "CLI interface must be consistent"
+      - "Enable scenario integration"
+
+  resource-improver:
+    name: resource-improver
+    type: improver
+    target: resources
+    description: Iteratively improves existing resources for v2.0 compliance and reliability
+    
+    additional_sections:
+      # Methodologies specific to improvers
+      - shared/methodologies/assessment-methodology
+      
+      # Improver-specific sections
+      - shared/improver-specific/assessment-phase
+      - shared/improver-specific/prd-accuracy-check
+      - shared/improver-specific/progress-verification
+      - shared/improver-specific/regression-detection
+      - shared/improver-specific/prioritization-phase
+      - shared/improver-specific/iteration-phase
+      - shared/improver-specific/prd-progression
+      
+      # Resource-specific knowledge
+      - shared/resource-specific/v2-contract
+      - shared/resource-specific/port-allocation
+      - shared/resource-specific/health-checks
+      - shared/resource-specific/cli-integration
+    
+    variables:
+      scenario_type: "resource"
+      focus: "iterative improvement of existing resources"
+      primary_output: "v2.0 compliance and enhanced reliability"
+      assessment_percentage: 30
+      prioritization_percentage: 20
+      implementation_percentage: 40
+      validation_percentage: 10
+    
+    effort_allocation:
+      assessment: "30% - Check v2.0 compliance and test functionality"
+      prioritization: "20% - Focus on contract violations and stability"
+      implementation: "40% - Fix compliance gaps and enhance features"
+      validation: "10% - Verify improvements and update documentation"
+    
+    success_criteria:
+      - "v2.0 contract compliance improved"
+      - "Health checks more robust"
+      - "CLI commands standardized"
+      - "No regressions in functionality"
+      - "Documentation updated"
+      - "Memory system updated"
+    
+    principles:
+      - "v2.0 compliance is priority #1"
+      - "Health checks must be reliable"
+      - "Preserve working functionality"
+      - "Standardize patterns across resources"
+      - "Enable better scenario integration"
+
+  scenario-generator:
+    name: scenario-generator
+    type: generator
+    target: scenarios
+    description: Creates new scenarios from scratch with comprehensive PRDs
+    
+    additional_sections:
+      # Methodologies specific to generators
+      - shared/methodologies/research-methodology
+      
+      # Generator-specific sections
+      - shared/generator-specific/research-phase
+      - shared/generator-specific/web-research
+      - shared/generator-specific/qdrant-deep-search
+      - shared/generator-specific/duplicate-detection
+      - shared/generator-specific/prd-creation-phase
+      - shared/generator-specific/scaffolding-phase
+      - shared/generator-specific/seeding-guidelines
+      
+      # Scenario-specific knowledge
+      - shared/scenario-specific/cross-impact
+    
+    variables:
+      scenario_type: "scenario"
+      focus: "one-time creation of new scenarios"
+      primary_output: "Comprehensive PRD.md and scaffolded structure"
+      research_percentage: 40
+      prd_percentage: 40
+      implementation_percentage: 20
+    
+    effort_allocation:
+      research: "40% - Exhaustive Qdrant searches and external research"
+      prd_creation: "40% - Comprehensive PRD with all sections"
+      scaffolding: "20% - Minimal viable structure with correct patterns"
+    
+    success_criteria:
+      - "Unique scenario (not duplicating existing)"
+      - "Complete PRD with all required sections"
+      - "Health checks respond successfully"
+      - "Basic structure follows templates"
+      - "One P0 requirement implemented"
+      - "Memory system updated"
+    
+    principles:
+      - "Research prevents duplication"
+      - "PRD is the primary deliverable"
+      - "Quality over completeness"
+      - "Enable future improvements"
+      - "Focus on revenue generation"
+
+  scenario-improver:
+    name: scenario-improver
+    type: improver
+    target: scenarios
+    description: Iteratively improves existing scenarios to advance PRD completion
+    
+    additional_sections:
+      # Methodologies specific to improvers
+      - shared/methodologies/assessment-methodology
+      
+      # Improver-specific sections
+      - shared/improver-specific/assessment-phase
+      - shared/improver-specific/prd-accuracy-check
+      - shared/improver-specific/progress-verification
+      - shared/improver-specific/regression-detection
+      - shared/improver-specific/prioritization-phase
+      - shared/improver-specific/iteration-phase
+      - shared/improver-specific/prd-progression
+      
+      # Scenario-specific knowledge
+      - shared/scenario-specific/cross-impact
+      - shared/scenario-specific/shared-workflows
+      - shared/scenario-specific/revenue-generation
+    
+    variables:
+      scenario_type: "scenario"
+      focus: "iterative improvement of existing scenarios"
+      primary_output: "PRD progression and working features"
+      assessment_percentage: 30
+      prioritization_percentage: 20
+      implementation_percentage: 40
+      validation_percentage: 10
+    
+    effort_allocation:
+      assessment: "30% - Verify PRD accuracy and test current state"
+      prioritization: "20% - Score and select highest-value improvements"
+      implementation: "40% - Make focused, incremental changes"
+      validation: "10% - Update PRD and verify improvements"
+    
+    success_criteria:
+      - "PRD checkboxes accurately reflect reality"
+      - "At least one P0/P1 requirement completed"
+      - "No regressions in existing functionality"
+      - "All validation gates pass"
+      - "Cross-scenario impacts considered"
+      - "Memory system updated with learnings"
+    
+    principles:
+      - "Trust but verify everything"
+      - "Incremental progress is permanent"
+      - "PRD accuracy is sacred"
+      - "Small focused changes win"
+      - "Learn from past attempts"
+
+# Global configuration
+global_config:
+  # Resource categories (for all resource operations)
+  resource_categories:
+    ai_ml: "AI/ML resources (models, inference)"
+    storage: "Databases and storage systems"
+    automation: "Workflow and automation tools"
+    monitoring: "Observability and monitoring"
+    communication: "Messaging and communication"
+    security: "Security and compliance tools"
+  
+  # Scenario categories (for all scenario operations)
+  scenario_categories:
+    productivity: "Personal and business productivity"
+    ai_tools: "AI-powered utilities and assistants"
+    business: "Business operations and management"
+    personal: "Personal life management"
+    automation: "Workflow and process automation"
+    entertainment: "Games and entertainment"
+  
+  # Port allocation ranges
+  port_allocation:
+    core_infrastructure: "20000-24999"
+    supporting_services: "25000-29999"
+    application_scenarios: "30000-34999"
+    development_tools: "35000-39999"
+    dynamic_pool: "40000-49999"
+  
+  # Common improvement areas
+  common_improvements:
+    resource_improvements:
+      health_checks: ["Add timeout handling", "Implement retry logic", "Add detailed error messages"]
+      lifecycle: ["Graceful shutdown", "Proper cleanup", "State persistence"]
+      cli: ["Standardize commands", "Add help documentation", "JSON output support"]
+    
+    scenario_improvements:
+      prd_accuracy: ["Validate checkboxes", "Complete P0 requirements", "Update percentages"]
+      user_experience: ["Improve UI/UX", "Optimize workflows", "Better error handling"]
+      performance: ["API optimization", "Database queries", "Response times"]
+  
+  # Priority rubric (for all improver operations)
+  priority_rubric:
+    critical: ["Contract violations", "Broken health checks", "Security vulnerabilities"]
+    high: ["Stability issues", "Missing functionality", "Integration failures"]
+    medium: ["Performance improvements", "Error handling", "Documentation"]
+    low: ["Code cleanup", "Optimizations", "Nice-to-have features"]
