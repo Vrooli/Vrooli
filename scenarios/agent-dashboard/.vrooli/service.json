@@ -77,13 +77,11 @@
     "ui": {
       "env_var": "UI_PORT",
       "port": 30100,
-      "fallback": "auto",
       "description": "Agent Dashboard UI port"
     },
     "api": {
       "env_var": "API_PORT",
       "port": 20000,
-      "fallback": "auto",
       "description": "Agent Dashboard API port"
     }
   },
@@ -225,12 +223,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.agent-dashboard.start-api\" 2>/dev/null || pkill -f \"agent-dashboard-api\" 2>/dev/null || true",
+          "run": "pkill -f agent-dashboard.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.agent-dashboard.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f agent-dashboard.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

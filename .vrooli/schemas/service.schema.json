@@ -15,10 +15,18 @@
     "service": {
       "type": "object",
       "properties": {
-        "name": {"type": "string"},
-        "displayName": {"type": "string"},
-        "description": {"type": "string"},
-        "version": {"type": "string"}
+        "name": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
       }
     },
     "ports": {
@@ -26,11 +34,21 @@
       "additionalProperties": {
         "type": "object",
         "properties": {
-          "env_var": {"type": "string"},
-          "port": {"type": "integer"},
-          "fixed": {"type": "integer", "deprecated": true},
-          "fallback": {"type": ["string", "integer"]},
-          "description": {"type": "string"}
+          "env_var": {
+            "type": "string"
+          },
+          "port": {
+            "type": [
+              "integer",
+              "string"
+            ]
+          },
+          "range": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
         }
       }
     },
@@ -73,7 +91,9 @@
       }
     }
   },
-  "required": ["resources"],
+  "required": [
+    "resources"
+  ],
   "definitions": {
     "lifecyclePhase": {
       "type": "object",
@@ -97,20 +117,37 @@
           "items": {
             "type": "object",
             "properties": {
-              "name": {"type": "string"},
-              "run": {"type": "string"},
-              "description": {"type": "string"},
-              "background": {"type": "boolean"},
-              "condition": {"type": "object"},
+              "name": {
+                "type": "string"
+              },
+              "run": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "background": {
+                "type": "boolean"
+              },
+              "condition": {
+                "type": "object"
+              },
               "retry": {
                 "type": "object",
                 "properties": {
-                  "max_attempts": {"type": "integer"},
-                  "delay": {"type": "integer"}
+                  "max_attempts": {
+                    "type": "integer"
+                  },
+                  "delay": {
+                    "type": "integer"
+                  }
                 }
               }
             },
-            "required": ["name", "run"]
+            "required": [
+              "name",
+              "run"
+            ]
           }
         }
       }
@@ -156,7 +193,14 @@
               },
               "type": {
                 "type": "string",
-                "enum": ["http", "tcp", "postgres", "redis", "process", "file"],
+                "enum": [
+                  "http",
+                  "tcp",
+                  "postgres",
+                  "redis",
+                  "process",
+                  "file"
+                ],
                 "description": "Type of health check"
               },
               "target": {
@@ -179,7 +223,10 @@
                 "description": "Check interval in milliseconds"
               }
             },
-            "required": ["name", "type"]
+            "required": [
+              "name",
+              "type"
+            ]
           }
         },
         "timeout": {

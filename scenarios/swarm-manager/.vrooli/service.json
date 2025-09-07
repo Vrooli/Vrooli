@@ -17,7 +17,7 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 8090,
+      "port": 8089,
       "description": "Swarm Manager API port"
     },
     "ui": {

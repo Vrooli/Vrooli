@@ -39,7 +39,6 @@
     "api": {
       "env_var": "API_PORT",
       "range": "8090-8999",
-      "fallback": "auto",
       "description": "Main API port"
     }
   },

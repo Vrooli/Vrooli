@@ -572,7 +572,7 @@
         },
         {
           "name": "start-scenarios",
-          "run": "ORCHESTRATOR_PORT=${ORCHESTRATOR_PORT:-9500} ./scripts/scenarios/tools/orchestrator/start-apps-safely.sh --verbose --fast --background --start-all",
+          "run": "./scripts/scenarios/tools/orchestrator/start-orchestrator.sh --verbose --fast --background --start-all",
           "description": "Start all scenarios using SAFE orchestrator with fork bomb prevention",
           "background": true
         }

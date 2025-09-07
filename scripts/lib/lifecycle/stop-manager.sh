@@ -2,6 +2,7 @@
 ################################################################################
 # Simplified Stop Manager for Vrooli
 # Clean, modern approach to stopping scenarios and resources
+# Now integrated with the orchestrator API for proper scenario management
 ################################################################################
 
 set -euo pipefail
@@ -18,10 +19,24 @@ DRY_RUN="${DRY_RUN:-false}"
 # Paths
 SCENARIOS_DIR="${APP_ROOT}/scenarios"
 RESOURCES_DIR="${APP_ROOT}/resources"
+SCENARIO_STATE_DIR="${HOME}/.vrooli/state/scenarios"
+
+# Orchestrator configuration
+ORCHESTRATOR_PORT="${ORCHESTRATOR_PORT:-9500}"
+ORCHESTRATOR_API="http://localhost:${ORCHESTRATOR_PORT}"
 
 ################################################################################
 # Core Functions
 ################################################################################
+
+# Check if orchestrator is available
+stop::check_orchestrator() {
+    if command -v curl >/dev/null 2>&1; then
+        curl -s -f --connect-timeout 2 --max-time 5 "${ORCHESTRATOR_API}/health" >/dev/null 2>&1
+        return $?
+    fi
+    return 1
+}
 
 # Get appropriate signal based on force mode
 stop::get_signal() {
@@ -38,49 +53,70 @@ stop::execute() {
     fi
 }
 
+# Clean up port lock files for a scenario
+stop::cleanup_port_locks() {
+    local scenario_name="$1"
+    
+    # Only clean up if state directory exists
+    [[ -d "$SCENARIO_STATE_DIR" ]] || return 0
+    
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log::debug "[DRY-RUN] Would clean up port locks for $scenario_name"
+        return 0
+    fi
+    
+    # Remove all lock files for this scenario
+    for lock_file in "$SCENARIO_STATE_DIR"/.port_*.lock; do
+        [[ -f "$lock_file" ]] || continue
+        
+        # Check if this lock belongs to the scenario
+        local lock_content
+        lock_content=$(cat "$lock_file" 2>/dev/null | cut -d: -f1)
+        
+        if [[ "$lock_content" == "$scenario_name" ]]; then
+            rm -f "$lock_file" 2>/dev/null
+        fi
+    done
+    
+    # Also remove state file
+    rm -f "$SCENARIO_STATE_DIR/${scenario_name}.json" 2>/dev/null
+}
+
 # Stop a single scenario by name
 stop::scenario() {
     local scenario_name="$1"
     local scenario_dir="$SCENARIOS_DIR/$scenario_name"
     
-    [[ ! -d "$scenario_dir" ]] && return 1
-    
-    # Try lifecycle stop if available
-    if [[ -f "$scenario_dir/.vrooli/service.json" ]]; then
-        if command -v jq >/dev/null 2>&1 && \
-           jq -e '.lifecycle.stop.steps' "$scenario_dir/.vrooli/service.json" >/dev/null 2>&1; then
-            # Source lifecycle if needed
-            if ! command -v lifecycle::execute_phase >/dev/null 2>&1; then
-                source "${APP_ROOT}/scripts/lib/utils/lifecycle.sh" 2>/dev/null || true
-            fi
-            
-            if (cd "$scenario_dir" && lifecycle::execute_phase "stop" 2>/dev/null); then
-                log::success "Stopped $scenario_name via lifecycle"
-                return 0
-            fi
-        fi
+    # Check if scenario exists
+    if [[ ! -d "$scenario_dir" ]]; then
+        log::error "Scenario not found: $scenario_name"
+        return 1
     fi
     
-    # Simple fallback: find and stop processes by working directory
-    local stopped=false
-    
-    # Stop API processes
-    if stop::execute "pkill -$(stop::get_signal) -f '${scenario_name}-api' 2>/dev/null"; then
-        stopped=true
+    # Check dry-run mode
+    if [[ "$DRY_RUN" == "true" ]]; then
+        log::info "[DRY-RUN] Would stop scenario: $scenario_name"
+        return 0
     fi
     
-    # Stop UI processes (node server.js in scenario's ui directory)
-    local ui_pids=$(pgrep -f 'node server.js' 2>/dev/null || true)
-    for pid in $ui_pids; do
-        local cwd=$(readlink "/proc/$pid/cwd" 2>/dev/null || true)
-        if [[ "$cwd" == "$scenario_dir/ui" ]]; then
-            stop::execute "kill -$(stop::get_signal) $pid 2>/dev/null" && stopped=true
-        fi
-    done
-    
-    if [[ "$stopped" == "true" ]]; then
-        log::success "Stopped $scenario_name"
+    # Source lifecycle if needed
+    if ! command -v lifecycle::execute_phase >/dev/null 2>&1; then
+        source "${APP_ROOT}/scripts/lib/utils/lifecycle.sh" 2>/dev/null || {
+            log::error "Failed to source lifecycle.sh"
+            return 1
+        }
     fi
+    
+    # Execute the stop lifecycle phase
+    (cd "$scenario_dir" && lifecycle::execute_phase "stop") || {
+        log::error "Failed to stop scenario: $scenario_name"
+        return 1
+    }
+    
+    # Clean up port lock files after successful stop
+    stop::cleanup_port_locks "$scenario_name"
+    
+    log::success "Stopped $scenario_name"
     return 0
 }
 
@@ -118,19 +154,77 @@ stop::resource() {
 stop::all_scenarios() {
     log::info "Stopping all scenarios..."
     
-    # Stop orchestrator
-    stop::execute "pkill -$(stop::get_signal) -f 'app_orchestrator' 2>/dev/null" || true
+    # Clean up ALL scenario lock files when stopping all
+    if [[ -d "$SCENARIO_STATE_DIR" ]] && [[ "$DRY_RUN" != "true" ]]; then
+        rm -f "$SCENARIO_STATE_DIR"/.port_*.lock 2>/dev/null
+        rm -f "$SCENARIO_STATE_DIR"/*.json 2>/dev/null
+        log::debug "Cleaned up all scenario port locks and state files"
+    fi
     
-    # Stop each scenario
-    [[ -d "$SCENARIOS_DIR" ]] || return 0
+    # Find only scenarios with running processes (PERFORMANCE FIX!)
+    local scenarios=()
     
-    for scenario_dir in "$SCENARIOS_DIR"/*/; do
-        [[ -d "$scenario_dir" ]] || continue
-        stop::scenario "$(basename "$scenario_dir")" || true
+    # Method 1: Use ps to find running vrooli processes directly
+    while IFS= read -r proc_line; do
+        if [[ "$proc_line" =~ scenarios/([^/]+)/ ]]; then
+            local scenario_name="${BASH_REMATCH[1]}"
+            # Skip invalid scenario names (like "tools" from orchestrator path)
+            [[ "$scenario_name" =~ ^[a-zA-Z0-9_-]+$ ]] || continue
+            [[ -d "$SCENARIOS_DIR/$scenario_name" ]] || continue
+            
+            # Add to array if not already present
+            if ! [[ " ${scenarios[*]} " == *" $scenario_name "* ]]; then
+                scenarios+=("$scenario_name")
+            fi
+        fi
+    done < <(ps aux | grep -E "scenarios/" | grep -v grep | awk '{for(i=11;i<=NF;i++) printf "%s ", $i; print ""}' || true)
+    
+    if [[ ${#scenarios[@]} -eq 0 ]]; then
+        log::info "No running scenarios found"
+        return 0
+    fi
+    
+    log::info "Found ${#scenarios[@]} running scenarios to stop: ${scenarios[*]}"
+    
+    # Stop scenarios in batches (5 at a time to avoid overwhelming the system)
+    local batch_size=5
+    local stopped_count=0
+    local failed_count=0
+    
+    for ((i=0; i<${#scenarios[@]}; i+=batch_size)); do
+        local batch=("${scenarios[@]:i:batch_size}")
+        log::debug "Stopping batch: ${batch[*]}"
+        
+        # Stop scenarios in this batch in parallel
+        local pids=()
+        for scenario_name in "${batch[@]}"; do
+            (
+                if stop::scenario "$scenario_name"; then
+                    exit 0
+                else
+                    exit 1
+                fi
+            ) &
+            pids+=($!)
+        done
+        
+        # Wait for batch to complete
+        for pid in "${pids[@]}"; do
+            if wait "$pid"; then
+                ((stopped_count++))
+            else
+                ((failed_count++))
+            fi
+        done
     done
     
-    # Clean up PID files
-    [[ "$DRY_RUN" != "true" ]] && rm -f /tmp/vrooli-apps/*.pid 2>/dev/null || true
+    if [[ $failed_count -eq 0 ]]; then
+        log::success "Successfully stopped all $stopped_count scenarios"
+    else
+        log::warning "Stopped $stopped_count scenarios, $failed_count failed"
+    fi
+    
+    return 0
 }
 
 # Stop all resources  

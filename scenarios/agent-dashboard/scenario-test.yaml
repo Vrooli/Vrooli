@@ -90,10 +90,7 @@ validation:
     - postgres
   optional_resources:
     - redis
-  ports:
-    - 3800  # UI
-    - 8800  # API
   environment:
-    - AGENT_DASHBOARD_PORT
-    - AGENT_API_PORT
+    - UI_PORT
+    - API_PORT
     - MAX_AGENTS

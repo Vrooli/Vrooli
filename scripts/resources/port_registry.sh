@@ -231,11 +231,255 @@ ports::show_help() {
     echo "  (no options)    Show port registry information"
 }
 
+#######################################
+# SCENARIO INTEGRATION FUNCTIONS
+# Enhanced functionality for scenario port conflict detection
+#######################################
+
+# Get all currently allocated scenario ports
+ports::get_scenario_allocated_ports() {
+    local scenario_state_dir="${HOME}/.vrooli/state/scenarios"
+    local -a all_ports=()
+    
+    if [[ -d "$scenario_state_dir" ]]; then
+        for state_file in "$scenario_state_dir"/*.json; do
+            [[ -f "$state_file" ]] || continue
+            
+            if command -v jq >/dev/null 2>&1; then
+                local scenario_ports
+                scenario_ports=$(jq -r '.allocated_ports | to_entries[] | .value' "$state_file" 2>/dev/null || echo "")
+                while IFS= read -r port; do
+                    [[ -n "$port" && "$port" != "null" ]] && all_ports+=("$port")
+                done <<< "$scenario_ports"
+            fi
+        done
+    fi
+    
+    printf '%s\n' "${all_ports[@]}" | sort -n | uniq
+}
+
+# Get ALL allocated ports (resources + scenarios)
+ports::get_all_allocated_ports() {
+    local -a all_ports=()
+    
+    # Add resource ports
+    for port in "${RESOURCE_PORTS[@]}"; do
+        all_ports+=("$port")
+    done
+    
+    # Add scenario ports
+    local scenario_ports
+    scenario_ports=$(ports::get_scenario_allocated_ports)
+    while IFS= read -r port; do
+        [[ -n "$port" ]] && all_ports+=("$port")
+    done <<< "$scenario_ports"
+    
+    printf '%s\n' "${all_ports[@]}" | sort -n | uniq
+}
+
+# Validate scenario port configuration against registry
+ports::validate_scenario_config() {
+    local scenario_name="$1"
+    local service_json_path="$2"
+    
+    if [[ ! -f "$service_json_path" ]]; then
+        echo "{\"success\": false, \"error\": \"Service JSON not found: $service_json_path\"}"
+        return 1
+    fi
+    
+    if ! command -v jq >/dev/null 2>&1; then
+        echo "{\"success\": false, \"error\": \"jq is required for JSON processing\"}"
+        return 1
+    fi
+    
+    # Parse ports configuration
+    local ports_config
+    ports_config=$(jq -r '.ports // {}' "$service_json_path" 2>/dev/null)
+    
+    if [[ "$ports_config" == "{}" || "$ports_config" == "null" ]]; then
+        echo "{\"success\": true, \"message\": \"No ports configured for validation\"}"
+        return 0
+    fi
+    
+    local conflicts=()
+    local -a allocated_ports=($(ports::get_all_allocated_ports))
+    
+    # Check each port configuration for conflicts
+    while IFS= read -r port_entry; do
+        [[ -n "$port_entry" ]] || continue
+        
+        local port_name port_config
+        port_name=$(echo "$port_entry" | jq -r '.key')
+        port_config=$(echo "$port_entry" | jq -r '.value')
+        
+        # Check fixed ports (official schema only)
+        local fixed_port
+        fixed_port=$(echo "$port_config" | jq -r '.port // empty' 2>/dev/null)
+        
+        if [[ -n "$fixed_port" && "$fixed_port" != "null" ]]; then
+            # Check against resource ports
+            for resource in "${!RESOURCE_PORTS[@]}"; do
+                if [[ "${RESOURCE_PORTS[$resource]}" == "$fixed_port" ]]; then
+                    conflicts+=("Fixed port $fixed_port for $port_name conflicts with resource '$resource'")
+                fi
+            done
+            
+            # Check against allocated scenario ports
+            for allocated_port in "${allocated_ports[@]}"; do
+                if [[ "$allocated_port" == "$fixed_port" ]]; then
+                    conflicts+=("Fixed port $fixed_port for $port_name is already allocated")
+                fi
+            done
+        fi
+        
+        # Check port ranges against reserved ranges
+        local port_range
+        port_range=$(echo "$port_config" | jq -r '.range // empty' 2>/dev/null)
+        
+        if [[ -n "$port_range" && "$port_range" != "null" ]] && [[ "$port_range" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+            local range_start="${BASH_REMATCH[1]}"
+            local range_end="${BASH_REMATCH[2]}"
+            
+            # Check if range overlaps with system ports
+            if [[ "$range_start" -lt 1024 ]]; then
+                conflicts+=("Port range $port_range for $port_name includes system ports (< 1024)")
+            fi
+            
+            # Check against reserved ranges
+            for range_name in "${!RESERVED_RANGES[@]}"; do
+                local reserved_range="${RESERVED_RANGES[$range_name]}"
+                if [[ "$reserved_range" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+                    local reserved_start="${BASH_REMATCH[1]}"
+                    local reserved_end="${BASH_REMATCH[2]}"
+                    
+                    # Check for overlap
+                    if [[ "$range_start" -le "$reserved_end" && "$range_end" -ge "$reserved_start" ]]; then
+                        conflicts+=("Port range $port_range for $port_name overlaps with reserved range '$range_name' ($reserved_range)")
+                    fi
+                fi
+            done
+        fi
+        
+    done < <(echo "$ports_config" | jq -c 'to_entries[]' 2>/dev/null)
+    
+    # Return results
+    if [[ ${#conflicts[@]} -gt 0 ]]; then
+        local conflicts_json="["
+        local first=true
+        for conflict in "${conflicts[@]}"; do
+            [[ "$first" != "true" ]] && conflicts_json+=", "
+            conflicts_json+="\"$conflict\""
+            first=false
+        done
+        conflicts_json+="]"
+        
+        echo "{\"success\": false, \"conflicts\": $conflicts_json}"
+        return 1
+    else
+        echo "{\"success\": true, \"message\": \"No port conflicts found for scenario: $scenario_name\"}"
+        return 0
+    fi
+}
+
+# Get detailed port allocation status
+ports::get_allocation_status() {
+    local -a resource_ports_array=()
+    local -a scenario_ports_array=()
+    
+    # Collect resource ports
+    for resource in "${!RESOURCE_PORTS[@]}"; do
+        resource_ports_array+=("\"$resource\": ${RESOURCE_PORTS[$resource]}")
+    done
+    
+    # Collect scenario ports
+    local scenario_state_dir="${HOME}/.vrooli/state/scenarios"
+    if [[ -d "$scenario_state_dir" ]]; then
+        for state_file in "$scenario_state_dir"/*.json; do
+            [[ -f "$state_file" ]] || continue
+            
+            local scenario_name
+            scenario_name=$(basename "$state_file" .json)
+            
+            if command -v jq >/dev/null 2>&1; then
+                local scenario_data
+                scenario_data=$(jq -c '{allocated_ports, allocated_at}' "$state_file" 2>/dev/null || echo "{}")
+                scenario_ports_array+=("\"$scenario_name\": $scenario_data")
+            fi
+        done
+    fi
+    
+    # Build comprehensive status JSON
+    echo "{"
+    echo "  \"resource_ports\": {"
+    local first=true
+    for entry in "${resource_ports_array[@]}"; do
+        [[ "$first" != "true" ]] && echo ", "
+        echo -n "    $entry"
+        first=false
+    done
+    echo ""
+    echo "  },"
+    echo "  \"scenario_ports\": {"
+    
+    first=true
+    for entry in "${scenario_ports_array[@]}"; do
+        [[ "$first" != "true" ]] && echo ", "
+        echo -n "    $entry"
+        first=false
+    done
+    echo ""
+    echo "  },"
+    echo "  \"reserved_ranges\": {"
+    
+    first=true
+    for range_name in "${!RESERVED_RANGES[@]}"; do
+        [[ "$first" != "true" ]] && echo ", "
+        echo -n "    \"$range_name\": \"${RESERVED_RANGES[$range_name]}\""
+        first=false
+    done
+    echo ""
+    echo "  }"
+    echo "}"
+}
+
+# Enhanced help with scenario functions
+ports::show_help() {
+    echo "Port Registry - Central source of truth for all service port assignments"
+    echo
+    echo "Usage: $0 [OPTION]"
+    echo
+    echo "Options:"
+    echo "  --export-json               Export resource ports as JSON (for TypeScript integration)"
+    echo "  --get-all-allocated         Get all allocated ports (resources + scenarios)"
+    echo "  --get-scenario-ports        Get only scenario allocated ports"
+    echo "  --validate-scenario <name> <service.json>  Validate scenario port config"
+    echo "  --allocation-status         Get detailed allocation status"
+    echo "  --help                      Show this help message"
+    echo "  (no options)               Show port registry information"
+    echo
+    echo "Examples:"
+    echo "  $0 --validate-scenario my-scenario /path/to/service.json"
+    echo "  $0 --get-all-allocated | head -20"
+    echo "  $0 --allocation-status | jq '.scenario_ports'"
+}
+
 # If script is run directly, handle CLI arguments
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     case "${1:-}" in
         --export-json)
             ports::export_json
+            ;;
+        --get-all-allocated)
+            ports::get_all_allocated_ports
+            ;;
+        --get-scenario-ports)
+            ports::get_scenario_allocated_ports
+            ;;
+        --validate-scenario)
+            ports::validate_scenario_config "$2" "$3"
+            ;;
+        --allocation-status)
+            ports::get_allocation_status
             ;;
         --help)
             ports::show_help

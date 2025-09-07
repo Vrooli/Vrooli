@@ -12,6 +12,15 @@
       "ui": true
     },
     {
+      "name": "bookmark-intelligence-hub",
+      "description": "Transform social media bookmarks into organized, actionable intelligence across platforms",
+      "location": "bookmark-intelligence-hub",
+      "category": "automation",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
       "name": "picker-wheel",
       "description": "Fun random selection wheel with customizable options and animated spinning",
       "location": "picker-wheel",

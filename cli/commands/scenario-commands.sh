@@ -359,7 +359,8 @@ main() {
             local orchestrator_api="http://localhost:${orchestrator_port}"
             
             # Check if orchestrator is reachable
-            if ! curl -s -f --connect-timeout 2 --max-time 5 "${orchestrator_api}/health" >/dev/null 2>&1; then
+            # Use simplest curl command for maximum compatibility
+            if ! timeout 10 curl -s "${orchestrator_api}/health" >/dev/null 2>&1; then
                 log::error "Orchestrator API is not accessible at ${orchestrator_api}"
                 log::info "The orchestrator may not be running. Start it with: vrooli develop"
                 return 1
@@ -373,7 +374,7 @@ main() {
                 fi
                 
                 local response
-                response=$(curl -s "${orchestrator_api}/apps" 2>/dev/null)
+                response=$(curl -s "${orchestrator_api}/scenarios" 2>/dev/null)
                 
                 if [[ -z "$response" ]]; then
                     if [[ "$json_output" == "true" ]]; then
@@ -390,10 +391,15 @@ main() {
                     return 0
                 fi
                 
-                # Parse JSON response
+                # Parse JSON response from new orchestrator format
                 local total running
-                total=$(echo "$response" | jq -r '.total // 0' 2>/dev/null)
-                running=$(echo "$response" | jq -r '.running // 0' 2>/dev/null)
+                if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+                    total=$(echo "$response" | jq -r '.data | length' 2>/dev/null)
+                    running=$(echo "$response" | jq -r '.data | map(select(.status == "running")) | length' 2>/dev/null)
+                else
+                    total=0
+                    running=0
+                fi
                 
                 echo "📊 SCENARIO STATUS SUMMARY"
                 echo "═══════════════════════════════════════"
@@ -406,8 +412,8 @@ main() {
                     echo "SCENARIO                          STATUS      RUNTIME         PORT(S)"
                     echo "───────────────────────────────────────────────────────────────────────────"
                     
-                    # Parse individual apps - format ports as clickable URLs
-                    echo "$response" | jq -r '.apps[] | "\(.name)|\(.status)|" + (.runtime_formatted // "-") + "|" + (.allocated_ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):http://localhost:\(.value)") | join(", ")) end) + "|" + (.actual_health // "unknown")' 2>/dev/null | while IFS='|' read -r name status runtime port_list health; do
+                    # Parse individual scenarios from new orchestrator format
+                    echo "$response" | jq -r '.data[] | "\(.name)|\(.status)|" + (.runtime // "N/A") + "|" + (.allocated_ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):http://localhost:\(.value)") | join(", ")) end) + "|running"' 2>/dev/null | while IFS='|' read -r name status runtime port_list health; do
                         # Color code status based on actual health
                         local status_display
                         if [ "$status" = "running" ]; then
@@ -453,7 +459,7 @@ main() {
                 fi
                 
                 local response
-                response=$(curl -s "${orchestrator_api}/apps/${scenario_name}/status" 2>/dev/null)
+                response=$(curl -s "${orchestrator_api}/scenarios/${scenario_name}" 2>/dev/null)
                 
                 if echo "$response" | grep -q "not found"; then
                     if [[ "$json_output" == "true" ]]; then
@@ -471,14 +477,17 @@ main() {
                     return 0
                 fi
                 
-                # Parse and display detailed status
+                # Parse and display detailed status from new orchestrator format
                 local status pid started_at stopped_at restart_count port_info runtime_formatted
-                status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
-                pid=$(echo "$response" | jq -r '.pid // "N/A"' 2>/dev/null)
-                started_at=$(echo "$response" | jq -r '.started_at // "never"' 2>/dev/null)
-                stopped_at=$(echo "$response" | jq -r '.stopped_at // "N/A"' 2>/dev/null)
-                restart_count=$(echo "$response" | jq -r '.restart_count // 0' 2>/dev/null)
-                runtime_formatted=$(echo "$response" | jq -r '.runtime_formatted // "N/A"' 2>/dev/null)
+                status=$(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)
+                # Get PIDs from processes array (just show count for now)
+                local process_count
+                process_count=$(echo "$response" | jq -r '.data.processes | length // 0' 2>/dev/null)
+                pid="$process_count processes"
+                started_at=$(echo "$response" | jq -r '.data.started_at // "never"' 2>/dev/null)
+                stopped_at="N/A"  # New orchestrator doesn't track stopped_at yet
+                restart_count=0   # New orchestrator doesn't track restart_count yet
+                runtime_formatted=$(echo "$response" | jq -r '.data.runtime // "N/A"' 2>/dev/null)
                 
                 echo "📋 SCENARIO: $scenario_name"
                 echo "═══════════════════════════════════════"
@@ -508,9 +517,9 @@ main() {
                 [[ "$stopped_at" != "null" ]] && [[ "$stopped_at" != "N/A" ]] && echo "Stopped:       $stopped_at"
                 [[ "$restart_count" != "0" ]] && echo "Restarts:      $restart_count"
                 
-                # Show allocated ports
+                # Show allocated ports from new orchestrator format
                 local ports
-                ports=$(echo "$response" | jq -r '.allocated_ports // {}' 2>/dev/null)
+                ports=$(echo "$response" | jq -r '.data.allocated_ports // {}' 2>/dev/null)
                 if [[ "$ports" != "{}" ]] && [[ "$ports" != "null" ]]; then
                     echo ""
                     echo "Allocated Ports:"

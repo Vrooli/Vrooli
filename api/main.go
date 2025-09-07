@@ -374,69 +374,24 @@ func protectApp(w http.ResponseWriter, r *http.Request) {
 // Start an app via orchestrator or fallback to process manager
 func startApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	appPath := filepath.Join(appsDir, name)
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
 	
-	// Validate app exists
-	if _, err := os.Stat(appPath); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "App not found"})
+	// Validate scenario exists
+	if _, err := os.Stat(scenarioPath); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Scenario not found"})
 		return
 	}
 	
-	// Try orchestrator first if healthy
-	if orchestratorHealthy {
-		resp, err := proxyToOrchestrator("POST", fmt.Sprintf("/apps/%s/start", name), nil)
-		if err == nil {
-			defer resp.Body.Close()
-			
-			if resp.StatusCode == http.StatusOK {
-				// Success response from orchestrator
-				var result map[string]interface{}
-				if json.NewDecoder(resp.Body).Decode(&result) == nil {
-					json.NewEncoder(w).Encode(Response{
-						Success: true,
-						Data: result,
-					})
-					return
-				}
-			} else {
-				// Error response from orchestrator
-				var errorResp map[string]interface{}
-				if json.NewDecoder(resp.Body).Decode(&errorResp) == nil {
-					if detail, ok := errorResp["detail"].(string); ok {
-						json.NewEncoder(w).Encode(Response{Error: detail})
-						return
-					}
-				}
-			}
-		}
-	}
-	
-	// Fallback to legacy process manager method
-	log.Printf("Using fallback process manager to start %s", name)
-	
-	// Check for manage.sh
-	manageScript := filepath.Join(appPath, "scripts/manage.sh")
-	if _, err := os.Stat(manageScript); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "App missing manage.sh script"})
-		return
-	}
-	
-	// Run setup first (in background to avoid timeout)
-	go func() {
-		setupCmd := exec.Command("bash", "-c", 
-			fmt.Sprintf("cd %s && ./scripts/manage.sh setup --yes yes", appPath))
-		setupCmd.Run() // Ignore errors as some setups may have warnings
-	}()
-	
-	// Start the app using process manager
+	// Use lifecycle develop event directly - much simpler and more reliable
+	// The develop phase includes auto-setup, so no need for separate setup step
 	startCmd := exec.Command("bash", "-c",
-		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::start 'vrooli.develop.%s' 'cd %s && ./scripts/manage.sh develop' '%s'",
-			vrooliRoot, name, appPath, appPath))
+		fmt.Sprintf("cd %s && %s/scripts/lib/utils/lifecycle.sh %s develop",
+			scenarioPath, vrooliRoot, name))
 	
 	output, err := startCmd.CombinedOutput()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
-			Error: fmt.Sprintf("Failed to start app: %s", string(output)),
+			Error: fmt.Sprintf("Failed to start scenario %s: %s", name, string(output)),
 		})
 		return
 	}
@@ -444,7 +399,7 @@ func startApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
-			"message": fmt.Sprintf("App %s started successfully (legacy mode)", name),
+			"message": fmt.Sprintf("Scenario %s started successfully", name),
 			"output": string(output),
 		},
 	})
@@ -454,57 +409,15 @@ func startApp(w http.ResponseWriter, r *http.Request) {
 func stopApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	
-	// Try orchestrator first if healthy
-	if orchestratorHealthy {
-		resp, err := proxyToOrchestrator("POST", fmt.Sprintf("/apps/%s/stop", name), nil)
-		if err == nil {
-			defer resp.Body.Close()
-			
-			if resp.StatusCode == http.StatusOK {
-				// Success response from orchestrator
-				var result map[string]interface{}
-				if json.NewDecoder(resp.Body).Decode(&result) == nil {
-					json.NewEncoder(w).Encode(Response{
-						Success: true,
-						Data: result,
-					})
-					return
-				}
-			} else {
-				// Error response from orchestrator
-				var errorResp map[string]interface{}
-				if json.NewDecoder(resp.Body).Decode(&errorResp) == nil {
-					if detail, ok := errorResp["detail"].(string); ok {
-						json.NewEncoder(w).Encode(Response{Error: detail})
-						return
-					}
-				}
-			}
-		}
-	}
-	
-	// Fallback to legacy process manager method
-	log.Printf("Using fallback process manager to stop %s", name)
-	
-	// Stop using process manager
+	// Use lifecycle stop event directly - much simpler and more reliable
 	stopCmd := exec.Command("bash", "-c",
-		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::stop 'vrooli.develop.%s'",
-			vrooliRoot, name))
+		fmt.Sprintf("cd %s/scenarios/%s && %s/scripts/lib/utils/lifecycle.sh %s stop",
+			vrooliRoot, name, vrooliRoot, name))
 	
 	output, err := stopCmd.CombinedOutput()
 	if err != nil {
-		// Don't treat as error if app wasn't running
-		if strings.Contains(string(output), "not running") || strings.Contains(string(output), "No such process") {
-			json.NewEncoder(w).Encode(Response{
-				Success: true,
-				Data: map[string]string{
-					"message": fmt.Sprintf("App %s was not running", name),
-				},
-			})
-			return
-		}
 		json.NewEncoder(w).Encode(Response{
-			Error: fmt.Sprintf("Failed to stop app: %s", string(output)),
+			Error: fmt.Sprintf("Failed to stop app %s: %s", name, string(output)),
 		})
 		return
 	}
@@ -512,7 +425,8 @@ func stopApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
-			"message": fmt.Sprintf("App %s stopped successfully (legacy mode)", name),
+			"message": fmt.Sprintf("App %s stopped successfully", name),
+			"output": string(output),
 		},
 	})
 }
@@ -520,32 +434,33 @@ func stopApp(w http.ResponseWriter, r *http.Request) {
 // Restart an app
 func restartApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	appPath := filepath.Join(appsDir, name)
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
 	
-	// Validate app exists
-	if _, err := os.Stat(appPath); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "App not found"})
+	// Validate scenario exists
+	if _, err := os.Stat(scenarioPath); err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Scenario not found"})
 		return
 	}
 	
-	// Stop the app first (ignore errors)
+	// Stop first using lifecycle stop
 	stopCmd := exec.Command("bash", "-c",
-		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::stop 'vrooli.develop.%s'",
-			vrooliRoot, name))
-	stopCmd.Run()
+		fmt.Sprintf("cd %s && %s/scripts/lib/utils/lifecycle.sh %s stop",
+			scenarioPath, vrooliRoot, name))
 	
-	// Wait briefly
+	stopOutput, _ := stopCmd.CombinedOutput() // Ignore stop errors - might not be running
+	
+	// Brief pause to ensure processes are fully stopped
 	time.Sleep(2 * time.Second)
 	
-	// Start the app
+	// Start using lifecycle develop
 	startCmd := exec.Command("bash", "-c",
-		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::start 'vrooli.develop.%s' 'cd %s && ./scripts/manage.sh develop' '%s'",
-			vrooliRoot, name, appPath, appPath))
+		fmt.Sprintf("cd %s && %s/scripts/lib/utils/lifecycle.sh %s develop",
+			scenarioPath, vrooliRoot, name))
 	
-	output, err := startCmd.CombinedOutput()
+	startOutput, err := startCmd.CombinedOutput()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
-			Error: fmt.Sprintf("Failed to restart app: %s", string(output)),
+			Error: fmt.Sprintf("Failed to restart scenario %s: %s", name, string(startOutput)),
 		})
 		return
 	}
@@ -553,7 +468,9 @@ func restartApp(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
-			"message": fmt.Sprintf("App %s restarted successfully", name),
+			"message": fmt.Sprintf("Scenario %s restarted successfully", name),
+			"stop_output": string(stopOutput),
+			"start_output": string(startOutput),
 		},
 	})
 }
