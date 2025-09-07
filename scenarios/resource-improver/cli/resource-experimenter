@@ -9,8 +9,12 @@ SCRIPT_DIR="${APP_ROOT}/scenarios/resource-experimenter/cli"
 CLI_NAME="resource-experimenter"
 VERSION="1.0.0"
 
-# Default API URL - can be overridden via environment
-API_URL="${RESOURCE_EXPERIMENTER_API_URL:-http://localhost:8092}"
+# API URL - must be provided via environment
+API_URL="${RESOURCE_EXPERIMENTER_API_URL}"
+if [[ -z "$API_URL" ]]; then
+    echo "Error: RESOURCE_EXPERIMENTER_API_URL environment variable is required" >&2
+    exit 1
+fi
 
 # Color codes for styling
 RED='\033[1;31m'
@@ -395,7 +399,7 @@ ${WHITE}EXAMPLES:${NC}
     ${CLI_NAME} scenarios
 
 ${WHITE}ENVIRONMENT:${NC}
-    RESOURCE_EXPERIMENTER_API_URL    API base URL (default: http://localhost:8092)
+    RESOURCE_EXPERIMENTER_API_URL    API base URL (required)
 
 ${WHITE}STATUS VALUES:${NC}
     requested, running, completed, failed

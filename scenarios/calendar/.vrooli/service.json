@@ -19,33 +19,16 @@
     "value_proposition": "Transforms any scenario into time-aware, schedulable system with AI-powered temporal intelligence"
   },
   
-  "services": {
+  "ports": {
     "api": {
-      "port": 3300,
-      "health_endpoint": "/health",
-      "description": "Calendar REST API for event management and scheduling",
-      "startup_command": "cd api && go run main.go",
-      "dependencies": ["postgres", "qdrant", "scenario-authenticator", "notification-hub"],
-      "optional_dependencies": ["ollama", "n8n"],
-      "environment": {
-        "POSTGRES_URL": "postgres://vrooli:${POSTGRES_PASSWORD}@localhost:5433/calendar_system?sslmode=disable",
-        "QDRANT_URL": "http://localhost:6333",
-        "AUTH_SERVICE_URL": "http://localhost:3250",
-        "NOTIFICATION_SERVICE_URL": "http://localhost:28100",
-        "OLLAMA_URL": "http://localhost:11434",
-        "NOTIFICATION_PROFILE_ID": "calendar-system-prod",
-        "NOTIFICATION_API_KEY": "${NOTIFICATION_API_KEY}",
-        "JWT_SECRET": "${JWT_SECRET}"
-      }
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Calendar REST API for event management and scheduling"
     },
-    
     "ui": {
-      "port": 3301,
-      "health_endpoint": "/",
-      "description": "Professional calendar interface with week/month views",
-      "startup_command": "cd ui && python -m http.server 3301",
-      "static_files": true,
-      "proxy_api": "http://localhost:3300"
+      "env_var": "UI_PORT",
+      "range": "35000-39999", 
+      "description": "Professional calendar interface with week/month views"
     }
   },
   

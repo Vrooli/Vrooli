@@ -101,15 +101,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 27750,
-      "fallback": "auto",
-      "description": "Research assistant API port"
+      "description": "Research assistant API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31001,
-      "fallback": "auto",
-      "description": "Research assistant UI dashboard port"
+      "description": "Research assistant UI dashboard port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -193,7 +191,7 @@
       "description": "Start research assistant with Go API server",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./research-assistant-api",
           "description": "Start Go coordination API server in background",
           "background": true,
@@ -202,7 +200,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true,
@@ -254,22 +252,17 @@
       ]
     },
     "stop": {
-      "description": "Stop research assistant services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'research-assistant-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "stop-api",
+          "run": "pkill -f research-assistant.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node.*server.js' || true",
-          "description": "Stop UI Node.js server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Research Assistant services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f research-assistant.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

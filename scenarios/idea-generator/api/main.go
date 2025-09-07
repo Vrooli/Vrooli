@@ -56,10 +56,15 @@ type ApiServer struct {
 }
 
 func NewApiServer() *ApiServer {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	
 	return &ApiServer{
 		n8nURL:         getEnvOrDefault("N8N_BASE_URL", "http://localhost:5678"),
 		windmillURL:    getEnvOrDefault("WINDMILL_BASE_URL", "http://localhost:5681"),
-		postgresURL:    getEnvOrDefault("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/idea_generator"),
+		postgresURL:    postgresURL,
 		qdrantURL:      getEnvOrDefault("QDRANT_URL", "http://localhost:6333"),
 		minioURL:       getEnvOrDefault("MINIO_URL", "http://localhost:9000"),
 		redisURL:       getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),

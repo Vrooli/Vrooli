@@ -23,15 +23,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 21500,
-      "fallback": "auto",
-      "description": "Resource Generator API port"
+      "description": "Resource Generator API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 30750,
-      "fallback": "auto",
-      "description": "Resource Generator UI port"
+      "description": "Resource Generator UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -102,7 +100,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
+          "target": "http://${API_HOST:-localhost}:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -164,7 +162,7 @@
       "description": "Start Resource Generator services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./resource-generator-api",
           "description": "Start Go API server",
           "background": true
@@ -177,7 +175,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Resource Generator running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: resource-generator --help'",
+          "run": "echo '🚀 Resource Generator running:\\n  UI: http://${API_HOST:-localhost}:${UI_PORT}\\n  API: http://${API_HOST:-localhost}:${API_PORT}\\n  CLI: resource-generator --help'",
           "description": "Display service URLs"
         }
       ]
@@ -187,17 +185,17 @@
       "steps": [
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
+          "run": "curl -sf http://${API_HOST:-localhost}:$API_PORT/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-template-listing",
-          "run": "curl -sf http://localhost:$API_PORT/api/templates",
+          "run": "curl -sf http://${API_HOST:-localhost}:$API_PORT/api/templates",
           "description": "Test template listing"
         },
         {
           "name": "test-port-allocation",
-          "run": "curl -sf http://localhost:$API_PORT/api/ports/next",
+          "run": "curl -sf http://${API_HOST:-localhost}:$API_PORT/api/ports/next",
           "description": "Test port allocation"
         },
         {
@@ -208,17 +206,17 @@
       ]
     },
     "stop": {
-      "description": "Stop Resource Generator services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'resource-generator-api' || true; pkill -f 'node server.js' || true",
-          "description": "Stop all services"
+          "name": "stop-api",
+          "run": "pkill -f resource-generator.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Resource Generator services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f resource-generator.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

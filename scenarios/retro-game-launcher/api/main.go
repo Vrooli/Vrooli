@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -73,7 +74,7 @@ func main() {
 
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
-		postgresURL = "postgres://postgres:postgres@localhost:5432/retro_games?sslmode=disable"
+		log.Fatal("POSTGRES_URL environment variable is required")
 	}
 
 	n8nURL := os.Getenv("N8N_BASE_URL")
@@ -198,7 +199,13 @@ func (s *APIServer) checkN8N() string {
 
 func (s *APIServer) checkOllama() string {
 	resp, err := http.Get(s.ollamaURL + "/api/tags")
-	if err != nil || resp.StatusCode != http.StatusOK {
+	if err != nil {
+		return "unavailable"
+	}
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
+	
+	if resp.StatusCode != http.StatusOK {
 		return "unavailable"
 	}
 	return "healthy"

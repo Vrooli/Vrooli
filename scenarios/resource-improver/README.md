@@ -25,7 +25,6 @@ The Resource Improver automatically identifies and implements improvements to ex
 - **PostgreSQL**: Improvement history and compliance tracking
 - **Redis**: Queue management and session caching
 - **Qdrant**: Long-term memory and pattern matching
-- **N8n**: Improvement workflow automation
 
 ## Key Features
 
@@ -203,7 +202,7 @@ stop() {
 - Focus: Model management, API consistency
 
 ### Workflow Automation
-**n8n, node-red, huginn, windmill**
+**node-red, huginn, windmill**
 - Focus: Workflow persistence, error recovery
 
 ### Development Tools
@@ -238,10 +237,10 @@ requirements:
 
 ### Example: CLI Enhancement
 ```yaml
-# queue/pending/002-enhance-n8n-cli.yaml
-id: enhance-n8n-cli-20250103
-title: "Standardize n8n CLI commands"
-target: n8n
+# queue/pending/002-enhance-ollama-cli.yaml
+id: enhance-ollama-cli-20250103
+title: "Standardize ollama CLI commands"
+target: ollama
 type: cli-enhancement
 priority: medium
 requirements:

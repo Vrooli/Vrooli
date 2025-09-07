@@ -1,0 +1,389 @@
+#!/bin/bash
+
+# Pregnancy Tracker CLI
+# Privacy-first pregnancy tracking with complete data sovereignty
+
+set -euo pipefail
+
+# Configuration
+API_PORT="${PREGNANCY_TRACKER_API_PORT:-17001}"
+API_BASE="http://localhost:${API_PORT}"
+USER_ID="${PREGNANCY_TRACKER_USER:-${USER:-default}}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_help() {
+    cat << EOF
+🤰 Pregnancy Tracker CLI - Privacy-first pregnancy tracking
+
+Usage: pregnancy-tracker <command> [options]
+
+Commands:
+    status                  Show current pregnancy status
+    start <date>           Start tracking pregnancy (date = LMP date YYYY-MM-DD)
+    log-daily              Log daily symptoms and measurements
+    log-weight <value>     Log weight measurement
+    log-symptom <symptom>  Log a symptom
+    appointments           List upcoming appointments
+    add-appointment        Add a new appointment
+    kick-count             Start kick counting session
+    contractions           Start contraction timer
+    week-info <week>       Get information for specific week
+    search <query>         Search pregnancy information
+    export <format>        Export data (json|pdf)
+    emergency              Show/edit emergency information
+    help                   Show this help message
+
+Options:
+    --user <id>            Specify user ID for multi-tenant support
+    --verbose              Show detailed output
+
+Examples:
+    pregnancy-tracker status
+    pregnancy-tracker start 2024-03-15
+    pregnancy-tracker log-daily
+    pregnancy-tracker search "morning sickness"
+    pregnancy-tracker week-info 12
+    pregnancy-tracker export json > my-pregnancy-data.json
+
+Privacy Notice:
+    All data is stored locally with encryption. No information is sent to external servers.
+EOF
+}
+
+# Check API health
+check_api() {
+    if ! curl -sf "${API_BASE}/health" > /dev/null 2>&1; then
+        echo -e "${RED}Error: Pregnancy Tracker API is not running${NC}"
+        echo "Start it with: vrooli scenario run pregnancy-tracker"
+        exit 1
+    fi
+}
+
+# Commands
+cmd_status() {
+    check_api
+    
+    response=$(curl -sf -H "X-User-ID: ${USER_ID}" "${API_BASE}/api/v1/pregnancy/current" 2>/dev/null || echo "{}")
+    
+    if [[ $(echo "$response" | grep -c "\"id\"") -eq 0 ]]; then
+        echo -e "${YELLOW}No active pregnancy tracking found${NC}"
+        echo "Start tracking with: pregnancy-tracker start <LMP-date>"
+        return
+    fi
+    
+    # Parse response
+    week=$(echo "$response" | grep -o '"current_week":[0-9]*' | cut -d: -f2)
+    day=$(echo "$response" | grep -o '"current_day":[0-9]*' | cut -d: -f2)
+    due_date=$(echo "$response" | grep -o '"due_date":"[^"]*' | cut -d'"' -f4 | cut -dT -f1)
+    
+    # Calculate days remaining
+    due_timestamp=$(date -d "$due_date" +%s 2>/dev/null || date +%s)
+    now_timestamp=$(date +%s)
+    days_remaining=$(( (due_timestamp - now_timestamp) / 86400 ))
+    
+    echo -e "${GREEN}🤰 Pregnancy Status${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "Current Week: ${BLUE}Week $week, Day $day${NC}"
+    echo -e "Due Date: ${BLUE}$due_date${NC}"
+    echo -e "Days Remaining: ${BLUE}$days_remaining days${NC}"
+    
+    # Show trimester
+    if [ "$week" -lt 13 ]; then
+        echo -e "Trimester: ${BLUE}First Trimester${NC}"
+    elif [ "$week" -lt 28 ]; then
+        echo -e "Trimester: ${BLUE}Second Trimester${NC}"
+    else
+        echo -e "Trimester: ${BLUE}Third Trimester${NC}"
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Use 'pregnancy-tracker week-info $week' for this week's information"
+}
+
+cmd_start() {
+    check_api
+    
+    local lmp_date="$1"
+    
+    if [[ ! "$lmp_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+        echo -e "${RED}Error: Invalid date format. Use YYYY-MM-DD${NC}"
+        exit 1
+    fi
+    
+    # Calculate due date (LMP + 280 days)
+    due_date=$(date -d "$lmp_date + 280 days" +%Y-%m-%d)
+    
+    echo -e "${BLUE}Starting pregnancy tracking...${NC}"
+    echo "LMP Date: $lmp_date"
+    echo "Estimated Due Date: $due_date"
+    
+    # Send to API
+    response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -H "X-User-ID: ${USER_ID}" \
+        -d "{\"lmp_date\":\"${lmp_date}T00:00:00Z\",\"due_date\":\"${due_date}T00:00:00Z\"}" \
+        "${API_BASE}/api/v1/pregnancy/start")
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✅ Pregnancy tracking started successfully!${NC}"
+        echo "Your data is encrypted and stored locally only."
+    else
+        echo -e "${RED}Error starting pregnancy tracking${NC}"
+        exit 1
+    fi
+}
+
+cmd_log_daily() {
+    check_api
+    
+    echo -e "${BLUE}Daily Log Entry${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Collect data
+    read -p "Weight (optional, press Enter to skip): " weight
+    read -p "Blood Pressure (e.g., 120/80, optional): " bp
+    read -p "Mood (1-10): " mood
+    read -p "Energy Level (1-10): " energy
+    read -p "Notes (optional): " notes
+    
+    # Common symptoms checklist
+    echo -e "\n${YELLOW}Select symptoms (y/n):${NC}"
+    symptoms=()
+    
+    for symptom in "nausea" "fatigue" "headache" "backache" "cramping" "swelling" "heartburn"; do
+        read -p "  $symptom? (y/n): " response
+        if [[ "$response" == "y" ]]; then
+            symptoms+=("\"$symptom\"")
+        fi
+    done
+    
+    # Build JSON
+    symptoms_json="[$(IFS=,; echo "${symptoms[*]}")]"
+    
+    json_data=$(cat <<EOF
+{
+    "weight": ${weight:-null},
+    "blood_pressure": "${bp}",
+    "mood": ${mood:-5},
+    "energy": ${energy:-5},
+    "symptoms": ${symptoms_json},
+    "notes": "${notes}"
+}
+EOF
+)
+    
+    # Send to API
+    response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -H "X-User-ID: ${USER_ID}" \
+        -d "$json_data" \
+        "${API_BASE}/api/v1/logs/daily")
+    
+    if [ $? -eq 0 ]; then
+        echo -e "\n${GREEN}✅ Daily log saved successfully!${NC}"
+    else
+        echo -e "\n${RED}Error saving daily log${NC}"
+        exit 1
+    fi
+}
+
+cmd_week_info() {
+    check_api
+    
+    local week="${1:-0}"
+    
+    if [ "$week" -eq 0 ]; then
+        # Get current week
+        response=$(curl -sf -H "X-User-ID: ${USER_ID}" "${API_BASE}/api/v1/pregnancy/current" 2>/dev/null || echo "{}")
+        week=$(echo "$response" | grep -o '"current_week":[0-9]*' | cut -d: -f2)
+        
+        if [ -z "$week" ]; then
+            echo -e "${RED}Error: Could not determine current week${NC}"
+            exit 1
+        fi
+    fi
+    
+    response=$(curl -sf "${API_BASE}/api/v1/content/week/${week}")
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}📚 Week $week Information${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        # Parse and display info
+        title=$(echo "$response" | grep -o '"title":"[^"]*' | cut -d'"' -f4)
+        development=$(echo "$response" | grep -o '"development":"[^"]*' | cut -d'"' -f4)
+        tips=$(echo "$response" | grep -o '"tips":"[^"]*' | cut -d'"' -f4)
+        
+        echo -e "${BLUE}$title${NC}"
+        echo -e "\n${YELLOW}Development:${NC}"
+        echo "$development" | fold -w 70 -s
+        echo -e "\n${YELLOW}Tips:${NC}"
+        echo "$tips" | fold -w 70 -s
+        
+        echo -e "\n${GREEN}Note: This information is evidence-based but not medical advice.${NC}"
+        echo "Always consult your healthcare provider."
+    else
+        echo -e "${RED}Error fetching week information${NC}"
+        exit 1
+    fi
+}
+
+cmd_search() {
+    check_api
+    
+    local query="$*"
+    
+    if [ -z "$query" ]; then
+        echo -e "${RED}Error: Search query required${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Searching for: $query${NC}"
+    
+    response=$(curl -sf -G --data-urlencode "q=$query" "${API_BASE}/api/v1/search")
+    
+    if [ $? -eq 0 ]; then
+        # Check if results exist
+        if [[ $(echo "$response" | grep -c "\"title\"") -eq 0 ]]; then
+            echo "No results found for: $query"
+        else
+            echo -e "${GREEN}Search Results:${NC}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Parse and display results (simplified)
+            echo "$response" | grep -o '"title":"[^"]*' | cut -d'"' -f4 | while read -r title; do
+                echo "• $title"
+            done
+        fi
+    else
+        echo -e "${RED}Search failed${NC}"
+        exit 1
+    fi
+}
+
+cmd_appointments() {
+    check_api
+    
+    echo -e "${BLUE}📅 Upcoming Appointments${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    response=$(curl -sf -H "X-User-ID: ${USER_ID}" "${API_BASE}/api/v1/appointments/upcoming")
+    
+    if [ $? -eq 0 ]; then
+        if [[ $(echo "$response" | grep -c "\"id\"") -eq 0 ]]; then
+            echo "No upcoming appointments scheduled"
+            echo "Use 'pregnancy-tracker add-appointment' to schedule one"
+        else
+            # Display appointments (simplified parsing)
+            echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+        fi
+    else
+        echo -e "${RED}Error fetching appointments${NC}"
+        exit 1
+    fi
+}
+
+cmd_export() {
+    check_api
+    
+    local format="${1:-json}"
+    
+    if [[ "$format" != "json" && "$format" != "pdf" ]]; then
+        echo -e "${RED}Error: Format must be 'json' or 'pdf'${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Exporting data as $format...${NC}" >&2
+    
+    curl -sf -H "X-User-ID: ${USER_ID}" "${API_BASE}/api/v1/export/${format}"
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✅ Export complete${NC}" >&2
+    else
+        echo -e "${RED}Export failed${NC}" >&2
+        exit 1
+    fi
+}
+
+cmd_emergency() {
+    check_api
+    
+    echo -e "${RED}🚨 Emergency Information${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    response=$(curl -sf -H "X-User-ID: ${USER_ID}" "${API_BASE}/api/v1/export/emergency-card")
+    
+    if [ $? -eq 0 ]; then
+        echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+        echo -e "\n${YELLOW}Keep this information easily accessible${NC}"
+    else
+        echo -e "${RED}Error fetching emergency information${NC}"
+        exit 1
+    fi
+}
+
+# Main command routing
+case "${1:-help}" in
+    status)
+        cmd_status
+        ;;
+    start)
+        if [ $# -lt 2 ]; then
+            echo -e "${RED}Error: LMP date required${NC}"
+            echo "Usage: pregnancy-tracker start YYYY-MM-DD"
+            exit 1
+        fi
+        cmd_start "$2"
+        ;;
+    log-daily)
+        cmd_log_daily
+        ;;
+    log-weight)
+        echo "Weight logging: $2"
+        # Implementation would send to API
+        ;;
+    log-symptom)
+        echo "Symptom logging: $2"
+        # Implementation would send to API
+        ;;
+    appointments)
+        cmd_appointments
+        ;;
+    add-appointment)
+        echo "Add appointment functionality coming soon"
+        ;;
+    kick-count)
+        echo "Kick counter functionality coming soon"
+        ;;
+    contractions)
+        echo "Contraction timer functionality coming soon"
+        ;;
+    week-info)
+        cmd_week_info "${2:-0}"
+        ;;
+    search)
+        shift
+        cmd_search "$@"
+        ;;
+    export)
+        cmd_export "${2:-json}"
+        ;;
+    emergency)
+        cmd_emergency
+        ;;
+    help|--help|-h)
+        print_help
+        ;;
+    *)
+        echo -e "${RED}Unknown command: $1${NC}"
+        print_help
+        exit 1
+        ;;
+esac

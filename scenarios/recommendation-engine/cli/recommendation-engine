@@ -1,0 +1,657 @@
+#!/bin/bash
+
+# Recommendation Engine CLI
+# Command-line interface for the universal personalization intelligence system
+
+set -euo pipefail
+
+# Configuration
+CLI_NAME="recommendation-engine"
+API_BASE_URL="${RECOMMENDATION_API_URL:-http://localhost:${RECOMMENDATION_API_PORT:-8080}}"
+CLI_CONFIG_DIR="${HOME}/.vrooli/recommendation-engine"
+CLI_CONFIG_FILE="${CLI_CONFIG_DIR}/config.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+log_debug() {
+    if [[ "${DEBUG:-}" == "1" ]]; then
+        echo -e "${PURPLE}[DEBUG]${NC} $1" >&2
+    fi
+}
+
+# Utility functions
+ensure_config_dir() {
+    if [[ ! -d "${CLI_CONFIG_DIR}" ]]; then
+        mkdir -p "${CLI_CONFIG_DIR}"
+        log_debug "Created config directory: ${CLI_CONFIG_DIR}"
+    fi
+}
+
+check_api_health() {
+    if ! curl -sf "${API_BASE_URL}/health" >/dev/null 2>&1; then
+        log_error "Recommendation Engine API is not responding at ${API_BASE_URL}"
+        log_info "Please ensure the recommendation-engine scenario is running:"
+        log_info "  vrooli scenario run recommendation-engine"
+        exit 1
+    fi
+}
+
+make_api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local output_format="${4:-pretty}"
+    
+    local curl_args=(-X "${method}" -H "Content-Type: application/json")
+    
+    if [[ -n "${data}" ]]; then
+        curl_args+=(-d "${data}")
+    fi
+    
+    local response
+    if ! response=$(curl -s "${curl_args[@]}" "${API_BASE_URL}${endpoint}"); then
+        log_error "Failed to connect to API endpoint: ${endpoint}"
+        exit 1
+    fi
+    
+    if [[ "${output_format}" == "json" ]]; then
+        echo "${response}"
+    else
+        echo "${response}" | format_json_output
+    fi
+}
+
+format_json_output() {
+    if command -v jq >/dev/null 2>&1; then
+        jq -C '.'
+    else
+        cat
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    local json_output=false
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true; shift ;;
+            --verbose) verbose=true; shift ;;
+            *) log_error "Unknown option: $1"; usage_status; exit 1 ;;
+        esac
+    done
+    
+    log_debug "Checking recommendation engine status..."
+    
+    local health_response
+    if ! health_response=$(curl -s "${API_BASE_URL}/health" 2>/dev/null); then
+        if [[ "${json_output}" == true ]]; then
+            echo '{"status": "unavailable", "error": "API not responding"}'
+        else
+            log_error "Recommendation Engine API is not responding"
+            echo "Status: ${RED}UNAVAILABLE${NC}"
+        fi
+        exit 1
+    fi
+    
+    if [[ "${json_output}" == true ]]; then
+        echo "${health_response}"
+    else
+        local status
+        local db_status
+        local qdrant_status
+        
+        status=$(echo "${health_response}" | jq -r '.status // "unknown"')
+        db_status=$(echo "${health_response}" | jq -r '.database // "unknown"')
+        qdrant_status=$(echo "${health_response}" | jq -r '.qdrant // "unknown"')
+        
+        echo "📊 Recommendation Engine Status"
+        echo "================================="
+        echo "Overall Status: ${GREEN}${status^^}${NC}"
+        echo "Database: ${GREEN}${db_status}${NC}"
+        echo "Vector DB: ${GREEN}${qdrant_status}${NC}"
+        
+        if [[ "${verbose}" == true ]]; then
+            echo ""
+            echo "🔗 Service Endpoints:"
+            echo "  API: ${API_BASE_URL}"
+            echo "  Health: ${API_BASE_URL}/health"
+            echo "  Docs: ${API_BASE_URL}/docs"
+        fi
+    fi
+}
+
+cmd_ingest() {
+    local scenario_id=""
+    local items_file=""
+    local interactions_file=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --scenario-id) scenario_id="$2"; shift 2 ;;
+            --items-file) items_file="$2"; shift 2 ;;
+            --interactions-file) interactions_file="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            *) 
+                if [[ -z "${scenario_id}" ]]; then
+                    scenario_id="$1"
+                    shift
+                else
+                    log_error "Unknown option: $1"
+                    usage_ingest
+                    exit 1
+                fi
+                ;;
+        esac
+    done
+    
+    if [[ -z "${scenario_id}" ]]; then
+        log_error "Scenario ID is required"
+        usage_ingest
+        exit 1
+    fi
+    
+    check_api_health
+    
+    # Build request payload
+    local payload="{\"scenario_id\": \"${scenario_id}\""
+    
+    # Add items if file provided
+    if [[ -n "${items_file}" ]]; then
+        if [[ ! -f "${items_file}" ]]; then
+            log_error "Items file not found: ${items_file}"
+            exit 1
+        fi
+        
+        local items_json
+        items_json=$(cat "${items_file}")
+        payload="${payload}, \"items\": ${items_json}"
+    fi
+    
+    # Add interactions if file provided
+    if [[ -n "${interactions_file}" ]]; then
+        if [[ ! -f "${interactions_file}" ]]; then
+            log_error "Interactions file not found: ${interactions_file}"
+            exit 1
+        fi
+        
+        local interactions_json
+        interactions_json=$(cat "${interactions_file}")
+        payload="${payload}, \"interactions\": ${interactions_json}"
+    fi
+    
+    payload="${payload}}"
+    
+    log_debug "Sending ingest request for scenario: ${scenario_id}"
+    
+    local response
+    response=$(make_api_request "POST" "/api/v1/recommendations/ingest" "${payload}" "json")
+    
+    if [[ "${json_output}" == true ]]; then
+        echo "${response}"
+    else
+        local success
+        local items_processed
+        local interactions_processed
+        local errors
+        
+        success=$(echo "${response}" | jq -r '.success // false')
+        items_processed=$(echo "${response}" | jq -r '.items_processed // 0')
+        interactions_processed=$(echo "${response}" | jq -r '.interactions_processed // 0')
+        errors=$(echo "${response}" | jq -r '.errors // []' | jq -r '.[]?' | head -5)
+        
+        echo "📥 Data Ingestion Results"
+        echo "========================="
+        echo "Scenario: ${CYAN}${scenario_id}${NC}"
+        echo "Items Processed: ${GREEN}${items_processed}${NC}"
+        echo "Interactions Processed: ${GREEN}${interactions_processed}${NC}"
+        echo "Success: ${GREEN}${success}${NC}"
+        
+        if [[ -n "${errors}" ]]; then
+            echo ""
+            echo "⚠️  Errors encountered:"
+            echo "${errors}" | while IFS= read -r error; do
+                echo "  • ${error}"
+            done
+        fi
+    fi
+}
+
+cmd_recommend() {
+    local user_id=""
+    local scenario_id=""
+    local limit=10
+    local algorithm="hybrid"
+    local exclude_items=()
+    local json_output=false
+    local context="{}"
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --user-id) user_id="$2"; shift 2 ;;
+            --scenario-id) scenario_id="$2"; shift 2 ;;
+            --limit) limit="$2"; shift 2 ;;
+            --algorithm) algorithm="$2"; shift 2 ;;
+            --exclude) exclude_items+=("$2"); shift 2 ;;
+            --context) context="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            *)
+                if [[ -z "${user_id}" ]]; then
+                    user_id="$1"
+                elif [[ -z "${scenario_id}" ]]; then
+                    scenario_id="$1"
+                else
+                    log_error "Unknown option: $1"
+                    usage_recommend
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "${user_id}" || -z "${scenario_id}" ]]; then
+        log_error "Both user ID and scenario ID are required"
+        usage_recommend
+        exit 1
+    fi
+    
+    check_api_health
+    
+    # Build request payload
+    local exclude_array="[]"
+    if [[ ${#exclude_items[@]} -gt 0 ]]; then
+        exclude_array="[$(printf '"%s",' "${exclude_items[@]}" | sed 's/,$//')]"
+    fi
+    
+    local payload="{
+        \"user_id\": \"${user_id}\",
+        \"scenario_id\": \"${scenario_id}\",
+        \"limit\": ${limit},
+        \"algorithm\": \"${algorithm}\",
+        \"context\": ${context},
+        \"exclude_items\": ${exclude_array}
+    }"
+    
+    log_debug "Getting recommendations for user: ${user_id} in scenario: ${scenario_id}"
+    
+    local response
+    response=$(make_api_request "POST" "/api/v1/recommendations/get" "${payload}" "json")
+    
+    if [[ "${json_output}" == true ]]; then
+        echo "${response}"
+    else
+        local algorithm_used
+        local generated_at
+        
+        algorithm_used=$(echo "${response}" | jq -r '.algorithm_used // "unknown"')
+        generated_at=$(echo "${response}" | jq -r '.generated_at // "unknown"')
+        
+        echo "🎯 Personalized Recommendations"
+        echo "==============================="
+        echo "User: ${CYAN}${user_id}${NC}"
+        echo "Scenario: ${CYAN}${scenario_id}${NC}"
+        echo "Algorithm: ${PURPLE}${algorithm_used}${NC}"
+        echo "Generated: ${generated_at}"
+        echo ""
+        
+        echo "${response}" | jq -r '.recommendations[]?' | while IFS= read -r rec; do
+            local title
+            local confidence
+            local reason
+            local category
+            
+            title=$(echo "${rec}" | jq -r '.title // "Unknown"')
+            confidence=$(echo "${rec}" | jq -r '.confidence // 0')
+            reason=$(echo "${rec}" | jq -r '.reason // ""')
+            category=$(echo "${rec}" | jq -r '.category // ""')
+            
+            echo "📌 ${title}"
+            echo "   Category: ${category}"
+            echo "   Confidence: ${confidence}"
+            echo "   Reason: ${reason}"
+            echo ""
+        done
+    fi
+}
+
+cmd_similar() {
+    local item_id=""
+    local scenario_id=""
+    local limit=10
+    local threshold=0.7
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --item-id) item_id="$2"; shift 2 ;;
+            --scenario-id) scenario_id="$2"; shift 2 ;;
+            --limit) limit="$2"; shift 2 ;;
+            --threshold) threshold="$2"; shift 2 ;;
+            --json) json_output=true; shift ;;
+            *)
+                if [[ -z "${item_id}" ]]; then
+                    item_id="$1"
+                elif [[ -z "${scenario_id}" ]]; then
+                    scenario_id="$1"
+                else
+                    log_error "Unknown option: $1"
+                    usage_similar
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "${item_id}" || -z "${scenario_id}" ]]; then
+        log_error "Both item ID and scenario ID are required"
+        usage_similar
+        exit 1
+    fi
+    
+    check_api_health
+    
+    local payload="{
+        \"item_external_id\": \"${item_id}\",
+        \"scenario_id\": \"${scenario_id}\",
+        \"limit\": ${limit},
+        \"threshold\": ${threshold}
+    }"
+    
+    log_debug "Finding items similar to: ${item_id} in scenario: ${scenario_id}"
+    
+    local response
+    response=$(make_api_request "POST" "/api/v1/recommendations/similar" "${payload}" "json")
+    
+    if [[ "${json_output}" == true ]]; then
+        echo "${response}"
+    else
+        echo "🔍 Similar Items"
+        echo "================"
+        echo "Reference Item: ${CYAN}${item_id}${NC}"
+        echo "Scenario: ${CYAN}${scenario_id}${NC}"
+        echo "Threshold: ${threshold}"
+        echo ""
+        
+        echo "${response}" | jq -r '.similar_items[]?' | while IFS= read -r item; do
+            local title
+            local similarity_score
+            local category
+            
+            title=$(echo "${item}" | jq -r '.title // "Unknown"')
+            similarity_score=$(echo "${item}" | jq -r '.similarity_score // 0')
+            category=$(echo "${item}" | jq -r '.category // ""')
+            
+            echo "📎 ${title}"
+            echo "   Category: ${category}"
+            echo "   Similarity: ${similarity_score}"
+            echo ""
+        done
+    fi
+}
+
+cmd_version() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json) json_output=true; shift ;;
+            *) log_error "Unknown option: $1"; usage_version; exit 1 ;;
+        esac
+    done
+    
+    local version="1.0.0"
+    local build_date
+    build_date=$(date -r "$0" '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo "unknown")
+    
+    if [[ "${json_output}" == true ]]; then
+        echo "{\"version\": \"${version}\", \"build_date\": \"${build_date}\", \"cli_name\": \"${CLI_NAME}\"}"
+    else
+        echo "🚀 Recommendation Engine CLI"
+        echo "Version: ${GREEN}${version}${NC}"
+        echo "Build Date: ${build_date}"
+        echo "API URL: ${API_BASE_URL}"
+    fi
+}
+
+# Usage functions
+usage_main() {
+    cat << EOF
+🚀 Recommendation Engine CLI - Universal Personalization Intelligence
+
+USAGE:
+    ${CLI_NAME} <COMMAND> [OPTIONS]
+
+COMMANDS:
+    status      Show operational status and resource health
+    ingest      Ingest items and user interactions from a scenario
+    recommend   Get personalized recommendations for a user
+    similar     Find items similar to a given item
+    version     Show CLI and API version information
+    help        Display help information
+
+GLOBAL OPTIONS:
+    --json      Output results in JSON format
+    --help      Show help information
+
+EXAMPLES:
+    # Check system status
+    ${CLI_NAME} status --verbose
+
+    # Ingest data from files
+    ${CLI_NAME} ingest my-scenario --items-file items.json --interactions-file interactions.json
+
+    # Get recommendations for a user
+    ${CLI_NAME} recommend user-123 my-scenario --limit 5 --algorithm hybrid
+
+    # Find similar items
+    ${CLI_NAME} similar item-456 my-scenario --threshold 0.8
+
+For more information about a specific command, use:
+    ${CLI_NAME} help <COMMAND>
+
+Documentation: https://github.com/vrooli/vrooli/scenarios/recommendation-engine/README.md
+EOF
+}
+
+usage_status() {
+    cat << EOF
+Show operational status and resource health
+
+USAGE:
+    ${CLI_NAME} status [OPTIONS]
+
+OPTIONS:
+    --json      Output status in JSON format
+    --verbose   Include additional service information
+    --help      Show this help message
+
+EXAMPLES:
+    ${CLI_NAME} status
+    ${CLI_NAME} status --json
+    ${CLI_NAME} status --verbose
+EOF
+}
+
+usage_ingest() {
+    cat << EOF
+Ingest items and user interactions from a scenario
+
+USAGE:
+    ${CLI_NAME} ingest <SCENARIO_ID> [OPTIONS]
+
+ARGUMENTS:
+    SCENARIO_ID    ID of the scenario providing data
+
+OPTIONS:
+    --items-file FILE         JSON file containing items to ingest
+    --interactions-file FILE  JSON file containing user interactions  
+    --json                    Output results in JSON format
+    --help                    Show this help message
+
+EXAMPLES:
+    ${CLI_NAME} ingest my-ecommerce --items-file products.json
+    ${CLI_NAME} ingest my-content --interactions-file user-activity.json
+    ${CLI_NAME} ingest my-app --items-file items.json --interactions-file interactions.json
+
+FILE FORMATS:
+    Items file should contain an array of item objects with fields:
+    - external_id, title, description, category, metadata (optional)
+    
+    Interactions file should contain an array with fields:
+    - user_id, item_external_id, interaction_type, interaction_value (optional), context (optional)
+EOF
+}
+
+usage_recommend() {
+    cat << EOF
+Get personalized recommendations for a user
+
+USAGE:
+    ${CLI_NAME} recommend <USER_ID> <SCENARIO_ID> [OPTIONS]
+
+ARGUMENTS:
+    USER_ID        User ID to get recommendations for
+    SCENARIO_ID    Context scenario for recommendations
+
+OPTIONS:
+    --limit N          Number of recommendations to return (default: 10)
+    --algorithm TYPE   Algorithm to use: semantic|collaborative|hybrid (default: hybrid)
+    --exclude ITEM_ID  Item ID to exclude from recommendations (can be used multiple times)
+    --context JSON     Additional context as JSON object
+    --json             Output results in JSON format
+    --help             Show this help message
+
+EXAMPLES:
+    ${CLI_NAME} recommend user-123 my-store
+    ${CLI_NAME} recommend user-456 my-content --limit 5 --algorithm semantic
+    ${CLI_NAME} recommend user-789 my-app --exclude item-1 --exclude item-2
+    ${CLI_NAME} recommend user-abc my-service --context '{"device": "mobile", "time": "evening"}'
+EOF
+}
+
+usage_similar() {
+    cat << EOF
+Find items similar to a given item
+
+USAGE:
+    ${CLI_NAME} similar <ITEM_ID> <SCENARIO_ID> [OPTIONS]
+
+ARGUMENTS:
+    ITEM_ID        External ID of reference item
+    SCENARIO_ID    Scenario containing the reference item
+
+OPTIONS:
+    --limit N        Number of similar items to return (default: 10)
+    --threshold N    Minimum similarity threshold 0.0-1.0 (default: 0.7)
+    --json           Output results in JSON format
+    --help           Show this help message
+
+EXAMPLES:
+    ${CLI_NAME} similar product-123 my-store
+    ${CLI_NAME} similar article-456 my-blog --limit 5 --threshold 0.85
+    ${CLI_NAME} similar video-789 my-platform --json
+EOF
+}
+
+usage_version() {
+    cat << EOF
+Show CLI and API version information
+
+USAGE:
+    ${CLI_NAME} version [OPTIONS]
+
+OPTIONS:
+    --json    Output version information in JSON format
+    --help    Show this help message
+
+EXAMPLES:
+    ${CLI_NAME} version
+    ${CLI_NAME} version --json
+EOF
+}
+
+# Help command
+cmd_help() {
+    local command="${1:-}"
+    
+    case "${command}" in
+        status) usage_status ;;
+        ingest) usage_ingest ;;
+        recommend) usage_recommend ;;
+        similar) usage_similar ;;
+        version) usage_version ;;
+        ""|help) usage_main ;;
+        *) 
+            log_error "Unknown command: ${command}"
+            echo ""
+            usage_main
+            exit 1
+            ;;
+    esac
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        usage_main
+        exit 0
+    fi
+    
+    # Handle global --help flag
+    if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+        usage_main
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    # Ensure config directory exists
+    ensure_config_dir
+    
+    case "${command}" in
+        status) cmd_status "$@" ;;
+        ingest) cmd_ingest "$@" ;;
+        recommend) cmd_recommend "$@" ;;
+        similar) cmd_similar "$@" ;;
+        version) cmd_version "$@" ;;
+        help) cmd_help "$@" ;;
+        *)
+            log_error "Unknown command: ${command}"
+            echo ""
+            usage_main
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

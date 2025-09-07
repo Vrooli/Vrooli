@@ -46,13 +46,13 @@ type Note struct {
 }
 
 type PricingTier struct {
-	ID               string  `json:"id"`
-	APIID            string  `json:"api_id"`
-	Name             string  `json:"name"`
-	PricePerRequest  float64 `json:"price_per_request"`
-	PricePerMB       float64 `json:"price_per_mb"`
-	MonthlyC***      float64 `json:"monthly_cost"`
-	FreeTierRequests int     `json:"free_tier_requests"`
+	ID               string     `json:"id"`
+	APIID            string     `json:"api_id"`
+	Name             string     `json:"name"`
+	PricePerRequest  float64    `json:"price_per_request"`
+	PricePerMB       float64    `json:"price_per_mb"`
+	MonthlyC         ***float64 `json:"monthly_cost"`
+	FreeTierRequests int        `json:"free_tier_requests"`
 }
 
 type SearchRequest struct {
@@ -75,7 +75,7 @@ type SearchResult struct {
 }
 
 type ResearchRequest struct {
-	Capability   string            `json:"capability"`
+	Capability   string                 `json:"capability"`
 	Requirements map[string]interface{} `json:"requirements"`
 }
 
@@ -90,17 +90,17 @@ var db *sql.DB
 func main() {
 	initDB()
 	router := setupRouter()
-	
+
 	// Setup CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders: []string{"*"},
 	})
-	
+
 	handler := c.Handler(router)
-	port := getEnv("VROOLI_API_LIBRARY_API_PORT", "9200")
-	
+	port := getEnv("API_PORT", "9200")
+
 	log.Printf("API Library service starting on port %s", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal("Failed to start server:", err)
@@ -113,53 +113,53 @@ func initDB() {
 	user := getEnv("POSTGRES_USER", "postgres")
 	password := getEnv("POSTGRES_PASSWORD", "postgres")
 	dbname := getEnv("POSTGRES_DB", "api_library")
-	
+
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-	
+
 	var err error
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	
+
 	if err = db.Ping(); err != nil {
 		log.Fatal("Failed to ping database:", err)
 	}
-	
+
 	log.Println("Successfully connected to database")
 }
 
 func setupRouter() *mux.Router {
 	router := mux.NewRouter()
-	
+
 	// Health check
 	router.HandleFunc("/health", healthHandler).Methods("GET")
-	
+
 	// API v1 routes
 	v1 := router.PathPrefix("/api/v1").Subrouter()
-	
+
 	// Search endpoints
 	v1.HandleFunc("/search", searchAPIsHandler).Methods("GET", "POST")
-	
+
 	// API CRUD
 	v1.HandleFunc("/apis", listAPIsHandler).Methods("GET")
 	v1.HandleFunc("/apis", createAPIHandler).Methods("POST")
 	v1.HandleFunc("/apis/{id}", getAPIHandler).Methods("GET")
 	v1.HandleFunc("/apis/{id}", updateAPIHandler).Methods("PUT")
 	v1.HandleFunc("/apis/{id}", deleteAPIHandler).Methods("DELETE")
-	
+
 	// Notes
 	v1.HandleFunc("/apis/{id}/notes", getNotesHandler).Methods("GET")
 	v1.HandleFunc("/apis/{id}/notes", addNoteHandler).Methods("POST")
-	
+
 	// Configuration tracking
 	v1.HandleFunc("/configured", getConfiguredAPIsHandler).Methods("GET")
 	v1.HandleFunc("/apis/{id}/configure", markConfiguredHandler).Methods("POST")
-	
+
 	// Research integration
 	v1.HandleFunc("/request-research", requestResearchHandler).Methods("POST")
-	
+
 	return router
 }
 
@@ -167,18 +167,18 @@ func setupRouter() *mux.Router {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
-		"status": "healthy",
-		"service": "api-library",
+		"status":    "healthy",
+		"service":   "api-library",
 		"timestamp": time.Now().Unix(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
 func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 	var searchReq SearchRequest
-	
+
 	if r.Method == "POST" {
 		if err := json.NewDecoder(r.Body).Decode(&searchReq); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -188,16 +188,16 @@ func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 		searchReq.Query = r.URL.Query().Get("query")
 		searchReq.Limit = 10 // default
 	}
-	
+
 	if searchReq.Query == "" {
 		http.Error(w, "Query parameter is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	if searchReq.Limit == 0 {
 		searchReq.Limit = 10
 	}
-	
+
 	// Perform text search using PostgreSQL's full-text search
 	query := `
 		SELECT 
@@ -216,7 +216,7 @@ func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY relevance DESC
 		LIMIT $2
 	`
-	
+
 	rows, err := db.Query(query, searchReq.Query, searchReq.Limit)
 	if err != nil {
 		log.Printf("Search query failed: %v", err)
@@ -224,12 +224,12 @@ func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var results []SearchResult
 	for rows.Next() {
 		var result SearchResult
-		err := rows.Scan(&result.ID, &result.Name, &result.Provider, 
-			&result.Description, &result.Category, &result.RelevanceScore, 
+		err := rows.Scan(&result.ID, &result.Name, &result.Provider,
+			&result.Description, &result.Category, &result.RelevanceScore,
 			&result.Configured, &result.PricingSummary)
 		if err != nil {
 			log.Printf("Failed to scan row: %v", err)
@@ -237,13 +237,13 @@ func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		results = append(results, result)
 	}
-	
+
 	response := map[string]interface{}{
 		"results": results,
-		"count": len(results),
-		"query": searchReq.Query,
+		"count":   len(results),
+		"query":   searchReq.Query,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -251,32 +251,32 @@ func searchAPIsHandler(w http.ResponseWriter, r *http.Request) {
 func listAPIsHandler(w http.ResponseWriter, r *http.Request) {
 	category := r.URL.Query().Get("category")
 	status := r.URL.Query().Get("status")
-	
+
 	query := `SELECT id, name, provider, description, category, status FROM apis WHERE 1=1`
 	var args []interface{}
 	argCount := 0
-	
+
 	if category != "" {
 		argCount++
 		query += fmt.Sprintf(" AND category = $%d", argCount)
 		args = append(args, category)
 	}
-	
+
 	if status != "" {
 		argCount++
 		query += fmt.Sprintf(" AND status = $%d", argCount)
 		args = append(args, status)
 	}
-	
+
 	query += " ORDER BY name"
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		http.Error(w, "Failed to fetch APIs", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var apis []API
 	for rows.Next() {
 		var api API
@@ -286,7 +286,7 @@ func listAPIsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		apis = append(apis, api)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(apis)
 }
@@ -297,30 +297,30 @@ func createAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	api.ID = uuid.New().String()
 	api.CreatedAt = time.Now()
 	api.UpdatedAt = time.Now()
 	api.LastRefreshed = time.Now()
-	
+
 	query := `
 		INSERT INTO apis (id, name, provider, description, base_url, documentation_url, 
 			pricing_url, category, status, auth_type, tags, capabilities, source_url)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING created_at, updated_at
 	`
-	
+
 	err := db.QueryRow(query, api.ID, api.Name, api.Provider, api.Description,
 		api.BaseURL, api.DocumentationURL, api.PricingURL, api.Category,
 		api.Status, api.AuthType, pq.Array(api.Tags), pq.Array(api.Capabilities),
 		api.SourceURL).Scan(&api.CreatedAt, &api.UpdatedAt)
-	
+
 	if err != nil {
 		log.Printf("Failed to create API: %v", err)
 		http.Error(w, "Failed to create API", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(api)
@@ -329,7 +329,7 @@ func createAPIHandler(w http.ResponseWriter, r *http.Request) {
 func getAPIHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiID := vars["id"]
-	
+
 	var api API
 	query := `
 		SELECT id, name, provider, description, base_url, documentation_url,
@@ -337,14 +337,14 @@ func getAPIHandler(w http.ResponseWriter, r *http.Request) {
 			created_at, updated_at, last_refreshed, source_url
 		FROM apis WHERE id = $1
 	`
-	
+
 	err := db.QueryRow(query, apiID).Scan(
 		&api.ID, &api.Name, &api.Provider, &api.Description,
 		&api.BaseURL, &api.DocumentationURL, &api.PricingURL,
 		&api.Category, &api.Status, &api.AuthType,
 		pq.Array(&api.Tags), pq.Array(&api.Capabilities),
 		&api.CreatedAt, &api.UpdatedAt, &api.LastRefreshed, &api.SourceURL)
-	
+
 	if err == sql.ErrNoRows {
 		http.Error(w, "API not found", http.StatusNotFound)
 		return
@@ -352,24 +352,24 @@ func getAPIHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to fetch API", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Fetch notes
 	notesQuery := `SELECT id, content, type, created_at, created_by FROM notes WHERE api_id = $1`
 	rows, _ := db.Query(notesQuery, apiID)
 	defer rows.Close()
-	
+
 	var notes []Note
 	for rows.Next() {
 		var note Note
 		rows.Scan(&note.ID, &note.Content, &note.Type, &note.CreatedAt, &note.CreatedBy)
 		notes = append(notes, note)
 	}
-	
+
 	response := map[string]interface{}{
-		"api": api,
+		"api":   api,
 		"notes": notes,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -377,13 +377,13 @@ func getAPIHandler(w http.ResponseWriter, r *http.Request) {
 func updateAPIHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiID := vars["id"]
-	
+
 	var api API
 	if err := json.NewDecoder(r.Body).Decode(&api); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	query := `
 		UPDATE apis 
 		SET name = $2, provider = $3, description = $4, base_url = $5,
@@ -392,37 +392,37 @@ func updateAPIHandler(w http.ResponseWriter, r *http.Request) {
 			source_url = $13, updated_at = NOW()
 		WHERE id = $1
 	`
-	
+
 	_, err := db.Exec(query, apiID, api.Name, api.Provider, api.Description,
 		api.BaseURL, api.DocumentationURL, api.PricingURL, api.Category,
 		api.Status, api.AuthType, pq.Array(api.Tags), pq.Array(api.Capabilities),
 		api.SourceURL)
-	
+
 	if err != nil {
 		http.Error(w, "Failed to update API", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func deleteAPIHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiID := vars["id"]
-	
+
 	_, err := db.Exec("DELETE FROM apis WHERE id = $1", apiID)
 	if err != nil {
 		http.Error(w, "Failed to delete API", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiID := vars["id"]
-	
+
 	query := `SELECT id, content, type, created_at, created_by FROM notes WHERE api_id = $1 ORDER BY created_at DESC`
 	rows, err := db.Query(query, apiID)
 	if err != nil {
@@ -430,7 +430,7 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var notes []Note
 	for rows.Next() {
 		var note Note
@@ -441,7 +441,7 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 		note.APIID = apiID
 		notes = append(notes, note)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(notes)
 }
@@ -449,32 +449,32 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 func addNoteHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiID := vars["id"]
-	
+
 	var note Note
 	if err := json.NewDecoder(r.Body).Decode(&note); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	note.ID = uuid.New().String()
 	note.APIID = apiID
 	note.CreatedAt = time.Now()
 	if note.CreatedBy == "" {
 		note.CreatedBy = "user"
 	}
-	
+
 	query := `
 		INSERT INTO notes (id, api_id, content, type, created_by)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING created_at
 	`
-	
+
 	err := db.QueryRow(query, note.ID, note.APIID, note.Content, note.Type, note.CreatedBy).Scan(&note.CreatedAt)
 	if err != nil {
 		http.Error(w, "Failed to add note", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(note)
@@ -488,35 +488,35 @@ func getConfiguredAPIsHandler(w http.ResponseWriter, r *http.Request) {
 		WHERE c.is_configured = true
 		ORDER BY a.name
 	`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		http.Error(w, "Failed to fetch configured APIs", http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
-	
+
 	var results []map[string]interface{}
 	for rows.Next() {
 		var id, name, provider, description, category, environment string
 		var configDate time.Time
-		
+
 		err := rows.Scan(&id, &name, &provider, &description, &category, &environment, &configDate)
 		if err != nil {
 			continue
 		}
-		
+
 		results = append(results, map[string]interface{}{
-			"id": id,
-			"name": name,
-			"provider": provider,
-			"description": description,
-			"category": category,
-			"environment": environment,
+			"id":                 id,
+			"name":               name,
+			"provider":           provider,
+			"description":        description,
+			"category":           category,
+			"environment":        environment,
 			"configuration_date": configDate,
 		})
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
 }
@@ -524,34 +524,34 @@ func getConfiguredAPIsHandler(w http.ResponseWriter, r *http.Request) {
 func markConfiguredHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	apiID := vars["id"]
-	
+
 	var config struct {
 		Environment string `json:"environment"`
 		Notes       string `json:"notes"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	if config.Environment == "" {
 		config.Environment = "development"
 	}
-	
+
 	query := `
 		INSERT INTO api_credentials (api_id, is_configured, environment, configuration_notes, configuration_date)
 		VALUES ($1, true, $2, $3, NOW())
 		ON CONFLICT (api_id, environment) 
 		DO UPDATE SET is_configured = true, configuration_notes = $3, configuration_date = NOW()
 	`
-	
+
 	_, err := db.Exec(query, apiID, config.Environment, config.Notes)
 	if err != nil {
 		http.Error(w, "Failed to mark API as configured", http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -561,35 +561,35 @@ func requestResearchHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.Capability == "" {
 		http.Error(w, "Capability is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Create research request in database
 	researchID := uuid.New().String()
 	query := `
 		INSERT INTO research_requests (id, capability, requirements, status)
 		VALUES ($1, $2, $3, 'queued')
 	`
-	
+
 	reqJSON, _ := json.Marshal(req.Requirements)
 	_, err := db.Exec(query, researchID, req.Capability, reqJSON)
 	if err != nil {
 		http.Error(w, "Failed to create research request", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// TODO: Trigger research-assistant scenario
 	// For now, just return the queued status
-	
+
 	response := ResearchResponse{
-		ResearchID: researchID,
-		Status: "queued",
+		ResearchID:    researchID,
+		Status:        "queued",
 		EstimatedTime: 300, // 5 minutes estimate
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)

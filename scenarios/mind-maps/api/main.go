@@ -89,7 +89,7 @@ func callN8NWebhook(webhookPath string, payload interface{}) (map[string]interfa
 func initDB() error {
     postgresURL := os.Getenv("POSTGRES_URL")
     if postgresURL == "" {
-        postgresURL = "postgres://postgres:postgres@localhost:5432/mind_maps?sslmode=disable"
+        log.Fatal("POSTGRES_URL environment variable is required")
     }
     
     log.Printf("Connecting to database: %s", strings.Replace(postgresURL, "@", "@***", 1))

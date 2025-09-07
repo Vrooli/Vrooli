@@ -1,0 +1,555 @@
+#!/bin/bash
+
+# Referral Program Generator CLI
+# Provides command-line interface for referral program operations
+
+set -euo pipefail
+
+# Configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${SCRIPT_DIR}/.."
+API_PORT="${API_PORT:-8080}"
+API_BASE_URL="http://localhost:${API_PORT}"
+
+# Color codes for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
+}
+
+log_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+# Usage information
+usage() {
+    cat << 'EOF'
+Referral Program Generator CLI
+
+USAGE:
+    referral-program-generator <COMMAND> [OPTIONS]
+
+COMMANDS:
+    status              Show system status and health
+    analyze <path>      Analyze scenario for referral program generation
+    generate <config>   Generate referral program from analysis
+    implement <id>      Implement referral program in scenario
+    list               List all referral programs
+    help               Show this help message
+    version            Show version information
+
+ANALYSIS COMMANDS:
+    analyze <path>              Analyze local scenario directory
+    analyze --url <url>         Analyze deployed scenario from URL
+    analyze --output <format>   Output format (json|summary)
+
+GENERATE COMMANDS:
+    generate <analysis.json>              Generate from analysis file
+    generate --commission-rate <rate>     Override commission rate
+    generate --output-dir <dir>          Output directory for files
+
+IMPLEMENT COMMANDS:
+    implement <program-id> <scenario-path>    Implement referral logic
+    implement --auto <program-id> <path>      Fully automated implementation
+    implement --preview <program-id> <path>   Preview changes only
+
+LIST COMMANDS:
+    list                List all programs
+    list --scenario     Filter by scenario name
+    list --json         JSON output format
+
+EXAMPLES:
+    referral-program-generator analyze ../my-scenario
+    referral-program-generator analyze --url https://my-app.com --output json
+    referral-program-generator generate analysis-result.json --commission-rate 0.15
+    referral-program-generator implement --auto abc123 ../my-scenario
+    referral-program-generator list --scenario my-app
+
+ENVIRONMENT VARIABLES:
+    API_PORT           API server port (default: 8080)
+    API_BASE_URL       API base URL override
+    VERBOSE            Enable verbose output (1 or 0)
+
+EOF
+}
+
+# Version information
+version() {
+    cat << 'EOF'
+Referral Program Generator CLI v1.0.0
+Build: dev-build
+Go Version: go1.21+
+Compatible with: Vrooli scenarios v2.0+
+
+Copyright (c) 2025 Vrooli Project
+EOF
+}
+
+# Check if API is available
+check_api() {
+    if ! curl -sf "${API_BASE_URL}/health" >/dev/null 2>&1; then
+        log_error "API server not available at ${API_BASE_URL}"
+        log_error "Please ensure the referral-program-generator API is running"
+        exit 1
+    fi
+}
+
+# Status command
+cmd_status() {
+    local json_output=false
+    local verbose=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ "$json_output" == true ]]; then
+        curl -sf "${API_BASE_URL}/health" | jq '.'
+    else
+        local health_response
+        health_response=$(curl -sf "${API_BASE_URL}/health" 2>/dev/null || echo '{"status": "unavailable"}')
+        local status
+        status=$(echo "$health_response" | jq -r '.status // "unknown"')
+        
+        echo "Referral Program Generator Status"
+        echo "================================="
+        echo "API Status: $status"
+        echo "API URL: $API_BASE_URL"
+        
+        if [[ "$verbose" == true ]]; then
+            echo ""
+            echo "Detailed Health Info:"
+            echo "$health_response" | jq '.'
+        fi
+    fi
+}
+
+# Analyze command
+cmd_analyze() {
+    local mode="local"
+    local output_format="summary"
+    local scenario_path=""
+    local url=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --url)
+                mode="deployed"
+                url="$2"
+                shift 2
+                ;;
+            --output)
+                output_format="$2"
+                shift 2
+                ;;
+            --verbose)
+                # Pass through to analysis script
+                shift
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                scenario_path="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$mode" == "local" && -z "$scenario_path" ]]; then
+        log_error "Scenario path is required for local analysis"
+        return 1
+    fi
+    
+    if [[ "$mode" == "deployed" && -z "$url" ]]; then
+        log_error "URL is required for deployed analysis"
+        return 1
+    fi
+    
+    check_api
+    
+    # Prepare request payload
+    local payload
+    if [[ "$mode" == "local" ]]; then
+        payload=$(jq -n \
+            --arg mode "$mode" \
+            --arg scenario_path "$scenario_path" \
+            '{ mode: $mode, scenario_path: $scenario_path }')
+    else
+        payload=$(jq -n \
+            --arg mode "$mode" \
+            --arg url "$url" \
+            '{ mode: $mode, url: $url }')
+    fi
+    
+    log_info "Analyzing scenario..."
+    
+    # Make API request
+    local response
+    if response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/api/v1/referral/analyze" 2>/dev/null); then
+        
+        if [[ "$output_format" == "json" ]]; then
+            echo "$response" | jq '.'
+        else
+            # Format summary output
+            echo "Scenario Analysis Results"
+            echo "========================"
+            echo ""
+            
+            local brand_name
+            brand_name=$(echo "$response" | jq -r '.branding.brand_name // "Unknown"')
+            echo "Brand: $brand_name"
+            
+            local primary_color
+            primary_color=$(echo "$response" | jq -r '.branding.colors.primary // "Not detected"')
+            echo "Primary Color: $primary_color"
+            
+            local pricing_model
+            pricing_model=$(echo "$response" | jq -r '.pricing.model // "Unknown"')
+            echo "Pricing Model: $pricing_model"
+            
+            local has_api
+            has_api=$(echo "$response" | jq -r '.structure.has_api')
+            echo "Has API: $has_api"
+            
+            local has_ui
+            has_ui=$(echo "$response" | jq -r '.structure.has_ui')
+            echo "Has UI: $has_ui"
+            
+            local has_referral
+            has_referral=$(echo "$response" | jq -r '.structure.has_existing_referral')
+            if [[ "$has_referral" == "true" ]]; then
+                log_warning "Existing referral implementation detected"
+            fi
+        fi
+        
+        log_success "Analysis completed successfully"
+    else
+        log_error "Analysis failed"
+        return 1
+    fi
+}
+
+# Generate command
+cmd_generate() {
+    local analysis_file=""
+    local commission_rate=""
+    local output_dir=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --commission-rate)
+                commission_rate="$2"
+                shift 2
+                ;;
+            --output-dir)
+                output_dir="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                analysis_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$analysis_file" ]]; then
+        log_error "Analysis file is required"
+        return 1
+    fi
+    
+    if [[ ! -f "$analysis_file" ]]; then
+        log_error "Analysis file not found: $analysis_file"
+        return 1
+    fi
+    
+    check_api
+    
+    log_info "Generating referral program..."
+    
+    # Build request payload
+    local analysis_data
+    analysis_data=$(cat "$analysis_file")
+    
+    local payload
+    payload=$(jq -n \
+        --argjson analysis_data "$analysis_data" \
+        --arg commission_rate "$commission_rate" \
+        --arg output_directory "$output_dir" \
+        '{
+            analysis_data: $analysis_data,
+            commission_rate: (if $commission_rate != "" then ($commission_rate | tonumber) else null end),
+            output_directory: (if $output_directory != "" then $output_directory else null end)
+        }')
+    
+    # Make API request
+    local response
+    if response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/api/v1/referral/generate" 2>/dev/null); then
+        
+        echo "Referral Program Generated"
+        echo "=========================="
+        echo ""
+        
+        local program_id
+        program_id=$(echo "$response" | jq -r '.program_id')
+        echo "Program ID: $program_id"
+        
+        local tracking_code
+        tracking_code=$(echo "$response" | jq -r '.tracking_code')
+        echo "Tracking Code: $tracking_code"
+        
+        local dashboard_url
+        dashboard_url=$(echo "$response" | jq -r '.analytics_dashboard_url')
+        echo "Dashboard: $dashboard_url"
+        
+        log_success "Program generation completed successfully"
+        log_info "Use 'referral-program-generator implement $program_id <scenario-path>' to deploy"
+    else
+        log_error "Program generation failed"
+        return 1
+    fi
+}
+
+# Implement command  
+cmd_implement() {
+    local program_id=""
+    local scenario_path=""
+    local auto_mode=false
+    local preview_mode=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --auto)
+                auto_mode=true
+                shift
+                ;;
+            --preview)
+                preview_mode=true
+                shift
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$program_id" ]]; then
+                    program_id="$1"
+                elif [[ -z "$scenario_path" ]]; then
+                    scenario_path="$1"
+                else
+                    log_error "Too many arguments"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$program_id" || -z "$scenario_path" ]]; then
+        log_error "Both program ID and scenario path are required"
+        return 1
+    fi
+    
+    if [[ ! -d "$scenario_path" ]]; then
+        log_error "Scenario directory not found: $scenario_path"
+        return 1
+    fi
+    
+    check_api
+    
+    log_info "Implementing referral program..."
+    
+    # Build request payload
+    local payload
+    payload=$(jq -n \
+        --arg program_id "$program_id" \
+        --arg scenario_path "$scenario_path" \
+        --argjson auto_mode "$auto_mode" \
+        '{
+            program_id: $program_id,
+            scenario_path: $scenario_path,
+            auto_mode: $auto_mode
+        }')
+    
+    # Make API request
+    local response
+    if response=$(curl -sf -X POST \
+        -H "Content-Type: application/json" \
+        -d "$payload" \
+        "${API_BASE_URL}/api/v1/referral/implement" 2>/dev/null); then
+        
+        echo "Implementation Results"
+        echo "====================="
+        echo ""
+        
+        local status
+        status=$(echo "$response" | jq -r '.implementation_status')
+        echo "Status: $status"
+        
+        local files_modified
+        files_modified=$(echo "$response" | jq -r '.files_modified[]' 2>/dev/null || echo "None")
+        echo "Files Modified:"
+        echo "$files_modified" | while IFS= read -r file; do
+            echo "  - $file"
+        done
+        
+        local validation_results
+        validation_results=$(echo "$response" | jq -r '.validation_results // "No validation results"')
+        echo ""
+        echo "Validation: $validation_results"
+        
+        log_success "Implementation completed successfully"
+    else
+        log_error "Implementation failed"
+        return 1
+    fi
+}
+
+# List command
+cmd_list() {
+    local scenario_filter=""
+    local json_output=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --scenario)
+                scenario_filter="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                log_error "Unexpected argument: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    check_api
+    
+    # Build URL with query parameters
+    local url="${API_BASE_URL}/api/v1/referral/programs"
+    if [[ -n "$scenario_filter" ]]; then
+        url="${url}?scenario=${scenario_filter}"
+    fi
+    
+    # Make API request
+    local response
+    if response=$(curl -sf "$url" 2>/dev/null); then
+        if [[ "$json_output" == true ]]; then
+            echo "$response" | jq '.'
+        else
+            echo "Referral Programs"
+            echo "=================="
+            echo ""
+            
+            local count
+            count=$(echo "$response" | jq -r '.count // 0')
+            echo "Total Programs: $count"
+            echo ""
+            
+            echo "$response" | jq -r '.programs[]? | 
+                "ID: " + .id + 
+                "\nScenario: " + .scenario_name + 
+                "\nCommission: " + (.commission_rate * 100 | tostring) + "%" +
+                "\nCreated: " + .created_at +
+                "\n"'
+        fi
+    else
+        log_error "Failed to list programs"
+        return 1
+    fi
+}
+
+# Main command dispatcher
+main() {
+    if [[ $# -eq 0 ]]; then
+        usage
+        exit 1
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        status)
+            cmd_status "$@"
+            ;;
+        analyze)
+            cmd_analyze "$@"
+            ;;
+        generate)
+            cmd_generate "$@"
+            ;;
+        implement)
+            cmd_implement "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        help)
+            usage
+            ;;
+        version)
+            version
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

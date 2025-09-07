@@ -9,6 +9,7 @@
     "tags": [
       "security-tool",
       "secrets-management",
+      "maintenance",
       "resource-validation",
       "development-utility",
       "vault-integration",
@@ -60,15 +61,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 28000,
-      "fallback": "auto",
-      "description": "Secrets Manager API port"
+      "description": "Secrets Manager API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 28250,
-      "fallback": "auto",
-      "description": "Dark chrome security dashboard port"
+      "description": "Dark chrome security dashboard port",
+      "range": "35000-39999"
     }
   },
   "lifecycle": {
@@ -144,7 +143,7 @@
       "description": "Start secrets manager with API server and dark chrome UI",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./secrets-manager-api",
           "description": "Start Go secrets manager API server in background",
           "background": true,
@@ -153,7 +152,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start dark chrome dashboard UI server in background",
           "background": true,
@@ -215,22 +214,17 @@
       ]
     },
     "stop": {
-      "description": "Stop secrets manager services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'secrets-manager-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "stop-api",
+          "run": "pkill -f secrets-manager.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'ui/server.js' || true",
-          "description": "Stop UI server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Secrets Manager services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f secrets-manager.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

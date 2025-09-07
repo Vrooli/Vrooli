@@ -1,0 +1,265 @@
+# Referral Program Generator - Scenario Test Configuration
+# Version: 1.0.0
+
+version: 1.0
+scenario: referral-program-generator
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/referral-program-generator
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - scenario-test.yaml
+    - scripts/analyze-scenario.sh
+    - scripts/generate-referral-pattern.sh
+    - scripts/claude-code-integration.sh
+    - lib/referral-pattern-template.sh
+    - lib/auth-integration.go
+    - ui/package.json
+    - ui/vite.config.ts
+    - ui/tsconfig.json
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - scripts
+    - lib
+    - ui
+    - ui/src
+    - test
+
+# Resource validation
+resources:
+  required: [postgres, scenario-authenticator]
+  optional: [browserless, qdrant, resource-claude-code]
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "Postgres is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Scenario-authenticator is accessible"
+    type: http
+    service: scenario-authenticator
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+
+  # API endpoint tests
+  - name: "API health endpoint responds correctly"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+
+  - name: "API analysis endpoint accepts requests"
+    type: http
+    service: api
+    endpoint: /api/v1/referral/analyze
+    method: POST
+    body:
+      mode: "local"
+      scenario_path: "../test-scenario-1"
+    expect:
+      status: 200
+      body:
+        branding: {}
+
+  - name: "API program generation endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/referral/generate
+    method: POST
+    body:
+      analysis_data:
+        scenario_path: "../test-scenario-1"
+        branding:
+          brand_name: "Test App"
+          colors:
+            primary: "#007bff"
+        pricing:
+          model: "freemium"
+        structure:
+          has_api: true
+          has_ui: true
+    expect:
+      status: 200
+      body:
+        program_id: "string"
+        tracking_code: "string"
+
+  - name: "API programs list endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/referral/programs
+    method: GET
+    expect:
+      status: 200
+      body:
+        programs: []
+
+  # CLI command tests
+  - name: "CLI help command executes"
+    type: exec
+    command: ./cli/referral-program-generator help
+    expect:
+      exit_code: 0
+      output_contains: ["USAGE", "COMMANDS", "referral-program-generator"]
+
+  - name: "CLI version command executes"
+    type: exec
+    command: ./cli/referral-program-generator version
+    expect:
+      exit_code: 0
+      output_contains: ["Referral Program Generator CLI", "v1.0.0"]
+
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/referral-program-generator status
+    expect:
+      exit_code: 0
+      output_contains: ["Status"]
+
+  # Script tests
+  - name: "Analysis script is executable"
+    type: exec
+    command: ./scripts/analyze-scenario.sh --help
+    expect:
+      exit_code: 0
+      output_contains: ["Usage", "analyze-scenario.sh"]
+
+  - name: "Pattern generator script is executable"
+    type: exec
+    command: ./scripts/generate-referral-pattern.sh --help
+    expect:
+      exit_code: 0
+      output_contains: ["Usage", "generate-referral-pattern.sh"]
+
+  # Database tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('referral_programs', 'referral_links', 'commissions')"
+    expect:
+      rows: 
+        - count: 3
+
+  - name: "Referral programs table has correct structure"
+    type: sql
+    service: postgres
+    query: "SELECT column_name FROM information_schema.columns WHERE table_name = 'referral_programs' AND column_name IN ('id', 'scenario_name', 'commission_rate', 'tracking_code')"
+    expect:
+      row_count: 4
+
+  - name: "Sample referral program exists"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM referral_programs WHERE tracking_code = 'REFGEN001'"
+    expect:
+      rows:
+        - count: 1
+
+  # Integration tests
+  - name: "Analysis integration test"
+    type: exec
+    command: ./test/test-analysis.sh
+    timeout: 120
+    expect:
+      exit_code: 0
+      output_contains: ["All tests passed"]
+
+  # UI tests (if UI is built)
+  - name: "UI build succeeds"
+    type: exec
+    command: cd ui && npm run build
+    timeout: 300
+    condition:
+      file_exists: "ui/package.json"
+    expect:
+      exit_code: 0
+
+  - name: "UI health check"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    condition:
+      service_running: ui
+    expect:
+      status: 200
+
+# Performance validation
+performance:
+  - name: "API response time"
+    type: http
+    service: api
+    endpoint: /health
+    max_response_time: 1000  # 1 second
+
+  - name: "Analysis performance"
+    type: exec
+    command: timeout 30s ./scripts/analyze-scenario.sh ../test-scenario-1
+    max_execution_time: 30000  # 30 seconds
+
+# Integration scenarios
+scenarios:
+  - name: "Complete referral program workflow"
+    description: "Test the entire workflow from analysis to implementation"
+    steps:
+      - analyze_scenario: "../test-scenario-1"
+      - generate_program: "analysis_result.json"
+      - validate_generation: "program_created"
+    
+  - name: "User profile integration"
+    description: "Test integration with scenario-authenticator"
+    dependencies: ["scenario-authenticator"]
+    steps:
+      - create_user_profile: "test-user"
+      - create_referral_link: "test-user"
+      - track_click: "test-link"
+      - record_conversion: "test-conversion"
+
+# Quality gates
+quality_gates:
+  - name: "All core functionality works"
+    condition: "all_tests_pass"
+    
+  - name: "Performance requirements met"
+    condition: "response_time < 2s AND analysis_time < 30s"
+    
+  - name: "Database integrity maintained"
+    condition: "referential_integrity_valid AND no_orphaned_records"
+    
+  - name: "CLI fully functional"
+    condition: "all_cli_commands_work AND help_documentation_complete"
+
+# Cleanup procedures
+cleanup:
+  - name: "Remove test data"
+    command: "rm -rf test/data/*"
+    
+  - name: "Reset database"
+    command: "psql -c 'TRUNCATE referral_programs, referral_links, commissions CASCADE'"
+    condition: "test_environment_only"

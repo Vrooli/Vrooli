@@ -1,5 +1,5 @@
-name: resource-experimenter
-description: Ultra-simple resource experimentation platform
+name: resource-improver
+description: Continuous improvement system for existing Vrooli resources
 version: 1.0.0
 
 resources:
@@ -18,59 +18,59 @@ tests:
   - name: Database Schema Check
     type: postgres
     operation: SELECT
-    query: SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('experiments', 'experiment_templates', 'available_scenarios')
+    query: SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('resource_reports', 'improvement_suggestions', 'resource_metrics')
     expected:
       rows: 3
       
   - name: API Health Check
     type: http
     method: GET
-    url: http://localhost:8092/health
+    url: http://localhost:${API_PORT}/health
     expected:
       status: 200
       body:
         status: healthy
         
-  - name: Experiments API
+  - name: Resources List API
     type: http
     method: GET
-    url: http://localhost:8092/api/experiments
+    url: http://localhost:${API_PORT}/api/resources/list
     expected:
       status: 200
       
-  - name: Scenarios API
+  - name: Queue Status API
     type: http
     method: GET
-    url: http://localhost:8092/api/scenarios
+    url: http://localhost:${API_PORT}/api/queue/status
     expected:
       status: 200
       
-  - name: Templates API
-    type: http
-    method: GET
-    url: http://localhost:8092/api/templates
-    expected:
-      status: 200
-      
-  - name: Create Test Experiment
+  - name: Submit Improvement API
     type: http
     method: POST
-    url: http://localhost:8092/api/experiments
+    url: http://localhost:${API_PORT}/api/improvement/submit
     body:
-      name: Test Experiment
-      description: Test resource experimentation
-      prompt: Add redis to analytics-dashboard
-      target_scenario: analytics-dashboard
-      new_resource: redis
+      title: Test Improvement
+      description: Test resource improvement submission
+      type: health-check
+      target: postgres
+      priority: medium
+    expected:
+      status: 201
+      body:
+        status: created
+        
+  - name: Start Improvement API
+    type: http
+    method: POST
+    url: http://localhost:${API_PORT}/api/improvement/start
+    body: {}
     expected:
       status: 200
-      body:
-        name: Test Experiment
-        status: requested
-        
+      
   - name: Claude Code Health Check
     type: command
-    command: resource-claude-code test smoke
+    command: resource-claude-code status
     expected:
       exit_code: 0
       
@@ -79,14 +79,14 @@ validation:
     timeout: 60
     health_checks:
       - service: postgres
-        port: 5433
+        port: ${RESOURCE_PORTS[postgres]}
       - service: api
-        port: 8092
+        port: ${API_PORT}
         
   runtime:
     monitoring:
-      - metric: active_experiments
-        threshold: 100
+      - metric: active_improvements
+        threshold: 50
       - metric: database_connections
         threshold: 10
         

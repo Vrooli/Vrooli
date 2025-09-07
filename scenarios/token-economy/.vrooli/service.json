@@ -1,0 +1,262 @@
+{
+  "name": "token-economy",
+  "version": "1.0.0",
+  "description": "Universal token economy for scenario rewards and achievements",
+  "category": "platform",
+  "author": "Vrooli AI",
+  "license": "MIT",
+  "visibility": "public",
+  "tags": [
+    "tokens",
+    "economy",
+    "rewards",
+    "achievements",
+    "wallet",
+    "nft",
+    "gamification"
+  ],
+  "capabilities": [
+    "token-minting",
+    "token-transfer",
+    "wallet-management",
+    "achievement-nft",
+    "exchange-rates",
+    "multi-tenancy",
+    "parent-controls"
+  ],
+  "dependencies": {
+    "scenarios": [
+      "scenario-authenticator"
+    ],
+    "resources": {
+      "required": [
+        {
+          "name": "postgres",
+          "version": ">=15.0",
+          "config": {
+            "database": "token_economy",
+            "schema": "public",
+            "extensions": ["uuid-ossp", "pgcrypto"]
+          }
+        },
+        {
+          "name": "redis",
+          "version": ">=7.0",
+          "config": {
+            "maxmemory": "256mb",
+            "maxmemory-policy": "allkeys-lru",
+            "persistence": true
+          }
+        }
+      ],
+      "optional": [
+        {
+          "name": "qdrant",
+          "version": ">=1.0",
+          "purpose": "Achievement similarity search"
+        },
+        {
+          "name": "minio",
+          "version": ">=2023.0",
+          "purpose": "Token metadata and icon storage"
+        },
+        {
+          "name": "ollama",
+          "version": ">=0.1",
+          "purpose": "AI-powered exchange rate optimization"
+        }
+      ]
+    }
+  },
+  "api": {
+    "enabled": true,
+    "port": "${PORT_TOKEN_ECONOMY_API:-11080}",
+    "host": "0.0.0.0",
+    "cors": {
+      "enabled": true,
+      "origins": ["*"]
+    },
+    "rateLimit": {
+      "enabled": true,
+      "requests": 1000,
+      "window": "1m"
+    },
+    "endpoints": {
+      "health": "/health",
+      "metrics": "/metrics",
+      "base": "/api/v1"
+    }
+  },
+  "ui": {
+    "enabled": true,
+    "port": "${PORT_TOKEN_ECONOMY_UI:-11081}",
+    "host": "0.0.0.0",
+    "framework": "vanilla-js",
+    "style": "modern-fintech",
+    "features": [
+      "wallet-dashboard",
+      "transaction-history",
+      "achievement-gallery",
+      "exchange-interface",
+      "parent-admin-panel"
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "binary": "token-economy",
+    "installPath": "~/.vrooli/bin/",
+    "commands": [
+      "wallet-create",
+      "balance",
+      "mint",
+      "transfer",
+      "swap",
+      "history",
+      "achievements",
+      "admin-set-rate",
+      "admin-stats"
+    ]
+  },
+  "initialization": {
+    "storage": {
+      "postgres": {
+        "schema": "initialization/storage/postgres/schema.sql",
+        "seeds": "initialization/storage/postgres/seeds.sql",
+        "migrations": "initialization/storage/postgres/migrations/"
+      },
+      "redis": {
+        "config": "initialization/storage/redis/config.json"
+      }
+    }
+  },
+  "security": {
+    "authentication": {
+      "enabled": true,
+      "provider": "scenario-authenticator",
+      "jwt": {
+        "secret": "${JWT_SECRET}",
+        "expiry": "24h"
+      }
+    },
+    "encryption": {
+      "walletKeys": true,
+      "algorithm": "AES-256-GCM"
+    },
+    "audit": {
+      "enabled": true,
+      "logLevel": "info",
+      "retention": "90d"
+    }
+  },
+  "performance": {
+    "cache": {
+      "enabled": true,
+      "ttl": 60,
+      "provider": "redis"
+    },
+    "database": {
+      "poolSize": 20,
+      "maxConnections": 100,
+      "timeout": 5000
+    },
+    "targets": {
+      "tps": 1000,
+      "latency_p95": 100,
+      "uptime": 99.9
+    }
+  },
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "endpoint": "/metrics",
+      "prometheus": true
+    },
+    "logging": {
+      "level": "${LOG_LEVEL:-info}",
+      "format": "json",
+      "destination": "stdout"
+    },
+    "alerts": {
+      "enabled": false,
+      "webhook": "${ALERT_WEBHOOK_URL}"
+    }
+  },
+  "deployment": {
+    "type": "docker",
+    "replicas": {
+      "api": 2,
+      "ui": 1
+    },
+    "resources": {
+      "api": {
+        "cpu": "500m",
+        "memory": "512Mi"
+      },
+      "ui": {
+        "cpu": "200m",
+        "memory": "256Mi"
+      }
+    },
+    "healthCheck": {
+      "path": "/health",
+      "interval": 30,
+      "timeout": 10,
+      "retries": 3
+    }
+  },
+  "revenue": {
+    "model": "subscription",
+    "tiers": [
+      {
+        "name": "family",
+        "price": 10,
+        "currency": "USD",
+        "period": "month",
+        "features": [
+          "5 users",
+          "10 token types",
+          "1000 transactions/month"
+        ]
+      },
+      {
+        "name": "business",
+        "price": 50,
+        "currency": "USD",
+        "period": "month",
+        "features": [
+          "50 users",
+          "100 token types",
+          "unlimited transactions"
+        ]
+      },
+      {
+        "name": "enterprise",
+        "price": "custom",
+        "features": [
+          "unlimited users",
+          "unlimited tokens",
+          "SLA support",
+          "custom features"
+        ]
+      }
+    ],
+    "trial": {
+      "enabled": true,
+      "duration": 30,
+      "unit": "days"
+    }
+  },
+  "metadata": {
+    "created": "2025-09-07",
+    "updated": "2025-09-07",
+    "status": "development",
+    "priority": "high",
+    "impact": "platform-wide",
+    "documentation": {
+      "prd": "PRD.md",
+      "readme": "README.md",
+      "api": "docs/api.md",
+      "integration": "docs/integration.md"
+    }
+  }
+}

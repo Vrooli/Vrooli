@@ -5,30 +5,16 @@
   "category": "productivity",
   "tags": ["sync", "mobile", "file-sharing", "cross-device", "productivity"],
   
-  "services": {
+  "ports": {
     "api": {
-      "type": "nodejs",
-      "entry": "api/server.js",
-      "port": 3300,
-      "environment": {
-        "NODE_ENV": "development",
-        "API_PORT": "3300",
-        "UI_PORT": "3301",
-        "AUTH_SERVICE_URL": "http://localhost:3250",
-        "STORAGE_PATH": "./data/files",
-        "MAX_FILE_SIZE": "10485760",
-        "DEFAULT_EXPIRY_HOURS": "24",
-        "DATABASE_URL": "${service.postgres.url}",
-        "REDIS_URL": "${service.redis.url}"
-      },
-      "health_check": "/health"
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Device sync API server port"
     },
-    
     "ui": {
-      "type": "static",
-      "entry": "ui/index.html", 
-      "port": 3301,
-      "serve_path": "./ui"
+      "env_var": "UI_PORT", 
+      "range": "35000-39999",
+      "description": "Device sync UI server port"
     }
   },
   

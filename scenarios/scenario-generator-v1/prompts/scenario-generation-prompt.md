@@ -56,14 +56,12 @@ vrooli resource-qdrant search "{{CATEGORY}} problem" docs
 You should choose from these proven resources based on the scenario requirements:
 
 #### 🤖 AI Resources
-- **ollama** (port 11434): Local LLM inference - reasoning, text generation, analysis
 - **comfyui** (port 8188): AI image generation - creative workflows, visual content
 - **whisper** (port 8090): Speech-to-text - audio transcription, voice interfaces  
 - **unstructured-io** (port 11450): Document processing - PDF extraction, content parsing
 
 #### 🔄 Automation Resources
-- **n8n** (port 5678): Visual workflow automation - API integrations, business processes
-- **windmill** (port 5681): Code-first automation - developer tools, UI generation
+- **Go Scripts**: Custom automation using Go applications and resource-claude-code calls
 - **node-red** (port 1880): Real-time data flows - IoT, live dashboards
 - **huginn** (port 4111): Web monitoring - data aggregation, intelligent agents
 
@@ -85,11 +83,11 @@ You should choose from these proven resources based on the scenario requirements
 1. **Start Simple**: Use 2-4 resources for most scenarios
 2. **Always Include Qdrant**: For memory and learning capabilities
 3. **Proven Patterns**: 
-   - Customer service: postgres + ollama + n8n + qdrant
+   - Customer service: postgres + claude-code + qdrant
    - Document processing: postgres + unstructured-io + minio + qdrant
-   - Content generation: postgres + ollama + comfyui + n8n + qdrant
-   - Analytics platform: postgres + questdb + windmill + node-red + qdrant
-   - Web automation: postgres + agent-s2 + browserless + n8n + qdrant
+   - Content generation: postgres + claude-code + comfyui + qdrant
+   - Analytics platform: postgres + questdb + node-red + qdrant
+   - Web automation: postgres + agent-s2 + browserless + qdrant
 4. **Business Value**: Focus on solving real problems that generate revenue
 5. **Integration**: Ensure resources work together smoothly
 
@@ -179,8 +177,7 @@ Study these successful patterns:
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": {{UNIQUE_PORT}},
-      "fallback": "auto",
+      "range": "15000-19999",
       "description": "Main API port"
     }
   },

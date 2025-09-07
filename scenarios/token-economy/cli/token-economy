@@ -1,0 +1,411 @@
+#!/bin/bash
+
+# Token Economy CLI
+# Provides command-line interface to the token economy API
+
+set -e
+
+# Configuration
+API_URL="${TOKEN_ECONOMY_API_URL:-http://localhost:11080}"
+OUTPUT_FORMAT="${TOKEN_ECONOMY_OUTPUT:-human}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+print_success() {
+    echo -e "${GREEN}✓ $1${NC}"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ $1${NC}"
+}
+
+api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    
+    if [ "$method" = "GET" ]; then
+        curl -s -X GET "${API_URL}${endpoint}" \
+            -H "Content-Type: application/json"
+    else
+        curl -s -X "$method" "${API_URL}${endpoint}" \
+            -H "Content-Type: application/json" \
+            -d "$data"
+    fi
+}
+
+format_output() {
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$1"
+    else
+        echo "$1" | jq -r '.' 2>/dev/null || echo "$1"
+    fi
+}
+
+# Command handlers
+cmd_status() {
+    echo "Token Economy Status"
+    echo "===================="
+    
+    response=$(api_call GET "/health")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        echo "$response" | jq -r '
+            "API Status: \(.status)",
+            "Database: \(.services.database)",
+            "Redis: \(.services.redis)"
+        '
+    fi
+}
+
+cmd_help() {
+    cat << EOF
+Token Economy CLI - Universal token system for Vrooli scenarios
+
+Usage: token-economy [command] [arguments]
+
+Commands:
+    status                      Show system status
+    wallet-create <type>        Create new wallet (user|scenario|treasury)
+    balance [wallet]           Check token balances
+    mint <token> <amount> <to> Mint new tokens (scenario only)
+    transfer <token> <amount> <to> Transfer tokens
+    swap <from> <to> <amount>  Exchange tokens
+    history [--wallet <w>]     View transaction history
+    achievements [user]        View earned achievements
+    admin-set-rate <from> <to> <rate> Set exchange rate
+    admin-stats                View economy statistics
+    help                       Show this help message
+    version                    Show version information
+
+Options:
+    --json                     Output in JSON format
+    --wallet <address>         Specify wallet address
+    --user-id <id>            User ID for wallet creation
+    --scenario <name>          Scenario name for wallet
+
+Environment Variables:
+    TOKEN_ECONOMY_API_URL      API server URL (default: http://localhost:11080)
+    TOKEN_ECONOMY_WALLET       Default wallet address
+    TOKEN_ECONOMY_OUTPUT       Output format: human|json (default: human)
+
+Examples:
+    token-economy wallet-create user --user-id alice
+    token-economy mint CHORE 100 @alice
+    token-economy transfer CHORE 50 @bob
+    token-economy balance @alice
+    token-economy swap CHORE GAME 10
+
+EOF
+}
+
+cmd_version() {
+    echo "Token Economy CLI v1.0.0"
+}
+
+cmd_wallet_create() {
+    local wallet_type="$1"
+    
+    if [ -z "$wallet_type" ]; then
+        print_error "Wallet type required (user|scenario|treasury)"
+        exit 1
+    fi
+    
+    local data="{\"type\": \"$wallet_type\""
+    
+    # Parse additional options
+    shift
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --user-id)
+                data="${data%\}}, \"user_id\": \"$2\"}"
+                shift 2
+                ;;
+            --scenario)
+                data="${data%\}}, \"scenario_name\": \"$2\"}"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    response=$(api_call POST "/api/v1/wallets/create" "$data")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        wallet_id=$(echo "$response" | jq -r '.wallet_id')
+        address=$(echo "$response" | jq -r '.address')
+        
+        if [ "$wallet_id" != "null" ]; then
+            print_success "Wallet created successfully!"
+            echo "Wallet ID: $wallet_id"
+            echo "Address: $address"
+        else
+            print_error "Failed to create wallet"
+            echo "$response" | jq -r '.error'
+        fi
+    fi
+}
+
+cmd_balance() {
+    local wallet="${1:-$TOKEN_ECONOMY_WALLET}"
+    
+    if [ -z "$wallet" ]; then
+        print_error "Wallet address required"
+        exit 1
+    fi
+    
+    response=$(api_call GET "/api/v1/wallets/$wallet/balance")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        echo "Token Balances for $wallet"
+        echo "================================"
+        echo "$response" | jq -r '.balances[] | "\(.symbol): \(.amount) (locked: \(.locked))"'
+    fi
+}
+
+cmd_mint() {
+    local token="$1"
+    local amount="$2"
+    local to_wallet="$3"
+    
+    if [ -z "$token" ] || [ -z "$amount" ] || [ -z "$to_wallet" ]; then
+        print_error "Usage: mint <token> <amount> <to_wallet>"
+        exit 1
+    fi
+    
+    data="{\"token_id\": \"$token\", \"amount\": $amount, \"to_wallet\": \"$to_wallet\"}"
+    
+    response=$(api_call POST "/api/v1/tokens/mint" "$data")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        tx_hash=$(echo "$response" | jq -r '.transaction_hash')
+        
+        if [ "$tx_hash" != "null" ]; then
+            print_success "Tokens minted successfully!"
+            echo "Transaction: ${tx_hash:0:10}..."
+            echo "$response" | jq -r '"New supply: \(.new_supply)"'
+        else
+            print_error "Failed to mint tokens"
+            echo "$response" | jq -r '.error'
+        fi
+    fi
+}
+
+cmd_transfer() {
+    local token="$1"
+    local amount="$2"
+    local to_wallet="$3"
+    local from_wallet="${4:-$TOKEN_ECONOMY_WALLET}"
+    
+    if [ -z "$token" ] || [ -z "$amount" ] || [ -z "$to_wallet" ]; then
+        print_error "Usage: transfer <token> <amount> <to_wallet> [from_wallet]"
+        exit 1
+    fi
+    
+    data="{\"token_id\": \"$token\", \"amount\": $amount, \"to_wallet\": \"$to_wallet\", \"from_wallet\": \"$from_wallet\"}"
+    
+    response=$(api_call POST "/api/v1/tokens/transfer" "$data")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        tx_hash=$(echo "$response" | jq -r '.transaction_hash')
+        
+        if [ "$tx_hash" != "null" ]; then
+            print_success "Transfer completed!"
+            echo "Transaction: ${tx_hash:0:10}..."
+            echo "$response" | jq -r '"New balance: \(.new_balance)"'
+        else
+            print_error "Transfer failed"
+            echo "$response" | jq -r '.error'
+        fi
+    fi
+}
+
+cmd_swap() {
+    local from_token="$1"
+    local to_token="$2"
+    local amount="$3"
+    
+    if [ -z "$from_token" ] || [ -z "$to_token" ] || [ -z "$amount" ]; then
+        print_error "Usage: swap <from_token> <to_token> <amount>"
+        exit 1
+    fi
+    
+    data="{\"from_token\": \"$from_token\", \"to_token\": \"$to_token\", \"amount\": $amount}"
+    
+    response=$(api_call POST "/api/v1/tokens/swap" "$data")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        tx_hash=$(echo "$response" | jq -r '.transaction_hash')
+        
+        if [ "$tx_hash" != "null" ]; then
+            print_success "Swap completed!"
+            echo "Transaction: ${tx_hash:0:10}..."
+            echo "$response" | jq -r '"Received: \(.received_amount) \nRate: \(.exchange_rate)"'
+        else
+            print_error "Swap failed"
+            echo "$response" | jq -r '.error'
+        fi
+    fi
+}
+
+cmd_history() {
+    local wallet=""
+    local limit="100"
+    
+    # Parse options
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --wallet)
+                wallet="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local query_params="?limit=$limit"
+    if [ -n "$wallet" ]; then
+        query_params="${query_params}&wallet=$wallet"
+    fi
+    
+    response=$(api_call GET "/api/v1/transactions$query_params")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        echo "Transaction History"
+        echo "=================="
+        echo "$response" | jq -r '.[] | "\(.created_at | split("T")[0]) \(.type): \(.amount) \(.token_id) [\(.status)]"'
+    fi
+}
+
+cmd_achievements() {
+    local user="${1:-current}"
+    
+    response=$(api_call GET "/api/v1/achievements/$user")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        echo "Achievements for $user"
+        echo "====================="
+        echo "$response" | jq -r '.achievements[] | "[\(.rarity)] \(.title) - \(.scenario)"'
+    fi
+}
+
+cmd_admin_set_rate() {
+    local from_token="$1"
+    local to_token="$2"
+    local rate="$3"
+    
+    if [ -z "$from_token" ] || [ -z "$to_token" ] || [ -z "$rate" ]; then
+        print_error "Usage: admin-set-rate <from_token> <to_token> <rate>"
+        exit 1
+    fi
+    
+    print_info "Setting exchange rate: 1 $from_token = $rate $to_token"
+    # TODO: Implement when admin endpoint is ready
+    print_error "Admin functions not yet implemented"
+}
+
+cmd_admin_stats() {
+    response=$(api_call GET "/api/v1/admin/analytics")
+    
+    if [ "$OUTPUT_FORMAT" = "json" ]; then
+        echo "$response"
+    else
+        echo "Economy Statistics"
+        echo "=================="
+        echo "$response" | jq -r '
+            "Total Transactions: \(.total_transactions)",
+            "Total Volume: \(.total_volume)",
+            "Active Wallets: \(.active_wallets)",
+            "",
+            "Top Earners:",
+            (.top_earners[] | "  \(.address | .[0:10])...: \(.total)")
+        '
+    fi
+}
+
+# Main command dispatcher
+case "${1:-help}" in
+    status)
+        cmd_status
+        ;;
+    help|--help|-h)
+        cmd_help
+        ;;
+    version|--version|-v)
+        cmd_version
+        ;;
+    wallet-create)
+        shift
+        cmd_wallet_create "$@"
+        ;;
+    balance)
+        shift
+        cmd_balance "$@"
+        ;;
+    mint)
+        shift
+        cmd_mint "$@"
+        ;;
+    transfer)
+        shift
+        cmd_transfer "$@"
+        ;;
+    swap)
+        shift
+        cmd_swap "$@"
+        ;;
+    history)
+        shift
+        cmd_history "$@"
+        ;;
+    achievements)
+        shift
+        cmd_achievements "$@"
+        ;;
+    admin-set-rate)
+        shift
+        cmd_admin_set_rate "$@"
+        ;;
+    admin-stats)
+        cmd_admin_stats
+        ;;
+    *)
+        print_error "Unknown command: $1"
+        echo "Run 'token-economy help' for usage information"
+        exit 1
+        ;;
+esac

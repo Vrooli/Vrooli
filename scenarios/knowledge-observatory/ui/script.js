@@ -1,5 +1,5 @@
 const API_URL = window.location.hostname === 'localhost' 
-    ? `http://localhost:${process.env.API_PORT || 20260}`
+    ? `http://localhost:20270`
     : '/api';
 
 let currentTab = 'dashboard';

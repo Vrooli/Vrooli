@@ -3,8 +3,8 @@
 
 set -euo pipefail
 
-API_URL="${API_URL:-http://localhost:8080}"
 API_PORT="${API_PORT:-8080}"
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
 
 # Colors
 GREEN='\033[1;32m'

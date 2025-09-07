@@ -47,12 +47,12 @@ resources:
 # Service configuration validation
 services:
   - name: api
-    port: ${VROOLI_API_LIBRARY_API_PORT:-9200}
+    port: ${API_PORT}
     health_endpoint: /health
     startup_timeout: 60
     
   - name: ui
-    port: ${VROOLI_API_LIBRARY_UI_PORT:-3200}
+    port: ${UI_PORT}
     health_endpoint: /
     startup_timeout: 60
 

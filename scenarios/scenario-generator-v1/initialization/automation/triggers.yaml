@@ -25,24 +25,11 @@ triggers:
       backoff_multiplier: 2
       initial_delay: 5000
 
-  # N8N Direct Generation Trigger  
-  n8n_generation_trigger:
-    type: webhook
-    endpoint: "/webhook/generate-scenario"
-    method: POST
-    target: scenario-generator-orchestrator
-    description: "Direct N8N workflow trigger for scenario generation"
-    validation:
-      required_fields:
-        - scenario_name
-        - description
-    timeout: 300000
-
   # React UI Integration Triggers
   ui_form_trigger:
     type: webhook
     endpoint: "/webhook/generate-scenario"
-    target: n8n_generation_trigger
+    target: scenario_generation_request
     description: "React UI form submission triggers generation"
     
   template_trigger:
@@ -119,10 +106,6 @@ rate_limits:
     requests_per_hour: 100
     burst_size: 5
     
-  n8n_generation_trigger:
-    requests_per_minute: 5
-    requests_per_hour: 50
-    burst_size: 2
 
 # Monitoring and Metrics
 monitoring:

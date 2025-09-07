@@ -59,7 +59,7 @@ var db *sql.DB
 
 // Initialize database connection
 func initDB() error {
-    dbURL := os.Getenv("DATABASE_URL")
+    dbURL := os.Getenv("POSTGRES_URL")
     if dbURL == "" {
         dbURL = "postgres://postgres:password@localhost/vrooli?sslmode=disable"
     }

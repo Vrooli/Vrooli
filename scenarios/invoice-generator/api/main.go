@@ -92,7 +92,7 @@ type Company struct {
 func initDB() {
     postgresURL := os.Getenv("POSTGRES_URL")
     if postgresURL == "" {
-        postgresURL = "postgres://postgres:postgres@localhost:5432/invoice_generator?sslmode=disable"
+        log.Fatal("POSTGRES_URL environment variable is required")
     }
 
     var err error

@@ -1,0 +1,406 @@
+#!/usr/bin/env node
+
+const { program } = require('commander');
+const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
+const chalk = require('chalk');
+const Table = require('cli-table3');
+const RulesEngine = require('../lib/rules-engine');
+
+// Configuration
+const API_BASE = process.env.CODE_SMELL_API_URL || 'http://localhost:8090/api/v1';
+const RULES_PATH = path.join(__dirname, '..', 'initialization', 'rules');
+
+// Initialize rules engine for CLI operations
+let rulesEngine;
+
+program
+  .name('code-smell')
+  .description('Self-improving code quality guardian with AI-powered smell detection')
+  .version('1.0.0');
+
+// Status command
+program
+  .command('status')
+  .description('Show operational status and statistics')
+  .option('--json', 'Output in JSON format')
+  .option('--verbose', 'Show detailed information')
+  .action(async (options) => {
+    try {
+      const response = await axios.get(`${API_BASE}/health`);
+      const stats = await axios.get(`${API_BASE}/code-smell/stats`);
+      
+      if (options.json) {
+        console.log(JSON.stringify({
+          ...response.data,
+          stats: stats.data
+        }, null, 2));
+      } else {
+        console.log(chalk.green('✓'), 'Code Smell Detector is', chalk.green('healthy'));
+        console.log('Version:', response.data.version);
+        console.log('\nStatistics:');
+        console.log('  Files analyzed:', stats.data.files_analyzed);
+        console.log('  Violations found:', stats.data.violations_found);
+        console.log('  Auto-fixed:', stats.data.auto_fixed);
+        console.log('  Patterns learned:', stats.data.patterns_learned);
+        
+        if (options.verbose) {
+          console.log('\nRules Engine:');
+          if (!rulesEngine) {
+            rulesEngine = new RulesEngine(RULES_PATH);
+          }
+          const rules = rulesEngine.getRules();
+          console.log('  Total rules:', rules.length);
+          console.log('  Vrooli-specific:', rules.filter(r => r.vrooli_specific).length);
+          console.log('  Auto-fixable:', rules.filter(r => r.category === 'auto-fix').length);
+        }
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Analyze command
+program
+  .command('analyze <path>')
+  .description('Analyze files/directories for code smells')
+  .option('--auto-fix', 'Automatically fix safe violations')
+  .option('--rules <rules>', 'Comma-separated list of rules to apply')
+  .option('--risk <level>', 'Maximum risk level for auto-fixes (safe|moderate|dangerous)', 'safe')
+  .action(async (targetPath, options) => {
+    try {
+      console.log(chalk.blue('Analyzing:'), targetPath);
+      
+      // Use local rules engine for analysis
+      if (!rulesEngine) {
+        rulesEngine = new RulesEngine(RULES_PATH);
+      }
+      
+      const files = getFilesToAnalyze(targetPath);
+      console.log(`Found ${files.length} files to analyze...`);
+      
+      let totalViolations = 0;
+      let totalAutoFixed = 0;
+      const allViolations = [];
+      
+      for (const file of files) {
+        const result = await rulesEngine.analyzeFile(file, {
+          rules: options.rules ? options.rules.split(',') : null,
+          autoFix: options.autoFix,
+          riskLevel: options.risk
+        });
+        
+        totalViolations += result.totalViolations;
+        totalAutoFixed += result.autoFixed;
+        allViolations.push(...result.violations);
+      }
+      
+      // Display results
+      if (allViolations.length > 0) {
+        console.log(chalk.yellow(`\nFound ${totalViolations} violations:`));
+        
+        const table = new Table({
+          head: ['File', 'Line', 'Rule', 'Message'],
+          style: { head: ['cyan'] }
+        });
+        
+        for (const v of allViolations.slice(0, 20)) {
+          table.push([
+            path.relative(process.cwd(), v.file_path),
+            v.line_number,
+            v.rule_name,
+            v.message.substring(0, 50) + (v.message.length > 50 ? '...' : '')
+          ]);
+        }
+        
+        console.log(table.toString());
+        
+        if (allViolations.length > 20) {
+          console.log(`... and ${allViolations.length - 20} more violations`);
+        }
+      } else {
+        console.log(chalk.green('✓'), 'No violations found!');
+      }
+      
+      if (totalAutoFixed > 0) {
+        console.log(chalk.green(`\n✓ Auto-fixed ${totalAutoFixed} violations`));
+      }
+      
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Fix command
+program
+  .command('fix <violation-id>')
+  .description('Apply or reject a specific fix')
+  .option('--action <action>', 'Action to take (approve|reject|ignore)', 'approve')
+  .action(async (violationId, options) => {
+    try {
+      const response = await axios.post(`${API_BASE}/code-smell/fix`, {
+        violation_id: violationId,
+        action: options.action
+      });
+      
+      if (response.data.success) {
+        console.log(chalk.green('✓'), `Fix ${options.action}d successfully`);
+      } else {
+        console.log(chalk.red('✗'), 'Failed to apply fix');
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Rules command with subcommands
+const rules = program
+  .command('rules')
+  .description('Manage smell detection rules');
+
+rules
+  .command('list')
+  .description('Show all rules')
+  .option('--category <category>', 'Filter by category')
+  .option('--vrooli', 'Show only Vrooli-specific rules')
+  .action(async (options) => {
+    try {
+      if (!rulesEngine) {
+        rulesEngine = new RulesEngine(RULES_PATH);
+      }
+      
+      let rules = rulesEngine.getRules();
+      
+      if (options.category) {
+        rules = rules.filter(r => r.category === options.category);
+      }
+      
+      if (options.vrooli) {
+        rules = rules.filter(r => r.vrooli_specific);
+      }
+      
+      const table = new Table({
+        head: ['ID', 'Name', 'Category', 'Risk', 'Vrooli'],
+        style: { head: ['cyan'] }
+      });
+      
+      for (const rule of rules) {
+        table.push([
+          rule.id,
+          rule.name,
+          rule.category,
+          rule.risk_level,
+          rule.vrooli_specific ? '✓' : ''
+        ]);
+      }
+      
+      console.log(table.toString());
+      console.log(`\nTotal: ${rules.length} rules`);
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+rules
+  .command('add <file>')
+  .description('Add new rule from file')
+  .action(async (file) => {
+    try {
+      const targetPath = path.join(RULES_PATH, path.basename(file));
+      fs.copyFileSync(file, targetPath);
+      console.log(chalk.green('✓'), 'Rule file added:', path.basename(file));
+      console.log('Rules will be hot-reloaded automatically');
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+rules
+  .command('enable <rule-id>')
+  .description('Enable a rule')
+  .action(async (ruleId) => {
+    try {
+      if (!rulesEngine) {
+        rulesEngine = new RulesEngine(RULES_PATH);
+      }
+      
+      if (rulesEngine.setRuleEnabled(ruleId, true)) {
+        console.log(chalk.green('✓'), 'Rule enabled:', ruleId);
+      } else {
+        console.log(chalk.red('✗'), 'Rule not found:', ruleId);
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+rules
+  .command('disable <rule-id>')
+  .description('Disable a rule')
+  .action(async (ruleId) => {
+    try {
+      if (!rulesEngine) {
+        rulesEngine = new RulesEngine(RULES_PATH);
+      }
+      
+      if (rulesEngine.setRuleEnabled(ruleId, false)) {
+        console.log(chalk.green('✓'), 'Rule disabled:', ruleId);
+      } else {
+        console.log(chalk.red('✗'), 'Rule not found:', ruleId);
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+rules
+  .command('reload')
+  .description('Hot-reload rules from disk')
+  .action(() => {
+    try {
+      if (!rulesEngine) {
+        rulesEngine = new RulesEngine(RULES_PATH);
+      } else {
+        rulesEngine.loadRules();
+      }
+      
+      const rules = rulesEngine.getRules();
+      console.log(chalk.green('✓'), `Reloaded ${rules.length} rules`);
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Queue command
+program
+  .command('queue')
+  .description('Show violations awaiting review')
+  .option('--severity <severity>', 'Filter by severity')
+  .option('--file <pattern>', 'Filter by file pattern')
+  .action(async (options) => {
+    try {
+      const params = new URLSearchParams();
+      if (options.severity) params.append('severity', options.severity);
+      if (options.file) params.append('file', options.file);
+      
+      const response = await axios.get(`${API_BASE}/code-smell/queue?${params}`);
+      const data = response.data;
+      
+      if (data.violations.length === 0) {
+        console.log(chalk.green('✓'), 'No violations in review queue');
+      } else {
+        console.log(chalk.yellow(`${data.total} violations awaiting review:`));
+        console.log('  Errors:', data.by_severity.error);
+        console.log('  Warnings:', data.by_severity.warning);
+        console.log('  Info:', data.by_severity.info);
+        
+        const table = new Table({
+          head: ['ID', 'File', 'Line', 'Rule', 'Severity'],
+          style: { head: ['cyan'] }
+        });
+        
+        for (const v of data.violations.slice(0, 10)) {
+          table.push([
+            v.id.substring(0, 8),
+            path.basename(v.file_path),
+            v.line_number,
+            v.rule_name,
+            v.severity
+          ]);
+        }
+        
+        console.log(table.toString());
+        
+        if (data.violations.length > 10) {
+          console.log(`... and ${data.violations.length - 10} more`);
+        }
+      }
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Stats command
+program
+  .command('stats')
+  .description('Show code smell statistics')
+  .option('--period <period>', 'Time period (day|week|month|all)', 'all')
+  .action(async (options) => {
+    try {
+      const response = await axios.get(`${API_BASE}/code-smell/stats?period=${options.period}`);
+      const stats = response.data;
+      
+      console.log(chalk.blue(`Statistics for period: ${stats.period}`));
+      console.log('');
+      
+      const table = new Table({
+        style: { head: ['cyan'] }
+      });
+      
+      table.push(
+        ['Files analyzed', stats.files_analyzed],
+        ['Violations found', stats.violations_found],
+        ['Auto-fixed', stats.auto_fixed],
+        ['Patterns learned', stats.patterns_learned]
+      );
+      
+      console.log(table.toString());
+    } catch (error) {
+      console.error(chalk.red('Error:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Helper functions
+
+function getFilesToAnalyze(targetPath) {
+  const files = [];
+  const ignorePatterns = ['node_modules', '.git', 'dist', 'build'];
+  
+  function walk(dir) {
+    const items = fs.readdirSync(dir);
+    
+    for (const item of items) {
+      const fullPath = path.join(dir, item);
+      const stat = fs.statSync(fullPath);
+      
+      if (stat.isDirectory()) {
+        if (!ignorePatterns.some(p => item.includes(p))) {
+          walk(fullPath);
+        }
+      } else if (stat.isFile()) {
+        const ext = path.extname(item);
+        if (['.js', '.ts', '.jsx', '.tsx', '.go', '.py', '.sh', '.yaml', '.json'].includes(ext)) {
+          files.push(fullPath);
+        }
+      }
+    }
+  }
+  
+  const stat = fs.statSync(targetPath);
+  if (stat.isDirectory()) {
+    walk(targetPath);
+  } else {
+    files.push(targetPath);
+  }
+  
+  return files;
+}
+
+// Parse and execute
+program.parse(process.argv);
+
+// Show help if no command provided
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
+}

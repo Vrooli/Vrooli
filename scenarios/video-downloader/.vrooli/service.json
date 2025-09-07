@@ -6,12 +6,10 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fallback": "auto",
       "range": "35000-39999"
     }
   },
@@ -109,12 +107,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.video-downloader.start-api\" 2>/dev/null || pkill -f \"video-downloader-api\" 2>/dev/null || true",
+          "run": "pkill -f video-downloader.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.video-downloader.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f video-downloader.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

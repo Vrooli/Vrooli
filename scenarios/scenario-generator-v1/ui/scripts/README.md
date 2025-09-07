@@ -49,8 +49,8 @@ npm run format
 
 Scripts may reference these environment variables:
 
-- `REACT_APP_API_URL` - API base URL (default: http://localhost:8080)
-- `REACT_APP_N8N_URL` - N8N webhook URL (default: http://localhost:5678) 
+- `REACT_APP_API_URL` - API base URL (default: http://localhost:${API_PORT})
+- `REACT_APP_N8N_URL` - N8N webhook URL (default: http://localhost:${N8N_PORT}) 
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Development server port (default: 3000)
 

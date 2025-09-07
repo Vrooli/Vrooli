@@ -27,7 +27,6 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "Book talk API server port",
       "range": "15000-19999"
     }
@@ -237,13 +236,8 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.no-spoilers-book-talk.start-api\" 2>/dev/null || pkill -f \"no-spoilers-book-talk-api\" 2>/dev/null || true",
+          "run": "pkill -f no-spoilers-book-talk.start-api 2>/dev/null || true",
           "description": "Stop API process"
         }
       ]

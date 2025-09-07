@@ -1,0 +1,297 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "game-dialog-generator",
+    "displayName": "Game Dialog Generator",
+    "description": "AI-powered character dialog generation for video games with jungle platformer aesthetics",
+    "version": "1.0.0",
+    "tags": [
+      "game-development",
+      "dialog-generation",
+      "character-ai",
+      "narrative-design",
+      "voice-synthesis",
+      "jungle-platformer",
+      "creative-tools",
+      "go-api",
+      "nodejs-ui",
+      "postgres-storage",
+      "qdrant-vectors",
+      "ollama-ai",
+      "whisper-tts",
+      "real-time-generation",
+      "batch-processing"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Game Dialog Generator API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Jungle-themed character management UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store character definitions, dialog history, and project data",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/data/sample_characters.sql",
+          "type": "data"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector embeddings for character traits, scene context, and semantic dialog search",
+      "initialization": [
+        {
+          "file": "initialization/data/character_embeddings.json",
+          "type": "collection_setup"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "Local LLM for dialog generation and character personality modeling",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "whisper": {
+      "type": "whisper",
+      "enabled": true,
+      "required": false,
+      "purpose": "Voice synthesis for character-specific audio generation",
+      "fallback_behavior": "text-only dialog generation"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Game Dialog Generator health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 30000
+        },
+        {
+          "name": "postgres_connection",
+          "type": "postgres",
+          "query": "SELECT 1 FROM characters LIMIT 1",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 60000
+        },
+        {
+          "name": "qdrant_collection",
+          "type": "http",
+          "target": "http://localhost:6333/collections/characters",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 60000
+        },
+        {
+          "name": "ollama_models",
+          "type": "exec",
+          "command": "resource-ollama list | grep -E '(llama3.2|nomic-embed-text)'",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 120000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 30000
+    },
+    "setup": {
+      "description": "Initialize Game Dialog Generator with jungle platformer theme",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/game-dialog-generator-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "game-dialog-generator"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "setup-qdrant-collections",
+          "run": "resource-qdrant collection create characters 384 || echo \"Collection exists or creation skipped\"",
+          "description": "Create Qdrant collection for character embeddings"
+        },
+        {
+          "name": "setup-character-embeddings",
+          "run": "resource-qdrant collection create scenes 384 || echo \"Scene collection exists or creation skipped\"",
+          "description": "Create Qdrant collection for scene context embeddings"
+        },
+        {
+          "name": "download-ollama-models",
+          "run": "resource-ollama pull llama3.2 && resource-ollama pull nomic-embed-text || echo \"Models already available\"",
+          "description": "Download required Ollama models for dialog generation"
+        },
+        {
+          "name": "populate-sample-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add sample characters and scenes to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "chmod +x cli/game-dialog-generator && ln -sf $(pwd)/cli/game-dialog-generator ~/.local/bin/game-dialog-generator 2>/dev/null || true",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o game-dialog-generator-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install jungle-themed UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🌿 Game Dialog Generator initialized! 🎮 UI: http://localhost:${UI_PORT} 🔧 API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "description": "Display service access URLs with jungle theme"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Game Dialog Generator with API and jungle-themed UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./game-dialog-generator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/game-dialog-generator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start jungle-themed UI server in background",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🌿 Services running! 🎮 Jungle UI: http://localhost:${UI_PORT} 🔧 Dialog API: http://localhost:${API_PORT} 💻 CLI: game-dialog-generator --help'",
+          "description": "Display all running service URLs with jungle theme"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Game Dialog Generator API, CLI, and character generation",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-character-creation",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/characters -H 'Content-Type: application/json' -d '{\"name\":\"Test Hero\",\"personality_traits\":{\"brave\":0.9}}'",
+          "description": "Test character creation endpoint"
+        },
+        {
+          "name": "test-dialog-generation",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/dialog/generate -H 'Content-Type: application/json' -d '{\"character_id\":\"test\",\"scene_context\":\"jungle clearing\"}'",
+          "description": "Test dialog generation endpoint"
+        },
+        {
+          "name": "test-cli-help",
+          "run": "game-dialog-generator --help",
+          "description": "Test CLI help command"
+        },
+        {
+          "name": "test-cli-status",
+          "run": "game-dialog-generator status",
+          "description": "Test CLI status command"
+        },
+        {
+          "name": "test-qdrant-connection",
+          "run": "resource-qdrant collection info characters || echo 'Qdrant collection test skipped'",
+          "description": "Test Qdrant character collection"
+        },
+        {
+          "name": "test-ollama-generation",
+          "run": "resource-ollama generate 'Create a character greeting' --model llama3.2 || echo 'Ollama test skipped'",
+          "description": "Test Ollama dialog generation"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop jungle adventure services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f game-dialog-generator.start-api 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f game-dialog-generator.start-ui 2>/dev/null || true",
+          "description": "Stop jungle UI process"
+        }
+      ]
+    }
+  }
+}

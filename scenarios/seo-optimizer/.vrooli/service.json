@@ -29,13 +29,11 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "SEO Optimizer API port",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fallback": "auto",
       "description": "SEO Optimizer UI port",
       "range": "35000-39999"
     }
@@ -240,12 +238,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.seo-optimizer.start-api\" 2>/dev/null || pkill -f \"seo-optimizer-api\" 2>/dev/null || true",
+          "run": "pkill -f seo-optimizer.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.seo-optimizer.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f seo-optimizer.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

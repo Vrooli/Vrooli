@@ -1,6 +1,6 @@
 # Scenario Generator V1 - Deployment Setup Guide
 
-This guide provides step-by-step instructions for setting up the Scenario Generator V1, including required credential configuration for n8n workflows.
+This guide provides step-by-step instructions for setting up the Scenario Generator V1, including required credential configuration for Go automation scripts.
 
 ## Prerequisites
 
@@ -113,7 +113,7 @@ If generation fails:
 Once deployed successfully:
 
 1. **Access the Dashboard**: 
-   - Open React UI at `http://localhost:3000`
+   - Open React UI at `http://localhost:${UI_PORT}` (port determined by configuration)
    - Navigate to the Scenario Generator app
 
 2. **Generate a Scenario**:
@@ -128,7 +128,7 @@ Once deployed successfully:
 
 ## Support
 
-- Check logs in n8n workflow execution history
+- Check logs in Go automation script execution history
 - Run health checks: `./deployment/startup.sh health`  
 - Review database records in `scenarios` table
 - Examine MinIO bucket contents for generated artifacts

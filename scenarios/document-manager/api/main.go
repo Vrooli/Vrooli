@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -78,9 +79,14 @@ var db *sql.DB
 var config Config
 
 func loadConfig() Config {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	
 	return Config{
 		Port:            getEnv("API_PORT", getEnv("PORT", "")),
-		PostgresURL:     getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/document_manager?sslmode=disable"),
+		PostgresURL:     postgresURL,
 		RedisURL:        getEnv("REDIS_URL", "redis://localhost:6379"),
 		QdrantURL:       getEnv("QDRANT_URL", "http://localhost:6333"),
 		OllamaURL:       getEnv("OLLAMA_URL", "http://localhost:11434"),
@@ -145,17 +151,20 @@ func vectorStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := SystemStatus{Service: "qdrant", Status: "healthy"}
 	
 	resp, err := http.Get(config.QdrantURL + "/health")
-	if err != nil || resp.StatusCode != 200 {
+	if err != nil {
 		status.Status = "unhealthy"
-		if err != nil {
-			status.Details = err.Error()
-		} else {
-			status.Details = fmt.Sprintf("HTTP %d", resp.StatusCode)
-		}
+		status.Details = err.Error()
 		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(status)
+		return
 	}
-	if resp != nil {
-		resp.Body.Close()
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
+	
+	if resp.StatusCode != 200 {
+		status.Status = "unhealthy"
+		status.Details = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	
 	json.NewEncoder(w).Encode(status)
@@ -167,17 +176,20 @@ func aiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	status := SystemStatus{Service: "ollama", Status: "healthy"}
 	
 	resp, err := http.Get(config.OllamaURL + "/api/tags")
-	if err != nil || resp.StatusCode != 200 {
+	if err != nil {
 		status.Status = "unhealthy"
-		if err != nil {
-			status.Details = err.Error()
-		} else {
-			status.Details = fmt.Sprintf("HTTP %d", resp.StatusCode)
-		}
+		status.Details = err.Error()
 		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(status)
+		return
 	}
-	if resp != nil {
-		resp.Body.Close()
+	defer resp.Body.Close()
+	io.Copy(io.Discard, resp.Body) // Drain body to allow connection reuse
+	
+	if resp.StatusCode != 200 {
+		status.Status = "unhealthy"
+		status.Details = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 	
 	json.NewEncoder(w).Encode(status)

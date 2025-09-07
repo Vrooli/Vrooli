@@ -27,15 +27,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 24250,
-      "fallback": "auto",
-      "description": "Invoice generator API port"
+      "description": "Invoice generator API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31500,
-      "fallback": "auto",
-      "description": "Invoice Generator Pro UI port"
+      "description": "Invoice Generator Pro UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -219,18 +217,13 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.invoice-generator.start-api\" 2>/dev/null || pkill -f \"invoice-generator-api\" 2>/dev/null || true",
+          "run": "pkill -f invoice-generator.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.invoice-generator.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f invoice-generator.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

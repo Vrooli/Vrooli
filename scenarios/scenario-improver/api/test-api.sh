@@ -8,8 +8,16 @@ echo "=============================="
 pkill -f scenario-improver-api 2>/dev/null
 sleep 1
 
-# Start API in background
-export API_PORT=30155
+# Use provided API_PORT or find available port
+if [[ -z "$API_PORT" ]]; then
+    # Find an available port starting from 30150
+    API_PORT=30150
+    while netstat -tuln 2>/dev/null | grep -q ":$API_PORT "; do
+        API_PORT=$((API_PORT + 1))
+    done
+    export API_PORT
+fi
+
 echo "Starting API on port $API_PORT..."
 ./scenario-improver-api &> /tmp/scenario-improver.log &
 API_PID=$!

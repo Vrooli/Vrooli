@@ -59,7 +59,6 @@ resources_required:
   - postgres    # Database
   - redis       # Cache/Queue
   - claude-code # AI code generation
-  - ollama      # Local LLM
   - qdrant      # Vector database
   - minio       # Object storage
   # Add others as needed

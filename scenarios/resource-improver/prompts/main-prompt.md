@@ -141,10 +141,6 @@ priority = compliance_gap * 3 + health_issues * 2 + performance * 1
 - ollama, litellm, claude-code
 - Focus: Model management, API consistency
 
-### Workflow Automation
-- n8n, node-red, huginn
-- Focus: Workflow persistence, error handling
-
 ### Data Processing
 - qdrant, browserless, judge0
 - Focus: Performance, error recovery

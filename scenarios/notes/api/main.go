@@ -70,7 +70,7 @@ func main() {
 	// Initialize database
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/notes?sslmode=disable"
+		log.Fatal("POSTGRES_URL environment variable is required")
 	}
 
 	var err error

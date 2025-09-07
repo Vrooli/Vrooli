@@ -440,18 +440,13 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.scenario-to-extension.start-api\" 2>/dev/null || pkill -f \"scenario-to-extension-api\" 2>/dev/null || true",
+          "run": "pkill -f scenario-to-extension.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.scenario-to-extension.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f scenario-to-extension.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

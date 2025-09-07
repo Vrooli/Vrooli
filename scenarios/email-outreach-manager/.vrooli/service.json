@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "tags": [
       "email-marketing",
-      "ai-template-generation", 
+      "ai-template-generation",
       "contact-personalization",
       "campaign-automation",
       "drip-sequences",
@@ -25,13 +25,11 @@
   "ports": {
     "api": {
       "env_var": "EMAIL_OUTREACH_API_PORT",
-      "fallback": "auto",
       "description": "Email Outreach Manager API port for campaign management services",
       "range": "16000-16999"
     },
     "ui": {
-      "env_var": "EMAIL_OUTREACH_UI_PORT", 
-      "fallback": "auto",
+      "env_var": "EMAIL_OUTREACH_UI_PORT",
       "description": "Email Outreach Manager UI port for campaign management dashboard",
       "range": "3200-3299"
     }
@@ -48,7 +46,7 @@
           "type": "schema"
         },
         {
-          "file": "initialization/storage/postgres/seed.sql", 
+          "file": "initialization/storage/postgres/seed.sql",
           "type": "seed"
         }
       ]
@@ -91,7 +89,7 @@
       },
       "checks": [
         {
-          "name": "api_endpoint", 
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${EMAIL_OUTREACH_API_PORT}/health",
           "critical": true,
@@ -100,7 +98,7 @@
         },
         {
           "name": "ui_endpoint",
-          "type": "http", 
+          "type": "http",
           "target": "http://localhost:${EMAIL_OUTREACH_UI_PORT}/health",
           "critical": false,
           "timeout": 3000,
@@ -190,7 +188,7 @@
         {
           "name": "start-ui",
           "run": "cd ui && npm run dev",
-          "description": "Start UI development server", 
+          "description": "Start UI development server",
           "background": true,
           "condition": {
             "file_exists": "ui/package.json"
@@ -248,18 +246,13 @@
       "description": "Stop Email Outreach Manager services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.email-outreach-manager.start-api\" 2>/dev/null || pkill -f \"email-outreach-manager-api\" 2>/dev/null || true",
+          "run": "pkill -f email-outreach-manager.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.email-outreach-manager.start-ui\" 2>/dev/null || pkill -f \"ui.*dev\" 2>/dev/null || true",
+          "run": "pkill -f email-outreach-manager.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

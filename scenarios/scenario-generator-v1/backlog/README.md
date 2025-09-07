@@ -60,7 +60,7 @@ metadata:
   requested_by: "Person/Team"
   requested_date: "YYYY-MM-DD"
   deadline: "YYYY-MM-DD"
-resources_required: [postgres, redis, n8n, etc]
+resources_required: [postgres, redis, claude-code, etc]
 validation_criteria:
   - "Criterion 1"
   - "Criterion 2"

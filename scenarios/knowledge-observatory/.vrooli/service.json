@@ -23,15 +23,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 20260,
-      "fallback": "auto",
-      "description": "Knowledge Observatory API port"
+      "description": "Knowledge Observatory API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 20261,
-      "fallback": "auto",
-      "description": "Knowledge Observatory UI dashboard port"
+      "description": "Knowledge Observatory UI dashboard port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -244,18 +242,13 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.knowledge-observatory.start-api\" 2>/dev/null || pkill -f \"knowledge-observatory-api\" 2>/dev/null || true",
+          "run": "pkill -f knowledge-observatory.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.knowledge-observatory.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f knowledge-observatory.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

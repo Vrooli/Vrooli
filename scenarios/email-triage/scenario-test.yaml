@@ -1,0 +1,303 @@
+version: 1.0
+scenario: email-triage
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/email-triage
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/migrations/001_initial_schema.sql
+    - ui/src/index.html
+    - ui/src/main.js
+    - ui/package.json
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - api/handlers
+    - api/models
+    - api/services
+    - cli
+    - initialization
+    - initialization/postgres
+    - initialization/postgres/migrations
+    - ui
+    - ui/src
+    - ui/src/components
+    - docs
+
+# Resource validation
+resources:
+  required: [postgres, qdrant, scenario-authenticator, mail-in-a-box]
+  optional: [notification-hub, ollama, redis]
+  health_timeout: 90
+
+# Declarative tests
+tests:
+  # Infrastructure health checks
+  - name: "PostgreSQL is accessible and healthy"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Qdrant vector database is running"
+    type: http
+    service: qdrant
+    endpoint: /
+    method: GET  
+    expect:
+      status: 200
+      body_contains: ["qdrant"]
+      
+  - name: "Scenario authenticator is available"
+    type: http
+    service: scenario-authenticator
+    endpoint: /api/v1/auth/validate
+    method: GET
+    expect:
+      status: [401, 200]  # 401 is OK without token, means auth service is running
+      
+  - name: "Mail-in-a-box is accessible"
+    type: tcp
+    service: mail-in-a-box
+    host: localhost
+    port: 25  # SMTP port
+    expect:
+      connection: true
+
+  # API endpoint tests
+  - name: "Email triage API is running"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        
+  - name: "API requires authentication"
+    type: http
+    service: api
+    endpoint: /api/v1/accounts
+    method: GET
+    expect:
+      status: 401
+      body:
+        error: "authentication required"
+        
+  - name: "Email account creation endpoint exists"
+    type: http
+    service: api
+    endpoint: /api/v1/accounts
+    method: POST
+    body:
+      email_address: "test@example.com"
+      imap_server: "localhost"
+      imap_port: 143
+      smtp_server: "localhost" 
+      smtp_port: 25
+      password: "testpass"
+    headers:
+      Authorization: "Bearer invalid_token_for_testing"
+    expect:
+      status: [401, 400]  # Either auth failure or validation error is acceptable
+      
+  - name: "AI rule creation endpoint exists"
+    type: http
+    service: api
+    endpoint: /api/v1/rules
+    method: POST
+    body:
+      description: "Archive all newsletters and promotional emails"
+      use_ai_generation: true
+    headers:
+      Authorization: "Bearer invalid_token_for_testing"
+    expect:
+      status: [401, 400]  # Either auth failure or validation error is acceptable
+      
+  - name: "Semantic search endpoint exists"
+    type: http
+    service: api
+    endpoint: "/api/v1/emails/search?q=test+query"
+    method: GET
+    headers:
+      Authorization: "Bearer invalid_token_for_testing"
+    expect:
+      status: [401, 400]  # Either auth failure or validation error is acceptable
+
+  # Database tests  
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    database: email_triage
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+    expect:
+      rows:
+        - count: 4  # users, email_accounts, triage_rules, processed_emails
+
+  - name: "Users table exists with correct schema"
+    type: sql
+    service: postgres
+    database: email_triage
+    query: "SELECT column_name FROM information_schema.columns WHERE table_name = 'users'"
+    expect:
+      rows_contain: ["id", "email_profiles", "preferences", "plan_type", "created_at"]
+
+  - name: "Email accounts table exists"
+    type: sql
+    service: postgres
+    database: email_triage
+    query: "SELECT 1 FROM information_schema.tables WHERE table_name = 'email_accounts'"
+    expect:
+      row_count: 1
+
+  - name: "Triage rules table exists"
+    type: sql
+    service: postgres
+    database: email_triage
+    query: "SELECT 1 FROM information_schema.tables WHERE table_name = 'triage_rules'"
+    expect:
+      row_count: 1
+
+  - name: "Processed emails table exists"
+    type: sql
+    service: postgres
+    database: email_triage
+    query: "SELECT 1 FROM information_schema.tables WHERE table_name = 'processed_emails'"
+    expect:
+      row_count: 1
+
+  # Qdrant vector database tests
+  - name: "Qdrant emails collection exists"
+    type: http
+    service: qdrant
+    endpoint: "/collections/emails"
+    method: GET
+    expect:
+      status: [200, 404]  # 404 is acceptable if collection not created yet
+
+  # CLI command tests
+  - name: "CLI binary is executable"
+    type: exec
+    command: ./cli/email-triage --version
+    expect:
+      exit_code: 0
+      output_contains: ["email-triage", "version"]
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/email-triage help
+    expect:
+      exit_code: 0
+      output_contains: ["Commands:", "account", "rule", "search"]
+      
+  - name: "CLI status command works" 
+    type: exec
+    command: ./cli/email-triage status --json
+    expect:
+      exit_code: 0
+      output_contains: ["status", "accounts"]
+
+  # UI tests
+  - name: "Web dashboard is accessible"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["Email Triage", "Dashboard"]
+      
+  - name: "UI assets are served correctly"
+    type: http
+    service: ui
+    endpoint: /src/main.js
+    method: GET
+    expect:
+      status: 200
+      headers:
+        content-type: "application/javascript"
+
+  # Integration tests
+  - name: "API can connect to PostgreSQL"
+    type: exec
+    command: curl -s http://localhost:3200/health/database
+    expect:
+      exit_code: 0
+      output_contains: ["connected", "healthy"]
+      
+  - name: "API can connect to Qdrant"
+    type: exec  
+    command: curl -s http://localhost:3200/health/qdrant
+    expect:
+      exit_code: 0
+      output_contains: ["connected", "healthy"]
+
+# Performance validation
+performance:
+  - name: "API response time under load"
+    type: load_test
+    endpoint: http://localhost:3200/health
+    duration: 30s
+    requests_per_second: 10
+    expect:
+      avg_response_time: < 100ms
+      error_rate: < 1%
+      
+  - name: "Database query performance"
+    type: sql_performance
+    service: postgres
+    database: email_triage
+    query: "SELECT COUNT(*) FROM processed_emails WHERE user_id = $1"
+    iterations: 100
+    expect:
+      avg_query_time: < 10ms
+
+# Security validation
+security:
+  - name: "API endpoints require authentication"
+    type: security_scan
+    endpoints: 
+      - /api/v1/accounts
+      - /api/v1/rules
+      - /api/v1/emails/search
+    expect:
+      unauthenticated_access: false
+      
+  - name: "SQL injection protection"
+    type: security_test
+    endpoint: /api/v1/emails/search
+    payload: "'; DROP TABLE users; --"
+    expect:
+      status: [400, 422]  # Should reject malicious input
+      database_integrity: true
+
+# Cleanup tasks
+cleanup:
+  - name: "Remove test data"
+    type: sql
+    service: postgres
+    database: email_triage
+    query: "DELETE FROM processed_emails WHERE subject LIKE 'TEST_%'"
+    
+  - name: "Clear test vectors"
+    type: http
+    service: qdrant
+    endpoint: "/collections/emails/points"
+    method: DELETE
+    body:
+      filter:
+        must:
+          - key: "test_data"
+            match:
+              value: true

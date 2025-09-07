@@ -4,8 +4,9 @@
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scenarios/resource-experimenter"
-API_URL="${RESOURCE_EXPERIMENTER_API_URL:-http://localhost:8092}"
+SCRIPT_DIR="${APP_ROOT}/scenarios/resource-improver"
+API_PORT="${API_PORT:-15001}"
+API_URL="${RESOURCE_IMPROVER_API_URL:-http://localhost:$API_PORT}"
 
 # Colors
 RED='\033[1;31m'

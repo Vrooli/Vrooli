@@ -27,13 +27,11 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "Social media scheduler API port",
       "range": "16000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fallback": "auto",
       "description": "Social media scheduler UI port",
       "range": "36000-39999"
     }
@@ -284,17 +282,17 @@
       "steps": [
         {
           "name": "stop-job-processor",
-          "run": "pm::stop \"vrooli.develop.social-media-scheduler.start-job-processor\" 2>/dev/null || pkill -f \"social-media-scheduler-api.*worker\" 2>/dev/null || true",
+          "run": "pkill -f social-media-scheduler.start-job-processor 2>/dev/null || true",
           "description": "Stop background job processor"
         },
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.social-media-scheduler.start-api\" 2>/dev/null || pkill -f \"social-media-scheduler-api.*server\" 2>/dev/null || true",
+          "run": "pkill -f social-media-scheduler.start-api 2>/dev/null || true",
           "description": "Stop API server"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.social-media-scheduler.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f social-media-scheduler.start-ui 2>/dev/null || true",
           "description": "Stop React UI development server"
         }
       ]

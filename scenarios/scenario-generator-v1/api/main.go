@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -86,11 +87,13 @@ func main() {
 
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
-		postgresPort := os.Getenv("POSTGRES_PORT")
-		if postgresPort == "" {
-			postgresPort = "5432"
-		}
-		postgresURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/postgres?sslmode=disable", postgresPort)
+		postgresHost := getEnv("POSTGRES_HOST", "localhost")
+		postgresPort := getEnv("POSTGRES_PORT", "5432")
+		postgresUser := getEnv("POSTGRES_USER", "postgres")
+		postgresPassword := getEnv("POSTGRES_PASSWORD", "postgres")
+		postgresDB := getEnv("POSTGRES_DB", "postgres")
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", 
+			postgresUser, postgresPassword, postgresHost, postgresPort, postgresDB)
 	}
 
 	// Connect to database
@@ -158,6 +161,14 @@ func main() {
 	api.HandleFunc("/backlog/{id}", server.handleDeleteBacklogItem).Methods("DELETE")
 	api.HandleFunc("/backlog/{id}/generate", server.handleGenerateFromBacklog).Methods("POST")
 	api.HandleFunc("/backlog/{id}/move", server.handleMoveBacklogItem).Methods("POST")
+	
+	// Backlog statistics and metadata endpoints
+	api.HandleFunc("/backlog/stats", server.getBacklogStats).Methods("GET")
+	api.HandleFunc("/backlog/metadata", server.getBacklogMetadata).Methods("GET")
+	
+	// Validation endpoints
+	api.HandleFunc("/validate/scenario", server.validateScenario).Methods("POST")
+	api.HandleFunc("/validate/backlog-item", server.validateBacklogItem).Methods("POST")
 
 	// Start backlog file watcher
 	watcher := NewBacklogWatcher(server)
@@ -781,4 +792,163 @@ func (s *APIServer) getScenarioLogs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
+}
+
+// Statistics and metadata endpoints
+func (s *APIServer) getBacklogStats(w http.ResponseWriter, r *http.Request) {
+	// Load all backlog items
+	pending, _ := s.getBacklogItems("./backlog/pending")
+	inProgress, _ := s.getBacklogItems("./backlog/in-progress")
+	completed, _ := s.getBacklogItems("./backlog/completed")
+	failed, _ := s.getBacklogItems("./backlog/failed")
+	
+	// Calculate statistics
+	totalRevenue := 0
+	allItems := append(append(append(pending, inProgress...), completed...), failed...)
+	for _, item := range allItems {
+		totalRevenue += item.EstimatedRevenue
+	}
+	
+	// Category breakdown
+	categoryStats := make(map[string]int)
+	priorityStats := make(map[string]int)
+	for _, item := range allItems {
+		categoryStats[item.Category]++
+		priorityStats[item.Priority]++
+	}
+	
+	stats := map[string]interface{}{
+		"pending":           len(pending),
+		"in_progress":       len(inProgress),
+		"completed":         len(completed),
+		"failed":            len(failed),
+		"total_revenue":     totalRevenue,
+		"total_revenue_k":   totalRevenue / 1000,
+		"category_breakdown": categoryStats,
+		"priority_breakdown": priorityStats,
+		"timestamp":         time.Now(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
+func (s *APIServer) getBacklogMetadata(w http.ResponseWriter, r *http.Request) {
+	metadata := map[string]interface{}{
+		"status_options": []map[string]string{
+			{"id": "pending", "name": "Pending", "color": "text-yellow-500", "icon": "clock"},
+			{"id": "in_progress", "name": "In Progress", "color": "text-blue-500", "icon": "loader"},
+			{"id": "completed", "name": "Completed", "color": "text-green-500", "icon": "check-circle"},
+			{"id": "failed", "name": "Failed", "color": "text-red-500", "icon": "alert-circle"},
+		},
+		"priority_options": []map[string]string{
+			{"id": "high", "name": "High", "color": "text-red-500"},
+			{"id": "medium", "name": "Medium", "color": "text-yellow-500"},
+			{"id": "low", "name": "Low", "color": "text-green-500"},
+		},
+		"category_options": []string{
+			"business-tool", "ai-automation", "content-marketing", "customer-service",
+			"e-commerce", "analytics", "document-processing", "financial", "healthcare",
+			"education", "productivity", "social-media", "project-management",
+		},
+		"complexity_options": []map[string]interface{}{
+			{"id": "simple", "name": "Simple", "color": "text-green-500", "revenue": "$10K-20K"},
+			{"id": "intermediate", "name": "Intermediate", "color": "text-blue-500", "revenue": "$15K-35K"},
+			{"id": "advanced", "name": "Advanced", "color": "text-purple-500", "revenue": "$25K-50K"},
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(metadata)
+}
+
+// Validation endpoints
+func (s *APIServer) validateScenario(w http.ResponseWriter, r *http.Request) {
+	var scenario GenerationRequest
+	if err := json.NewDecoder(r.Body).Decode(&scenario); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	validation := map[string]interface{}{
+		"valid": true,
+		"errors": []string{},
+		"warnings": []string{},
+	}
+	
+	// Validate required fields
+	if strings.TrimSpace(scenario.Name) == "" {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Name is required")
+	}
+	
+	if strings.TrimSpace(scenario.Description) == "" {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Description is required")
+	}
+	
+	if strings.TrimSpace(scenario.Prompt) == "" {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Prompt is required")
+	}
+	
+	// Validate field lengths
+	if len(scenario.Name) > 200 {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Name must be less than 200 characters")
+	}
+	
+	if len(scenario.Description) > 1000 {
+		validation["warnings"] = append(validation["warnings"].([]string), "Description is quite long - consider shortening")
+	}
+	
+	// Validate complexity and category
+	validComplexities := map[string]bool{"simple": true, "intermediate": true, "advanced": true}
+	if !validComplexities[scenario.Complexity] {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Invalid complexity level")
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(validation)
+}
+
+func (s *APIServer) validateBacklogItem(w http.ResponseWriter, r *http.Request) {
+	var item BacklogItem
+	if err := json.NewDecoder(r.Body).Decode(&item); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	validation := map[string]interface{}{
+		"valid": true,
+		"errors": []string{},
+		"warnings": []string{},
+	}
+	
+	// Validate required fields
+	if strings.TrimSpace(item.Name) == "" {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Name is required")
+	}
+	
+	if strings.TrimSpace(item.Description) == "" {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Description is required")
+	}
+	
+	if item.EstimatedRevenue < 0 {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Estimated revenue cannot be negative")
+	}
+	
+	// Validate priority
+	validPriorities := map[string]bool{"high": true, "medium": true, "low": true}
+	if item.Priority != "" && !validPriorities[strings.ToLower(item.Priority)] {
+		validation["valid"] = false
+		validation["errors"] = append(validation["errors"].([]string), "Invalid priority level")
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(validation)
 }

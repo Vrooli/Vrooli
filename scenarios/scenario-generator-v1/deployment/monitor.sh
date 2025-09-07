@@ -128,37 +128,9 @@ check_database_health() {
     fi
 }
 
+# Removed n8n webhook testing functionality - no longer needed
 test_webhook_performance() {
-    if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local webhook_url="http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
-        local test_payload='{"test": true, "monitoring": true, "timestamp": "'$(date -Iseconds)'"}'
-        
-        local start_time=$(date +%s%3N)
-        local response_code
-        
-        if response_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 \
-            -X POST -H "Content-Type: application/json" -d "$test_payload" "$webhook_url" 2>/dev/null); then
-            
-            local end_time=$(date +%s%3N)
-            local response_time=$((end_time - start_time))
-            
-            if [[ "$response_code" -ge 200 && "$response_code" -lt 400 ]]; then
-                log_performance "Webhook response: ${response_time}ms (HTTP $response_code)"
-                
-                if [[ $response_time -gt $RESPONSE_TIME_THRESHOLD_MS ]]; then
-                    log_alert "Webhook response time exceeded threshold: ${response_time}ms > ${RESPONSE_TIME_THRESHOLD_MS}ms"
-                fi
-                
-                return 0
-            else
-                log_alert "Webhook test failed (HTTP $response_code)"
-                return 1
-            fi
-        else
-            log_alert "Webhook test failed (connection error)"
-            return 1
-        fi
-    fi
+    return 0
 }
 
 check_resource_usage() {
@@ -228,20 +200,6 @@ health_monitoring_loop() {
         # Check required resources
         for resource in $REQUIRED_RESOURCES; do
             case "$resource" in
-                "ollama")
-                    if check_service_health "Ollama" "http://localhost:11434/api/tags"; then
-                        ((health_checks_passed++))
-                    else
-                        ((health_checks_failed++))
-                    fi
-                    ;;
-                "n8n")
-                    if check_service_health "n8n" "http://localhost:5678/healthz"; then
-                        ((health_checks_passed++))
-                    else
-                        ((health_checks_failed++))
-                    fi
-                    ;;
                 "postgres")
                     if check_database_health; then
                         ((health_checks_passed++))
@@ -250,35 +208,35 @@ health_monitoring_loop() {
                     fi
                     ;;
                 "whisper")
-                    if check_service_health "Whisper" "http://localhost:8090/"; then
+                    if check_service_health "Whisper" "http://localhost:${WHISPER_PORT:-8090}/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "comfyui")
-                    if check_service_health "ComfyUI" "http://localhost:8188/"; then
+                    if check_service_health "ComfyUI" "http://localhost:${COMFYUI_PORT:-8188}/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "minio")
-                    if check_service_health "MinIO" "http://localhost:9000/minio/health/live"; then
+                    if check_service_health "MinIO" "http://localhost:${MINIO_PORT:-9000}/minio/health/live"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "qdrant")
-                    if check_service_health "Qdrant" "http://localhost:6333/"; then
+                    if check_service_health "Qdrant" "http://localhost:${QDRANT_PORT:-6333}/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "questdb")
-                    if check_service_health "QuestDB" "http://localhost:9010/"; then
+                    if check_service_health "QuestDB" "http://localhost:${QUESTDB_PORT:-9010}/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))

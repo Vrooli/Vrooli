@@ -1,8 +1,10 @@
 // App Debugger Interactive Terminal
 // API base URL - configurable via global variables or environment
 const API_HOST = window.SCENARIO_IMPROVER_API_HOST || window.location.hostname;
-const API_PORT = window.SCENARIO_IMPROVER_API_PORT || window.API_PORT || '30150';
-const API_BASE = window.SCENARIO_IMPROVER_API_URL || `${window.location.protocol}//${API_HOST}:${API_PORT}`;
+const API_PORT = window.SCENARIO_IMPROVER_API_PORT || window.API_PORT;
+const API_BASE = window.SCENARIO_IMPROVER_API_URL || 
+    (API_PORT ? `${window.location.protocol}//${API_HOST}:${API_PORT}` : 
+                `${window.location.protocol}//${API_HOST}:${window.location.port}`);
 
 let selectedApp = null;
 let debugHistory = [];
@@ -28,7 +30,7 @@ function initializeTerminal() {
     setTimeout(() => {
         addTerminalLine('Loading debugging modules...', 'success');
         setTimeout(() => {
-            addTerminalLine('Connecting to N8N workflows...', 'success');
+            addTerminalLine('Connecting to scenario improvement queue...', 'success');
             setTimeout(() => {
                 addTerminalLine('Debug terminal ready. Type "help" for commands.', 'success');
             }, 300);

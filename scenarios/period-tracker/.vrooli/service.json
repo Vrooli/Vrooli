@@ -28,13 +28,11 @@
   "ports": {
     "api": {
       "env_var": "PERIOD_TRACKER_API_PORT",
-      "fallback": "auto",
       "description": "Period Tracker API port",
       "range": "16000-16999"
     },
     "ui": {
       "env_var": "PERIOD_TRACKER_UI_PORT",
-      "fallback": "auto",
       "description": "Period Tracker UI port",
       "range": "36000-36999"
     }
@@ -240,18 +238,13 @@
       "description": "Stop services and ensure data security",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.period-tracker.start-api\" 2>/dev/null || pkill -f \"period-tracker-api\" 2>/dev/null || true",
+          "run": "pkill -f period-tracker.start-api 2>/dev/null || true",
           "description": "Stop API process securely"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.period-tracker.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f period-tracker.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         },
         {

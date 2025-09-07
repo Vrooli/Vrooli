@@ -1,0 +1,160 @@
+{
+  "version": "1.0",
+  "description": "X (Twitter) bookmark monitoring and extraction agent",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "twitter-bookmarks-monitor",
+      "description": "Monitors X (Twitter) bookmarks via web scraping (API alternative)",
+      "schedule": "every_1h",
+      "options": {
+        "expected_update_period_in_days": 1,
+        "url": "https://x.com/i/bookmarks",
+        "type": "html",
+        "mode": "on_change",
+        "extract": {
+          "tweets": {
+            "css": "[data-testid='tweet']",
+            "value": "."
+          }
+        },
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (compatible; BookmarkIntelligenceBot/1.0)",
+          "Cookie": "{{ twitter_session_cookie }}"
+        },
+        "authentication_required": true,
+        "fallback_to_browserless": true
+      }
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "twitter-tweet-formatter",
+      "description": "Formats Twitter/X tweets for bookmark processing",
+      "schedule": "never",
+      "options": {
+        "instructions": {
+          "title": "Tweet by {{ author }}",
+          "content": "{{ tweet_text }}",
+          "author": "{{ author }}",
+          "username": "{{ username }}",
+          "url": "https://x.com/{{ username }}/status/{{ tweet_id }}",
+          "platform": "twitter",
+          "retweets": "{{ retweet_count }}",
+          "likes": "{{ like_count }}",
+          "replies": "{{ reply_count }}",
+          "posted_at": "{{ tweet_date }}",
+          "bookmark_metadata": {
+            "tweet_id": "{{ tweet_id }}",
+            "is_retweet": "{{ is_retweet }}",
+            "has_media": "{{ has_media }}",
+            "bookmarked_at": "{{ date }}"
+          }
+        },
+        "expected_receive_period_in_days": 1
+      }
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "twitter-bookmark-sender",
+      "description": "Sends formatted Twitter bookmarks to processing API",
+      "schedule": "never",
+      "options": {
+        "post_url": "{{ api_base_url }}/api/v1/bookmarks/process",
+        "expected_receive_period_in_days": 1,
+        "content_type": "json",
+        "method": "post",
+        "payload": {
+          "profile_id": "{{ profile_id }}",
+          "bookmarks": [
+            {
+              "platform": "twitter",
+              "url": "{{ url }}",
+              "title": "{{ title }}",
+              "content": "{{ content }}",
+              "author": "@{{ username }}",
+              "metadata": {
+                "tweet_id": "{{ tweet_id }}",
+                "username": "{{ username }}",
+                "author": "{{ author }}",
+                "retweets": "{{ retweets }}",
+                "likes": "{{ likes }}",
+                "replies": "{{ replies }}",
+                "posted_at": "{{ posted_at }}",
+                "is_retweet": "{{ is_retweet }}",
+                "has_media": "{{ has_media }}",
+                "extracted_at": "{{ date }}"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{ api_token }}"
+        }
+      }
+    },
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "twitter-browserless-fallback",
+      "description": "Browserless fallback for when direct scraping fails",
+      "schedule": "never",
+      "options": {
+        "expected_update_period_in_days": 1,
+        "url": "{{ browserless_base_url }}/screenshot",
+        "type": "json",
+        "method": "post",
+        "payload": {
+          "url": "https://x.com/i/bookmarks",
+          "options": {
+            "fullPage": false,
+            "type": "png"
+          },
+          "gotoOptions": {
+            "waitUntil": "networkidle2"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "extract": {
+          "screenshot": {
+            "path": "screenshot"
+          }
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "twitter-bookmarks-monitor",
+      "receiver": "twitter-tweet-formatter"
+    },
+    {
+      "source": "twitter-tweet-formatter",
+      "receiver": "twitter-bookmark-sender"
+    }
+  ],
+  "variables": {
+    "twitter_session_cookie": "${TWITTER_SESSION_COOKIE}",
+    "browserless_base_url": "http://localhost:${RESOURCE_PORTS[browserless]}",
+    "api_base_url": "http://localhost:${API_PORT}",
+    "profile_id": "default-profile",
+    "api_token": "${BOOKMARK_API_TOKEN}"
+  },
+  "metadata": {
+    "created_by": "bookmark-intelligence-hub",
+    "version": "1.0.0",
+    "last_updated": "2025-09-06",
+    "platform": "twitter",
+    "requires_authentication": true,
+    "polling_interval": "1h",
+    "fallback_method": "browserless",
+    "reusability": "medium",
+    "used_by_scenarios": [
+      "bookmark-intelligence-hub",
+      "social-media-scheduler",
+      "twitter-analytics"
+    ],
+    "notes": "Twitter API access is limited, so this uses web scraping with browserless fallback"
+  }
+}

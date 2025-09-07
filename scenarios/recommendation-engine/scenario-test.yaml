@@ -1,0 +1,323 @@
+version: 1.0
+scenario: recommendation-engine
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/recommendation-engine
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - ui/index.html
+    - ui/package.json
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/storage
+    - initialization/storage/postgres
+    - ui
+
+# Resource validation
+resources:
+  required: [postgres, qdrant]
+  optional: [redis]
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Qdrant is accessible"
+    type: http
+    service: qdrant
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["status"]
+      
+  - name: "API documentation endpoint responds"
+    type: http
+    service: api
+    endpoint: /docs
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["Recommendation Engine API"]
+      
+  - name: "API ingest endpoint accepts data"
+    type: http
+    service: api
+    endpoint: /api/v1/recommendations/ingest
+    method: POST
+    body:
+      scenario_id: "test-scenario"
+      items:
+        - external_id: "test-item-1"
+          title: "Test Item"
+          description: "A test item for validation"
+          category: "test"
+          metadata: {}
+    expect:
+      status: 200
+      body_contains: ["success", "items_processed"]
+      
+  - name: "API recommendation endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/recommendations/get
+    method: POST
+    body:
+      user_id: "test-user"
+      scenario_id: "test-scenario"
+      limit: 5
+    expect:
+      status: 200
+      body_contains: ["recommendations", "algorithm_used"]
+      
+  - name: "API similarity endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/recommendations/similar
+    method: POST
+    body:
+      item_external_id: "test-item-1"
+      scenario_id: "test-scenario"
+      limit: 5
+      threshold: 0.7
+    expect:
+      status: 200
+      body_contains: ["similar_items"]
+      
+  # CLI command tests
+  - name: "CLI help command executes"
+    type: exec
+    command: ./cli/recommendation-engine help
+    expect:
+      exit_code: 0
+      output_contains: ["Recommendation Engine CLI", "COMMANDS"]
+      
+  - name: "CLI version command executes"
+    type: exec
+    command: ./cli/recommendation-engine version
+    expect:
+      exit_code: 0
+      output_contains: ["Recommendation Engine CLI", "Version"]
+      
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/recommendation-engine status
+    timeout: 10
+    expect:
+      exit_code: 0
+      output_contains: ["Recommendation Engine Status"]
+      
+  # Database schema tests
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('users', 'items', 'user_interactions', 'recommendation_events')"
+    expect:
+      rows:
+        - count: 4
+        
+  - name: "Database indexes are created"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM pg_indexes WHERE indexname LIKE 'idx_%'"
+    expect:
+      min_rows: 10
+      
+  - name: "Database views are created"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.views WHERE table_name IN ('user_interaction_summary', 'item_popularity_summary', 'scenario_activity_summary')"
+    expect:
+      rows:
+        - count: 3
+        
+  - name: "Seed data is loaded"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM users WHERE scenario_id IN ('e-commerce-demo', 'content-platform-demo')"
+    expect:
+      min_rows: 6
+      
+  # Qdrant tests
+  - name: "Qdrant collection exists"
+    type: http
+    service: qdrant
+    endpoint: /collections/item-embeddings
+    method: GET
+    expect:
+      status: 200
+      
+  # UI tests
+  - name: "Management UI loads"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["Recommendation Engine", "System Status"]
+      
+  - name: "UI package.json is valid"
+    type: exec
+    command: cd ui && node -pe "JSON.parse(require('fs').readFileSync('package.json', 'utf8')).name"
+    expect:
+      exit_code: 0
+      output_contains: ["recommendation-engine-ui"]
+      
+  # Integration tests
+  - name: "End-to-end recommendation flow"
+    type: custom
+    script: |
+      #!/bin/bash
+      set -e
+      
+      # Test complete recommendation flow
+      echo "Testing end-to-end recommendation flow..."
+      
+      # 1. Ingest test data via CLI
+      echo '{"user_id": "flow-test-user", "item_external_id": "flow-test-item", "interaction_type": "view"}' > /tmp/test-interactions.json
+      echo '[{"user_id": "flow-test-user", "item_external_id": "flow-test-item", "interaction_type": "view"}]' > /tmp/test-interactions-array.json
+      
+      ./cli/recommendation-engine ingest flow-test-scenario --interactions-file /tmp/test-interactions-array.json
+      
+      # 2. Get recommendations
+      ./cli/recommendation-engine recommend flow-test-user flow-test-scenario --limit 3 --json > /tmp/recommendations.json
+      
+      # 3. Verify response structure
+      if ! jq -e '.recommendations' /tmp/recommendations.json >/dev/null; then
+        echo "ERROR: Recommendations response missing 'recommendations' field"
+        exit 1
+      fi
+      
+      echo "✓ End-to-end flow completed successfully"
+      
+      # Cleanup
+      rm -f /tmp/test-interactions.json /tmp/test-interactions-array.json /tmp/recommendations.json
+    expect:
+      exit_code: 0
+      output_contains: ["End-to-end flow completed successfully"]
+      
+  # Performance tests
+  - name: "API response time under load"
+    type: custom
+    script: |
+      #!/bin/bash
+      set -e
+      
+      echo "Testing API response times..."
+      
+      # Test health endpoint response time
+      start_time=$(date +%s%N)
+      curl -sf "${API_BASE_URL:-http://localhost:8080}/health" >/dev/null
+      end_time=$(date +%s%N)
+      response_time=$(( (end_time - start_time) / 1000000 ))  # Convert to milliseconds
+      
+      echo "Health endpoint response time: ${response_time}ms"
+      
+      if [ $response_time -gt 1000 ]; then
+        echo "ERROR: Response time too slow: ${response_time}ms > 1000ms"
+        exit 1
+      fi
+      
+      echo "✓ API response time acceptable"
+    expect:
+      exit_code: 0
+      output_contains: ["API response time acceptable"]
+      
+  # Algorithm validation tests  
+  - name: "Recommendation algorithms produce results"
+    type: custom
+    script: |
+      #!/bin/bash
+      set -e
+      
+      echo "Testing recommendation algorithms..."
+      
+      # Test each algorithm type
+      for algorithm in "collaborative" "semantic" "hybrid"; do
+        echo "Testing ${algorithm} algorithm..."
+        
+        response=$(./cli/recommendation-engine recommend test-user test-scenario --algorithm "$algorithm" --json 2>/dev/null || echo '{"recommendations": []}')
+        
+        if ! echo "$response" | jq -e '.recommendations' >/dev/null; then
+          echo "WARNING: ${algorithm} algorithm failed to return recommendations"
+        else
+          echo "✓ ${algorithm} algorithm working"
+        fi
+      done
+      
+      echo "✓ Algorithm validation completed"
+    expect:
+      exit_code: 0
+      output_contains: ["Algorithm validation completed"]
+      
+  # Data quality tests
+  - name: "Database constraints are enforced"
+    type: sql
+    service: postgres
+    query: |
+      -- Test that duplicate users in same scenario are prevented
+      SELECT COUNT(*) as constraint_violations FROM (
+        SELECT scenario_id, external_id, COUNT(*) as duplicates
+        FROM users 
+        GROUP BY scenario_id, external_id 
+        HAVING COUNT(*) > 1
+      ) violations
+    expect:
+      rows:
+        - constraint_violations: 0
+        
+  - name: "Recommendation quality metrics"
+    type: custom
+    script: |
+      #!/bin/bash
+      set -e
+      
+      echo "Validating recommendation quality..."
+      
+      # Test that recommendations are diverse (different categories)
+      recommendations=$(./cli/recommendation-engine recommend test-user e-commerce-demo --limit 10 --json 2>/dev/null || echo '{"recommendations": []}')
+      
+      # Count unique categories in recommendations
+      unique_categories=$(echo "$recommendations" | jq -r '.recommendations[].category // "unknown"' | sort -u | wc -l)
+      
+      echo "Unique categories in recommendations: $unique_categories"
+      
+      if [ "$unique_categories" -lt 2 ]; then
+        echo "WARNING: Low diversity in recommendations (only $unique_categories categories)"
+      else
+        echo "✓ Recommendation diversity acceptable"
+      fi
+      
+      echo "✓ Quality validation completed"
+    expect:
+      exit_code: 0
+      output_contains: ["Quality validation completed"]

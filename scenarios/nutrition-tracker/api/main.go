@@ -73,15 +73,39 @@ type DailySummary struct {
 var db *sql.DB
 
 func main() {
-	// Initialize database connection
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbUser := getEnv("DB_USER", "postgres")
-	dbPassword := getEnv("DB_PASSWORD", "postgres")
-	dbName := getEnv("DB_NAME", "nutrition_tracker")
+	// Initialize database connection using orchestrator-provided environment variables
+	// The orchestrator provides POSTGRES_URL directly, or individual components
+	var connStr string
+	postgresURL := getEnv("POSTGRES_URL", "")
+	if postgresURL != "" {
+		// Use the full URL provided by orchestrator
+		connStr = postgresURL
+	} else {
+		// Fallback to individual components (Vrooli standard naming)
+		dbHost := getEnv("POSTGRES_HOST", "")
+		if dbHost == "" {
+			log.Fatal("POSTGRES_HOST environment variable is required")
+		}
+		dbPort := getEnv("POSTGRES_PORT", "")
+		if dbPort == "" {
+			log.Fatal("POSTGRES_PORT environment variable is required")
+		}
+		dbUser := getEnv("POSTGRES_USER", "")
+		if dbUser == "" {
+			log.Fatal("POSTGRES_USER environment variable is required")
+		}
+		dbPassword := getEnv("POSTGRES_PASSWORD", "")
+		if dbPassword == "" {
+			log.Fatal("POSTGRES_PASSWORD environment variable is required")
+		}
+		dbName := getEnv("POSTGRES_DB", "")
+		if dbName == "" {
+			log.Fatal("POSTGRES_DB environment variable is required")
+		}
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	}
 
 	var err error
 	db, err = sql.Open("postgres", connStr)

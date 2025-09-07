@@ -1,6 +1,6 @@
 # Scenario Improver
 
-A continuous improvement system for existing Vrooli scenarios using PRD-driven validation and cross-scenario impact analysis.
+A continuous improvement system for existing Vrooli scenarios using Claude Code intelligence for PRD-driven validation and cross-scenario impact analysis.
 
 ## Overview
 
@@ -23,19 +23,25 @@ The Scenario Improver is a specialized agent that automatically identifies and i
 ### Resources
 - **PostgreSQL**: Improvement history and tracking
 - **Redis**: Queue state and active sessions
-- **N8n**: Improvement workflow orchestration
+- **Claude Code**: AI-powered improvement implementation
 - **Qdrant**: Long-term memory and pattern matching
 - **QuestDB**: Time-series metrics tracking
 
 ## Key Features
 
-### 1. PRD Compliance Tracking
+### 1. Claude Code Intelligence
+- Uses `resource-claude-code` for all AI analysis and implementation
+- Sophisticated prompt engineering for scenario improvements
+- Real implementation capabilities vs. just planning
+- Superior code understanding and modification abilities
+
+### 2. PRD Compliance Tracking
 - Reads each scenario's PRD.md
 - Tracks requirement completion
 - Prioritizes missing P0 requirements
 - Updates PRD completion percentages
 
-### 2. Validation Gates
+### 3. Validation Gates
 Every improvement passes through:
 1. Functional validation
 2. Integration testing
@@ -44,14 +50,14 @@ Every improvement passes through:
 5. Memory system updates
 6. Cross-scenario compatibility
 
-### 3. Queue-Based Processing
+### 4. Queue-Based Processing
 - Prioritized task queue
 - One improvement at a time
 - Automatic failure recovery
 - Manual intervention support
 - Cooldown periods to prevent conflicts
 
-### 4. Cross-Scenario Impact Analysis
+### 5. Cross-Scenario Impact Analysis
 - Dependency mapping
 - Breaking change detection
 - Resource conflict prevention
@@ -75,19 +81,22 @@ cp queue/templates/improvement.yaml queue/pending/100-improve-system-monitor.yam
 # Edit the file with specific requirements
 
 # Or use CLI
-scenario-improver add --target system-monitor --type prd-compliance --priority high
+scenario-improver add "Complete P0 requirements for System Monitor"
 ```
 
 ### Monitoring Progress
 ```bash
 # Check queue status
-scenario-improver status
+scenario-improver queue
+
+# Check API health
+scenario-improver health
+
+# List running scenarios
+scenario-improver scenarios
 
 # View recent completions
 ls -lt queue/completed/*.yaml | head -10
-
-# Check failed improvements
-scenario-improver failures --details
 ```
 
 ## Queue System
@@ -157,15 +166,15 @@ requirements:
 
 ### Example: Cross-Scenario Optimization
 ```yaml
-# queue/pending/100-optimize-shared-workflows.yaml
-id: optimize-shared-workflows-20250103
-title: "Optimize shared N8n workflows across scenarios"
+# queue/pending/100-optimize-shared-resources.yaml
+id: optimize-shared-resources-20250103
+title: "Optimize shared resource usage across scenarios"
 type: optimization
 target: all-scenarios
 priority: medium
 cross_scenario:
   affected_scenarios: ["system-monitor", "agent-metareasoning-manager"]
-  shared_resources: ["n8n", "ollama"]
+  shared_resources: ["claude-code", "qdrant", "postgres"]
 ```
 
 ## Development

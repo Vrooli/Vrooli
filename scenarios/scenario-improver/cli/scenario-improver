@@ -4,8 +4,52 @@
 # Provides command-line interface to the Scenario Improver API
 
 # Build API URL using environment variables
-API_PORT="${SCENARIO_IMPROVER_API_PORT:-${API_PORT:-30150}}"
+API_PORT="${SCENARIO_IMPROVER_API_PORT:-${API_PORT}}"
 API_HOST="${SCENARIO_IMPROVER_API_HOST:-localhost}"
+
+# Check if port is configured or try to discover it
+if [[ -z "$API_PORT" ]]; then
+    echo "No API port specified, attempting auto-discovery..."
+    
+    # Method 1: Check for running scenario-improver-api processes
+    DISCOVERED_PORT=$(ps aux | grep scenario-improver-api | grep -o 'API_PORT=[0-9]*' | cut -d'=' -f2 | head -1)
+    
+    # Method 2: Check common ports for scenario-improver health endpoint
+    if [[ -z "$DISCOVERED_PORT" ]]; then
+        for port in {30150..30159}; do
+            if curl -s --max-time 2 "http://localhost:$port/health" 2>/dev/null | grep -q "scenario-improver\|improver"; then
+                DISCOVERED_PORT="$port"
+                break
+            fi
+        done
+    fi
+    
+    # Method 3: Check for any service responding with "healthy" status
+    if [[ -z "$DISCOVERED_PORT" ]]; then
+        for port in {30150..30159}; do
+            if curl -s --max-time 1 "http://localhost:$port/health" 2>/dev/null | grep -q '"status".*"healthy"'; then
+                # Verify it's the right service by checking if it has scenario endpoints
+                if curl -s --max-time 1 "http://localhost:$port/api/scenarios/list" 2>/dev/null | grep -q "scenarios"; then
+                    DISCOVERED_PORT="$port"
+                    break
+                fi
+            fi
+        done
+    fi
+    
+    if [[ -n "$DISCOVERED_PORT" ]]; then
+        API_PORT="$DISCOVERED_PORT"
+        echo "✓ Discovered scenario-improver API on port $API_PORT"
+    else
+        echo "✗ Could not auto-discover API port."
+        echo "Please set SCENARIO_IMPROVER_API_PORT or API_PORT environment variable."
+        echo "Example: export SCENARIO_IMPROVER_API_PORT=30150"
+        echo ""
+        echo "Or start the API first with: cd api && ./start.sh"
+        exit 1
+    fi
+fi
+
 API_URL="${SCENARIO_IMPROVER_API_URL:-http://${API_HOST}:${API_PORT}}"
 
 show_help() {
@@ -32,8 +76,8 @@ Examples:
 
 Environment:
     SCENARIO_IMPROVER_API_URL    Full API endpoint (overrides host/port)
-    SCENARIO_IMPROVER_API_HOST   API host (default: localhost)
-    SCENARIO_IMPROVER_API_PORT   API port (default: 30150)
+    SCENARIO_IMPROVER_API_HOST   API host (default: localhost)  
+    SCENARIO_IMPROVER_API_PORT   API port (required if not auto-discovered)
     API_PORT                     Alternative API port variable
 EOF
 }

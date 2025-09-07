@@ -1,0 +1,602 @@
+#!/bin/bash
+
+# Game Dialog Generator CLI - Jungle Platformer Adventure Theme 🌿🎮
+# Thin wrapper over the Go API for command-line access
+
+set -e
+
+# Configuration
+API_PORT=${API_PORT:-8080}
+API_BASE_URL="http://localhost:${API_PORT}"
+CLI_VERSION="1.0.0"
+
+# Colors for jungle theme output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Utility functions
+print_jungle_header() {
+    echo -e "${GREEN}🌿 Game Dialog Generator CLI v${CLI_VERSION} 🎮${NC}"
+    echo -e "${GREEN}Jungle Platformer Adventure Theme${NC}"
+    echo ""
+}
+
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}" >&2
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ️  $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# API helper functions
+api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local content_type="${4:-application/json}"
+    
+    if [ -n "$data" ]; then
+        curl -s -X "$method" \
+            -H "Content-Type: $content_type" \
+            -d "$data" \
+            "$API_BASE_URL$endpoint" 2>/dev/null
+    else
+        curl -s -X "$method" "$API_BASE_URL$endpoint" 2>/dev/null
+    fi
+}
+
+check_api_health() {
+    if ! curl -s "$API_BASE_URL/health" >/dev/null 2>&1; then
+        print_error "API server is not running on port $API_PORT"
+        print_info "Start the API with: cd api && ./game-dialog-generator-api"
+        return 1
+    fi
+    return 0
+}
+
+# Command functions
+cmd_status() {
+    local json_output=false
+    local verbose=false
+    
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose|-v)
+                verbose=true
+                shift
+                ;;
+            *)
+                print_error "Unknown flag: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if ! check_api_health; then
+        return 1
+    fi
+    
+    local response
+    response=$(api_call "GET" "/health")
+    
+    if [ "$json_output" = true ]; then
+        echo "$response"
+    else
+        local status
+        status=$(echo "$response" | jq -r '.status // "unknown"')
+        
+        case $status in
+            "healthy")
+                print_success "Game Dialog Generator is healthy and ready for jungle adventures!"
+                ;;
+            "degraded")
+                print_warning "Service is running but some resources are unavailable"
+                ;;
+            *)
+                print_error "Service status unknown"
+                ;;
+        esac
+        
+        if [ "$verbose" = true ]; then
+            echo ""
+            print_info "Detailed status:"
+            echo "$response" | jq '.'
+        fi
+    fi
+}
+
+cmd_character_create() {
+    local name=""
+    local personality_file=""
+    local interactive=false
+    
+    # Parse arguments and flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --interactive|-i)
+                interactive=true
+                shift
+                ;;
+            --personality-file)
+                personality_file="$2"
+                shift 2
+                ;;
+            *)
+                if [ -z "$name" ]; then
+                    name="$1"
+                else
+                    print_error "Unknown argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if ! check_api_health; then
+        return 1
+    fi
+    
+    # Interactive mode
+    if [ "$interactive" = true ]; then
+        print_jungle_header
+        echo -e "${GREEN}🌿 Welcome to Character Creation! 🎮${NC}"
+        echo ""
+        
+        if [ -z "$name" ]; then
+            echo -n "Character name: "
+            read -r name
+        fi
+        
+        echo -n "Background story: "
+        read -r background
+        
+        echo -n "Personality trait - Brave (0.0-1.0): "
+        read -r brave
+        brave=${brave:-0.5}
+        
+        echo -n "Personality trait - Humorous (0.0-1.0): "
+        read -r humorous
+        humorous=${humorous:-0.5}
+        
+        echo -n "Personality trait - Loyal (0.0-1.0): "
+        read -r loyal
+        loyal=${loyal:-0.5}
+        
+        echo -n "Voice pitch (low/medium/high): "
+        read -r pitch
+        pitch=${pitch:-medium}
+        
+        # Create JSON payload
+        local character_data
+        character_data=$(cat <<EOF
+{
+    "name": "$name",
+    "background_story": "$background",
+    "personality_traits": {
+        "brave": $brave,
+        "humorous": $humorous,
+        "loyal": $loyal
+    },
+    "voice_profile": {
+        "pitch": "$pitch"
+    }
+}
+EOF
+        )
+    else
+        # Non-interactive mode
+        if [ -z "$name" ]; then
+            print_error "Character name is required"
+            echo "Usage: game-dialog-generator character-create <name> [--personality-file <file>] [--interactive]"
+            return 1
+        fi
+        
+        local character_data
+        if [ -n "$personality_file" ] && [ -f "$personality_file" ]; then
+            character_data=$(cat "$personality_file")
+            # Update name in the JSON
+            character_data=$(echo "$character_data" | jq --arg name "$name" '.name = $name')
+        else
+            character_data=$(cat <<EOF
+{
+    "name": "$name",
+    "personality_traits": {
+        "brave": 0.5,
+        "humorous": 0.5,
+        "loyal": 0.5
+    },
+    "background_story": "A brave adventurer in the jungle.",
+    "voice_profile": {
+        "pitch": "medium"
+    }
+}
+EOF
+            )
+        fi
+    fi
+    
+    # Create character via API
+    local response
+    response=$(api_call "POST" "/api/v1/characters" "$character_data")
+    
+    if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+        local character_id
+        character_id=$(echo "$response" | jq -r '.character_id')
+        print_success "Character '$name' created successfully!"
+        print_info "Character ID: $character_id"
+    else
+        local error
+        error=$(echo "$response" | jq -r '.error // "Unknown error"')
+        print_error "Failed to create character: $error"
+        return 1
+    fi
+}
+
+cmd_character_list() {
+    if ! check_api_health; then
+        return 1
+    fi
+    
+    local response
+    response=$(api_call "GET" "/api/v1/characters")
+    
+    local count
+    count=$(echo "$response" | jq -r '.count // 0')
+    
+    if [ "$count" -eq 0 ]; then
+        print_info "No characters found in the jungle. Create some with 'character-create'!"
+        return 0
+    fi
+    
+    print_jungle_header
+    echo -e "${GREEN}🌿 Jungle Characters (${count} found) 🎮${NC}"
+    echo ""
+    
+    echo "$response" | jq -r '.characters[] | "🐒 \(.name) (ID: \(.id))\n   📖 \(.background_story // "No background story")\n   🎭 Traits: \(.personality_traits | to_entries | map("\(.key): \(.value)") | join(", "))\n"'
+}
+
+cmd_dialog_generate() {
+    local character_id=""
+    local scene_context=""
+    local emotion=""
+    local voice=false
+    local streaming=false
+    
+    # Parse arguments and flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --voice)
+                voice=true
+                shift
+                ;;
+            --streaming)
+                streaming=true
+                shift
+                ;;
+            --emotion)
+                emotion="$2"
+                shift 2
+                ;;
+            *)
+                if [ -z "$character_id" ]; then
+                    character_id="$1"
+                elif [ -z "$scene_context" ]; then
+                    scene_context="$1"
+                else
+                    print_error "Unknown argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$character_id" ] || [ -z "$scene_context" ]; then
+        print_error "Both character ID and scene context are required"
+        echo "Usage: game-dialog-generator dialog-generate <character-id> <scene-context> [--emotion <emotion>] [--voice] [--streaming]"
+        return 1
+    fi
+    
+    if ! check_api_health; then
+        return 1
+    fi
+    
+    print_info "🎭 Generating dialog for jungle adventure..."
+    
+    # Create dialog request
+    local dialog_request
+    dialog_request=$(cat <<EOF
+{
+    "character_id": "$character_id",
+    "scene_context": "$scene_context",
+    "emotion_state": "$emotion"
+}
+EOF
+    )
+    
+    local response
+    response=$(api_call "POST" "/api/v1/dialog/generate" "$dialog_request")
+    
+    if echo "$response" | jq -e '.dialog' >/dev/null 2>&1; then
+        local dialog
+        local emotion_result
+        local consistency_score
+        
+        dialog=$(echo "$response" | jq -r '.dialog')
+        emotion_result=$(echo "$response" | jq -r '.emotion')
+        consistency_score=$(echo "$response" | jq -r '.character_consistency_score')
+        
+        echo ""
+        print_success "Dialog generated successfully!"
+        echo ""
+        echo -e "${CYAN}💬 Dialog: ${NC}\"$dialog\""
+        echo -e "${PURPLE}😊 Emotion: ${NC}$emotion_result"
+        echo -e "${YELLOW}📊 Consistency Score: ${NC}$consistency_score"
+        
+        if [ "$voice" = true ]; then
+            local audio_url
+            audio_url=$(echo "$response" | jq -r '.audio_url // "not_available"')
+            if [ "$audio_url" != "not_available" ]; then
+                echo -e "${GREEN}🔊 Audio: ${NC}$audio_url"
+            else
+                print_warning "Voice synthesis not available"
+            fi
+        fi
+    else
+        local error
+        error=$(echo "$response" | jq -r '.error // "Unknown error"')
+        print_error "Failed to generate dialog: $error"
+        return 1
+    fi
+}
+
+cmd_project_create() {
+    local name=""
+    local description=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            *)
+                if [ -z "$name" ]; then
+                    name="$1"
+                elif [ -z "$description" ]; then
+                    description="$1"
+                else
+                    print_error "Unknown argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$name" ]; then
+        print_error "Project name is required"
+        echo "Usage: game-dialog-generator project-create <name> [description]"
+        return 1
+    fi
+    
+    if ! check_api_health; then
+        return 1
+    fi
+    
+    # Create project request
+    local project_request
+    project_request=$(cat <<EOF
+{
+    "name": "$name",
+    "description": "$description",
+    "settings": {
+        "theme": "jungle-adventure"
+    }
+}
+EOF
+    )
+    
+    local response
+    response=$(api_call "POST" "/api/v1/projects" "$project_request")
+    
+    if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+        local project_id
+        project_id=$(echo "$response" | jq -r '.project_id')
+        print_success "Project '$name' created successfully!"
+        print_info "Project ID: $project_id"
+    else
+        local error
+        error=$(echo "$response" | jq -r '.error // "Unknown error"')
+        print_error "Failed to create project: $error"
+        return 1
+    fi
+}
+
+cmd_project_list() {
+    if ! check_api_health; then
+        return 1
+    fi
+    
+    local response
+    response=$(api_call "GET" "/api/v1/projects")
+    
+    local count
+    count=$(echo "$response" | jq -r '.count // 0')
+    
+    if [ "$count" -eq 0 ]; then
+        print_info "No projects found. Create one with 'project-create'!"
+        return 0
+    fi
+    
+    print_jungle_header
+    echo -e "${GREEN}🌿 Game Projects (${count} found) 🎮${NC}"
+    echo ""
+    
+    echo "$response" | jq -r '.projects[] | "🎮 \(.name) (ID: \(.id))\n   📝 \(.description // "No description")\n   🎭 Characters: \(.characters | length) character(s)\n"'
+}
+
+cmd_help() {
+    local command="$1"
+    
+    if [ -n "$command" ]; then
+        # Help for specific command
+        case $command in
+            "character-create")
+                echo "Create a new character with personality traits"
+                echo ""
+                echo "Usage:"
+                echo "  game-dialog-generator character-create <name> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --interactive, -i         Interactive character creation"
+                echo "  --personality-file <file> JSON file with personality traits"
+                echo ""
+                echo "Examples:"
+                echo "  game-dialog-generator character-create \"Kiko the Monkey\" --interactive"
+                echo "  game-dialog-generator character-create \"Hero\" --personality-file hero.json"
+                ;;
+            "dialog-generate")
+                echo "Generate dialog for a character in a scene"
+                echo ""
+                echo "Usage:"
+                echo "  game-dialog-generator dialog-generate <character-id> <scene-context> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --emotion <emotion>  Set character's emotional state"
+                echo "  --voice             Generate audio file for dialog"
+                echo "  --streaming         Stream dialog generation in real-time"
+                echo ""
+                echo "Examples:"
+                echo "  game-dialog-generator dialog-generate uuid-here \"jungle clearing\" --emotion happy"
+                echo "  game-dialog-generator dialog-generate uuid-here \"boss battle\" --voice"
+                ;;
+            *)
+                print_error "No help available for command: $command"
+                return 1
+                ;;
+        esac
+        return 0
+    fi
+    
+    # General help
+    print_jungle_header
+    echo -e "${GREEN}Welcome to the jungle adventure! 🌿${NC}"
+    echo ""
+    echo "Commands:"
+    echo ""
+    echo -e "${CYAN}Character Management:${NC}"
+    echo "  character-create <name>           Create a new character"
+    echo "  character-list                    List all characters" 
+    echo ""
+    echo -e "${CYAN}Dialog Generation:${NC}"
+    echo "  dialog-generate <id> <context>    Generate character dialog"
+    echo ""
+    echo -e "${CYAN}Project Management:${NC}"
+    echo "  project-create <name>             Create a new game project"
+    echo "  project-list                      List all projects"
+    echo ""
+    echo -e "${CYAN}System:${NC}"
+    echo "  status [--json] [--verbose]       Show service status"
+    echo "  version                           Show version information"
+    echo "  help [command]                    Show help"
+    echo ""
+    echo -e "${GREEN}Get started:${NC}"
+    echo "  1. game-dialog-generator character-create \"Your Hero\" --interactive"
+    echo "  2. game-dialog-generator dialog-generate <character-id> \"forest clearing\""
+    echo ""
+    echo -e "${BLUE}For detailed help: game-dialog-generator help <command>${NC}"
+}
+
+cmd_version() {
+    print_jungle_header
+    echo -e "${CYAN}CLI Version:${NC} $CLI_VERSION"
+    echo -e "${CYAN}Theme:${NC} Jungle Platformer Adventure"
+    echo -e "${CYAN}API Endpoint:${NC} $API_BASE_URL"
+    
+    if check_api_health; then
+        local api_response
+        api_response=$(api_call "GET" "/health")
+        local api_version
+        api_version=$(echo "$api_response" | jq -r '.service // "unknown"')
+        echo -e "${CYAN}API Service:${NC} $api_version"
+    else
+        echo -e "${RED}API Status:${NC} Not running"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    if [ $# -eq 0 ]; then
+        cmd_help
+        return 0
+    fi
+    
+    # Check if jq is available
+    if ! command -v jq >/dev/null 2>&1; then
+        print_error "jq is required but not installed. Please install jq."
+        return 1
+    fi
+    
+    local command="$1"
+    shift
+    
+    case $command in
+        "status")
+            cmd_status "$@"
+            ;;
+        "character-create")
+            cmd_character_create "$@"
+            ;;
+        "character-list")
+            cmd_character_list "$@"
+            ;;
+        "dialog-generate")
+            cmd_dialog_generate "$@"
+            ;;
+        "project-create")
+            cmd_project_create "$@"
+            ;;
+        "project-list")
+            cmd_project_list "$@"
+            ;;
+        "help")
+            cmd_help "$@"
+            ;;
+        "version")
+            cmd_version "$@"
+            ;;
+        "--help"|"-h")
+            cmd_help
+            ;;
+        "--version")
+            cmd_version
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo ""
+            cmd_help
+            return 1
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

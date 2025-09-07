@@ -4,44 +4,45 @@
   "description": "Transform Vrooli scenarios into professional desktop applications using Electron and other frameworks",
   "type": "scenario",
   "category": "automation",
-  "keywords": ["desktop", "electron", "native", "cross-platform", "packaging", "distribution"],
+  "keywords": [
+    "desktop",
+    "electron",
+    "native",
+    "cross-platform",
+    "packaging",
+    "distribution"
+  ],
   "author": "Vrooli Platform",
   "license": "MIT",
-  
   "capabilities": [
     "desktop_app_generation",
-    "cross_platform_packaging", 
+    "cross_platform_packaging",
     "native_os_integration",
     "template_system",
     "build_automation"
   ],
-  
   "requirements": {
     "node_version": ">=18.0.0",
-    "platform": ["linux", "darwin", "win32"],
+    "platform": [
+      "linux",
+      "darwin",
+      "win32"
+    ],
     "memory": "512MB",
     "disk": "100MB"
   },
-  
-  "services": {
+  "ports": {
     "api": {
-      "enabled": true,
-      "path": "./api",
-      "port": 3202,
-      "healthcheck": "/api/v1/health"
-    },
-    "cli": {
-      "enabled": true,
-      "path": "./cli",
-      "binary": "scenario-to-desktop"
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Desktop build API server port"
     },
     "ui": {
-      "enabled": true,
-      "path": "./ui",
-      "port": 3203
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "description": "Desktop build UI server port"
     }
   },
-  
   "resources": {
     "required": [],
     "optional": [
@@ -62,7 +63,6 @@
       }
     ]
   },
-  
   "apis": {
     "endpoints": [
       {
@@ -107,44 +107,72 @@
       }
     ]
   },
-  
   "cli_commands": [
     {
       "name": "status",
       "description": "Show desktop generation system status",
-      "flags": ["--json", "--verbose"]
+      "flags": [
+        "--json",
+        "--verbose"
+      ]
     },
     {
       "name": "generate",
       "description": "Generate desktop application for a scenario",
-      "arguments": ["scenario_name"],
-      "flags": ["--framework", "--template", "--platforms", "--output", "--features"]
+      "arguments": [
+        "scenario_name"
+      ],
+      "flags": [
+        "--framework",
+        "--template",
+        "--platforms",
+        "--output",
+        "--features"
+      ]
     },
     {
       "name": "build",
       "description": "Build a desktop application project",
-      "arguments": ["desktop_path"],
-      "flags": ["--platforms", "--sign", "--publish"]
+      "arguments": [
+        "desktop_path"
+      ],
+      "flags": [
+        "--platforms",
+        "--sign",
+        "--publish"
+      ]
     },
     {
       "name": "test",
       "description": "Test desktop application functionality",
-      "arguments": ["app_path"],
-      "flags": ["--platforms", "--headless"]
+      "arguments": [
+        "app_path"
+      ],
+      "flags": [
+        "--platforms",
+        "--headless"
+      ]
     },
     {
       "name": "package",
       "description": "Package desktop application for distribution",
-      "arguments": ["app_path"],
-      "flags": ["--store", "--enterprise"]
+      "arguments": [
+        "app_path"
+      ],
+      "flags": [
+        "--store",
+        "--enterprise"
+      ]
     },
     {
       "name": "templates",
       "description": "List available templates",
-      "flags": ["--json", "--detail"]
+      "flags": [
+        "--json",
+        "--detail"
+      ]
     }
   ],
-  
   "events": {
     "published": [
       {
@@ -175,7 +203,6 @@
       }
     ]
   },
-  
   "integrations": {
     "provides_to": [
       {
@@ -207,7 +234,6 @@
       }
     ]
   },
-  
   "deployment": {
     "type": "service",
     "auto_start": true,
@@ -215,7 +241,6 @@
     "restart_policy": "on-failure",
     "max_restarts": 3
   },
-  
   "monitoring": {
     "metrics": [
       "desktop_apps_generated",
@@ -230,9 +255,12 @@
       "rotation": "daily"
     }
   },
-  
   "security": {
-    "permissions": ["file_system", "network", "process"],
+    "permissions": [
+      "file_system",
+      "network",
+      "process"
+    ],
     "sandbox": false,
     "code_signing": {
       "required": false,
@@ -240,14 +268,12 @@
       "production": true
     }
   },
-  
   "development": {
     "hot_reload": true,
     "debug_mode": true,
     "test_runner": "jest",
     "linting": true
   },
-  
   "metadata": {
     "created": "2025-09-04",
     "updated": "2025-09-04",
@@ -257,5 +283,22 @@
     "repository": "https://github.com/vrooli/vrooli",
     "issues": "https://github.com/vrooli/vrooli/issues",
     "homepage": "https://vrooli.com/scenarios/scenario-to-desktop"
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f scenario-to-desktop.start-api 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f scenario-to-desktop.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

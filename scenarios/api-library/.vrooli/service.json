@@ -4,15 +4,28 @@
   "description": "Semantic API discovery with pricing, gotchas, and integration patterns",
   "version": "1.0.0",
   "category": "research",
-  "tags": ["api", "discovery", "integration", "pricing", "search"],
+  "tags": [
+    "api",
+    "discovery",
+    "integration",
+    "pricing",
+    "search"
+  ],
   "status": "development",
   "ports": {
-    "api": "${VROOLI_API_LIBRARY_API_PORT:-9200}",
-    "ui": "${VROOLI_API_LIBRARY_UI_PORT:-3200}"
+    "api": "${API_PORT}",
+    "ui": "${UI_PORT}"
   },
   "dependencies": {
-    "required": ["postgres", "qdrant"],
-    "optional": ["redis", "ollama", "research-assistant"]
+    "required": [
+      "postgres",
+      "qdrant"
+    ],
+    "optional": [
+      "redis",
+      "ollama",
+      "research-assistant"
+    ]
   },
   "resources": {
     "postgres": {
@@ -42,7 +55,12 @@
   },
   "lifecycle": {
     "startup": {
-      "order": ["postgres", "qdrant", "api", "ui"],
+      "order": [
+        "postgres",
+        "qdrant",
+        "api",
+        "ui"
+      ],
       "healthChecks": {
         "postgres": {
           "endpoint": "${service.postgres.url}/health",
@@ -64,7 +82,12 @@
     },
     "shutdown": {
       "gracePeriod": 10,
-      "order": ["ui", "api", "qdrant", "postgres"]
+      "order": [
+        "ui",
+        "api",
+        "qdrant",
+        "postgres"
+      ]
     }
   },
   "api": {

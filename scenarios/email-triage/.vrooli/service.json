@@ -1,0 +1,110 @@
+{
+  "version": "1.0",
+  "name": "email-triage",
+  "description": "AI-powered multi-tenant email management and triage system",
+  "category": "automation",
+  "type": "scenario",
+  "capabilities": [
+    "email-processing",
+    "semantic-search", 
+    "ai-rule-generation",
+    "multi-tenant-saas"
+  ],
+  "ports": {
+    "api": 3200,
+    "ui": 3201
+  },
+  "resources": {
+    "required": [
+      "postgres",
+      "qdrant", 
+      "scenario-authenticator",
+      "mail-in-a-box"
+    ],
+    "optional": [
+      "notification-hub",
+      "ollama",
+      "redis"
+    ]
+  },
+  "endpoints": {
+    "api": "http://localhost:3200",
+    "ui": "http://localhost:3201",
+    "health": "http://localhost:3200/health"
+  },
+  "database": {
+    "name": "email_triage",
+    "migrations": "initialization/postgres/",
+    "required_tables": [
+      "users",
+      "email_accounts", 
+      "triage_rules",
+      "processed_emails"
+    ]
+  },
+  "authentication": {
+    "provider": "scenario-authenticator",
+    "required": true,
+    "jwt_validation": "http://localhost:8080/api/v1/auth/validate"
+  },
+  "revenue_model": {
+    "type": "subscription",
+    "pricing_tiers": [
+      {
+        "name": "free",
+        "price": 0,
+        "limits": {
+          "email_accounts": 1,
+          "processed_emails_per_month": 1000,
+          "rules": 5
+        }
+      },
+      {
+        "name": "pro",
+        "price": 29,
+        "limits": {
+          "email_accounts": 5,
+          "processed_emails_per_month": 10000,
+          "rules": 50
+        }
+      },
+      {
+        "name": "business", 
+        "price": 99,
+        "limits": {
+          "email_accounts": 20,
+          "processed_emails_per_month": 100000,
+          "rules": 200
+        }
+      }
+    ]
+  },
+  "deployment": {
+    "startup_script": "api/start.sh",
+    "health_check_path": "/health",
+    "environment_variables": {
+      "DATABASE_URL": "postgres://postgres:password@localhost/email_triage",
+      "QDRANT_URL": "http://localhost:6333",
+      "AUTH_SERVICE_URL": "http://localhost:8080",
+      "MAIL_SERVER_URL": "localhost",
+      "NOTIFICATION_HUB_URL": "http://localhost:8081"
+    }
+  },
+  "ai_features": {
+    "rule_generation": true,
+    "semantic_search": true,
+    "priority_scoring": true,
+    "models": {
+      "embeddings": "all-MiniLM-L6-v2",
+      "rule_generation": "phi3.5:3.8b",
+      "classification": "phi3.5:3.8b"
+    }
+  },
+  "metadata": {
+    "created_at": "2025-01-09",
+    "business_value": "$20K-50K per deployment",
+    "target_users": ["business-professionals", "executives", "support-teams"],
+    "integration_complexity": "moderate",
+    "maintenance_level": "low"
+  }
+}

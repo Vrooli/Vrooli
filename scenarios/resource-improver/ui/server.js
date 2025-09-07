@@ -21,7 +21,7 @@ app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
         port: PORT,
-        scenario: 'unknown'
+        scenario: 'resource-improver'
     });
 });
 
@@ -51,7 +51,7 @@ app.get('*', (req, res) => {
 const server = app.listen(PORT, () => {
     console.log(`✅ UI server running on http://localhost:${PORT}`);
     console.log(`📡 API endpoint: http://localhost:${API_PORT}`);
-    console.log(`🏷️  Scenario: ${'unknown'}`);
+    console.log(`🏷️  Scenario: resource-improver`);
 });
 
 // Graceful shutdown

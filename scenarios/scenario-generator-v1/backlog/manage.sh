@@ -136,7 +136,7 @@ metadata:
 resources_required:
   - postgres
   - redis
-  - n8n
+  - claude-code
 validation_criteria:
   - "Core functionality working"
   - "Tests passing"

@@ -10,7 +10,8 @@ CLI_NAME="scenario-generator"
 VERSION="1.0.0"
 
 # Default API URL - can be overridden via environment
-API_URL="${SCENARIO_API_URL:-http://localhost:8080}"
+API_PORT="${API_PORT:-8080}"
+API_URL="${SCENARIO_API_URL:-http://localhost:${API_PORT}}"
 
 # Color codes for styling
 RED='\033[1;31m'
@@ -422,7 +423,7 @@ cmd_help() {
     echo -e "  $CLI_NAME export 123e4567-e89b-12d3-a456-426614174000 ./my-scenario"
     echo
     echo -e "${CYAN}Environment Variables:${NC}"
-    echo -e "  ${YELLOW}SCENARIO_API_URL${NC}    API base URL (default: http://localhost:8080)"
+    echo -e "  ${YELLOW}SCENARIO_API_URL${NC}    API base URL (default: http://localhost:\${API_PORT})"
     echo
     echo -e "${MAGENTA}🤖 Happy Scenario Building! 🤖${NC}"
 }

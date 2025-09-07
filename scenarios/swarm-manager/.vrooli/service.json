@@ -18,13 +18,11 @@
     "api": {
       "env_var": "API_PORT",
       "port": 8090,
-      "fallback": "8095",
       "description": "Swarm Manager API port"
     },
     "ui": {
       "env_var": "UI_PORT",
       "port": 31011,
-      "fallback": "31011",
       "description": "Swarm Manager dashboard UI port"
     }
   },
@@ -163,12 +161,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.swarm-manager.start-api\" 2>/dev/null || pkill -f \"swarm-manager-api\" 2>/dev/null || true",
+          "run": "pkill -f swarm-manager.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.swarm-manager.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f swarm-manager.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

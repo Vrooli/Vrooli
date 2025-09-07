@@ -10,7 +10,8 @@ YELLOW='\033[1;33m'
 CYAN='\033[1;36m'
 NC='\033[0m'
 
-API_URL="http://localhost:8080"
+API_PORT="${API_PORT:-8080}"
+API_URL="${API_URL:-http://localhost:${API_PORT}}"
 
 info() {
     echo -e "${CYAN}ℹ️  $1${NC}"

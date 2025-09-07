@@ -85,9 +85,14 @@ type Config struct {
 }
 
 func loadConfig() *Config {
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	
 	return &Config{
 		Port:              getEnv("API_PORT", getEnv("PORT", "")),
-		PostgresURL:       getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/image_generation_pipeline?sslmode=disable"),
+		PostgresURL:       postgresURL,
 		N8NBaseURL:        getEnv("N8N_BASE_URL", "http://localhost:5678"),
 		WindmillBaseURL:   getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
 		ComfyUIBaseURL:    getEnv("COMFYUI_BASE_URL", "http://localhost:8188"),

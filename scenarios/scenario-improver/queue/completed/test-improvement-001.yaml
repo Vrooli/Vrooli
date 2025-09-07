@@ -35,7 +35,7 @@ validation_criteria:
 cross_scenario:
   affected_scenarios: []
   shared_resources: 
-    - "ollama"
+    - "claude-code"
     - "postgres"
   breaking_changes: false
 

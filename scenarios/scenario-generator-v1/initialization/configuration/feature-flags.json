@@ -8,7 +8,7 @@
     "scenario_generation": {
       "enabled": true,
       "description": "Core scenario generation pipeline",
-      "dependencies": ["claude_code", "n8n_workflows"],
+      "dependencies": ["claude_code"],
       "rollout_percentage": 100,
       "stable": true
     },
@@ -36,17 +36,7 @@
       "description": "Claude Code AI for scenario generation and refinement",
       "dependencies": ["claude_code_cli"],
       "rollout_percentage": 100,
-      "stable": true,
-      "fallback": "ollama_integration"
-    },
-
-    "ollama_integration": {
-      "enabled": true, 
-      "description": "Local Ollama models for AI assistance",
-      "dependencies": ["ollama_service"],
-      "rollout_percentage": 80,
-      "stable": false,
-      "experimental": true
+      "stable": true
     },
 
     "plan_refinement": {
@@ -194,13 +184,6 @@
 
   "integration_features": {
 
-    "n8n_workflows": {
-      "enabled": true,
-      "description": "N8N workflow orchestration",
-      "dependencies": ["n8n_service"],
-      "rollout_percentage": 100,
-      "stable": true
-    },
 
     "minio_storage": {
       "enabled": false,
@@ -257,7 +240,7 @@
     "multi_model_generation": {
       "enabled": false,
       "description": "Use multiple AI models and combine their outputs",
-      "dependencies": ["claude_code_integration", "ollama_integration"],
+      "dependencies": ["claude_code_integration"],
       "rollout_percentage": 0,
       "stable": false,
       "experimental": true

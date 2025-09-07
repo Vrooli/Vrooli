@@ -196,10 +196,65 @@ func (s *APIServer) moveBacklogItem(item BacklogItem, fromFolder, toFolder strin
 	return os.Remove(oldPath)
 }
 
+// filterBacklogItems applies search and filter criteria to backlog items
+func (s *APIServer) filterBacklogItems(items []BacklogItem, searchTerm, category, priority, status string) []BacklogItem {
+	if searchTerm == "" && category == "" && priority == "" && status == "" {
+		return items
+	}
+	
+	var filtered []BacklogItem
+	for _, item := range items {
+		// Skip if status filter doesn't match
+		if status != "" && item.Status != status {
+			continue
+		}
+		
+		// Skip if category filter doesn't match
+		if category != "" && !strings.EqualFold(item.Category, category) {
+			continue
+		}
+		
+		// Skip if priority filter doesn't match
+		if priority != "" && !strings.EqualFold(item.Priority, priority) {
+			continue
+		}
+		
+		// Skip if search term doesn't match
+		if searchTerm != "" {
+			lowerSearch := strings.ToLower(searchTerm)
+			match := strings.Contains(strings.ToLower(item.Name), lowerSearch) ||
+				strings.Contains(strings.ToLower(item.Description), lowerSearch) ||
+				strings.Contains(strings.ToLower(item.Category), lowerSearch)
+			
+			// Also search in tags
+			for _, tag := range item.Tags {
+				if strings.Contains(strings.ToLower(tag), lowerSearch) {
+					match = true
+					break
+				}
+			}
+			
+			if !match {
+				continue
+			}
+		}
+		
+		filtered = append(filtered, item)
+	}
+	
+	return filtered
+}
+
 // API Handlers
 
-// handleGetBacklog returns all backlog items across all states
+// handleGetBacklog returns all backlog items across all states with optional filtering
 func (s *APIServer) handleGetBacklog(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters
+	searchTerm := r.URL.Query().Get("search")
+	category := r.URL.Query().Get("category")
+	priority := r.URL.Query().Get("priority")
+	status := r.URL.Query().Get("status")
+	
 	result := map[string][]BacklogItem{}
 	
 	// Get items from each folder
@@ -208,28 +263,28 @@ func (s *APIServer) handleGetBacklog(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error loading pending items: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	result["pending"] = pending
+	result["pending"] = s.filterBacklogItems(pending, searchTerm, category, priority, status)
 	
 	inProgress, err := s.getBacklogItems(backlogInProgress)
 	if err != nil {
 		http.Error(w, "Error loading in-progress items: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	result["in_progress"] = inProgress
+	result["in_progress"] = s.filterBacklogItems(inProgress, searchTerm, category, priority, status)
 	
 	completed, err := s.getBacklogItems(backlogCompleted)
 	if err != nil {
 		http.Error(w, "Error loading completed items: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	result["completed"] = completed
+	result["completed"] = s.filterBacklogItems(completed, searchTerm, category, priority, status)
 	
 	failed, err := s.getBacklogItems(backlogFailed)
 	if err != nil {
 		http.Error(w, "Error loading failed items: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	result["failed"] = failed
+	result["failed"] = s.filterBacklogItems(failed, searchTerm, category, priority, status)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)

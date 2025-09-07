@@ -4,9 +4,16 @@
 echo "Testing Scenario Improver Submission Endpoint"
 echo "============================================="
 
-# Set API port (use default if not provided)
-PORT=${API_PORT:-30155}
+# Check if API port is provided
+if [[ -z "$API_PORT" ]]; then
+    echo "Error: API_PORT environment variable not set"
+    echo "Usage: API_PORT=30150 $0"
+    exit 1
+fi
+
+PORT=$API_PORT
 BASE_URL="http://localhost:$PORT"
+echo "Testing API at: $BASE_URL"
 
 # Test 1: Submit a basic improvement
 echo -n "1. Testing improvement submission... "

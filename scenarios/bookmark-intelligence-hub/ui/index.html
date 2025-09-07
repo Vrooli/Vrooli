@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bookmark Intelligence Hub</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <i class="fas fa-bookmark"></i>
+                    <h1>Bookmark Intelligence Hub</h1>
+                </div>
+                <div class="header-actions">
+                    <button id="sync-btn" class="btn btn-primary">
+                        <i class="fas fa-sync-alt"></i> Sync Bookmarks
+                    </button>
+                    <div class="profile-selector">
+                        <select id="profile-select" class="profile-dropdown">
+                            <option value="">Select Profile...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Stats Dashboard -->
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-bookmark"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-bookmarks">0</h3>
+                            <p>Total Bookmarks</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="categories-count">0</h3>
+                            <p>Categories</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="pending-actions">0</h3>
+                            <p>Pending Actions</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="accuracy-rate">0%</h3>
+                            <p>Accuracy Rate</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Content Sections -->
+            <div class="content-grid">
+                <!-- Recent Bookmarks -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-clock"></i> Recent Bookmarks</h2>
+                        <button class="btn btn-secondary btn-sm">View All</button>
+                    </div>
+                    <div class="bookmark-list" id="recent-bookmarks">
+                        <div class="empty-state">
+                            <i class="fas fa-bookmark-o"></i>
+                            <p>No recent bookmarks. Connect your social media accounts to get started!</p>
+                            <button class="btn btn-primary">Add Platform</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Categories -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-tags"></i> Categories</h2>
+                        <button class="btn btn-secondary btn-sm">Manage</button>
+                    </div>
+                    <div class="category-grid" id="categories-grid">
+                        <div class="empty-state">
+                            <i class="fas fa-folder-open"></i>
+                            <p>No categories yet. Bookmarks will be automatically categorized as they're processed.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Pending Actions -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-tasks"></i> Pending Actions</h2>
+                        <button class="btn btn-secondary btn-sm">Bulk Actions</button>
+                    </div>
+                    <div class="actions-list" id="pending-actions-list">
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <p>No pending actions. Great job staying on top of your bookmarks!</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Platform Status -->
+                <section class="content-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-globe"></i> Platform Status</h2>
+                        <button class="btn btn-secondary btn-sm">Configure</button>
+                    </div>
+                    <div class="platform-status" id="platform-status">
+                        <div class="platform-item">
+                            <div class="platform-info">
+                                <i class="fab fa-reddit"></i>
+                                <span>Reddit</span>
+                            </div>
+                            <div class="status-badge status-disconnected">
+                                <i class="fas fa-circle"></i> Disconnected
+                            </div>
+                        </div>
+                        <div class="platform-item">
+                            <div class="platform-info">
+                                <i class="fab fa-twitter"></i>
+                                <span>X (Twitter)</span>
+                            </div>
+                            <div class="status-badge status-disconnected">
+                                <i class="fas fa-circle"></i> Disconnected
+                            </div>
+                        </div>
+                        <div class="platform-item">
+                            <div class="platform-info">
+                                <i class="fab fa-tiktok"></i>
+                                <span>TikTok</span>
+                            </div>
+                            <div class="status-badge status-disconnected">
+                                <i class="fas fa-circle"></i> Disconnected
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Profile Management Modal (placeholder) -->
+        <div id="profile-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Profile Management</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Profile management interface coming soon...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Processing bookmarks...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <footer class="status-bar">
+        <div class="status-info">
+            <span id="connection-status" class="status-item">
+                <i class="fas fa-circle status-disconnected"></i>
+                API: Disconnected
+            </span>
+            <span id="last-sync" class="status-item">
+                Last Sync: Never
+            </span>
+        </div>
+        <div class="status-actions">
+            <button id="settings-btn" class="btn-icon" title="Settings">
+                <i class="fas fa-cog"></i>
+            </button>
+            <button id="help-btn" class="btn-icon" title="Help">
+                <i class="fas fa-question-circle"></i>
+            </button>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

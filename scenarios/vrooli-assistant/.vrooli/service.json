@@ -22,7 +22,6 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "Main API port for issue capture and agent coordination",
       "range": "15000-19999"
     }
@@ -194,12 +193,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.vrooli-assistant.start-api\" 2>/dev/null || pkill -f \"vrooli-assistant-api\" 2>/dev/null || true",
+          "run": "pkill -f vrooli-assistant.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.vrooli-assistant.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f vrooli-assistant.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

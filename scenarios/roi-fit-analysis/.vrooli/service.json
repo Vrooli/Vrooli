@@ -30,15 +30,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 29250,
-      "fallback": "auto",
-      "description": "ROI Fit Analysis API port"
+      "description": "ROI Fit Analysis API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35500,
-      "fallback": "auto",
-      "description": "ROI Fit Analysis UI port"
+      "description": "ROI Fit Analysis UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -190,7 +188,7 @@
       "description": "Start ROI Fit Analysis with API and UI servers",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./roi-fit-analysis-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -199,7 +197,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -240,22 +238,17 @@
       ]
     },
     "stop": {
-      "description": "Stop ROI Fit Analysis services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'roi-fit-analysis-api' || true",
-          "description": "Stop Go API server processes"
+          "name": "stop-api",
+          "run": "pkill -f roi-fit-analysis.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'npm.*start' || true",
-          "description": "Stop UI server processes"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo 'ROI Fit Analysis services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f roi-fit-analysis.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

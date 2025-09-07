@@ -11,7 +11,7 @@
       "base_path": "/api",
       "cors": {
         "enabled": true,
-        "origins": ["http://localhost:3000", "http://localhost:5681"],
+        "origins": ["*"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "headers": ["Content-Type", "Authorization"]
       },
@@ -58,21 +58,6 @@
   },
 
   "external_services": {
-    "n8n": {
-      "host": "localhost",
-      "port": "${N8N_PORT}",
-      "protocol": "http", 
-      "base_url": "http://localhost:${N8N_PORT}",
-      "webhook_base": "/webhook",
-      "api_base": "/api/v1",
-      "endpoints": {
-        "generate_scenario": "/webhook/generate-scenario",
-        "main_pipeline": "/webhook/main-pipeline",
-        "planning_workflow": "/webhook/planning-workflow",
-        "implementation_workflow": "/webhook/implementation-workflow",
-        "validation_workflow": "/webhook/validation-workflow"
-      }
-    },
 
     "minio": {
       "host": "localhost",
@@ -91,19 +76,6 @@
       "password": "${REDIS_PASSWORD}",
       "ttl": 3600,
       "prefix": "scenario-gen:"
-    },
-
-    "ollama": {
-      "host": "localhost",
-      "port": "${OLLAMA_PORT}",
-      "protocol": "http",
-      "base_url": "http://localhost:${OLLAMA_PORT}",
-      "models": [
-        "phi3.5:3.8b",
-        "llama3.2",
-        "mistral"
-      ],
-      "default_model": "phi3.5:3.8b"
     },
 
     "claude_code": {

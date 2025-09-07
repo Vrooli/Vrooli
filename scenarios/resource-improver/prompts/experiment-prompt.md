@@ -39,7 +39,6 @@ Choose from these proven resources based on the scenario requirements:
 - **unstructured-io** (port 11450): Document processing - PDF extraction, content parsing
 
 ### 🔄 Automation Resources
-- **n8n** (port 5678): Visual workflow automation - API integrations, business processes
 - **windmill** (port 5681): Code-first automation - developer tools, UI generation
 - **node-red** (port 1880): Real-time data flows - IoT, live dashboards
 - **huginn** (port 4111): Web monitoring - data aggregation, intelligent agents
@@ -97,7 +96,7 @@ Depending on the resource type, create files in:
 - `initialization/ai/` for AI model configs
 
 #### C. Update Workflows/Automation
-Modify existing n8n, windmill, or other automation files to utilize the new resource.
+Modify existing windmill, node-red, or other automation files to utilize the new resource.
 
 #### D. Update Documentation
 Modify any README files or documentation to reflect the new capabilities.

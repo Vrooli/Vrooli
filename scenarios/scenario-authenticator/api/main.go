@@ -89,7 +89,10 @@ type Claims struct {
 func main() {
 	// Load configuration
 	port := getEnv("AUTH_API_PORT", "3250")
-	dbURL := getEnv("DATABASE_URL", "postgres://scenario_authenticator:auth_secure_password_changeme@localhost:5432/scenario_authenticator?sslmode=disable")
+	dbURL := os.Getenv("POSTGRES_URL")
+	if dbURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
 	redisURL := getEnv("REDIS_URL", "localhost:6379")
 
 	// Initialize database

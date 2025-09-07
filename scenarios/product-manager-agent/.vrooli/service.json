@@ -6,12 +6,10 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fallback": "auto",
       "range": "35000-39999"
     }
   },
@@ -108,18 +106,13 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.product-manager-agent.start-api\" 2>/dev/null || pkill -f \"product-manager-agent-api\" 2>/dev/null || true",
+          "run": "pkill -f product-manager-agent.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.product-manager-agent.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f product-manager-agent.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

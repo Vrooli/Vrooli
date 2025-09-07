@@ -4,7 +4,8 @@ set -euo pipefail
 
 SCRIPT_NAME="knowledge-observatory"
 VERSION="1.0.0"
-API_URL="${KNOWLEDGE_OBSERVATORY_API_URL:-http://localhost:20260}"
+API_URL="${KNOWLEDGE_OBSERVATORY_API_URL:-http://localhost:20270}"
+RESOURCE_QDRANT_CLI="${RESOURCE_QDRANT_CLI:-resource-qdrant}"
 
 show_help() {
     cat << EOF
@@ -18,6 +19,8 @@ Commands:
     health          Show knowledge system health metrics
     graph           Generate knowledge relationship graph
     metrics         Show detailed quality metrics
+    collections     Manage Qdrant collections (direct CLI access)
+    direct-search   Direct semantic search via resource-qdrant CLI
     help            Display this help message
     version         Show version information
 
@@ -32,6 +35,9 @@ Examples:
     $SCRIPT_NAME health --json
     $SCRIPT_NAME graph --center "scenario-generator" --depth 3
     $SCRIPT_NAME metrics --collection scenario_memory --time-range 24h
+    $SCRIPT_NAME collections list
+    $SCRIPT_NAME collections info my_collection
+    $SCRIPT_NAME direct-search "knowledge graph" --collection vrooli_knowledge --limit 5
 
 For detailed help on a specific command:
     $SCRIPT_NAME <command> --help
@@ -47,6 +53,11 @@ show_version() {
 check_dependencies() {
     if ! command -v curl &> /dev/null; then
         echo "Error: curl is required but not installed" >&2
+        exit 1
+    fi
+    if ! command -v "$RESOURCE_QDRANT_CLI" &> /dev/null; then
+        echo "Error: $RESOURCE_QDRANT_CLI CLI is required but not found" >&2
+        echo "Make sure resource-qdrant is installed and accessible" >&2
         exit 1
     fi
     if ! command -v jq &> /dev/null && [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
@@ -75,6 +86,104 @@ api_request() {
     fi
     
     echo "$response"
+}
+
+# Direct resource-qdrant integration functions
+qdrant_request() {
+    local args=("$@")
+    local result
+    
+    if ! result=$("$RESOURCE_QDRANT_CLI" "${args[@]}" 2>&1); then
+        echo "Error: resource-qdrant command failed: $result" >&2
+        return 1
+    fi
+    
+    echo "$result"
+}
+
+cmd_collections() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    case "$subcommand" in
+        list)
+            echo "🔍 Qdrant Collections"
+            echo "====================="
+            echo ""
+            qdrant_request collections list
+            ;;
+        info)
+            local collection="$1"
+            if [[ -z "$collection" ]]; then
+                echo "Error: Collection name required" >&2
+                echo "Usage: $SCRIPT_NAME collections info <collection_name>" >&2
+                exit 1
+            fi
+            echo "📊 Collection Info: $collection"
+            echo "=================================="
+            echo ""
+            qdrant_request collections info "$collection"
+            ;;
+        search)
+            cmd_direct_search "$@"
+            ;;
+        *)
+            echo "Error: Unknown collections subcommand: $subcommand" >&2
+            echo "Available: list, info, search" >&2
+            exit 1
+            ;;
+    esac
+}
+
+cmd_direct_search() {
+    local query=""
+    local collection=""
+    local limit="10"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --collection|-c)
+                collection="$2"
+                shift 2
+                ;;
+            --limit|-l)
+                limit="$2"
+                shift 2
+                ;;
+            --help)
+                echo "Usage: $SCRIPT_NAME direct-search <query> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --collection NAME  Search specific collection"
+                echo "  --limit N          Maximum results (default: 10)"
+                exit 0
+                ;;
+            *)
+                if [[ -z "$query" ]]; then
+                    query="$1"
+                else
+                    query="$query $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$query" ]]; then
+        echo "Error: Search query is required" >&2
+        exit 1
+    fi
+    
+    echo "🔍 Direct Qdrant Search: \"$query\""
+    echo "=============================="
+    echo ""
+    
+    local args=("collections" "search" "--text" "$query" "--limit" "$limit")
+    if [[ -n "$collection" ]]; then
+        args+=("--collection" "$collection")
+    fi
+    
+    qdrant_request "${args[@]}"
 }
 
 cmd_status() {
@@ -421,6 +530,14 @@ main() {
         metrics)
             check_dependencies
             cmd_metrics "$@"
+            ;;
+        collections)
+            check_dependencies
+            cmd_collections "$@"
+            ;;
+        direct-search)
+            check_dependencies
+            cmd_direct_search "$@"
             ;;
         help|--help|-h)
             show_help

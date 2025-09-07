@@ -54,7 +54,6 @@ metadata:
   market_opportunity: "Growing demand for AI customer service solutions"
   
 resources_required:
-  - ollama
   - qdrant
   - postgres
   - redis

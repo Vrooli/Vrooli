@@ -74,4 +74,4 @@ echo
 info "Next steps:"
 echo "  1. Start the API server: cd api && go run ."
 echo "  2. Start the UI: cd ui && node server.js"
-echo "  3. Access the dashboard at http://localhost:3000"
+echo "  3. Access the dashboard at http://localhost:\${UI_PORT} (port varies by configuration)"

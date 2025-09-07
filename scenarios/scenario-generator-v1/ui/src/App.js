@@ -46,17 +46,33 @@ function App() {
   const [featuredScenarios, setFeaturedScenarios] = useState([]);
   const [error, setError] = useState(null);
 
-  const complexityLevels = [
-    { id: 'simple', name: 'Simple', icon: Cpu, color: 'text-green-500', revenue: '$10K-20K' },
-    { id: 'intermediate', name: 'Intermediate', icon: Brain, color: 'text-blue-500', revenue: '$15K-35K' },
-    { id: 'advanced', name: 'Advanced', icon: Rocket, color: 'text-purple-500', revenue: '$25K-50K' }
-  ];
-
-  const categories = [
-    'business-tool', 'ai-automation', 'content-marketing', 'customer-service',
-    'e-commerce', 'analytics', 'document-processing', 'financial', 'healthcare',
-    'education', 'productivity', 'social-media', 'project-management'
-  ];
+  const [metadata, setMetadata] = useState(null);
+  
+  // Default complexity levels with icons (will be enhanced by API data)
+  const getComplexityLevels = () => {
+    if (!metadata) {
+      return [
+        { id: 'simple', name: 'Simple', icon: Cpu, color: 'text-green-500', revenue: '$10K-20K' },
+        { id: 'intermediate', name: 'Intermediate', icon: Brain, color: 'text-blue-500', revenue: '$15K-35K' },
+        { id: 'advanced', name: 'Advanced', icon: Rocket, color: 'text-purple-500', revenue: '$25K-50K' }
+      ];
+    }
+    
+    // Merge API data with icons
+    const iconMap = { simple: Cpu, intermediate: Brain, advanced: Rocket };
+    return metadata.complexity_options?.map(option => ({
+      ...option,
+      icon: iconMap[option.id] || Cpu
+    })) || [];
+  };
+  
+  const getCategories = () => {
+    return metadata?.category_options || [
+      'business-tool', 'ai-automation', 'content-marketing', 'customer-service',
+      'e-commerce', 'analytics', 'document-processing', 'financial', 'healthcare',
+      'education', 'productivity', 'social-media', 'project-management'
+    ];
+  };
 
   // API functions
   const fetchScenarios = useCallback(async () => {
@@ -110,14 +126,23 @@ function App() {
   }, [fetchScenarios]);
 
   const generateScenario = async () => {
-    if (!scenarioForm.name.trim() || !scenarioForm.description.trim() || !scenarioForm.prompt.trim()) {
-      setError('Please fill in all required fields');
-      return;
-    }
-    
     try {
       setGeneratingScenario(true);
       setError(null);
+      
+      // Validate using API endpoint
+      const validationResponse = await axios.post(`${API_URL}/api/validate/scenario`, scenarioForm);
+      const validation = validationResponse.data;
+      
+      if (!validation.valid) {
+        setError(validation.errors.join(', '));
+        return;
+      }
+      
+      // Show warnings if any
+      if (validation.warnings && validation.warnings.length > 0) {
+        console.warn('Validation warnings:', validation.warnings);
+      }
       
       const response = await axios.post(`${API_URL}/api/generate`, scenarioForm);
       
@@ -137,7 +162,11 @@ function App() {
         alert(`Scenario generation started! Generation ID: ${response.data.generation_id}`);
       }
     } catch (err) {
-      setError('Failed to generate scenario. Please try again.');
+      if (err.response && err.response.data) {
+        setError(err.response.data);
+      } else {
+        setError('Failed to generate scenario. Please try again.');
+      }
       console.error('Error generating scenario:', err);
     } finally {
       setGeneratingScenario(false);
@@ -154,10 +183,21 @@ function App() {
     }
   };
 
+  // Fetch metadata from API
   useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/backlog/metadata`);
+        setMetadata(response.data);
+      } catch (err) {
+        console.error('Error fetching metadata:', err);
+      }
+    };
+    
     fetchScenarios();
     fetchTemplates();
     fetchFeaturedScenarios();
+    fetchMetadata();
   }, [fetchScenarios, fetchTemplates, fetchFeaturedScenarios]);
 
   useEffect(() => {
@@ -186,7 +226,7 @@ function App() {
   };
 
   const getComplexityColor = (complexity) => {
-    const level = complexityLevels.find(l => l.id === complexity);
+    const level = getComplexityLevels().find(l => l.id === complexity);
     return level ? level.color : 'text-gray-500';
   };
 
@@ -371,7 +411,7 @@ function App() {
                     onChange={(e) => setScenarioForm({...scenarioForm, complexity: e.target.value})}
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                   >
-                    {complexityLevels.map((level) => (
+                    {getComplexityLevels().map((level) => (
                       <option key={level.id} value={level.id}>
                         {level.name} ({level.revenue})
                       </option>
@@ -388,7 +428,7 @@ function App() {
                     onChange={(e) => setScenarioForm({...scenarioForm, category: e.target.value})}
                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                   >
-                    {categories.map((category) => (
+                    {getCategories().map((category) => (
                       <option key={category} value={category}>
                         {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </option>

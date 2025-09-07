@@ -55,7 +55,6 @@ resources_required:
   - postgres
   - redis
   - claude-code
-  - ollama
   - minio
 
 validation_criteria:

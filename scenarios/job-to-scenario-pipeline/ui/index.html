@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job to Scenario Pipeline</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <h1>🚀 Job Pipeline Dashboard</h1>
+            <div class="header-actions">
+                <button id="importBtn" class="btn btn-primary">+ Import Job</button>
+                <button id="refreshBtn" class="btn btn-secondary">↻ Refresh</button>
+                <button id="statsBtn" class="btn btn-secondary">📊 Stats</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="pipeline-board">
+            <!-- Pending Column -->
+            <div class="column" data-state="pending">
+                <div class="column-header">
+                    <h2>📥 Pending</h2>
+                    <span class="count">0</span>
+                </div>
+                <div class="column-actions">
+                    <button class="btn-small research-batch">Research All</button>
+                </div>
+                <div class="cards-container" id="pending-cards"></div>
+            </div>
+
+            <!-- Researching Column -->
+            <div class="column" data-state="researching">
+                <div class="column-header">
+                    <h2>🔍 Researching</h2>
+                    <span class="count">0</span>
+                </div>
+                <div class="cards-container" id="researching-cards"></div>
+            </div>
+
+            <!-- Evaluated Column -->
+            <div class="column" data-state="evaluated">
+                <div class="column-header">
+                    <h2>📋 Evaluated</h2>
+                    <span class="count">0</span>
+                </div>
+                <div class="cards-container" id="evaluated-cards"></div>
+            </div>
+
+            <!-- Approved Column -->
+            <div class="column" data-state="approved">
+                <div class="column-header">
+                    <h2>✅ Approved</h2>
+                    <span class="count">0</span>
+                </div>
+                <div class="cards-container" id="approved-cards"></div>
+            </div>
+
+            <!-- Building Column -->
+            <div class="column" data-state="building">
+                <div class="column-header">
+                    <h2>🔨 Building</h2>
+                    <span class="count">0</span>
+                </div>
+                <div class="cards-container" id="building-cards"></div>
+            </div>
+
+            <!-- Completed Column -->
+            <div class="column" data-state="completed">
+                <div class="column-header">
+                    <h2>✨ Completed</h2>
+                    <span class="count">0</span>
+                </div>
+                <div class="cards-container" id="completed-cards"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Import Modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Import New Job</h2>
+            <div class="import-tabs">
+                <button class="tab-btn active" data-tab="manual">Manual Entry</button>
+                <button class="tab-btn" data-tab="screenshot">Screenshot</button>
+            </div>
+            
+            <div id="manual-tab" class="tab-content active">
+                <textarea id="jobDescription" placeholder="Paste job description here..." rows="10"></textarea>
+                <input type="text" id="jobTitle" placeholder="Job Title (optional)">
+                <input type="number" id="jobBudget" placeholder="Budget (optional)">
+                <button id="importManualBtn" class="btn btn-primary">Import Job</button>
+            </div>
+            
+            <div id="screenshot-tab" class="tab-content">
+                <div class="drop-zone" id="dropZone">
+                    <p>Drag & drop screenshot here or click to browse</p>
+                    <input type="file" id="fileInput" accept="image/*" hidden>
+                </div>
+                <div id="previewContainer"></div>
+                <button id="importScreenshotBtn" class="btn btn-primary" disabled>Process Screenshot</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Details Modal -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content modal-large">
+            <span class="close">&times;</span>
+            <div id="jobDetails"></div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Pipeline Statistics</h2>
+            <div id="statsContent"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

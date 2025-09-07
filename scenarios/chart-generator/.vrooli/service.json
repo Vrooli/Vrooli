@@ -24,13 +24,11 @@
   "ports": {
     "api": {
       "env_var": "CHART_API_PORT",
-      "fallback": "auto",
       "description": "Chart generation API port",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "CHART_UI_PORT",
-      "fallback": "auto",
       "description": "Chart style management UI port",
       "range": "35000-39999"
     }
@@ -247,18 +245,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.chart-generator.start-api\" 2>/dev/null || pkill -f \"chart-generator-api\" 2>/dev/null || true",
+          "run": "pkill -f chart-generator.start-api 2>/dev/null || true",
           "description": "Stop chart generation API server"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.chart-generator.start-ui\" 2>/dev/null || pkill -f \"python3.*http.server.*${CHART_UI_PORT}\" 2>/dev/null || true",
+          "run": "pkill -f chart-generator.start-ui 2>/dev/null || true",
           "description": "Stop style management UI server"
-        },
-        {
-          "name": "cleanup-temp-files",
-          "run": "find /tmp -name 'chart-generator-*' -mtime +1 -delete 2>/dev/null || true",
-          "description": "Clean up temporary chart generation files"
         }
       ]
     }

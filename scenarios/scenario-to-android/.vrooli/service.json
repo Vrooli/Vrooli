@@ -4,46 +4,51 @@
   "description": "Transform Vrooli scenarios into native Android applications with full device capabilities",
   "type": "scenario",
   "category": "deployment",
-  "keywords": ["android", "mobile", "apk", "native", "webview", "play-store", "deployment"],
+  "keywords": [
+    "android",
+    "mobile",
+    "apk",
+    "native",
+    "webview",
+    "play-store",
+    "deployment"
+  ],
   "author": "Vrooli Platform",
   "license": "MIT",
-  
   "capabilities": [
     "android_app_generation",
     "apk_building",
-    "native_api_bridge", 
+    "native_api_bridge",
     "offline_first_architecture",
     "push_notifications",
     "play_store_preparation"
   ],
-  
   "requirements": {
     "node_version": ">=18.0.0",
-    "platform": ["linux", "darwin"],
+    "platform": [
+      "linux",
+      "darwin"
+    ],
     "memory": "2GB",
     "disk": "5GB",
-    "external_tools": ["android-sdk", "gradle", "java"]
+    "external_tools": [
+      "android-sdk",
+      "gradle",
+      "java"
+    ]
   },
-  
-  "services": {
+  "ports": {
     "api": {
-      "enabled": true,
-      "path": "./api",
-      "port": 3204,
-      "healthcheck": "/api/v1/health"
-    },
-    "cli": {
-      "enabled": true,
-      "path": "./cli",
-      "binary": "scenario-to-android"
+      "env_var": "API_PORT",
+      "range": "15000-19999",
+      "description": "Android build API server port"
     },
     "ui": {
-      "enabled": true,
-      "path": "./ui",
-      "port": 3205
+      "env_var": "UI_PORT",
+      "range": "35000-39999",
+      "description": "Android build UI server port"
     }
   },
-  
   "resources": {
     "required": [
       {
@@ -70,7 +75,6 @@
       }
     ]
   },
-  
   "apis": {
     "endpoints": [
       {
@@ -120,56 +124,97 @@
       }
     ]
   },
-  
   "cli_commands": [
     {
       "name": "status",
       "description": "Show Android SDK and build system status",
-      "flags": ["--json", "--verbose"]
+      "flags": [
+        "--json",
+        "--verbose"
+      ]
     },
     {
       "name": "build",
       "description": "Build Android APK from scenario",
-      "arguments": ["scenario_name"],
-      "flags": ["--output", "--config", "--sign", "--optimize", "--arch"]
+      "arguments": [
+        "scenario_name"
+      ],
+      "flags": [
+        "--output",
+        "--config",
+        "--sign",
+        "--optimize",
+        "--arch"
+      ]
     },
     {
       "name": "test",
       "description": "Test APK on device or emulator",
-      "arguments": ["apk_path"],
-      "flags": ["--device", "--emulator", "--screenshots"]
+      "arguments": [
+        "apk_path"
+      ],
+      "flags": [
+        "--device",
+        "--emulator",
+        "--screenshots"
+      ]
     },
     {
       "name": "sign",
       "description": "Sign APK with keystore",
-      "arguments": ["apk_path"],
-      "flags": ["--keystore", "--alias", "--password"]
+      "arguments": [
+        "apk_path"
+      ],
+      "flags": [
+        "--keystore",
+        "--alias",
+        "--password"
+      ]
     },
     {
       "name": "optimize",
       "description": "Optimize APK size and performance",
-      "arguments": ["apk_path"],
-      "flags": ["--proguard", "--r8", "--minify"]
+      "arguments": [
+        "apk_path"
+      ],
+      "flags": [
+        "--proguard",
+        "--r8",
+        "--minify"
+      ]
     },
     {
       "name": "prepare-store",
       "description": "Prepare for Google Play Store",
-      "arguments": ["apk_path"],
-      "flags": ["--screenshots", "--listing", "--aab"]
+      "arguments": [
+        "apk_path"
+      ],
+      "flags": [
+        "--screenshots",
+        "--listing",
+        "--aab"
+      ]
     },
     {
       "name": "templates",
       "description": "List available templates",
-      "flags": ["--json", "--detail"]
+      "flags": [
+        "--json",
+        "--detail"
+      ]
     },
     {
       "name": "validate",
       "description": "Validate APK structure and signing",
-      "arguments": ["apk_path"],
-      "flags": ["--strict", "--report"]
+      "arguments": [
+        "apk_path"
+      ],
+      "flags": [
+        "--strict",
+        "--report"
+      ]
     }
   ],
-  
   "events": {
     "published": [
       {
@@ -204,7 +249,6 @@
       }
     ]
   },
-  
   "integrations": {
     "provides_to": [
       {
@@ -246,7 +290,6 @@
       }
     ]
   },
-  
   "android_config": {
     "min_sdk": 24,
     "target_sdk": 34,
@@ -264,9 +307,13 @@
       "storage",
       "biometric"
     ],
-    "architectures": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
+    "architectures": [
+      "arm64-v8a",
+      "armeabi-v7a",
+      "x86",
+      "x86_64"
+    ]
   },
-  
   "deployment": {
     "type": "service",
     "auto_start": true,
@@ -274,7 +321,6 @@
     "restart_policy": "on-failure",
     "max_restarts": 3
   },
-  
   "monitoring": {
     "metrics": [
       "apks_generated",
@@ -290,9 +336,12 @@
       "rotation": "daily"
     }
   },
-  
   "security": {
-    "permissions": ["file_system", "network", "process"],
+    "permissions": [
+      "file_system",
+      "network",
+      "process"
+    ],
     "sandbox": false,
     "keystore": {
       "storage": "encrypted",
@@ -305,7 +354,6 @@
       "release": true
     }
   },
-  
   "development": {
     "hot_reload": false,
     "debug_mode": true,
@@ -316,7 +364,6 @@
       "device_profile": "Pixel_6_API_34"
     }
   },
-  
   "metadata": {
     "created": "2025-09-04",
     "updated": "2025-09-04",
@@ -326,5 +373,22 @@
     "repository": "https://github.com/vrooli/vrooli",
     "issues": "https://github.com/vrooli/vrooli/issues",
     "homepage": "https://vrooli.com/scenarios/scenario-to-android"
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f scenario-to-android.start-api 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f scenario-to-android.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

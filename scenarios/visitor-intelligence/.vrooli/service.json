@@ -24,7 +24,6 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "Visitor tracking and analytics API port",
       "range": "15000-19999"
     }
@@ -210,7 +209,7 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.visitor-intelligence.start-api\" 2>/dev/null || pkill -f \"visitor-intelligence-api\" 2>/dev/null || true",
+          "run": "pkill -f visitor-intelligence.start-api 2>/dev/null || true",
           "description": "Stop API process"
         }
       ]

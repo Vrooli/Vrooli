@@ -21,13 +21,11 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "Vrooli Bridge API port",
       "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "fallback": "auto",
       "description": "Project management dashboard",
       "range": "3000-3999"
     }
@@ -188,12 +186,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.vrooli-bridge.start-api\" 2>/dev/null || pkill -f \"vrooli-bridge-api\" 2>/dev/null || true",
+          "run": "pkill -f vrooli-bridge.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.vrooli-bridge.start-ui\" 2>/dev/null || pkill -f \"python3 -m http.server ${UI_PORT}\" 2>/dev/null || true",
+          "run": "pkill -f vrooli-bridge.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

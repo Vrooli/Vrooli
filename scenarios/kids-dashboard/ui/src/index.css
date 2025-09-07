@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-sky-100 via-purple-50 to-pink-100 min-h-screen;
+    font-family: 'Comic Neue', cursive;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fredoka', cursive;
+  }
+}
+
+@layer components {
+  .scenario-tile {
+    @apply relative overflow-hidden rounded-3xl shadow-xl transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer;
+    @apply flex flex-col items-center justify-center p-8 text-white font-bold;
+    min-height: 200px;
+  }
+
+  .scenario-tile::before {
+    content: '';
+    @apply absolute inset-0 bg-white opacity-0 transition-opacity duration-300;
+  }
+
+  .scenario-tile:hover::before {
+    @apply opacity-20;
+  }
+
+  .mascot-bubble {
+    @apply absolute bg-white rounded-3xl p-4 shadow-lg;
+    @apply before:absolute before:w-4 before:h-4 before:bg-white before:rotate-45;
+  }
+
+  .mascot-bubble::before {
+    bottom: -8px;
+    left: 20px;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  .bg-pattern-dots {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.3) 2px, transparent 2px);
+    background-size: 30px 30px;
+  }
+
+  .bg-pattern-waves {
+    background-image: url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 10 Q 25 0, 50 10 T 100 10' stroke='%23ffffff' fill='none' opacity='0.2'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: bottom;
+  }
+}
+
+/* Fun loading animation */
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.rainbow-bg {
+  background: linear-gradient(90deg, #FF6B6B, #FFE66D, #95E77E, #4ECDC4, #B19CD9, #FF6B6B);
+  background-size: 400% 400%;
+  animation: rainbow 5s ease infinite;
+}

@@ -17,22 +17,19 @@
       "go-api",
       "pipeline-orchestration",
       "postgres-storage",
-      "redis-cache",
-      "ollama-ai"
+      "redis-cache"
     ]
   },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 29000,
-      "fallback": "auto",
-      "description": "Scenario generator API port"
+      "description": "Scenario generator API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35300,
-      "fallback": "auto",
-      "description": "Scenario Generator UI port"
+      "description": "Scenario Generator UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -41,16 +38,6 @@
       "enabled": true,
       "required": true,
       "purpose": "AI-powered scenario generation and code creation"
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": true,
-      "models": [
-        "phi3.5:3.8b",
-        "llama3.2",
-        "mistral"
-      ]
     },
     "postgres": {
       "type": "postgres",
@@ -168,7 +155,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:3000\\n  CLI: scenario-generator help'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: scenario-generator help'",
           "description": "Display running service URLs"
         }
       ]
@@ -200,18 +187,13 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.scenario-generator-v1.start-api\" 2>/dev/null || pkill -f \"scenario-generator-v1-api\" 2>/dev/null || true",
+          "run": "pkill -f scenario-generator-v1.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.scenario-generator-v1.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f scenario-generator-v1.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

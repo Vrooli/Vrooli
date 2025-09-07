@@ -9,7 +9,7 @@ description: |
   # Include specific issues and desired outcomes
   
 type: # health-check|cli-enhancement|v2-compliance|documentation|performance
-target: # resource-name (e.g., "ollama", "n8n", "postgres")
+target: # resource-name (e.g., "ollama", "postgres", "redis")
 priority: medium # critical|high|medium|low
 
 # Specific improvements needed

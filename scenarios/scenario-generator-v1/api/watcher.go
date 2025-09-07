@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 )
 
 // BacklogWatcher monitors the backlog directories for changes
@@ -138,7 +142,16 @@ func (w *BacklogWatcher) handleNewFile(filepath string, folder string) {
 	// Auto-generate ID if missing
 	if item.ID == "" {
 		log.Printf("⚠️  Missing ID in %s, auto-generating...", filename)
-		// TODO: Update file with generated ID
+		
+		// Generate new UUID
+		item.ID = uuid.New().String()
+		
+		// Update the file with the generated ID
+		if err := w.updateFileWithID(filepath, item); err != nil {
+			log.Printf("❌ Failed to update %s with generated ID: %v", filename, err)
+		} else {
+			log.Printf("✅ Updated %s with generated ID: %s", filename, item.ID)
+		}
 	}
 	
 	// If in pending and has high priority, notify
@@ -297,4 +310,78 @@ func (w *BacklogWatcher) ValidateBacklogIntegrity() error {
 	}
 	
 	return fmt.Errorf("found %d issues in backlog files", totalIssues)
+}
+
+// updateFileWithID updates a YAML file with the generated ID
+func (w *BacklogWatcher) updateFileWithID(filepath string, item BacklogItem) error {
+	// Read the current file content
+	data, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Parse the YAML to preserve comments and structure
+	var yamlNode yaml.Node
+	if err := yaml.Unmarshal(data, &yamlNode); err != nil {
+		return fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	// Update the ID field in the YAML node
+	if err := w.setIDInYAMLNode(&yamlNode, item.ID); err != nil {
+		return fmt.Errorf("failed to set ID in YAML: %w", err)
+	}
+
+	// Marshal back to YAML with preserved formatting
+	updatedData, err := yaml.Marshal(&yamlNode)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated YAML: %w", err)
+	}
+
+	// Write the updated content back to file
+	if err := ioutil.WriteFile(filepath, updatedData, 0644); err != nil {
+		return fmt.Errorf("failed to write updated file: %w", err)
+	}
+
+	return nil
+}
+
+// setIDInYAMLNode finds and sets the ID field in a YAML node
+func (w *BacklogWatcher) setIDInYAMLNode(node *yaml.Node, id string) error {
+	// Handle document node
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		return w.setIDInYAMLNode(node.Content[0], id)
+	}
+
+	// Handle mapping node (object)
+	if node.Kind == yaml.MappingNode {
+		for i := 0; i < len(node.Content); i += 2 {
+			keyNode := node.Content[i]
+			valueNode := node.Content[i+1]
+
+			if keyNode.Kind == yaml.ScalarNode && keyNode.Value == "id" {
+				// Update the existing ID value
+				valueNode.Value = id
+				return nil
+			}
+		}
+
+		// If ID field doesn't exist, add it at the beginning
+		idKeyNode := &yaml.Node{
+			Kind:  yaml.ScalarNode,
+			Value: "id",
+		}
+		idValueNode := &yaml.Node{
+			Kind:  yaml.ScalarNode,
+			Value: id,
+		}
+
+		// Insert at the beginning
+		newContent := []*yaml.Node{idKeyNode, idValueNode}
+		newContent = append(newContent, node.Content...)
+		node.Content = newContent
+		
+		return nil
+	}
+
+	return fmt.Errorf("unsupported YAML node kind: %v", node.Kind)
 }

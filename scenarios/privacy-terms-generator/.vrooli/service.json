@@ -22,7 +22,6 @@
   "ports": {
     "ui": {
       "env_var": "UI_PORT",
-      "fallback": "auto",
       "description": "Web UI for document generation",
       "range": "35000-39999"
     }
@@ -173,13 +172,8 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.privacy-terms-generator.start-ui\" 2>/dev/null || pkill -f \"python3.*${UI_PORT}\" 2>/dev/null || true",
+          "run": "pkill -f privacy-terms-generator.start-ui 2>/dev/null || true",
           "description": "Stop UI server"
         }
       ]

@@ -1,0 +1,36 @@
+{
+  "name": "email-triage-ui",
+  "version": "1.0.0",
+  "description": "AI-powered multi-tenant email management dashboard",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "http-server -p 3201 -c-1 --cors",
+    "dev": "http-server -p 3201 -c-1 --cors",
+    "build": "echo 'No build step required for vanilla JS'",
+    "test": "echo 'Tests not implemented yet'",
+    "serve": "http-server -p 3201 -c-1"
+  },
+  "dependencies": {
+    "http-server": "^14.1.1"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "email",
+    "triage",
+    "ai",
+    "automation",
+    "dashboard",
+    "saas"
+  ],
+  "author": "Vrooli AI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vrooli/scenarios.git",
+    "directory": "scenarios/email-triage"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vrooli Resource Improver - Terminal Interface</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="terminal-container">
+        <div class="terminal-header">
+            <div class="terminal-controls">
+                <span class="control red"></span>
+                <span class="control yellow"></span>
+                <span class="control green"></span>
+            </div>
+            <div class="terminal-title">VROOLI RESOURCE IMPROVER TERMINAL v1.0</div>
+            <div class="terminal-status">
+                <span id="connection-status" class="status-indicator">● CONNECTED</span>
+            </div>
+        </div>
+        
+        <div class="main-layout">
+            <!-- Left Panel: Resource List -->
+            <div class="panel resource-list-panel">
+                <div class="panel-header">
+                    <span class="blink">▶</span> RESOURCES
+                    <button id="refresh-resources" class="mini-btn">↻</button>
+                </div>
+                <div id="resource-list" class="resource-list">
+                    <!-- Resources will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Center Panel: Improvement Console -->
+            <div class="panel improvement-panel">
+                <div class="panel-header">
+                    <span class="blink">▶</span> IMPROVEMENT CONSOLE
+                    <select id="improvement-mode" class="improvement-select">
+                        <option value="queue">QUEUE STATUS</option>
+                        <option value="analyze">RESOURCE ANALYZER</option>
+                        <option value="metrics">PERFORMANCE METRICS</option>
+                        <option value="improve">START IMPROVEMENT</option>
+                    </select>
+                </div>
+                
+                <div class="improvement-output" id="improvement-output">
+                    <div class="terminal-line">
+                        <span class="prompt">improve@vrooli:~$</span> Initializing resource improvement environment...
+                    </div>
+                    <div class="terminal-line success">
+                        <span class="prompt">improve@vrooli:~$</span> Improvement terminal ready.
+                    </div>
+                </div>
+                
+                <div class="improvement-input-container">
+                    <span class="prompt">improve@vrooli:~$</span>
+                    <input type="text" id="improvement-input" class="improvement-input" placeholder="Enter improvement command or resource name..." />
+                </div>
+            </div>
+            
+            <!-- Right Panel: Analysis Results -->
+            <div class="panel analysis-panel">
+                <div class="panel-header">
+                    <span class="blink">▶</span> ANALYSIS RESULTS
+                </div>
+                <div id="analysis-results" class="analysis-results">
+                    <div class="analysis-section">
+                        <h3>⚡ Resource Stats</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-label">Pending</span>
+                                <span class="stat-value" id="pending-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Improved</span>
+                                <span class="stat-value success" id="improved-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">In Progress</span>
+                                <span class="stat-value warning" id="progress-count">0</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Failed</span>
+                                <span class="stat-value error" id="failed-count">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h3>🔍 Last Analysis</h3>
+                        <div id="last-analysis" class="code-block">
+                            <pre>No analysis yet. Select a resource and start improvement!</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-section">
+                        <h3>📊 Resource Health</h3>
+                        <div id="resource-health" class="health-grid">
+                            <div class="health-item">
+                                <span class="health-label">V2 Compliance</span>
+                                <span class="health-value" id="compliance-score">---%</span>
+                            </div>
+                            <div class="health-item">
+                                <span class="health-label">Reliability</span>
+                                <span class="health-value" id="reliability-score">---%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Status Bar -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">MODE:</span>
+                <span id="current-mode">READY</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">SELECTED:</span>
+                <span id="selected-resource">NONE</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">CPU:</span>
+                <span id="cpu-usage">---%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">MEM:</span>
+                <span id="mem-usage">---MB</span>
+            </div>
+            <div class="status-item right">
+                <span id="current-time"></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Resource Report Modal -->
+    <div id="report-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Report Resource Issue</h2>
+                <button class="close-btn" onclick="closeReportModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <label>Resource Name:</label>
+                <input type="text" id="report-resource-name" placeholder="Enter resource name">
+                
+                <label>Issue Type:</label>
+                <select id="issue-type">
+                    <option value="health-check">Health Check Issue</option>
+                    <option value="cli-enhancement">CLI Enhancement</option>
+                    <option value="performance">Performance Issue</option>
+                    <option value="v2-compliance">V2 Compliance</option>
+                    <option value="documentation">Documentation</option>
+                    <option value="other">Other</option>
+                </select>
+                
+                <label>Description:</label>
+                <textarea id="issue-description" rows="3" placeholder="Describe the issue or improvement needed"></textarea>
+                
+                <label>Context (JSON):</label>
+                <textarea id="issue-context" rows="3" placeholder='{"severity": "medium", "impact": "low"}'></textarea>
+            </div>
+            <div class="modal-footer">
+                <button onclick="submitReport()" class="btn primary">Submit Report</button>
+                <button onclick="closeReportModal()" class="btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // API Configuration - can be overridden by environment variables
+        // Set these via server-side templating or environment injection
+        window.RESOURCE_IMPROVER_API_HOST = window.RESOURCE_IMPROVER_API_HOST || 'localhost';
+        window.RESOURCE_IMPROVER_API_PORT = window.RESOURCE_IMPROVER_API_PORT || window.API_PORT || '15001';
+        window.RESOURCE_IMPROVER_API_URL = window.RESOURCE_IMPROVER_API_URL || null; // Override full URL if needed
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

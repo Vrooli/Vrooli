@@ -28,7 +28,7 @@ structure:
     - .vrooli
     - initialization/storage
     - initialization/automation
-    - initialization/automation/n8n
+    - automation
     - initialization/configuration
     - deployment
     - prompts

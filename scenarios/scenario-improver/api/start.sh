@@ -3,13 +3,22 @@
 # Scenario Improver API Startup Script
 
 # Configuration
-export API_PORT="${API_PORT:-30150}"
+export API_PORT="${API_PORT}"
 export QUEUE_DIR="${QUEUE_DIR:-../queue}"
 export ENABLE_LOG_MONITORING="${ENABLE_LOG_MONITORING:-false}"
 export ENABLE_PERFORMANCE_MONITORING="${ENABLE_PERFORMANCE_MONITORING:-false}"
 
-# Check if port is available
-if lsof -i :$API_PORT >/dev/null 2>&1; then
+# Check if API_PORT is set, if not find available port
+if [[ -z "$API_PORT" ]]; then
+    echo "No API_PORT specified, finding available port..."
+    # Find an available port starting from 30150
+    API_PORT=30150
+    while lsof -i :$API_PORT >/dev/null 2>&1; do
+        API_PORT=$((API_PORT + 1))
+    done
+    export API_PORT
+    echo "Selected available port: $API_PORT"
+elif lsof -i :$API_PORT >/dev/null 2>&1; then
     echo "Error: Port $API_PORT is already in use"
     echo "You can specify a different port with: API_PORT=30151 ./start.sh"
     exit 1

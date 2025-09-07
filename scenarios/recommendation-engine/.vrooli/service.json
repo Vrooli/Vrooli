@@ -1,0 +1,239 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "recommendation-engine",
+    "displayName": "Recommendation Engine",
+    "description": "Universal personalization intelligence system that provides hybrid recommendations across all scenarios using semantic embeddings and behavioral analytics",
+    "version": "1.0.0",
+    "tags": [
+      "core-capability",
+      "personalization",
+      "recommendations",
+      "ai-intelligence",
+      "semantic-search",
+      "behavioral-analytics",
+      "cross-scenario",
+      "vector-database",
+      "go-api",
+      "postgres-storage",
+      "qdrant-vectors",
+      "machine-learning"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "RECOMMENDATION_API_PORT",
+      "description": "Main recommendation API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "RECOMMENDATION_UI_PORT",
+      "description": "Management dashboard port",
+      "range": "3000-3999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store user interactions, item metadata, and recommendation analytics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": true,
+      "purpose": "Vector database for semantic similarity search and content embeddings"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Caching layer for frequently requested recommendations and API rate limiting"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Recommendation Engine health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${RECOMMENDATION_API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${RECOMMENDATION_UI_PORT}/health",
+          "critical": false,
+          "timeout": 3000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Recommendation Engine",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/recommendation-engine-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "recommendation-engine"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-qdrant-collections",
+          "run": "vrooli resource qdrant create-collection item-embeddings --dimension 384 --distance cosine || echo \"Collection creation skipped (may already exist)\"",
+          "description": "Create Qdrant collection for item embeddings"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o recommendation-engine-api .",
+          "description": "Build Go recommendation API binary"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm install && npm run build || echo \"UI build skipped (development mode)\"",
+          "description": "Build management dashboard UI"
+        },
+        {
+          "name": "initialize-database",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Initialize database schema and seed data"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Recommendation Engine initialized\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API Documentation: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  API Health: http://localhost:${RECOMMENDATION_API_PORT}/health\\n  CLI: recommendation-engine --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start recommendation engine with API and management UI",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./recommendation-engine-api",
+          "description": "Start Go recommendation API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/recommendation-engine-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm start",
+          "description": "Start management dashboard UI",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Recommendation Engine running:\\n  Management Dashboard: http://localhost:${RECOMMENDATION_UI_PORT}\\n  API: http://localhost:${RECOMMENDATION_API_PORT}\\n  API Docs: http://localhost:${RECOMMENDATION_API_PORT}/docs\\n  CLI: recommendation-engine --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test recommendation engine API, CLI, and algorithms",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${RECOMMENDATION_API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-ingest-endpoint",
+          "run": "bash test/test-ingest-endpoint.sh",
+          "description": "Test data ingestion API"
+        },
+        {
+          "name": "test-recommendation-endpoint",
+          "run": "bash test/test-recommendation-endpoint.sh",
+          "description": "Test recommendation generation API"
+        },
+        {
+          "name": "test-similarity-endpoint",
+          "run": "bash test/test-similarity-endpoint.sh",
+          "description": "Test item similarity API"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats recommendation-engine.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/recommendation-engine.bats"
+          }
+        },
+        {
+          "name": "test-algorithm-performance",
+          "run": "bash test/test-algorithm-performance.sh",
+          "description": "Validate recommendation algorithm accuracy"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop recommendation engine services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f recommendation-engine.start-api 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f recommendation-engine.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

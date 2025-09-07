@@ -171,7 +171,7 @@ Start generating a new scenario asynchronously.
   "prompt": "Detailed generation prompt",
   "complexity": "intermediate",
   "category": "business-tool",
-  "resources": ["postgres", "ollama"]
+  "resources": ["postgres", "claude-code"]
 }
 ```
 
@@ -225,7 +225,7 @@ Get all active scenario templates.
     "description": "Basic business dashboard",
     "category": "business-tool",
     "prompt_template": "Create a SaaS dashboard...",
-    "resources_suggested": ["postgres", "windmill"],
+    "resources_suggested": ["postgres", "claude-code"],
     "complexity_level": "simple",
     "estimated_revenue_min": 10000,
     "estimated_revenue_max": 20000,

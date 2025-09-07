@@ -133,9 +133,15 @@ func main() {
 func NewServer() (*Server, error) {
 	// Environment variables
 	port := getEnv("API_PORT", getEnv("PORT", ""))
-	postgresURL := getEnv("POSTGRES_URL", "postgres://postgres:postgres@localhost:5432/notification_hub?sslmode=disable")
-	redisURL := getEnv("REDIS_URL", "redis://localhost:6379")
-	n8nURL := getEnv("N8N_BASE_URL", "http://localhost:5678")
+	postgresURL := getEnv("POSTGRES_URL", "")
+	if postgresURL == "" {
+		log.Fatal("POSTGRES_URL environment variable is required")
+	}
+	redisURL := getEnv("REDIS_URL", "")
+	if redisURL == "" {
+		log.Fatal("REDIS_URL environment variable is required")
+	}
+	n8nURL := getEnv("N8N_BASE_URL", "")
 
 	// Initialize database
 	db, err := sql.Open("postgres", postgresURL)

@@ -1,0 +1,22 @@
+{
+  "name": "pregnancy-tracker-ui",
+  "version": "1.0.0",
+  "description": "Privacy-first pregnancy tracking UI with evidence-based information",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "pregnancy",
+    "tracking",
+    "health",
+    "privacy",
+    "women-health"
+  ],
+  "author": "Vrooli",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

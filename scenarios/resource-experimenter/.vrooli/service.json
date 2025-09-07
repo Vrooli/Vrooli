@@ -20,15 +20,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 28750,
-      "fallback": "auto",
-      "description": "Resource experimenter API port"
+      "description": "Resource experimenter API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 35100,
-      "fallback": "auto",
-      "description": "Resource Experimenter UI port"
+      "description": "Resource Experimenter UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -176,17 +174,17 @@
       ]
     },
     "stop": {
-      "description": "Stop resource experimenter services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'resource-experimenter-api' || true; pkill -f 'node server.js' || true",
-          "description": "Stop API and UI processes"
+          "name": "stop-api",
+          "run": "pkill -f resource-experimenter.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Resource Experimenter services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f resource-experimenter.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

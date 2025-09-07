@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vrooli Token Economy - Digital Wallet</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <circle cx="16" cy="16" r="15" stroke="currentColor" stroke-width="2"/>
+                        <path d="M16 8v8m0 0l4-4m-4 4l-4-4m4 4v8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <h1>Token Economy</h1>
+                </div>
+                <nav class="nav-tabs">
+                    <button class="nav-tab active" data-tab="wallet">Wallet</button>
+                    <button class="nav-tab" data-tab="transactions">Activity</button>
+                    <button class="nav-tab" data-tab="achievements">Achievements</button>
+                    <button class="nav-tab" data-tab="exchange">Exchange</button>
+                    <button class="nav-tab admin-only" data-tab="admin">Admin</button>
+                </nav>
+                <div class="user-menu">
+                    <div class="user-avatar" id="userAvatar">
+                        <span id="userInitial">U</span>
+                    </div>
+                    <span id="userName">User</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Wallet Tab -->
+            <div class="tab-content active" id="wallet-tab">
+                <!-- Total Balance Card -->
+                <div class="balance-card">
+                    <div class="balance-header">
+                        <span class="balance-label">Total Balance</span>
+                        <button class="icon-button" id="refreshBalance">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M4 10a6 6 0 0112 0M16 10a6 6 0 01-12 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="balance-amount">
+                        <span class="currency-symbol">₮</span>
+                        <span id="totalBalance">0.00</span>
+                    </div>
+                    <div class="balance-change positive">
+                        <span>+12.5%</span>
+                        <span class="change-period">24h</span>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="action-button" id="sendButton">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M7 11l5-5m0 0l5 5m-5-5v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>Send</span>
+                    </button>
+                    <button class="action-button" id="receiveButton">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M7 13l5 5m0 0l5-5m-5 5V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>Receive</span>
+                    </button>
+                    <button class="action-button" id="swapButton">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <path d="M8 7h8m0 0l-3-3m3 3l-3 3m-5 7H16m0 0l3-3m-3 3l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>Swap</span>
+                    </button>
+                </div>
+
+                <!-- Token List -->
+                <div class="section">
+                    <h2 class="section-title">Your Tokens</h2>
+                    <div class="token-list" id="tokenList">
+                        <!-- Tokens will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Tab -->
+            <div class="tab-content" id="transactions-tab">
+                <div class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">Transaction History</h2>
+                        <button class="filter-button">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M3 5h14M5 10h10M7 15h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                            Filter
+                        </button>
+                    </div>
+                    <div class="transaction-list" id="transactionList">
+                        <!-- Transactions will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Achievements Tab -->
+            <div class="tab-content" id="achievements-tab">
+                <div class="section">
+                    <h2 class="section-title">Your Achievements</h2>
+                    <div class="achievement-stats">
+                        <div class="stat-card">
+                            <span class="stat-value" id="totalAchievements">0</span>
+                            <span class="stat-label">Total Earned</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="rareAchievements">0</span>
+                            <span class="stat-label">Rare & Above</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-value" id="achievementPoints">0</span>
+                            <span class="stat-label">Total Points</span>
+                        </div>
+                    </div>
+                    <div class="achievement-grid" id="achievementGrid">
+                        <!-- Achievements will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exchange Tab -->
+            <div class="tab-content" id="exchange-tab">
+                <div class="exchange-container">
+                    <h2 class="section-title">Token Exchange</h2>
+                    <div class="exchange-card">
+                        <div class="exchange-section">
+                            <label class="exchange-label">From</label>
+                            <div class="exchange-input-group">
+                                <input type="number" class="exchange-amount" id="fromAmount" placeholder="0.00">
+                                <select class="token-select" id="fromToken">
+                                    <option value="">Select token</option>
+                                </select>
+                            </div>
+                            <span class="exchange-balance">Balance: <span id="fromBalance">0.00</span></span>
+                        </div>
+                        
+                        <button class="swap-direction-button" id="swapDirection">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M7 10l5 5m0 0l5-5m-5 5V3M17 14l-5-5m0 0l-5 5m5-5v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </button>
+                        
+                        <div class="exchange-section">
+                            <label class="exchange-label">To</label>
+                            <div class="exchange-input-group">
+                                <input type="number" class="exchange-amount" id="toAmount" placeholder="0.00" readonly>
+                                <select class="token-select" id="toToken">
+                                    <option value="">Select token</option>
+                                </select>
+                            </div>
+                            <span class="exchange-balance">Balance: <span id="toBalance">0.00</span></span>
+                        </div>
+                        
+                        <div class="exchange-info">
+                            <div class="info-row">
+                                <span>Exchange Rate</span>
+                                <span id="exchangeRate">-</span>
+                            </div>
+                            <div class="info-row">
+                                <span>Fee</span>
+                                <span>0.1%</span>
+                            </div>
+                        </div>
+                        
+                        <button class="primary-button" id="executeSwap" disabled>Swap Tokens</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tab -->
+            <div class="tab-content" id="admin-tab">
+                <div class="section">
+                    <h2 class="section-title">Economy Administration</h2>
+                    
+                    <div class="admin-grid">
+                        <!-- Analytics Overview -->
+                        <div class="admin-card">
+                            <h3>Analytics Overview</h3>
+                            <div class="metrics">
+                                <div class="metric">
+                                    <span class="metric-label">Total Transactions</span>
+                                    <span class="metric-value" id="totalTransactions">0</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Active Wallets</span>
+                                    <span class="metric-value" id="activeWallets">0</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Total Volume</span>
+                                    <span class="metric-value" id="totalVolume">0</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Token Management -->
+                        <div class="admin-card">
+                            <h3>Create New Token</h3>
+                            <div class="form-group">
+                                <input type="text" placeholder="Symbol (e.g., CHORE)" id="newTokenSymbol">
+                                <input type="text" placeholder="Name" id="newTokenName">
+                                <select id="newTokenType">
+                                    <option value="fungible">Fungible</option>
+                                    <option value="non-fungible">Non-Fungible (NFT)</option>
+                                </select>
+                                <button class="primary-button" id="createToken">Create Token</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Exchange Rate Management -->
+                        <div class="admin-card">
+                            <h3>Set Exchange Rates</h3>
+                            <div class="form-group">
+                                <select id="rateFromToken">
+                                    <option value="">From Token</option>
+                                </select>
+                                <select id="rateToToken">
+                                    <option value="">To Token</option>
+                                </select>
+                                <input type="number" placeholder="Rate" id="exchangeRateInput" step="0.01">
+                                <button class="primary-button" id="setRate">Set Rate</button>
+                            </div>
+                        </div>
+                        
+                        <!-- User Limits -->
+                        <div class="admin-card">
+                            <h3>Household Rules</h3>
+                            <div class="form-group">
+                                <select id="limitUser">
+                                    <option value="">Select User</option>
+                                </select>
+                                <input type="number" placeholder="Daily Limit" id="dailyLimit">
+                                <input type="number" placeholder="Weekly Limit" id="weeklyLimit">
+                                <button class="primary-button" id="setLimits">Set Limits</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <!-- Send Modal -->
+        <div class="modal" id="sendModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Send Tokens</h3>
+                    <button class="close-button" data-close="sendModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Recipient</label>
+                        <input type="text" id="sendRecipient" placeholder="Wallet address or @username">
+                    </div>
+                    <div class="form-group">
+                        <label>Token</label>
+                        <select id="sendToken">
+                            <option value="">Select token</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="sendAmount" placeholder="0.00">
+                        <span class="input-hint">Available: <span id="sendAvailable">0.00</span></span>
+                    </div>
+                    <div class="form-group">
+                        <label>Memo (optional)</label>
+                        <input type="text" id="sendMemo" placeholder="Add a note">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="secondary-button" data-close="sendModal">Cancel</button>
+                    <button class="primary-button" id="confirmSend">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receive Modal -->
+        <div class="modal" id="receiveModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Receive Tokens</h3>
+                    <button class="close-button" data-close="receiveModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="qr-container">
+                        <canvas id="qrCode"></canvas>
+                    </div>
+                    <div class="wallet-address">
+                        <input type="text" id="walletAddress" readonly>
+                        <button class="copy-button" id="copyAddress">
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <rect x="5" y="5" width="10" height="10" stroke="currentColor" stroke-width="2"/>
+                                <path d="M8 3H15V10" stroke="currentColor" stroke-width="2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="receive-hint">Share this address to receive tokens</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

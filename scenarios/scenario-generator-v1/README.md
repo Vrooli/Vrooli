@@ -74,7 +74,7 @@ Ensure the following resources are available:
    ```
 
 3. **Access the dashboard:**
-   Open http://localhost:3000
+   Open http://localhost:${UI_PORT} (default port varies by configuration)
 
 ### Creating Your First Scenario
 
@@ -242,7 +242,7 @@ The system automatically learns from:
 resource-claude-code status
 
 # View API health
-curl http://localhost:8080/health
+curl http://localhost:${API_PORT}/health
 
 # Check database connectivity
 psql -h localhost -p 5433 -U postgres -d vrooli -c "SELECT COUNT(*) FROM scenarios;"

@@ -44,35 +44,6 @@
       }
     },
 
-    "ollama": {
-      "host": "localhost", 
-      "port": "${OLLAMA_PORT}",
-      "protocol": "http",
-      "base_url": "http://localhost:${OLLAMA_PORT}",
-      "api": {
-        "base": "/api",
-        "endpoints": {
-          "generate": "/api/generate",
-          "chat": "/api/chat",
-          "embeddings": "/api/embeddings",
-          "models": "/api/tags"
-        }
-      },
-      "models": {
-        "default": "phi3.5:3.8b",
-        "available": [
-          "phi3.5:3.8b",
-          "llama3.2",
-          "mistral"
-        ]
-      },
-      "health_check": {
-        "type": "http",
-        "endpoint": "http://localhost:${OLLAMA_PORT}/api/tags",
-        "timeout_ms": 10000
-      }
-    },
-
     "redis": {
       "host": "localhost",
       "port": "${REDIS_PORT}",
@@ -119,7 +90,7 @@
   "service_dependencies": {
     "scenario_generation": {
       "required": ["postgres", "vrooli_claude"],
-      "optional": ["redis", "ollama"]
+      "optional": ["redis"]
     },
     "template_system": {
       "required": ["postgres"],

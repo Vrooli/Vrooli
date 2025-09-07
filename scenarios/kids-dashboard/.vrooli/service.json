@@ -1,0 +1,84 @@
+{
+  "name": "kids-dashboard",
+  "version": "1.0.0",
+  "description": "Safe, fun dashboard for children to access kid-friendly Vrooli scenarios",
+  "category": ["interface", "family"],
+  "status": "active",
+  "metadata": {
+    "author": "Vrooli Team",
+    "created": "2025-01-06",
+    "updated": "2025-01-06",
+    "tags": ["kids", "children", "family", "dashboard", "safe-browsing"],
+    "targetAudience": {
+      "ageRange": "5-12",
+      "userType": "children",
+      "parentalSupervision": "recommended"
+    },
+    "uiStyle": {
+      "theme": "playful",
+      "colorScheme": "bright",
+      "animations": "enabled",
+      "soundEffects": "optional"
+    }
+  },
+  "deployment": {
+    "type": "web",
+    "port": "${PORT:-3500}",
+    "healthCheck": {
+      "endpoint": "/health",
+      "interval": 30,
+      "timeout": 5
+    }
+  },
+  "ui": {
+    "type": "react",
+    "path": "ui/",
+    "build": {
+      "command": "npm run build",
+      "outputDir": "ui/dist"
+    },
+    "dev": {
+      "command": "npm run dev",
+      "port": "${PORT:-3500}"
+    }
+  },
+  "filtering": {
+    "categoryWhitelist": ["kid-friendly"],
+    "categoryBlacklist": ["system", "development", "admin", "financial"],
+    "ageRanges": {
+      "young": "5-8",
+      "middle": "9-12",  
+      "teen": "13+"
+    }
+  },
+  "features": {
+    "mascot": {
+      "enabled": true,
+      "name": "Vrooli the Robot",
+      "personality": "friendly helper"
+    },
+    "sounds": {
+      "enabled": false,
+      "volume": 0.3
+    },
+    "animations": {
+      "enabled": true,
+      "speed": "normal"
+    },
+    "sessionTracking": {
+      "enabled": true,
+      "maxDuration": 3600
+    }
+  },
+  "security": {
+    "iframeIsolation": true,
+    "sandboxAttributes": ["allow-scripts", "allow-same-origin", "allow-forms"],
+    "preventSystemAccess": true,
+    "dataCollection": "none"
+  },
+  "discovery": {
+    "scanInterval": 60,
+    "catalogPath": "../../scripts/scenarios/catalog.json",
+    "scenarioPattern": "../../scenarios/*/service.json"
+  }
+}

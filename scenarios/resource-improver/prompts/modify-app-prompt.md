@@ -48,7 +48,7 @@ You are Claude Code. Your task is to take an existing copied scenario and modify
 }
 ```
 
-### Automation Resources (n8n, windmill, node-red, huginn)
+### Automation Resources (windmill, node-red, huginn)
 
 **Integration Points:**
 - Enable automation platform

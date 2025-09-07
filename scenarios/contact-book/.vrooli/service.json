@@ -27,7 +27,6 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "fallback": "auto",
       "description": "Contact Book API port for social intelligence services",
       "range": "15000-19999"
     }
@@ -205,7 +204,7 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.contact-book.start-api\" 2>/dev/null || pkill -f \"contact-book-api\" 2>/dev/null || true",
+          "run": "pkill -f contact-book.start-api 2>/dev/null || true",
           "description": "Stop API process"
         }
       ]

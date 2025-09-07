@@ -29,13 +29,11 @@
   "ports": {
     "api": {
       "env_var": "PREGNANCY_TRACKER_API_PORT",
-      "fallback": "auto",
       "description": "Pregnancy Tracker API port",
       "range": "17000-17999"
     },
     "ui": {
       "env_var": "PREGNANCY_TRACKER_UI_PORT",
-      "fallback": "auto",
       "description": "Pregnancy Tracker UI port",
       "range": "37000-37999"
     }
@@ -288,18 +286,13 @@
       "description": "Stop services and ensure data security",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.pregnancy-tracker.start-api\" 2>/dev/null || pkill -f \"pregnancy-tracker-api\" 2>/dev/null || true",
+          "run": "pkill -f pregnancy-tracker.start-api 2>/dev/null || true",
           "description": "Stop API process securely"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.pregnancy-tracker.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f pregnancy-tracker.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         },
         {

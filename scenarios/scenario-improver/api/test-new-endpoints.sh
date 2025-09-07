@@ -3,8 +3,14 @@
 echo "Testing new API endpoints..."
 echo "=================================="
 
-API_PORT="${API_PORT:-30150}"
+if [[ -z "$API_PORT" ]]; then
+    echo "Error: API_PORT environment variable not set"
+    echo "Usage: API_PORT=30150 $0"
+    exit 1
+fi
+
 API_URL="http://localhost:${API_PORT}"
+echo "Testing API at: $API_URL"
 
 echo "1. Testing /api/logs/scenario-improver endpoint..."
 curl -s "${API_URL}/api/logs/scenario-improver" | jq '.' || echo "❌ Logs endpoint failed"

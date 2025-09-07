@@ -205,7 +205,7 @@ start_ui() {
         echo "$ui_pid" > /tmp/scenario-generator-ui.pid
         
         success "UI development server started (PID: $ui_pid)"
-        info "UI will be available at http://localhost:3000"
+        info "UI will be available at http://localhost:${UI_PORT:-3000}"
     else
         warn "npm not found. Skipping UI startup."
     fi
@@ -220,7 +220,7 @@ show_status() {
     echo -e "  🗄️  Database: PostgreSQL on port $POSTGRES_PORT"
     
     if [ -f "/tmp/scenario-generator-ui.pid" ]; then
-        echo -e "  🌐 UI Dashboard: http://localhost:3000"
+        echo -e "  🌐 UI Dashboard: http://localhost:${UI_PORT:-3000}"
     fi
     
     echo

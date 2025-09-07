@@ -30,14 +30,12 @@
     "api": {
       "env_var": "HOME_AUTOMATION_API_PORT",
       "description": "Home automation API server port",
-      "range": "15000-19999",
-      "fallback": "auto"
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "HOME_AUTOMATION_UI_PORT",
       "description": "Home automation UI server port",
-      "range": "35000-39999",
-      "fallback": "auto"
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -371,18 +369,13 @@
       "description": "Stop services",
       "steps": [
         {
-          "name": "source-pm",
-          "run": "source \"${APP_ROOT}/scripts/lib/process-manager.sh\" 2>/dev/null || true",
-          "description": "Source process manager"
-        },
-        {
           "name": "stop-api",
-          "run": "pm::stop \"vrooli.develop.home-automation.start-api\" 2>/dev/null || pkill -f \"home-automation-api\" 2>/dev/null || true",
+          "run": "pkill -f home-automation.start-api 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pm::stop \"vrooli.develop.home-automation.start-ui\" 2>/dev/null || true",
+          "run": "pkill -f home-automation.start-ui 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

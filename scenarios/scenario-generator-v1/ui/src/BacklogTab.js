@@ -42,12 +42,17 @@ function BacklogTab() {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState(null);
 
-  // Fetch backlog data
+  // Fetch backlog data with filtering
   const fetchBacklog = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${API_URL}/api/backlog`);
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      
+      const response = await axios.get(`${API_URL}/api/backlog?${params.toString()}`);
       setBacklogData(response.data || {
         pending: [],
         in_progress: [],
@@ -60,7 +65,7 @@ function BacklogTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchBacklog();
@@ -68,6 +73,15 @@ function BacklogTab() {
     const interval = setInterval(fetchBacklog, 10000);
     return () => clearInterval(interval);
   }, [fetchBacklog]);
+  
+  // Trigger search when searchTerm changes with debounce
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      fetchBacklog(); // This will now include the search term
+    }, 300);
+    
+    return () => clearTimeout(delayedSearch);
+  }, [searchTerm, fetchBacklog]);
 
   // Generate scenario from backlog item
   const handleGenerate = async (item) => {
@@ -115,53 +129,53 @@ function BacklogTab() {
     }
   };
 
-  // Get folder color and icon
-  const getFolderStyle = (folder) => {
-    switch (folder) {
-      case 'pending':
-        return { color: 'text-yellow-500', icon: Clock };
-      case 'in_progress':
-        return { color: 'text-blue-500', icon: Loader };
-      case 'completed':
-        return { color: 'text-green-500', icon: CheckCircle };
-      case 'failed':
-        return { color: 'text-red-500', icon: AlertCircle };
-      default:
-        return { color: 'text-gray-500', icon: Folder };
-    }
-  };
-
-  // Get priority color
-  const getPriorityColor = (priority) => {
-    switch (priority?.toLowerCase()) {
-      case 'high':
-        return 'text-red-500';
-      case 'medium':
-        return 'text-yellow-500';
-      case 'low':
-        return 'text-green-500';
-      default:
-        return 'text-gray-500';
-    }
-  };
-
-  // Filter items based on search
-  const filterItems = (items) => {
-    if (!searchTerm) return items;
+  const [metadata, setMetadata] = useState(null);
+  
+  // Fetch metadata from API
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/backlog/metadata`);
+        setMetadata(response.data);
+      } catch (err) {
+        console.error('Error fetching metadata:', err);
+      }
+    };
     
-    const term = searchTerm.toLowerCase();
-    return items.filter(item => 
-      item.name?.toLowerCase().includes(term) ||
-      item.description?.toLowerCase().includes(term) ||
-      item.tags?.some(tag => tag.toLowerCase().includes(term)) ||
-      item.category?.toLowerCase().includes(term)
-    );
+    fetchMetadata();
+  }, []);
+  
+  // Get folder color and icon from API metadata
+  const getFolderStyle = (folder) => {
+    if (!metadata) return { color: 'text-gray-500', icon: Folder };
+    
+    const statusOption = metadata.status_options?.find(s => s.id === folder);
+    if (!statusOption) return { color: 'text-gray-500', icon: Folder };
+    
+    const iconMap = {
+      'clock': Clock,
+      'loader': Loader, 
+      'check-circle': CheckCircle,
+      'alert-circle': AlertCircle
+    };
+    
+    return {
+      color: statusOption.color,
+      icon: iconMap[statusOption.icon] || Folder
+    };
   };
 
-  // Get current folder items
+  // Get priority color from API metadata
+  const getPriorityColor = (priority) => {
+    if (!metadata) return 'text-gray-500';
+    
+    const priorityOption = metadata.priority_options?.find(p => p.id === priority?.toLowerCase());
+    return priorityOption ? priorityOption.color : 'text-gray-500';
+  };
+
+  // Get current folder items (no client-side filtering needed)
   const getCurrentItems = () => {
-    const items = backlogData[selectedFolder] || [];
-    return filterItems(items);
+    return backlogData[selectedFolder] || [];
   };
 
   return (
@@ -296,12 +310,7 @@ function BacklogTab() {
           icon={CheckCircle}
           color="text-green-500"
         />
-        <StatCard
-          title="Total Revenue"
-          value={`$${calculateTotalRevenue(backlogData)}k`}
-          icon={DollarSign}
-          color="text-cyan-500"
-        />
+        <RevenueStatCard />
       </div>
 
       {/* Item Detail Modal */}
@@ -608,7 +617,7 @@ function BacklogFormModal({ item, onClose, onSave }) {
       requested_date: new Date().toISOString().split('T')[0],
       deadline: ''
     },
-    resources_required: ['postgres', 'redis', 'n8n'],
+    resources_required: ['postgres', 'redis', 'claude-code'],
     validation_criteria: [],
     notes: ''
   });
@@ -782,15 +791,33 @@ function BacklogFormModal({ item, onClose, onSave }) {
   );
 }
 
-// Helper function to calculate total revenue
-function calculateTotalRevenue(backlogData) {
-  let total = 0;
-  Object.values(backlogData).forEach(items => {
-    items.forEach(item => {
-      total += item.estimated_revenue || 0;
-    });
-  });
-  return Math.round(total / 1000);
+// Revenue component that fetches from API
+function RevenueStatCard() {
+  const [revenueData, setRevenueData] = React.useState(null);
+  
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/api/backlog/stats`);
+        setRevenueData(response.data);
+      } catch (err) {
+        console.error('Error fetching backlog stats:', err);
+      }
+    };
+    
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
+  }, []);
+  
+  return (
+    <StatCard
+      title="Total Revenue"
+      value={revenueData ? `$${revenueData.total_revenue_k}k` : 'Loading...'}
+      icon={DollarSign}
+      color="text-cyan-500"
+    />
+  );
 }
 
 export default BacklogTab;

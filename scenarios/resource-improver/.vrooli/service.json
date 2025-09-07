@@ -22,15 +22,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 22000,
-      "fallback": "auto",
-      "description": "Resource Improver API port"
+      "description": "Resource Improver API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 31000,
-      "fallback": "auto",
-      "description": "Resource Improver UI port"
+      "description": "Resource Improver UI port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -57,12 +55,6 @@
       "enabled": true,
       "required": true,
       "purpose": "Long-term memory for patterns, past improvements, and best practices"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": false,
-      "purpose": "Workflow automation for resource improvements and validation"
     }
   },
   "lifecycle": {
@@ -167,7 +159,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:3000\\n  CLI: resource-improver help'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${API_PORT}\\n  UI: http://localhost:${UI_PORT}\\n  CLI: resource-improver help'",
           "description": "Display running service URLs"
         }
       ]
@@ -196,17 +188,17 @@
       ]
     },
     "stop": {
-      "description": "Stop resource improver services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'resource-improver-api' || true; pkill -f 'node server.js' || true",
-          "description": "Stop API and UI processes"
+          "name": "stop-api",
+          "run": "pkill -f resource-improver.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Resource Improver services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f resource-improver.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

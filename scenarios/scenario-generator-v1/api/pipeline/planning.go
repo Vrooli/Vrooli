@@ -159,7 +159,7 @@ Create a detailed implementation plan that includes:
 - Technology stack decisions
 
 ### 2. Resource Requirements
-- Required Vrooli resources (postgres, windmill, ollama, etc.)
+- Required Vrooli resources (postgres, claude-code, etc.)
 - External APIs or services needed
 - Storage and processing requirements
 - Estimated resource usage
@@ -286,7 +286,7 @@ func (p *Pipeline) analyzePlan(planContent string) *PlanAnalysis {
 		analysis.QualityScore += 15
 		
 		// Extract Vrooli resources
-		resources := []string{"postgres", "windmill", "ollama", "n8n", "minio", "redis", "vault", "comfyui", "unstructured-io", "judge0", "browserless"}
+		resources := []string{"postgres", "claude-code", "minio", "redis", "vault", "comfyui", "unstructured-io", "judge0", "browserless"}
 		for _, resource := range resources {
 			if strings.Contains(planLower, resource) {
 				analysis.Resources = append(analysis.Resources, resource)

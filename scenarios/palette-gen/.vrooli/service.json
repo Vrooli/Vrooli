@@ -26,15 +26,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 26250,
-      "fallback": "auto",
-      "description": "Main API port for palette generation"
+      "description": "Main API port for palette generation",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 33500,
-      "fallback": "auto",
-      "description": "UI server port"
+      "description": "UI server port",
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -156,7 +154,7 @@
       "description": "Start Palette Gen services",
       "steps": [
         {
-          "name": "start-api-server",
+          "name": "start-api",
           "run": "cd api && ./palette-gen-api",
           "description": "Start Go API server in background",
           "background": true,
@@ -165,7 +163,7 @@
           }
         },
         {
-          "name": "start-ui-server",
+          "name": "start-ui",
           "run": "cd ui && node server.js",
           "description": "Start UI server in background",
           "background": true
@@ -203,22 +201,17 @@
       ]
     },
     "stop": {
-      "description": "Stop Palette Gen services",
+      "description": "Stop services",
       "steps": [
         {
-          "name": "stop-api-server",
-          "run": "pkill -f 'palette-gen-api' || true",
-          "description": "Stop Go API server"
+          "name": "stop-api",
+          "run": "pkill -f palette-gen.start-api 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui-server",
-          "run": "pkill -f 'node server.js' || true",
-          "description": "Stop UI server"
-        },
-        {
-          "name": "confirm-stop",
-          "run": "echo '🛑 Palette Gen services stopped'",
-          "description": "Confirm services stopped"
+          "name": "stop-ui",
+          "run": "pkill -f palette-gen.start-ui 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

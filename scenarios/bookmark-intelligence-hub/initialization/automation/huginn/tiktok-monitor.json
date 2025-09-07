@@ -1,0 +1,170 @@
+{
+  "version": "1.0",
+  "description": "TikTok bookmark monitoring and extraction agent",
+  "agents": [
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "tiktok-favorites-monitor",
+      "description": "Monitors TikTok favorites/liked videos",
+      "schedule": "every_2h",
+      "options": {
+        "expected_update_period_in_days": 1,
+        "url": "https://www.tiktok.com/@{{ tiktok_username }}/favorites",
+        "type": "html",
+        "mode": "on_change",
+        "extract": {
+          "videos": {
+            "css": "[data-e2e='user-post-item']",
+            "value": "."
+          }
+        },
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (compatible; BookmarkIntelligenceBot/1.0)",
+          "Cookie": "{{ tiktok_session_cookie }}"
+        },
+        "authentication_required": true,
+        "fallback_to_browserless": true
+      }
+    },
+    {
+      "type": "Agents::EventFormattingAgent",
+      "name": "tiktok-video-formatter",
+      "description": "Formats TikTok videos for bookmark processing",
+      "schedule": "never",
+      "options": {
+        "instructions": {
+          "title": "TikTok by {{ creator_name }}",
+          "content": "{{ video_description }}",
+          "author": "{{ creator_name }}",
+          "username": "{{ creator_username }}",
+          "url": "https://www.tiktok.com/@{{ creator_username }}/video/{{ video_id }}",
+          "platform": "tiktok",
+          "views": "{{ view_count }}",
+          "likes": "{{ like_count }}",
+          "shares": "{{ share_count }}",
+          "comments": "{{ comment_count }}",
+          "duration": "{{ video_duration }}",
+          "posted_at": "{{ post_date }}",
+          "bookmark_metadata": {
+            "video_id": "{{ video_id }}",
+            "creator_id": "{{ creator_id }}",
+            "has_music": "{{ has_music }}",
+            "music_title": "{{ music_title }}",
+            "hashtags": "{{ hashtags }}",
+            "effects": "{{ effects }}",
+            "bookmarked_at": "{{ date }}"
+          }
+        },
+        "expected_receive_period_in_days": 1
+      }
+    },
+    {
+      "type": "Agents::PostAgent",
+      "name": "tiktok-bookmark-sender",
+      "description": "Sends formatted TikTok bookmarks to processing API",
+      "schedule": "never",
+      "options": {
+        "post_url": "{{ api_base_url }}/api/v1/bookmarks/process",
+        "expected_receive_period_in_days": 1,
+        "content_type": "json",
+        "method": "post",
+        "payload": {
+          "profile_id": "{{ profile_id }}",
+          "bookmarks": [
+            {
+              "platform": "tiktok",
+              "url": "{{ url }}",
+              "title": "{{ title }}",
+              "content": "{{ content }}",
+              "author": "@{{ username }}",
+              "metadata": {
+                "video_id": "{{ video_id }}",
+                "creator_name": "{{ creator_name }}",
+                "creator_username": "{{ creator_username }}",
+                "views": "{{ views }}",
+                "likes": "{{ likes }}",
+                "shares": "{{ shares }}",
+                "comments": "{{ comments }}",
+                "duration": "{{ duration }}",
+                "posted_at": "{{ posted_at }}",
+                "has_music": "{{ has_music }}",
+                "music_title": "{{ music_title }}",
+                "hashtags": "{{ hashtags }}",
+                "effects": "{{ effects }}",
+                "extracted_at": "{{ date }}"
+              }
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer {{ api_token }}"
+        }
+      }
+    },
+    {
+      "type": "Agents::WebsiteAgent",
+      "name": "tiktok-browserless-scraper",
+      "description": "Browserless-based TikTok scraping for enhanced content extraction",
+      "schedule": "never",
+      "options": {
+        "expected_update_period_in_days": 1,
+        "url": "{{ browserless_base_url }}/function",
+        "type": "json",
+        "method": "post",
+        "payload": {
+          "code": "async ({ page, context }) => {\n  await page.goto('https://www.tiktok.com/@{{ tiktok_username }}/favorites', {\n    waitUntil: 'networkidle2'\n  });\n  \n  // Wait for content to load\n  await page.waitForSelector('[data-e2e=\"user-post-item\"]', { timeout: 10000 });\n  \n  // Extract video data\n  const videos = await page.evaluate(() => {\n    const videoElements = document.querySelectorAll('[data-e2e=\"user-post-item\"]');\n    return Array.from(videoElements).map(el => {\n      const link = el.querySelector('a');\n      const desc = el.querySelector('[data-e2e=\"browse-video-desc\"]');\n      const author = el.querySelector('[data-e2e=\"browse-username\"]');\n      \n      return {\n        url: link ? link.href : null,\n        description: desc ? desc.textContent : '',\n        author: author ? author.textContent : '',\n        thumbnail: el.querySelector('img') ? el.querySelector('img').src : null\n      };\n    });\n  });\n  \n  return { videos };\n}",
+          "context": {
+            "tiktok_username": "{{ tiktok_username }}"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "extract": {
+          "videos": {
+            "path": "videos"
+          }
+        }
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "tiktok-favorites-monitor",
+      "receiver": "tiktok-video-formatter"
+    },
+    {
+      "source": "tiktok-video-formatter",
+      "receiver": "tiktok-bookmark-sender"
+    },
+    {
+      "source": "tiktok-browserless-scraper",
+      "receiver": "tiktok-video-formatter"
+    }
+  ],
+  "variables": {
+    "tiktok_username": "${TIKTOK_USERNAME}",
+    "tiktok_session_cookie": "${TIKTOK_SESSION_COOKIE}",
+    "browserless_base_url": "http://localhost:${RESOURCE_PORTS[browserless]}",
+    "api_base_url": "http://localhost:${API_PORT}",
+    "profile_id": "default-profile",
+    "api_token": "${BOOKMARK_API_TOKEN}"
+  },
+  "metadata": {
+    "created_by": "bookmark-intelligence-hub",
+    "version": "1.0.0",
+    "last_updated": "2025-09-06",
+    "platform": "tiktok",
+    "requires_authentication": true,
+    "polling_interval": "2h",
+    "fallback_method": "browserless",
+    "reusability": "medium",
+    "used_by_scenarios": [
+      "bookmark-intelligence-hub",
+      "social-media-analytics",
+      "video-content-manager"
+    ],
+    "notes": "TikTok has strong bot detection, browserless fallback is essential"
+  }
+}
