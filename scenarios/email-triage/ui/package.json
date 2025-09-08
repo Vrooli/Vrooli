@@ -4,8 +4,8 @@
   "description": "AI-powered multi-tenant email management dashboard",
   "main": "src/main.js",
   "scripts": {
-    "start": "http-server -p 3201 -c-1 --cors",
-    "dev": "http-server -p 3201 -c-1 --cors",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh http-server -p 3201 -c-1 --cors'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh http-server -p 3201 -c-1 --cors'",
     "build": "echo 'No build step required for vanilla JS'",
     "test": "echo 'Tests not implemented yet'",
     "serve": "http-server -p 3201 -c-1"

@@ -4,8 +4,8 @@
   "description": "UI server for core-debugger",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
     "test": "curl -f http://localhost:${UI_PORT:-3000}/health || exit 1"
   },
   "dependencies": {

@@ -32,7 +32,7 @@ Autonomous business development engine that converts job board opportunities int
   - [ ] Job evaluation with clear outcomes (NO_ACTION, NOT_RECOMMENDED, ALREADY_DONE, RECOMMENDED)
   - [ ] File-based task management with state folders (pending/researching/evaluated/approved/building/completed)
   - [ ] Manual approval gate before scenario generation
-  - [ ] Integration with scenario-generator-v1 for approved jobs
+  - [ ] Integration with ecosystem-manager for approved jobs
   - [ ] Proposal document generation with delivery instructions
   - [ ] Trello-like UI showing jobs in columns by state
   
@@ -108,7 +108,7 @@ integration_priorities:
   1_cli_commands:         # FIRST: Use resource CLI for reliability
     - command: resource-ollama query
       purpose: Fast LLM inference
-    - command: vrooli scenario run scenario-generator-v1
+    - command: ecosystem-manager add scenario <name>
       purpose: Generate new scenarios
     - command: resource-browserless screenshot
       purpose: Process job screenshots
@@ -305,7 +305,7 @@ custom_commands:
 ### Upstream Dependencies
 - **knowledge-observatory**: Provides domain knowledge for feasibility assessment
 - **research-assistant**: Generates detailed technical analysis reports
-- **scenario-generator-v1**: Creates new scenarios from requirements
+- **ecosystem-manager**: Creates new scenarios from requirements
 - **Huginn**: Scrapes job boards automatically
 
 ### Downstream Enablement
@@ -329,7 +329,7 @@ consumes_from:
     capability: Technical feasibility analysis
     fallback: Basic keyword matching
     
-  - scenario: scenario-generator-v1
+  - scenario: ecosystem-manager
     capability: Scenario creation from requirements
     fallback: Manual scenario creation
 ```
@@ -518,7 +518,7 @@ tests:
 - docs/architecture.md - Technical architecture details
 
 ### Related PRDs
-- scenarios/scenario-generator-v1/PRD.md
+- scenarios/ecosystem-manager/README.md
 - scenarios/knowledge-observatory/PRD.md
 - scenarios/research-assistant/PRD.md
 

@@ -390,7 +390,7 @@ provides_to:
     interface: API/Events
     
 consumes_from:
-  - scenario: scenario-generator
+  - scenario: ecosystem-manager
     capability: New scenario notifications
     fallback: Periodic full scans
     

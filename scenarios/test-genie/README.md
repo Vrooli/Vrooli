@@ -102,7 +102,7 @@ test-genie execute suite-abc123 \
 
 ### 4. **Advanced Coverage Analysis**
 ```bash
-test-genie coverage scenario-improver \
+test-genie coverage ecosystem-manager \
   --depth deep \
   --threshold 90 \
   --report coverage-report.json

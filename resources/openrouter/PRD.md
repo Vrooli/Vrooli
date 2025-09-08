@@ -112,7 +112,7 @@ standard_interfaces:
 
 integration_patterns:
   scenarios_using_resource:
-    - scenario_name: scenario-generator
+    - scenario_name: ecosystem-manager
       usage_pattern: Model selection for different scenario types
       
     - scenario_name: code-automation

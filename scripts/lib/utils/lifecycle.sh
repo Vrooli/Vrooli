@@ -18,6 +18,8 @@ source "${APP_ROOT}/scripts/lib/network/ports.sh" 2>/dev/null || true
 # Core Functions
 ################################################################################
 
+quote() { printf '%q' "$1"; }
+
 #######################################
 # Execute a lifecycle phase from service.json
 # Simple and focused - just runs the steps
@@ -123,7 +125,11 @@ lifecycle::execute_phase() {
         
         # Execute command
         if [[ "$is_background" == "true" ]]; then
-            (cd "$(pwd)" && bash -c "exec -a '$process_name' $cmd") &
+            (
+                cd "$(pwd)" &&
+                VROOLI_LIFECYCLE_MANAGED=true \
+                setsid bash -lc "exec -a '$process_name' bash -lc $(quote "$cmd")"
+            ) &
             log::info "Started background process: $process_name"
         else
             # Foreground execution

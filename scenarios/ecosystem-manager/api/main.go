@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -75,12 +77,16 @@ var (
 	queueDir      = "../queue"
 	promptsConfig PromptsConfig
 	queueProcessor *QueueProcessor
+	// Maintenance state management
+	maintenanceState = "inactive"  // Start inactive by default per maintenance config
+	maintenanceStateMutex sync.RWMutex
 )
 
 // QueueProcessor manages automated queue processing
 type QueueProcessor struct {
 	mu              sync.Mutex
 	isRunning       bool
+	isPaused        bool  // Added for maintenance state awareness
 	stopChannel     chan bool
 	processInterval time.Duration
 }
@@ -407,6 +413,22 @@ func (qp *QueueProcessor) Stop() {
 	log.Println("Queue processor stopped")
 }
 
+// Pause temporarily pauses queue processing (maintenance mode)
+func (qp *QueueProcessor) Pause() {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+	qp.isPaused = true
+	log.Println("Queue processor paused for maintenance")
+}
+
+// Resume resumes queue processing from maintenance mode
+func (qp *QueueProcessor) Resume() {
+	qp.mu.Lock()
+	defer qp.mu.Unlock()
+	qp.isPaused = false
+	log.Println("Queue processor resumed from maintenance")
+}
+
 // processLoop is the main queue processing loop
 func (qp *QueueProcessor) processLoop() {
 	ticker := time.NewTicker(qp.processInterval)
@@ -424,6 +446,16 @@ func (qp *QueueProcessor) processLoop() {
 
 // processQueue processes pending tasks in the queue
 func (qp *QueueProcessor) processQueue() {
+	// Check if paused (maintenance mode)
+	qp.mu.Lock()
+	isPaused := qp.isPaused
+	qp.mu.Unlock()
+	
+	if isPaused {
+		// Skip processing while in maintenance mode
+		return
+	}
+	
 	// Check if there are already tasks in progress
 	inProgressTasks, err := getQueueItems("in-progress")
 	if err != nil {
@@ -818,71 +850,138 @@ func max(a, b int) int {
 	return b
 }
 
-// callClaudeCode calls the Claude Code resource (stub implementation)
+// callClaudeCode calls the Claude Code resource using the direct CLI
 func callClaudeCode(prompt string, task TaskItem) (*ClaudeCodeResponse, error) {
-	// This is a stub implementation
-	// In production, this would make an actual HTTP request to the Claude Code resource
+	log.Printf("Executing Claude Code for task %s (prompt length: %d characters)", task.ID, len(prompt))
 	
-	claudeCodeURL := os.Getenv("CLAUDE_CODE_URL")
-	if claudeCodeURL == "" {
-		// Default to local Claude Code instance
-		claudeCodeURL = "http://localhost:27182/api/execute"
+	// Get Vrooli root directory
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		// Fallback to detecting from current path
+		if wd, err := os.Getwd(); err == nil {
+			// Navigate up to find Vrooli root (contains .vrooli directory)
+			for dir := wd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
+				if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
+					vrooliRoot = dir
+					break
+				}
+			}
+		}
+	}
+	if vrooliRoot == "" {
+		vrooliRoot = "." // Fallback to current directory
 	}
 	
-	// For now, return a simulated response
-	// TODO: Implement actual HTTP request to Claude Code
-	log.Printf("Would send prompt to Claude Code at %s (length: %d characters)", claudeCodeURL, len(prompt))
-	log.Printf("Task context: ID=%s, Type=%s, Operation=%s, Category=%s", task.ID, task.Type, task.Operation, task.Category)
+	// Set timeout (30 minutes for complex tasks)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	
-	// Simulate processing time
-	time.Sleep(2 * time.Second)
+	// Execute using resource-claude-code
+	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", prompt)
+	cmd.Dir = vrooliRoot
 	
-	// Return simulated success for testing
+	// Execute and capture output
+	output, err := cmd.CombinedOutput()
+	
+	// Handle different exit scenarios
+	if ctx.Err() == context.DeadlineExceeded {
+		return &ClaudeCodeResponse{
+			Success: false,
+			Error:   "Claude Code execution timed out after 30 minutes",
+		}, nil
+	}
+	
+	if err != nil {
+		// Extract exit code
+		if exitError, ok := err.(*exec.ExitError); ok {
+			log.Printf("Claude Code failed with exit code %d: %s", exitError.ExitCode(), string(output))
+			return &ClaudeCodeResponse{
+				Success: false,
+				Error:   fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitError.ExitCode(), string(output)),
+			}, nil
+		}
+		return &ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to execute Claude Code: %v", err),
+		}, nil
+	}
+	
+	// Success case
+	outputStr := string(output)
+	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(outputStr))
+	
 	return &ClaudeCodeResponse{
 		Success: true,
-		Message: "Task processed successfully (simulated)",
-		Output:  fmt.Sprintf("Simulated output for task %s", task.ID),
+		Message: "Task completed successfully",
+		Output:  outputStr,
 	}, nil
-	
-	// Actual implementation would be:
-	/*
-	requestBody, err := json.Marshal(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %v", err)
-	}
-	
-	resp, err := http.Post(claudeCodeURL, "application/json", bytes.NewBuffer(requestBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to call Claude Code: %v", err)
-	}
-	defer resp.Body.Close()
-	
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %v", err)
-	}
-	
-	var response ClaudeCodeResponse
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
-	}
-	
-	return &response, nil
-	*/
 }
 
 // API Handlers
 func healthHandler(w http.ResponseWriter, r *http.Request) {
+	maintenanceStateMutex.RLock()
+	currentState := maintenanceState
+	maintenanceStateMutex.RUnlock()
+	
 	status := map[string]interface{}{
 		"status": "healthy",
 		"service": "ecosystem-manager",
 		"version": "1.0.0",
+		"maintenanceState": currentState,
+		"canToggle": true,
 		"supported_operations": []string{"resource-generator", "resource-improver", "scenario-generator", "scenario-improver"},
 		"timestamp": time.Now().Unix(),
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
+}
+
+// maintenanceStateHandler handles maintenance state changes from orchestrator
+func maintenanceStateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	
+	var request struct {
+		MaintenanceState string `json:"maintenanceState"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	
+	// Validate state
+	if request.MaintenanceState != "active" && request.MaintenanceState != "inactive" {
+		http.Error(w, "Invalid maintenance state. Must be 'active' or 'inactive'", http.StatusBadRequest)
+		return
+	}
+	
+	maintenanceStateMutex.Lock()
+	oldState := maintenanceState
+	maintenanceState = request.MaintenanceState
+	maintenanceStateMutex.Unlock()
+	
+	log.Printf("Maintenance state changed from %s to %s", oldState, request.MaintenanceState)
+	
+	// Control queue processing based on maintenance state
+	if queueProcessor != nil {
+		if request.MaintenanceState == "inactive" {
+			queueProcessor.Pause()
+			log.Println("Queue processor paused due to maintenance state")
+		} else if request.MaintenanceState == "active" {
+			queueProcessor.Resume()
+			log.Println("Queue processor resumed from maintenance state")
+		}
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "success",
+		"maintenanceState": maintenanceState,
+	})
 }
 
 func getTasksHandler(w http.ResponseWriter, r *http.Request) {
@@ -1319,7 +1418,18 @@ func main() {
 		// Create and start queue processor with 30-second interval
 		queueProcessor = NewQueueProcessor(30 * time.Second)
 		queueProcessor.Start()
-		log.Println("Queue processor enabled and started")
+		
+		// Start paused if in inactive maintenance state
+		maintenanceStateMutex.RLock()
+		currentState := maintenanceState
+		maintenanceStateMutex.RUnlock()
+		
+		if currentState == "inactive" {
+			queueProcessor.Pause()
+			log.Println("Queue processor started but paused due to inactive maintenance state")
+		} else {
+			log.Println("Queue processor enabled and started in active state")
+		}
 		
 		// Handle graceful shutdown
 		defer func() {
@@ -1336,6 +1446,9 @@ func main() {
 	
 	// Health check
 	r.HandleFunc("/health", healthHandler).Methods("GET")
+	
+	// Maintenance control
+	r.HandleFunc("/api/maintenance/state", maintenanceStateHandler).Methods("POST")
 	
 	// Task management
 	r.HandleFunc("/api/tasks", getTasksHandler).Methods("GET")

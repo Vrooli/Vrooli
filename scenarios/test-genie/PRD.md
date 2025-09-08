@@ -325,15 +325,15 @@ endpoints:
 published_events:
   - name: test_suite.generated
     payload: { suite_id: uuid, scenario_name: string, test_count: number, coverage: number }
-    subscribers: [scenario-improver, notification-hub, analytics-hub]
+    subscribers: [ecosystem-manager, notification-hub, analytics-hub]
     
   - name: test_execution.completed
     payload: { execution_id: uuid, suite_id: uuid, status: string, results_summary: object }
-    subscribers: [scenario-improver, notification-hub, quality-monitor]
+    subscribers: [ecosystem-manager, notification-hub, quality-monitor]
     
   - name: test_failure.detected
     payload: { execution_id: uuid, failed_tests: TestResult[], scenario_name: string }
-    subscribers: [alert-manager, scenario-improver, development-team]
+    subscribers: [alert-manager, ecosystem-manager, development-team]
     
   - name: coverage_gap.identified
     payload: { scenario_name: string, gaps: object, severity: string }
@@ -498,7 +498,7 @@ custom_commands:
 ### Cross-Scenario Interactions
 ```yaml
 provides_to:
-  - scenario: scenario-improver
+  - scenario: ecosystem-manager
     capability: Test failure analysis and improvement recommendations
     interface: Event-driven notifications
     
@@ -506,7 +506,7 @@ provides_to:
     capability: Health check test generation and execution
     interface: API/CLI integration
     
-  - scenario: scenario-generator-v1
+  - scenario: ecosystem-manager
     capability: Automated test generation for new scenarios
     interface: API calls during scenario creation
     
@@ -782,7 +782,7 @@ tests:
 - docs/ai-generation.md - AI-powered test generation documentation
 
 ### Related PRDs
-- scenario-improver.PRD.md - Consumer of test failure analysis
+- ecosystem-manager README - Consumer of test failure analysis
 - app-monitor.PRD.md - Consumer of health check test generation
 
 ### External Resources

@@ -4,12 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -124,6 +122,19 @@ type VulnerabilityScan struct {
 var db *sql.DB
 
 func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start <scenario-name>
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	logger := NewLogger()
 	logger.Info(fmt.Sprintf("Starting %s v%s", serviceName, apiVersion))
 
@@ -157,6 +168,7 @@ func main() {
 	// System operations
 	api.HandleFunc("/system/discover", discoverScenariosHandler).Methods("POST")
 	api.HandleFunc("/system/status", getSystemStatusHandler).Methods("GET")
+	api.HandleFunc("/system/validate-lifecycle", validateLifecycleProtectionHandler).Methods("GET")
 
 	// Enable CORS
 	r.Use(func(next http.Handler) http.Handler {
@@ -567,6 +579,126 @@ func getSystemStatusHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 
+	json.NewEncoder(w).Encode(response)
+}
+
+// validateScenarioLifecycleProtection checks if all scenario APIs have lifecycle protection
+func validateScenarioLifecycleProtection() ([]map[string]interface{}, error) {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		return nil, fmt.Errorf("VROOLI_ROOT environment variable not set")
+	}
+	
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+	
+	var results []map[string]interface{}
+	var unprotectedScenarios []string
+	var protectedScenarios []string
+	
+	// Find all scenario API main.go files
+	err := filepath.Walk(scenariosDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		
+		// Look for main.go files in api directories
+		if info.Name() == "main.go" && strings.Contains(path, "/api/") {
+			// Extract scenario name from path
+			scenarioName := filepath.Base(filepath.Dir(filepath.Dir(path)))
+			
+			// Read the main.go file
+			content, readErr := os.ReadFile(path)
+			if readErr != nil {
+				results = append(results, map[string]interface{}{
+					"scenario": scenarioName,
+					"status": "error",
+					"message": fmt.Sprintf("Could not read file: %v", readErr),
+					"path": path,
+				})
+				return nil
+			}
+			
+			// Check if it contains lifecycle protection
+			contentStr := string(content)
+			if strings.Contains(contentStr, "VROOLI_LIFECYCLE_MANAGED") {
+				protectedScenarios = append(protectedScenarios, scenarioName)
+				results = append(results, map[string]interface{}{
+					"scenario": scenarioName,
+					"status": "protected",
+					"message": "Has lifecycle protection",
+					"path": path,
+				})
+			} else {
+				unprotectedScenarios = append(unprotectedScenarios, scenarioName)
+				results = append(results, map[string]interface{}{
+					"scenario": scenarioName,
+					"status": "unprotected",
+					"message": "Missing VROOLI_LIFECYCLE_MANAGED check",
+					"path": path,
+				})
+			}
+		}
+		
+		return nil
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	
+	// Add summary information
+	summary := map[string]interface{}{
+		"scenario": "SUMMARY",
+		"status": "summary",
+		"message": fmt.Sprintf("Found %d scenarios: %d protected, %d unprotected", 
+			len(protectedScenarios)+len(unprotectedScenarios), 
+			len(protectedScenarios), 
+			len(unprotectedScenarios)),
+		"protected_count": len(protectedScenarios),
+		"unprotected_count": len(unprotectedScenarios),
+		"protected_scenarios": protectedScenarios,
+		"unprotected_scenarios": unprotectedScenarios,
+	}
+	
+	// Insert summary at the beginning
+	results = append([]map[string]interface{}{summary}, results...)
+	
+	return results, nil
+}
+
+// validateLifecycleProtectionHandler handles GET /system/validate-lifecycle
+func validateLifecycleProtectionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	
+	results, err := validateScenarioLifecycleProtection()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error": err.Error(),
+		})
+		return
+	}
+	
+	// Extract summary from first result
+	summary := results[0]
+	protectedCount := summary["protected_count"].(int)
+	unprotectedCount := summary["unprotected_count"].(int)
+	
+	response := map[string]interface{}{
+		"success": true,
+		"data": map[string]interface{}{
+			"summary": summary,
+			"scenarios": results[1:], // Skip the summary item
+			"compliance_rate": float64(protectedCount) / float64(protectedCount+unprotectedCount) * 100,
+			"recommendations": []string{
+				"All scenario APIs should include lifecycle protection to prevent direct execution",
+				"Use the standard pattern: check VROOLI_LIFECYCLE_MANAGED environment variable",
+				"Add protection at the very beginning of main() function",
+			},
+		},
+	}
+	
 	json.NewEncoder(w).Encode(response)
 }
 

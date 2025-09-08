@@ -123,8 +123,6 @@ ports::init_scenario_state() {
     mkdir -p "$SCENARIO_STATE_DIR"
 }
 
-# Function removed - was part of O(n³) performance problem
-
 # Fast port availability check using kernel binding test
 # Replaces the old O(n²) check_port_conflicts function
 ports::is_port_available() {
@@ -166,8 +164,6 @@ ports::is_port_available() {
         return 1
     fi
 }
-
-# Function removed - use ports::is_port_available directly
 
 # Fast port allocation using hash-based starting point and bind testing
 ports::find_available_scenario_port() {

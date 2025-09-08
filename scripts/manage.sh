@@ -74,8 +74,33 @@ manage::main() {
             ;;
     esac
     
-    # Robust scenario directory detection
-    if [[ -f "${PWD}/.vrooli/service.json" ]]; then
+    # Scenario detection - check if argument is a scenario name
+    local scenario_arg=""
+    for arg in "$@"; do
+        if [[ "$arg" != --* && "$arg" != "$phase" ]]; then
+            scenario_arg="$arg"
+            break
+        fi
+    done
+    
+    # If we have a potential scenario name argument, try to find it
+    if [[ -n "$scenario_arg" ]]; then
+        local scenarios_dir="${VROOLI_ROOT}/scenarios"
+        local scenario_path="${scenarios_dir}/${scenario_arg}"
+        
+        if [[ -d "$scenario_path" && -f "${scenario_path}/.vrooli/service.json" ]]; then
+            SCENARIO_NAME="$scenario_arg"
+            export SCENARIO_NAME
+            export SCENARIO_MODE=true
+            export SCENARIO_PATH="$scenario_path"
+            log::info "Running in scenario mode: $SCENARIO_NAME"
+            # Change to scenario directory for lifecycle execution
+            cd "$scenario_path"
+        fi
+    fi
+    
+    # Fallback: Robust scenario directory detection (current behavior)
+    if [[ -z "${SCENARIO_MODE:-}" && -f "${PWD}/.vrooli/service.json" ]]; then
         # Check if we're in a scenario directory by looking at parent paths
         if [[ "${PWD}" == */scenarios/* ]]; then
             SCENARIO_NAME="$(basename "${PWD}")"

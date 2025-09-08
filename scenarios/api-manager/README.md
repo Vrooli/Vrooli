@@ -158,7 +158,7 @@ curl -X POST http://localhost:8421/api/v1/scenarios/my-scenario/scan
 
 ### As a Capability Multiplier
 API Manager enhances scenarios like:
-- **scenario-improver**: Uses API analysis for targeted improvements
+- **ecosystem-manager**: Uses API analysis for targeted improvements
 - **agent-dashboard**: Monitors API health across all managed agents
 - **security-hardening**: Applies systematic security improvements
 

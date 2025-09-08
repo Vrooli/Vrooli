@@ -4,7 +4,7 @@
   "description": "Self-improving code quality guardian with AI-powered smell detection",
   "main": "lib/rules-engine.js",
   "scripts": {
-    "start": "node api/server.js",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node api/server.js'",
     "test": "jest",
     "install-cli": "./cli/install.sh"
   },

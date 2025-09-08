@@ -4,7 +4,7 @@
   "description": "Trello-like UI for Ecosystem Manager - unified resource and scenario management",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
     "build": "vite build",
     "preview": "vite preview",
     "serve": "python3 -m http.server 3001"

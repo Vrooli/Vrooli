@@ -423,7 +423,7 @@ provides_to:
     capability: Automated backup scheduling and monitoring
     interface: API/CLI/Events
     
-  - scenario: scenario-generator
+  - scenario: ecosystem-manager
     capability: Automatic backup of generated scenarios
     interface: Events/API
     
@@ -778,7 +778,7 @@ vrooli test scenario data-backup-manager --performance  # Validate performance t
 ### Related PRDs
 - maintenance-orchestrator - Backup scheduling integration
 - system-monitor - Health monitoring and alerting integration
-- scenario-generator - Automatic backup of new scenarios
+- ecosystem-manager - Automatic backup of new scenarios
 
 ### External Resources
 - PostgreSQL Backup Documentation: https://www.postgresql.org/docs/current/backup.html

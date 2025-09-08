@@ -4,7 +4,7 @@
   "description": "Code Tidiness Manager Dashboard",
   "private": true,
   "scripts": {
-    "dev": "vite --port 20261 --host",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port 20261 --host'",
     "build": "vite build",
     "preview": "vite preview --port 20261 --host"
   },

@@ -546,7 +546,7 @@ func performResearch(jobID string) {
 
 	// Use Ollama for research analysis
 	prompt := fmt.Sprintf(`Analyze this job opportunity and determine:
-1. Can we build this with our existing capabilities? (scenarios: scenario-generator-v1, research-assistant, knowledge-observatory, etc.)
+1. Can we build this with our existing capabilities? (scenarios: ecosystem-manager, research-assistant, knowledge-observatory, etc.)
 2. What would need to be built?
 3. Feasibility score (0-1)
 4. Evaluation: RECOMMENDED, NOT_RECOMMENDED, ALREADY_DONE, or NO_ACTION
@@ -613,8 +613,8 @@ func buildScenarios(jobID string) {
 	// Check if we need to build new scenarios
 	if job.ResearchReport != nil && len(job.ResearchReport.RequiredScenarios) > 0 {
 		for _, scenario := range job.ResearchReport.RequiredScenarios {
-			// Call scenario-generator-v1
-			cmd := exec.Command("vrooli", "scenario", "run", "scenario-generator-v1", 
+			// Call ecosystem-manager to generate scenario
+			cmd := exec.Command("vrooli", "scenario", "run", "ecosystem-manager", 
 				"--input", fmt.Sprintf("Create a scenario called %s for: %s", scenario, job.Description))
 			
 			if output, err := cmd.Output(); err != nil {

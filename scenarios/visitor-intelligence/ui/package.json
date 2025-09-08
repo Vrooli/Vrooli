@@ -5,7 +5,7 @@
   "main": "tracker.js",
   "scripts": {
     "build": "node build.js",
-    "dev": "node build.js --watch",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node build.js --watch'",
     "test": "node test/tracker.test.js"
   },
   "keywords": [

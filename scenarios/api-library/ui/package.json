@@ -10,7 +10,7 @@
     "lucide-react": "^0.294.0"
   },
   "scripts": {
-    "start": "PORT=${VROOLI_API_LIBRARY_UI_PORT:-3200} react-scripts start",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh PORT=${VROOLI_API_LIBRARY_UI_PORT:-3200} react-scripts start'",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

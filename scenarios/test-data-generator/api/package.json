@@ -4,8 +4,8 @@
   "description": "Test Data Generator API - Node.js service for generating mock test data",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node --watch server.js'",
     "test": "jest",
     "test:watch": "jest --watch"
   },

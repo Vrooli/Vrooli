@@ -68,7 +68,7 @@ spec:
   scenarios:
     primary:
       - resource-experimenter
-      - scenario-generator-v1
+      - ecosystem-manager
     secondary:
       - research-assistant
       - document-manager

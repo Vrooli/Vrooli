@@ -67,8 +67,8 @@ Provides a safe, curated, age-appropriate dashboard interface that allows childr
 required:
   - resource_name: none
     purpose: Standalone UI that queries local scenario catalog
-    integration_pattern: File-based discovery
-    access_method: Read local catalog.json and service.json files
+    integration_pattern: Filesystem-based discovery
+    access_method: Dynamically scans scenarios/*/.vrooli/service.json files
     
 optional:
   - resource_name: redis
@@ -211,7 +211,7 @@ custom_commands:
 ## 🔄 Integration Requirements
 
 ### Upstream Dependencies
-- **Scenario Catalog**: Must read catalog.json for scenario discovery
+- **Scenario Discovery**: Dynamically scans filesystem for scenarios/*/.vrooli/service.json
 - **Service.json Standards**: Scenarios must properly tag themselves as kid-friendly
 
 ### Downstream Enablement

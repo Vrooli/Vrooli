@@ -69,8 +69,8 @@ Our scenario system demonstrates real-world resource combinations and generates 
 # Test multi-resource combinations
 cd ../scenarios/app-monitor && ./test.sh
 
-# Browse all available scenarios
-cat ../scenarios/catalog.json
+# List all available scenarios (dynamically discovered)
+vrooli scenario list
 ```
 
 ### Run Scenarios Directly

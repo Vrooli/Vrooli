@@ -18,8 +18,8 @@
     "react-simple-code-editor": "^0.13.1"
   },
   "scripts": {
-    "start": "vite",
-    "dev": "vite",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"No tests configured\""

@@ -11,8 +11,22 @@
       "resource-generator", 
       "scenario-generator",
       "ai-orchestration",
-      "metadata"
+      "metadata",
+      "maintenance"
     ]
+  },
+  "maintenance": {
+    "canDeactivate": true,
+    "defaultState": "inactive",
+    "category": "ecosystem-management",
+    "priority": "high",
+    "description": "Manages resource and scenario generation/improvement tasks",
+    "safeToDeactivate": true,
+    "resourceUsage": {
+      "cpu": "medium",
+      "memory": "medium",
+      "disk": "low"
+    }
   },
   "ports": {
     "api": {
@@ -216,6 +230,11 @@
         "path": "/operations",
         "method": "GET",
         "description": "Get available operation types"
+      },
+      {
+        "path": "/maintenance/state",
+        "method": "POST",
+        "description": "Update maintenance state (active/inactive)"
       }
     ]
   },
