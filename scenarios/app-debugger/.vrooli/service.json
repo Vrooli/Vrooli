@@ -223,12 +223,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f app-debugger.start-api 2>/dev/null || true",
+          "run": "pkill -f \"app-debugger-api\" || true; sleep 1; pkill -9 -f \"app-debugger-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f app-debugger.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/app-debugger.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/app-debugger.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

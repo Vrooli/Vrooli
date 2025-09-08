@@ -16,7 +16,7 @@ Resource Experimenter is critical infrastructure that other scenarios depend on:
 - **prompt-manager**: Uses experiments to discover better prompt structures
 - **agent-metareasoning-manager**: Learns from experiment results to improve agent coordination
 - **product-manager**: Analyzes experiments to identify high-value feature combinations
-- **scenario-generator**: Incorporates successful experiments as templates for new scenarios
+- **ecosystem-manager**: Incorporates successful experiments as templates for new scenarios
 
 ## 🔧 Core Features
 
@@ -90,7 +90,7 @@ resource-experimenter apply <experiment-id> --name "visual-invoice-generator"
 ## 🔄 Integration Points
 
 ### Incoming Integrations
-- **scenario-generator** calls this to test resource combinations
+- **ecosystem-manager** calls this to test resource combinations
 - **agent-metareasoning-manager** uses this for capability expansion
 - **product-manager** queries this for feature possibility analysis
 

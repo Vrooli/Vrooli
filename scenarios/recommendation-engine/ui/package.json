@@ -4,9 +4,9 @@
   "description": "Management dashboard for the Recommendation Engine",
   "main": "index.html",
   "scripts": {
-    "start": "python3 -m http.server 3000 2>/dev/null || python -m SimpleHTTPServer 3000 2>/dev/null || echo 'Python not found, serving at file://$(pwd)/index.html'",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh python3 -m http.server 3000 2>/dev/null || python -m SimpleHTTPServer 3000 2>/dev/null || echo 'Python not found, serving at file://$(pwd)/index.html''",
     "build": "echo 'Build complete - static files ready for deployment'",
-    "dev": "npm start",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'",
     "serve": "npm start"
   },
   "keywords": [

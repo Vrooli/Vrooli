@@ -209,8 +209,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f visitor-intelligence.start-api 2>/dev/null || true",
+          "run": "pkill -f \"visitor-intelligence-api\" || true; sleep 1; pkill -9 -f \"visitor-intelligence-api\" 2>/dev/null || true",
           "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/visitor-intelligence/ui\" || true; sleep 1; pkill -9 -f \"scenarios/visitor-intelligence/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

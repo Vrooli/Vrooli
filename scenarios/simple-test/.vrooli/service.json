@@ -125,12 +125,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f simple-test.start-api 2>/dev/null || true",
+          "run": "pkill -f \"simple-test-api\" || true; sleep 1; pkill -9 -f \"simple-test-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f simple-test.start-ui 2>/dev/null || true",
+          "run": "true",
           "description": "Stop UI process"
         }
       ]

@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port ${UI_PORT:-3400}",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port ${UI_PORT:-3400}'",
     "build": "vite build",
     "preview": "vite preview",
     "test": "echo 'No tests configured yet'"

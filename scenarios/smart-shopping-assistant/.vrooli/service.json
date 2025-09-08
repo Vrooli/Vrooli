@@ -253,12 +253,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f smart-shopping-assistant.start-api 2>/dev/null || true",
+          "run": "pkill -f \"smart-shopping-assistant-api\" || true; sleep 1; pkill -9 -f \"smart-shopping-assistant-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f smart-shopping-assistant.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/smart-shopping-assistant.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/smart-shopping-assistant.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

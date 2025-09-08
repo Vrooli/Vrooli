@@ -107,12 +107,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f video-downloader.start-api 2>/dev/null || true",
+          "run": "pkill -f \"video-downloader-api\" || true; sleep 1; pkill -9 -f \"video-downloader-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f video-downloader.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/video-downloader.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/video-downloader.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

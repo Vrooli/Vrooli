@@ -20,6 +20,194 @@ source "${APP_ROOT}/scripts/lib/network/ports.sh" 2>/dev/null || true
 
 quote() { printf '%q' "$1"; }
 
+################################################################################
+# PID-Based Process Tracking System
+################################################################################
+
+#######################################
+# Start a background process with PID tracking
+# Arguments:
+#   $1 - Phase name (develop, setup, etc.)
+#   $2 - Step name (start-api, start-ui, etc.)
+#   $3 - Command to execute
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+lifecycle::start_tracked_process() {
+    local phase="$1"
+    local step_name="$2" 
+    local cmd="$3"
+    local app_name="${SCENARIO_NAME:-${PWD##*/}}"
+    
+    # Create identifiers
+    local process_id="vrooli.${phase}.${app_name}.${step_name}"
+    local process_dir="$HOME/.vrooli/processes/scenarios/$app_name"
+    local log_file="$HOME/.vrooli/logs/scenarios/${app_name}/${process_id}.log"
+    
+    # Ensure directories exist
+    mkdir -p "$process_dir" "$HOME/.vrooli/logs/scenarios/${app_name}"
+    
+    # Extract port from environment if available
+    local port=""
+    if [[ "$step_name" == "start-api" && -n "${API_PORT:-}" ]]; then
+        port="$API_PORT"
+    elif [[ "$step_name" == "start-ui" && -n "${UI_PORT:-}" ]]; then
+        port="$UI_PORT"
+    fi
+    
+    # Start process with identifiable environment
+    (
+        cd "$(pwd)"
+        
+        # Set environment variables for child processes
+        export VROOLI_PROCESS_ID="$process_id"
+        export VROOLI_PHASE="$phase"
+        export VROOLI_SCENARIO="$app_name"
+        export VROOLI_STEP="$step_name"
+        export VROOLI_LIFECYCLE_MANAGED="true"
+        
+        # Execute the actual command
+        exec bash -c "$cmd"
+    ) >> "$log_file" 2>&1 &
+    
+    local pid=$!
+    
+    # Create comprehensive process metadata WITH PORT
+    cat > "$process_dir/${step_name}.json" << EOF_JSON
+{
+    "pid": $pid,
+    "process_id": "$process_id", 
+    "phase": "$phase",
+    "scenario": "$app_name",
+    "step": "$step_name",
+    "command": $(printf '%s' "$cmd" | jq -Rs .),
+    "working_dir": "$(pwd)",
+    "log_file": "$log_file",
+    "port": ${port:-null},
+    "started_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "status": "running"
+}
+EOF_JSON
+    
+    # Also create simple PID file for quick checks
+    echo "$pid" > "$process_dir/${step_name}.pid"
+    
+    log::info "Started background process: $process_id (PID: $pid)"
+    return 0
+}
+lifecycle::discover_running_scenarios() {
+    local scenarios_dir="$HOME/.vrooli/processes/scenarios"
+    local -A running_scenarios
+    local total_running=0
+    
+    [[ -d "$scenarios_dir" ]] || return 0
+    
+    for scenario_dir in "$scenarios_dir"/*; do
+        [[ -d "$scenario_dir" ]] || continue
+        
+        local scenario_name=$(basename "$scenario_dir")
+        local running_steps=0
+        
+        for step_file in "$scenario_dir"/*.json; do
+            [[ -f "$step_file" ]] || continue
+            
+            local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
+            local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
+            
+            # Check if process is actually running
+            if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+                running_steps=$((running_steps + 1))
+            else
+                # Cleanup dead process metadata
+                rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
+            fi
+        done
+        
+        if [[ $running_steps -gt 0 ]]; then
+            running_scenarios["$scenario_name"]=$running_steps
+            total_running=$((total_running + 1))
+        fi
+    done
+    
+    # Output results in a structured format
+    echo "total_running:$total_running"
+    for scenario in "${!running_scenarios[@]}"; do
+        echo "scenario:$scenario:${running_scenarios[$scenario]}"
+    done
+}
+
+#######################################
+# Check if a specific scenario is running
+# Arguments:
+#   $1 - Scenario name
+# Returns:
+#   0 if running, 1 if not running
+#######################################
+lifecycle::is_scenario_running() {
+    local scenario_name="$1"
+    local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+    
+    [[ -d "$scenario_dir" ]] || return 1
+    
+    for step_file in "$scenario_dir"/*.json; do
+        [[ -f "$step_file" ]] || continue
+        
+        local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
+        
+        # Check if process is actually running
+        if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            return 0  # Found at least one running process
+        else
+            # Cleanup dead process metadata
+            local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
+            rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
+        fi
+    done
+    
+    return 1  # No running processes found
+}
+
+#######################################
+# Stop all processes for a scenario
+# Arguments:
+#   $1 - Scenario name
+#   $2 - Signal (optional, default: TERM)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+lifecycle::stop_scenario_processes() {
+    local scenario_name="$1"
+    local signal="${2:-TERM}"
+    local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+    
+    [[ -d "$scenario_dir" ]] || {
+        log::debug "No process directory found for scenario: $scenario_name"
+        return 0
+    }
+    
+    local stopped_count=0
+    
+    for step_file in "$scenario_dir"/*.json; do
+        [[ -f "$step_file" ]] || continue
+        
+        local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
+        local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
+        
+        if [[ "$pid" =~ ^[0-9]+$ ]]; then
+            if kill -0 "$pid" 2>/dev/null; then
+                log::info "Stopping $scenario_name:$step_name (PID: $pid)"
+                kill -"$signal" "$pid" 2>/dev/null && stopped_count=$((stopped_count + 1))
+            fi
+            
+            # Cleanup metadata
+            rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
+        fi
+    done
+    
+    log::info "Stopped $stopped_count processes for scenario: $scenario_name"
+    return 0
+}
+
 #######################################
 # Execute a lifecycle phase from service.json
 # Simple and focused - just runs the steps
@@ -123,20 +311,25 @@ lifecycle::execute_phase() {
         local app_name="${SCENARIO_NAME:-${PWD##*/}}"
         local process_name="vrooli.$phase.$app_name.$name"
         
-        # Execute command
+        # Execute command using new PID tracking system
         if [[ "$is_background" == "true" ]]; then
-            (
-                cd "$(pwd)" &&
-                VROOLI_LIFECYCLE_MANAGED=true \
-                setsid bash -lc "exec -a '$process_name' bash -lc $(quote "$cmd")"
-            ) &
-            log::info "Started background process: $process_name"
+            lifecycle::start_tracked_process "$phase" "$name" "$cmd"
         else
             # Foreground execution
-            (cd "$(pwd)" && bash -c "$cmd") || {
-                log::error "Step failed: $process_name"
-                return 1
-            }
+            if (cd "$(pwd)" && bash -c "$cmd"); then
+                # Command succeeded
+                true
+            else
+                # Command failed
+                if [[ "$phase" == "stop" ]]; then
+                    # For stop phase, log as warning since PID tracking may have already handled it
+                    log::warning "Stop step completed with non-zero exit (likely process already stopped): $name"
+                else
+                    # For other phases, treat as error
+                    log::error "Step failed: $phase.$app_name.$name"
+                    return 1
+                fi
+            fi
         fi
     done
     
@@ -153,9 +346,37 @@ lifecycle::execute_phase() {
 #   0 on success, 1 on failure
 #######################################
 lifecycle::develop_with_auto_setup() {
-    local app_name="${SCENARIO_NAME:-${PWD##*/}}"
+    local scenario_name="${SCENARIO_NAME:-}"
     
-    # Check if setup is needed (only if setup.sh is available)
+    # Check if scenario is already running and healthy
+    if [[ -n "$scenario_name" ]]; then
+        if lifecycle::is_scenario_running "$scenario_name"; then
+            if lifecycle::is_scenario_healthy "$scenario_name"; then
+                log::success "✓ Scenario '$scenario_name' is already running and healthy"
+                
+                # Show ports for user convenience
+                local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+                if [[ -f "$scenario_dir/start-api.json" ]]; then
+                    local api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+                    [[ -n "$api_port" && "$api_port" != "null" ]] && echo "  API: http://localhost:$api_port"
+                fi
+                if [[ -f "$scenario_dir/start-ui.json" ]]; then
+                    local ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+                    [[ -n "$ui_port" && "$ui_port" != "null" ]] && echo "  UI: http://localhost:$ui_port"
+                fi
+                
+                return 0  # Already running and healthy, nothing to do
+            else
+                log::warning "⚠ Scenario '$scenario_name' is running but unhealthy, restarting..."
+                lifecycle::stop_scenario_processes "$scenario_name"
+                sleep 2  # Give processes time to clean up
+            fi
+        else
+            log::info "Starting scenario '$scenario_name'..."
+        fi
+    fi
+    
+    # Check if setup is needed
     if command -v setup::is_needed >/dev/null 2>&1; then
         if setup::is_needed "$(pwd)"; then
             log::info "Running setup before develop..."
@@ -175,15 +396,6 @@ lifecycle::develop_with_auto_setup() {
     log::info "Starting develop phase..."
     lifecycle::execute_phase "develop"
 }
-
-################################################################################
-# CLI Mode - Direct Execution
-################################################################################
-
-#######################################
-# Main entry point for CLI execution
-# Usage: lifecycle.sh <scenario_name> <phase> [options]
-#######################################
 lifecycle::main() {
     # Only run main if executed directly (not sourced)
     if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
@@ -228,3 +440,72 @@ lifecycle::main() {
 
 # Execute main if running directly
 lifecycle::main "$@"
+#######################################
+# Check if a scenario is healthy (not just running)
+# Arguments:
+#   $1 - Scenario name
+# Returns:
+#   0 if healthy, 1 if not healthy
+#######################################
+lifecycle::is_scenario_healthy() {
+    local scenario_name="$1"
+    local service_json="${APP_ROOT}/scenarios/${scenario_name}/.vrooli/service.json"
+    
+    # First check if it's running at all
+    if ! lifecycle::is_scenario_running "$scenario_name"; then
+        return 1  # Not running, so not healthy
+    fi
+    
+    # Get health check configuration from service.json
+    if [[ ! -f "$service_json" ]]; then
+        # No service.json, assume healthy if running
+        return 0
+    fi
+    
+    # Extract health endpoints
+    local api_endpoint=$(jq -r '.lifecycle.health.endpoints.api // "/health"' "$service_json" 2>/dev/null)
+    local ui_endpoint=$(jq -r '.lifecycle.health.endpoints.ui // "/"' "$service_json" 2>/dev/null)
+    
+    # Get ports from environment or process files
+    local scenario_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+    local api_port=""
+    local ui_port=""
+    
+    # Try to get ports from process metadata
+    if [[ -f "$scenario_dir/start-api.json" ]]; then
+        # Extract port from environment in the JSON
+        api_port=$(jq -r '.port // ""' "$scenario_dir/start-api.json" 2>/dev/null)
+    fi
+    
+    if [[ -f "$scenario_dir/start-ui.json" ]]; then
+        ui_port=$(jq -r '.port // ""' "$scenario_dir/start-ui.json" 2>/dev/null)
+    fi
+    
+    # Fallback: get ports from service.json
+    if [[ -z "$api_port" ]]; then
+        api_port=$(jq -r '.ports.api.port // ""' "$service_json" 2>/dev/null)
+    fi
+    if [[ -z "$ui_port" ]]; then
+        ui_port=$(jq -r '.ports.ui.port // ""' "$service_json" 2>/dev/null)
+    fi
+    
+    # Check API health if port is available
+    if [[ -n "$api_port" && "$api_port" != "null" ]]; then
+        local api_url="http://localhost:${api_port}${api_endpoint}"
+        if ! curl -sf --max-time 5 "$api_url" >/dev/null 2>&1; then
+            log::debug "API health check failed for $scenario_name at $api_url"
+            return 1  # API not healthy
+        fi
+    fi
+    
+    # Check UI health if port is available
+    if [[ -n "$ui_port" && "$ui_port" != "null" ]]; then
+        local ui_url="http://localhost:${ui_port}${ui_endpoint}"
+        if ! curl -sf --max-time 5 "$ui_url" >/dev/null 2>&1; then
+            log::debug "UI health check failed for $scenario_name at $ui_url"
+            return 1  # UI not healthy
+        fi
+    fi
+    
+    return 0  # All checks passed
+}

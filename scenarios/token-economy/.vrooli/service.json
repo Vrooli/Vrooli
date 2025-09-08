@@ -36,7 +36,10 @@
           "config": {
             "database": "token_economy",
             "schema": "public",
-            "extensions": ["uuid-ossp", "pgcrypto"]
+            "extensions": [
+              "uuid-ossp",
+              "pgcrypto"
+            ]
           }
         },
         {
@@ -74,7 +77,9 @@
     "host": "0.0.0.0",
     "cors": {
       "enabled": true,
-      "origins": ["*"]
+      "origins": [
+        "*"
+      ]
     },
     "rateLimit": {
       "enabled": true,
@@ -257,6 +262,23 @@
       "readme": "README.md",
       "api": "docs/api.md",
       "integration": "docs/integration.md"
+    }
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop token-economy services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"token-economy-api\" || true; sleep 1; pkill -9 -f \"token-economy-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/token-economy.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/token-economy.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
     }
   }
 }

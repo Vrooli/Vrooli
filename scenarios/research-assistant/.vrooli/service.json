@@ -256,12 +256,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f research-assistant.start-api 2>/dev/null || true",
+          "run": "pkill -f \"research-assistant-api\" || true; sleep 1; pkill -9 -f \"research-assistant-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f research-assistant.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/research-assistant.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/research-assistant.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

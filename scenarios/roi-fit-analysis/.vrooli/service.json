@@ -242,12 +242,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f roi-fit-analysis.start-api 2>/dev/null || true",
+          "run": "pkill -f \"roi-fit-analysis-api\" || true; sleep 1; pkill -9 -f \"roi-fit-analysis-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f roi-fit-analysis.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/roi-fit-analysis.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/roi-fit-analysis.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

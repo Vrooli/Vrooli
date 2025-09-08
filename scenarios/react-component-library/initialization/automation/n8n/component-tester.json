@@ -1,0 +1,272 @@
+{
+  "name": "Component Tester",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "webhookId": "component-test-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "component-test",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response", 
+      "type": "n8n-nodes-base.webhookResponse",
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract component data from webhook payload\nconst componentId = items[0].json.componentId;\nconst testTypes = items[0].json.testTypes || ['accessibility', 'performance'];\nconst component = items[0].json.component;\n\n// Validate inputs\nif (!componentId) {\n  throw new Error('componentId is required');\n}\n\nif (!component || !component.code) {\n  throw new Error('component.code is required for testing');\n}\n\n// Prepare test configuration\nconst testConfig = {\n  componentId,\n  componentCode: component.code,\n  componentName: component.name || 'TestComponent',\n  testTypes,\n  testConfig: items[0].json.testConfig || {}\n};\n\nreturn [testConfig];"
+      },
+      "id": "prepare-test-data",
+      "name": "Prepare Test Data",
+      "type": "n8n-nodes-base.code",
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "accessibility-test",
+              "leftValue": "={{ $json.testTypes.includes('accessibility') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-accessibility-test",
+      "name": "Check Accessibility Test",
+      "type": "n8n-nodes-base.if",
+      "position": [560, 200]
+    },
+    {
+      "parameters": {
+        "command": "resource-browserless",
+        "arguments": "accessibility-test --component \"{{ $json.componentCode }}\" --output-format json"
+      },
+      "id": "run-accessibility-test",
+      "name": "Run Accessibility Test",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [720, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "performance-test",
+              "leftValue": "={{ $json.testTypes.includes('performance') }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-performance-test",
+      "name": "Check Performance Test",
+      "type": "n8n-nodes-base.if",
+      "position": [560, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simulate performance testing (in real implementation, would use actual tools)\nconst componentCode = items[0].json.componentCode;\nconst componentName = items[0].json.componentName;\n\n// Mock performance metrics\nconst performanceResults = {\n  componentId: items[0].json.componentId,\n  testType: 'performance',\n  results: {\n    renderTimeMs: Math.random() * 20 + 5, // 5-25ms\n    bundleSizeKb: Math.random() * 15 + 2, // 2-17kb\n    memoryUsageMb: Math.random() * 5 + 1, // 1-6mb\n    paintMetrics: {\n      firstPaintMs: Math.random() * 10 + 3,\n      firstContentfulPaint: Math.random() * 15 + 5,\n      largestContentfulPaint: Math.random() * 25 + 10\n    },\n    cpuUsagePercent: Math.random() * 2 + 0.5\n  },\n  timestamp: new Date().toISOString()\n};\n\n// Calculate score based on metrics\nconst renderTime = performanceResults.results.renderTimeMs;\nconst bundleSize = performanceResults.results.bundleSizeKb;\n\nlet renderScore = 100;\nif (renderTime > 16) {\n  renderScore = Math.max(0, 100 * (16 / renderTime));\n}\n\nlet bundleScore = 100;\nif (bundleSize > 10) {\n  bundleScore = Math.max(0, 100 * (10 / bundleSize));\n}\n\nperformanceResults.score = (renderScore + bundleScore) / 2;\nperformanceResults.passed = performanceResults.score >= 80;\n\nreturn [performanceResults];"
+      },
+      "id": "run-performance-test",
+      "name": "Run Performance Test",
+      "type": "n8n-nodes-base.code",
+      "position": [720, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simulate accessibility testing results\nconst componentId = items[0].json.componentId;\nconst componentCode = items[0].json.componentCode;\n\n// Mock accessibility test results\nconst accessibilityResults = {\n  componentId,\n  testType: 'accessibility',\n  results: {\n    violations: [\n      {\n        id: 'color-contrast',\n        impact: 'minor',\n        description: 'Elements should have sufficient color contrast',\n        nodes: Math.floor(Math.random() * 3)\n      }\n    ],\n    passes: [\n      {\n        id: 'aria-labels',\n        description: 'Elements have appropriate aria-labels',\n        nodes: Math.floor(Math.random() * 5) + 2\n      },\n      {\n        id: 'keyboard-navigation',\n        description: 'Elements are keyboard accessible',\n        nodes: Math.floor(Math.random() * 3) + 1\n      }\n    ],\n    incomplete: [],\n    inapplicable: [\n      {\n        id: 'video-captions',\n        description: 'Video elements have captions',\n        nodes: 0\n      }\n    ]\n  },\n  timestamp: new Date().toISOString()\n};\n\n// Calculate score\nconst violations = accessibilityResults.results.violations.length;\nconst passes = accessibilityResults.results.passes.length;\n\nif (violations === 0) {\n  accessibilityResults.score = 100;\n  accessibilityResults.passed = true;\n} else {\n  const total = violations + passes;\n  accessibilityResults.score = total > 0 ? (passes / total) * 100 : 0;\n  accessibilityResults.passed = accessibilityResults.score >= 80;\n}\n\nreturn [accessibilityResults];"
+      },
+      "id": "process-accessibility-results",
+      "name": "Process Accessibility Results", 
+      "type": "n8n-nodes-base.code",
+      "position": [880, 100]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "merge-test-results",
+      "name": "Merge Test Results",
+      "type": "n8n-nodes-base.merge",
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Combine all test results and generate final response\nconst allResults = items.map(item => item.json).filter(result => result.testType);\n\n// Calculate overall score\nlet totalScore = 0;\nlet testCount = 0;\n\nallResults.forEach(result => {\n  if (typeof result.score === 'number') {\n    totalScore += result.score;\n    testCount++;\n  }\n});\n\nconst overallScore = testCount > 0 ? totalScore / testCount : 0;\n\n// Generate recommendations\nconst recommendations = [];\nallResults.forEach(result => {\n  if (!result.passed) {\n    switch (result.testType) {\n      case 'accessibility':\n        recommendations.push('Improve accessibility by addressing color contrast and ARIA label issues');\n        break;\n      case 'performance':\n        recommendations.push('Optimize component performance by reducing render time and bundle size');\n        break;\n    }\n  }\n});\n\nif (recommendations.length === 0) {\n  recommendations.push('All tests passed! Consider adding more comprehensive test coverage.');\n}\n\n// Final response\nconst response = {\n  success: true,\n  componentId: allResults[0]?.componentId,\n  testResults: allResults,\n  overallScore: Math.round(overallScore * 100) / 100,\n  recommendations,\n  testDurationMs: Date.now() - new Date(allResults[0]?.timestamp || Date.now()).getTime(),\n  timestamp: new Date().toISOString()\n};\n\nreturn [response];"
+      },
+      "id": "generate-final-response",
+      "name": "Generate Final Response",
+      "type": "n8n-nodes-base.code", 
+      "position": [1200, 200]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare-test-data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-test-data": {
+      "main": [
+        [
+          {
+            "node": "check-accessibility-test",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "check-performance-test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-accessibility-test": {
+      "main": [
+        [
+          {
+            "node": "run-accessibility-test",
+            "type": "main", 
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "merge-test-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "run-accessibility-test": {
+      "main": [
+        [
+          {
+            "node": "process-accessibility-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process-accessibility-results": {
+      "main": [
+        [
+          {
+            "node": "merge-test-results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-performance-test": {
+      "main": [
+        [
+          {
+            "node": "run-performance-test",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "merge-test-results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "run-performance-test": {
+      "main": [
+        [
+          {
+            "node": "merge-test-results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "merge-test-results": {
+      "main": [
+        [
+          {
+            "node": "generate-final-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate-final-response": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-01-28T00:00:00.000Z",
+      "updatedAt": "2025-01-28T00:00:00.000Z",
+      "id": "component-testing",
+      "name": "component-testing"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2025-01-28T00:00:00.000Z",
+  "versionId": "1"
+}

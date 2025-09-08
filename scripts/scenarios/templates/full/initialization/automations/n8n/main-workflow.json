@@ -269,7 +269,7 @@
   "id": "{{ scenario.id }}-main",
   
   "meta": {
-    "templateCreatedBy": "vrooli-scenario-generator",
+    "templateCreatedBy": "vrooli-ecosystem-manager",
     "instanceId": "{{ scenario.id }}-instance"
   },
   

@@ -238,12 +238,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f seo-optimizer.start-api 2>/dev/null || true",
+          "run": "pkill -f \"seo-optimizer-api\" || true; sleep 1; pkill -9 -f \"seo-optimizer-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f seo-optimizer.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/seo-optimizer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/seo-optimizer.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

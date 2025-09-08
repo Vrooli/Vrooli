@@ -234,12 +234,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f travel-map-filler.start-api 2>/dev/null || true",
+          "run": "pkill -f \"travel-map-filler-api\" || true; sleep 1; pkill -9 -f \"travel-map-filler-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f travel-map-filler.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/travel-map-filler.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/travel-map-filler.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

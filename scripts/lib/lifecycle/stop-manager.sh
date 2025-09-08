@@ -2,7 +2,7 @@
 ################################################################################
 # Simplified Stop Manager for Vrooli
 # Clean, modern approach to stopping scenarios and resources
-# Now integrated with the orchestrator API for proper scenario management
+# Integrated with the unified Go API for proper scenario management
 ################################################################################
 
 set -euo pipefail
@@ -21,22 +21,9 @@ SCENARIOS_DIR="${APP_ROOT}/scenarios"
 RESOURCES_DIR="${APP_ROOT}/resources"
 SCENARIO_STATE_DIR="${HOME}/.vrooli/state/scenarios"
 
-# Orchestrator configuration
-ORCHESTRATOR_PORT="${ORCHESTRATOR_PORT:-9500}"
-ORCHESTRATOR_API="http://localhost:${ORCHESTRATOR_PORT}"
-
 ################################################################################
 # Core Functions
 ################################################################################
-
-# Check if orchestrator is available
-stop::check_orchestrator() {
-    if command -v curl >/dev/null 2>&1; then
-        curl -s -f --connect-timeout 2 --max-time 5 "${ORCHESTRATOR_API}/health" >/dev/null 2>&1
-        return $?
-    fi
-    return 1
-}
 
 # Get appropriate signal based on force mode
 stop::get_signal() {
@@ -86,6 +73,7 @@ stop::cleanup_port_locks() {
 stop::scenario() {
     local scenario_name="$1"
     local scenario_dir="$SCENARIOS_DIR/$scenario_name"
+    local signal="$(stop::get_signal)"
     
     # Check if scenario exists
     if [[ ! -d "$scenario_dir" ]]; then
@@ -107,13 +95,18 @@ stop::scenario() {
         }
     fi
     
-    # Execute the stop lifecycle phase
+    # First, try to stop using PID-tracked processes
+    if command -v lifecycle::stop_scenario_processes >/dev/null 2>&1; then
+        log::info "Stopping PID-tracked processes for $scenario_name..."
+        lifecycle::stop_scenario_processes "$scenario_name" "$signal"
+    fi
+    
+    # Then execute the stop lifecycle phase (for cleanup commands)
     (cd "$scenario_dir" && lifecycle::execute_phase "stop") || {
-        log::error "Failed to stop scenario: $scenario_name"
-        return 1
+        log::warning "Stop lifecycle phase failed for: $scenario_name (processes may still be stopped)"
     }
     
-    # Clean up port lock files after successful stop
+    # Clean up port lock files after stop attempt
     stop::cleanup_port_locks "$scenario_name"
     
     log::success "Stopped $scenario_name"
@@ -161,23 +154,33 @@ stop::all_scenarios() {
         log::debug "Cleaned up all scenario port locks and state files"
     fi
     
-    # Find only scenarios with running processes (PERFORMANCE FIX!)
+    # Find scenarios with running PID-tracked processes
     local scenarios=()
+    local processes_dir="$HOME/.vrooli/processes/scenarios"
     
-    # Method 1: Use ps to find running vrooli processes directly
-    while IFS= read -r proc_line; do
-        if [[ "$proc_line" =~ scenarios/([^/]+)/ ]]; then
-            local scenario_name="${BASH_REMATCH[1]}"
-            # Skip invalid scenario names (like "tools" from orchestrator path)
-            [[ "$scenario_name" =~ ^[a-zA-Z0-9_-]+$ ]] || continue
-            [[ -d "$SCENARIOS_DIR/$scenario_name" ]] || continue
+    # Source lifecycle functions if needed
+    if ! command -v lifecycle::discover_running_scenarios >/dev/null 2>&1; then
+        source "${APP_ROOT}/scripts/lib/utils/lifecycle.sh" 2>/dev/null || {
+            log::error "Failed to source lifecycle.sh"
+            return 1
+        }
+    fi
+    
+    # Use new PID-based detection
+    if [[ -d "$processes_dir" ]]; then
+        for scenario_dir in "$processes_dir"/*; do
+            [[ -d "$scenario_dir" ]] || continue
             
-            # Add to array if not already present
-            if ! [[ " ${scenarios[*]} " == *" $scenario_name "* ]]; then
-                scenarios+=("$scenario_name")
+            local scenario_name=$(basename "$scenario_dir")
+            
+            # Verify scenario directory exists and has running processes
+            if [[ -d "$SCENARIOS_DIR/$scenario_name" ]] && command -v lifecycle::is_scenario_running >/dev/null 2>&1; then
+                if lifecycle::is_scenario_running "$scenario_name"; then
+                    scenarios+=("$scenario_name")
+                fi
             fi
-        fi
-    done < <(ps aux | grep -E "scenarios/" | grep -v grep | awk '{for(i=11;i<=NF;i++) printf "%s ", $i; print ""}' || true)
+        done
+    fi
     
     if [[ ${#scenarios[@]} -eq 0 ]]; then
         log::info "No running scenarios found"

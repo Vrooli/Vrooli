@@ -4,7 +4,7 @@
   "description": "Scalable App Cookbook Web Interface",
   "private": true,
   "scripts": {
-    "dev": "vite --port 3301 --host",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite --port 3301 --host'",
     "build": "vite build",
     "preview": "vite preview --port 3301 --host"
   },

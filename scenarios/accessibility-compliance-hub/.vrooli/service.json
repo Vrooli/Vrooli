@@ -175,12 +175,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f accessibility-compliance-hub.start-api 2>/dev/null || true",
+          "run": "pkill -f \"accessibility-compliance-hub-api\" || true; sleep 1; pkill -9 -f \"accessibility-compliance-hub-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f accessibility-compliance-hub.start-ui 2>/dev/null || true",
+          "run": "true",
           "description": "Stop UI process"
         }
       ]

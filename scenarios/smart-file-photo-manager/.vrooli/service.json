@@ -291,12 +291,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f smart-file-photo-manager.start-api 2>/dev/null || true",
+          "run": "pkill -f \"smart-file-photo-manager-api\" || true; sleep 1; pkill -9 -f \"smart-file-photo-manager-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f smart-file-photo-manager.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/smart-file-photo-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/smart-file-photo-manager.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

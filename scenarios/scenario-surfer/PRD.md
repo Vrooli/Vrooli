@@ -42,7 +42,7 @@ Provides serendipitous discovery and exploration of running scenarios through a 
   - [ ] Scenario descriptions and metadata overlay
   - [ ] Usage analytics and personal dashboard
   - [ ] Social features (sharing interesting scenarios)
-  - [ ] Integration with scenario-generator-v1 for testing new scenarios
+  - [ ] Integration with ecosystem-manager for testing new scenarios
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -340,7 +340,7 @@ chrome_design:
 
 ### Related PRDs
 - app-issue-tracker PRD - Issue reporting destination
-- scenario-generator-v1 PRD - Source of new scenarios to discover
+- ecosystem-manager README - Source of new scenarios to discover
 
 ---
 

@@ -1,0 +1,33 @@
+{
+  "app_id": "api",
+  "type": "main",
+  "source_scenario": null,
+  "git_origin": "",
+  "created": "2025-09-07T14:54:48-04:00",
+  "last_indexed": null,
+  "index_commit": null,
+  "embedding_config": {
+    "model": "mxbai-embed-large",
+    "dimensions": 1024,
+    "collections": {
+      "workflows": "api-workflows",
+      "scenarios": "api-scenarios",
+      "docs": "api-docs",
+      "code": "api-code",
+      "resources": "api-resources",
+      "filetrees": "api-filetrees"
+    }
+  },
+  "stats": {
+    "total_embeddings": 0,
+    "last_refresh_duration_seconds": null,
+    "collections_count": 0,
+    "index_size_mb": 0
+  },
+  "metadata": {
+    "version": "1.0.0",
+    "schema_version": "1.0.0",
+    "auto_index": true,
+    "index_on_commit": true
+  }
+}

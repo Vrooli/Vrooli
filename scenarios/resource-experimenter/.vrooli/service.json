@@ -178,12 +178,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f resource-experimenter.start-api 2>/dev/null || true",
+          "run": "pkill -f \"resource-experimenter-api\" || true; sleep 1; pkill -9 -f \"resource-experimenter-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f resource-experimenter.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/resource-experimenter.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/resource-experimenter.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

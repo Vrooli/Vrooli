@@ -186,12 +186,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f vrooli-bridge.start-api 2>/dev/null || true",
+          "run": "pkill -f \"vrooli-bridge-api\" || true; sleep 1; pkill -9 -f \"vrooli-bridge-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f vrooli-bridge.start-ui 2>/dev/null || true",
+          "run": "true",
           "description": "Stop UI process"
         }
       ]

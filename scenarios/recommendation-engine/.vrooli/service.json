@@ -225,12 +225,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f recommendation-engine.start-api 2>/dev/null || true",
+          "run": "pkill -f \"recommendation-engine-api\" || true; sleep 1; pkill -9 -f \"recommendation-engine-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f recommendation-engine.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/recommendation-engine/ui\" || true; sleep 1; pkill -9 -f \"scenarios/recommendation-engine/ui\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

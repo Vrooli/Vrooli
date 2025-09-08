@@ -88,6 +88,27 @@
         "qdrant",
         "postgres"
       ]
+    },
+    "stop": {
+      "description": "Stop api-library services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"api-library-api\" || true; sleep 1; pkill -9 -f \"api-library-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/api-library/ui\" || true; sleep 1; pkill -9 -f \"scenarios/api-library/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "phases": [
+        "startup"
+      ]
     }
   },
   "api": {

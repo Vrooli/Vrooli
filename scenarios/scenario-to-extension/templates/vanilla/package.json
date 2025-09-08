@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "build": "node build.js",
-    "dev": "node build.js --watch",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node build.js --watch'",
     "clean": "rm -rf dist",
     "pack": "npm run build && cd dist && zip -r ../{{PACKAGE_NAME}}-v{{VERSION}}.zip *",
     "lint": "eslint *.js",

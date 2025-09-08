@@ -8,14 +8,21 @@
     "author": "AI Agent",
     "created": "2024-01-09",
     "updated": "2024-01-09",
-    "tags": ["test", "mock", "data", "generation", "faker", "media"],
+    "tags": [
+      "test",
+      "mock",
+      "data",
+      "generation",
+      "faker",
+      "media"
+    ],
     "revenue_potential": "5000-10000",
     "reusability_score": 10,
     "complexity": "medium"
   },
   "capabilities": [
     "generate_json",
-    "generate_yaml", 
+    "generate_yaml",
     "generate_csv",
     "generate_xml",
     "generate_images",
@@ -54,7 +61,7 @@
         "fallback": "In-memory cache"
       },
       {
-        "name": "minio", 
+        "name": "minio",
         "purpose": "Store generated files for retrieval",
         "fallback": "Temporary filesystem"
       }
@@ -65,8 +72,18 @@
       "initialization/startup.sh"
     ],
     "dependencies": {
-      "system": ["nodejs", "npm", "ffmpeg"],
-      "npm": ["faker", "express", "canvas", "pdfkit", "fluent-ffmpeg"]
+      "system": [
+        "nodejs",
+        "npm",
+        "ffmpeg"
+      ],
+      "npm": [
+        "faker",
+        "express",
+        "canvas",
+        "pdfkit",
+        "fluent-ffmpeg"
+      ]
     }
   },
   "deployment": {
@@ -83,8 +100,13 @@
     },
     "docker": {
       "image": "vrooli/test-data-generator:1.0.0",
-      "ports": ["3001:3001", "3002:3002"],
-      "volumes": ["/tmp/test-data:/app/temp"]
+      "ports": [
+        "3001:3001",
+        "3002:3002"
+      ],
+      "volumes": [
+        "/tmp/test-data:/app/temp"
+      ]
     }
   },
   "cross_scenario": {
@@ -116,7 +138,12 @@
     "metrics": {
       "enabled": true,
       "endpoint": "/metrics",
-      "track": ["requests", "cache_hits", "generation_time", "errors"]
+      "track": [
+        "requests",
+        "cache_hits",
+        "generation_time",
+        "errors"
+      ]
     }
   },
   "security": {
@@ -125,7 +152,9 @@
       "requests_per_minute": 100
     },
     "max_request_size": "10MB",
-    "allowed_origins": ["http://localhost:*"],
+    "allowed_origins": [
+      "http://localhost:*"
+    ],
     "input_validation": true
   },
   "evolution": {
@@ -136,5 +165,22 @@
       "2.0.0": "ML-powered realistic data"
     },
     "deprecations": []
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop test-data-generator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"test-data-generator-api\" || true; sleep 1; pkill -9 -f \"test-data-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/test-data-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/test-data-generator.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

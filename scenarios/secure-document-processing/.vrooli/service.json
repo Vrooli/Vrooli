@@ -282,12 +282,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f secure-document-processing.start-api 2>/dev/null || true",
+          "run": "pkill -f \"secure-document-processing-api\" || true; sleep 1; pkill -9 -f \"secure-document-processing-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f secure-document-processing.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/secure-document-processing.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/secure-document-processing.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

@@ -63,7 +63,7 @@ Claude-code provides estimates, system calculates priority programmatically.
 ### CLI-Based Integration
 Instead of APIs, swarm-manager calls scenario CLIs directly:
 ```bash
-scenario-generator-v1 create --name "new-app" --requirements "..."
+ecosystem-manager add scenario "new-app" --category business --priority high
 resource-experimenter test --scenario "app" --add-resource "ollama"
 app-debugger analyze --app "broken-app" --suggest-fix
 ```
@@ -78,7 +78,7 @@ app-debugger analyze --app "broken-app" --suggest-fix
 - **Claude-code**: Task analysis and execution
 
 ### Integrated Scenarios
-- scenario-generator-v1
+- ecosystem-manager (unified resource/scenario generation and improvement)
 - resource-experimenter
 - app-debugger
 - app-issue-tracker

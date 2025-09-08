@@ -210,12 +210,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f stream-of-consciousness-analyzer.start-api 2>/dev/null || true",
+          "run": "pkill -f \"stream-of-consciousness-analyzer-api\" || true; sleep 1; pkill -9 -f \"stream-of-consciousness-analyzer-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f stream-of-consciousness-analyzer.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/stream-of-consciousness-analyzer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/stream-of-consciousness-analyzer.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

@@ -216,12 +216,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f scalable-app-cookbook.start-api 2>/dev/null || true",
+          "run": "pkill -f \"scalable-app-cookbook-api\" || true; sleep 1; pkill -9 -f \"scalable-app-cookbook-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f scalable-app-cookbook.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/scalable-app-cookbook.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/scalable-app-cookbook.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

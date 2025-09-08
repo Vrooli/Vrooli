@@ -4,8 +4,8 @@
   "description": "Web UI for scenario-to-desktop desktop application generator",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
     "build": "echo 'No build step required for static HTML'",
     "test": "echo 'No tests configured'"
   },

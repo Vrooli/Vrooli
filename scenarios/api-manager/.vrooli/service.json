@@ -38,18 +38,26 @@
   "resources": {
     "postgres": {
       "enabled": true,
-      "databases": ["vrooli_api_manager"]
+      "databases": [
+        "vrooli_api_manager"
+      ]
     },
     "ollama": {
       "enabled": true,
-      "models": ["llama3.1:8b", "nomic-embed-text"]
+      "models": [
+        "llama3.1:8b",
+        "nomic-embed-text"
+      ]
     },
     "n8n": {
       "enabled": true
     },
     "qdrant": {
       "enabled": true,
-      "collections": ["api_patterns", "vulnerability_signatures"]
+      "collections": [
+        "api_patterns",
+        "vulnerability_signatures"
+      ]
     }
   },
   "initialization": {
@@ -68,7 +76,7 @@
           "name": "API Scanner Workflow"
         },
         {
-          "file": "initialization/automation/n8n/security-auditor.json", 
+          "file": "initialization/automation/n8n/security-auditor.json",
           "name": "Security Audit Workflow"
         },
         {
@@ -96,7 +104,7 @@
           }
         },
         {
-          "name": "deploy-workflows", 
+          "name": "deploy-workflows",
           "run": "vrooli resource n8n deploy-workflows initialization/automation/n8n/",
           "description": "Deploy N8n automation workflows",
           "condition": {
@@ -141,7 +149,7 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start web interface", 
+          "description": "Start web interface",
           "background": true,
           "health_check": {
             "url": "http://localhost:8420/health",
@@ -155,26 +163,43 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f 'api-manager-api' || true",
-          "description": "Stop API server"
+          "run": "pkill -f \"api-manager-api\" || true; sleep 1; pkill -9 -f \"api-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui", 
-          "run": "pkill -f 'node.*server.js.*api-manager' || true",
-          "description": "Stop web interface"
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/api-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/api-manager.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
+      ]
+    },
+    "develop": {
+      "description": "Development mode - build and start services",
+      "depends_on": [
+        "setup"
+      ],
+      "phases": [
+        "build",
+        "start"
       ]
     }
   },
   "metadata": {
-    "tags": ["api", "security", "automation", "analysis", "documentation", "maintenance"],
+    "tags": [
+      "api",
+      "security",
+      "automation",
+      "analysis",
+      "documentation",
+      "maintenance"
+    ],
     "category": "infrastructure",
     "priority": "high",
-    "author": "AI Agent", 
+    "author": "AI Agent",
     "status": "development",
     "capabilities": [
       "api-scanning",
-      "security-auditing", 
+      "security-auditing",
       "documentation-generation",
       "performance-analysis",
       "automated-fixes"

@@ -233,12 +233,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f referral-program-generator.start-api 2>/dev/null || true",
+          "run": "pkill -f \"referral-program-generator-api\" || true; sleep 1; pkill -9 -f \"referral-program-generator-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f referral-program-generator.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/referral-program-generator.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/referral-program-generator.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

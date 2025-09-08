@@ -245,13 +245,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f scenario-dependency-analyzer.start-api 2>/dev/null || true",
-          "description": "Stop dependency analysis API server"
+          "run": "pkill -f \"scenario-dependency-analyzer-api\" || true; sleep 1; pkill -9 -f \"scenario-dependency-analyzer-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f scenario-dependency-analyzer.start-ui 2>/dev/null || true",
-          "description": "Stop graph visualization UI server"
+          "run": "true",
+          "description": "Stop UI process"
         },
         {
           "name": "cleanup-temp-files",

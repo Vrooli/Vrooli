@@ -168,8 +168,9 @@ dispatch_task() {
     
     # Check component-specific health if needed
     case "$task_scenario" in
-        "scenario-generator-v1")
+        "ecosystem-manager")
             check_component_health "orchestrator"
+            check_component_health "resource-manager"
             ;;
         "resource-experimenter")
             check_component_health "resource-manager"

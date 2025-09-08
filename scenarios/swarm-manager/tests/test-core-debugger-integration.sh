@@ -128,7 +128,7 @@ fi
 
 # App-level task
 cat > ../tasks/test/app-issue.yaml << EOF
-title: "Debug app crash in scenario-generator"
+title: "Debug app crash in ecosystem-manager"
 type: app-debug
 description: "Application error in generated scenario"
 EOF

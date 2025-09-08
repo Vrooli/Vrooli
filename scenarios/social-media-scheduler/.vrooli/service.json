@@ -281,19 +281,19 @@
       "description": "Stop all social media scheduler services",
       "steps": [
         {
-          "name": "stop-job-processor",
-          "run": "pkill -f social-media-scheduler.start-job-processor 2>/dev/null || true",
-          "description": "Stop background job processor"
-        },
-        {
           "name": "stop-api",
-          "run": "pkill -f social-media-scheduler.start-api 2>/dev/null || true",
-          "description": "Stop API server"
+          "run": "pkill -f \"social-media-scheduler-api\" || true; sleep 1; pkill -9 -f \"social-media-scheduler-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f social-media-scheduler.start-ui 2>/dev/null || true",
-          "description": "Stop React UI development server"
+          "run": "pkill -f \"scenarios/social-media-scheduler.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/social-media-scheduler.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        },
+        {
+          "name": "stop-job-processor",
+          "run": "pkill -f social-media-scheduler.start-job-processor 2>/dev/null || true",
+          "description": "Stop background job processor"
         }
       ]
     }
