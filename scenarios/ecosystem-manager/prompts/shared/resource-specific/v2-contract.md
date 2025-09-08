@@ -27,72 +27,20 @@ resource-name/
 
 ## Health Check Implementation
 
-### Required Pattern
+### Required Contract Structure
 ```bash
-#!/bin/bash
-# lib/health.sh
+#!/bin/bash  
+# lib/health.sh - REQUIRED file
+
+# Must implement check_health() function
+# Must handle timeouts and retries
+# Must use consistent logging patterns
 
 # Source common utilities
 source "$(dirname "$0")/common.sh"
 
-# Main health check function
-check_health() {
-    local service="${1:-$RESOURCE_NAME}"
-    local port="${2:-$RESOURCE_PORT}"
-    local endpoint="${3:-/health}"
-    local timeout="${4:-5}"
-    
-    # Must handle timeouts gracefully
-    if timeout "$timeout" curl -sf "http://localhost:${port}${endpoint}" >/dev/null 2>&1; then
-        log_success "${service} is healthy"
-        return 0
-    else
-        log_error "${service} health check failed"
-        return 1
-    fi
-}
-
-# Wait for health with retries
-wait_for_health() {
-    local max_attempts="${1:-30}"
-    local sleep_time="${2:-1}"
-    local attempt=0
-    
-    log_info "Waiting for ${RESOURCE_NAME} to be healthy..."
-    
-    while [ $attempt -lt $max_attempts ]; do
-        if check_health; then
-            return 0
-        fi
-        
-        attempt=$((attempt + 1))
-        if [ $attempt -lt $max_attempts ]; then
-            sleep "$sleep_time"
-            echo -n "."
-        fi
-    done
-    
-    log_error "Health check failed after $max_attempts attempts"
-    return 1
-}
-
-# Multiple endpoint support
-check_all_endpoints() {
-    local endpoints=("/health" "/ready" "/live")
-    local all_healthy=true
-    
-    for endpoint in "${endpoints[@]}"; do
-        if ! check_health "$RESOURCE_NAME" "$RESOURCE_PORT" "$endpoint"; then
-            all_healthy=false
-        fi
-    done
-    
-    if $all_healthy; then
-        return 0
-    else
-        return 1
-    fi
-}
+# For comprehensive implementation examples and patterns:
+{{INCLUDE: resource-specific/health-checks.md}}
 ```
 
 ## Lifecycle Hooks

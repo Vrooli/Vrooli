@@ -1,283 +1,109 @@
-# Assessment Phase for Improvers
+# Improver Assessment Phase: Audit Current State
 
 ## Purpose
-Improvers enhance EXISTING scenarios and resources. Assessment reveals the TRUE current state, not what documentation claims. This phase is critical for making targeted, valuable improvements.
+**IMPROVERS FIX & ENHANCE EXISTING** - Assessment reveals truth vs documentation.
 
-## Assessment Allocation: 30% of Total Effort
+## Assessment Allocation: 20% of Total Effort
 
-### Assessment Philosophy
+### Primary Mission: Find the Lies
+1. **Audit current state** - What REALLY works?
+2. **Identify breakage** - What's broken despite claims?
+3. **Plan fixes** - What needs immediate attention?
 
-**Trust but Verify Everything**
-- Documentation lies
-- PRDs have false checkmarks  
-- Code doesn't match claims
-- Tests may not test correctly
-
-Your job is to discover the TRUTH.
-
-## Comprehensive Assessment Process
-
-### Step 1: PRD Reality Check (10%)
-
-#### Verify Every Checkmark
+### MANDATORY Testing (Trust Nothing)
 ```bash
-# For each checked requirement in PRD.md:
-1. Find the implementation
-   - Search codebase for feature
-   - Locate specific functions
-   - Identify test coverage
+# Test what PRD claims works
+vrooli [resource/scenario] [name] develop  # Start it
+curl localhost:$PORT/health                # Health check
+./test.sh                                  # Run tests
 
-2. Test the functionality
-   - Run the actual commands
-   - Verify outputs match expectations
-   - Check error handling
-
-3. Update PRD accuracy
-   - Uncheck false completions
-   - Add notes about partial implementations
-   - Document blockers
-
-# Example verification:
-# PRD says: ✅ User authentication implemented
-# Test: curl -X POST localhost:3000/api/login -d '{"user":"test","pass":"test"}'
-# Result: 404 Not Found
-# Action: Uncheck requirement, note "Endpoint doesn't exist"
+# For EACH ✅ in PRD.md:
+# Test it. If broken, uncheck it.
+# Document: "BROKEN: [specific error]"
 ```
 
-#### Calculate Real Progress
+### Search for Known Issues
+```bash
+# Find existing problems documented
+vrooli resource qdrant search "[target name] issue" docs
+vrooli resource qdrant search-all "[target name] broken"
+rg "TODO|FIXME|HACK|BUG" . --type-add 'code:*.{js,go,py}'
+
+# Find past fix attempts
+vrooli resource qdrant search "fixed [target name]" code
+grep -r "workaround\|temporary\|hack" .
+```
+
+### Code Quality Audit
+```bash
+# Find technical debt
+grep -r "hardcoded\|localhost\|3000" .  # Config issues
+find . -size 0                           # Empty files
+ls -la lib/ | grep -v "\.sh"            # Missing scripts
+```
+
+## Improver Assessment Output Template
 ```markdown
-## PRD Accuracy Report
-- Claimed completion: 75% (15/20 requirements)
-- Verified completion: 35% (7/20 requirements)  
-- False positives: 8 requirements
-- Partial implementations: 3 requirements
-- Blocked items: 2 requirements
+## Assessment Results
+**Target**: [target name]
+**Current PRD Completion**: X% (was Y%, adjusted for lies)
+
+### False Checkmarks Found (Uncheck These)
+- [ ] Feature X - BROKEN: [specific error]
+- [ ] Feature Y - PARTIAL: [only Z works]
+- [ ] Feature Z - MISSING: [not implemented]
+
+### Actual Working Features
+- [✓] Feature A - Tested and confirmed
+- [✓] Feature B - Works as documented
+
+### Priority Fixes Needed
+1. [CRITICAL]: [What's completely broken]
+2. [HIGH]: [What partially works]
+3. [MEDIUM]: [What needs enhancement]
 ```
 
-### Step 2: Functional Assessment (10%)
+## Assessment Quality Gates
 
-#### Start and Test Everything
-```bash
-# Start the component
-vrooli scenario [name] run
-# OR
-vrooli resource [name] start
+### Gate 1: Truth Detection (MUST PASS)
+- [ ] Every ✅ in PRD tested
+- [ ] False completions unchecked
+- [ ] Real status documented
+- [ ] No assumptions made
 
-# Test each major feature
-- API endpoints: Test with curl/httpie
-- CLI commands: Run each command
-- UI features: Screenshot and verify
-- Integrations: Check connections
+### Gate 2: Issue Identification (MUST PASS)
+- [ ] Breaking issues found
+- [ ] Root causes identified
+- [ ] Fix complexity estimated
+- [ ] Dependencies checked
 
-# Document results
-✅ Working:
-- Health check responds
-- Basic API endpoint works
-- CLI help command works
+### Gate 3: Fix Planning (MUST PASS)
+- [ ] Fixes prioritized by impact
+- [ ] Quick wins identified
+- [ ] Complex fixes noted
+- [ ] Time estimates realistic
 
-❌ Broken:
-- Authentication returns 404
-- Database connection fails
-- UI shows blank page
+## What Improvers DON'T Assess
+❌ **DON'T assess market need** - It exists, we're improving it
+❌ **DON'T assess uniqueness** - It's already built
+❌ **DON'T assess templates** - We're modifying, not copying
+❌ **DON'T assess revenue potential** - Focus on fixing
 
-⚠️ Partial:
-- Search works but no pagination
-- Upload works but no validation
-```
+## Improver Assessment Mindset
+Think: **"What claims are false?"**
+NOT: "What could we build?"
 
-#### Check Resource Dependencies
-```bash
-# For resources
-- Check v2.0 contract compliance
-- Test health check with timeout
-- Verify lifecycle hooks work
-- Validate CLI integration
+Think: **"What's the smallest fix with biggest impact?"**
+NOT: "How do we rebuild this?"
 
-# For scenarios
-- Verify all dependencies running
-- Test resource connections
-- Check shared workflow access
-- Validate initialization
-```
+Think: **"How do we advance PRD checkboxes?"**
+NOT: "How do we create new features?"
 
-### Step 3: Code Quality Assessment (5%)
+## Time Boxing
+- Start & test: 5 minutes MAX
+- PRD validation: 10 minutes MAX
+- Issue search: 3 minutes MAX
+- Documentation: 2 minutes MAX
+- **TOTAL: 20% of task time**
 
-#### Identify Technical Debt
-```bash
-# Search for problems
-grep -r "TODO\|FIXME\|HACK\|XXX" .
-grep -r "hardcoded\|temporary\|workaround" .
-
-# Check for anti-patterns
-- Hardcoded values that should be config
-- Missing error handling
-- No input validation
-- Commented out code
-- Duplicate code blocks
-- Missing tests
-```
-
-#### Review Structure
-```markdown
-## Structure Assessment
-- [ ] Follows template structure
-- [ ] Consistent naming conventions
-- [ ] Proper separation of concerns
-- [ ] Clear module boundaries
-- [ ] Appropriate abstractions
-```
-
-### Step 4: Historical Context Research (5%)
-
-#### Learn from Past Attempts
-```bash
-# Search Qdrant for history
-vrooli resource-qdrant search "[component] improvement" all
-vrooli resource-qdrant search "[component] fix" all
-vrooli resource-qdrant search "[component] failed" all
-vrooli resource-qdrant search "[component] issue" all
-
-# Extract insights
-- What's been tried before?
-- What worked/failed?
-- Are there known issues?
-- What patterns emerged?
-```
-
-#### Check Cross-Dependencies
-```bash
-# Find what depends on this
-vrooli resource-qdrant search "[component] used by" all
-vrooli resource-qdrant search "[component] depends" scenarios
-
-# Assess impact radius
-- Which scenarios would break if this changes?
-- What relies on current behavior?
-- Where are the integration points?
-```
-
-## Assessment Output Template
-
-### Required Assessment Report
-```markdown
-# Assessment Report: [Component Name]
-
-## Executive Summary
-- Overall health: [Good/Fair/Poor]
-- PRD accuracy: [X]% claimed vs [Y]% actual
-- Immediate issues: [Count]
-- Improvement opportunities: [Count]
-
-## PRD Validation
-### False Completions
-1. [Requirement]: [Why it's not actually done]
-2. [Requirement]: [Why it's not actually done]
-
-### Partial Implementations
-1. [Requirement]: [What works vs what doesn't]
-
-### Blocked Items
-1. [Requirement]: [What's blocking it]
-
-## Functional Status
-### Working Features
-- [Feature]: [Evidence it works]
-
-### Broken Features
-- [Feature]: [How it fails]
-
-### Missing Features
-- [Feature]: [Not implemented at all]
-
-## Code Quality Issues
-### Critical Issues
-- [Issue]: [Impact and location]
-
-### Technical Debt
-- [Debt item]: [Cost to fix]
-
-### Improvement Opportunities
-- [Opportunity]: [Benefit if implemented]
-
-## Historical Context
-### Previous Attempts
-- [Date]: [What was tried] - [Result]
-
-### Known Issues
-- [Issue]: [Workaround if any]
-
-## Cross-Dependencies
-### Used By
-- [Scenario/Resource]: [How it's used]
-
-### Depends On
-- [Resource]: [What it needs]
-
-## Prioritized Improvements
-1. [Critical]: [Description] - [Why urgent]
-2. [High]: [Description] - [Impact]
-3. [Medium]: [Description] - [Value]
-4. [Low]: [Description] - [Nice to have]
-
-## Risks
-- [Risk]: [Probability and impact]
-
-## Recommendations
-### Immediate Actions
-1. [Action]: [Expected outcome]
-
-### Next Iteration
-1. [Improvement]: [Value delivered]
-```
-
-## Assessment Quality Checklist
-
-- [ ] Every PRD checkmark verified with actual test
-- [ ] All false completions unchecked with notes
-- [ ] Functional testing performed on all features
-- [ ] Code quality issues documented
-- [ ] Historical context researched
-- [ ] Dependencies mapped
-- [ ] Improvements prioritized by value
-- [ ] Assessment report created
-
-## Common Assessment Pitfalls
-
-### Trusting Documentation
-❌ **Bad**: "PRD says it's done, must be done"
-✅ **Good**: "PRD says it's done, let me verify... nope, doesn't work"
-
-### Shallow Testing
-❌ **Bad**: "Service starts, must be working"
-✅ **Good**: "Service starts, but API returns 404, auth is broken, and UI is blank"
-
-### Ignoring History
-❌ **Bad**: "Let me try this fresh approach"
-✅ **Good**: "This was tried 3 times before and failed because X, let me try Y instead"
-
-### Missing Dependencies
-❌ **Bad**: "I'll just fix this in isolation"
-✅ **Good**: "5 scenarios depend on this behavior, I need to maintain compatibility"
-
-## Assessment Success Metrics
-
-Good assessment results in:
-- **No surprises** during implementation
-- **Targeted improvements** that add real value
-- **No regressions** from changes
-- **Faster implementation** due to clarity
-- **Higher success rate** from learning
-
-## Remember for Assessment
-
-**Reality beats documentation** - Test everything yourself
-
-**Details matter** - Small issues cascade into big problems
-
-**History repeats** - Learn from past attempts
-
-**Dependencies constrain** - Know what you can't break
-
-**Time invested pays off** - Good assessment prevents failures
-
-Assessment is your map of the territory. Without accurate assessment, you're working blind. Invest the time to understand the TRUE state - it guides everything that follows.
+Remember: **Improvers make things ACTUALLY WORK.** Assessment reveals the truth.

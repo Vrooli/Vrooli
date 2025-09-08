@@ -118,7 +118,7 @@ handle_failure() {
 ### Memory System Update
 ```bash
 # Commands to update Qdrant with failure pattern
-vrooli resource-qdrant add-failure "[component] [failure type]" "details"
+vrooli resource qdrant add-failure "[component] [failure type]" "details"
 ```
 ```
 

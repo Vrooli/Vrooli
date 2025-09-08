@@ -92,8 +92,8 @@ vrooli scenario run [name] OR vrooli resource [name] start
 #### Cross-Impact Analysis
 ```bash
 # Find affected components
-vrooli resource-qdrant search "[component] depends" all
-vrooli resource-qdrant search "[component] uses" scenarios
+vrooli resource qdrant search-all "[component] depends"
+vrooli resource qdrant search "[component] uses" scenarios
 
 # Assess potential impacts
 - What breaks if this changes?
@@ -106,9 +106,9 @@ vrooli resource-qdrant search "[component] uses" scenarios
 #### Historical Context
 ```bash
 # Search for past work
-vrooli resource-qdrant search "[component] improvement" all
-vrooli resource-qdrant search "[component] fix" all
-vrooli resource-qdrant search "[component] issue" all
+vrooli resource qdrant search-all "[component] improvement"
+vrooli resource qdrant search-all "[component] fix"
+vrooli resource qdrant search-all "[component] issue"
 
 # Learn from history
 - Previous improvement attempts

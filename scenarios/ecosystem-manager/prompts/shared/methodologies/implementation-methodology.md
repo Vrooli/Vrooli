@@ -112,23 +112,9 @@ try {
 #### Common Patterns
 
 **Health Check Implementation**
-```bash
-check_health() {
-    local timeout="${1:-5}"
-    local retries="${2:-3}"
-    
-    for i in $(seq 1 $retries); do
-        if timeout $timeout curl -sf http://localhost:$PORT/health >/dev/null 2>&1; then
-            echo "✅ Health check passed"
-            return 0
-        fi
-        [ $i -lt $retries ] && sleep 1
-    done
-    
-    echo "❌ Health check failed after $retries attempts"
-    return 1
-}
-```
+
+See comprehensive health check patterns and implementations in:
+{{INCLUDE: resource-specific/health-checks.md}}
 
 **CLI Command Structure**
 ```bash

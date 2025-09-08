@@ -8,34 +8,11 @@ Research is the foundation of high-quality scenario and resource creation. Prope
 ### Phase 1: Local Memory Search (20% minimum)
 
 #### Mandatory Qdrant Searches
-Before creating ANYTHING, you MUST search Vrooli's memory:
-
-```bash
-# Search for similar work
-vrooli resource-qdrant search-all "[your topic] [category]"
-vrooli resource-qdrant search "[description keywords]" scenarios
-vrooli resource-qdrant search "[description keywords]" resources
-
-# Learn from existing patterns
-vrooli resource-qdrant search "[category] pattern" code
-vrooli resource-qdrant search "[category] implementation" all
-vrooli resource-qdrant search "[category] best practice" docs
-
-# Avoid known problems
-vrooli resource-qdrant search "[category] failed" all
-vrooli resource-qdrant search "[category] error" docs
-vrooli resource-qdrant search "[category] problem" all
-vrooli resource-qdrant search "[category] issue" docs
-
-# Find dependencies and integrations
-vrooli resource-qdrant search "[category] depends" all
-vrooli resource-qdrant search "[category] requires" docs
-vrooli resource-qdrant search "[category] integration" scenarios
-```
+**Follow the standard 5-command search sequence** defined in core/memory-search-patterns.md before creating ANYTHING.
 
 #### Required Research Outputs
-- **10+ relevant Qdrant findings** with specific insights
-- **5+ reusable patterns** identified from existing work
+- **5 strategic Qdrant findings** with specific insights
+- **3+ reusable patterns** identified from existing work
 - **3+ failure patterns** to avoid
 - **List of dependencies** and integration points
 
@@ -99,7 +76,7 @@ Document your research findings:
 ## Research Quality Checklist
 
 Before proceeding past research:
-- [ ] Searched Qdrant with at least 10 different queries
+- [ ] Searched Qdrant with 5 focused queries
 - [ ] Found and analyzed 10+ relevant memory items
 - [ ] Identified 5+ reusable patterns
 - [ ] Documented 3+ failure patterns to avoid
@@ -112,7 +89,7 @@ Before proceeding past research:
 
 ### Insufficient Memory Search
 ❌ **Bad**: Quick search with 1-2 queries
-✅ **Good**: Comprehensive search with 10+ varied queries
+✅ **Good**: Focused search with 5 strategic queries
 
 ### Ignoring Failures
 ❌ **Bad**: Only looking at successful implementations

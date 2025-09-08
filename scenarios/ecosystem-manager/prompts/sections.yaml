@@ -12,9 +12,9 @@ base_sections:
   - shared/core/vrooli-context
   - shared/core/memory-system
   - shared/core/validation-gates
+  - shared/core/prd-protocol
   
   # Methodologies (shared across all operations)
-  - shared/methodologies/prd-methodology
   - shared/methodologies/implementation-methodology
   
   # Operational procedures (shared across all operations)
@@ -40,7 +40,6 @@ operations:
       - shared/generator-specific/web-research
       - shared/generator-specific/qdrant-deep-search
       - shared/generator-specific/duplicate-detection
-      - shared/generator-specific/prd-creation-phase
       - shared/generator-specific/scaffolding-phase
       - shared/generator-specific/seeding-guidelines
       
@@ -54,14 +53,14 @@ operations:
       scenario_type: "resource"
       focus: "one-time creation of new resources"
       primary_output: "v2.0 compliant resource with PRD"
-      research_percentage: 40
-      prd_percentage: 40
+      research_percentage: 30
+      prd_percentage: 50
       implementation_percentage: 20
     
     effort_allocation:
-      research: "40% - Check for existing resources, patterns, and best practices"
-      prd_creation: "40% - Comprehensive PRD with technical specifications"
-      scaffolding: "20% - v2.0 compliant structure with health checks"
+      research: "30% - Check for existing resources, patterns, and best practices"
+      prd_creation: "50% - Comprehensive PRD with technical specifications (PRIMARY DELIVERABLE)"
+      scaffolding: "20% - Minimal viable structure with health checks"
     
     success_criteria:
       - "Unique resource (not duplicating existing)"
@@ -91,12 +90,10 @@ operations:
       
       # Improver-specific sections
       - shared/improver-specific/assessment-phase
-      - shared/improver-specific/prd-accuracy-check
       - shared/improver-specific/progress-verification
       - shared/improver-specific/regression-detection
       - shared/improver-specific/prioritization-phase
       - shared/improver-specific/iteration-phase
-      - shared/improver-specific/prd-progression
       
       # Resource-specific knowledge
       - shared/resource-specific/v2-contract
@@ -108,16 +105,16 @@ operations:
       scenario_type: "resource"
       focus: "iterative improvement of existing resources"
       primary_output: "v2.0 compliance and enhanced reliability"
-      assessment_percentage: 30
-      prioritization_percentage: 20
-      implementation_percentage: 40
+      assessment_percentage: 20
+      prioritization_percentage: 10
+      implementation_percentage: 60
       validation_percentage: 10
     
     effort_allocation:
-      assessment: "30% - Check v2.0 compliance and test functionality"
-      prioritization: "20% - Focus on contract violations and stability"
-      implementation: "40% - Fix compliance gaps and enhance features"
-      validation: "10% - Verify improvements and update documentation"
+      assessment: "20% - Audit current state and verify PRD accuracy"
+      prioritization: "10% - Identify highest-impact fixes"
+      implementation: "60% - Fix issues and advance PRD checkboxes"
+      validation: "10% - Verify improvements and update PRD"
     
     success_criteria:
       - "v2.0 contract compliance improved"
@@ -149,7 +146,6 @@ operations:
       - shared/generator-specific/web-research
       - shared/generator-specific/qdrant-deep-search
       - shared/generator-specific/duplicate-detection
-      - shared/generator-specific/prd-creation-phase
       - shared/generator-specific/scaffolding-phase
       - shared/generator-specific/seeding-guidelines
       
@@ -160,14 +156,14 @@ operations:
       scenario_type: "scenario"
       focus: "one-time creation of new scenarios"
       primary_output: "Comprehensive PRD.md and scaffolded structure"
-      research_percentage: 40
-      prd_percentage: 40
+      research_percentage: 30
+      prd_percentage: 50
       implementation_percentage: 20
     
     effort_allocation:
-      research: "40% - Exhaustive Qdrant searches and external research"
-      prd_creation: "40% - Comprehensive PRD with all sections"
-      scaffolding: "20% - Minimal viable structure with correct patterns"
+      research: "30% - Exhaustive Qdrant searches and external research"
+      prd_creation: "50% - Comprehensive PRD with all sections (PRIMARY DELIVERABLE)"
+      scaffolding: "20% - Minimal viable structure from template"
     
     success_criteria:
       - "Unique scenario (not duplicating existing)"
@@ -196,12 +192,10 @@ operations:
       
       # Improver-specific sections
       - shared/improver-specific/assessment-phase
-      - shared/improver-specific/prd-accuracy-check
       - shared/improver-specific/progress-verification
       - shared/improver-specific/regression-detection
       - shared/improver-specific/prioritization-phase
       - shared/improver-specific/iteration-phase
-      - shared/improver-specific/prd-progression
       
       # Scenario-specific knowledge
       - shared/scenario-specific/cross-impact
@@ -212,16 +206,16 @@ operations:
       scenario_type: "scenario"
       focus: "iterative improvement of existing scenarios"
       primary_output: "PRD progression and working features"
-      assessment_percentage: 30
-      prioritization_percentage: 20
-      implementation_percentage: 40
+      assessment_percentage: 20
+      prioritization_percentage: 10
+      implementation_percentage: 60
       validation_percentage: 10
     
     effort_allocation:
-      assessment: "30% - Verify PRD accuracy and test current state"
-      prioritization: "20% - Score and select highest-value improvements"
-      implementation: "40% - Make focused, incremental changes"
-      validation: "10% - Update PRD and verify improvements"
+      assessment: "20% - Verify PRD accuracy and test current state"
+      prioritization: "10% - Select highest-impact improvements"
+      implementation: "60% - Make focused changes to advance PRD"
+      validation: "10% - Update PRD checkboxes and verify"
     
     success_criteria:
       - "PRD checkboxes accurately reflect reality"

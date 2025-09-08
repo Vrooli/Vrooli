@@ -58,26 +58,7 @@ Requirements MUST be:
 - **Prioritized** - P0/P1/P2 classification
 - **Achievable** - Realistic to implement
 
-```markdown
-## Functional Requirements
-
-### P0 - Must Have (Launch Blockers)
-- [ ] [Requirement 1]: [Specific description]
-  - Success criteria: [How to verify]
-  - Test command: `[exact command to test]`
-  
-- [ ] [Requirement 2]: [Specific description]
-  - Success criteria: [How to verify]
-  - Test command: `[exact command to test]`
-
-### P1 - Should Have (Important but not blocking)
-- [ ] [Requirement]: [Description]
-  - Success criteria: [How to verify]
-  
-### P2 - Nice to Have (Future enhancements)
-- [ ] [Requirement]: [Description]
-  - Success criteria: [How to verify]
-```
+**Use the standard PRD structure and P0/P1/P2 prioritization** defined in core/prd-protocol.md.
 
 #### 4. Technical Architecture
 ```markdown

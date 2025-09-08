@@ -58,11 +58,12 @@ Find related components:
 
 ## Required Search Coverage
 
-Must search at minimum:
-- 10+ semantic variations of the concept
-- 5+ related technology domains
-- 3+ similar use cases
-- All existing resources/scenarios for overlap
+Must complete the core 5 searches:
+1. Exact concept match
+2. Functional equivalents  
+3. Related technologies
+4. Similar use cases
+5. Existing resources/scenarios for overlap
 
 ## Documentation in PRD
 

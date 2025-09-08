@@ -10,19 +10,29 @@ The Qdrant embeddings system is Vrooli's **long-term memory** - it remembers eve
 
 You MUST search Vrooli's memory before beginning any task to learn from all past work:
 
+### Primary: Qdrant Search
 ```bash
 # Search for similar work across all categories
-vrooli resource-qdrant search-all "your task keywords"
+vrooli resource qdrant search-all "your task keywords"
 
 # Search specific categories
-vrooli resource-qdrant search "error pattern" scenarios
-vrooli resource-qdrant search "integration approach" resources
-vrooli resource-qdrant search "ui component" code
+vrooli resource qdrant search "error pattern" scenarios
+vrooli resource qdrant search "integration approach" resources
+vrooli resource qdrant search "ui component" code
 
 # Search for known issues
-vrooli resource-qdrant search "failed attempt" docs
-vrooli resource-qdrant search "breaking change" scenarios
+vrooli resource qdrant search "failed attempt" docs
+vrooli resource qdrant search "breaking change" scenarios
 ```
+
+### FALLBACK: If Qdrant Fails, Use File Search
+```bash
+# If Qdrant is down/broken/slow, immediately switch to:
+rg -i "keyword" /home/matthalloran8/Vrooli --type md
+grep -r "pattern" /home/matthalloran8/Vrooli/scenarios
+find /home/matthalloran8/Vrooli -name "*keyword*" -type f
+```
+**Don't wait for Qdrant if it's not responding. File search always works.**
 
 ### What to Search For
 
@@ -66,7 +76,7 @@ vrooli resource qdrant embeddings refresh --force
 ### 3. Verify Memory Update
 ```bash
 # Search for your new content
-vrooli resource-qdrant search "your new feature" all
+vrooli resource qdrant search-all "your new feature"
 
 # Should return your documentation
 ```
@@ -109,7 +119,7 @@ The Qdrant system indexes these knowledge types:
 Before implementing something new:
 ```bash
 # Find similar patterns
-vrooli resource-qdrant search "similar to [your task]" all
+vrooli resource qdrant search-all "similar to [your task]"
 
 # Study the results
 # Adapt successful patterns
@@ -119,8 +129,8 @@ vrooli resource-qdrant search "similar to [your task]" all
 ### Failure Prevention
 ```bash
 # Search for known issues
-vrooli resource-qdrant search "[technology] problem" docs
-vrooli resource-qdrant search "[integration] failed" scenarios
+vrooli resource qdrant search "[technology] problem" docs
+vrooli resource qdrant search "[integration] failed" scenarios
 
 # Learn from past mistakes
 ```
@@ -136,9 +146,9 @@ Every solution should:
 ### Example 1: Building a New Resource
 ```bash
 # Before starting
-vrooli resource-qdrant search "resource scaffolding" resources
-vrooli resource-qdrant search "v2.0 contract" docs
-vrooli resource-qdrant search "health check pattern" code
+vrooli resource qdrant search "resource scaffolding" resources
+vrooli resource qdrant search "v2.0 contract" docs
+vrooli resource qdrant search "health check pattern" code
 
 # After completing
 echo "Document new patterns in README.md"
@@ -148,8 +158,8 @@ vrooli resource qdrant embeddings refresh
 ### Example 2: Debugging an Integration
 ```bash
 # Search for similar issues
-vrooli resource-qdrant search "connection refused postgres" all
-vrooli resource-qdrant search "n8n webhook timeout" scenarios
+vrooli resource qdrant search-all "connection refused postgres"
+vrooli resource qdrant search "n8n webhook timeout" scenarios
 
 # Document the solution
 echo "Add troubleshooting guide"
@@ -159,8 +169,8 @@ vrooli resource qdrant embeddings refresh
 ### Example 3: Improving Performance
 ```bash
 # Find optimization patterns
-vrooli resource-qdrant search "performance optimization" code
-vrooli resource-qdrant search "caching strategy" resources
+vrooli resource qdrant search "performance optimization" code
+vrooli resource qdrant search "caching strategy" resources
 
 # Share your improvements
 echo "Document performance gains"
@@ -196,19 +206,19 @@ vrooli resource qdrant embeddings refresh
 
 ```bash
 # Search commands
-vrooli resource-qdrant search-all "keyword"     # Search everything
-vrooli resource-qdrant search "keyword" code    # Search code only
-vrooli resource-qdrant search "keyword" resources # Search resources
-vrooli resource-qdrant search "keyword" scenarios # Search scenarios
-vrooli resource-qdrant search "keyword" docs    # Search documentation
+vrooli resource qdrant search-all "keyword"     # Search everything
+vrooli resource qdrant search "keyword" code    # Search code only
+vrooli resource qdrant search "keyword" resources # Search resources
+vrooli resource qdrant search "keyword" scenarios # Search scenarios
+vrooli resource qdrant search "keyword" docs    # Search documentation
 
 # Refresh commands
 vrooli resource qdrant embeddings refresh       # Update embeddings
 vrooli resource qdrant embeddings refresh --force # Force complete refresh
 
 # Status commands
-vrooli resource-qdrant status                   # Check health
-vrooli resource-qdrant stats                    # View statistics
+vrooli resource qdrant status                   # Check health
+vrooli resource qdrant stats                    # View statistics
 ```
 
 ## 🚀 Advanced Memory Patterns

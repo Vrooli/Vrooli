@@ -76,7 +76,7 @@ Ask these questions before creating:
 
 ### DO's for Generators
 
-✅ **Research exhaustively** - 10+ Qdrant searches minimum
+✅ **Research exhaustively** - 5 focused Qdrant searches required
 ✅ **Document vision clearly** - PRD tells the complete story
 ✅ **Start minimal** - Scaffold, don't implement everything
 ✅ **Follow patterns** - Consistency enables improvement

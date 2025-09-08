@@ -6,11 +6,11 @@ This directory contains universal knowledge that ALL Vrooli scenarios and resour
 
 ### Core Knowledge
 
-1. **memory-system.md** - Qdrant memory system usage (MANDATORY)
-2. **prd-methodology.md** - PRD-driven development approach (MANDATORY)
-3. **validation-gates.md** - Five-gate validation system (MANDATORY)
-4. **cross-scenario-impact.md** - Impact analysis methodology (MANDATORY)
-5. **v2-resource-standards.md** - v2.0 resource contract requirements
+1. **core/memory-system.md** - Qdrant memory system usage (MANDATORY)
+2. **core/prd-protocol.md** - PRD-driven development approach (MANDATORY)
+3. **core/validation-gates.md** - Five-gate validation system (MANDATORY)
+4. **scenario-specific/cross-impact.md** - Impact analysis methodology (MANDATORY)
+5. **resource-specific/v2-contract.md** - v2.0 resource contract requirements
 
 ## Usage
 
@@ -22,10 +22,10 @@ Reference these shared prompts using the include directive:
 ## Critical Knowledge
 
 ### 🧠 Qdrant Memory System
-{{INCLUDE: memory-system.md}}
+{{INCLUDE: core/memory-system.md}}
 
 ### 📄 PRD Methodology
-{{INCLUDE: prd-methodology.md}}
+{{INCLUDE: core/prd-protocol.md}}
 ```
 
 ### In Code
@@ -103,7 +103,7 @@ validate_prompt() {
     local prompt="$1"
     local required_includes=(
         "memory-system.md"
-        "prd-methodology.md"
+        "prd-protocol.md"
         "validation-gates.md"
     )
     
@@ -143,23 +143,23 @@ jobs:
 
 ### Scenario Prompts
 Must include:
-- memory-system.md
-- prd-methodology.md
-- validation-gates.md
-- cross-scenario-impact.md
+- core/memory-system.md
+- core/prd-protocol.md
+- core/validation-gates.md
+- scenario-specific/cross-impact.md
 
 ### Resource Prompts
 Must include:
-- memory-system.md
-- v2-resource-standards.md
-- validation-gates.md
+- core/memory-system.md
+- resource-specific/v2-contract.md
+- core/validation-gates.md
 
 ### Improvement Prompts
 Must include:
-- memory-system.md
-- prd-methodology.md
-- validation-gates.md
-- cross-scenario-impact.md
+- core/memory-system.md
+- core/prd-protocol.md
+- core/validation-gates.md
+- scenario-specific/cross-impact.md
 
 ## Version History
 
@@ -187,17 +187,17 @@ Must include:
 
 ### Include All Core Knowledge
 ```markdown
-{{INCLUDE: memory-system.md}}
-{{INCLUDE: prd-methodology.md}}
-{{INCLUDE: validation-gates.md}}
-{{INCLUDE: cross-scenario-impact.md}}
+{{INCLUDE: core/memory-system.md}}
+{{INCLUDE: core/prd-protocol.md}}
+{{INCLUDE: core/validation-gates.md}}
+{{INCLUDE: scenario-specific/cross-impact.md}}
 ```
 
 ### Include for Resources
 ```markdown
-{{INCLUDE: memory-system.md}}
-{{INCLUDE: v2-resource-standards.md}}
-{{INCLUDE: validation-gates.md}}
+{{INCLUDE: core/memory-system.md}}
+{{INCLUDE: resource-specific/v2-contract.md}}
+{{INCLUDE: core/validation-gates.md}}
 ```
 
 ## Monitoring Usage

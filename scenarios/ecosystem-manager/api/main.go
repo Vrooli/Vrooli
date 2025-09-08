@@ -9,11 +9,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
 	"gopkg.in/yaml.v2"
 )
 
@@ -80,6 +82,15 @@ var (
 	// Maintenance state management
 	maintenanceState = "inactive"  // Start inactive by default per maintenance config
 	maintenanceStateMutex sync.RWMutex
+	// WebSocket management
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true // Allow all origins for development
+		},
+	}
+	wsClients = make(map[*websocket.Conn]bool)
+	wsClientsMutex sync.RWMutex
+	wsBroadcast = make(chan interface{})
 )
 
 // QueueProcessor manages automated queue processing
@@ -185,6 +196,70 @@ func generatePromptSections(task TaskItem) ([]string, error) {
 	return allSections, nil
 }
 
+// resolveIncludes recursively resolves {{INCLUDE: path}} directives in content
+func resolveIncludes(content string, basePath string, depth int) (string, error) {
+	// Prevent infinite recursion
+	if depth > 10 {
+		return content, fmt.Errorf("include depth exceeded (max 10)")
+	}
+	
+	// Pattern to match {{INCLUDE: path}} directives
+	includePattern := regexp.MustCompile(`\{\{INCLUDE:\s*([^\}]+)\}\}`)
+	
+	// Track errors
+	var resolveErrors []string
+	
+	// Replace all includes
+	resolved := includePattern.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract the path from the match
+		submatches := includePattern.FindStringSubmatch(match)
+		if len(submatches) < 2 {
+			resolveErrors = append(resolveErrors, fmt.Sprintf("Invalid include directive: %s", match))
+			return match
+		}
+		
+		includePath := strings.TrimSpace(submatches[1])
+		
+		// Resolve the full path
+		var fullPath string
+		if filepath.IsAbs(includePath) {
+			fullPath = includePath
+		} else {
+			fullPath = filepath.Join(basePath, includePath)
+		}
+		
+		// Ensure .md extension
+		if !strings.HasSuffix(fullPath, ".md") {
+			fullPath += ".md"
+		}
+		
+		// Read the included file
+		includeContent, err := os.ReadFile(fullPath)
+		if err != nil {
+			log.Printf("Warning: Failed to include %s: %v", includePath, err)
+			resolveErrors = append(resolveErrors, fmt.Sprintf("Failed to include %s: %v", includePath, err))
+			return fmt.Sprintf("<!-- INCLUDE FAILED: %s -->", includePath)
+		}
+		
+		// Recursively resolve includes in the included content
+		resolvedInclude, err := resolveIncludes(string(includeContent), filepath.Dir(fullPath), depth+1)
+		if err != nil {
+			log.Printf("Warning: Failed to resolve includes in %s: %v", includePath, err)
+			return string(includeContent) // Return unresolved content
+		}
+		
+		return resolvedInclude
+	})
+	
+	// Return error if any includes failed
+	if len(resolveErrors) > 0 {
+		log.Printf("Include resolution warnings: %v", resolveErrors)
+		// Don't fail completely, just log warnings
+	}
+	
+	return resolved, nil
+}
+
 // assemblePrompt reads and concatenates prompt sections into a full prompt
 func assemblePrompt(sections []string) (string, error) {
 	var promptBuilder strings.Builder
@@ -193,29 +268,57 @@ func assemblePrompt(sections []string) (string, error) {
 	promptBuilder.WriteString("You are executing a task for the Vrooli Ecosystem Manager.\n\n")
 	promptBuilder.WriteString("---\n\n")
 	
+	// Get the prompts base directory
+	promptsDir := filepath.Join("..", "prompts")
+	
 	for i, section := range sections {
 		// Convert section path to file path
-		// Handle both relative and absolute section paths
-		filePath := filepath.Join("..", "prompts", section + ".md")
+		var filePath string
+		
+		// Check if section already has .md extension
+		if strings.HasSuffix(section, ".md") {
+			filePath = filepath.Join(promptsDir, section)
+		} else {
+			filePath = filepath.Join(promptsDir, section + ".md")
+		}
 		
 		// Check if file exists
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			// Try without adding .md extension (in case it's already included)
-			filePath = filepath.Join("..", "prompts", section)
-			if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			// Try without the prompts prefix if it's an absolute path
+			if filepath.IsAbs(section) {
+				filePath = section
+				if !strings.HasSuffix(filePath, ".md") {
+					filePath += ".md"
+				}
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					log.Printf("Warning: Section file not found: %s", section)
+					continue // Skip missing sections with warning
+				}
+			} else {
 				log.Printf("Warning: Section file not found: %s", section)
 				continue // Skip missing sections with warning
 			}
 		}
 		
+		// Read the file content
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read section %s: %v", section, err)
 		}
 		
-		// Add section header
-		promptBuilder.WriteString(fmt.Sprintf("## Section %d: %s\n\n", i+1, section))
-		promptBuilder.WriteString(string(content))
+		// Resolve any {{INCLUDE:}} directives in the content
+		resolvedContent, err := resolveIncludes(string(content), filepath.Dir(filePath), 0)
+		if err != nil {
+			log.Printf("Warning: Include resolution had issues in %s: %v", section, err)
+			// Continue with partially resolved content
+			resolvedContent = string(content)
+		}
+		
+		// Add section header for clarity
+		sectionName := filepath.Base(section)
+		sectionName = strings.TrimSuffix(sectionName, ".md")
+		promptBuilder.WriteString(fmt.Sprintf("## Section %d: %s\n\n", i+1, sectionName))
+		promptBuilder.WriteString(resolvedContent)
 		promptBuilder.WriteString("\n\n---\n\n")
 	}
 	
@@ -533,6 +636,7 @@ func (qp *QueueProcessor) executeTask(task TaskItem) {
 	task.CurrentPhase = "prompt_assembled"
 	task.ProgressPercent = 25
 	saveQueueItem(task, "in-progress")
+	broadcastUpdate("task_progress", task)
 	
 	// Call Claude Code resource
 	result, err := callClaudeCode(prompt, task)
@@ -554,7 +658,9 @@ func (qp *QueueProcessor) executeTask(task TaskItem) {
 		}
 		task.ProgressPercent = 100
 		task.CurrentPhase = "completed"
+		task.Status = "completed"
 		saveQueueItem(task, "in-progress")
+		broadcastUpdate("task_completed", task)
 		
 		// Move to completed
 		if err := moveTask(task.ID, "in-progress", "completed"); err != nil {
@@ -573,7 +679,9 @@ func (qp *QueueProcessor) handleTaskFailure(task TaskItem, errorMsg string) {
 		"error":   errorMsg,
 	}
 	task.CurrentPhase = "failed"
+	task.Status = "failed"
 	saveQueueItem(task, "in-progress")
+	broadcastUpdate("task_failed", task)
 	
 	if err := moveTask(task.ID, "in-progress", "failed"); err != nil {
 		log.Printf("Failed to move task %s to failed: %v", task.ID, err)
@@ -917,6 +1025,85 @@ func callClaudeCode(prompt string, task TaskItem) (*ClaudeCodeResponse, error) {
 	}, nil
 }
 
+// WebSocket handlers
+func wsHandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade failed: %v", err)
+		return
+	}
+	defer conn.Close()
+	
+	// Register client
+	wsClientsMutex.Lock()
+	wsClients[conn] = true
+	wsClientsMutex.Unlock()
+	
+	log.Printf("WebSocket client connected. Total clients: %d", len(wsClients))
+	
+	// Send initial state
+	conn.WriteJSON(map[string]interface{}{
+		"type": "connected",
+		"message": "Connected to Ecosystem Manager",
+		"timestamp": time.Now().Unix(),
+	})
+	
+	// Cleanup on disconnect
+	defer func() {
+		wsClientsMutex.Lock()
+		delete(wsClients, conn)
+		wsClientsMutex.Unlock()
+		log.Printf("WebSocket client disconnected. Total clients: %d", len(wsClients))
+	}()
+	
+	// Keep connection alive
+	for {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+	}
+}
+
+// broadcastUpdate sends updates to all connected WebSocket clients
+func broadcastUpdate(updateType string, data interface{}) {
+	update := map[string]interface{}{
+		"type": updateType,
+		"data": data,
+		"timestamp": time.Now().Unix(),
+	}
+	
+	wsClientsMutex.RLock()
+	defer wsClientsMutex.RUnlock()
+	
+	for client := range wsClients {
+		err := client.WriteJSON(update)
+		if err != nil {
+			log.Printf("WebSocket write error: %v", err)
+			client.Close()
+			// The cleanup will happen in the wsHandler defer
+		}
+	}
+}
+
+// Start WebSocket broadcaster goroutine
+func startWebSocketBroadcaster() {
+	go func() {
+		for {
+			update := <-wsBroadcast
+			wsClientsMutex.RLock()
+			for client := range wsClients {
+				err := client.WriteJSON(update)
+				if err != nil {
+					log.Printf("WebSocket broadcast error: %v", err)
+					client.Close()
+				}
+			}
+			wsClientsMutex.RUnlock()
+		}
+	}()
+}
+
 // API Handlers
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	maintenanceStateMutex.RLock()
@@ -1192,6 +1379,16 @@ func getOperationsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(operations)
 }
 
+// getCategoriesHandler returns the available categories for resources and scenarios
+func getCategoriesHandler(w http.ResponseWriter, r *http.Request) {
+	categories := map[string]interface{}{
+		"resource_categories": promptsConfig.GlobalConfig["resource_categories"],
+		"scenario_categories": promptsConfig.GlobalConfig["scenario_categories"],
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(categories)
+}
+
 // getResourcesHandler returns all discovered resources
 func getResourcesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -1403,10 +1600,14 @@ func enableCORS(handler http.Handler) http.Handler {
 }
 
 func main() {
-	port := os.Getenv("PORT")
+	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "8080"
+		log.Fatal("API_PORT environment variable is required")
 	}
+	
+	// Start WebSocket broadcaster
+	startWebSocketBroadcaster()
+	log.Println("WebSocket broadcaster started")
 	
 	// Initialize queue processor
 	queueProcessorEnabled := os.Getenv("QUEUE_PROCESSOR_ENABLED")
@@ -1447,6 +1648,9 @@ func main() {
 	// Health check
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	
+	// WebSocket endpoint
+	r.HandleFunc("/ws", wsHandler)
+	
 	// Maintenance control
 	r.HandleFunc("/api/maintenance/state", maintenanceStateHandler).Methods("POST")
 	
@@ -1460,6 +1664,7 @@ func main() {
 	
 	// Configuration
 	r.HandleFunc("/api/operations", getOperationsHandler).Methods("GET")
+	r.HandleFunc("/api/categories", getCategoriesHandler).Methods("GET")
 	
 	// Discovery endpoints
 	r.HandleFunc("/api/resources", getResourcesHandler).Methods("GET")

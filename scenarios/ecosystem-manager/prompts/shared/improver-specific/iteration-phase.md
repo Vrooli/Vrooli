@@ -108,33 +108,9 @@ app.use('/api/protected', authMiddleware);
 ```
 
 **Improving Health Checks**
-```bash
-# Original (keep working)
-check_health() {
-    curl http://localhost:$PORT/health
-}
 
-# Enhanced (add capabilities)
-check_health_enhanced() {
-    local timeout="${1:-5}"
-    local retries="${2:-3}"
-    
-    # Still does basic check
-    for i in $(seq 1 $retries); do
-        if timeout $timeout curl -sf http://localhost:$PORT/health >/dev/null 2>&1; then
-            echo "✅ Health check passed"
-            return 0
-        fi
-        [ $i -lt $retries ] && sleep 1
-    done
-    
-    echo "❌ Health check failed after $retries attempts"
-    return 1
-}
-
-# Gradual migration
-alias check_health=check_health_enhanced
-```
+For comprehensive health check implementations, patterns, and best practices:
+{{INCLUDE: resource-specific/health-checks.md}}
 
 **Adding Validation**
 ```python

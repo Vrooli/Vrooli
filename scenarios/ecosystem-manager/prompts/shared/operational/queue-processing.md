@@ -69,7 +69,7 @@ memory_context: |
   - Previous similar fix in resource-X
   - Pattern documented in docs/patterns/Y
   Search queries to run:
-  - vrooli resource-qdrant search "relevant pattern"
+  - vrooli resource qdrant search "relevant pattern"
   
 metadata:
   created_by: human|ai|system
@@ -149,228 +149,63 @@ def calculate_priority_score(item):
     return score
 ```
 
-### Collision Avoidance
+## Simple Queue Operations
+
+### Adding Tasks
 ```bash
-# Cooldown calculation based on worker count
-MAX_CONCURRENT_WORKERS=${MAX_CONCURRENT_WORKERS:-3}
-ITERATION_TIME_HOURS=4
+# Use the CLI (recommended)
+ecosystem-manager add resource matrix-synapse --category communication
+ecosystem-manager add scenario chat-bot --category ai-tools
 
-# Set cooldown to prevent collision
-cooldown_hours=$((ITERATION_TIME_HOURS * MAX_CONCURRENT_WORKERS))
-cooldown_until=$(date -d "+${cooldown_hours} hours" --iso-8601)
-
-# Check if item is available
-is_available() {
-    local item=$1
-    local cooldown=$(yq '.metadata.cooldown_until' $item)
-    local now=$(date --iso-8601)
-    
-    if [[ "$now" > "$cooldown" ]]; then
-        return 0  # Available
-    else
-        return 1  # Still cooling down
-    fi
-}
+# Or manually copy template
+cp queue/templates/resource-generation.yaml queue/pending/100-matrix.yaml
+# Edit file with your requirements
 ```
 
-## Queue Operations
-
-### Adding Items to Queue
+### Processing Tasks  
 ```bash
-# Manual addition
-cp queue/templates/improvement.yaml queue/pending/100-add-auth.yaml
-# Edit with specific requirements
-
-# Programmatic addition
-create_queue_item() {
-    local priority=$1
-    local title=$2
-    local type=$3
-    local target=$4
-    
-    local id="$(date +%s)-$(uuidgen | cut -c1-8)"
-    local filename="queue/pending/${priority}-${id}.yaml"
-    
-    cat > $filename <<EOF
-# Priority: $priority
-# Created: $(date --iso-8601)
-# Created By: $USER
-
-id: $id
-title: "$title"
-type: $type
-target: $target
-# ... rest of template
-EOF
-}
+# Let the system handle it automatically, or manually:
+ecosystem-manager select-task          # Gets next priority task
+ecosystem-manager status <task-id>     # Check progress
+ecosystem-manager complete <task-id>   # Mark as done
 ```
 
-### Processing Queue Items
+### Queue Status
 ```bash
-# 1. Select item
-ITEM=$(select_from_queue)
-
-# 2. Move to in-progress
-mv queue/pending/$ITEM queue/in-progress/
-yq -i '.metadata.assigned_to = "'$AGENT_ID'"' queue/in-progress/$ITEM
-yq -i '.metadata.attempt_count += 1' queue/in-progress/$ITEM
-
-# 3. Process the work
-process_item queue/in-progress/$ITEM
-
-# 4. Move to completed or failed
-if [ $? -eq 0 ]; then
-    mv queue/in-progress/$ITEM queue/completed/${ITEM}-$(date +%s)
-    yq -i '.result.status = "success"' queue/completed/${ITEM}-*
-else
-    mv queue/in-progress/$ITEM queue/failed/${ITEM}-$(date +%s)
-    yq -i '.result.status = "failed"' queue/failed/${ITEM}-*
-fi
-```
-
-### Queue Status Monitoring
-```bash
-# Check queue status
-queue_status() {
-    echo "Queue Status:"
-    echo "  Pending: $(ls queue/pending/*.yaml 2>/dev/null | wc -l)"
-    echo "  In Progress: $(ls queue/in-progress/*.yaml 2>/dev/null | wc -l)"
-    echo "  Completed Today: $(find queue/completed -mtime -1 -name "*.yaml" | wc -l)"
-    echo "  Failed Today: $(find queue/failed -mtime -1 -name "*.yaml" | wc -l)"
-    
-    # Show current work
-    if ls queue/in-progress/*.yaml >/dev/null 2>&1; then
-        echo -e "\nCurrently Processing:"
-        for item in queue/in-progress/*.yaml; do
-            echo "  - $(yq '.title' $item) [$(yq '.metadata.assigned_to' $item)]"
-        done
-    fi
-}
-```
-
-## Queue Management Best Practices
-
-### Priority Guidelines
-```markdown
-## Priority Assignment
-
-Critical (001-099):
-- Security vulnerabilities
-- Data loss risks
-- System down issues
-- Revenue-blocking bugs
-
-High (100-199):
-- P0 requirements
-- Major functionality gaps
-- Performance issues >2x target
-- User-facing errors
-
-Medium (200-299):
-- P1 requirements
-- Minor bugs
-- UI improvements
-- Documentation updates
-
-Low (300-399):
-- P2 requirements
-- Cosmetic issues
-- Nice-to-have features
-- Code cleanup
-```
-
-### Failure Handling
-```markdown
-## When Queue Items Fail
-
-1. First Failure:
-   - Document error in result.issues_encountered
-   - Increase cooldown period
-   - Move back to pending with notes
-   - Adjust priority if needed
-
-2. Second Failure:
-   - Analyze failure pattern
-   - Break into smaller items if too complex
-   - Add more specific requirements
-   - Consider dependencies
-
-3. Third Failure:
-   - Mark as blocked
-   - Create investigation task
-   - Notify human intervention needed
-   - Document in PRD as known issue
+# Simple status check
+ecosystem-manager queue                # Show current status
+ls queue/pending/*.yaml | wc -l       # Count pending tasks
+ls queue/in-progress/*.yaml            # Show active tasks
 ```
 
 ### Queue Maintenance
-```bash
-# Clean old completed items (keep 30 days)
-find queue/completed -name "*.yaml" -mtime +30 -delete
+```bash  
+# Clean up old completed tasks (weekly)
+find queue/completed -name "*.yaml" -mtime +7 -delete
 
-# Archive failed items (after 7 days)
-mkdir -p queue/archive/failed
-find queue/failed -name "*.yaml" -mtime +7 -exec mv {} queue/archive/failed/ \;
-
-# Requeue stale in-progress items (>24 hours)
+# Move stale in-progress tasks back to pending (daily)
 find queue/in-progress -name "*.yaml" -mtime +1 -exec mv {} queue/pending/ \;
 ```
 
-## Integration with Other Systems
+## Queue Rules
 
-### Memory System Integration
-```yaml
-# Every queue item should include memory context
-memory_context: |
-  Before starting, search:
-  - vrooli resource-qdrant search "[topic] implementation"
-  - vrooli resource-qdrant search "[topic] failed"
-  
-  Related knowledge:
-  - [Previous similar work]
-  - [Known patterns]
-  - [Things to avoid]
-```
+### Priority Levels (Simple)
+- **Critical**: System broken, security issue
+- **High**: P0 requirements, major functionality missing
+- **Medium**: P1 requirements, improvements
+- **Low**: P2 requirements, nice-to-haves
 
-### PRD Integration
-```yaml
-# Link queue items to PRD requirements
-requirements:
-  - "PRD Section 3.2: User Authentication"
-  - "Implement P0 requirement #5"
-  
-validation_criteria:
-  - "PRD test case 3.2.1 passes"
-  - "Checkbox can be marked in PRD"
-```
+### When Tasks Fail
+1. **First failure**: Move back to pending with error note
+2. **Second failure**: Break into smaller tasks
+3. **Third failure**: Mark as blocked, needs human help
 
-## Queue Anti-Patterns
+## Key Queue Principles
 
-### Queue Stuffing
-❌ **Bad**: Adding 50 items at once
-✅ **Good**: Adding items as discovered, prioritized
+- **One task at a time** - Focus on single item
+- **Simple commands** - Use CLI instead of complex bash
+- **Clear task descriptions** - Avoid vague requirements  
+- **Memory search first** - Always search before starting
+- **Document failures** - Learn from what doesn't work
 
-### Zombie Items
-❌ **Bad**: Items stuck in-progress forever
-✅ **Good**: Timeout and requeue after 24 hours
-
-### Vague Items
-❌ **Bad**: "Fix the bug in the system"
-✅ **Good**: "Fix auth endpoint returning 404 for valid tokens"
-
-### No Context
-❌ **Bad**: Just the task description
-✅ **Good**: Include memory searches and previous attempts
-
-## Remember for Queue Processing
-
-**One at a time** - Never process multiple items simultaneously
-
-**Respect cooldowns** - Prevents agent collisions
-
-**Document everything** - Future agents need context
-
-**Fail gracefully** - Move to failed, don't delete
-
-**Learn from failures** - Update memory system
-
-The queue is your organized workload. Use it to maintain steady progress, avoid conflicts, and enable collaboration between multiple agents and humans.
+The queue keeps work organized and prevents conflicts between agents.
