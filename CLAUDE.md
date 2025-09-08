@@ -12,6 +12,11 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
 5. **Documentation**: Read `docs/` files at session start for context
+6. **Starting Scenarios**: 
+   - **ALWAYS use**: `vrooli scenario run <name>` to start scenarios
+   - **NEVER use**: Direct execution like `./api/scenario-api` or `cd scenario && ./lib/develop.sh`
+   - The lifecycle system ensures proper process naming, port allocation, and logging
+   - Direct execution bypasses critical infrastructure and causes detection issues
 
 ## 🎯 Understanding Vrooli's True Nature
 
@@ -67,8 +72,14 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 vrooli develop
 
 # Run tests
+vrooli test help  # See available test commands
 
-Run `vrooli test help` to discover the available test commands.
+# Start a specific scenario (ALWAYS use this method)
+vrooli scenario run <scenario-name>  # ✅ CORRECT - uses lifecycle management
+# NEVER: ./scenarios/name/api/binary  # ❌ WRONG - bypasses lifecycle
+# NEVER: nohup ./api/scenario-api &   # ❌ WRONG - no process tracking
+# NEVER: cd scenario && ./lib/develop.sh  # ❌ WRONG - old pattern
+```
 
 > **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.
 
@@ -76,6 +87,9 @@ Run `vrooli test help` to discover the available test commands.
 - DON'T skip reading memory files at session start
 - DON'T use mass-update scripts or automated tools to modify multiple files - check and update each file individually
 - DON'T use `2>&1` shell redirection syntax - Claude Code CLI parses this as separate arguments, breaking scripts. Use `&>` instead for redirecting both stdout and stderr to a file
+- DON'T start scenarios with direct execution (`./api/scenario-api`, `nohup ./api/binary &`, etc.)
+- DON'T bypass the lifecycle system - it manages process naming, ports, and health checks
+- DON'T create `lib/` folders in scenarios - use v2.0 service.json lifecycle configuration instead
 
 ## 🎯 Task Management Commands
 These commands can be invoked by using the keywords listed for each:

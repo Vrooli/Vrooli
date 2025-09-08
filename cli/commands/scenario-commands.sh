@@ -19,11 +19,15 @@ USAGE:
     vrooli scenario <subcommand> [options]
 
 SUBCOMMANDS:
-    run <name>              Run a scenario directly
+    start <name>            Start a scenario
+    start <name1> <name2>...Start multiple scenarios
+    start-all               Start all available scenarios
+    stop <name>             Stop a running scenario
+    stop-all                Stop all running scenarios
     test <name>             Test a scenario
-    list                    List available scenarios
+    list [--json]           List available scenarios
     logs <name> [options]   View logs for a scenario
-    status [name] [--json]  Show scenario status from orchestrator
+    status [name] [--json]  Show scenario status
 
 OPTIONS FOR LOGS:
     --follow, -f            Follow log output (live view)
@@ -32,17 +36,18 @@ OPTIONS FOR LOGS:
     --lifecycle             View lifecycle log (default behavior)
 
 EXAMPLES:
-    vrooli scenario run make-it-vegan
-    vrooli scenario test swarm-manager
-    vrooli scenario list
-    vrooli scenario logs system-monitor              # Shows lifecycle execution
-    vrooli scenario logs system-monitor --follow      # Follow lifecycle log
-    vrooli scenario logs swarm-manager --runtime      # Show all background logs
-    vrooli scenario logs swarm-manager --step start-api  # Show specific service
-    vrooli scenario status              # Show all scenarios
-    vrooli scenario status --json       # Show all scenarios in JSON format
-    vrooli scenario status system-monitor  # Show specific scenario
-    vrooli scenario status system-monitor --json  # Show specific scenario in JSON
+    vrooli scenario start make-it-vegan         # Start a specific scenario
+    vrooli scenario start picker-wheel invoice-generator # Start multiple scenarios
+    vrooli scenario start-all                   # Start all scenarios
+    vrooli scenario stop swarm-manager           # Stop a specific scenario
+    vrooli scenario stop-all                     # Stop all scenarios
+    vrooli scenario test system-monitor          # Test a scenario
+    vrooli scenario list                         # List available scenarios
+    vrooli scenario list --json                  # List scenarios in JSON format
+    vrooli scenario logs system-monitor          # Shows lifecycle execution
+    vrooli scenario logs system-monitor --follow # Follow lifecycle log
+    vrooli scenario status                       # Show all scenarios
+    vrooli scenario status swarm-manager --json  # Show specific scenario in JSON
 EOF
 }
 
@@ -55,15 +60,207 @@ main() {
     
     local subcommand="$1"; shift
     case "$subcommand" in
-        run)
+        start|run)  # Support both 'start' and 'run' (run is silent alias)
+            # Handle multiple scenario names
+            local -a scenario_names=()
+            while [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; do
+                scenario_names+=("$1")
+                shift
+            done
+            
+            [[ ${#scenario_names[@]} -eq 0 ]] && { 
+                log::error "Scenario name(s) required"
+                log::info "Usage: vrooli scenario start <name> [name2] [name3]..."
+                return 1
+            }
+            
+            # Start each scenario
+            local overall_result=0
+            if [[ ${#scenario_names[@]} -gt 1 ]]; then
+                log::info "Starting ${#scenario_names[@]} scenarios: ${scenario_names[*]}"
+            fi
+            
+            for scenario_name in "${scenario_names[@]}"; do
+                if [[ ${#scenario_names[@]} -gt 1 ]]; then
+                    log::info "Starting scenario: $scenario_name"
+                fi
+                scenario::run "$scenario_name" develop "$@" || overall_result=$?
+            done
+            
+            return $overall_result
+            ;;
+        start-all)
+            # Start all scenarios via API endpoint
+            local api_port="${VROOLI_API_PORT:-8092}"
+            local api_url="http://localhost:${api_port}"
+            
+            # Check if API is reachable
+            if ! timeout 10 curl -s "${api_url}/health" >/dev/null 2>&1; then
+                log::error "Vrooli API is not accessible at ${api_url}"
+                log::info "The API must be running first. Start it with: vrooli develop"
+                return 1
+            fi
+            
+            log::info "Starting all scenarios..."
+            
+            # Call the start-all endpoint
+            local response
+            response=$(curl -s -X POST "${api_url}/scenarios/start-all" 2>/dev/null)
+            
+            if [[ -z "$response" ]]; then
+                log::error "Failed to get response from API"
+                return 1
+            fi
+            
+            # Parse response
+            local success
+            success=$(echo "$response" | jq -r '.success // false' 2>/dev/null)
+            
+            if [[ "$success" == "true" ]]; then
+                local started_count failed_count
+                started_count=$(echo "$response" | jq -r '.data.started | length // 0' 2>/dev/null)
+                failed_count=$(echo "$response" | jq -r '.data.failed | length // 0' 2>/dev/null)
+                
+                log::success "Started $started_count scenarios"
+                
+                # Show started scenarios
+                if [[ "$started_count" -gt 0 ]]; then
+                    echo ""
+                    echo "Started scenarios:"
+                    echo "$response" | jq -r '.data.started[]? | "  ✅ " + .name + ": " + .message' 2>/dev/null
+                fi
+                
+                # Show failed scenarios
+                if [[ "$failed_count" -gt 0 ]]; then
+                    echo ""
+                    echo "Failed to start:"
+                    echo "$response" | jq -r '.data.failed[]? | "  ❌ " + .name + ": " + .error' 2>/dev/null
+                fi
+            else
+                local error_msg
+                error_msg=$(echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null)
+                log::error "Failed to start scenarios: $error_msg"
+                return 1
+            fi
+            ;;
+        stop)
             local scenario_name="${1:-}"
             [[ -z "$scenario_name" ]] && { 
                 log::error "Scenario name required"
-                log::info "Usage: vrooli scenario run <name>"
+                log::info "Usage: vrooli scenario stop <name>"
                 return 1
             }
             shift
-            scenario::run "$scenario_name" develop "$@"
+            
+            # Direct lifecycle stop (bypasses API for reliability)
+            # This ensures we can stop scenarios even when API is down
+            # Source lifecycle.sh while preventing automatic main() execution
+            {
+                # Temporarily override lifecycle::main to prevent automatic execution
+                lifecycle::main() { return 0; }
+                source "${APP_ROOT}/scripts/lib/utils/lifecycle.sh" >/dev/null 2>&1
+                unset -f lifecycle::main  # Remove our override, restore original
+            }
+            
+            log::info "Stopping scenario: $scenario_name"
+            
+            # Use lifecycle function directly
+            if lifecycle::stop_scenario_processes "$scenario_name"; then
+                log::success "Scenario '$scenario_name' stopped successfully"
+            else
+                log::error "Failed to stop scenario '$scenario_name'"
+                return 1
+            fi
+            ;;
+        stop-all)
+            # Temporarily disable strict error handling for stop-all
+            local orig_flags=$-
+            set +euo pipefail
+            
+            log::info "Stopping all scenarios..."
+            
+            # Direct PID-based approach - no sourcing of complex lifecycle functions
+            local scenarios_dir="$HOME/.vrooli/processes/scenarios"
+            local stopped_count=0
+            local failed_count=0
+            local stopped_scenarios=()
+            local failed_scenarios=()
+            
+            if [[ -d "$scenarios_dir" ]]; then
+                # Process each scenario directory
+                for scenario_dir in "$scenarios_dir"/*; do
+                    [[ -d "$scenario_dir" ]] || continue
+                    
+                    local scenario_name=$(basename "$scenario_dir")
+                    local scenario_stopped=false
+                    local scenario_processes=0
+                    
+                    # Stop all processes for this scenario
+                    for pid_file in "$scenario_dir"/*.pid; do
+                        [[ -f "$pid_file" ]] || continue
+                        
+                        local pid=$(cat "$pid_file" 2>/dev/null || echo "")
+                        local step_name=$(basename "$pid_file" .pid)
+                        
+                        if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]]; then
+                            ((scenario_processes++))
+                            if kill -0 "$pid" 2>/dev/null; then
+                                # Process is running, stop it
+                                log::info "Stopping $scenario_name:$step_name (PID: $pid)"
+                                if kill -TERM "$pid" 2>/dev/null; then
+                                    scenario_stopped=true
+                                    # Wait a moment for graceful shutdown
+                                    sleep 0.5
+                                    # Force kill if still running
+                                    kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+                                fi
+                            fi
+                        fi
+                        
+                        # Clean up PID file and JSON metadata
+                        rm -f "$pid_file" "$scenario_dir/$step_name.json" 2>/dev/null
+                    done
+                    
+                    # Record results for this scenario
+                    if [[ $scenario_processes -gt 0 ]]; then
+                        if [[ "$scenario_stopped" == "true" ]]; then
+                            stopped_scenarios+=("$scenario_name")
+                            ((stopped_count++))
+                        else
+                            failed_scenarios+=("$scenario_name") 
+                            ((failed_count++))
+                        fi
+                    fi
+                done
+            fi
+            
+            # Report results
+            if [[ $stopped_count -gt 0 ]]; then
+                log::success "Stopped $stopped_count scenarios"
+                echo ""
+                echo "Stopped scenarios:"
+                for scenario in "${stopped_scenarios[@]}"; do
+                    echo "  ✅ $scenario"
+                done
+            fi
+            
+            if [[ $failed_count -gt 0 ]]; then
+                echo ""
+                echo "Failed to stop:"
+                for scenario in "${failed_scenarios[@]}"; do
+                    echo "  ❌ $scenario"
+                done
+            fi
+            
+            if [[ $stopped_count -eq 0 && $failed_count -eq 0 ]]; then
+                log::info "No running scenarios found"
+            fi
+            
+            # Restore original shell flags  
+            set -$orig_flags
+            
+            # Return success if we stopped any scenarios
+            [[ $stopped_count -gt 0 ]] || [[ $failed_count -eq 0 ]]
             ;;
         test)
             local scenario_name="${1:-}"
@@ -76,7 +273,7 @@ main() {
             scenario::run "$scenario_name" test "$@"
             ;;
         list)
-            scenario::list
+            scenario::list "$@"
             ;;
         logs)
             local scenario_name="${1:-}"
@@ -345,57 +542,77 @@ main() {
                 json_output=true
             fi
             
-            # Get orchestrator port from registry or environment
-            local orchestrator_port="${ORCHESTRATOR_PORT:-}"
-            if [[ -z "$orchestrator_port" ]]; then
-                # Try to get from port registry
-                if [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
-                    source "${APP_ROOT}/scripts/resources/port_registry.sh"
-                    orchestrator_port=$(ports::get_resource_port "vrooli-orchestrator")
-                fi
-                # Fallback to default if still empty
-                orchestrator_port="${orchestrator_port:-9500}"
-            fi
-            local orchestrator_api="http://localhost:${orchestrator_port}"
+            # Get API port from environment (main Go API, not orchestrator)
+            local api_port="${VROOLI_API_PORT:-8092}"
+            local api_url="http://localhost:${api_port}"
             
-            # Check if orchestrator is reachable
+            # Check if API is reachable
             # Use simplest curl command for maximum compatibility
-            if ! timeout 10 curl -s "${orchestrator_api}/health" >/dev/null 2>&1; then
-                log::error "Orchestrator API is not accessible at ${orchestrator_api}"
-                log::info "The orchestrator may not be running. Start it with: vrooli develop"
+            if ! timeout 10 curl -s "${api_url}/health" >/dev/null 2>&1; then
+                log::error "Vrooli API is not accessible at ${api_url}"
+                log::info "The API may not be running. Start it with: vrooli develop"
                 return 1
             fi
             
             if [[ -z "$scenario_name" ]]; then
                 # Show all scenarios status
                 if [[ "$json_output" != "true" ]]; then
-                    log::info "Fetching status for all scenarios from orchestrator..."
+                    log::info "Fetching status for all scenarios from API..."
                     echo ""
                 fi
                 
                 local response
-                response=$(curl -s "${orchestrator_api}/scenarios" 2>/dev/null)
+                response=$(curl -s "${api_url}/scenarios" 2>/dev/null)
                 
                 if [[ -z "$response" ]]; then
                     if [[ "$json_output" == "true" ]]; then
-                        echo '{"error": "Failed to get response from orchestrator"}'
+                        echo '{"error": "Failed to get response from API"}'
                     else
-                        log::error "Failed to get response from orchestrator"
+                        log::error "Failed to get response from API"
                     fi
                     return 1
                 fi
                 
-                # If JSON output requested, just pass through the response
+                # If JSON output requested, enhance with summary statistics
                 if [[ "$json_output" == "true" ]]; then
-                    echo "$response"
+                    # Parse the data to calculate summary statistics
+                    local data_check=$(echo "$response" | jq -r '.data' 2>/dev/null)
+                    local total=0
+                    local running=0
+                    
+                    if [[ "$data_check" != "null" ]] && [[ "$data_check" != "" ]]; then
+                        total=$(echo "$response" | jq -r '.data | length' 2>/dev/null)
+                        running=$(echo "$response" | jq -r '.data | map(select(.status == "running")) | length' 2>/dev/null)
+                    fi
+                    
+                    # Create enhanced JSON response with summary
+                    local enhanced_response=$(echo "$response" | jq --argjson total "$total" --argjson running "$running" --argjson stopped "$((total - running))" '
+                    {
+                        "success": .success,
+                        "summary": {
+                            "total_scenarios": $total,
+                            "running": $running,
+                            "stopped": $stopped
+                        },
+                        "scenarios": (.data // []),
+                        "raw_response": .
+                    }')
+                    echo "$enhanced_response"
                     return 0
                 fi
                 
-                # Parse JSON response from new orchestrator format
+                # Parse JSON response from native Go API format
                 local total running
                 if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
-                    total=$(echo "$response" | jq -r '.data | length' 2>/dev/null)
-                    running=$(echo "$response" | jq -r '.data | map(select(.status == "running")) | length' 2>/dev/null)
+                    # Handle case where data is null (no running scenarios)
+                    local data_check=$(echo "$response" | jq -r '.data' 2>/dev/null)
+                    if [[ "$data_check" == "null" ]] || [[ "$data_check" == "" ]]; then
+                        total=0
+                        running=0
+                    else
+                        total=$(echo "$response" | jq -r '.data | length' 2>/dev/null)
+                        running=$(echo "$response" | jq -r '.data | map(select(.status == "running")) | length' 2>/dev/null)
+                    fi
                 else
                     total=0
                     running=0
@@ -408,18 +625,18 @@ main() {
                 echo "Stopped: $((total - running))"
                 echo ""
                 
-                if [[ "$total" -gt 0 ]]; then
+                if [[ "$total" -gt 0 ]] && [[ "$data_check" != "null" ]]; then
                     echo "SCENARIO                          STATUS      RUNTIME         PORT(S)"
                     echo "───────────────────────────────────────────────────────────────────────────"
                     
-                    # Parse individual scenarios from new orchestrator format
-                    echo "$response" | jq -r '.data[] | "\(.name)|\(.status)|" + (.runtime // "N/A") + "|" + (.allocated_ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):http://localhost:\(.value)") | join(", ")) end) + "|running"' 2>/dev/null | while IFS='|' read -r name status runtime port_list health; do
+                    # Parse individual scenarios from native Go API format
+                    echo "$response" | jq -r '.data[] | "\(.name)|\(.status)|" + (.runtime // "N/A") + "|" + (.ports | if . == {} or . == null then "" else (. | to_entries | map("\(.key):http://localhost:\(.value)") | join(", ")) end) + "|" + (.health_status // "unknown")' 2>/dev/null | while IFS='|' read -r name status runtime port_list health; do
                         # Color code status based on actual health
                         local status_display
                         if [ "$status" = "running" ]; then
                             case "$health" in
                                 healthy)
-                                    status_display="🟢 running"
+                                    status_display="🟢 healthy"
                                     ;;
                                 degraded)
                                     status_display="🟡 degraded"
@@ -427,8 +644,11 @@ main() {
                                 unhealthy)
                                     status_display="🔴 unhealthy"
                                     ;;
+                                running|unknown)
+                                    status_display="🟡 running"
+                                    ;;
                                 *)
-                                    status_display="🟢 running"
+                                    status_display="🟡 running"
                                     ;;
                             esac
                         else
@@ -459,25 +679,37 @@ main() {
                 fi
                 
                 local response
-                response=$(curl -s "${orchestrator_api}/scenarios/${scenario_name}" 2>/dev/null)
+                response=$(curl -s "${api_url}/scenarios/${scenario_name}/status" 2>/dev/null)
                 
                 if echo "$response" | grep -q "not found"; then
                     if [[ "$json_output" == "true" ]]; then
-                        echo "{\"error\": \"Scenario '$scenario_name' not found in orchestrator\"}"
+                        echo "{\"error\": \"Scenario '$scenario_name' not found in API\"}"
                     else
-                        log::error "Scenario '$scenario_name' not found in orchestrator"
+                        log::error "Scenario '$scenario_name' not found in API"
                         log::info "Use 'vrooli scenario status' to see all available scenarios"
                     fi
                     return 1
                 fi
                 
-                # If JSON output requested, just pass through the response
+                # If JSON output requested, enhance with metadata
                 if [[ "$json_output" == "true" ]]; then
-                    echo "$response"
+                    # Create enhanced JSON response for individual scenario
+                    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" '
+                    {
+                        "success": .success,
+                        "scenario_name": $scenario_name,
+                        "scenario_data": .data,
+                        "raw_response": .,
+                        "metadata": {
+                            "query_type": "individual_scenario",
+                            "timestamp": (now | strftime("%Y-%m-%d %H:%M:%S UTC"))
+                        }
+                    }')
+                    echo "$enhanced_response"
                     return 0
                 fi
                 
-                # Parse and display detailed status from new orchestrator format
+                # Parse and display detailed status from native Go API format
                 local status pid started_at stopped_at restart_count port_info runtime_formatted
                 status=$(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)
                 # Get PIDs from processes array (just show count for now)
@@ -517,7 +749,7 @@ main() {
                 [[ "$stopped_at" != "null" ]] && [[ "$stopped_at" != "N/A" ]] && echo "Stopped:       $stopped_at"
                 [[ "$restart_count" != "0" ]] && echo "Restarts:      $restart_count"
                 
-                # Show allocated ports from new orchestrator format
+                # Show allocated ports from native Go API format
                 local ports
                 ports=$(echo "$response" | jq -r '.data.allocated_ports // {}' 2>/dev/null)
                 if [[ "$ports" != "{}" ]] && [[ "$ports" != "null" ]]; then
@@ -537,7 +769,7 @@ main() {
                 
                 echo ""
                 if [[ "$status" == "stopped" ]]; then
-                    log::info "Start with: vrooli scenario run $scenario_name"
+                    log::info "Start with: vrooli scenario start $scenario_name"
                 elif [[ "$status" == "running" ]]; then
                     log::info "View logs with: vrooli scenario logs $scenario_name"
                 fi

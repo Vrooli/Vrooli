@@ -179,7 +179,7 @@ collect_resource_data() {
             check_resource_with_timing "$name" "$result_file" "$use_fast" &
             pids+=($!)
         fi
-    done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
+    done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null | sort || true)
     
     # Wait for all background processes to complete
     for pid in "${pids[@]}"; do
@@ -192,6 +192,7 @@ collect_resource_data() {
     local -a timing_data=()
     
     if [[ -f "$result_file" ]]; then
+        # Sort results by resource name for consistent ordering
         while IFS=: read -r name status duration_ms; do
             case "$status" in
                 "healthy")
@@ -212,7 +213,7 @@ collect_resource_data() {
             if [[ "$verbose" == "true" ]]; then
                 echo "resource:${name}:${status}"
             fi
-        done < "$result_file"
+        done < <(sort "$result_file")
     fi
     
     # Display timing information for verbose mode
@@ -284,60 +285,137 @@ get_resource_data() {
 }
 
 
-# Collect app data (format-agnostic) - Using Unified API
+# Collect app data (format-agnostic) - Using API with PID fallback
 collect_scenario_data() {
     local verbose="${1:-false}"
-    
-    # Check scenarios directory directly
-    local scenarios_dir="${VROOLI_ROOT:-$HOME/Vrooli}/scenarios"
-    
-    if [[ ! -d "$scenarios_dir" ]]; then
-        echo "error:Scenarios directory not found"
-        return
-    fi
     
     local total_scenarios=0
     local running_scenarios=0
     local -A scenario_statuses  # For detailed output
     
-    # Count scenarios and check which are running
-    for scenario_path in "$scenarios_dir"/*; do
-        [[ ! -d "$scenario_path" ]] && continue
+    # Try to use API for health-aware status (like scenario-commands.sh does)
+    local api_port="${VROOLI_API_PORT:-8092}"
+    local api_url="http://localhost:${api_port}"
+    local api_available=false
+    
+    # Check if API is available (quick check)
+    if curl -s --connect-timeout 2 --max-time 3 "${api_url}/health" >/dev/null 2>&1; then
+        api_available=true
         
-        local name="$(basename "$scenario_path")"
-        [[ "$name" == "*" ]] && continue  # No scenarios found
+        # Get scenarios from API
+        local response
+        response=$(curl -s --connect-timeout 3 --max-time 5 "${api_url}/scenarios" 2>/dev/null)
         
-        total_scenarios=$((total_scenarios + 1))
-        
-        # Check if scenario is running by looking for its processes
-        local is_running=false
-        
-        # Check for PM2 processes or other indicators
-        if pgrep -f "scenarios/$name" >/dev/null 2>&1; then
-            is_running=true
-        elif [[ -f "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" ]]; then
-            # Check if PID file exists and process is running
-            local pid=$(cat "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" 2>/dev/null)
-            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-                is_running=true
+        if [[ -n "$response" ]] && echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+            # Parse API response for health-aware status
+            local data_check=$(echo "$response" | jq -r '.data' 2>/dev/null)
+            
+            if [[ "$data_check" != "null" ]] && [[ "$data_check" != "" ]]; then
+                total_scenarios=$(echo "$response" | jq -r '.data | length' 2>/dev/null)
+                
+                # Parse each scenario with health status
+                while IFS='|' read -r name status health_status; do
+                    [[ -z "$name" || "$name" == "null" ]] && continue
+                    
+                    local final_status="stopped"
+                    if [[ "$status" == "running" ]]; then
+                        running_scenarios=$((running_scenarios + 1))
+                        # Use health status if available, otherwise default to "running"
+                        case "$health_status" in
+                            "healthy")
+                                final_status="healthy"
+                                ;;
+                            "degraded"|"unhealthy") 
+                                final_status="$health_status"
+                                ;;
+                            *)
+                                final_status="running"
+                                ;;
+                        esac
+                    else
+                        final_status="stopped"
+                    fi
+                    
+                    scenario_statuses["$name"]="$final_status"
+                done < <(echo "$response" | jq -r '.data[]? | "\(.name)|\(.status)|\(.health_status // "unknown")"' 2>/dev/null)
+                
+            else
+                # API returned success but no data (no running scenarios)
+                total_scenarios=0
+                running_scenarios=0
             fi
+        else
+            # API call failed, fall back to directory-based detection
+            api_available=false
+        fi
+    fi
+    
+    # Fallback: Use directory-based detection if API unavailable
+    if [[ "$api_available" == "false" ]]; then
+        local scenarios_dir="${VROOLI_ROOT:-$HOME/Vrooli}/scenarios"
+        
+        if [[ ! -d "$scenarios_dir" ]]; then
+            echo "error:Scenarios directory not found and API unavailable"
+            return
         fi
         
-        if [[ "$is_running" == "true" ]]; then
-            running_scenarios=$((running_scenarios + 1))
-            scenario_statuses["$name"]="running"
-        else
-            scenario_statuses["$name"]="stopped"
-        fi
-    done
+        # Count scenarios and check which are running using PID detection
+        for scenario_path in "$scenarios_dir"/*; do
+            [[ ! -d "$scenario_path" ]] && continue
+            
+            local name="$(basename "$scenario_path")"
+            [[ "$name" == "*" ]] && continue  # No scenarios found
+            
+            total_scenarios=$((total_scenarios + 1))
+            
+            # Check if scenario is running using PID-based detection
+            local is_running=false
+            
+            # Check for PID-tracked processes in the new system
+            local scenario_dir="$HOME/.vrooli/processes/scenarios/$name"
+            if [[ -d "$scenario_dir" ]]; then
+                for step_file in "$scenario_dir"/*.json; do
+                    [[ -f "$step_file" ]] || continue
+                    
+                    local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
+                    
+                    # Check if process is actually running
+                    if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+                        is_running=true
+                        break  # Found at least one running process
+                    else
+                        # Cleanup dead process metadata
+                        local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
+                        rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
+                    fi
+                done
+            fi
+            
+            # Fallback: Check for old pm2.pid files (backward compatibility)
+            if [[ "$is_running" == "false" && -f "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" ]]; then
+                local pid=$(cat "$HOME/.vrooli/processes/scenarios/$name/pm2.pid" 2>/dev/null)
+                if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+                    is_running=true
+                fi
+            fi
+            
+            if [[ "$is_running" == "true" ]]; then
+                running_scenarios=$((running_scenarios + 1))
+                scenario_statuses["$name"]="running"  # Can't determine health without API
+            else
+                scenario_statuses["$name"]="stopped"
+            fi
+        done
+    fi
     
     # Output summary
     echo "total:${total_scenarios}"
     echo "running:${running_scenarios}"
     
-    # Output details if verbose
+    # Output details if verbose (sorted alphabetically)
     if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
-        for name in "${!scenario_statuses[@]}"; do
+        # Sort scenario names alphabetically
+        for name in $(printf '%s\n' "${!scenario_statuses[@]}" | sort); do
             echo "scenario:${name}:${scenario_statuses[$name]}"
         done
     fi
@@ -410,9 +488,10 @@ collect_scenario_data_legacy() {
     echo "total:${total_scenarios}"
     echo "running:${running_scenarios}"
     
-    # Output details if verbose
+    # Output details if verbose (sorted alphabetically)
     if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
-        for name in "${!scenario_statuses[@]}"; do
+        # Sort scenario names alphabetically
+        for name in $(printf '%s\n' "${!scenario_statuses[@]}" | sort); do
             echo "scenario:${name}:${scenario_statuses[$name]}"
         done
     fi
@@ -447,7 +526,7 @@ get_scenario_data() {
     if [[ "$verbose" == "true" && "$total_scenarios" -gt 0 ]]; then
         echo "details:true"
         while IFS= read -r line; do
-            if [[ "$line" =~ ^app:(.+):(.+)$ ]]; then
+            if [[ "$line" =~ ^scenario:(.+):(.+)$ ]]; then
                 echo "item:${BASH_REMATCH[1]}:${BASH_REMATCH[2]}"
             fi
         done <<< "$raw_data"
@@ -635,6 +714,8 @@ format_component_data() {
                     local status_icon="🔴"
                     case "$status" in
                         "healthy") status_icon="🟢" ;;
+                        "degraded") status_icon="🟡" ;;
+                        "unhealthy") status_icon="🔴" ;;
                         "running") status_icon="🟡" ;;
                         "stopped") status_icon="🔴" ;;
                         "error") status_icon="❌" ;;

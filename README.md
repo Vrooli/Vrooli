@@ -137,7 +137,7 @@ Your applications aren't monolithic. They're built from composable scenarios:
 - **Core scenarios**: Generate base app (UI + API + database + CLI)
 - **Enhancement scenarios**: Add features (ui-component-manager, account-manager, branding-manager)
 - **Platform scenarios**: Deploy and customize (app-to-ios, deployment-manager, app-debugger)
-- **Meta-scenarios**: The system improves itself (scenario-generator, system-monitor)
+- **Meta-scenarios**: The system improves itself (ecosystem-manager, system-monitor)
 
 ### 💰 **Real Business Value**
 The applications Vrooli generates aren't demos - they're production-ready tools that businesses typically pay $10K-50K to develop. Whether for internal use or client delivery, you're getting genuine enterprise-grade software.

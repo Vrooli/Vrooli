@@ -4,14 +4,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -24,20 +28,744 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// === Orchestrator Management ===
+// === Vrooli Configuration ===
 var (
-	vrooliRoot           = getVrooliRoot()
-	orchestratorProcess  *exec.Cmd
-	orchestratorURL      = getOrchestratorURL()
-	orchestratorHealthy  = false
-	orchestratorStarting = false
+	vrooliRoot = getVrooliRoot()
 )
 
-type OrchestratorConfig struct {
-	Enabled  bool   `json:"enabled"`
-	URL      string `json:"url"`
-	Healthy  bool   `json:"healthy"`
-	StartCmd string `json:"start_cmd"`
+
+// === Native Scenario Management (Replaces Python Orchestrator) ===
+
+type RunningScenario struct {
+	Name      string         `json:"name"`
+	Status    string         `json:"status"`
+	Processes int            `json:"processes"`
+	StartedAt *time.Time     `json:"started_at"`
+	Runtime   string         `json:"runtime"`
+	Ports     map[string]int `json:"ports"`
+}
+
+// Helper function to check if a scenario name corresponds to a valid scenario directory
+func isValidScenario(name string) bool {
+	// Check if scenario directory exists
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
+	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+		return false
+	}
+	
+	// Check for valid scenario name pattern
+	matched, _ := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, name)
+	return matched
+}
+
+// Fork bomb detection - simple process count check
+func checkForkBomb() error {
+	cmd := exec.Command("ps", "aux")
+	output, err := cmd.Output()
+	if err != nil {
+		return err
+	}
+	
+	lines := strings.Count(string(output), "\n")
+	if lines > 2000 { // Same limit as Python version
+		return fmt.Errorf("system overload: %d processes (limit: 2000)", lines)
+	}
+	return nil
+}
+
+// Discover ports for a specific scenario by reading process environment variables
+func discoverScenarioPorts(scenarioName string) map[string]int {
+	ports := make(map[string]int)
+	
+	// First, load the service.json to see what ports are actually defined
+	serviceFile := filepath.Join(vrooliRoot, "scenarios", scenarioName, ".vrooli", "service.json")
+	serviceData, err := os.ReadFile(serviceFile)
+	if err != nil {
+		// If we can't read service.json, return empty
+		return ports
+	}
+	
+	// Parse service.json to get defined ports
+	var serviceConfig struct {
+		Ports map[string]struct {
+			EnvVar string `json:"env_var"`
+			Range  string `json:"range"`
+		} `json:"ports"`
+	}
+	
+	if err := json.Unmarshal(serviceData, &serviceConfig); err != nil {
+		return ports
+	}
+	
+	// Build a set of valid port environment variables
+	validPortVars := make(map[string]bool)
+	for _, portConfig := range serviceConfig.Ports {
+		if portConfig.EnvVar != "" {
+			validPortVars[portConfig.EnvVar] = true
+		}
+	}
+	
+	// If no ports defined, return empty
+	if len(validPortVars) == 0 {
+		return ports
+	}
+	
+	// Get PIDs from the scenario's process directory
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios", scenarioName)
+	
+	if _, err := os.Stat(processesDir); os.IsNotExist(err) {
+		return ports
+	}
+	
+	// Read all .json files to get PIDs
+	processFiles, _ := filepath.Glob(filepath.Join(processesDir, "*.json"))
+	for _, file := range processFiles {
+		data, err := os.ReadFile(file)
+		if err != nil {
+			continue
+		}
+		
+		var processInfo ProcessInfo
+		if err := json.Unmarshal(data, &processInfo); err != nil {
+			continue
+		}
+		
+		// Check if process is actually running
+		if !isPidRunning(processInfo.PID) {
+			continue
+		}
+		
+		// Read environment variables from /proc/PID/environ
+		envFile := fmt.Sprintf("/proc/%d/environ", processInfo.PID)
+		envData, err := os.ReadFile(envFile)
+		if err != nil {
+			continue
+		}
+		
+		// Parse environment variables (they're null-separated)
+		envVars := strings.Split(string(envData), "\x00")
+		for _, envVar := range envVars {
+			if strings.Contains(envVar, "=") {
+				parts := strings.SplitN(envVar, "=", 2)
+				if len(parts) == 2 {
+					varName := parts[0]
+					varValue := parts[1]
+					
+					// Only capture ports that are defined in service.json
+					if validPortVars[varName] {
+						if port, err := strconv.Atoi(varValue); err == nil {
+							ports[varName] = port
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	return ports
+}
+
+// ProcessInfo represents a single tracked process
+type ProcessInfo struct {
+	PID       int       `json:"pid"`
+	ProcessID string    `json:"process_id"`
+	Phase     string    `json:"phase"`
+	Scenario  string    `json:"scenario"`
+	Step      string    `json:"step"`
+	Command   string    `json:"command"`
+	WorkingDir string   `json:"working_dir"`
+	LogFile   string    `json:"log_file"`
+	StartedAt time.Time `json:"started_at"`
+	Status    string    `json:"status"`
+}
+
+// Helper function to check if a PID is running
+func isPidRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	
+	// Send signal 0 to check if process exists
+	err = process.Signal(syscall.Signal(0))
+	return err == nil
+}
+
+// Discover all running scenarios using PID-based tracking
+func discoverRunningScenarios() ([]RunningScenario, error) {
+	
+	scenarios := make(map[string]*RunningScenario)
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
+	
+	// Check PID files for running processes
+	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
+		processDirs, err := os.ReadDir(processesDir)
+		if err == nil {
+			for _, processDir := range processDirs {
+				if !processDir.IsDir() {
+					continue
+				}
+				
+				scenarioName := processDir.Name()
+				
+				// Verify scenario exists and has service.json
+				if !isValidScenario(scenarioName) {
+					continue
+				}
+				
+				scenarioProcessDir := filepath.Join(processesDir, scenarioName)
+				runningProcesses := 0
+				var earliestStart *time.Time
+				
+				// Check each process file for this scenario
+				processFiles, err := filepath.Glob(filepath.Join(scenarioProcessDir, "*.json"))
+				if err != nil {
+					continue
+				}
+				
+				for _, processFile := range processFiles {
+					// Read process metadata
+					data, err := os.ReadFile(processFile)
+					if err != nil {
+						continue
+					}
+					
+					var processInfo ProcessInfo
+					if err := json.Unmarshal(data, &processInfo); err != nil {
+						continue
+					}
+					
+					// Check if process is actually running
+					if isPidRunning(processInfo.PID) {
+						runningProcesses++
+						
+						// Track earliest start time
+						if earliestStart == nil || processInfo.StartedAt.Before(*earliestStart) {
+							earliestStart = &processInfo.StartedAt
+						}
+					} else {
+						// Cleanup dead process metadata
+						os.Remove(processFile)
+						pidFile := strings.Replace(processFile, ".json", ".pid", 1)
+						os.Remove(pidFile)
+					}
+				}
+				
+				// Add scenario to results if it has running processes
+				if runningProcesses > 0 {
+					runtime := "unknown"
+					if earliestStart != nil {
+						duration := time.Since(*earliestStart)
+						if duration < time.Hour {
+							runtime = fmt.Sprintf("%.0fm", duration.Minutes())
+						} else if duration < 24*time.Hour {
+							runtime = fmt.Sprintf("%.1fh", duration.Hours())
+						} else {
+							runtime = fmt.Sprintf("%.1fd", duration.Hours()/24)
+						}
+					}
+					
+					scenarios[scenarioName] = &RunningScenario{
+						Name:      scenarioName,
+						Status:    "running",
+						Processes: runningProcesses,
+						StartedAt: earliestStart,
+						Runtime:   runtime,
+						Ports:     make(map[string]int),
+					}
+				}
+			}
+		}
+	}
+	
+	// Convert map to slice and discover ports for each scenario
+	var result []RunningScenario
+	for _, scenario := range scenarios {
+		scenario.Ports = discoverScenarioPorts(scenario.Name)
+		result = append(result, *scenario)
+	}
+	
+	return result, nil
+}
+
+// Start all scenarios natively
+// Start all scenarios with concurrency support
+func startAllScenariosNative() (map[string]interface{}, error) {
+	// Check fork bomb BEFORE starting anything
+	if err := checkForkBomb(); err != nil {
+		return nil, err
+	}
+	
+	// Find all scenarios
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read scenarios directory: %v", err)
+	}
+	
+	type startResult struct {
+		Name    string
+		Success bool
+		Error   string
+	}
+	
+	// Collect valid scenarios first
+	var validScenarios []string
+	for _, entry := range entries {
+		if !entry.IsDir() || entry.Name() == "templates" || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		
+		// Check if service.json exists
+		serviceFile := filepath.Join(scenariosDir, entry.Name(), ".vrooli", "service.json")
+		if _, err := os.Stat(serviceFile); os.IsNotExist(err) {
+			continue
+		}
+		
+		validScenarios = append(validScenarios, entry.Name())
+	}
+	
+	if len(validScenarios) == 0 {
+		return map[string]interface{}{
+			"started": []map[string]string{},
+			"failed":  []map[string]string{},
+			"message": "No valid scenarios found",
+		}, nil
+	}
+	
+	// Use rolling/streaming concurrency instead of batched
+	resultChan := make(chan startResult, len(validScenarios))
+	concurrentLimit := 20 // Higher limit, smooth processing
+	sem := make(chan struct{}, concurrentLimit)
+	var wg sync.WaitGroup
+	
+	// Start worker pool that processes scenarios as they become available
+	scenarioQueue := make(chan string, len(validScenarios))
+	
+	// Fill the queue
+	for _, scenarioName := range validScenarios {
+		scenarioQueue <- scenarioName
+	}
+	close(scenarioQueue)
+	
+	// Launch workers that pull from queue (rolling concurrency)
+	for i := 0; i < concurrentLimit && i < len(validScenarios); i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			
+			for scenarioName := range scenarioQueue {
+				sem <- struct{}{} // Acquire semaphore
+				
+				err := startScenarioNative(scenarioName)
+				if err != nil {
+					resultChan <- startResult{
+						Name:    scenarioName,
+						Success: false,
+						Error:   err.Error(),
+					}
+				} else {
+					resultChan <- startResult{
+						Name:    scenarioName,
+						Success: true,
+						Error:   "",
+					}
+				}
+				
+				<-sem // Release semaphore immediately so next scenario can start
+			}
+		}()
+	}
+	
+	// Wait for all workers to finish
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+	
+	// Collect results
+	var started []map[string]string
+	var failed []map[string]string
+	
+	for result := range resultChan {
+		if result.Success {
+			started = append(started, map[string]string{
+				"name":    result.Name,
+				"message": "Started successfully",
+			})
+		} else {
+			failed = append(failed, map[string]string{
+				"name":  result.Name,
+				"error": result.Error,
+			})
+		}
+	}
+	
+	return map[string]interface{}{
+		"started": started,
+		"failed":  failed,
+		"message": fmt.Sprintf("Started %d scenarios, %d failed", len(started), len(failed)),
+	}, nil
+}
+
+// HealthCheckConfig represents a health check from service.json
+type HealthCheckConfig struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"`
+	Target   string `json:"target"`
+	Critical bool   `json:"critical"`
+	Timeout  int    `json:"timeout"`
+	Interval int    `json:"interval"`
+}
+
+// ScenarioHealthConfig represents the health section from service.json
+type ScenarioHealthConfig struct {
+	Description        string               `json:"description"`
+	Endpoints          map[string]string    `json:"endpoints"`
+	Checks             []HealthCheckConfig  `json:"checks"`
+	Timeout            int                  `json:"timeout"`
+	Interval           int                  `json:"interval"`
+	StartupGracePeriod int                  `json:"startup_grace_period"`
+}
+
+// Load health config from scenario service.json (supports both v1 and v2 formats)
+func loadHealthConfig(scenarioName string) (*ScenarioHealthConfig, error) {
+	serviceFile := filepath.Join(vrooliRoot, "scenarios", scenarioName, ".vrooli", "service.json")
+	data, err := os.ReadFile(serviceFile)
+	if err != nil {
+		return nil, err
+	}
+	
+	// Try v2.0 format first (health under lifecycle)
+	var v2Config struct {
+		Lifecycle struct {
+			Health *ScenarioHealthConfig `json:"health"`
+		} `json:"lifecycle"`
+	}
+	
+	if err := json.Unmarshal(data, &v2Config); err == nil && v2Config.Lifecycle.Health != nil {
+		return v2Config.Lifecycle.Health, nil
+	}
+	
+	// Fall back to v1 format (health at root level)
+	var v1Config struct {
+		Health *ScenarioHealthConfig `json:"health"`
+	}
+	
+	if err := json.Unmarshal(data, &v1Config); err != nil {
+		return nil, err
+	}
+	
+	return v1Config.Health, nil
+}
+
+// Expand environment variables in target URL using discovered ports
+func expandEnvVars(target string, scenarioName string, ports map[string]int) string {
+	expanded := target
+	
+	// Replace known port variables with discovered ports
+	for varName, port := range ports {
+		// Handle both ${VAR} and $VAR syntax
+		expanded = strings.ReplaceAll(expanded, "${"+varName+"}", strconv.Itoa(port))
+		expanded = strings.ReplaceAll(expanded, "$"+varName, strconv.Itoa(port))
+	}
+	
+	// Fallback to environment variables if not in discovered ports
+	if strings.Contains(expanded, "${API_PORT}") && os.Getenv("API_PORT") != "" {
+		expanded = strings.ReplaceAll(expanded, "${API_PORT}", os.Getenv("API_PORT"))
+	}
+	if strings.Contains(expanded, "${UI_PORT}") && os.Getenv("UI_PORT") != "" {
+		expanded = strings.ReplaceAll(expanded, "${UI_PORT}", os.Getenv("UI_PORT"))
+	}
+	
+	return expanded
+}
+
+// Perform a single health check with discovered ports
+func performHealthCheck(check HealthCheckConfig, scenarioName string, ports map[string]int) error {
+	switch check.Type {
+	case "http":
+		target := expandEnvVars(check.Target, scenarioName, ports)
+		
+		// Parse URL to validate
+		_, err := url.Parse(target)
+		if err != nil {
+			return fmt.Errorf("invalid URL: %s", target)
+		}
+		
+		// Create HTTP client with timeout
+		timeout := time.Duration(check.Timeout) * time.Millisecond
+		if timeout == 0 {
+			timeout = 5 * time.Second
+		}
+		
+		client := &http.Client{
+			Timeout: timeout,
+		}
+		
+		resp, err := client.Get(target)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		
+		// Accept 2xx status codes
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			return fmt.Errorf("HTTP %d", resp.StatusCode)
+		}
+		
+		return nil
+	default:
+		return fmt.Errorf("unsupported health check type: %s", check.Type)
+	}
+}
+
+// Wait for scenario to become healthy
+func waitForScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConfig) error {
+	if healthConfig == nil || len(healthConfig.Checks) == 0 {
+		// No health checks defined, assume started immediately
+		return nil
+	}
+	
+	// Use startup grace period (default 15 seconds)
+	gracePeriod := time.Duration(healthConfig.StartupGracePeriod) * time.Millisecond
+	if gracePeriod == 0 {
+		gracePeriod = 15 * time.Second
+	}
+	
+	// Poll interval (default 1 second)
+	pollInterval := 1 * time.Second
+	
+	deadline := time.Now().Add(gracePeriod)
+	
+	for time.Now().Before(deadline) {
+		// Discover ports for this scenario (they may not be available immediately)
+		ports := discoverScenarioPorts(scenarioName)
+		
+		allPassed := true
+		
+		for _, check := range healthConfig.Checks {
+			if err := performHealthCheck(check, scenarioName, ports); err != nil {
+				allPassed = false
+				if check.Critical {
+					// Don't fail immediately on critical checks during startup
+					// Give them the full grace period
+					break
+				}
+			}
+		}
+		
+		if allPassed {
+			return nil // All health checks passed!
+		}
+		
+		// Wait before next check
+		time.Sleep(pollInterval)
+	}
+	
+	// Grace period expired, do final check with latest port discovery
+	ports := discoverScenarioPorts(scenarioName)
+	for _, check := range healthConfig.Checks {
+		if err := performHealthCheck(check, scenarioName, ports); err != nil {
+			if check.Critical {
+				return fmt.Errorf("critical health check failed: %s (%s)", check.Name, err)
+			}
+		}
+	}
+	
+	return nil // Non-critical failures are acceptable
+}
+
+// Check health status of a running scenario (for ongoing monitoring)
+func checkScenarioHealth(scenarioName string, healthConfig *ScenarioHealthConfig, ports map[string]int) string {
+	if healthConfig == nil || len(healthConfig.Checks) == 0 {
+		return "running" // No health checks configured
+	}
+	
+	criticalFailed := false
+	nonCriticalFailed := false
+	
+	for _, check := range healthConfig.Checks {
+		if err := performHealthCheck(check, scenarioName, ports); err != nil {
+			if check.Critical {
+				criticalFailed = true
+			} else {
+				nonCriticalFailed = true
+			}
+		}
+	}
+	
+	// Determine overall health status
+	if criticalFailed {
+		return "unhealthy"
+	} else if nonCriticalFailed {
+		return "degraded" 
+	} else {
+		return "healthy"
+	}
+}
+
+// Start a specific scenario natively with health checking
+func startScenarioNative(name string) error {
+	// Check if already running using our PID system
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios", name)
+	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
+		// Check if any processes are actually running
+		files, _ := filepath.Glob(filepath.Join(processesDir, "*.json"))
+		for _, file := range files {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				continue
+			}
+			
+			var processInfo ProcessInfo
+			if err := json.Unmarshal(data, &processInfo); err != nil {
+				continue
+			}
+			
+			if isPidRunning(processInfo.PID) {
+				return fmt.Errorf("scenario %s is already running (PID: %d)", name, processInfo.PID)
+			}
+		}
+	}
+	
+	// Check fork bomb
+	if err := checkForkBomb(); err != nil {
+		return err
+	}
+	
+	// Load health configuration
+	healthConfig, err := loadHealthConfig(name)
+	if err != nil {
+		// Health config is optional, continue without it
+		healthConfig = nil
+	}
+	
+	// Execute scenario lifecycle
+	scenarioDir := filepath.Join(vrooliRoot, "scenarios", name)
+	cmd := exec.Command("bash", 
+		filepath.Join(vrooliRoot, "scripts/lib/utils/lifecycle.sh"),
+		name, "develop")
+	cmd.Dir = scenarioDir
+	cmd.Env = os.Environ()
+	
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	
+	// Wait for health checks to pass (if configured)
+	if err := waitForScenarioHealth(name, healthConfig); err != nil {
+		// Health checks failed, but process might still be running
+		// This is a soft failure - we report it but don't kill the process
+		return fmt.Errorf("scenario started but health checks failed: %v", err)
+	}
+	
+	return nil
+}
+
+// Stop a specific scenario
+func stopScenarioNative(name string) error {
+	// Use lifecycle stop command
+	scenarioDir := filepath.Join(vrooliRoot, "scenarios", name)
+	cmd := exec.Command("bash", 
+		filepath.Join(vrooliRoot, "scripts/lib/utils/lifecycle.sh"),
+		name, "stop")
+	cmd.Dir = scenarioDir
+	cmd.Env = os.Environ()
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to stop scenario %s: %v - %s", name, err, string(output))
+	}
+	return nil
+}
+
+// Stop all running scenarios with concurrency support
+func stopAllScenariosNative() (map[string]interface{}, error) {
+	// First get all running scenarios
+	runningScenarios, err := discoverRunningScenarios()
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover running scenarios: %v", err)
+	}
+	
+	if len(runningScenarios) == 0 {
+		return map[string]interface{}{
+			"stopped": []map[string]string{},
+			"failed":  []map[string]string{},
+			"message": "No running scenarios to stop",
+		}, nil
+	}
+	
+	type stopResult struct {
+		Name    string
+		Success bool
+		Error   string
+	}
+	
+	// Use channels for concurrent stops
+	resultChan := make(chan stopResult, len(runningScenarios))
+	var wg sync.WaitGroup
+	concurrentLimit := 10 // Can stop more concurrently than start
+	sem := make(chan struct{}, concurrentLimit)
+	
+	for _, scenario := range runningScenarios {
+		if scenario.Status != "running" {
+			continue
+		}
+		
+		wg.Add(1)
+		go func(scenarioName string) {
+			defer wg.Done()
+			sem <- struct{}{}        // Acquire semaphore
+			defer func() { <-sem }() // Release semaphore
+			
+			err := stopScenarioNative(scenarioName)
+			if err != nil {
+				resultChan <- stopResult{
+					Name:    scenarioName,
+					Success: false,
+					Error:   err.Error(),
+				}
+			} else {
+				resultChan <- stopResult{
+					Name:    scenarioName,
+					Success: true,
+					Error:   "",
+				}
+			}
+		}(scenario.Name)
+	}
+	
+	// Wait for all goroutines to finish
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+	
+	// Collect results
+	var stopped []map[string]string
+	var failed []map[string]string
+	
+	for result := range resultChan {
+		if result.Success {
+			stopped = append(stopped, map[string]string{
+				"name":    result.Name,
+				"message": "Stopped successfully",
+			})
+		} else {
+			failed = append(failed, map[string]string{
+				"name":  result.Name,
+				"error": result.Error,
+			})
+		}
+	}
+	
+	return map[string]interface{}{
+		"stopped": stopped,
+		"failed":  failed,
+		"message": fmt.Sprintf("Stopped %d scenarios, %d failed", len(stopped), len(failed)),
+	}, nil
 }
 
 func getVrooliRoot() string {
@@ -52,195 +780,18 @@ func getVrooliRoot() string {
 	return filepath.Dir(filepath.Dir(ex))
 }
 
-func getOrchestratorURL() string {
-	// First check environment variable
-	if port := os.Getenv("ORCHESTRATOR_PORT"); port != "" {
-		return fmt.Sprintf("http://localhost:%s", port)
-	}
-	
-	// Try to get from port registry
-	portRegistryPath := filepath.Join(getVrooliRoot(), "scripts/resources/port_registry.sh")
-	cmd := exec.Command("bash", "-c", fmt.Sprintf("source %s && ports::get_resource_port vrooli-orchestrator", portRegistryPath))
-	if out, err := cmd.Output(); err == nil {
-		if port := strings.TrimSpace(string(out)); port != "" {
-			return fmt.Sprintf("http://localhost:%s", port)
-		}
-	}
-	
-	// Fallback to default
-	return "http://localhost:9500"
-}
-
-// === Orchestrator Management Functions ===
-
-// Start the orchestrator subprocess
-func startOrchestrator() error {
-	if orchestratorStarting || (orchestratorProcess != nil && orchestratorProcess.Process != nil) {
-		return fmt.Errorf("orchestrator already starting/running")
-	}
-
-	orchestratorStarting = true
-	defer func() { orchestratorStarting = false }()
-
-	log.Println("🚀 Starting orchestrator subprocess...")
-	
-	orchestratorScript := filepath.Join(vrooliRoot, "scripts/scenarios/tools/orchestrator/enhanced_orchestrator.py")
-	
-	// Check if orchestrator script exists
-	if _, err := os.Stat(orchestratorScript); os.IsNotExist(err) {
-		return fmt.Errorf("orchestrator script not found: %s", orchestratorScript)
-	}
-
-	// Start orchestrator with proper arguments
-	orchestratorProcess = exec.Command("python3", orchestratorScript, "--verbose", "--fast")
-	orchestratorProcess.Dir = vrooliRoot
-	orchestratorProcess.Env = os.Environ()
-
-	// Start process
-	if err := orchestratorProcess.Start(); err != nil {
-		orchestratorProcess = nil
-		return fmt.Errorf("failed to start orchestrator: %v", err)
-	}
-
-	log.Printf("✓ Orchestrator started with PID %d", orchestratorProcess.Process.Pid)
-
-	// Wait for orchestrator to become healthy
-	for i := 0; i < 10; i++ {
-		time.Sleep(time.Second)
-		if checkOrchestratorHealth() {
-			orchestratorHealthy = true
-			log.Println("✓ Orchestrator is healthy and ready")
-			
-			// Start health monitoring in background
-			go monitorOrchestratorHealth()
-			return nil
-		}
-	}
-
-	// If we get here, orchestrator failed to become healthy
-	stopOrchestrator()
-	return fmt.Errorf("orchestrator failed to become healthy after 10 seconds")
-}
-
-// Check if orchestrator is healthy
-func checkOrchestratorHealth() bool {
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(orchestratorURL + "/health")
-	if err != nil {
-		return false
-	}
-	defer resp.Body.Close()
-	
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-	
-	var healthResp map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&healthResp); err != nil {
-		return false
-	}
-	
-	status, ok := healthResp["status"].(string)
-	return ok && status == "healthy"
-}
-
-// Stop orchestrator gracefully
-func stopOrchestrator() error {
-	if orchestratorProcess == nil || orchestratorProcess.Process == nil {
-		return nil
-	}
-
-	log.Println("🛑 Stopping orchestrator...")
-	
-	// Send SIGTERM for graceful shutdown
-	if err := orchestratorProcess.Process.Signal(os.Interrupt); err != nil {
-		log.Printf("⚠️  Failed to send interrupt signal: %v", err)
-	}
-
-	// Wait for graceful shutdown with timeout
-	done := make(chan error, 1)
-	go func() {
-		done <- orchestratorProcess.Wait()
-	}()
-
-	select {
-	case err := <-done:
-		if err != nil {
-			log.Printf("⚠️  Orchestrator exited with error: %v", err)
-		} else {
-			log.Println("✓ Orchestrator stopped gracefully")
-		}
-	case <-time.After(5 * time.Second):
-		// Force kill if graceful shutdown times out
-		log.Println("⚠️  Force killing orchestrator after timeout")
-		orchestratorProcess.Process.Kill()
-		orchestratorProcess.Wait()
-	}
-
-	orchestratorProcess = nil
-	orchestratorHealthy = false
-	return nil
-}
-
-// Monitor orchestrator health in background
-func monitorOrchestratorHealth() {
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		if orchestratorProcess == nil {
-			return // Stop monitoring if process is nil
-		}
-
-		healthy := checkOrchestratorHealth()
-		if healthy != orchestratorHealthy {
-			orchestratorHealthy = healthy
-			if healthy {
-				log.Println("✓ Orchestrator health restored")
-			} else {
-				log.Println("⚠️  Orchestrator health check failed")
-				
-				// Restart orchestrator if it's unhealthy
-				go func() {
-					stopOrchestrator()
-					time.Sleep(2 * time.Second)
-					if err := startOrchestrator(); err != nil {
-						log.Printf("❌ Failed to restart orchestrator: %v", err)
-					}
-				}()
-				return
-			}
-		}
-	}
-}
-
-// HTTP client for orchestrator requests
-func proxyToOrchestrator(method, path string, body io.Reader) (*http.Response, error) {
-	if !orchestratorHealthy {
-		return nil, fmt.Errorf("orchestrator not running or unhealthy - start it with 'python3 %s/scripts/scenarios/tools/orchestrator/enhanced_orchestrator.py'", vrooliRoot)
-	}
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest(method, orchestratorURL+path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	return client.Do(req)
-}
 
 // === App Management ===
 type App struct {
-	Name          string    `json:"name"`
-	Path          string    `json:"path"`
-	Protected     bool      `json:"protected"`
-	HasGit        bool      `json:"has_git"`
-	Customized    bool      `json:"customized"`
-	Modified      time.Time `json:"modified"`
-	RuntimeStatus string    `json:"runtime_status,omitempty"` // From orchestrator
-	Ports         map[string]interface{} `json:"ports,omitempty"`   // From orchestrator
-	PID           *int      `json:"pid,omitempty"`             // From orchestrator
+	Name          string                 `json:"name"`
+	Path          string                 `json:"path"`
+	Protected     bool                   `json:"protected"`
+	HasGit        bool                   `json:"has_git"`
+	Customized    bool                   `json:"customized"`
+	Modified      time.Time              `json:"modified"`
+	RuntimeStatus string                 `json:"runtime_status,omitempty"` // From orchestrator
+	Ports         map[string]interface{} `json:"ports,omitempty"`          // From orchestrator
+	PID           *int                   `json:"pid,omitempty"`            // From orchestrator
 }
 
 var appsDir = getAppsDir()
@@ -286,29 +837,12 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apps := []App{}
-	
-	// Get runtime status from orchestrator if available
-	var orchestratorApps map[string]interface{}
-	if orchestratorHealthy {
-		resp, err := proxyToOrchestrator("GET", "/apps", nil)
-		if err != nil {
-			log.Printf("Warning: Could not get app runtime status from orchestrator: %v", err)
-		} else {
-			defer resp.Body.Close()
-			var orchestratorData map[string]interface{}
-			if json.NewDecoder(resp.Body).Decode(&orchestratorData) == nil {
-				if appsList, ok := orchestratorData["apps"].([]interface{}); ok {
-					orchestratorApps = make(map[string]interface{})
-					for _, appData := range appsList {
-						if appMap, ok := appData.(map[string]interface{}); ok {
-							if name, ok := appMap["name"].(string); ok {
-								orchestratorApps[name] = appMap
-							}
-						}
-					}
-				}
-			}
-		}
+
+	// Get runtime status from native scenario discovery
+	scenarios, _ := discoverRunningScenarios()
+	scenarioMap := make(map[string]interface{})
+	for _, scenario := range scenarios {
+		scenarioMap[scenario.Name] = scenario
 	}
 
 	for _, entry := range entries {
@@ -317,7 +851,7 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 		}
 		appPath := filepath.Join(appsDir, entry.Name())
 		info, _ := entry.Info()
-		
+
 		app := App{
 			Name:       entry.Name(),
 			Path:       appPath,
@@ -327,25 +861,23 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 			Modified:   info.ModTime(),
 		}
 
-		// Enhance with orchestrator data if available
-		if orchestratorApps != nil {
-			if orchData, ok := orchestratorApps[entry.Name()].(map[string]interface{}); ok {
-				if status, ok := orchData["status"].(string); ok {
-					app.RuntimeStatus = status
+		// Enhance with scenario data if available
+		if scenarioData, ok := scenarioMap[entry.Name()].(RunningScenario); ok {
+			if scenarioData.Status == "running" {
+				app.RuntimeStatus = "running"
+				// Convert scenario ports to interface map
+				ports := make(map[string]interface{})
+				for k, v := range scenarioData.Ports {
+					ports[k] = v
 				}
-				if ports, ok := orchData["allocated_ports"].(map[string]interface{}); ok {
-					app.Ports = ports
-				}
-				if pid, ok := orchData["pid"]; ok && pid != nil {
-					if pidFloat, ok := pid.(float64); ok {
-						pidInt := int(pidFloat)
-						app.PID = &pidInt
-					}
-				}
+				app.Ports = ports
+				// We don't track individual PIDs in our simplified implementation
+				app.PID = nil
+			} else {
+				app.RuntimeStatus = "stopped"
 			}
 		} else {
-			// Fallback: basic status without orchestrator
-			app.RuntimeStatus = "orchestrator_offline"
+			app.RuntimeStatus = "stopped"
 		}
 
 		apps = append(apps, app)
@@ -356,18 +888,18 @@ func listApps(w http.ResponseWriter, r *http.Request) {
 func protectApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	appPath := filepath.Join(appsDir, name)
-	
+
 	if _, err := os.Stat(appPath); err != nil {
 		json.NewEncoder(w).Encode(Response{Error: "App not found"})
 		return
 	}
-	
+
 	protectDir := filepath.Join(appPath, ".vrooli")
 	os.MkdirAll(protectDir, 0755)
 	protectFile := filepath.Join(protectDir, ".protected")
 	content := fmt.Sprintf("Protected on %s\n", time.Now().UTC().Format(time.RFC3339))
 	os.WriteFile(protectFile, []byte(content), 0644)
-	
+
 	json.NewEncoder(w).Encode(Response{Success: true})
 }
 
@@ -375,19 +907,19 @@ func protectApp(w http.ResponseWriter, r *http.Request) {
 func startApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
-	
+
 	// Validate scenario exists
 	if _, err := os.Stat(scenarioPath); err != nil {
 		json.NewEncoder(w).Encode(Response{Error: "Scenario not found"})
 		return
 	}
-	
+
 	// Use lifecycle develop event directly - much simpler and more reliable
 	// The develop phase includes auto-setup, so no need for separate setup step
 	startCmd := exec.Command("bash", "-c",
 		fmt.Sprintf("cd %s && %s/scripts/lib/utils/lifecycle.sh %s develop",
 			scenarioPath, vrooliRoot, name))
-	
+
 	output, err := startCmd.CombinedOutput()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
@@ -395,12 +927,12 @@ func startApp(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
 			"message": fmt.Sprintf("Scenario %s started successfully", name),
-			"output": string(output),
+			"output":  string(output),
 		},
 	})
 }
@@ -408,12 +940,12 @@ func startApp(w http.ResponseWriter, r *http.Request) {
 // Stop an app via orchestrator or fallback to process manager
 func stopApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	
+
 	// Use lifecycle stop event directly - much simpler and more reliable
 	stopCmd := exec.Command("bash", "-c",
 		fmt.Sprintf("cd %s/scenarios/%s && %s/scripts/lib/utils/lifecycle.sh %s stop",
 			vrooliRoot, name, vrooliRoot, name))
-	
+
 	output, err := stopCmd.CombinedOutput()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
@@ -421,12 +953,12 @@ func stopApp(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
 			"message": fmt.Sprintf("App %s stopped successfully", name),
-			"output": string(output),
+			"output":  string(output),
 		},
 	})
 }
@@ -435,28 +967,28 @@ func stopApp(w http.ResponseWriter, r *http.Request) {
 func restartApp(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
-	
+
 	// Validate scenario exists
 	if _, err := os.Stat(scenarioPath); err != nil {
 		json.NewEncoder(w).Encode(Response{Error: "Scenario not found"})
 		return
 	}
-	
+
 	// Stop first using lifecycle stop
 	stopCmd := exec.Command("bash", "-c",
 		fmt.Sprintf("cd %s && %s/scripts/lib/utils/lifecycle.sh %s stop",
 			scenarioPath, vrooliRoot, name))
-	
+
 	stopOutput, _ := stopCmd.CombinedOutput() // Ignore stop errors - might not be running
-	
+
 	// Brief pause to ensure processes are fully stopped
 	time.Sleep(2 * time.Second)
-	
+
 	// Start using lifecycle develop
 	startCmd := exec.Command("bash", "-c",
 		fmt.Sprintf("cd %s && %s/scripts/lib/utils/lifecycle.sh %s develop",
 			scenarioPath, vrooliRoot, name))
-	
+
 	startOutput, err := startCmd.CombinedOutput()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
@@ -464,12 +996,12 @@ func restartApp(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
-			"message": fmt.Sprintf("Scenario %s restarted successfully", name),
-			"stop_output": string(stopOutput),
+			"message":      fmt.Sprintf("Scenario %s restarted successfully", name),
+			"stop_output":  string(stopOutput),
 			"start_output": string(startOutput),
 		},
 	})
@@ -482,12 +1014,12 @@ func getAppLogs(w http.ResponseWriter, r *http.Request) {
 	if lines == "" {
 		lines = "50"
 	}
-	
+
 	// Get logs using process manager
 	logsCmd := exec.Command("bash", "-c",
 		fmt.Sprintf("source %s/scripts/lib/process-manager.sh && pm::logs 'vrooli.develop.%s' %s",
 			vrooliRoot, name, lines))
-	
+
 	output, err := logsCmd.CombinedOutput()
 	if err != nil {
 		json.NewEncoder(w).Encode(Response{
@@ -495,7 +1027,7 @@ func getAppLogs(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
 		Data: map[string]string{
@@ -514,127 +1046,271 @@ type Scenario struct {
 	Template    bool   `json:"template"`
 }
 
-type CatalogEntry struct {
-	Name        string `json:"name"`
-	Location    string `json:"location"`
-	Category    string `json:"category,omitempty"`
-	Description string `json:"description,omitempty"`
-	Enabled     bool   `json:"enabled"`
-	Template    bool   `json:"template,omitempty"`
-}
-
-type Catalog struct {
-	Scenarios []CatalogEntry `json:"scenarios"`
-}
-
-var (
-	catalogPath     = filepath.Join(vrooliRoot, "scripts/scenarios/catalog.json")
-	// converterCmd removed - scenarios run directly now
-)
-
-func loadCatalog() (*Catalog, error) {
-	data, err := os.ReadFile(catalogPath)
-	if err != nil {
-		return nil, err
-	}
-	var catalog Catalog
-	if err := json.Unmarshal(data, &catalog); err != nil {
-		return nil, err
-	}
-	return &catalog, nil
-}
-
-func saveCatalog(catalog *Catalog) error {
-	data, err := json.MarshalIndent(catalog, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(catalogPath, data, 0644)
-}
-
 // Scenario handlers
 func listScenarios(w http.ResponseWriter, r *http.Request) {
-	catalog, err := loadCatalog()
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+
+	// Read all directories in scenarios folder
+	entries, err := os.ReadDir(scenariosDir)
 	if err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Failed to load catalog"})
+		json.NewEncoder(w).Encode(Response{Error: "Failed to read scenarios directory"})
 		return
 	}
 
 	scenarios := []Scenario{}
-	for _, entry := range catalog.Scenarios {
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Check if .vrooli/service.json exists
+		serviceFile := filepath.Join(scenariosDir, entry.Name(), ".vrooli", "service.json")
+		if _, err := os.Stat(serviceFile); os.IsNotExist(err) {
+			continue
+		}
+
+		// Read and parse service.json
+		data, err := os.ReadFile(serviceFile)
+		if err != nil {
+			log.Printf("Failed to read service.json for %s: %v", entry.Name(), err)
+			continue
+		}
+
+		var serviceConfig struct {
+			Service struct {
+				Name        string   `json:"name"`
+				DisplayName string   `json:"displayName"`
+				Description string   `json:"description"`
+				Tags        []string `json:"tags"`
+			} `json:"service"`
+		}
+
+		if err := json.Unmarshal(data, &serviceConfig); err != nil {
+			log.Printf("Failed to parse service.json for %s: %v", entry.Name(), err)
+			continue
+		}
+
+		// Determine category from tags if available
+		category := ""
+		for _, tag := range serviceConfig.Service.Tags {
+			if tag == "vrooli-helpers" || tag == "saas-applications" || tag == "automation" || tag == "technical-reference" {
+				category = tag
+				break
+			}
+		}
+
 		scenarios = append(scenarios, Scenario{
-			Name:        entry.Name,
-			Location:    entry.Location,
-			Category:    entry.Category,
-			Description: entry.Description,
-			Enabled:     entry.Enabled,
-			Template:    entry.Template,
+			Name:        serviceConfig.Service.Name,
+			Location:    entry.Name(),
+			Category:    category,
+			Description: serviceConfig.Service.Description,
+			Enabled:     true, // Default to enabled if it has a service.json
+			Template:    false,
 		})
 	}
+
 	json.NewEncoder(w).Encode(Response{Success: true, Data: scenarios})
-}
-
-func validateScenario(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
-	catalog, err := loadCatalog()
-	if err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Failed to load catalog"})
-		return
-	}
-
-	var location string
-	for _, entry := range catalog.Scenarios {
-		if entry.Name == name {
-			location = entry.Location
-			break
-		}
-	}
-
-	if location == "" {
-		json.NewEncoder(w).Encode(Response{Error: "Scenario not found"})
-		return
-	}
-
-	scenarioPath := filepath.Join(vrooliRoot, location)
-	issues := []string{}
-	
-	serviceFile := filepath.Join(scenarioPath, "service.json")
-	if _, err := os.Stat(serviceFile); err != nil {
-		issues = append(issues, "Missing service.json")
-	} else if data, err := os.ReadFile(serviceFile); err == nil {
-		var service map[string]interface{}
-		if err := json.Unmarshal(data, &service); err != nil {
-			issues = append(issues, fmt.Sprintf("Invalid JSON: %v", err))
-		}
-	}
-
-	result := map[string]interface{}{
-		"valid":  len(issues) == 0,
-		"issues": issues,
-	}
-	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
 }
 
 func getScenarioStatus(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	
+
 	// Check if scenario exists
 	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
 	if _, err := os.Stat(scenarioPath); err == nil {
 		json.NewEncoder(w).Encode(Response{
 			Success: true,
 			Data: map[string]interface{}{
-				"exists": true,
+				"exists":  true,
 				"message": "Scenario exists and ready to run",
-				"path": scenarioPath,
+				"path":    scenarioPath,
 			},
 		})
 	} else {
 		json.NewEncoder(w).Encode(Response{
 			Success: false,
-			Error: "Scenario not found",
+			Error:   "Scenario not found",
 		})
 	}
+}
+
+// === Native Scenario API Endpoints (Replaces Python Orchestrator) ===
+
+// List running scenarios with status and ports (replaces Python /scenarios)
+func listScenariosNative(w http.ResponseWriter, r *http.Request) {
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+
+	// Read all directories in scenarios folder
+	entries, err := os.ReadDir(scenariosDir)
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Failed to read scenarios directory"})
+		return
+	}
+
+	// Get running scenarios for status info
+	runningScenarios, _ := discoverRunningScenarios()
+	runningMap := make(map[string]*RunningScenario)
+	for i, scenario := range runningScenarios {
+		runningMap[scenario.Name] = &runningScenarios[i]
+	}
+
+	scenarios := []map[string]interface{}{}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		// Check if .vrooli/service.json exists
+		serviceFile := filepath.Join(scenariosDir, entry.Name(), ".vrooli", "service.json")
+		if _, err := os.Stat(serviceFile); os.IsNotExist(err) {
+			continue
+		}
+
+		// Read and parse service.json
+		data, err := os.ReadFile(serviceFile)
+		if err != nil {
+			log.Printf("Failed to read service.json for %s: %v", entry.Name(), err)
+			continue
+		}
+
+		var serviceConfig struct {
+			Service struct {
+				Name        string   `json:"name"`
+				DisplayName string   `json:"displayName"`
+				Description string   `json:"description"`
+				Tags        []string `json:"tags"`
+			} `json:"service"`
+		}
+
+		if err := json.Unmarshal(data, &serviceConfig); err != nil {
+			log.Printf("Failed to parse service.json for %s: %v", entry.Name(), err)
+			continue
+		}
+
+		// Create scenario info
+		scenario := map[string]interface{}{
+			"name":        entry.Name(),
+			"display_name": serviceConfig.Service.DisplayName,
+			"description": serviceConfig.Service.Description,
+			"tags":        serviceConfig.Service.Tags,
+			"status":      "stopped",
+			"processes":   0,
+			"ports":       map[string]int{},
+			"runtime":     "N/A",
+		}
+
+		// Update with running info if available
+		if running, exists := runningMap[entry.Name()]; exists {
+			scenario["status"] = running.Status
+			scenario["processes"] = running.Processes
+			scenario["ports"] = running.Ports
+			scenario["runtime"] = running.Runtime
+			if running.StartedAt != nil {
+				scenario["started_at"] = running.StartedAt.Format(time.RFC3339)
+			}
+			
+			// Perform health checks for running scenarios using discovered ports
+			healthStatus := "running" // Default if no health checks configured
+			if healthConfig, err := loadHealthConfig(entry.Name()); err == nil && healthConfig != nil && len(healthConfig.Checks) > 0 {
+				// Use the discovered ports from the running scenario
+				healthStatus = checkScenarioHealth(entry.Name(), healthConfig, running.Ports)
+			}
+			scenario["health_status"] = healthStatus
+		} else {
+			// Not running, no health status
+			scenario["health_status"] = nil
+		}
+
+		scenarios = append(scenarios, scenario)
+	}
+
+	json.NewEncoder(w).Encode(Response{Success: true, Data: scenarios})
+}
+
+// Get detailed scenario status with ports (replaces Python /scenarios/{name})
+func getScenarioStatusNative(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	
+	// Check if scenario exists first
+	scenarioPath := filepath.Join(vrooliRoot, "scenarios", name)
+	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Error:   fmt.Sprintf("Scenario '%s' not found", name),
+		})
+		return
+	}
+	
+	// Get running status and ports
+	scenarios, err := discoverRunningScenarios()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+	
+	// Find specific scenario in running scenarios
+	for _, scenario := range scenarios {
+		if scenario.Name == name {
+			// Format detailed response like Python orchestrator
+			processes := []map[string]interface{}{}
+			for i := 0; i < scenario.Processes; i++ {
+				processes = append(processes, map[string]interface{}{
+					"step_name": fmt.Sprintf("process-%d", i+1),
+					"pid":       0, // We don't track individual PIDs
+					"status":    "running",
+					"ports":     scenario.Ports,
+				})
+			}
+			
+			json.NewEncoder(w).Encode(Response{
+				Success: true,
+				Data: map[string]interface{}{
+					"name":      scenario.Name,
+					"status":    scenario.Status,
+					"phase":     "develop",
+					"processes": processes,
+					"started_at": scenario.StartedAt,
+					"runtime":   scenario.Runtime,
+					"allocated_ports": scenario.Ports,
+				},
+			})
+			return
+		}
+	}
+	
+	// Scenario exists but not running - return stopped status like Python orchestrator
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]interface{}{
+			"name":      name,
+			"status":    "stopped", 
+			"phase":     "develop",
+			"processes": []map[string]interface{}{},
+			"started_at": nil,
+			"runtime":   "N/A",
+			"allocated_ports": map[string]int{},
+		},
+	})
+}
+
+// Start all scenarios (replaces Python /scenarios/start-all)
+func startAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
+	result, err := startAllScenariosNative()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+	
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data:    result,
+	})
 }
 
 // === Resource Management (placeholder) ===
@@ -679,134 +1355,107 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
 
 // === Orchestrator-Specific Endpoints ===
 
-// Get running apps from orchestrator
+// Get running apps using native scenario discovery
 func getRunningApps(w http.ResponseWriter, r *http.Request) {
-	if !orchestratorHealthy {
-		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
-		return
-	}
-
-	resp, err := proxyToOrchestrator("GET", "/apps/running", nil)
+	scenarios, err := discoverRunningScenarios()
 	if err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Failed to get running apps"})
+		json.NewEncoder(w).Encode(Response{Error: "Failed to get running scenarios"})
 		return
 	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
-		return
-	}
-
-	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
-}
-
-// Start all enabled apps
-func startAllApps(w http.ResponseWriter, r *http.Request) {
-	if !orchestratorHealthy {
-		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
-		return
-	}
-
-	resp, err := proxyToOrchestrator("POST", "/apps/start-all", nil)
-	if err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Failed to start all apps"})
-		return
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
-		return
-	}
-
-	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
-}
-
-// Stop all running apps
-func stopAllApps(w http.ResponseWriter, r *http.Request) {
-	if !orchestratorHealthy {
-		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
-		return
-	}
-
-	resp, err := proxyToOrchestrator("POST", "/apps/stop-all", nil)
-	if err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Failed to stop all apps"})
-		return
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
-		return
-	}
-
-	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
-}
-
-// Get detailed app status from orchestrator
-func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
-	name := mux.Vars(r)["name"]
 	
-	if !orchestratorHealthy {
-		json.NewEncoder(w).Encode(Response{Error: "Orchestrator not available"})
-		return
-	}
+	json.NewEncoder(w).Encode(Response{Success: true, Data: scenarios})
+}
 
-	resp, err := proxyToOrchestrator("GET", fmt.Sprintf("/apps/%s/status", name), nil)
+// Start all enabled apps using native scenario management
+func startAllApps(w http.ResponseWriter, r *http.Request) {
+	result, err := startAllScenariosNative()
 	if err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Failed to get app status"})
+		json.NewEncoder(w).Encode(Response{Error: fmt.Sprintf("Failed to start scenarios: %v", err)})
 		return
 	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		json.NewEncoder(w).Encode(Response{Error: "Invalid response from orchestrator"})
-		return
-	}
-
+	
 	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
 }
 
-// Get orchestrator status
-func getOrchestratorStatus(w http.ResponseWriter, r *http.Request) {
-	status := OrchestratorConfig{
-		Enabled: true,
-		URL:     orchestratorURL,
-		Healthy: orchestratorHealthy,
-		StartCmd: "python3 scripts/scenarios/tools/orchestrator/enhanced_orchestrator.py --verbose --fast",
+// Stop all running apps using native stop implementation
+func stopAllApps(w http.ResponseWriter, r *http.Request) {
+	result, err := stopAllScenariosNative()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: fmt.Sprintf("Failed to stop scenarios: %v", err)})
+		return
 	}
+	
+	json.NewEncoder(w).Encode(Response{Success: true, Data: result})
+}
 
-	if orchestratorHealthy {
-		resp, err := proxyToOrchestrator("GET", "/status", nil)
-		if err == nil {
-			defer resp.Body.Close()
-			var orchStatus map[string]interface{}
-			if json.NewDecoder(resp.Body).Decode(&orchStatus) == nil {
-				json.NewEncoder(w).Encode(Response{
-					Success: true,
-					Data: map[string]interface{}{
-						"orchestrator": status,
-						"system": orchStatus,
-					},
-				})
-				return
-			}
-		}
+// Stop all scenarios endpoint
+func stopAllScenariosEndpoint(w http.ResponseWriter, r *http.Request) {
+	result, err := stopAllScenariosNative()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
 	}
-
+	
 	json.NewEncoder(w).Encode(Response{
 		Success: true,
-		Data: map[string]interface{}{
-			"orchestrator": status,
+		Data:    result,
+	})
+}
+
+// Stop a specific scenario endpoint
+func stopScenarioEndpoint(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	
+	err := stopScenarioNative(name)
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+	
+	json.NewEncoder(w).Encode(Response{
+		Success: true,
+		Data: map[string]string{
+			"message": fmt.Sprintf("Scenario %s stopped successfully", name),
 		},
 	})
 }
+
+// Get detailed app status using native scenario discovery  
+func getDetailedAppStatus(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+
+	scenarios, err := discoverRunningScenarios()
+	if err != nil {
+		json.NewEncoder(w).Encode(Response{Error: "Failed to get scenario status"})
+		return
+	}
+	
+	// Find the specific scenario
+	for _, scenario := range scenarios {
+		if scenario.Name == name {
+			json.NewEncoder(w).Encode(Response{Success: true, Data: scenario})
+			return
+		}
+	}
+	
+	// Scenario not running
+	json.NewEncoder(w).Encode(Response{
+		Success: true, 
+		Data: map[string]interface{}{
+			"name": name, 
+			"status": "stopped",
+			"processes": 0,
+			"ports": map[string]int{},
+		},
+	})
+}
+
 
 func main() {
 	port := os.Getenv("VROOLI_API_PORT")
@@ -814,12 +1463,8 @@ func main() {
 		port = "8092"
 	}
 
-	// Start orchestrator
-	log.Println("🎛️  Starting orchestrator...")
-	if err := startOrchestrator(); err != nil {
-		log.Printf("⚠️  Failed to start orchestrator: %v", err)
-		log.Println("   Continuing without orchestrator (fallback mode)")
-	}
+	// No longer starting orchestrator - using native Go scenario management
+	log.Println("🎛️  Using native Go scenario management")
 
 	// Handle shutdown signals
 	go func() {
@@ -827,19 +1472,16 @@ func main() {
 		ch := make(chan os.Signal, 1)
 		signal.Notify(ch, os.Interrupt, os.Kill)
 		<-ch
-		
+
 		log.Println("🛑 Shutting down gracefully...")
-		if err := stopOrchestrator(); err != nil {
-			log.Printf("⚠️  Error stopping orchestrator: %v", err)
-		}
 		os.Exit(0)
 	}()
 
 	r := mux.NewRouter()
-	
+
 	// Health
 	r.HandleFunc("/health", healthCheck).Methods("GET")
-	
+
 	// Apps API - Enhanced with orchestrator
 	r.HandleFunc("/apps", listApps).Methods("GET")
 	r.HandleFunc("/apps/running", getRunningApps).Methods("GET")
@@ -851,22 +1493,23 @@ func main() {
 	r.HandleFunc("/apps/{name}/restart", restartApp).Methods("POST")
 	r.HandleFunc("/apps/{name}/logs", getAppLogs).Methods("GET")
 	r.HandleFunc("/apps/{name}/status", getDetailedAppStatus).Methods("GET")
-	
-	// Orchestrator API
-	r.HandleFunc("/orchestrator/status", getOrchestratorStatus).Methods("GET")
-	
-	// Scenarios API
-	r.HandleFunc("/scenarios", listScenarios).Methods("GET")
-	r.HandleFunc("/scenarios/{name}/validate", validateScenario).Methods("POST")
-	r.HandleFunc("/scenarios/{name}/status", getScenarioStatus).Methods("GET")
-	
+
+
+	// Scenarios API - Native Go Implementation (replaces Python orchestrator)
+	r.HandleFunc("/scenarios", listScenariosNative).Methods("GET")
+	r.HandleFunc("/scenarios/{name}/status", getScenarioStatusNative).Methods("GET")
+	r.HandleFunc("/scenarios/{name}/start", startApp).Methods("POST")  // Reuse startApp function
+	r.HandleFunc("/scenarios/{name}/stop", stopScenarioEndpoint).Methods("POST")
+	r.HandleFunc("/scenarios/start-all", startAllScenariosEndpoint).Methods("POST")
+	r.HandleFunc("/scenarios/stop-all", stopAllScenariosEndpoint).Methods("POST")
+
 	// Resources API (placeholder)
 	r.HandleFunc("/resources", listResources).Methods("GET")
-	
+
 	// Lifecycle API (placeholder)
 	r.HandleFunc("/lifecycle/{action}", handleLifecycle).Methods("POST")
 
 	log.Printf("🚀 Vrooli Unified API running on port %s", port)
-	log.Printf("   Orchestrator: %s", map[bool]string{true: "✅ healthy", false: "❌ unavailable"}[orchestratorHealthy])
+	log.Printf("   Scenario Management: ✅ native Go implementation")
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }

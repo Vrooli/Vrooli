@@ -40,6 +40,7 @@ TARGETS:
     containers          Stop all Docker containers
     processes           Stop system processes (Python, Node, etc.)
     <name>              Stop specific scenario or resource by name
+    <name1> <name2>...  Stop multiple specific scenarios or resources
 
 SPECIFIC TARGETING:
     scenario:<name>     Stop specific scenario (e.g., scenario:research-assistant)
@@ -70,6 +71,8 @@ EXAMPLES:
     vrooli stop containers             # Stop all Docker containers
     vrooli stop postgres               # Stop PostgreSQL resource
     vrooli stop research-assistant     # Stop specific scenario
+    vrooli stop picker-wheel invoice-generator # Stop multiple scenarios
+    vrooli stop postgres redis         # Stop multiple resources
     vrooli stop scenario:research-assistant # Stop specific scenario (explicit)
     vrooli stop --force --verbose      # Force stop with detailed output
     vrooli stop --timeout 60 scenarios # Stop scenarios with 60s timeout
@@ -101,6 +104,7 @@ parse_stop_args() {
     local show_help=false
     
     # Parse arguments
+    local -a targets=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --help|-h)
@@ -170,22 +174,21 @@ parse_stop_args() {
                 return 1
                 ;;
             *)
-                # This is the target
-                if [[ "$target" == "all" ]]; then
-                    target="$1"
-                else
-                    log::error "Multiple targets specified: '$target' and '$1'"
-                    log::info "Only one target allowed per command"
-                    return 1
-                fi
+                # This is a target - add to targets array
+                targets+=("$1")
                 shift
                 ;;
         esac
     done
     
+    # Set default target if none specified
+    if [[ ${#targets[@]} -eq 0 ]]; then
+        targets=("all")
+    fi
+    
     # Output parsed results
     echo "show_help:$show_help"
-    echo "target:$target"
+    echo "targets:${targets[*]}"
     echo "stop_manager_args:${stop_manager_args[*]}"
 }
 
@@ -263,10 +266,16 @@ stop_command() {
     # Extract parsed values
     local show_help
     show_help=$(echo "$parsed_output" | grep "^show_help:" | cut -d: -f2)
-    local target  
-    target=$(echo "$parsed_output" | grep "^target:" | cut -d: -f2)
+    local targets_str  
+    targets_str=$(echo "$parsed_output" | grep "^targets:" | cut -d: -f2-)
     local stop_manager_args
     stop_manager_args=$(echo "$parsed_output" | grep "^stop_manager_args:" | cut -d: -f2-)
+    
+    # Convert targets string back to array
+    local -a targets=()
+    if [[ -n "$targets_str" ]]; then
+        IFS=' ' read -ra targets <<< "$targets_str"
+    fi
     
     # Handle help request
     if [[ "$show_help" == "true" ]]; then
@@ -274,29 +283,31 @@ stop_command() {
         return 0
     fi
     
-    # Validate target
-    if ! validate_target "$target"; then
-        log::error "Invalid target: '$target'"
-        log::info "Target must be one of: all, scenarios, resources, containers, processes, or a specific scenario/resource name"
-        log::info ""
-        log::info "Available scenarios:"
-        if [[ -d "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios" ]]; then
-            ls "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios" 2>/dev/null | head -5 | sed 's/^/  /' || echo "  (none found)"
-        else
-            echo "  (no scenarios directory)"
+    # Validate all targets
+    for target in "${targets[@]}"; do
+        if ! validate_target "$target"; then
+            log::error "Invalid target: '$target'"
+            log::info "Target must be one of: all, scenarios, resources, containers, processes, or a specific scenario/resource name"
+            log::info ""
+            log::info "Available scenarios:"
+            if [[ -d "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios" ]]; then
+                ls "${VROOLI_ROOT:-$HOME/Vrooli}/scenarios" 2>/dev/null | head -5 | sed 's/^/  /' || echo "  (none found)"
+            else
+                echo "  (no scenarios directory)"
+            fi
+            log::info ""
+            log::info "Available resources:"
+            if [[ -d "${var_RESOURCES_DIR:-${APP_ROOT}/resources}" ]]; then
+                find "${var_RESOURCES_DIR:-${APP_ROOT}/resources}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | \
+                    xargs -I {} basename {} | head -5 | sed 's/^/  /' || echo "  (none found)"
+            else
+                echo "  (no resources directory)"
+            fi
+            log::info ""
+            log::info "Run 'vrooli stop --help' for more information"
+            return 1
         fi
-        log::info ""
-        log::info "Available resources:"
-        if [[ -d "${var_RESOURCES_DIR:-${APP_ROOT}/resources}" ]]; then
-            find "${var_RESOURCES_DIR:-${APP_ROOT}/resources}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | \
-                xargs -I {} basename {} | head -5 | sed 's/^/  /' || echo "  (none found)"
-        else
-            echo "  (no resources directory)"
-        fi
-        log::info ""
-        log::info "Run 'vrooli stop --help' for more information"
-        return 1
-    fi
+    done
     
     # Set environment variables based on parsed arguments
     # (This fixes the subshell export issue in parse_stop_args)
@@ -338,8 +349,20 @@ stop_command() {
     # Environment variables are already set (DRY_RUN, FORCE_STOP, etc.)
     # No need to pass arguments again since stop-commands.sh already parsed them
     
-    # Execute stop manager with just the target
-    stop::main "$target"
+    # Execute stop manager for each target
+    local overall_result=0
+    if [[ ${#targets[@]} -gt 1 ]]; then
+        log::info "Stopping ${#targets[@]} targets: ${targets[*]}"
+    fi
+    
+    for target in "${targets[@]}"; do
+        if [[ ${#targets[@]} -gt 1 ]]; then
+            log::info "Processing: $target"
+        fi
+        stop::main "$target" || overall_result=$?
+    done
+    
+    return $overall_result
 }
 
 # Alias for backwards compatibility and clarity
