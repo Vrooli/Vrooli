@@ -73,6 +73,36 @@ vrooli scenario run [name] OR vrooli resource [name] start
 - Partial implementations: [list]
 ```
 
+#### Visual UI Assessment (MANDATORY for Scenarios with UI)
+```bash
+# Take screenshots of ALL major UI views
+resource-browserless screenshot http://localhost:[PORT]/ --output /tmp/assessment-home.png
+resource-browserless screenshot http://localhost:[PORT]/dashboard --output /tmp/assessment-dashboard.png
+resource-browserless screenshot http://localhost:[PORT]/settings --output /tmp/assessment-settings.png
+
+# READ and visually inspect EACH screenshot
+Read /tmp/assessment-home.png      # Check homepage layout
+Read /tmp/assessment-dashboard.png # Check dashboard rendering
+Read /tmp/assessment-settings.png  # Check settings page
+
+# Document visual state in assessment report:
+## UI Visual Assessment
+- [ ] Homepage renders correctly
+- [ ] Dashboard displays all elements
+- [ ] Forms are properly laid out
+- [ ] Navigation menu is visible and functional
+- [ ] No overlapping or misaligned elements
+- [ ] Colors and themes apply correctly
+- [ ] Images and icons load properly
+- [ ] Text is readable (no truncation/overflow)
+- [ ] Responsive design works (if applicable)
+- [ ] Error states display correctly
+
+# If UI has issues, uncheck related PRD items:
+- [ ] "Beautiful UI" - BROKEN: Navigation overlaps content
+- [ ] "Responsive design" - PARTIAL: Only works on desktop
+```
+
 ### Phase 3: Dependency and Integration Assessment (5%)
 
 #### Check Dependencies

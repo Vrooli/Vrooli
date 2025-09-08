@@ -19,6 +19,7 @@ curl -sf http://localhost:${PORT}/health  # Must respond 200
 # Test each declared resource connection
 # Test API compatibility (no breaking changes)
 # Test shared workflows still load
+# For UI scenarios: Take and READ screenshots to verify visual integration
 ```
 **FAIL = STOP**: Broken integrations break ecosystem
 
@@ -80,6 +81,7 @@ vrooli resource qdrant embeddings refresh --path .
 - [ ] Performance not degraded
 - [ ] No new security issues
 - [ ] Dependencies not broken
+- [ ] **UI not visually broken (verified via screenshots)**
 
 ### Progress Gate  
 - [ ] At least 1 PRD checkbox advanced

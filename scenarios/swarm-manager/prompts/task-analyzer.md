@@ -58,7 +58,7 @@ blockers: []
 
 ### 7. Recommended Scenario
 Which scenario CLI should handle this task?
-- scenario-generator-v1: For creating new scenarios
+- ecosystem-manager: For creating new scenarios/resources and improving existing ones
 - resource-experimenter: For testing resource combinations
 - app-debugger: For fixing broken applications
 - app-issue-tracker: For reported issues

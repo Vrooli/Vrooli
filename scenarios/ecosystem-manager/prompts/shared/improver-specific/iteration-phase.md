@@ -3,9 +3,7 @@
 ## Purpose
 Iteration is where prioritized improvements become reality. The key is making focused, incremental changes that advance the PRD while maintaining system stability.
 
-## Iteration Allocation: 40% of Total Effort
-
-### Iteration Philosophy
+## Iteration Philosophy
 
 **Incremental and Irreversible Progress**
 - Each iteration moves forward
@@ -17,14 +15,14 @@ Think of it like climbing a mountain - each step up is secure before taking the 
 
 ## Iteration Execution Process
 
-### Step 1: Pre-Iteration Setup (5%)
+### Step 1: Pre-Iteration Setup
 
 #### Create Safety Checkpoint
 ```bash
 # Record current state
-vrooli scenario [name] health > /tmp/before-health.txt
+curl localhost:PORT/health > /tmp/before-health.txt
 # OR
-vrooli resource [name] test > /tmp/before-test.txt
+./test.sh > /tmp/before-test.txt
 
 # Note working features
 echo "Working before changes:" > /tmp/iteration-log.txt
@@ -49,7 +47,7 @@ Success Criteria:
 - [ ] Existing endpoints still work
 ```
 
-### Step 2: Implementation (30%)
+### Step 2: Implementation
 
 #### The Golden Rule: One Change at a Time
 ```bash
@@ -88,53 +86,23 @@ def enhanced_function(params):
 
 #### Common Iteration Patterns
 
-**Adding Authentication**
-```javascript
-// Step 1: Add auth middleware
-const authMiddleware = (req, res, next) => {
-    // New auth logic
-    if (requiresAuth(req.path)) {
-        validateToken(req, res, next);
-    } else {
-        next(); // Don't break existing public routes
-    }
-};
+**Common Iteration Patterns:**
+```pseudo
+AUTHENTICATION:
+  add_middleware(auth_check) → protected_routes
+  preserve_existing(public_routes) → no_auth_required
+  test(protected + public) → both_work
+  
+VALIDATION:
+  add_validator(input_rules) → error_list  
+  apply_conditionally(strict_mode) → fail_or_continue
+  maintain_fallback(existing_logic) → no_regression
 
-// Step 2: Apply selectively
-app.use('/api/protected', authMiddleware);
-// Public routes remain unchanged
-
-// Step 3: Test both paths work
+HEALTH_CHECKS:
+  {{INCLUDE: resource-specific/health-checks.md}}
 ```
 
-**Improving Health Checks**
-
-For comprehensive health check implementations, patterns, and best practices:
-{{INCLUDE: resource-specific/health-checks.md}}
-
-**Adding Validation**
-```python
-# Step 1: Add validation function
-def validate_input(data):
-    errors = []
-    if not data.get('required_field'):
-        errors.append('required_field missing')
-    if len(data.get('name', '')) > 100:
-        errors.append('name too long')
-    return errors
-
-# Step 2: Apply with fallback
-def process_request(data):
-    # New validation
-    errors = validate_input(data)
-    if errors and strict_mode:
-        return {'error': errors}, 400
-    
-    # Existing logic continues
-    return original_process(data)
-```
-
-### Step 3: Validation (5%)
+### Step 3: Validation
 
 #### Test the Specific Change
 ```bash
@@ -164,7 +132,13 @@ echo "Running test suite..."
 - [ ] Resource usage acceptable
 ```
 
-### Step 4: PRD Update (5%)
+#### Security Validation (MANDATORY)
+**Every iteration must pass security validation:**
+{{INCLUDE: shared/core/security-requirements.md}}
+
+Run Phase 3 (Validation Security) checks after every change.
+
+### Step 4: PRD Update
 
 #### Update PRD Accurately
 ```markdown
@@ -289,3 +263,11 @@ If iteration fails:
 **Learn from each iteration** - Failures teach valuable lessons
 
 Each iteration is a permanent step forward. Make it count. Make it solid. Make it irreversible progress toward the goal.
+
+## When Iteration Work Is Complete
+
+After completing all iteration changes, follow the comprehensive completion protocol:
+
+**{{INCLUDE: shared/operational/task-completion-protocol.md}}**
+
+Proper task completion ensures your iteration work becomes permanent knowledge that enhances all future agents.

@@ -3,14 +3,14 @@
 ## Purpose
 **IMPROVERS FIX & ENHANCE EXISTING** - Assessment reveals truth vs documentation.
 
-## Assessment Allocation: 20% of Total Effort
+## Assessment Phase
 
-### Primary Mission: Find the Lies
-1. **Audit current state** - What REALLY works?
-2. **Identify breakage** - What's broken despite claims?
-3. **Plan fixes** - What needs immediate attention?
+### Primary Mission: Verify Current State
+1. **Audit functionality** - What actually works?
+2. **Identify issues** - What needs fixing?
+3. **Plan improvements** - What should be prioritized?
 
-### MANDATORY Testing (Trust Nothing)
+### Comprehensive Testing
 ```bash
 # Test what PRD claims works
 vrooli [resource/scenario] [name] develop  # Start it
@@ -99,11 +99,9 @@ NOT: "How do we rebuild this?"
 Think: **"How do we advance PRD checkboxes?"**
 NOT: "How do we create new features?"
 
-## Time Boxing
-- Start & test: 5 minutes MAX
-- PRD validation: 10 minutes MAX
-- Issue search: 3 minutes MAX
-- Documentation: 2 minutes MAX
-- **TOTAL: 20% of task time**
+## Assessment Focus Areas
+- **Primary**: Test current functionality and validate PRD accuracy
+- **Secondary**: Search for known issues and patterns
+- **Documentation**: Record findings clearly
 
 Remember: **Improvers make things ACTUALLY WORK.** Assessment reveals the truth.

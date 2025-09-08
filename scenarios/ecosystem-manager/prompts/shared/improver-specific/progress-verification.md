@@ -37,7 +37,60 @@ vrooli scenario test --e2e
 ab -n 100 -c 10 http://localhost:$PORT/api/endpoint
 ```
 
-### 3. Incremental Progress Tracking
+### 3. Visual UI Validation (CRITICAL for Scenarios with UI)
+
+**For ANY scenario with a user interface, you MUST validate visual appearance:**
+
+```bash
+# 1. Start the scenario
+vrooli scenario [name] develop
+
+# 2. Take screenshots of major views
+resource-browserless screenshot http://localhost:[PORT]/ --output /tmp/homepage.png
+resource-browserless screenshot http://localhost:[PORT]/dashboard --output /tmp/dashboard.png
+resource-browserless screenshot http://localhost:[PORT]/form --output /tmp/form.png
+
+# 3. READ AND INSPECT each screenshot (THIS IS CRITICAL!)
+Read /tmp/homepage.png     # Actually view the UI - check for visual issues
+Read /tmp/dashboard.png    # Look for layout breaks, missing elements
+Read /tmp/form.png         # Verify forms render correctly
+
+# 4. Document what you see
+## Visual Validation Checklist
+- [ ] Layout is intact (no overlapping elements)
+- [ ] All text is readable and properly formatted
+- [ ] Buttons are visible and properly styled
+- [ ] Forms render with all fields visible
+- [ ] No missing images, icons, or assets
+- [ ] Colors match expected theme
+- [ ] Responsive design works (if applicable)
+- [ ] Error messages display correctly
+- [ ] Loading states appear properly
+- [ ] Navigation elements are accessible
+
+# 5. Before/After comparison for improvements
+# BEFORE making changes:
+resource-browserless screenshot http://localhost:[PORT] --output /tmp/before.png
+Read /tmp/before.png  # Document current state
+
+# AFTER making changes:
+resource-browserless screenshot http://localhost:[PORT] --output /tmp/after.png
+Read /tmp/after.png   # Compare to before
+
+# Document improvements or regressions:
+## Visual Changes
+- Improvements: [list visual improvements]
+- Regressions: [list any visual degradation]
+- Unchanged: [list what remained the same]
+```
+
+**Visual Validation Failure Protocol:**
+- If UI is broken, DO NOT mark UI features as complete
+- Take additional screenshots of problem areas
+- Document specific visual issues with screenshots
+- Include visual fixes in improvement plan
+
+### 4. Incremental Progress Tracking
 
 Document each iteration:
 ```markdown
@@ -51,7 +104,7 @@ Document each iteration:
 - **Net Progress**: [actual advancement]
 ```
 
-### 4. Anti-Progress Detection
+### 5. Anti-Progress Detection
 
 Watch for backwards movement:
 - Previously working features now broken
@@ -59,8 +112,9 @@ Watch for backwards movement:
 - Performance degradation
 - New bugs introduced
 - Documentation outdated by changes
+- **UI regressions (visual breaks, layout issues)**
 
-### 5. Progress Velocity Calculation
+### 6. Progress Velocity Calculation
 
 ```
 velocity = (P0_complete * 3 + P1_complete * 2 + P2_complete * 1) / time_spent

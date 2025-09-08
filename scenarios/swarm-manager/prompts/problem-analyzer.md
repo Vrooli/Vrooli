@@ -109,7 +109,8 @@ When suggesting tasks for problem resolution:
 ### Fix Implementation Tasks  
 - Use **core-debugger** for core infrastructure fixes (has workaround database)
 - Use **resource-experimenter** for trying different solutions
-- Use **scenario-generator-v1** for creating new tools/scenarios
+- Use **ecosystem-manager** for creating new tools/scenarios/resources
+- Use **ecosystem-manager** for improving existing scenarios/resources
 - Be specific about what needs to be implemented
 
 ### Prevention Tasks

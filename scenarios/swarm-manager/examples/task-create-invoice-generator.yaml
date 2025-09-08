@@ -6,7 +6,7 @@ description: |
   Target market: Small businesses and freelancers.
   Estimated value: $30K-50K
 type: scenario
-target: scenario-generator-v1
+target: ecosystem-manager
 priority_estimates:
   impact: 8
   urgency: "medium"

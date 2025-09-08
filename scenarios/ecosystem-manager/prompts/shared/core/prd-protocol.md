@@ -90,11 +90,57 @@ For each ✅ in PRD:
 - 2024-01-17: 30% → 45% (Fixed auth, added API)
 ```
 
-## PRD Templates Location
-- **Resources**: `/templates/prd-resource-template.md`
-- **Scenarios**: `/templates/prd-scenario-template.md`
+## PRD Template Examples
 
-Use templates as STARTING POINT, customize for specific needs.
+### Resource PRD Example
+```markdown
+# [Resource Name] PRD
+
+## Executive Summary
+**What**: PostgreSQL database resource with v2.0 compliance
+**Why**: Central data storage for all scenarios  
+**Who**: All data-driven scenarios
+**Value**: Enables $100K+ in scenario value
+**Priority**: P0 - Core infrastructure
+
+## P0 Requirements (Must Have)
+- [ ] v2.0 contract compliance with all lifecycle hooks
+- [ ] Health check with 5-second timeout
+- [ ] Automatic database initialization
+- [ ] Connection pooling configuration
+- [ ] Backup and restore commands
+
+## Technical Specifications
+- **Port**: 25432 (from resource registry)
+- **Dependencies**: None (base resource)
+- **CLI Commands**: manage, test, content, status
+- **Performance**: <100ms connection time
+```
+
+### Scenario PRD Example
+```markdown
+# [Scenario Name] PRD
+
+## Executive Summary
+**What**: Invoice generator with template management
+**Why**: Automates $50K worth of manual invoicing
+**Who**: Small businesses and freelancers
+**Value**: $50K revenue from 100 customers
+**Priority**: P0 - Revenue generating
+
+## P0 Requirements (Must Have)
+- [ ] Create invoices from templates
+- [ ] PDF and email generation
+- [ ] Customer database integration
+- [ ] Payment tracking
+- [ ] Multi-currency support
+
+## Technical Specifications
+- **Resources**: postgres, redis, browserless
+- **API**: REST with 10 endpoints
+- **Database**: 5 tables, 20 fields total
+- **Performance**: <2s invoice generation
+```
 
 ## Common PRD Mistakes to AVOID
 
@@ -134,15 +180,7 @@ Use notes, not checkmarks:
 
 ## Time Allocation for PRDs
 
-### Generators (50% of total effort)
-- Research → PRD: 20%
-- Writing PRD: 20%
-- Technical specs: 10%
-
-### Improvers (Within 20% assessment)
-- Validation: 10%
-- Updating: 5%
-- Progress tracking: 5%
+See sections.yaml for standardized time allocations.
 
 ## PRD Success Metrics
 

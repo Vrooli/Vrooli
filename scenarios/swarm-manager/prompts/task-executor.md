@@ -26,8 +26,18 @@ core-debugger list-issues                    # List active core issues
 core-debugger get-workaround "<error>"       # Get workaround for error
 core-debugger analyze-issue <issue-id>       # Analyze issue with Claude
 
-# Create new scenarios
-scenario-generator-v1 create --name "<name>" --requirements "<requirements>"
+# Create new scenarios and resources with ecosystem-manager
+ecosystem-manager add scenario "<name>" --category "<category>" --priority "<priority>"
+ecosystem-manager add resource "<name>" --category "<category>" --priority "<priority>"
+
+# Improve existing scenarios and resources  
+ecosystem-manager improve scenario "<name>" --priority "<priority>"
+ecosystem-manager improve resource "<name>" --priority "<priority>"
+
+# Monitor ecosystem-manager tasks
+ecosystem-manager list --status pending
+ecosystem-manager show <task-id>
+ecosystem-manager status <task-id> --progress <percentage> --phase "<phase>"
 
 # Test resource combinations
 resource-experimenter test --scenario "<scenario>" --add-resource "<resource>"

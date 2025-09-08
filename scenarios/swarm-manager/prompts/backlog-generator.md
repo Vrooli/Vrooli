@@ -140,7 +140,7 @@ For each suggested task, provide:
     Build a SaaS application for generating and managing invoices
     with PDF export and email capabilities.
   type: scenario
-  target: scenario-generator-v1
+  target: ecosystem-manager
   estimated_impact: 8
   estimated_complexity: high
   rationale: |
@@ -162,6 +162,8 @@ When discovered problems are present:
    - Application failures → app-debugger
    - Performance issues → system-monitor
    - Integration problems → resource-experimenter
-   - Missing capabilities → scenario-generator-v1
+   - Missing capabilities → ecosystem-manager
+   - Resource improvements → ecosystem-manager
+   - Scenario improvements → ecosystem-manager
 
 Focus on making the system more reliable, performant, and autonomous through intelligent problem resolution.

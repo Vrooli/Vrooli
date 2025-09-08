@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "tags": [
       "management",
-      "resource-generator", 
+      "resource-generator",
       "scenario-generator",
       "ai-orchestration",
       "metadata",
@@ -48,7 +48,7 @@
       "description": "AI for resource and scenario generation"
     },
     "postgres": {
-      "type": "postgres", 
+      "type": "postgres",
       "enabled": true,
       "required": true,
       "description": "Task queue and metadata storage"
@@ -101,7 +101,7 @@
             "type": "directories",
             "targets": [
               "queue/pending",
-              "queue/in-progress", 
+              "queue/in-progress",
               "queue/completed",
               "queue/failed",
               "data",
@@ -122,7 +122,7 @@
           "description": "Build Go API binary"
         },
         {
-          "name": "install-ui-deps", 
+          "name": "install-ui-deps",
           "run": "cd ui && if [ -f package.json ]; then npm install --silent; fi",
           "description": "Install UI dependencies if package.json exists",
           "condition": {
@@ -186,18 +186,18 @@
       "description": "Stop Ecosystem Manager services",
       "steps": [
         {
-          "name": "stop-by-port",
-          "run": "lsof -ti:${API_PORT} 2>/dev/null | xargs -r kill -TERM || true",
-          "description": "Stop processes by port"
+          "name": "stop-api",
+          "run": "pkill -f \"ecosystem-manager-api\" 2>/dev/null || true; sleep 1; if pgrep -f \"ecosystem-manager-api\" >/dev/null 2>&1; then echo \"⚠️ API processes still running, force killing...\"; pkill -9 -f \"ecosystem-manager-api\" 2>/dev/null || true; sleep 1; fi; if pgrep -f \"ecosystem-manager-api\" >/dev/null 2>&1; then echo \"❌ FAILED to kill API processes\"; false; else echo \"✅ API processes stopped\"; fi",
+          "description": "Stop API process with verification and force kill if needed"
         },
         {
-          "name": "stop-by-name", 
-          "run": "pgrep -f ecosystem-manager-api | xargs -r kill -TERM || true",
-          "description": "Stop processes by name pattern"
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true; sleep 1; if pgrep -f \"scenarios/ecosystem-manager.*vite\" >/dev/null 2>&1; then echo \"⚠️ UI processes still running, force killing...\"; pkill -9 -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true; sleep 1; fi; if pgrep -f \"scenarios/ecosystem-manager.*vite\" >/dev/null 2>&1; then echo \"❌ FAILED to kill UI processes\"; false; else echo \"✅ UI processes stopped\"; fi",
+          "description": "Stop UI vite process with verification and force kill if needed"
         },
         {
           "name": "cleanup-stale-tasks",
-          "run": "find queue/in-progress -name '*.yaml' -mmin +120 2>/dev/null | xargs -I {} mv {} queue/pending/ || true",
+          "run": "find queue/in-progress -name \"*.yaml\" -mmin +120 2>/dev/null | xargs -I {} mv {} queue/pending/ || true",
           "description": "Move stale in-progress tasks back to pending"
         }
       ]
@@ -213,7 +213,7 @@
       },
       {
         "path": "/tasks",
-        "method": "POST", 
+        "method": "POST",
         "description": "Create new task"
       },
       {
@@ -257,28 +257,47 @@
       "resource-generator": {
         "description": "Generate new resources with v2.0 compliance",
         "effort_estimate": "4h",
-        "deliverables": ["PRD.md", "Directory structure", "Health checks", "CLI integration"]
+        "deliverables": [
+          "PRD.md",
+          "Directory structure",
+          "Health checks",
+          "CLI integration"
+        ]
       },
       "resource-improver": {
-        "description": "Improve existing resources for compliance and reliability", 
+        "description": "Improve existing resources for compliance and reliability",
         "effort_estimate": "2h",
-        "deliverables": ["Updated PRD.md", "Enhanced health checks", "Better CLI"]
+        "deliverables": [
+          "Updated PRD.md",
+          "Enhanced health checks",
+          "Better CLI"
+        ]
       },
       "scenario-generator": {
         "description": "Generate new scenarios with comprehensive PRDs",
-        "effort_estimate": "6h", 
-        "deliverables": ["PRD.md", "API implementation", "UI", "Tests", "Documentation"]
+        "effort_estimate": "6h",
+        "deliverables": [
+          "PRD.md",
+          "API implementation",
+          "UI",
+          "Tests",
+          "Documentation"
+        ]
       },
       "scenario-improver": {
         "description": "Improve existing scenarios for PRD completion",
         "effort_estimate": "3h",
-        "deliverables": ["PRD progression", "Feature enhancements", "Better UX"]
+        "deliverables": [
+          "PRD progression",
+          "Feature enhancements",
+          "Better UX"
+        ]
       }
     },
     "categories": {
       "resource_categories": [
         "ai-ml",
-        "storage", 
+        "storage",
         "automation",
         "monitoring",
         "communication",
@@ -287,14 +306,19 @@
       "scenario_categories": [
         "productivity",
         "ai-tools",
-        "business", 
+        "business",
         "personal",
         "automation",
         "entertainment"
       ]
     },
     "queue": {
-      "statuses": ["pending", "in-progress", "completed", "failed"],
+      "statuses": [
+        "pending",
+        "in-progress",
+        "completed",
+        "failed"
+      ],
       "max_concurrent": 3,
       "retry_attempts": 2,
       "cooldown_minutes": 15
@@ -302,7 +326,7 @@
     "monitoring": {
       "metrics": [
         "tasks_created",
-        "tasks_completed", 
+        "tasks_completed",
         "success_rate",
         "average_completion_time",
         "prd_completion_percentage"

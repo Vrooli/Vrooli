@@ -13,6 +13,7 @@ base_sections:
   - shared/core/memory-system
   - shared/core/validation-gates
   - shared/core/prd-protocol
+  - shared/core/security-requirements
   
   # Methodologies (shared across all operations)
   - shared/methodologies/implementation-methodology
@@ -22,6 +23,7 @@ base_sections:
   - shared/operational/selection-algorithms
   - shared/operational/failure-recovery
   - shared/operational/collision-avoidance
+  - shared/operational/task-completion-protocol
 
 # Operation-specific section configurations
 operations:
@@ -53,23 +55,17 @@ operations:
       scenario_type: "resource"
       focus: "one-time creation of new resources"
       primary_output: "v2.0 compliant resource with PRD"
-      research_percentage: 30
-      prd_percentage: 50
-      implementation_percentage: 20
     
-    effort_allocation:
-      research: "30% - Check for existing resources, patterns, and best practices"
-      prd_creation: "50% - Comprehensive PRD with technical specifications (PRIMARY DELIVERABLE)"
-      scaffolding: "20% - Minimal viable structure with health checks"
+    # Time allocation: See global_config.time_allocations.generators
     
     success_criteria:
-      - "Unique resource (not duplicating existing)"
-      - "v2.0 contract compliance"
-      - "Health checks working"
-      - "Lifecycle hooks implemented"
-      - "CLI integration functional"
-      - "Port allocation successful"
-      - "PRD complete and accurate"
+      - "Unique resource verified: `grep -r 'resource_name' resources/` returns no matches"
+      - "v2.0 contract compliance: `ls lib/` shows setup.sh, develop.sh, test.sh, stop.sh, health.sh"
+      - "Health checks working: `curl localhost:PORT/health` returns 200 in <5s"
+      - "Lifecycle hooks implemented: All `lib/*.sh` scripts execute without errors"
+      - "CLI integration functional: `vrooli resource RESOURCE_NAME help` shows available commands"
+      - "Port allocation successful: `netstat -tlnp | grep PORT` shows service listening"
+      - "PRD complete: All mandatory sections present, 5+ P0 requirements with test commands"
     
     principles:
       - "v2.0 contract is mandatory"
@@ -105,24 +101,16 @@ operations:
       scenario_type: "resource"
       focus: "iterative improvement of existing resources"
       primary_output: "v2.0 compliance and enhanced reliability"
-      assessment_percentage: 20
-      prioritization_percentage: 10
-      implementation_percentage: 60
-      validation_percentage: 10
     
-    effort_allocation:
-      assessment: "20% - Audit current state and verify PRD accuracy"
-      prioritization: "10% - Identify highest-impact fixes"
-      implementation: "60% - Fix issues and advance PRD checkboxes"
-      validation: "10% - Verify improvements and update PRD"
+    # Time allocation: See global_config.time_allocations.improvers
     
     success_criteria:
-      - "v2.0 contract compliance improved"
-      - "Health checks more robust"
-      - "CLI commands standardized"
-      - "No regressions in functionality"
-      - "Documentation updated"
-      - "Memory system updated"
+      - "v2.0 contract compliance improved: Missing files in `ls lib/` are now present and executable"
+      - "Health checks more robust: `curl localhost:PORT/health` passes with timeout handling and error details"
+      - "CLI commands standardized: `vrooli resource NAME help` shows status, health, logs, content commands"
+      - "No regressions: All previously passing `lib/test.sh` tests still pass"
+      - "Documentation updated: README reflects actual implementation, no broken links"
+      - "Memory system updated: `vrooli resource qdrant search 'resource_name'` returns updated info"
     
     principles:
       - "v2.0 compliance is priority #1"
@@ -151,34 +139,29 @@ operations:
       
       # Scenario-specific knowledge
       - shared/scenario-specific/cross-impact
+      - shared/scenario-specific/ui-validation
     
     variables:
       scenario_type: "scenario"
       focus: "one-time creation of new scenarios"
       primary_output: "Comprehensive PRD.md and scaffolded structure"
-      research_percentage: 30
-      prd_percentage: 50
-      implementation_percentage: 20
     
-    effort_allocation:
-      research: "30% - Exhaustive Qdrant searches and external research"
-      prd_creation: "50% - Comprehensive PRD with all sections (PRIMARY DELIVERABLE)"
-      scaffolding: "20% - Minimal viable structure from template"
+    # Time allocation: See global_config.time_allocations.generators
     
     success_criteria:
-      - "Unique scenario (not duplicating existing)"
-      - "Complete PRD with all required sections"
-      - "Health checks respond successfully"
-      - "Basic structure follows templates"
-      - "One P0 requirement implemented"
-      - "Memory system updated"
+      - "Unique scenario verified: `grep -r 'scenario_name' scenarios/` returns no existing matches"
+      - "Complete PRD: PRD.md has Executive Summary, P0/P1/P2 sections, Technical Specs, Success Metrics"
+      - "Health checks respond: `curl localhost:PORT/health` returns 200 OK within 5 seconds"
+      - "Structure matches templates: Directory has api/, ui/, cli/, initialization/, PRD.md, README.md"
+      - "One P0 implemented and testable: Specific P0 requirement works with documented test command"
+      - "Memory updated: `vrooli resource qdrant search 'scenario_name'` returns new scenario info"
     
     principles:
       - "Research prevents duplication"
       - "PRD is the primary deliverable"
       - "Quality over completeness"
       - "Enable future improvements"
-      - "Focus on revenue generation"
+      - "Focus on solving real problems"
 
   scenario-improver:
     name: scenario-improver
@@ -200,30 +183,23 @@ operations:
       # Scenario-specific knowledge
       - shared/scenario-specific/cross-impact
       - shared/scenario-specific/shared-workflows
-      - shared/scenario-specific/revenue-generation
+      - shared/scenario-specific/ui-validation
+      # Note: Value generation guidance integrated into principles
     
     variables:
       scenario_type: "scenario"
       focus: "iterative improvement of existing scenarios"
       primary_output: "PRD progression and working features"
-      assessment_percentage: 20
-      prioritization_percentage: 10
-      implementation_percentage: 60
-      validation_percentage: 10
     
-    effort_allocation:
-      assessment: "20% - Verify PRD accuracy and test current state"
-      prioritization: "10% - Select highest-impact improvements"
-      implementation: "60% - Make focused changes to advance PRD"
-      validation: "10% - Update PRD checkboxes and verify"
+    # Time allocation: See global_config.time_allocations.improvers
     
     success_criteria:
-      - "PRD checkboxes accurately reflect reality"
-      - "At least one P0/P1 requirement completed"
-      - "No regressions in existing functionality"
-      - "All validation gates pass"
-      - "Cross-scenario impacts considered"
-      - "Memory system updated with learnings"
+      - "PRD accuracy validated: Each checked ✅ requirement tested and verified working"
+      - "Progress measurable: At least one P0/P1 requirement moves from ☐ to ✅ with completion date"
+      - "No regressions verified: All previously working features tested and still functional"
+      - "Validation gates pass: Health, functionality, security, and integration tests all succeed"
+      - "Cross-scenario impacts assessed: Dependencies checked, no breaking changes to other scenarios"
+      - "Memory updated: `vrooli resource qdrant search 'scenario improvements'` includes recent work"
     
     principles:
       - "Trust but verify everything"
@@ -234,6 +210,18 @@ operations:
 
 # Global configuration
 global_config:
+  # Standardized time allocations (percentages)
+  time_allocations:
+    generators:
+      research: 30  # Memory search, web research, duplicate detection
+      prd_creation: 50  # PRIMARY DELIVERABLE - comprehensive PRD
+      scaffolding: 20  # Basic structure, health checks, minimal implementation
+    improvers:
+      assessment: 20  # Test current state, verify PRD accuracy
+      prioritization: 10  # Identify highest-impact improvements
+      implementation: 60  # Fix issues, advance PRD checkboxes
+      validation: 10  # Verify improvements, update documentation
+    
   # Resource categories (for all resource operations)
   resource_categories:
     ai_ml: "AI/ML resources (models, inference)"

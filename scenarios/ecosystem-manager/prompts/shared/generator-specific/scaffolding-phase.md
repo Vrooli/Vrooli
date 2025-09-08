@@ -94,68 +94,24 @@ Implement ONLY:
 3. **One P0 requirement** - Prove the concept works
 4. **Basic CLI command** - Minimum interaction
 
-Example minimal API (Go):
-```go
-package main
+#### Security Implementation (MANDATORY)
+**All scaffolding must implement security from day one:**
+{{INCLUDE: shared/core/security-requirements.md}}
 
-import (
-    "encoding/json"
-    "log"
-    "net/http"
-    "os"
-)
+Focus on Phase 1 (Design Security) and Phase 2 (Implementation Security) requirements.
 
-func main() {
-    port := os.Getenv("PORT")
-    if port == "" {
-        port = "3000"
-    }
-
-    // Health check - REQUIRED
-    http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-        json.NewEncoder(w).Encode(map[string]bool{"healthy": true})
-    })
-
-    // One core endpoint - prove it works
-    http.HandleFunc("/api/core", func(w http.ResponseWriter, r *http.Request) {
-        json.NewEncoder(w).Encode(map[string]string{
-            "status": "operational",
-            "message": "Core functionality placeholder",
-        })
-    })
-
-    log.Printf("Starting server on port %s", port)
-    log.Fatal(http.ListenAndServe(":"+port, nil))
-}
-```
-
-Example minimal CLI (Bash):
-```bash
-#!/bin/bash
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/lib/core.sh"
-
-case "$1" in
-    setup)
-        echo "Setting up [name]..."
-        # Minimal setup
-        ;;
-    start|develop)
-        echo "Starting [name]..."
-        # Start the service
-        ;;
-    stop)
-        echo "Stopping [name]..."
-        # Stop the service
-        ;;
-    health)
-        check_health
-        ;;
-    help|*)
-        echo "Usage: $0 {setup|start|stop|health|help}"
-        ;;
-esac
+**Minimal Implementation Pattern:**
+```pseudo
+API_SERVER:
+  GET /health → {"healthy": true}
+  GET /api/core → {"status": "operational"} 
+  PORT = env.PORT || default
+  
+CLI_COMMANDS:
+  setup → initialize_dependencies()
+  start → launch_service()
+  stop → graceful_shutdown()
+  health → check_endpoints()
 ```
 
 ### Step 4: Configuration
@@ -283,3 +239,11 @@ This is a scaffold ready for improvement. See PRD.md for requirements and priori
 **Leave room to grow** - Don't over-constrain the future
 
 The scaffold is the foundation. Make it solid, clear, and extensible. Future improvers will thank you.
+
+## When Scaffolding Is Complete
+
+After completing all scaffolding work (PRD + structure + basic implementation), follow the comprehensive completion protocol:
+
+**{{INCLUDE: shared/operational/task-completion-protocol.md}}**
+
+Proper task completion transforms your scaffolding work into permanent ecosystem knowledge and ensures smooth handoff to improvers.

@@ -3,24 +3,22 @@
 ## Purpose
 **GENERATORS CREATE NEW** - Research ensures we're filling real gaps, not duplicating.
 
-## Research Allocation: 30% of Total Effort
+## Research Phase
 
 ### Primary Mission: Prove Need for NEW
 1. **Find the gap** - What's missing from ecosystem?
 2. **Explore solutions** - What could fill this gap?
 3. **Design approach** - How will we create it?
 
-### MANDATORY Searches (Must Find ZERO Duplicates)
+### Essential Duplicate Check
 ```bash
-# Exact match search - MUST return 0
-vrooli resource qdrant search-all "[exact resource/scenario name]"
+# Search for exact name matches
 rg -i "^#.*{{EXACT_NAME}}" /home/matthalloran8/Vrooli --type md
 
-# Functional duplicate search - MUST return 0
-vrooli resource qdrant search-all "identical [core functionality]"
+# Search for similar functionality 
 grep -r "{{CORE_FUNCTIONALITY}}" /home/matthalloran8/Vrooli/scenarios
 ```
-**If duplicates found: STOP. Consider improving existing instead.**
+**If duplicates found: Consider improving the existing implementation instead.**
 
 ### Pattern Mining (Find What to Copy/Adapt)
 ```bash
@@ -54,23 +52,23 @@ Research EXTERNAL sources to confirm need:
 
 ## Research Quality Gates
 
-### Gate 1: Uniqueness (MUST PASS)
-- [ ] Zero exact matches found
-- [ ] Zero functional duplicates found
+### Gate 1: Uniqueness Check
+- [ ] No exact matches found
+- [ ] No functional duplicates found
 - [ ] Clear gap identified
 - [ ] Not recreating existing work
 
-### Gate 2: Foundation (MUST PASS)
-- [ ] 2+ templates identified to start from
-- [ ] 3+ patterns found to reuse
+### Gate 2: Foundation Ready
+- [ ] Templates identified to start from
+- [ ] Patterns found to reuse
 - [ ] Base scaffold selected
 - [ ] Copy/adapt strategy clear
 
-### Gate 3: Value (MUST PASS)
+### Gate 3: Value Validation
 - [ ] Real problem identified
 - [ ] External validation completed
 - [ ] Unique solution designed
-- [ ] Revenue potential confirmed
+- [ ] Practical value confirmed
 
 ## What Generators DON'T Research
 ❌ **DON'T research how to fix existing** - That's improver work

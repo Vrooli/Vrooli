@@ -171,8 +171,9 @@ vrooli resource [name] start
 vrooli resource [name] test
 vrooli resource [name] health
 
-# Screenshot validation (for UI)
-resource-browserless screenshot http://localhost:[PORT] --output /tmp/[name]-test.png
+# UI Visual Validation (CRITICAL for scenarios with UI)
+# See comprehensive UI validation guide:
+{{INCLUDE: scenario-specific/ui-validation.md}}
 ```
 
 ### Phase 4: Documentation and Finalization (10%)

@@ -21,9 +21,9 @@ claude_config:
   
 # Scenario Registry - Available scenarios and their CLIs
 available_scenarios:
-  - name: scenario-generator-v1
-    cli: scenario-generator-v1
-    purpose: "Create new scenarios from requirements"
+  - name: ecosystem-manager
+    cli: ecosystem-manager
+    purpose: "Create and improve scenarios and resources"
     
   - name: resource-experimenter
     cli: resource-experimenter
@@ -77,7 +77,12 @@ task_type_scenarios:
   cli-issue: core-debugger
   orchestrator-issue: core-debugger
   setup-failure: core-debugger
-  scenario: scenario-generator-v1
+  scenario: ecosystem-manager
+  scenario-generation: ecosystem-manager
+  scenario-improvement: ecosystem-manager
+  resource-generation: ecosystem-manager
+  resource-improvement: ecosystem-manager
+  resource: ecosystem-manager
   experiment: resource-experimenter
   bug-fix: app-debugger
   app-debug: app-debugger  # Clarified for app-level issues

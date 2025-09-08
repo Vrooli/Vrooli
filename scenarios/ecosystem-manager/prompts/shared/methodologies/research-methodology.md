@@ -3,9 +3,9 @@
 ## Purpose
 Research is the foundation of high-quality scenario and resource creation. Proper research prevents duplicated work, identifies proven patterns, and learns from past failures.
 
-## Research Phases (Minimum 40% of Total Effort)
+## Research Phases (30% of generator effort - see sections.yaml)
 
-### Phase 1: Local Memory Search (20% minimum)
+### Phase 1: Local Memory Search (50% of research time)
 
 #### Mandatory Qdrant Searches
 **Follow the standard 5-command search sequence** defined in core/memory-search-patterns.md before creating ANYTHING.
@@ -16,7 +16,7 @@ Research is the foundation of high-quality scenario and resource creation. Prope
 - **3+ failure patterns** to avoid
 - **List of dependencies** and integration points
 
-### Phase 2: External Research (20% minimum)
+### Phase 2: External Research (50% of research time)
 
 #### Web Research Requirements
 ```bash

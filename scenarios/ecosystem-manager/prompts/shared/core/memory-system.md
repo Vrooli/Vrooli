@@ -12,17 +12,16 @@ You MUST search Vrooli's memory before beginning any task to learn from all past
 
 ### Primary: Qdrant Search
 ```bash
-# Search for similar work across all categories
-vrooli resource qdrant search-all "your task keywords"
+# Search for similar work (use the Qdrant API or CLI if available)
+# Example patterns to search for:
+# - "your task keywords" across all categories
+# - "error pattern" in scenarios
+# - "integration approach" in resources
+# - "ui component" in code
+# - "failed attempt" in docs
+# - "breaking change" in scenarios
 
-# Search specific categories
-vrooli resource qdrant search "error pattern" scenarios
-vrooli resource qdrant search "integration approach" resources
-vrooli resource qdrant search "ui component" code
-
-# Search for known issues
-vrooli resource qdrant search "failed attempt" docs
-vrooli resource qdrant search "breaking change" scenarios
+# Note: Adapt these to your actual Qdrant interface
 ```
 
 ### FALLBACK: If Qdrant Fails, Use File Search
@@ -64,22 +63,11 @@ Your work is worthless if future agents can't learn from it. ALWAYS update the m
 [How it connects to other parts]
 ```
 
-### 2. Refresh Embeddings
-```bash
-# After documentation updates
-vrooli resource qdrant embeddings refresh
-
-# Force refresh if critical knowledge
-vrooli resource qdrant embeddings refresh --force
-```
+### 2. Update Memory System
+After creating documentation, ensure it's indexed in the memory system through available embedding tools or APIs.
 
 ### 3. Verify Memory Update
-```bash
-# Search for your new content
-vrooli resource qdrant search-all "your new feature"
-
-# Should return your documentation
-```
+Search for your new content to confirm it's been indexed properly.
 
 ## Memory Categories
 
@@ -117,23 +105,15 @@ The Qdrant system indexes these knowledge types:
 
 ### Pattern Recognition
 Before implementing something new:
-```bash
-# Find similar patterns
-vrooli resource qdrant search-all "similar to [your task]"
-
-# Study the results
-# Adapt successful patterns
-# Avoid failed approaches
-```
+- Search for similar patterns in the codebase
+- Study successful implementations
+- Adapt proven approaches
+- Avoid documented failures
 
 ### Failure Prevention
-```bash
-# Search for known issues
-vrooli resource qdrant search "[technology] problem" docs
-vrooli resource qdrant search "[integration] failed" scenarios
-
-# Learn from past mistakes
-```
+- Search for known issues with the technology or integration
+- Review past failure documentation
+- Learn from previous attempts
 
 ### Knowledge Building
 Every solution should:

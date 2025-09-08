@@ -1,15 +1,24 @@
 # Scenario Registry - Maps scenarios to their capabilities and CLIs
 
 scenarios:
-  scenario-generator-v1:
-    cli: scenario-generator-v1
+  ecosystem-manager:
+    cli: ecosystem-manager
     capabilities:
       - create_scenario
+      - create_resource
+      - improve_scenario
+      - improve_resource
       - generate_ui
       - generate_workflows
       - validate_requirements
+      - prd_creation
+      - scaffolding
+      - v2_contract_compliance
     best_for:
       - New scenario creation
+      - New resource creation
+      - Scenario improvement and PRD completion
+      - Resource v2.0 compliance and enhancement
       - Business application generation
       - SaaS product development
     resource_usage: heavy
@@ -144,7 +153,18 @@ selection_rules:
     priority_boost: 10
     
   - if_contains: ["create", "generate", "build", "new scenario"]
-    use: scenario-generator-v1
+    use: ecosystem-manager
+    
+  - if_contains: ["create", "generate", "build", "new resource"]
+    use: ecosystem-manager
+    
+  - if_contains: ["improve", "enhance", "fix", "upgrade"]
+    and_contains: ["scenario"]
+    use: ecosystem-manager
+    
+  - if_contains: ["improve", "enhance", "fix", "upgrade"]
+    and_contains: ["resource"]
+    use: ecosystem-manager
     
   - if_contains: ["test", "experiment", "try", "variant"]
     use: resource-experimenter

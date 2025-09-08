@@ -6,7 +6,7 @@ Vrooli is a **self-improving AI platform** that orchestrates local resources to 
 
 - **AI agents are the primary developers**, not humans
 - **Every scenario becomes a permanent capability** that enhances the system
-- **Scenarios are revenue-generating business applications** ($10K-50K typical value)
+- **Scenarios are practical business applications** that solve real problems
 - **The platform combines 30+ local resources** into powerful solutions
 - **Knowledge is permanent** through the Qdrant memory system
 
@@ -55,16 +55,16 @@ The Qdrant vector database serves as Vrooli's long-term memory:
 ## Business Model
 
 ### Value Creation
-- Each scenario represents $10K-50K in business value
-- Scenarios solve real problems for real customers
+- Each scenario solves specific business problems
+- Scenarios provide measurable efficiency gains
 - The platform can generate hundreds of scenarios
-- Total platform value grows exponentially
+- Total platform value compounds over time
 
-### Revenue Streams
-- Direct scenario sales
-- SaaS subscriptions for scenario access
+### Deployment Models
+- Direct scenario deployment
+- SaaS access for scenario usage
 - Custom scenario development
-- Enterprise deployments
+- Enterprise installations
 
 ## Key Principles
 
