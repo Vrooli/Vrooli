@@ -18,7 +18,6 @@
       "automation",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "node-red-flows",
       "postgres-storage",
       "redis-cache",
@@ -69,35 +68,6 @@
         "llama3.2"
       ],
       "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/app-health-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/app-performance-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/auto-restart.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/resource-monitor.json",
-          "type": "workflow"
-        }
-      ],
-      "shared_workflows": [
-        "ollama.json",
-        "cache-manager.json",
-        "rate-limiter.json",
-        "n8n-workflow-executor.json"
-      ]
     },
     "node-red": {
       "type": "node-red",
@@ -196,7 +166,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -232,7 +202,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]

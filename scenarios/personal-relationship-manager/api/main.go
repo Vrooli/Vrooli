@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/lib/pq"
 	"github.com/gorilla/mux"
@@ -71,43 +73,81 @@ type Reminder struct {
 }
 
 var db *sql.DB
+var relationshipProcessor *RelationshipProcessor
 
 func initDB() {
-	var err error
+	// ALL database configuration MUST come from environment - no defaults
 	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
-	}
 	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		dbPort = "5433"
-	}
 	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "postgres"
-	}
 	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		dbName = "personal_relationships"
+
+	// Validate required environment variables
+	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 	}
 
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
 	
+	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Failed to open database connection:", err)
 	}
 
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
-	}
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	log.Println("Connected to database")
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -378,9 +418,112 @@ func getRemindersHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reminders)
 }
 
+func getBirthdaysHandler(w http.ResponseWriter, r *http.Request) {
+	daysAhead := 7 // default
+	if d := r.URL.Query().Get("days_ahead"); d != "" {
+		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 {
+			daysAhead = parsed
+		}
+	}
+
+	ctx := r.Context()
+	reminders, err := relationshipProcessor.GetUpcomingBirthdays(ctx, daysAhead)
+	if err != nil {
+		http.Error(w, "Failed to get birthday reminders", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reminders)
+}
+
+func enrichContactHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	contactID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid contact ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get contact name from database
+	var name string
+	err = db.QueryRow("SELECT name FROM contacts WHERE id = $1", contactID).Scan(&name)
+	if err != nil {
+		http.Error(w, "Contact not found", http.StatusNotFound)
+		return
+	}
+
+	ctx := r.Context()
+	enrichment, err := relationshipProcessor.EnrichContact(ctx, contactID, name)
+	if err != nil {
+		http.Error(w, "Failed to enrich contact", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(enrichment)
+}
+
+func suggestGiftsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	contactID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid contact ID", http.StatusBadRequest)
+		return
+	}
+
+	var req GiftSuggestionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	req.ContactID = contactID
+
+	// Set defaults if not provided
+	if req.Budget == "" {
+		req.Budget = "50-100"
+	}
+	if req.Occasion == "" {
+		req.Occasion = "birthday"
+	}
+
+	ctx := r.Context()
+	suggestions, err := relationshipProcessor.SuggestGifts(ctx, req)
+	if err != nil {
+		http.Error(w, "Failed to generate gift suggestions", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(suggestions)
+}
+
+func getInsightsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	contactID, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid contact ID", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	insights, err := relationshipProcessor.AnalyzeRelationships(ctx, contactID)
+	if err != nil {
+		http.Error(w, "Failed to generate relationship insights", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(insights)
+}
+
 func main() {
 	initDB()
 	defer db.Close()
+
+	// Initialize RelationshipProcessor
+	relationshipProcessor = NewRelationshipProcessor(db)
 
 	r := mux.NewRouter()
 
@@ -405,6 +548,12 @@ func main() {
 	// Reminder routes
 	r.HandleFunc("/api/reminders", getRemindersHandler).Methods("GET")
 
+	// Relationship processor routes
+	r.HandleFunc("/api/birthdays", getBirthdaysHandler).Methods("GET")
+	r.HandleFunc("/api/contacts/{id}/enrich", enrichContactHandler).Methods("POST")
+	r.HandleFunc("/api/contacts/{id}/gifts/suggest", suggestGiftsHandler).Methods("POST")
+	r.HandleFunc("/api/contacts/{id}/insights", getInsightsHandler).Methods("GET")
+
 	// Enable CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -414,15 +563,12 @@ func main() {
 
 	handler := c.Handler(r)
 
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
 	log.Printf("Personal Relationship Manager API starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

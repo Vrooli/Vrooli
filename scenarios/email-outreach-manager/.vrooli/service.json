@@ -247,12 +247,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f email-outreach-manager.start-api 2>/dev/null || true",
+          "run": "pkill -f \"email-outreach-manager-api\" || true; sleep 1; pkill -9 -f \"email-outreach-manager-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f email-outreach-manager.start-ui 2>/dev/null || true",
+          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/email-outreach-manager/ui\" || true; sleep 1; pkill -9 -f \"scenarios/email-outreach-manager/ui\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

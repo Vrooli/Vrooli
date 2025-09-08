@@ -3,8 +3,10 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -64,44 +66,102 @@ type HighScore struct {
 }
 
 type APIServer struct {
-	db       *sql.DB
-	n8nURL   string
+	db        *sql.DB
 	ollamaURL string
 }
 
 func main() {
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
+	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
-		log.Fatal("POSTGRES_URL environment variable is required")
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
-		n8nURL = "http://localhost:5678"
-	}
-
+	// Ollama URL - REQUIRED, no defaults
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
 	}
 
 	// Connect to database
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Failed to open database connection:", err)
 	}
 	defer db.Close()
-
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &APIServer{
 		db:        db,
-		n8nURL:    n8nURL,
 		ollamaURL: ollamaURL,
 	}
 
@@ -152,19 +212,13 @@ func main() {
 
 	log.Printf("🚀 Retro Game Launcher API starting on port %s", port)
 	log.Printf("🎮 Database: %s", postgresURL)
-	log.Printf("🤖 n8n: %s", n8nURL)
 	log.Printf("🧠 Ollama: %s", ollamaURL)
 
 	handler := corsHandler(router)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults
 
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -174,8 +228,7 @@ func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Unix(),
 		"services": map[string]interface{}{
 			"database": s.checkDatabase(),
-			"n8n": s.checkN8N(),
-			"ollama": s.checkOllama(),
+			"ollama":   s.checkOllama(),
 		},
 	}
 
@@ -189,13 +242,6 @@ func (s *APIServer) checkDatabase() string {
 	return "healthy"
 }
 
-func (s *APIServer) checkN8N() string {
-	resp, err := http.Get(s.n8nURL + "/healthz")
-	if err != nil || resp.StatusCode != http.StatusOK {
-		return "unavailable"
-	}
-	return "healthy"
-}
 
 func (s *APIServer) checkOllama() string {
 	resp, err := http.Get(s.ollamaURL + "/api/tags")
@@ -340,15 +386,23 @@ func (s *APIServer) generateGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate unique generation ID
-	generationID := uuid.New().String()
+	// Validate required fields
+	if req.Prompt == "" {
+		http.Error(w, "prompt is required", http.StatusBadRequest)
+		return
+	}
+	if req.Engine == "" {
+		req.Engine = "html5" // default engine
+	}
 
-	// For now, return immediately - in production this would trigger n8n workflow
+	// Start game generation process
+	generationID := s.startGameGeneration(req)
+
 	response := map[string]interface{}{
-		"generation_id": generationID,
-		"status": "started",
-		"prompt": req.Prompt,
-		"estimated_time": "30-60 seconds",
+		"generation_id":   generationID,
+		"status":          "started",
+		"prompt":          req.Prompt,
+		"estimated_time":  "45-60 seconds",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -488,7 +542,17 @@ func (s *APIServer) createRemix(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) getGenerationStatus(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	generationID := vars["id"]
+
+	status, exists := s.getGenerationStatusByID(generationID)
+	if !exists {
+		http.Error(w, "Generation not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
 }
 
 func (s *APIServer) getHighScores(w http.ResponseWriter, r *http.Request) {

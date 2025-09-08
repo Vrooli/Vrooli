@@ -20,7 +20,6 @@
       "terminal-ui",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage"
     ]
   },
@@ -37,37 +36,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "rate-limiter"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/error-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/fix-suggester.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/log-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/performance-profiler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/debug-orchestrator.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "postgres": {
       "type": "postgres",
       "enabled": true,

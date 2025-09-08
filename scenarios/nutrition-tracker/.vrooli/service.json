@@ -208,12 +208,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f nutrition-tracker.start-api 2>/dev/null || true",
+          "run": "pkill -f \"nutrition-tracker-api\" || true; sleep 1; pkill -9 -f \"nutrition-tracker-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f nutrition-tracker.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/nutrition-tracker.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/nutrition-tracker.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

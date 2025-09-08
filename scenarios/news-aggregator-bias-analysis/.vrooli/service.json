@@ -20,7 +20,6 @@
       "perspective-aggregator",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache"
     ]
@@ -38,40 +37,12 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
+    "ollama": {
+      "type": "ollama",
       "enabled": true,
       "required": true,
-      "shared_workflows": [
-        "ollama",
-        "structured-data-extractor"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/rss-feed-fetcher.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/bias-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/fact-checker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/fact-checker-enhanced.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/news-enricher.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/perspective-aggregator.json",
-          "type": "workflow"
-        }
-      ]
+      "models": ["llama3.2"],
+      "purpose": "AI-powered bias analysis, fact-checking, and content enrichment"
     },
     "postgres": {
       "type": "postgres",
@@ -222,12 +193,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f news-aggregator-bias-analysis.start-api 2>/dev/null || true",
+          "run": "pkill -f \"news-aggregator-bias-analysis-api\" || true; sleep 1; pkill -9 -f \"news-aggregator-bias-analysis-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f news-aggregator-bias-analysis.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/news-aggregator-bias-analysis.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/news-aggregator-bias-analysis.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

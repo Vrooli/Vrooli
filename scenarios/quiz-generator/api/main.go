@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,7 +10,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
@@ -21,9 +18,10 @@ import (
 
 // Global variables
 var (
-	db          *pgxpool.Pool
-	redisClient *redis.Client
-	logger      *logrus.Logger
+	db            *pgxpool.Pool
+	redisClient   *redis.Client
+	logger        *logrus.Logger
+	quizProcessor *QuizProcessor
 )
 
 // Quiz structures
@@ -188,50 +186,22 @@ func generateQuiz(c *gin.Context) {
 		return
 	}
 
-	// Set defaults
-	if req.QuestionCount == 0 {
-		req.QuestionCount = 10
-	}
-	if req.Difficulty == "" {
-		req.Difficulty = "medium"
-	}
-	if len(req.QuestionTypes) == 0 {
-		req.QuestionTypes = []string{"mcq", "true_false", "short_answer"}
-	}
-
-	// Generate quiz ID
-	quizID := uuid.New().String()
-
-	// TODO: Call n8n workflow to generate questions
-	// For now, return mock data
-	quiz := Quiz{
-		ID:           quizID,
-		Title:        "Generated Quiz",
-		Description:  "AI-generated quiz from provided content",
-		Questions:    generateMockQuestions(req.QuestionCount),
-		PassingScore: 70,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	// Save to database
 	ctx := context.Background()
-	_, err := db.Exec(ctx,
-		`INSERT INTO quiz_generator.quizzes (id, title, description, difficulty, passing_score, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		quiz.ID, quiz.Title, quiz.Description, req.Difficulty, quiz.PassingScore, quiz.CreatedAt, quiz.UpdatedAt,
-	)
+	
+	// Use quiz processor to generate quiz (replaces n8n workflow)
+	quiz, err := quizProcessor.GenerateQuizFromContent(ctx, req)
 	if err != nil {
-		logger.Errorf("Failed to save quiz: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save quiz"})
+		logger.Errorf("Failed to generate quiz: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate quiz"})
 		return
 	}
 
+	// Quiz is already saved by the processor, just return the result
 	c.JSON(http.StatusCreated, gin.H{
 		"quiz_id":        quiz.ID,
 		"title":          quiz.Title,
 		"questions":      quiz.Questions,
-		"estimated_time": req.QuestionCount * 120, // 2 minutes per question
+		"estimated_time": quiz.TimeLimit,
 	})
 }
 
@@ -306,36 +276,17 @@ func submitQuiz(c *gin.Context) {
 		return
 	}
 
-	// Calculate results (mock implementation)
-	result := QuizResult{
-		Score:        75,
-		Percentage:   75.0,
-		Passed:       true,
-		CorrectAnswers: map[string]interface{}{
-			"q1": "A",
-			"q2": "true",
-			"q3": "Paris",
-		},
-		Explanations: map[string]string{
-			"q1": "The correct answer is A because...",
-			"q2": "This statement is true because...",
-			"q3": "Paris is the capital of France",
-		},
-	}
-
-	// Save result to database
 	ctx := context.Background()
-	resultID := uuid.New().String()
-	_, err := db.Exec(ctx,
-		`INSERT INTO quiz_generator.quiz_results 
-		 (id, quiz_id, score, percentage, passed, time_taken, completed_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		resultID, quizID, result.Score, result.Percentage, result.Passed, req.TimeTaken, time.Now(),
-	)
+	
+	// Use quiz processor to grade the quiz
+	result, err := quizProcessor.GradeQuiz(ctx, quizID, req)
 	if err != nil {
-		logger.Errorf("Failed to save result: %v", err)
+		logger.Errorf("Failed to grade quiz: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to grade quiz"})
+		return
 	}
 
+	// Result is already saved by the processor
 	c.JSON(http.StatusOK, result)
 }
 
@@ -466,6 +417,17 @@ func main() {
 	if redisClient != nil {
 		defer redisClient.Close()
 	}
+	
+	// Initialize quiz processor
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
+	}
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		qdrantURL = "http://localhost:6333"
+	}
+	quizProcessor = NewQuizProcessor(db, redisClient, ollamaURL, qdrantURL)
 
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)

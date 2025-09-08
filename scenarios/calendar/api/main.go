@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ type Config struct {
 
 // Database connection
 var db *sql.DB
+var calendarProcessor *CalendarProcessor
 
 // Models
 type Event struct {
@@ -111,33 +113,73 @@ func initConfig() *Config {
 	// Load .env file if it exists
 	godotenv.Load()
 
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = os.Getenv("PORT") // Fallback to PORT
+		if port == "" {
+			log.Fatal("❌ API_PORT or PORT environment variable is required")
+		}
+	}
+
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
+
+	// External service URLs - REQUIRED, no defaults
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		log.Fatal("❌ QDRANT_URL environment variable is required")
+	}
+
+	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
+	if authServiceURL == "" {
+		log.Fatal("❌ AUTH_SERVICE_URL environment variable is required")
+	}
+
+	notificationServiceURL := os.Getenv("NOTIFICATION_SERVICE_URL")
+	if notificationServiceURL == "" {
+		log.Fatal("❌ NOTIFICATION_SERVICE_URL environment variable is required")
+	}
+
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("❌ JWT_SECRET environment variable is required")
+	}
+
 	return &Config{
-		Port:                   getEnvOrDefault("PORT", "3300"),
-		PostgresURL:           requireEnv("POSTGRES_URL"),
-		QdrantURL:             getEnvOrDefault("QDRANT_URL", "http://localhost:6333"),
-		AuthServiceURL:        getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:3250"),
-		NotificationServiceURL: getEnvOrDefault("NOTIFICATION_SERVICE_URL", "http://localhost:28100"),
-		OllamaURL:             getEnvOrDefault("OLLAMA_URL", "http://localhost:11434"),
-		NotificationProfileID:  getEnvOrDefault("NOTIFICATION_PROFILE_ID", "calendar-system-prod"),
-		NotificationAPIKey:     getEnvOrDefault("NOTIFICATION_API_KEY", ""),
-		JWTSecret:             getEnvOrDefault("JWT_SECRET", "calendar-secret-key"),
+		Port:                   port,
+		PostgresURL:           postgresURL,
+		QdrantURL:             qdrantURL,
+		AuthServiceURL:        authServiceURL,
+		NotificationServiceURL: notificationServiceURL,
+		OllamaURL:             ollamaURL,
+		NotificationProfileID:  os.Getenv("NOTIFICATION_PROFILE_ID"), // Optional
+		NotificationAPIKey:     os.Getenv("NOTIFICATION_API_KEY"), // Optional
+		JWTSecret:             jwtSecret,
 	}
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-func requireEnv(key string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	log.Fatalf("%s environment variable is required", key)
-	return ""
-}
+// getEnvOrDefault and requireEnv removed to prevent hardcoded defaults
 
 // Initialize database connection
 func initDatabase(config *Config) error {
@@ -146,18 +188,58 @@ func initDatabase(config *Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %v", err)
 	}
-
-	// Test connection
-	if err = db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %v", err)
-	}
-
+	
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(time.Hour)
-
-	log.Println("Database connection established")
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		return fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
 
@@ -457,6 +539,24 @@ func scheduleOptimizeHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// processRemindersHandler manually triggers reminder processing
+func processRemindersHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	if err := calendarProcessor.ProcessReminders(ctx); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to process reminders: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	response := map[string]interface{}{
+		"status": "success",
+		"message": "Reminders processed successfully",
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func main() {
 	log.Println("Starting Calendar API...")
 
@@ -468,6 +568,13 @@ func main() {
 		log.Fatalf("Database initialization failed: %v", err)
 	}
 	defer db.Close()
+
+	// Initialize calendar processor
+	calendarProcessor = NewCalendarProcessor(db, config)
+	
+	// Start reminder processor in background
+	ctx := context.Background()
+	calendarProcessor.StartReminderProcessor(ctx)
 
 	// Setup routes
 	router := mux.NewRouter()
@@ -486,6 +593,9 @@ func main() {
 	// Schedule management
 	api.HandleFunc("/schedule/chat", scheduleChatHandler).Methods("POST")
 	api.HandleFunc("/schedule/optimize", scheduleOptimizeHandler).Methods("POST")
+	
+	// Reminder management (replacing n8n workflows)
+	api.HandleFunc("/reminders/process", processRemindersHandler).Methods("POST")
 
 	// Setup CORS
 	corsHandler := cors.New(cors.Options{

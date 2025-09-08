@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -145,41 +146,126 @@ var db *sql.DB
 var config Config
 
 func loadConfig() Config {
+	// All configuration is REQUIRED - no defaults
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
-		log.Fatal("POSTGRES_URL environment variable is required")
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
+	
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
+	chatPort := os.Getenv("CHAT_PORT")
+	if chatPort == "" {
+		log.Fatal("❌ CHAT_PORT environment variable is required")
+	}
+	
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		log.Fatal("❌ QDRANT_URL environment variable is required")
+	}
+	
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+	
+	n8nURL := os.Getenv("N8N_BASE_URL")
+	if n8nURL == "" {
+		log.Fatal("❌ N8N_BASE_URL environment variable is required")
+	}
+	
+	minioURL := os.Getenv("MINIO_URL")
+	if minioURL == "" {
+		log.Fatal("❌ MINIO_URL environment variable is required")
 	}
 	
 	return Config{
-		Port:        getEnv("API_PORT", getEnv("PORT", "")),
-		ChatPort:    getEnv("CHAT_PORT", "8201"),
+		Port:        port,
+		ChatPort:    chatPort,
 		PostgresURL: postgresURL,
-		QdrantURL:   getEnv("QDRANT_URL", "http://localhost:6333"),
-		OllamaURL:   getEnv("OLLAMA_URL", "http://localhost:11434"),
-		N8NBaseURL:  getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		MinioURL:    getEnv("MINIO_URL", "http://localhost:9000"),
+		QdrantURL:   qdrantURL,
+		OllamaURL:   ollamaURL,
+		N8NBaseURL:  n8nURL,
+		MinioURL:    minioURL,
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults
 
 func initDatabase() error {
 	var err error
 	db, err = sql.Open("postgres", config.PostgresURL)
 	if err != nil {
-		return fmt.Errorf("failed to connect to database: %w", err)
+		return fmt.Errorf("failed to open database connection: %w", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
-	log.Println("Database connection established")
+	
+	if pingErr != nil {
+		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	return nil
 }
 

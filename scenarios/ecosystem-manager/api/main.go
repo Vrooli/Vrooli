@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -100,6 +101,103 @@ type QueueProcessor struct {
 	isPaused        bool  // Added for maintenance state awareness
 	stopChannel     chan bool
 	processInterval time.Duration
+}
+
+// RunningProcess tracks an executing claude-code process
+type RunningProcess struct {
+	TaskID      string
+	Cmd         *exec.Cmd
+	Context     context.Context
+	Cancel      context.CancelFunc
+	StartTime   time.Time
+	ProcessID   int
+}
+
+// Process registry for tracking running claude-code instances
+var (
+	runningProcesses      = make(map[string]*RunningProcess)
+	runningProcessesMutex sync.RWMutex
+)
+
+// Process management functions
+func registerRunningProcess(taskID string, cmd *exec.Cmd, ctx context.Context, cancel context.CancelFunc) {
+	runningProcessesMutex.Lock()
+	defer runningProcessesMutex.Unlock()
+	
+	process := &RunningProcess{
+		TaskID:    taskID,
+		Cmd:       cmd,
+		Context:   ctx,
+		Cancel:    cancel,
+		StartTime: time.Now(),
+		ProcessID: cmd.Process.Pid,
+	}
+	
+	runningProcesses[taskID] = process
+	log.Printf("Registered process %d for task %s", process.ProcessID, taskID)
+}
+
+func unregisterRunningProcess(taskID string) {
+	runningProcessesMutex.Lock()
+	defer runningProcessesMutex.Unlock()
+	
+	if process, exists := runningProcesses[taskID]; exists {
+		log.Printf("Unregistered process %d for task %s", process.ProcessID, taskID)
+		delete(runningProcesses, taskID)
+	}
+}
+
+func getRunningProcess(taskID string) (*RunningProcess, bool) {
+	runningProcessesMutex.RLock()
+	defer runningProcessesMutex.RUnlock()
+	
+	process, exists := runningProcesses[taskID]
+	return process, exists
+}
+
+func terminateRunningProcess(taskID string) error {
+	runningProcessesMutex.Lock()
+	defer runningProcessesMutex.Unlock()
+	
+	process, exists := runningProcesses[taskID]
+	if !exists {
+		return fmt.Errorf("no running process found for task %s", taskID)
+	}
+	
+	log.Printf("Terminating process %d for task %s", process.ProcessID, taskID)
+	
+	// First try graceful cancellation via context
+	process.Cancel()
+	
+	// Give it 5 seconds to shut down gracefully
+	select {
+	case <-time.After(5 * time.Second):
+		// If still running, force kill
+		if process.Cmd.Process != nil {
+			log.Printf("Force killing process %d for task %s", process.ProcessID, taskID)
+			if err := process.Cmd.Process.Kill(); err != nil {
+				log.Printf("Error force killing process: %v", err)
+			}
+		}
+	case <-process.Context.Done():
+		// Process terminated gracefully
+		log.Printf("Process %d for task %s terminated gracefully", process.ProcessID, taskID)
+	}
+	
+	// Clean up registry
+	delete(runningProcesses, taskID)
+	return nil
+}
+
+func listRunningProcesses() []string {
+	runningProcessesMutex.RLock()
+	defer runningProcessesMutex.RUnlock()
+	
+	var taskIDs []string
+	for taskID := range runningProcesses {
+		taskIDs = append(taskIDs, taskID)
+	}
+	return taskIDs
 }
 
 // ClaudeCodeRequest represents a request to the Claude Code resource
@@ -598,7 +696,7 @@ func (qp *QueueProcessor) processLoop() {
 	}
 }
 
-// processQueue processes pending tasks in the queue
+// processQueue processes pending tasks and manually moved in-progress tasks
 func (qp *QueueProcessor) processQueue() {
 	// Check if paused (maintenance mode)
 	qp.mu.Lock()
@@ -610,18 +708,26 @@ func (qp *QueueProcessor) processQueue() {
 		return
 	}
 	
-	// Check if there are already tasks in progress
+	// Check current in-progress tasks
 	inProgressTasks, err := getQueueItems("in-progress")
 	if err != nil {
 		log.Printf("Error checking in-progress tasks: %v", err)
 		return
 	}
 	
-	// Limit concurrent tasks (configurable, defaulting to 1 for now)
-	maxConcurrent := 1
-	if len(inProgressTasks) >= maxConcurrent {
-		log.Printf("Queue processor: %d tasks already in progress, skipping", len(inProgressTasks))
-		return
+	// Count tasks that are actually executing (check the running processes registry)
+	runningProcessesMutex.RLock()
+	executingCount := len(runningProcesses)
+	runningProcessesMutex.RUnlock()
+	
+	var readyToExecute []TaskItem
+	
+	for _, task := range inProgressTasks {
+		// Check if this task is actually running
+		if _, isRunning := getRunningProcess(task.ID); !isRunning {
+			// Task was manually moved to in-progress but not started yet
+			readyToExecute = append(readyToExecute, task)
+		}
 	}
 	
 	// Get pending tasks
@@ -631,8 +737,19 @@ func (qp *QueueProcessor) processQueue() {
 		return
 	}
 	
-	if len(pendingTasks) == 0 {
+	// Combine pending and ready-to-execute in-progress tasks
+	allReadyTasks := append(pendingTasks, readyToExecute...)
+	
+	if len(allReadyTasks) == 0 {
 		return // No tasks to process
+	}
+	
+	// Limit concurrent tasks (configurable, defaulting to 1 for now)
+	maxConcurrent := 1
+	availableSlots := maxConcurrent - executingCount
+	if availableSlots <= 0 {
+		log.Printf("Queue processor: %d tasks already executing, %d available slots", executingCount, availableSlots)
+		return
 	}
 	
 	// Sort tasks by priority (critical > high > medium > low)
@@ -643,15 +760,22 @@ func (qp *QueueProcessor) processQueue() {
 		"low":      1,
 	}
 	
-	// Find highest priority task
+	// Find highest priority task from all ready tasks
 	var selectedTask *TaskItem
+	var taskCurrentStatus string
 	highestPriority := 0
 	
-	for i, task := range pendingTasks {
+	for i, task := range allReadyTasks {
 		priority := priorityOrder[task.Priority]
 		if priority > highestPriority {
 			highestPriority = priority
-			selectedTask = &pendingTasks[i]
+			selectedTask = &allReadyTasks[i]
+			// Determine if task is from pending or already in-progress
+			if containsTask(pendingTasks, task) {
+				taskCurrentStatus = "pending"
+			} else {
+				taskCurrentStatus = "in-progress"
+			}
 		}
 	}
 	
@@ -659,12 +783,14 @@ func (qp *QueueProcessor) processQueue() {
 		return
 	}
 	
-	log.Printf("Processing task: %s - %s", selectedTask.ID, selectedTask.Title)
+	log.Printf("Processing task: %s - %s (from %s)", selectedTask.ID, selectedTask.Title, taskCurrentStatus)
 	
-	// Move task to in-progress
-	if err := moveTask(selectedTask.ID, "pending", "in-progress"); err != nil {
-		log.Printf("Failed to move task to in-progress: %v", err)
-		return
+	// Move task to in-progress if it's not already there
+	if taskCurrentStatus == "pending" {
+		if err := moveTask(selectedTask.ID, "pending", "in-progress"); err != nil {
+			log.Printf("Failed to move task to in-progress: %v", err)
+			return
+		}
 	}
 	
 	// Process the task asynchronously
@@ -1018,7 +1144,7 @@ func max(a, b int) int {
 	return b
 }
 
-// callClaudeCode calls the Claude Code resource using the direct CLI
+// callClaudeCode calls the Claude Code resource using stdin to avoid argument length limits
 func callClaudeCode(prompt string, task TaskItem) (*ClaudeCodeResponse, error) {
 	log.Printf("Executing Claude Code for task %s (prompt length: %d characters)", task.ID, len(prompt))
 	
@@ -1044,12 +1170,58 @@ func callClaudeCode(prompt string, task TaskItem) (*ClaudeCodeResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 	
-	// Execute using resource-claude-code
-	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", prompt)
+	// Use stdin instead of command line argument to avoid "argument list too long"
+	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-")
 	cmd.Dir = vrooliRoot
 	
-	// Execute and capture output
-	output, err := cmd.CombinedOutput()
+	// Set up pipes for stdin and stdout
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		return &ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create stdin pipe: %v", err),
+		}, nil
+	}
+	
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return &ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create stdout pipe: %v", err),
+		}, nil
+	}
+	
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return &ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to start Claude Code: %v", err),
+		}, nil
+	}
+	
+	// Register the running process for tracking
+	registerRunningProcess(task.ID, cmd, ctx, cancel)
+	defer unregisterRunningProcess(task.ID) // Always cleanup on exit
+	
+	// Send prompt via stdin in a goroutine
+	go func() {
+		defer stdinPipe.Close()
+		if _, err := stdinPipe.Write([]byte(prompt)); err != nil {
+			log.Printf("Error writing prompt to stdin for task %s: %v", task.ID, err)
+		}
+	}()
+	
+	// Read output from stdout
+	output, err := io.ReadAll(stdoutPipe)
+	if err != nil {
+		return &ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to read output: %v", err),
+		}, nil
+	}
+	
+	// Wait for completion
+	waitErr := cmd.Wait()
 	
 	// Handle different exit scenarios
 	if ctx.Err() == context.DeadlineExceeded {
@@ -1059,9 +1231,18 @@ func callClaudeCode(prompt string, task TaskItem) (*ClaudeCodeResponse, error) {
 		}, nil
 	}
 	
-	if err != nil {
+	if waitErr != nil {
+		// Check if the process was terminated intentionally
+		if _, wasTerminated := getRunningProcess(task.ID); !wasTerminated {
+			// Process was terminated by our termination logic
+			return &ClaudeCodeResponse{
+				Success: false,
+				Error:   "Task execution was cancelled (moved out of in-progress)",
+			}, nil
+		}
+		
 		// Extract exit code
-		if exitError, ok := err.(*exec.ExitError); ok {
+		if exitError, ok := waitErr.(*exec.ExitError); ok {
 			log.Printf("Claude Code failed with exit code %d: %s", exitError.ExitCode(), string(output))
 			return &ClaudeCodeResponse{
 				Success: false,
@@ -1070,7 +1251,7 @@ func callClaudeCode(prompt string, task TaskItem) (*ClaudeCodeResponse, error) {
 		}
 		return &ClaudeCodeResponse{
 			Success: false,
-			Error:   fmt.Sprintf("Failed to execute Claude Code: %v", err),
+			Error:   fmt.Sprintf("Failed to execute Claude Code: %v", waitErr),
 		}, nil
 	}
 	
@@ -1182,6 +1363,85 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
+}
+
+// getQueueStatusHandler returns current queue processor status and metrics
+func getQueueStatusHandler(w http.ResponseWriter, r *http.Request) {
+	// Get current maintenance state
+	maintenanceStateMutex.RLock()
+	currentState := maintenanceState
+	maintenanceStateMutex.RUnlock()
+	
+	// Count tasks by status
+	inProgressTasks, _ := getQueueItems("in-progress")
+	pendingTasks, _ := getQueueItems("pending")
+	
+	// Count actually executing tasks using process registry (more accurate)
+	runningProcessesMutex.RLock()
+	executingCount := len(runningProcesses)
+	runningProcessesMutex.RUnlock()
+	
+	// Count ready-to-execute tasks in in-progress
+	readyInProgress := 0
+	for _, task := range inProgressTasks {
+		if _, isRunning := getRunningProcess(task.ID); !isRunning {
+			readyInProgress++
+		}
+	}
+	
+	maxConcurrent := 1 // This should match the value in processQueue
+	availableSlots := maxConcurrent - executingCount
+	
+	status := map[string]interface{}{
+		"processor_active":    currentState == "active",
+		"maintenance_state":   currentState,
+		"max_concurrent":      maxConcurrent,
+		"executing_count":     executingCount,
+		"available_slots":     availableSlots,
+		"pending_count":       len(pendingTasks),
+		"ready_in_progress":   readyInProgress,
+		"refresh_interval":    30, // seconds
+		"processor_running":   queueProcessor != nil && currentState == "active",
+		"timestamp":           time.Now().Unix(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+// getRunningProcessesHandler returns information about currently running processes
+func getRunningProcessesHandler(w http.ResponseWriter, r *http.Request) {
+	runningProcessesMutex.RLock()
+	defer runningProcessesMutex.RUnlock()
+	
+	type ProcessInfo struct {
+		TaskID      string `json:"task_id"`
+		ProcessID   int    `json:"process_id"`
+		StartTime   string `json:"start_time"`
+		Duration    string `json:"duration"`
+	}
+	
+	var processes []ProcessInfo
+	now := time.Now()
+	
+	for taskID, process := range runningProcesses {
+		duration := now.Sub(process.StartTime)
+		processes = append(processes, ProcessInfo{
+			TaskID:    taskID,
+			ProcessID: process.ProcessID,
+			StartTime: process.StartTime.Format(time.RFC3339),
+			Duration:  duration.Round(time.Second).String(),
+		})
+	}
+	
+	response := map[string]interface{}{
+		"running_processes": processes,
+		"count":            len(processes),
+		"timestamp":        now.Unix(),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // maintenanceStateHandler handles maintenance state changes from orchestrator
@@ -1423,6 +1683,22 @@ func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		} else if (newStatus == "completed" || newStatus == "failed") && currentTask.CompletedAt == "" {
 			updatedTask.CompletedAt = now
 		}
+		
+		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
+		if currentStatus == "in-progress" && newStatus != "in-progress" {
+			if err := terminateRunningProcess(taskID); err != nil {
+				log.Printf("Warning: Failed to terminate process for task %s: %v", taskID, err)
+			} else {
+				log.Printf("Successfully terminated process for task %s (moved from in-progress to %s)", taskID, newStatus)
+				// Update task to reflect cancellation
+				updatedTask.Results = map[string]interface{}{
+					"success": false,
+					"error":   fmt.Sprintf("Task execution was cancelled (moved to %s)", newStatus),
+					"cancelled_at": now,
+				}
+				updatedTask.CurrentPhase = "cancelled"
+			}
+		}
 	} else {
 		// Just update timestamp
 		updatedTask.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -1544,6 +1820,52 @@ func updateTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(task)
+}
+
+func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskID := vars["id"]
+	
+	// Find and delete task file
+	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
+	var found bool
+	
+	for _, status := range statuses {
+		filePath := filepath.Join(queueDir, status, fmt.Sprintf("%s.yaml", taskID))
+		if _, err := os.Stat(filePath); err == nil {
+			// Check if task is running and terminate if necessary
+			if process, isRunning := getRunningProcess(taskID); isRunning {
+				log.Printf("Terminating running process for deleted task %s", taskID)
+				if process.Cancel != nil {
+					process.Cancel()
+				}
+				unregisterRunningProcess(taskID)
+			}
+			
+			// Delete the file
+			if err := os.Remove(filePath); err != nil {
+				http.Error(w, fmt.Sprintf("Failed to delete task: %v", err), http.StatusInternalServerError)
+				return
+			}
+			
+			found = true
+			log.Printf("Deleted task %s from %s", taskID, status)
+			
+			// Send WebSocket notification
+			broadcastUpdate("task_deleted", map[string]interface{}{
+				"id": taskID,
+				"status": status,
+			})
+			break
+		}
+	}
+	
+	if !found {
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
+	
+	w.WriteHeader(http.StatusNoContent) // 204 No Content for successful deletion
 }
 
 func getOperationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -1767,6 +2089,57 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
+func containsTask(slice []TaskItem, item TaskItem) bool {
+	for _, t := range slice {
+		if t.ID == item.ID {
+			return true
+		}
+	}
+	return false
+}
+
+// triggerQueueProcessingHandler forces an immediate queue processing cycle
+func triggerQueueProcessingHandler(w http.ResponseWriter, r *http.Request) {
+	// Ensure queue processor exists and is active
+	if queueProcessor == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "queue processor not available",
+			"message": "Queue processor is not initialized",
+		})
+		return
+	}
+
+	// Check maintenance state
+	maintenanceStateMutex.RLock()
+	currentState := maintenanceState
+	maintenanceStateMutex.RUnlock()
+
+	if currentState != "active" {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error":   "queue processor paused",
+			"message": "Queue processor is in maintenance mode",
+			"state":   currentState,
+		})
+		return
+	}
+
+	// Trigger immediate processing by calling the processQueue method directly
+	log.Println("Manual queue processing triggered via API")
+	go queueProcessor.processQueue()
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":   true,
+		"message":   "Queue processing triggered",
+		"timestamp": time.Now().Unix(),
+	})
+}
+
 func enableCORS(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -1831,6 +2204,13 @@ func main() {
 	// Health check
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	
+	// Queue status and control
+	r.HandleFunc("/api/queue/status", getQueueStatusHandler).Methods("GET")
+	r.HandleFunc("/api/queue/trigger", triggerQueueProcessingHandler).Methods("POST")
+	
+	// Process management
+	r.HandleFunc("/api/processes/running", getRunningProcessesHandler).Methods("GET")
+	
 	// WebSocket endpoint
 	r.HandleFunc("/ws", wsHandler)
 	
@@ -1842,6 +2222,7 @@ func main() {
 	r.HandleFunc("/api/tasks", createTaskHandler).Methods("POST")
 	r.HandleFunc("/api/tasks/{id}", getTaskHandler).Methods("GET")
 	r.HandleFunc("/api/tasks/{id}", updateTaskHandler).Methods("PUT")
+	r.HandleFunc("/api/tasks/{id}", deleteTaskHandler).Methods("DELETE")
 	r.HandleFunc("/api/tasks/{id}/status", updateTaskStatusHandler).Methods("PUT")
 	r.HandleFunc("/api/tasks/{id}/prompt", getTaskPromptHandler).Methods("GET")
 	r.HandleFunc("/api/tasks/{id}/prompt/assembled", getAssembledPromptHandler).Methods("GET")

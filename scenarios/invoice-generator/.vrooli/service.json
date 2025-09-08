@@ -19,7 +19,6 @@
       "payment-tracking",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "ollama-ai"
     ]
@@ -37,38 +36,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "document-converter-validator",
-        "structured-data-extractor"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/invoice-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/invoice-processor-ai.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/payment-tracker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/recurring-invoice-handler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/invoice-pdf-generator.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "ollama": {
       "type": "ollama",
       "enabled": true,
@@ -165,7 +132,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '💼 Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}'",
+          "run": "echo '💼 Invoice Generator Pro initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -190,7 +157,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  📊 n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ⚙️ API: http://localhost:$API_PORT'",
+          "run": "echo '💼 Services running:\\n  📄 UI Dashboard: http://localhost:$UI_PORT\\n  ⚙️ API: http://localhost:$API_PORT'",
           "description": "Display all running service URLs"
         }
       ]
@@ -218,12 +185,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f invoice-generator.start-api 2>/dev/null || true",
+          "run": "pkill -f \"invoice-generator-api\" || true; sleep 1; pkill -9 -f \"invoice-generator-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f invoice-generator.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/invoice-generator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/invoice-generator.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

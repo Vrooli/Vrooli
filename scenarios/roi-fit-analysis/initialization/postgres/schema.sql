@@ -1,29 +1,30 @@
 -- ROI Fit Analysis Database Schema
 
--- Analysis table for storing ROI analyses
+-- Analysis table for storing comprehensive ROI analyses
 CREATE TABLE IF NOT EXISTS roi_analyses (
-    id SERIAL PRIMARY KEY,
-    analysis_id VARCHAR(255) UNIQUE NOT NULL,
+    id VARCHAR(255) PRIMARY KEY,  -- UUID from analysis engine
     idea TEXT NOT NULL,
     budget DECIMAL(12, 2) NOT NULL,
     timeline VARCHAR(50) NOT NULL,
     skills JSONB,
     market_focus TEXT,
-    roi_percentage DECIMAL(8, 2),
-    estimated_revenue DECIMAL(12, 2),
-    payback_months INTEGER,
-    risk_level VARCHAR(20),
-    confidence_score DECIMAL(5, 2),
-    detailed_analysis JSONB,
+    location TEXT,
+    risk_tolerance VARCHAR(20),
+    industry TEXT,
+    request_data JSONB,  -- Full request data
+    result_data JSONB,   -- Full comprehensive analysis result
+    status VARCHAR(20) DEFAULT 'processing',  -- processing, completed, failed
+    success BOOLEAN DEFAULT false,
+    execution_time_ms INTEGER,
+    error_message TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'completed'
+    completed_at TIMESTAMP
 );
 
--- Market research data
+-- Market research data (legacy table - kept for backward compatibility)
 CREATE TABLE IF NOT EXISTS market_research (
     id SERIAL PRIMARY KEY,
-    analysis_id INTEGER REFERENCES roi_analyses(id) ON DELETE CASCADE,
+    analysis_id VARCHAR(255) REFERENCES roi_analyses(id) ON DELETE CASCADE,
     data_source VARCHAR(255),
     market_trend TEXT,
     competitor_analysis JSONB,
@@ -31,10 +32,10 @@ CREATE TABLE IF NOT EXISTS market_research (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Financial projections
+-- Financial projections (legacy table - kept for backward compatibility)  
 CREATE TABLE IF NOT EXISTS financial_projections (
     id SERIAL PRIMARY KEY,
-    analysis_id INTEGER REFERENCES roi_analyses(id) ON DELETE CASCADE,
+    analysis_id VARCHAR(255) REFERENCES roi_analyses(id) ON DELETE CASCADE,
     month INTEGER NOT NULL,
     revenue DECIMAL(12, 2),
     costs DECIMAL(12, 2),
@@ -43,10 +44,10 @@ CREATE TABLE IF NOT EXISTS financial_projections (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Risk factors
+-- Risk factors (legacy table - kept for backward compatibility)
 CREATE TABLE IF NOT EXISTS risk_factors (
     id SERIAL PRIMARY KEY,
-    analysis_id INTEGER REFERENCES roi_analyses(id) ON DELETE CASCADE,
+    analysis_id VARCHAR(255) REFERENCES roi_analyses(id) ON DELETE CASCADE,
     factor_type VARCHAR(100),
     description TEXT,
     impact_level VARCHAR(20),
@@ -81,10 +82,13 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_analyses_status ON roi_analyses(status);
 CREATE INDEX IF NOT EXISTS idx_analyses_created ON roi_analyses(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analyses_success ON roi_analyses(success);
+CREATE INDEX IF NOT EXISTS idx_analyses_industry ON roi_analyses(industry);
+CREATE INDEX IF NOT EXISTS idx_analyses_market_focus ON roi_analyses(market_focus);
 CREATE INDEX IF NOT EXISTS idx_opportunities_roi ON opportunities(roi_score DESC);
 CREATE INDEX IF NOT EXISTS idx_opportunities_status ON opportunities(status);
 
--- Create update trigger for updated_at columns
+-- Create update trigger for opportunities table
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -92,9 +96,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ language 'plpgsql';
-
-CREATE TRIGGER update_roi_analyses_updated_at BEFORE UPDATE ON roi_analyses
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_opportunities_updated_at BEFORE UPDATE ON opportunities
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

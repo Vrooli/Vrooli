@@ -4,8 +4,8 @@
   "description": "Product Manager Agent UI",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "npm start"
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npm start'"
   },
   "keywords": ["product-management", "dashboard", "prioritization"],
   "author": "Vrooli",

@@ -243,12 +243,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f knowledge-observatory.start-api 2>/dev/null || true",
+          "run": "pkill -f \"knowledge-observatory-api\" || true; sleep 1; pkill -9 -f \"knowledge-observatory-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f knowledge-observatory.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/knowledge-observatory.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/knowledge-observatory.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

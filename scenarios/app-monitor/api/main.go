@@ -95,7 +95,6 @@ type Server struct {
 	docker      *client.Client
 	upgrader    websocket.Upgrader
 	port        string
-	n8nBaseURL  string
 	nodeRedURL  string
 }
 
@@ -115,13 +114,39 @@ func main() {
 }
 
 func NewServer() (*Server, error) {
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
-	postgresURL := getEnv("POSTGRES_URL", "")
-	redisURL := getEnv("REDIS_URL", "")
-	n8nBaseURL := getEnv("N8N_BASE_URL", "http://localhost:5678")
-	nodeRedURL := getEnv("NODE_RED_BASE_URL", "http://localhost:1880")
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = os.Getenv("PORT") // Fallback to PORT
+		if port == "" {
+			log.Fatal("❌ API_PORT or PORT environment variable is required")
+		}
+	}
+	
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
+			postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+				dbUser, dbPassword, dbHost, dbPort, dbName)
+		}
+		// If still empty, that's ok - app-monitor can work without DB
+	}
+	
+	redisURL := os.Getenv("REDIS_URL")
+	nodeRedURL := os.Getenv("NODE_RED_BASE_URL")
+	if nodeRedURL == "" {
+		nodeRedURL = "http://localhost:1880" // Reasonable default for optional service
+	}
 
-	// Initialize database connection (optional for now since we use vrooli CLI)
+	// Initialize database connection with exponential backoff
 	var db *sql.DB
 	if postgresURL != "" {
 		var err error
@@ -129,12 +154,62 @@ func NewServer() (*Server, error) {
 		if err != nil {
 			log.Printf("Warning: failed to connect to database: %v (continuing without DB)", err)
 			db = nil
-		} else if err := db.Ping(); err != nil {
-			log.Printf("Warning: failed to ping database: %v (continuing without DB)", err)
-			db = nil
+		} else {
+			// Set connection pool settings
+			db.SetMaxOpenConns(25)
+			db.SetMaxIdleConns(5)
+			db.SetConnMaxLifetime(5 * time.Minute)
+			
+			// Implement exponential backoff for database connection
+			maxRetries := 10
+			baseDelay := 1 * time.Second
+			maxDelay := 30 * time.Second
+			
+			log.Println("🔄 Attempting database connection with exponential backoff...")
+			log.Printf("📆 Database URL configured")
+			
+			var pingErr error
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				pingErr = db.Ping()
+				if pingErr == nil {
+					log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+					break
+				}
+				
+				// Calculate exponential backoff delay
+				delay := time.Duration(math.Min(
+					float64(baseDelay) * math.Pow(2, float64(attempt)),
+					float64(maxDelay),
+				))
+				
+				// Add progressive jitter to prevent thundering herd
+				jitterRange := float64(delay) * 0.25
+				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+				actualDelay := delay + jitter
+				
+				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+				
+				// Provide detailed status every few attempts
+				if attempt > 0 && attempt % 3 == 0 {
+					log.Printf("📈 Retry progress:")
+					log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+					log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+					log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+				}
+				
+				time.Sleep(actualDelay)
+			}
+			
+			if pingErr != nil {
+				log.Printf("Warning: Database connection failed after %d attempts: %v (continuing without DB)", maxRetries, pingErr)
+				db = nil
+			} else {
+				log.Println("🎉 Database connection pool established successfully!")
+			}
 		}
 	} else {
-		log.Printf("Warning: POSTGRES_URL not provided (continuing without DB)")
+		log.Printf("Info: POSTGRES_URL not provided (continuing without DB)")
 		db = nil
 	}
 
@@ -169,7 +244,6 @@ func NewServer() (*Server, error) {
 		redis:       rdb,
 		docker:      dockerClient,
 		port:        port,
-		n8nBaseURL:  n8nBaseURL,
 		nodeRedURL:  nodeRedURL,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
@@ -1104,9 +1178,4 @@ func (s *Server) handleWebSocket(c *gin.Context) {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults

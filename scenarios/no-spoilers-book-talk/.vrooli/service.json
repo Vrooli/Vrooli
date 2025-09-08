@@ -237,8 +237,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f no-spoilers-book-talk.start-api 2>/dev/null || true",
+          "run": "pkill -f \"no-spoilers-book-talk-api\" || true; sleep 1; pkill -9 -f \"no-spoilers-book-talk-api\" 2>/dev/null || true",
           "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
         }
       ]
     }

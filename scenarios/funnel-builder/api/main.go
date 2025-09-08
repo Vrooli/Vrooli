@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -80,9 +81,22 @@ func NewServer() (*Server, error) {
 		log.Println("No .env file found")
 	}
 
+	// Database configuration - support both DATABASE_URL and individual components
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5432/vrooli?sslmode=disable"
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			return nil, fmt.Errorf("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
 	config, err := pgxpool.ParseConfig(dbURL)
@@ -93,7 +107,8 @@ func NewServer() (*Server, error) {
 	config.MaxConns = 25
 	config.MinConns = 5
 
-	db, err := pgxpool.NewWithConfig(context.Background(), config)
+	// Implement exponential backoff for database connection
+	db, err := connectWithBackoff(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -105,6 +120,61 @@ func NewServer() (*Server, error) {
 
 	s.setupRoutes()
 	return s, nil
+}
+
+func connectWithBackoff(config *pgxpool.Config) (*pgxpool.Pool, error) {
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	
+	var db *pgxpool.Pool
+	var err error
+	
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		db, err = pgxpool.NewWithConfig(context.Background(), config)
+		if err == nil {
+			// Test the connection
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			pingErr := db.Ping(ctx)
+			cancel()
+			
+			if pingErr == nil {
+				log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+				return db, nil
+			}
+			
+			err = pingErr
+			db.Close()
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, err)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, err)
 }
 
 func (s *Server) setupRoutes() {
@@ -798,16 +868,17 @@ func convertToCSV(leads []Lead) string {
 }
 
 func main() {
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
 	server, err := NewServer()
 	if err != nil {
 		log.Fatal("Failed to create server:", err)
 	}
 	defer server.db.Close()
-	
-	port := os.Getenv("FUNNEL_API_PORT")
-	if port == "" {
-		port = "15000"
-	}
 	
 	log.Printf("Funnel Builder API starting on port %s", port)
 	if err := server.router.Run(":" + port); err != nil {

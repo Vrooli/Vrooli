@@ -17,7 +17,6 @@
       "document-processing",
       "automation",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -100,46 +99,7 @@
       "required": true,
       "purpose": "Document text extraction and content parsing"
     },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/file-embedding-generator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/smart-image-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/file-semantic-search.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/file-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/document-processor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/duplicate-detector.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/batch-processor.json",
-          "type": "workflow"
-        }
-      ]
-    }
   },
-  "sharedWorkflows": [
-    "ollama",
-    "embedding-generator"
-  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -204,7 +164,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '🚀 Smart File Photo Manager initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -240,7 +200,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
+          "run": "echo '🚀 Smart File Photo Manager running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:$API_PORT\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio]}\\n  CLI: smart-file-photo-manager --help'",
           "description": "Display all running service URLs"
         }
       ]

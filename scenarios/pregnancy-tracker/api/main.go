@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,17 +19,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Configuration
+// Configuration - REQUIRED, no defaults
 var (
-	apiPort      = getEnv("PREGNANCY_TRACKER_API_PORT", "17001")
-	dbHost       = getEnv("POSTGRES_HOST", "localhost")
-	dbPort       = getEnv("POSTGRES_PORT", "5432")
-	dbUser       = getEnv("POSTGRES_USER", "postgres")
-	dbPassword   = getEnv("POSTGRES_PASSWORD", "postgres")
-	dbName       = getEnv("POSTGRES_DB", "vrooli")
-	encryptKey   = getEnv("ENCRYPTION_KEY", "pregnancy-tracker-default-key-32") // 32 bytes for AES-256
-	privacyMode  = getEnv("PRIVACY_MODE", "strict")
-	multiTenant  = getEnv("MULTI_TENANT", "true")
+	apiPort      string
+	encryptKey   string
+	privacyMode  string
+	multiTenant  string
 	mode         = ""
 )
 
@@ -109,6 +105,27 @@ type SearchResult struct {
 }
 
 func main() {
+	// Load configuration - REQUIRED, no defaults
+	apiPort = os.Getenv("API_PORT")
+	if apiPort == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
+	encryptKey = os.Getenv("ENCRYPTION_KEY")
+	if encryptKey == "" {
+		log.Fatal("❌ ENCRYPTION_KEY environment variable is required")
+	}
+	
+	privacyMode = os.Getenv("PRIVACY_MODE")
+	if privacyMode == "" {
+		log.Fatal("❌ PRIVACY_MODE environment variable is required")
+	}
+	
+	multiTenant = os.Getenv("MULTI_TENANT")
+	if multiTenant == "" {
+		log.Fatal("❌ MULTI_TENANT environment variable is required")
+	}
+	
 	// Check for special modes
 	for _, arg := range os.Args {
 		if arg == "--load-content" {
@@ -142,20 +159,82 @@ func main() {
 }
 
 func initDB() {
-	var err error
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
 	
-	db, err = sql.Open("postgres", connStr)
+	var err error
+	db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Failed to open database connection: %v", err)
 	}
-
-	// Test connection
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
+	
 	// Set search path
 	_, err = db.Exec("SET search_path TO pregnancy_tracker, public")
 	if err != nil {
@@ -314,8 +393,17 @@ func handleEncryptionStatus(w http.ResponseWriter, r *http.Request) {
 func handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w)
 	
-	// Check if scenario-authenticator is available
-	authPort := getEnv("SCENARIO_AUTHENTICATOR_API_PORT", "15001")
+	// Check if scenario-authenticator is available - REQUIRED, no defaults
+	authPort := os.Getenv("SCENARIO_AUTHENTICATOR_API_PORT")
+	if authPort == "" {
+		log.Printf("Warning: SCENARIO_AUTHENTICATOR_API_PORT not set")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "unavailable",
+			"mode":   "multi-tenant",
+		})
+		return
+	}
 	resp, err := http.Get(fmt.Sprintf("http://localhost:%s/health", authPort))
 	
 	status := "unavailable"
@@ -1047,13 +1135,7 @@ func handlePartnerView(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Helper functions
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// Helper functions - getEnv removed to prevent hardcoded defaults
 
 func extractSystolic(bp string) *int {
 	// Extract systolic from "120/80" format

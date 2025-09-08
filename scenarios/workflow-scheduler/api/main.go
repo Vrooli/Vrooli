@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -91,32 +92,95 @@ type CronPreset struct {
 
 // App represents the main application
 type App struct {
-	DB     *sql.DB
-	Router *mux.Router
+	DB        *sql.DB
+	Router    *mux.Router
+	Scheduler *Scheduler
 }
 
 // Initialize sets up the database connection and routes
 func (a *App) Initialize() {
 	var err error
 	
-	// Get database URL from environment
+	// Database configuration - support both POSTGRES_URL and individual components
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		log.Fatal("POSTGRES_URL environment variable is required")
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 	
 	// Connect to database
 	a.DB, err = sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Failed to open database connection:", err)
 	}
 	
-	// Test connection
-	if err = a.DB.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	// Configure connection pool
+	a.DB.SetMaxOpenConns(25)
+	a.DB.SetMaxIdleConns(5)
+	a.DB.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Println("📊 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = a.DB.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	
 	log.Println("Connected to PostgreSQL database")
+	
+	// Initialize scheduler
+	a.Scheduler = NewScheduler(a.DB)
 	
 	// Initialize router
 	a.Router = mux.NewRouter()
@@ -164,7 +228,17 @@ func (a *App) setRoutes() {
 
 // Run starts the HTTP server
 func (a *App) Run() {
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
+	// Start the scheduler
+	if err := a.Scheduler.Start(); err != nil {
+		log.Fatal("Failed to start scheduler:", err)
+	}
+	defer a.Scheduler.Stop()
 	
 	// Configure CORS
 	c := cors.New(cors.Options{
@@ -183,12 +257,7 @@ func (a *App) Run() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// Removed getEnv function - no defaults allowed
 
 // Health check endpoint
 func (a *App) healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -497,31 +566,42 @@ func (a *App) triggerSchedule(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 	
-	// TODO: Implement actual trigger logic via n8n webhook
-	
-	// Create execution record
-	execID := uuid.New().String()
-	_, err := a.DB.Exec(`
-		INSERT INTO executions (
-			id, schedule_id, scheduled_time, status, 
-			is_manual_trigger, triggered_by
-		) VALUES ($1, $2, $3, $4, $5, $6)
-	`,
-		execID, id, time.Now(), "pending", true, r.Header.Get("X-User"),
-	)
-	
+	// Get schedule details
+	schedule, err := a.Scheduler.getScheduleByID(id)
 	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
+		if err == sql.ErrNoRows {
+			respondError(w, http.StatusNotFound, "Schedule not found")
+		} else {
+			respondError(w, http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
 	
-	// Log audit event
-	a.logAuditEvent(id, "triggered", r.Header.Get("X-User"), r.RemoteAddr)
+	// Queue manual execution
+	execID := uuid.New().String()
+	execution := &ScheduleExecution{
+		Schedule:      schedule,
+		ExecutionID:   execID,
+		ScheduledTime: time.Now(),
+		IsManual:      true,
+		IsCatchUp:     false,
+		TriggeredBy:   r.Header.Get("X-User"),
+	}
 	
-	respondJSON(w, http.StatusOK, map[string]string{
-		"result":       "success",
-		"execution_id": execID,
-	})
+	// Send to execution queue
+	select {
+	case a.Scheduler.executions <- execution:
+		// Log audit event
+		a.logAuditEvent(id, "triggered", r.Header.Get("X-User"), r.RemoteAddr)
+		
+		respondJSON(w, http.StatusOK, map[string]string{
+			"result":       "success",
+			"execution_id": execID,
+			"message":      "Schedule triggered successfully",
+		})
+	case <-time.After(5 * time.Second):
+		respondError(w, http.StatusServiceUnavailable, "Execution queue is full, please try again")
+	}
 }
 
 // Get all executions

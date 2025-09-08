@@ -24,7 +24,7 @@
   },
   "ports": {
     "api": {
-      "env_var": "PORT",
+      "env_var": "API_PORT",
       "description": "Travel Map API port",
       "range": "15000-19999"
     },

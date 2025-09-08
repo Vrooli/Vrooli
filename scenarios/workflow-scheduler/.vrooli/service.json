@@ -17,7 +17,6 @@
       "job-scheduler",
       "task-automation",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache"
     ]
@@ -57,34 +56,6 @@
       "required": true,
       "purpose": "Execution locks, distributed caching, pub/sub for real-time updates"
     },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "purpose": "Core scheduling engine, workflow execution, retry handling",
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/schedule-executor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/missed-handler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/retry-handler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/notification-router.json",
-          "type": "workflow"
-        }
-      ]
-    }
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -150,7 +121,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Workflow Scheduler initialized\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
+          "run": "echo '🚀 Workflow Scheduler initialized\\n  API: http://localhost:${API_PORT}\\n  Database: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/workflow_scheduler\\n  Redis: redis://localhost:${RESOURCE_PORTS[redis]}\\n  CLI: scheduler-cli --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -174,7 +145,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Workflow Scheduler running:\\n  Scheduling Engine: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://localhost:5678/webhook/report'",
+          "run": "echo '🚀 Workflow Scheduler running:\\n  API: http://localhost:$API_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  CLI: scheduler-cli --help\\n\\nQuick Start:\\n  scheduler-cli create --name \"Daily Report\" --cron \"0 9 * * *\" --url http://your-webhook-url'",
           "description": "Display all running service URLs"
         }
       ]

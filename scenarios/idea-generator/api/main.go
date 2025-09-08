@@ -1,15 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
+	_ "github.com/lib/pq"
 )
 
 type Campaign struct {
@@ -45,7 +48,8 @@ type HealthResponse struct {
 }
 
 type ApiServer struct {
-	n8nURL         string
+	db             *sql.DB
+	ideaProcessor  *IdeaProcessor
 	windmillURL    string
 	postgresURL    string
 	qdrantURL      string
@@ -55,29 +59,112 @@ type ApiServer struct {
 	unstructuredURL string
 }
 
-func NewApiServer() *ApiServer {
+func NewApiServer() (*ApiServer, error) {
+	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
-		log.Fatal("POSTGRES_URL environment variable is required")
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			return nil, fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 	
-	return &ApiServer{
-		n8nURL:         getEnvOrDefault("N8N_BASE_URL", "http://localhost:5678"),
-		windmillURL:    getEnvOrDefault("WINDMILL_BASE_URL", "http://localhost:5681"),
-		postgresURL:    postgresURL,
-		qdrantURL:      getEnvOrDefault("QDRANT_URL", "http://localhost:6333"),
-		minioURL:       getEnvOrDefault("MINIO_URL", "http://localhost:9000"),
-		redisURL:       getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
-		ollamaURL:      getEnvOrDefault("OLLAMA_URL", "http://localhost:11434"),
-		unstructuredURL: getEnvOrDefault("UNSTRUCTURED_URL", "http://localhost:11450"),
+	// Connect to database with exponential backoff
+	db, err := initDB(postgresURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
+	
+	// Initialize IdeaProcessor
+	ideaProcessor := NewIdeaProcessor(db)
+	
+	// All service URLs are optional - will use sensible defaults if available
+	windmillURL := os.Getenv("WINDMILL_BASE_URL")
+	qdrantURL := os.Getenv("QDRANT_URL")
+	minioURL := os.Getenv("MINIO_URL")
+	redisURL := os.Getenv("REDIS_URL")
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	unstructuredURL := os.Getenv("UNSTRUCTURED_URL")
+	
+	return &ApiServer{
+		db:             db,
+		ideaProcessor:  ideaProcessor,
+		windmillURL:    windmillURL,
+		postgresURL:    postgresURL,
+		qdrantURL:      qdrantURL,
+		minioURL:       minioURL,
+		redisURL:       redisURL,
+		ollamaURL:      ollamaURL,
+		unstructuredURL: unstructuredURL,
+	}, nil
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+func initDB(postgresURL string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", postgresURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
-	return defaultValue
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
+	return db, nil
 }
 
 func (s *ApiServer) healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -146,34 +233,58 @@ func (s *ApiServer) campaignsHandler(w http.ResponseWriter, r *http.Request) {
 func (s *ApiServer) ideasHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		ideas := []Idea{
-			{
-				ID:         "1",
-				CampaignID: "1",
-				Title:      "AI-Powered Productivity Assistant",
-				Content:    "A smart assistant that learns user habits and automates routine tasks",
-				Status:     "draft",
-				CreatedAt:  time.Now(),
-				UpdatedAt:  time.Now(),
-			},
+		// Query ideas from database
+		campaignID := r.URL.Query().Get("campaign_id")
+		query := `SELECT id, campaign_id, title, content, status, created_at, updated_at 
+				  FROM ideas WHERE 1=1`
+		args := []interface{}{}
+		
+		if campaignID != "" {
+			query += " AND campaign_id = $1"
+			args = append(args, campaignID)
 		}
+		query += " ORDER BY created_at DESC LIMIT 50"
+		
+		rows, err := s.db.Query(query, args...)
+		if err != nil {
+			http.Error(w, "Database error", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+		
+		ideas := []Idea{}
+		for rows.Next() {
+			var idea Idea
+			err := rows.Scan(&idea.ID, &idea.CampaignID, &idea.Title, 
+				&idea.Content, &idea.Status, &idea.CreatedAt, &idea.UpdatedAt)
+			if err != nil {
+				continue
+			}
+			ideas = append(ideas, idea)
+		}
+		
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(ideas)
 
 	case "POST":
-		var idea Idea
-		if err := json.NewDecoder(r.Body).Decode(&idea); err != nil {
+		var req GenerateIdeasRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
 		
-		idea.ID = fmt.Sprintf("%d", time.Now().Unix())
-		idea.CreatedAt = time.Now()
-		idea.UpdatedAt = time.Now()
+		// Use IdeaProcessor to generate ideas
+		ctx := r.Context()
+		response := s.ideaProcessor.GenerateIdeas(ctx, req)
+		
+		if !response.Success {
+			http.Error(w, response.Error, http.StatusInternalServerError)
+			return
+		}
 		
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(idea)
+		json.NewEncoder(w).Encode(response)
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -181,39 +292,40 @@ func (s *ApiServer) ideasHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *ApiServer) workflowsHandler(w http.ResponseWriter, r *http.Request) {
-	workflows := []Workflow{
+	// Return available processing capabilities
+	capabilities := []map[string]string{
 		{
-			ID:          "idea-generation-workflow",
-			Name:        "Idea Generation",
-			Description: "AI-powered idea generation with context awareness",
-			Status:      "active",
-			URL:         s.n8nURL + "/workflow/idea-generation-workflow",
+			"id":          "idea-generation",
+			"name":        "Idea Generation",
+			"description": "AI-powered idea generation with context awareness",
+			"status":      "active",
+			"endpoint":    "/api/ideas",
 		},
 		{
-			ID:          "document-processing-pipeline",
-			Name:        "Document Processing",
-			Description: "Upload and process documents for context extraction",
-			Status:      "active",
-			URL:         s.n8nURL + "/workflow/document-processing-pipeline",
+			"id":          "document-processing",
+			"name":        "Document Processing",
+			"description": "Upload and process documents for context extraction",
+			"status":      "active",
+			"endpoint":    "/api/documents/process",
 		},
 		{
-			ID:          "semantic-search-workflow",
-			Name:        "Semantic Search",
-			Description: "Vector-based search across ideas and documents",
-			Status:      "active",
-			URL:         s.n8nURL + "/workflow/semantic-search-workflow",
+			"id":          "semantic-search",
+			"name":        "Semantic Search",
+			"description": "Vector-based search across ideas and documents",
+			"status":      "active",
+			"endpoint":    "/api/search",
 		},
 		{
-			ID:          "agent-refinement-workflow",
-			Name:        "Agent Refinement",
-			Description: "Multi-agent system for idea development",
-			Status:      "active",
-			URL:         s.n8nURL + "/workflow/agent-refinement-workflow",
+			"id":          "idea-refinement",
+			"name":        "Idea Refinement",
+			"description": "Refine and improve existing ideas",
+			"status":      "active",
+			"endpoint":    "/api/ideas/refine",
 		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(workflows)
+	json.NewEncoder(w).Encode(capabilities)
 }
 
 func (s *ApiServer) statusHandler(w http.ResponseWriter, r *http.Request) {
@@ -223,7 +335,6 @@ func (s *ApiServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp":     time.Now(),
 		"uptime":        "running",
 		"resources": map[string]string{
-			"n8n":            s.n8nURL,
 			"windmill":       s.windmillURL,
 			"postgres":       "connected",
 			"qdrant":         s.qdrantURL,
@@ -238,8 +349,82 @@ func (s *ApiServer) statusHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(status)
 }
 
+func (s *ApiServer) searchHandler(w http.ResponseWriter, r *http.Request) {
+	var req SemanticSearchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	
+	ctx := r.Context()
+	results, err := s.ideaProcessor.SemanticSearch(ctx, req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
+func (s *ApiServer) refineIdeaHandler(w http.ResponseWriter, r *http.Request) {
+	var req RefinementRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	
+	ctx := r.Context()
+	err := s.ideaProcessor.RefineIdea(ctx, req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	response := map[string]interface{}{
+		"success": true,
+		"message": "Idea refined successfully",
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *ApiServer) processDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	var req DocumentProcessingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	
+	ctx := r.Context()
+	err := s.ideaProcessor.ProcessDocument(ctx, req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	response := map[string]interface{}{
+		"success": true,
+		"message": "Document processing started",
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func main() {
-	server := NewApiServer()
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
+	server, err := NewApiServer()
+	if err != nil {
+		log.Fatalf("Failed to initialize server: %v", err)
+	}
+	defer server.db.Close()
 	
 	r := mux.NewRouter()
 	
@@ -248,6 +433,9 @@ func main() {
 	r.HandleFunc("/status", server.statusHandler).Methods("GET")
 	r.HandleFunc("/campaigns", server.campaignsHandler).Methods("GET", "POST")
 	r.HandleFunc("/ideas", server.ideasHandler).Methods("GET", "POST")
+	r.HandleFunc("/ideas/refine", server.refineIdeaHandler).Methods("POST")
+	r.HandleFunc("/search", server.searchHandler).Methods("POST")
+	r.HandleFunc("/documents/process", server.processDocumentHandler).Methods("POST")
 	r.HandleFunc("/workflows", server.workflowsHandler).Methods("GET")
 
 	// Enable CORS
@@ -256,12 +444,10 @@ func main() {
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"*"}),
 	)(r)
-
-	port := getEnvOrDefault("API_PORT", getEnvOrDefault("PORT", ""))
 	
 	log.Printf("Idea Generator API server starting on port %s", port)
 	log.Printf("Services:")
-	log.Printf("  n8n: %s", server.n8nURL)
+	log.Printf("  Database: Connected")
 	log.Printf("  Windmill: %s", server.windmillURL)
 	log.Printf("  Qdrant: %s", server.qdrantURL)
 	log.Printf("  MinIO: %s", server.minioURL)

@@ -4,7 +4,7 @@
   "description": "Interactive quiz generation and assessment interface",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

@@ -18,22 +18,26 @@ import (
 type ScenarioInfo struct {
 	Name           string            `json:"name"`
 	Status         string            `json:"status"`
-	Health         string            `json:"actual_health"`
-	AllocatedPorts map[string]int    `json:"allocated_ports"`
-	PortStatus     map[string]PortInfo `json:"port_status"`
+	Health         string            `json:"health_status"`
+	Ports          map[string]int    `json:"ports"`
 	Tags           []string          `json:"tags,omitempty"`
 	URL            string            `json:"url,omitempty"`
 	DisplayName    string            `json:"display_name,omitempty"`
+	Description    string            `json:"description,omitempty"`
+	Runtime        string            `json:"runtime,omitempty"`
+	Processes      int               `json:"processes,omitempty"`
 }
 
-type PortInfo struct {
-	Port       int  `json:"port"`
-	Listening  bool `json:"listening"`
-	Responding bool `json:"responding"`
-}
 
 type VrooliStatusResponse struct {
-	Apps []ScenarioInfo `json:"apps"`
+	Success   bool           `json:"success"`
+	Scenarios []ScenarioInfo `json:"scenarios"`
+	Summary   struct {
+		Total   int `json:"total_scenarios"`
+		Running int `json:"running"`
+		Stopped int `json:"stopped"`
+	} `json:"summary"`
+	RawResponse json.RawMessage `json:"raw_response,omitempty"`
 }
 
 type IssueReport struct {
@@ -63,6 +67,7 @@ func main() {
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/scenarios/healthy", getHealthyScenariosHandler).Methods("GET")
 	api.HandleFunc("/scenarios/status", getAllScenariosHandler).Methods("GET")
+	api.HandleFunc("/scenarios/debug", getDebugStatusHandler).Methods("GET")
 	api.HandleFunc("/issues/report", reportIssueHandler).Methods("POST")
 	
 	// CORS middleware
@@ -112,11 +117,15 @@ func getAllScenariosHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getHealthyScenariosHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Fetching healthy scenarios...")
 	scenarios, err := getScenarios()
 	if err != nil {
+		log.Printf("Error getting scenarios: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	
+	log.Printf("Found %d total scenarios", len(scenarios))
 	
 	// Filter for healthy running scenarios with UI ports
 	healthyScenarios := []ScenarioInfo{}
@@ -124,21 +133,32 @@ func getHealthyScenariosHandler(w http.ResponseWriter, r *http.Request) {
 	
 	for _, scenario := range scenarios {
 		// Must be running and healthy with a UI port
+		// health_status field is "healthy", "degraded", or "unhealthy"
 		if scenario.Status == "running" && scenario.Health == "healthy" {
-			if uiPort, hasUI := scenario.AllocatedPorts["ui"]; hasUI && uiPort > 0 {
-				// Check if UI port is actually responding
-				if portInfo, exists := scenario.PortStatus["ui"]; exists && portInfo.Responding {
-					scenario.URL = fmt.Sprintf("http://localhost:%d", uiPort)
-					
-					// Load tags from service.json if available
+			// Check for UI port - could be "ui", "UI_PORT", or scenario-specific names
+			uiPort := 0
+			for key, port := range scenario.Ports {
+				keyLower := strings.ToLower(key)
+				if strings.Contains(keyLower, "ui") && port > 0 {
+					uiPort = port
+					break
+				}
+			}
+			
+			if uiPort > 0 {
+				// Skip port check for now - assume healthy scenarios have responding ports
+				scenario.URL = fmt.Sprintf("http://localhost:%d", uiPort)
+				
+				// Load tags from service.json if not already present
+				if len(scenario.Tags) == 0 {
 					tags := loadScenarioTags(scenario.Name)
 					scenario.Tags = tags
-					for _, tag := range tags {
-						categorySet[tag] = true
-					}
-					
-					healthyScenarios = append(healthyScenarios, scenario)
 				}
+				for _, tag := range scenario.Tags {
+					categorySet[tag] = true
+				}
+				
+				healthyScenarios = append(healthyScenarios, scenario)
 			}
 		}
 	}
@@ -204,12 +224,22 @@ func getScenarios() ([]ScenarioInfo, error) {
 		return nil, fmt.Errorf("failed to get scenario status: %v", err)
 	}
 	
-	var response VrooliStatusResponse
-	if err := json.Unmarshal(output, &response); err != nil {
+	// Parse the full response structure
+	var fullResponse struct {
+		Success   bool `json:"success"`
+		Summary   struct {
+			Total   int `json:"total_scenarios"`
+			Running int `json:"running"`
+			Stopped int `json:"stopped"`
+		} `json:"summary"`
+		Scenarios []ScenarioInfo `json:"scenarios"`
+	}
+	
+	if err := json.Unmarshal(output, &fullResponse); err != nil {
 		return nil, fmt.Errorf("failed to parse scenario status: %v", err)
 	}
 	
-	return response.Apps, nil
+	return fullResponse.Scenarios, nil
 }
 
 func loadScenarioTags(scenarioName string) []string {
@@ -259,7 +289,7 @@ func submitIssueToTracker(report IssueReport) error {
 	var issueTrackerPort int
 	for _, scenario := range scenarios {
 		if scenario.Name == "app-issue-tracker" && scenario.Status == "running" {
-			if apiPort, hasAPI := scenario.AllocatedPorts["api"]; hasAPI {
+			if apiPort, hasAPI := scenario.Ports["api"]; hasAPI {
 				issueTrackerPort = apiPort
 				break
 			}
@@ -294,4 +324,61 @@ func submitIssueToTracker(report IssueReport) error {
 	}
 	
 	return nil
+}
+
+// isPortResponding checks if a port is actually responding to HTTP requests
+func isPortResponding(port int) bool {
+	client := &http.Client{
+		Timeout: 500 * time.Millisecond, // Reduced timeout for faster checks
+	}
+	
+	url := fmt.Sprintf("http://localhost:%d", port)
+	resp, err := client.Get(url)
+	if err != nil {
+		// Port might be listening but not HTTP, or not responding
+		return false
+	}
+	defer resp.Body.Close()
+	
+	// Any HTTP response means the port is responding
+	return true
+}
+
+// getDebugStatusHandler returns the raw vrooli scenario status output for debugging
+func getDebugStatusHandler(w http.ResponseWriter, r *http.Request) {
+	// Execute vrooli scenario status --json
+	cmd := exec.Command("vrooli", "scenario", "status", "--json")
+	output, err := cmd.Output()
+	
+	debugResponse := map[string]interface{}{
+		"timestamp": time.Now().Unix(),
+		"command":   "vrooli scenario status --json",
+	}
+	
+	if err != nil {
+		debugResponse["error"] = fmt.Sprintf("Command failed: %v", err)
+		debugResponse["raw_output"] = string(output)
+	} else {
+		// Try to parse as JSON
+		var parsed interface{}
+		if err := json.Unmarshal(output, &parsed); err != nil {
+			debugResponse["parse_error"] = fmt.Sprintf("Failed to parse JSON: %v", err)
+			debugResponse["raw_output"] = string(output)
+		} else {
+			debugResponse["parsed_output"] = parsed
+			debugResponse["raw_output"] = string(output)
+		}
+	}
+	
+	// Also get scenarios using our internal method
+	scenarios, err := getScenarios()
+	if err != nil {
+		debugResponse["internal_error"] = fmt.Sprintf("Internal getScenarios failed: %v", err)
+	} else {
+		debugResponse["internal_scenarios"] = scenarios
+		debugResponse["internal_count"] = len(scenarios)
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(debugResponse)
 }

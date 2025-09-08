@@ -257,12 +257,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f image-generation-pipeline.start-api 2>/dev/null || true",
+          "run": "pkill -f \"image-generation-pipeline-api\" || true; sleep 1; pkill -9 -f \"image-generation-pipeline-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f image-generation-pipeline.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/image-generation-pipeline.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/image-generation-pipeline.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

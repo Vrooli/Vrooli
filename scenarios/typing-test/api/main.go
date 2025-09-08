@@ -1,17 +1,19 @@
 package main
 
 import (
-    "bytes"
+    "context"
     "database/sql"
     "encoding/json"
     "fmt"
     "log"
+    "math"
     "net/http"
     "os"
     "strings"
     "time"
 
     _ "github.com/lib/pq"
+    "github.com/google/uuid"
     "github.com/gorilla/mux"
     "github.com/rs/cors"
 )
@@ -69,32 +71,98 @@ type AdaptiveTextResponse struct {
 }
 
 var db *sql.DB
-var n8nURL string
+var typingProcessor *TypingProcessor
 
 func main() {
-    // Get environment variables
-	port := getEnv("API_PORT", getEnv("PORT", ""))
-
-    postgresURL := os.Getenv("POSTGRES_URL")
-    if postgresURL == "" {
-        log.Fatal("POSTGRES_URL environment variable is required")
+    // Get port from environment - REQUIRED, no defaults
+    port := os.Getenv("API_PORT")
+    if port == "" {
+        log.Fatal("❌ API_PORT environment variable is required")
     }
 
-    n8nURL = os.Getenv("N8N_BASE_URL")
-    if n8nURL == "" {
-        n8nURL = "http://localhost:5678"
+    // Database configuration - support both POSTGRES_URL and individual components
+    postgresURL := os.Getenv("POSTGRES_URL")
+    if postgresURL == "" {
+        // Try to build from individual components - REQUIRED, no defaults
+        dbHost := os.Getenv("POSTGRES_HOST")
+        dbPort := os.Getenv("POSTGRES_PORT")
+        dbUser := os.Getenv("POSTGRES_USER")
+        dbPassword := os.Getenv("POSTGRES_PASSWORD")
+        dbName := os.Getenv("POSTGRES_DB")
+        
+        if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+            log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+        }
+        
+        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+            dbUser, dbPassword, dbHost, dbPort, dbName)
     }
 
     // Connect to database
     var err error
     db, err = sql.Open("postgres", postgresURL)
     if err != nil {
-        log.Fatal("Failed to connect to database:", err)
+        log.Fatal("Failed to open database connection:", err)
     }
     defer db.Close()
+    
+    // Set connection pool settings
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+    
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+    log.Printf("📆 Database URL configured")
+    
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            break
+        }
+        
+        // Calculate exponential backoff delay
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add progressive jitter to prevent thundering herd
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+        
+        // Provide detailed status every few attempts
+        if attempt > 0 && attempt % 3 == 0 {
+            log.Printf("📈 Retry progress:")
+            log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+            log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+            log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+        }
+        
+        time.Sleep(actualDelay)
+    }
+    
+    if pingErr != nil {
+        log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+    }
+    
+    log.Println("🎉 Database connection pool established successfully!")
 
     // Initialize database
     initDB()
+    
+    // Initialize TypingProcessor
+    typingProcessor = NewTypingProcessor(db)
 
     // Setup routes
     router := mux.NewRouter()
@@ -169,6 +237,7 @@ func initDB() {
         max_combo INTEGER DEFAULT 0,
         difficulty VARCHAR(20) DEFAULT 'easy',
         mode VARCHAR(20) DEFAULT 'classic',
+        user_id VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -181,6 +250,14 @@ func initDB() {
         texts_completed INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    CREATE TABLE IF NOT EXISTS game_sessions (
+        id SERIAL PRIMARY KEY,
+        session_id VARCHAR(100) UNIQUE NOT NULL,
+        session_data JSONB,
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        duration_seconds INTEGER DEFAULT 0
     );
 
     CREATE INDEX IF NOT EXISTS idx_scores_created_at ON scores(created_at DESC);
@@ -203,43 +280,31 @@ func getLeaderboard(w http.ResponseWriter, r *http.Request) {
     if period == "" {
         period = "all"
     }
-
-    var whereClause string
-    switch period {
-    case "today":
-        whereClause = "WHERE created_at >= CURRENT_DATE"
-    case "week":
-        whereClause = "WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'"
-    case "month":
-        whereClause = "WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'"
-    default:
-        whereClause = ""
+    
+    userID := r.URL.Query().Get("user_id")
+    if userID == "" {
+        userID = uuid.New().String()
     }
 
-    query := fmt.Sprintf(`
-        SELECT id, name, score, wpm, accuracy, max_combo, difficulty, mode, created_at
-        FROM scores
-        %s
-        ORDER BY score DESC
-        LIMIT 10
-    `, whereClause)
-
-    rows, err := db.Query(query)
+    // Use TypingProcessor to get leaderboard
+    ctx := context.Background()
+    entries, err := typingProcessor.ManageLeaderboard(ctx, period, userID)
     if err != nil {
         http.Error(w, "Failed to fetch leaderboard", http.StatusInternalServerError)
         return
     }
-    defer rows.Close()
 
-    var scores []Score
-    for rows.Next() {
-        var score Score
-        err := rows.Scan(&score.ID, &score.Name, &score.Score, &score.WPM, 
-            &score.Accuracy, &score.MaxCombo, &score.Difficulty, &score.Mode, &score.CreatedAt)
-        if err != nil {
-            continue
-        }
-        scores = append(scores, score)
+    // Convert LeaderboardEntry to Score for compatibility
+    scores := []Score{}
+    for _, entry := range entries {
+        scores = append(scores, Score{
+            ID:       entry.Rank,
+            Name:     entry.Name,
+            Score:    entry.Score,
+            WPM:      entry.WPM,
+            Accuracy: int(entry.Accuracy),
+            CreatedAt: entry.Date,
+        })
     }
 
     response := LeaderboardResponse{
@@ -258,22 +323,13 @@ func submitScore(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Insert score into database
-    query := `
-        INSERT INTO scores (name, score, wpm, accuracy, max_combo, difficulty, mode)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, created_at
-    `
-
-    err := db.QueryRow(query, score.Name, score.Score, score.WPM, 
-        score.Accuracy, score.MaxCombo, score.Difficulty, score.Mode).Scan(&score.ID, &score.CreatedAt)
+    // Use TypingProcessor to add score
+    ctx := context.Background()
+    err := typingProcessor.AddScore(ctx, score)
     if err != nil {
         http.Error(w, "Failed to save score", http.StatusInternalServerError)
         return
     }
-
-    // Trigger n8n workflow for leaderboard update
-    go triggerLeaderboardUpdate(score)
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(map[string]interface{}{
@@ -289,33 +345,29 @@ func submitStats(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Update or create session stats
-    query := `
-        INSERT INTO typing_sessions (session_id, total_chars, correct_chars, total_time, texts_completed)
-        VALUES ($1, $2, $3, $4, 1)
-        ON CONFLICT (session_id) 
-        DO UPDATE SET 
-            total_chars = typing_sessions.total_chars + EXCLUDED.total_chars,
-            correct_chars = typing_sessions.correct_chars + EXCLUDED.correct_chars,
-            total_time = typing_sessions.total_time + EXCLUDED.total_time,
-            texts_completed = typing_sessions.texts_completed + 1,
-            updated_at = CURRENT_TIMESTAMP
-    `
-
-    totalChars := len(stats.Text)
-    correctChars := int(float64(totalChars) * float64(stats.Accuracy) / 100)
-    timeSeconds := 60 // Default session time
-
-    _, err := db.Exec(query, stats.SessionID, totalChars, correctChars, timeSeconds)
-    if err != nil {
-        log.Printf("Failed to update stats: %v", err)
+    // Convert to SessionStats for processing
+    sessionStats := SessionStats{
+        SessionID:       stats.SessionID,
+        WPM:             stats.WPM,
+        Accuracy:        float64(stats.Accuracy),
+        CharactersTyped: len(stats.Text),
+        ErrorCount:      int(float64(len(stats.Text)) * (100 - float64(stats.Accuracy)) / 100),
+        TimeSpent:       60, // Default session time
+        Difficulty:      "medium",
+        TextCompleted:   true,
     }
 
-    // Trigger stats processing workflow
-    go triggerStatsProcessing(stats)
+    // Process stats using TypingProcessor
+    ctx := context.Background()
+    result, err := typingProcessor.ProcessStats(ctx, sessionStats)
+    if err != nil {
+        log.Printf("Failed to process stats: %v", err)
+        http.Error(w, "Failed to process stats", http.StatusInternalServerError)
+        return
+    }
 
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]bool{"success": true})
+    json.NewEncoder(w).Encode(result)
 }
 
 func getCoaching(w http.ResponseWriter, r *http.Request) {
@@ -325,108 +377,23 @@ func getCoaching(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Get session history from database
-    var avgWPM, avgAccuracy, totalSessions int
-    var bestWPM int
-    query := `
-        SELECT 
-            COALESCE(AVG(wpm), 0)::INT as avg_wpm,
-            COALESCE(AVG(accuracy), 0)::INT as avg_accuracy,
-            COUNT(*) as total_sessions,
-            COALESCE(MAX(wpm), 0) as best_wpm
-        FROM scores
-        WHERE created_at > NOW() - INTERVAL '30 days'
-    `
-    db.QueryRow(query).Scan(&avgWPM, &avgAccuracy, &totalSessions, &bestWPM)
-
-    // Determine trend
-    trend := "stable"
-    if request.UserStats.WPM > avgWPM+5 {
-        trend = "improving"
-    } else if request.UserStats.WPM < avgWPM-5 {
-        trend = "declining"
+    // Convert to SessionStats for coaching
+    sessionStats := SessionStats{
+        SessionID:       request.UserStats.SessionID,
+        WPM:             request.UserStats.WPM,
+        Accuracy:        float64(request.UserStats.Accuracy),
+        CharactersTyped: len(request.UserStats.Text),
+        TimeSpent:       60,
+        Difficulty:      request.Difficulty,
+        TextCompleted:   true,
     }
 
-    // Call n8n coaching workflow if available
-    if n8nURL != "" {
-        payload := map[string]interface{}{
-            "userId": fmt.Sprintf("user_%d", time.Now().Unix()),
-            "sessionStats": map[string]interface{}{
-                "wpm":         request.UserStats.WPM,
-                "accuracy":    request.UserStats.Accuracy,
-                "improvement": request.UserStats.WPM - avgWPM,
-            },
-            "historicalData": map[string]interface{}{
-                "avgWpm":        avgWPM,
-                "avgAccuracy":   avgAccuracy,
-                "totalSessions": totalSessions,
-                "bestWpm":       bestWPM,
-                "trend":         trend,
-            },
-        }
-
-        jsonData, _ := json.Marshal(payload)
-        webhookURL := fmt.Sprintf("%s/webhook/typing-test/coach", n8nURL)
-        
-        resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-        if err == nil && resp.StatusCode == 200 {
-            defer resp.Body.Close()
-            var result map[string]interface{}
-            if json.NewDecoder(resp.Body).Decode(&result) == nil {
-                w.Header().Set("Content-Type", "application/json")
-                json.NewEncoder(w).Encode(result)
-                return
-            }
-        }
-    }
-
-    // Fallback to enhanced static tips based on performance
-    tips := map[string][]string{
-        "beginner": {
-            "Start with home row keys (ASDF JKL;) - place your fingers there now",
-            "Type slowly but accurately - speed comes with muscle memory",
-            "Look at the screen, not the keyboard - trust your fingers",
-        },
-        "intermediate": {
-            "Focus on your weak keys - practice words with those letters",
-            "Try typing common word patterns like 'ing', 'tion', 'the'",
-            "Maintain rhythm - consistent timing improves flow",
-        },
-        "advanced": {
-            "Challenge yourself with code or technical documentation",
-            "Practice typing while thinking about content, not keys",
-            "Try speed bursts - type as fast as possible for 10 seconds",
-        },
-    }
-
-    skillLevel := "beginner"
-    if request.UserStats.WPM >= 60 && request.UserStats.Accuracy >= 95 {
-        skillLevel = "advanced"
-    } else if request.UserStats.WPM >= 40 && request.UserStats.Accuracy >= 90 {
-        skillLevel = "intermediate"
-    }
-
-    selectedTips := tips[skillLevel]
-    selectedTip := selectedTips[request.UserStats.WPM%len(selectedTips)]
+    // Get coaching from TypingProcessor
+    ctx := context.Background()
+    coaching := typingProcessor.ProvideCoaching(ctx, sessionStats, request.Difficulty)
 
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]interface{}{
-        "coaching": map[string]interface{}{
-            "technique": selectedTip,
-            "encouragement": fmt.Sprintf("You're typing at %d WPM! Keep practicing!", request.UserStats.WPM),
-            "personalizedMetrics": map[string]interface{}{
-                "currentWpm": request.UserStats.WPM,
-                "targetWpm": request.UserStats.WPM + 10,
-                "accuracyGoal": func() int {
-                    if request.UserStats.Accuracy + 5 < 100 {
-                        return request.UserStats.Accuracy + 5
-                    }
-                    return 100
-                }(),
-            },
-        },
-        "recommendedDifficulty": getRecommendedDifficulty(request.UserStats.WPM, request.UserStats.Accuracy),
-    })
+    json.NewEncoder(w).Encode(coaching)
 }
 
 func getPracticeText(w http.ResponseWriter, r *http.Request) {
@@ -475,17 +442,6 @@ func getRecommendedDifficulty(wpm, accuracy int) string {
     return "easy"
 }
 
-func triggerLeaderboardUpdate(score Score) {
-    // This would trigger the n8n leaderboard-manager workflow
-    // For now, just log it
-    log.Printf("New score submitted: %s - %d points", score.Name, score.Score)
-}
-
-func triggerStatsProcessing(stats StatsRequest) {
-    // This would trigger the n8n typing-stats-processor workflow
-    // For now, just log it
-    log.Printf("Stats processed for session: %s", stats.SessionID)
-}
 
 func getAdaptiveText(w http.ResponseWriter, r *http.Request) {
     var request AdaptiveTextRequest
@@ -505,95 +461,11 @@ func getAdaptiveText(w http.ResponseWriter, r *http.Request) {
         request.TextLength = "medium"
     }
 
-    // Call n8n adaptive text generation workflow
-    if n8nURL != "" {
-        payload := map[string]interface{}{
-            "userId":          request.UserID,
-            "difficulty":      request.Difficulty,
-            "targetWords":     request.TargetWords,
-            "problemChars":    request.ProblemChars,
-            "userLevel":       request.UserLevel,
-            "textLength":      request.TextLength,
-            "previousMistakes": request.PreviousMistakes,
-        }
-
-        jsonPayload, _ := json.Marshal(payload)
-        
-        resp, err := http.Post(
-            fmt.Sprintf("%s/webhook/typing-test/generate-text", n8nURL),
-            "application/json",
-            bytes.NewBuffer(jsonPayload),
-        )
-
-        if err == nil && resp.StatusCode == 200 {
-            defer resp.Body.Close()
-            var n8nResponse AdaptiveTextResponse
-            if json.NewDecoder(resp.Body).Decode(&n8nResponse) == nil {
-                w.Header().Set("Content-Type", "application/json")
-                json.NewEncoder(w).Encode(n8nResponse)
-                return
-            }
-        }
-    }
-
-    // Fallback: generate adaptive text locally based on user data
-    adaptiveText := generateFallbackText(request)
-    
-    response := AdaptiveTextResponse{
-        Text:       adaptiveText,
-        WordCount:  len(strings.Fields(adaptiveText)),
-        Difficulty: request.Difficulty,
-        IsAdaptive: true,
-        Timestamp:  time.Now().UTC().Format(time.RFC3339),
-    }
+    // Use TypingProcessor to generate adaptive text
+    ctx := context.Background()
+    response := typingProcessor.GenerateAdaptiveText(ctx, request)
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
 }
 
-func generateFallbackText(request AdaptiveTextRequest) string {
-    // Fallback texts that incorporate common problem areas
-    fallbackTexts := map[string][]string{
-        "easy": {
-            "The cat definitely received the necessary help from the veterinarian whether it needed it or not.",
-            "People often separate their work and personal lives to achieve better balance and productivity.",
-            "Learning proper techniques can definitely improve your typing accuracy and overall speed.",
-        },
-        "medium": {
-            "The necessary equipment definitely received proper maintenance whether the technician thought it needed it or not, ensuring separate systems operated efficiently.",
-            "Organizations often separate their technical infrastructure from user-facing applications to achieve better performance, security, and scalability in their systems.",
-            "Whether you're developing software applications or managing database systems, proper planning and execution are definitely necessary for successful project delivery.",
-        },
-        "hard": {
-            "The sophisticated algorithm definitely received comprehensive optimization whether the development team initially thought it was necessary or not, ensuring separate computational processes operated efficiently.",
-            "Contemporary software architectures often separate their microservices infrastructure from monolithic applications, whether the organization definitely needs the added complexity or can achieve necessary scalability through alternative approaches.",
-            "Advanced cryptographic implementations definitely require specialized knowledge, whether the security protocols are necessary for basic applications or more sophisticated systems that separate sensitive data processing.",
-        },
-    }
-
-    texts := fallbackTexts[request.Difficulty]
-    if texts == nil {
-        texts = fallbackTexts["medium"]
-    }
-
-    // Select a text based on target words if provided
-    if len(request.TargetWords) > 0 {
-        for _, text := range texts {
-            for _, word := range request.TargetWords {
-                if strings.Contains(strings.ToLower(text), strings.ToLower(word)) {
-                    return text
-                }
-            }
-        }
-    }
-
-    // Return first text as default
-    return texts[0]
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

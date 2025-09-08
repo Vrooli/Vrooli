@@ -219,12 +219,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f picker-wheel.start-api 2>/dev/null || true",
+          "run": "pkill -f \"picker-wheel-api\" || true; sleep 1; pkill -9 -f \"picker-wheel-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f picker-wheel.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/picker-wheel.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/picker-wheel.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

@@ -17,7 +17,7 @@
       "go-api",
       "postgres-storage",
       "redis-cache",
-      "n8n-workflows"
+      "ai-enhanced"
     ]
   },
   "ports": {
@@ -51,16 +51,11 @@
       "required": false,
       "purpose": "Cache frequently accessed rankings for performance"
     },
-    "n8n": {
-      "type": "n8n",
+    "ollama": {
+      "type": "ollama",
       "enabled": true,
       "required": false,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/smart-pairing.json",
-          "type": "workflow"
-        }
-      ]
+      "purpose": "AI-powered smart pairing suggestions for more efficient ranking"
     }
   },
   "scripts": {
@@ -69,7 +64,7 @@
       "steps": [
         {
           "name": "create-directories",
-          "run": "mkdir -p api cli ui initialization/storage/postgres initialization/automation/n8n",
+          "run": "mkdir -p api cli ui initialization/storage/postgres",
           "description": "Create required directories"
         },
         {
@@ -195,13 +190,35 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f elo-swipe.start-api 2>/dev/null || true",
+          "run": "pkill -f \"elo-swipe-api\" || true; sleep 1; pkill -9 -f \"elo-swipe-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f elo-swipe.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/elo-swipe.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/elo-swipe.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o elo-swipe-api .",
+          "description": "Build API server"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && ./elo-swipe-api",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python -m http.server 8080",
+          "description": "Start UI server",
+          "background": true
         }
       ]
     }

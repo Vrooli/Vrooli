@@ -17,7 +17,8 @@ import (
 )
 
 type App struct {
-	DB *sql.DB
+	DB           *sql.DB
+	SmartPairing *SmartPairing
 }
 
 type List struct {
@@ -95,42 +96,85 @@ type RankedItem struct {
 func main() {
 	app := &App{}
 	
-	// Database connection
-	dbHost := getEnv("POSTGRES_HOST", "")
-	if dbHost == "" {
-		log.Fatal("POSTGRES_HOST environment variable is required")
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	dbPort := getEnv("POSTGRES_PORT", "")
-	if dbPort == "" {
-		log.Fatal("POSTGRES_PORT environment variable is required")
-	}
-	dbUser := getEnv("POSTGRES_USER", "")
-	if dbUser == "" {
-		log.Fatal("POSTGRES_USER environment variable is required")
-	}
-	dbPassword := getEnv("POSTGRES_PASSWORD", "")
-	if dbPassword == "" {
-		log.Fatal("POSTGRES_PASSWORD environment variable is required")
-	}
-	dbName := getEnv("POSTGRES_DB", "")
-	if dbName == "" {
-		log.Fatal("POSTGRES_DB environment variable is required")
-	}
-	
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
 	
 	var err error
-	app.DB, err = sql.Open("postgres", connStr)
+	app.DB, err = sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatal("Failed to open database connection:", err)
 	}
 	defer app.DB.Close()
 	
-	// Test connection
-	if err := app.DB.Ping(); err != nil {
-		log.Fatal("Database ping failed:", err)
+	// Set connection pool settings
+	app.DB.SetMaxOpenConns(25)
+	app.DB.SetMaxIdleConns(5)
+	app.DB.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = app.DB.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
+
+	// Initialize SmartPairing
+	app.SmartPairing = NewSmartPairing(app.DB)
 	
 	// Setup routes
 	router := mux.NewRouter()
@@ -146,6 +190,11 @@ func main() {
 	api.HandleFunc("/comparisons", app.CreateComparison).Methods("POST")
 	api.HandleFunc("/comparisons/{id}", app.DeleteComparison).Methods("DELETE")
 	
+	// Smart Pairing routes
+	api.HandleFunc("/lists/{id}/smart-pairing", app.GenerateSmartPairing).Methods("POST")
+	api.HandleFunc("/lists/{id}/smart-pairing/queue", app.GetPairingQueue).Methods("GET")
+	api.HandleFunc("/lists/{id}/smart-pairing/refresh", app.RefreshPairingQueue).Methods("POST")
+	
 	// CORS
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
@@ -155,18 +204,17 @@ func main() {
 	
 	handler := c.Handler(router)
 	
-	// Start server
-	port := getEnv("API_PORT", "30400")
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
 	log.Printf("Elo Swipe API server starting on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults
 
 func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
@@ -577,4 +625,68 @@ func (app *App) getProgress(listID string) (Progress, error) {
 		Completed: comparisonCount,
 		Total:     recommendedComparisons,
 	}, nil
+}
+
+// Smart Pairing handlers
+func (app *App) GenerateSmartPairing(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	listID := vars["id"]
+
+	var req PairingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Try to get items automatically if no body provided
+		items, err := app.SmartPairing.getListItems(listID)
+		if err != nil {
+			http.Error(w, "Failed to get list items", http.StatusInternalServerError)
+			return
+		}
+		req = PairingRequest{
+			ListID: listID,
+			Items:  items,
+		}
+	}
+
+	// Ensure listID matches URL parameter
+	req.ListID = listID
+
+	response, err := app.SmartPairing.GenerateSmartPairs(r.Context(), req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(response)
+}
+
+func (app *App) GetPairingQueue(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	listID := vars["id"]
+
+	pairs, err := app.SmartPairing.GetQueuedPairs(r.Context(), listID, 20)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"list_id":     listID,
+		"queue_count": len(pairs),
+		"pairs":       pairs,
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func (app *App) RefreshPairingQueue(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	listID := vars["id"]
+
+	response, err := app.SmartPairing.RefreshSmartPairs(r.Context(), listID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(response)
 }

@@ -219,35 +219,84 @@ func decryptString(ciphertext string) (string, error) {
 
 // Database initialization
 func initDB() {
-	var err error
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
 	
-	dbHost := getEnv("POSTGRES_HOST", "localhost")
-	dbPort := getEnv("POSTGRES_PORT", "5432")
-	dbUser := getEnv("POSTGRES_USER", "postgres")
-	dbPassword := getEnv("POSTGRES_PASSWORD", "password")
-	dbName := getEnv("POSTGRES_DB", "vrooli")
-
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-
-	db, err = sql.Open("postgres", dsn)
+	var err error
+	db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Failed to open database connection: %v", err)
 	}
-
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
-	log.Println("Database connected successfully")
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 }
 
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
+// getEnv removed to prevent hardcoded defaults
 
 // Middleware for authentication (integrates with scenario-authenticator)
 func authMiddleware() gin.HandlerFunc {
@@ -839,9 +888,13 @@ func main() {
 		log.Println("No .env file found, using environment variables")
 	}
 
-	// Initialize encryption key
+	// Initialize encryption key - REQUIRED, no defaults
+	encryptionKeyEnv := os.Getenv("ENCRYPTION_KEY")
+	if encryptionKeyEnv == "" {
+		log.Fatal("❌ ENCRYPTION_KEY environment variable is required")
+	}
 	salt := []byte("period-tracker-salt-2024") // In production, use a proper random salt
-	encryptionKey = deriveKey(getEnv("ENCRYPTION_KEY", "default-key-for-development"), salt)
+	encryptionKey = deriveKey(encryptionKeyEnv, salt)
 
 	// Initialize database
 	initDB()
@@ -906,8 +959,11 @@ func main() {
 		})
 	}
 
-	// Start server
-	port := getEnv("PERIOD_TRACKER_API_PORT", "16000")
+	// Start server - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 	log.Printf("Period Tracker API starting on port %s", port)
 	log.Printf("Privacy mode: Enabled - All data encrypted and stored locally")
 	

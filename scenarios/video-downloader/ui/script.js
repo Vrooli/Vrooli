@@ -9,30 +9,74 @@ let currentQueue = [];
 let downloadHistory = [];
 let currentVideoInfo = null;
 
-// DOM Elements
+// DOM Elements - Enhanced for Media Intelligence Platform
 const elements = {
+    // URL Input and Analysis
     urlInput: document.getElementById('urlInput'),
     analyzeBtn: document.getElementById('analyzeBtn'),
     downloadBtn: document.getElementById('downloadBtn'),
+    downloadBtnText: document.getElementById('downloadBtnText'),
+    downloadEstimate: document.getElementById('downloadEstimate'),
+    estimateTime: document.getElementById('estimateTime'),
     urlPreview: document.getElementById('urlPreview'),
     previewThumbnail: document.getElementById('previewThumbnail'),
     previewTitle: document.getElementById('previewTitle'),
     previewDescription: document.getElementById('previewDescription'),
     previewDuration: document.getElementById('previewDuration'),
     previewPlatform: document.getElementById('previewPlatform'),
+    
+    // Enhanced Format Options
     qualitySelect: document.getElementById('qualitySelect'),
     formatSelect: document.getElementById('formatSelect'),
     audioOnly: document.getElementById('audioOnly'),
+    audioOptions: document.getElementById('audioOptions'),
+    audioFormatSelect: document.getElementById('audioFormatSelect'),
+    audioQualitySelect: document.getElementById('audioQualitySelect'),
+    
+    // Transcript Options
+    generateTranscript: document.getElementById('generateTranscript'),
+    transcriptSettings: document.getElementById('transcriptSettings'),
+    whisperModelSelect: document.getElementById('whisperModelSelect'),
+    targetLanguageSelect: document.getElementById('targetLanguageSelect'),
+    
+    // Tab Content Areas
     queueList: document.getElementById('queueList'),
     historyList: document.getElementById('historyList'),
+    transcriptsList: document.getElementById('transcriptsList'),
     searchInput: document.getElementById('searchInput'),
+    transcriptSearchInput: document.getElementById('transcriptSearchInput'),
+    languageFilter: document.getElementById('languageFilter'),
+    
+    // Batch Operations
     batchUrls: document.getElementById('batchUrls'),
     batchDownloadBtn: document.getElementById('batchDownloadBtn'),
     clearBatchBtn: document.getElementById('clearBatchBtn'),
     processQueueBtn: document.getElementById('processQueueBtn'),
+    
+    // Stats and UI
     queueCount: document.getElementById('queueCount'),
     downloadCount: document.getElementById('downloadCount'),
-    toastContainer: document.getElementById('toastContainer')
+    toastContainer: document.getElementById('toastContainer'),
+    
+    // Transcript Modal Elements
+    transcriptModal: document.getElementById('transcriptModal'),
+    transcriptTitle: document.getElementById('transcriptTitle'),
+    transcriptLanguage: document.getElementById('transcriptLanguage'),
+    transcriptConfidence: document.getElementById('transcriptConfidence'),
+    transcriptDuration: document.getElementById('transcriptDuration'),
+    transcriptText: document.getElementById('transcriptText'),
+    searchInTranscriptBtn: document.getElementById('searchInTranscriptBtn'),
+    exportTranscriptBtn: document.getElementById('exportTranscriptBtn'),
+    closeTranscriptBtn: document.getElementById('closeTranscriptBtn'),
+    transcriptSearchBar: document.getElementById('transcriptSearchBar'),
+    transcriptSearchQuery: document.getElementById('transcriptSearchQuery'),
+    searchResultsCount: document.getElementById('searchResultsCount'),
+    prevSearchResult: document.getElementById('prevSearchResult'),
+    nextSearchResult: document.getElementById('nextSearchResult'),
+    transcriptExportOptions: document.getElementById('transcriptExportOptions'),
+    includeTimestamps: document.getElementById('includeTimestamps'),
+    includeConfidence: document.getElementById('includeConfidence'),
+    downloadExportBtn: document.getElementById('downloadExportBtn')
 };
 
 // Initialize
@@ -63,8 +107,9 @@ function initializeTabs() {
     });
 }
 
-// Event Listeners
+// Enhanced Event Listeners for Media Intelligence Platform
 function initializeEventListeners() {
+    // Core URL and Download functionality
     elements.analyzeBtn.addEventListener('click', analyzeURL);
     elements.downloadBtn.addEventListener('click', startDownload);
     elements.batchDownloadBtn.addEventListener('click', addBatchToQueue);
@@ -73,15 +118,61 @@ function initializeEventListeners() {
         showToast('Batch URLs cleared', 'success');
     });
     elements.processQueueBtn.addEventListener('click', processQueue);
-    elements.searchInput.addEventListener('input', filterHistory);
-    elements.audioOnly.addEventListener('change', handleAudioOnlyToggle);
     
-    // Enter key on URL input
+    // Search and Filter functionality
+    elements.searchInput.addEventListener('input', filterHistory);
+    elements.transcriptSearchInput.addEventListener('input', filterTranscripts);
+    elements.languageFilter.addEventListener('change', filterTranscripts);
+    
+    // Enhanced Audio and Format Options
+    elements.audioOnly.addEventListener('change', handleAudioOnlyToggle);
+    elements.audioFormatSelect.addEventListener('change', updateAudioQualityOptions);
+    elements.generateTranscript.addEventListener('change', handleTranscriptToggle);
+    elements.whisperModelSelect.addEventListener('change', updateDownloadEstimate);
+    
+    // Transcript Modal functionality
+    elements.searchInTranscriptBtn.addEventListener('click', toggleTranscriptSearch);
+    elements.exportTranscriptBtn.addEventListener('click', toggleExportOptions);
+    elements.closeTranscriptBtn.addEventListener('click', closeTranscriptModal);
+    elements.transcriptSearchQuery.addEventListener('input', searchWithinTranscript);
+    elements.prevSearchResult.addEventListener('click', () => navigateSearchResults('prev'));
+    elements.nextSearchResult.addEventListener('click', () => navigateSearchResults('next'));
+    elements.downloadExportBtn.addEventListener('click', downloadTranscriptExport);
+    
+    // Export format selection
+    document.querySelectorAll('.format-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.format-btn').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+        });
+    });
+    
+    // Modal backdrop close
+    elements.transcriptModal.querySelector('.modal-backdrop').addEventListener('click', closeTranscriptModal);
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', handleKeyboardShortcuts);
+    
+    // Enter key handlers
     elements.urlInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             analyzeURL();
         }
     });
+    
+    elements.transcriptSearchQuery.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            searchWithinTranscript();
+        }
+    });
+    
+    // Real-time download estimate updates
+    [elements.qualitySelect, elements.formatSelect, elements.audioQualitySelect].forEach(select => {
+        select.addEventListener('change', updateDownloadEstimate);
+    });
+    
+    // Initialize enhanced tabs with transcript support
+    initializeEnhancedTabs();
 }
 
 // Drag and Drop
@@ -174,20 +265,43 @@ function displayVideoInfo(info) {
     }
 }
 
-// Start Download
+// Enhanced Start Download with Media Intelligence Platform support
 async function startDownload() {
     if (!currentVideoInfo) {
         showToast('Please analyze a URL first', 'error');
         return;
     }
     
+    // Build enhanced download request
     const downloadData = {
         url: elements.urlInput.value.trim(),
-        title: currentVideoInfo.title,
         quality: elements.qualitySelect.value,
-        format: elements.audioOnly.checked ? 'mp3' : elements.formatSelect.value,
+        format: elements.formatSelect.value,
         user_id: getUserId()
     };
+    
+    // Enhanced audio options
+    if (elements.audioOnly.checked) {
+        downloadData.audio_only = true;
+        downloadData.audio_format = elements.audioFormatSelect.value;
+        downloadData.audio_quality = elements.audioQualitySelect.value;
+    } else if (elements.audioFormatSelect.value) {
+        // Extract audio even for video downloads if format specified
+        downloadData.audio_format = elements.audioFormatSelect.value;
+        downloadData.audio_quality = elements.audioQualitySelect.value;
+    }
+    
+    // Transcript generation options
+    if (elements.generateTranscript.checked) {
+        downloadData.generate_transcript = true;
+        downloadData.whisper_model = elements.whisperModelSelect.value;
+        if (elements.targetLanguageSelect.value) {
+            downloadData.target_language = elements.targetLanguageSelect.value;
+        }
+    }
+    
+    elements.downloadBtn.disabled = true;
+    elements.downloadBtnText.textContent = 'Starting...';
     
     try {
         const response = await fetch(`${API_URL}/download`, {
@@ -196,19 +310,37 @@ async function startDownload() {
             body: JSON.stringify(downloadData)
         });
         
-        if (!response.ok) throw new Error('Failed to start download');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to start download');
+        }
         
         const result = await response.json();
         addToQueue(result);
-        showToast('Download added to queue', 'success');
         
-        // Clear input
+        // Enhanced success message
+        let message = 'Download added to queue';
+        if (downloadData.generate_transcript) {
+            message += ' with transcript generation';
+        }
+        if (downloadData.audio_format && !downloadData.audio_only) {
+            message += ` and ${downloadData.audio_format.toUpperCase()} extraction`;
+        }
+        
+        showToast(message, 'success');
+        
+        // Clear input and reset form
         elements.urlInput.value = '';
         elements.urlPreview.classList.add('hidden');
         currentVideoInfo = null;
+        resetFormOptions();
+        
     } catch (error) {
         console.error('Download error:', error);
-        showToast('Failed to start download', 'error');
+        showToast(error.message || 'Failed to start download', 'error');
+    } finally {
+        elements.downloadBtn.disabled = false;
+        elements.downloadBtnText.textContent = 'Download';
     }
 }
 
@@ -498,6 +630,271 @@ function stopQueuePolling() {
 window.redownload = function(url) {
     elements.urlInput.value = url;
     analyzeURL();
+};
+
+// =============================================================================
+// ENHANCED MEDIA INTELLIGENCE PLATFORM FUNCTIONS
+// =============================================================================
+
+// Enhanced Audio and Format Handling
+function handleAudioOnlyToggle() {
+    const audioOnly = elements.audioOnly.checked;
+    elements.audioOptions.classList.toggle('hidden', !audioOnly);
+    updateDownloadEstimate();
+}
+
+function handleTranscriptToggle() {
+    const generateTranscript = elements.generateTranscript.checked;
+    elements.transcriptSettings.classList.toggle('hidden', !generateTranscript);
+    updateDownloadEstimate();
+}
+
+function updateAudioQualityOptions() {
+    const format = elements.audioFormatSelect.value;
+    const qualitySelect = elements.audioQualitySelect;
+    
+    // Disable quality selection for lossless formats
+    if (format === 'flac') {
+        qualitySelect.disabled = true;
+        qualitySelect.innerHTML = '<option value="lossless">Lossless</option>';
+    } else {
+        qualitySelect.disabled = false;
+        qualitySelect.innerHTML = `
+            <option value="320k">320 kbps (High)</option>
+            <option value="192k" selected>192 kbps (Standard)</option>
+            <option value="128k">128 kbps (Low)</option>
+            <option value="96k">96 kbps (Very Low)</option>
+        `;
+    }
+    updateDownloadEstimate();
+}
+
+function updateDownloadEstimate() {
+    let estimateMinutes = 3; // Base download time
+    
+    // Add time for high quality video
+    const quality = elements.qualitySelect.value;
+    if (quality === 'best' || quality === '2160p') estimateMinutes += 5;
+    else if (quality === '1080p') estimateMinutes += 2;
+    
+    // Add time for transcript generation
+    if (elements.generateTranscript.checked) {
+        const model = elements.whisperModelSelect.value;
+        const modelTimeMap = { tiny: 2, base: 5, small: 8, medium: 12, large: 20 };
+        estimateMinutes += modelTimeMap[model] || 5;
+    }
+    
+    // Add time for audio extraction
+    if (!elements.audioOnly.checked && elements.audioFormatSelect.value) {
+        estimateMinutes += 1;
+    }
+    
+    elements.estimateTime.textContent = `~${estimateMinutes} min`;
+    elements.downloadEstimate.classList.remove('hidden');
+}
+
+function resetFormOptions() {
+    elements.audioOnly.checked = false;
+    elements.generateTranscript.checked = false;
+    elements.audioOptions.classList.add('hidden');
+    elements.transcriptSettings.classList.add('hidden');
+    elements.downloadEstimate.classList.add('hidden');
+}
+
+// Enhanced Tab System with Transcript Support
+function initializeEnhancedTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const targetTab = tab.getAttribute('data-tab');
+            if (targetTab === 'transcripts') {
+                loadTranscripts();
+            }
+        });
+    });
+}
+
+// Transcript Management Functions
+async function loadTranscripts() {
+    try {
+        const response = await fetch(`${API_URL}/history?has_transcript=true`);
+        if (!response.ok) throw new Error('Failed to load transcripts');
+        
+        const transcripts = await response.json();
+        displayTranscripts(transcripts);
+    } catch (error) {
+        console.error('Error loading transcripts:', error);
+        showToast('Failed to load transcripts', 'error');
+    }
+}
+
+function displayTranscripts(transcripts) {
+    if (transcripts.length === 0) {
+        elements.transcriptsList.innerHTML = `
+            <div class="empty-state">
+                <svg width="60" height="60" viewBox="0 0 60 60" fill="none" opacity="0.3">
+                    <path d="M10 10H50V50H10V10Z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M18 20H42M18 26H42M18 32H35M18 38H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <p>No transcripts available</p>
+                <small>Transcripts will appear here when you download videos with transcript generation enabled</small>
+            </div>
+        `;
+        return;
+    }
+    
+    elements.transcriptsList.innerHTML = transcripts.map(item => `
+        <div class="transcript-item" onclick="openTranscriptModal(${item.id})">
+            <div class="transcript-header">
+                <h4 class="transcript-title">${escapeHtml(item.title || 'Unknown Title')}</h4>
+                <div class="transcript-meta">
+                    ${item.has_transcript ? '<span class="status-badge success">Transcribed</span>' : '<span class="status-badge pending">Processing</span>'}
+                    ${item.language ? `<span class="meta-badge">${item.language.toUpperCase()}</span>` : ''}
+                </div>
+            </div>
+            <div class="transcript-info">
+                <span class="duration">${formatDuration(item.duration)}</span>
+                <span class="created">${formatDate(item.created_at)}</span>
+                ${item.confidence_score ? `<span class="confidence">${Math.round(item.confidence_score * 100)}% confidence</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterTranscripts() {
+    const searchTerm = elements.transcriptSearchInput.value.toLowerCase();
+    const languageFilter = elements.languageFilter.value;
+    
+    // This would filter the displayed transcripts
+    // Implementation depends on the current transcript data structure
+}
+
+// Transcript Modal Functions
+async function openTranscriptModal(downloadId) {
+    elements.transcriptModal.classList.remove('hidden');
+    
+    try {
+        const response = await fetch(`${API_URL}/transcript/${downloadId}?include_segments=true`);
+        if (!response.ok) throw new Error('Failed to load transcript');
+        
+        const transcript = await response.json();
+        displayTranscriptContent(transcript);
+    } catch (error) {
+        console.error('Error loading transcript:', error);
+        showToast('Failed to load transcript', 'error');
+        closeTranscriptModal();
+    }
+}
+
+function displayTranscriptContent(transcript) {
+    elements.transcriptTitle.textContent = transcript.title || 'Transcript';
+    elements.transcriptLanguage.textContent = transcript.language?.toUpperCase() || '';
+    elements.transcriptConfidence.textContent = transcript.confidence_score ? 
+        `${Math.round(transcript.confidence_score * 100)}% confidence` : '';
+    elements.transcriptDuration.textContent = formatDuration(transcript.duration);
+    
+    // Display transcript with segments
+    let transcriptHTML = '';
+    if (transcript.segments && transcript.segments.length > 0) {
+        transcriptHTML = transcript.segments.map(segment => `
+            <div class="transcript-segment" data-start="${segment.start_time}" data-end="${segment.end_time}">
+                <span class="timestamp">${formatTime(segment.start_time)}</span>
+                <span class="text">${escapeHtml(segment.text)}</span>
+            </div>
+        `).join('');
+    } else {
+        transcriptHTML = `<div class="transcript-full-text">${escapeHtml(transcript.full_text || 'No transcript available')}</div>`;
+    }
+    
+    elements.transcriptText.innerHTML = transcriptHTML;
+}
+
+function closeTranscriptModal() {
+    elements.transcriptModal.classList.add('hidden');
+    elements.transcriptSearchBar.classList.add('hidden');
+    elements.transcriptExportOptions.classList.add('hidden');
+}
+
+function toggleTranscriptSearch() {
+    elements.transcriptSearchBar.classList.toggle('hidden');
+    if (!elements.transcriptSearchBar.classList.contains('hidden')) {
+        elements.transcriptSearchQuery.focus();
+    }
+}
+
+function toggleExportOptions() {
+    elements.transcriptExportOptions.classList.toggle('hidden');
+}
+
+function searchWithinTranscript() {
+    const query = elements.transcriptSearchQuery.value.toLowerCase();
+    const segments = elements.transcriptText.querySelectorAll('.transcript-segment');
+    let matches = 0;
+    
+    segments.forEach(segment => {
+        const text = segment.querySelector('.text').textContent.toLowerCase();
+        if (text.includes(query)) {
+            segment.classList.add('search-match');
+            matches++;
+        } else {
+            segment.classList.remove('search-match');
+        }
+    });
+    
+    elements.searchResultsCount.textContent = `${matches} results`;
+}
+
+function navigateSearchResults(direction) {
+    // Implementation for navigating through search results
+    const matches = elements.transcriptText.querySelectorAll('.search-match');
+    // Navigation logic would go here
+}
+
+async function downloadTranscriptExport() {
+    const format = document.querySelector('.format-btn.active').getAttribute('data-format');
+    const includeTimestamps = elements.includeTimestamps.checked;
+    const includeConfidence = elements.includeConfidence.checked;
+    
+    // Implementation for downloading transcript in selected format
+    showToast(`Downloading transcript as ${format.toUpperCase()}...`, 'info');
+}
+
+function handleKeyboardShortcuts(e) {
+    // Escape key to close modals
+    if (e.key === 'Escape') {
+        closeTranscriptModal();
+    }
+}
+
+// Utility Functions
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function formatDate(dateString) {
+    return new Date(dateString).toLocaleDateString();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Global Functions for HTML onclick handlers
+window.openTranscriptModal = openTranscriptModal;
+window.generateTranscriptForDownload = async function(downloadId) {
+    try {
+        const response = await fetch(`${API_URL}/transcript/${downloadId}/generate`, { method: 'POST' });
+        if (response.ok) {
+            showToast('Transcript generation started', 'success');
+            setTimeout(() => loadTranscripts(), 1000);
+        }
+    } catch (error) {
+        showToast('Failed to generate transcript', 'error');
+    }
 };
 
 // Export for global access

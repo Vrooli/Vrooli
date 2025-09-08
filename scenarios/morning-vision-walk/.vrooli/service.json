@@ -222,12 +222,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f morning-vision-walk.start-api 2>/dev/null || true",
+          "run": "pkill -f \"morning-vision-walk-api\" || true; sleep 1; pkill -9 -f \"morning-vision-walk-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f morning-vision-walk.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/morning-vision-walk.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/morning-vision-walk.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

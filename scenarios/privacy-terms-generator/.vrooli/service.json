@@ -172,9 +172,14 @@
       "description": "Stop services",
       "steps": [
         {
+          "name": "stop-api",
+          "run": "pkill -f \"privacy-terms-generator-api\" || true; sleep 1; pkill -9 -f \"privacy-terms-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
           "name": "stop-ui",
-          "run": "pkill -f privacy-terms-generator.start-ui 2>/dev/null || true",
-          "description": "Stop UI server"
+          "run": "true",
+          "description": "Stop UI process"
         }
       ]
     }

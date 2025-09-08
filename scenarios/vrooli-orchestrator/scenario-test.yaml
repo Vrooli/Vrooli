@@ -1,0 +1,227 @@
+version: 1.0
+scenario: vrooli-orchestrator
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/vrooli-orchestrator
+    - cli/install.sh
+    - cli/vrooli-orchestrator.bats
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - initialization/n8n/config-manager.json
+    - initialization/n8n/profile-activator.json
+    - scenario-test.yaml
+    - ui/index.html
+    - ui/app.js
+    - ui/server.js
+    - ui/package.json
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/postgres
+    - initialization/n8n
+    - ui
+    - data
+
+# Resource validation
+resources:
+  required: [postgres, n8n]
+  optional: [browserless]
+  health_timeout: 120
+
+# Declarative tests
+tests:
+  # Resource health checks
+  - name: "Postgres is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "N8N is accessible"  
+    type: http
+    service: n8n
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+
+  # Database schema tests
+  - name: "Profiles table exists"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'profiles'"
+    expect:
+      rows:
+        - count: 1
+
+  - name: "Default profiles are seeded"
+    type: sql
+    service: postgres  
+    query: "SELECT COUNT(*) FROM profiles"
+    expect:
+      rows:
+        - count: ">= 5"  # Should have at least 5 default profiles
+
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        service: "vrooli-orchestrator"
+
+  - name: "API profiles list endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/profiles
+    method: GET
+    expect:
+      status: 200
+
+  - name: "API status endpoint responds"
+    type: http
+    service: api
+    endpoint: /api/v1/status
+    method: GET
+    expect:
+      status: 200
+      body:
+        service: "vrooli-orchestrator"
+
+  # CLI command tests
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/vrooli-orchestrator version
+    expect:
+      exit_code: 0
+      output_contains: ["vrooli-orchestrator CLI version"]
+
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/vrooli-orchestrator help
+    expect:
+      exit_code: 0
+      output_contains: ["Vrooli Orchestrator CLI", "list-profiles", "activate"]
+
+  - name: "CLI list-profiles command works"
+    type: exec
+    command: ./cli/vrooli-orchestrator list-profiles --json
+    expect:
+      exit_code: 0
+      output_contains: ["profiles"]
+
+  # UI tests
+  - name: "UI server health check"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        service: "vrooli-orchestrator-ui"
+
+  - name: "UI dashboard loads"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      output_contains: ["Vrooli Orchestrator", "Profile Management"]
+
+  # N8N workflow tests  
+  - name: "Config manager workflow is active"
+    type: n8n
+    workflow: profile-config-manager
+    expect:
+      active: true
+
+  - name: "Profile activator workflow is active"
+    type: n8n  
+    workflow: profile-activator
+    expect:
+      active: true
+
+  # Integration tests
+  - name: "Profile creation via API works"
+    type: http
+    service: api
+    endpoint: /api/v1/profiles
+    method: POST
+    body:
+      name: "test-integration-profile"
+      display_name: "Test Integration Profile"
+      description: "Created by integration test"
+      resources: ["postgres"]
+      scenarios: []
+      metadata:
+        target_audience: "testers"
+    expect:
+      status: 201
+
+  - name: "Created profile can be retrieved"
+    type: http
+    service: api
+    endpoint: /api/v1/profiles/test-integration-profile
+    method: GET
+    expect:
+      status: 200
+      body:
+        name: "test-integration-profile"
+
+  # File structure tests
+  - name: "CLI is executable"
+    type: exec
+    command: test -x ./cli/vrooli-orchestrator
+    expect:
+      exit_code: 0
+
+  - name: "Install script is executable"
+    type: exec
+    command: test -x ./cli/install.sh
+    expect:
+      exit_code: 0
+
+  # Build tests
+  - name: "Go API builds successfully"
+    type: exec
+    command: cd api && go build -o test-build . && rm -f test-build
+    expect:
+      exit_code: 0
+
+  - name: "UI dependencies install successfully"
+    type: exec
+    command: cd ui && npm install --production --silent
+    expect:
+      exit_code: 0
+
+# Performance validation
+performance:
+  - name: "API response time"
+    endpoint: "/api/v1/profiles"
+    max_response_time_ms: 2000
+    
+  - name: "Profile activation time"
+    endpoint: "/api/v1/profiles/minimal/activate"
+    max_response_time_ms: 30000  # 30 seconds for activation
+    
+  - name: "UI load time"
+    endpoint: "/"
+    max_response_time_ms: 1000

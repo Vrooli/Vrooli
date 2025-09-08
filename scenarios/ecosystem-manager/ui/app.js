@@ -2,6 +2,7 @@
 
 class EcosystemManager {
     constructor() {
+        // Use relative paths - Vite proxy handles routing to the correct API port
         this.apiBase = '/api';
         this.tasks = {};
         this.filteredTasks = {};
@@ -10,6 +11,16 @@ class EcosystemManager {
         this.scenarios = [];
         this.ws = null;
         this.wsReconnectInterval = null;
+        
+        // Queue status tracking
+        this.queueStatus = {
+            maxConcurrent: 1,
+            availableSlots: 1,
+            processorActive: true,
+            lastRefresh: Date.now(),
+            refreshInterval: 30000, // 30 seconds
+            refreshTimer: null
+        };
         
         // Configuration - will be loaded dynamically
         this.categoryOptions = {
@@ -53,6 +64,9 @@ class EcosystemManager {
             
             // Set up event listeners
             this.setupEventListeners();
+            
+            // Initialize queue status display
+            this.initQueueStatus();
             
             console.log('✅ Ecosystem Manager UI initialized successfully');
         } catch (error) {
@@ -172,6 +186,7 @@ class EcosystemManager {
         
         this.updateStats();
         this.applyFilters();
+        this.updateQueueDisplay();
     }
     
     async loadTasks(status) {
@@ -191,6 +206,7 @@ class EcosystemManager {
     
     connectWebSocket() {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // Use relative path - Vite proxy handles routing to the correct API port  
         const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
         
         console.log('🔌 Connecting to WebSocket:', wsUrl);
@@ -289,7 +305,11 @@ class EcosystemManager {
     handleTaskFailed(task) {
         // Move task from in-progress to failed
         this.moveTaskBetweenColumns(task, 'in-progress', 'failed');
-        this.showToast(`Task ${task.title} failed: ${task.results?.error}`, 'error');
+        
+        // Show detailed error message
+        const errorMsg = task.results?.error || 'Unknown error occurred';
+        const truncatedError = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
+        this.showToast(`Task ${task.title} failed: ${truncatedError}`, 'error');
     }
     
     handleTaskCreated(task) {
@@ -326,8 +346,9 @@ class EcosystemManager {
         }
         this.tasks[toStatus].push(task);
         
-        // Re-render
+        // Re-render and update queue status
         this.renderTasks();
+        this.updateQueueDisplay();
     }
     
     updateTaskCard(task) {
@@ -469,6 +490,134 @@ class EcosystemManager {
         setTimeout(() => this.adjustMainLayout(), 100);
     }
     
+    // Drag and Drop Methods
+    handleDragStart(e, task) {
+        this.draggedTask = task;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.outerHTML);
+        
+        // Add visual feedback
+        e.target.classList.add('dragging');
+        
+        // Disable clicking during drag
+        e.target.onclick = null;
+    }
+    
+    handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        
+        // Restore click handler after drag
+        const taskId = e.target.getAttribute('data-task-id');
+        e.target.onclick = () => this.showTaskDetails(taskId);
+        
+        // Clean up drag indicators
+        document.querySelectorAll('.kanban-column').forEach(col => {
+            col.classList.remove('drag-over');
+        });
+        
+        this.draggedTask = null;
+    }
+    
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        
+        const column = e.currentTarget;
+        column.classList.add('drag-over');
+    }
+    
+    handleDragEnter(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    }
+    
+    handleDragLeave(e) {
+        e.preventDefault();
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+    }
+    
+    async handleDrop(e, targetStatus) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        
+        if (!this.draggedTask) return;
+        
+        const sourceStatus = this.findTaskStatus(this.draggedTask.id);
+        
+        // Don't do anything if dropped in same column
+        if (sourceStatus === targetStatus) return;
+        
+        // Clean up task state when moving to a different status
+        const cleanedTask = { ...this.draggedTask };
+        
+        // Clear error-related fields when moving out of failed
+        if (sourceStatus === 'failed') {
+            delete cleanedTask.results;
+        }
+        
+        // Update phase based on new status
+        if (targetStatus === 'pending') {
+            cleanedTask.current_phase = 'pending';
+            cleanedTask.progress_percentage = 0;
+        } else if (targetStatus === 'in-progress') {
+            cleanedTask.current_phase = 'in-progress';
+            if (cleanedTask.progress_percentage === 0 || cleanedTask.progress_percentage === 100) {
+                cleanedTask.progress_percentage = 25;
+            }
+        } else if (targetStatus === 'review') {
+            cleanedTask.current_phase = 'review';
+            cleanedTask.progress_percentage = 75;
+        } else if (targetStatus === 'completed') {
+            cleanedTask.current_phase = 'completed';
+            cleanedTask.progress_percentage = 100;
+        } else if (targetStatus === 'failed') {
+            cleanedTask.current_phase = 'failed';
+        }
+        
+        // Update task status via API
+        try {
+            const response = await fetch(`${this.apiBase}/tasks/${this.draggedTask.id}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ...cleanedTask,
+                    status: targetStatus,
+                    updated_at: new Date().toISOString()
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to update task: ${response.status}`);
+            }
+            
+            const updatedTask = await response.json();
+            
+            // Move task in local data
+            this.moveTaskBetweenColumns(updatedTask, sourceStatus, targetStatus);
+            
+            this.showToast(`Task moved to ${targetStatus.replace('-', ' ')}`, 'success');
+            
+            // Trigger queue processing if task moved to pending or in-progress
+            if (targetStatus === 'pending' || targetStatus === 'in-progress') {
+                try {
+                    await this.triggerQueueProcessing();
+                    console.log('Queue processing triggered after task move');
+                } catch (error) {
+                    console.warn('Could not trigger queue processing after move:', error);
+                    // Don't fail the move operation if trigger fails
+                }
+            }
+            
+        } catch (error) {
+            console.error('Failed to update task status:', error);
+            this.showToast(`Failed to move task: ${error.message}`, 'error');
+        }
+    }
+    
     renderColumn(status) {
         const tasks = this.filteredTasks[status] || [];
         const container = document.getElementById(`${status}-tasks`);
@@ -483,6 +632,16 @@ class EcosystemManager {
         if (!container) {
             console.warn(`Container for ${status} tasks not found`);
             return;
+        }
+        
+        // Add drop zone event listeners to column
+        const column = container.closest('.kanban-column');
+        if (column && !column.hasAttribute('data-drop-listeners-added')) {
+            column.addEventListener('dragover', (e) => this.handleDragOver(e));
+            column.addEventListener('dragenter', (e) => this.handleDragEnter(e));
+            column.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+            column.addEventListener('drop', (e) => this.handleDrop(e, status));
+            column.setAttribute('data-drop-listeners-added', 'true');
         }
         
         // Clear container
@@ -505,11 +664,28 @@ class EcosystemManager {
         });
     }
     
+    getPhaseIcon(phase) {
+        const phaseIconMap = {
+            'pending': 'fa-clock',
+            'in-progress': 'fa-spinner fa-spin',
+            'review': 'fa-eye',
+            'completed': 'fa-check-circle',
+            'failed': 'fa-exclamation-triangle',
+            'cancelled': 'fa-times-circle'
+        };
+        return phaseIconMap[phase] || 'fa-circle';
+    }
+    
     createTaskCard(task) {
         const card = document.createElement('div');
         card.className = 'task-card';
         card.setAttribute('data-task-id', task.id);
+        card.setAttribute('draggable', 'true');
         card.onclick = () => this.showTaskDetails(task.id);
+        
+        // Add drag event listeners
+        card.addEventListener('dragstart', (e) => this.handleDragStart(e, task));
+        card.addEventListener('dragend', (e) => this.handleDragEnd(e));
         
         const typeIcon = task.type === 'resource' ? 'fas fa-cog' : 'fas fa-bullseye';
         const operationClass = task.operation;
@@ -535,24 +711,15 @@ class EcosystemManager {
             </div>
             
             ${task.current_phase ? `
-                <div class="task-phase">Phase: ${task.current_phase}</div>
-            ` : ''}
-            
-            ${task.progress_percentage !== undefined ? `
-                <div class="task-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${task.progress_percentage}%"></div>
-                    </div>
-                    <div class="progress-text">
-                        <span>Progress</span>
-                        <span>${task.progress_percentage}%</span>
-                    </div>
+                <div class="task-phase-chip">
+                    <i class="fas ${this.getPhaseIcon(task.current_phase)}"></i> ${task.current_phase}
                 </div>
             ` : ''}
             
-            ${task.current_phase ? `
-                <div class="progress-text mb-2">
-                    <span><i class="fas fa-play"></i> ${task.current_phase}</span>
+            ${task.status === 'failed' && task.results && task.results.error ? `
+                <div class="task-error">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span class="error-message">${this.escapeHtml(task.results.error)}</span>
                 </div>
             ` : ''}
             
@@ -561,6 +728,9 @@ class EcosystemManager {
                 <div class="task-actions">
                     <button class="btn-icon" onclick="event.stopPropagation(); ecosystemManager.updateTaskStatus('${task.id}')" title="Update Status">
                         <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-icon btn-delete" onclick="event.stopPropagation(); ecosystemManager.deleteTask('${task.id}', '${task.status}')" title="Delete Task">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
@@ -979,6 +1149,39 @@ class EcosystemManager {
         await this.updateTaskStatus(taskId, 'completed', 100);
     }
     
+    async deleteTask(taskId, status) {
+        // No confirmation needed for completed or failed tasks
+        if (status !== 'completed' && status !== 'failed') {
+            const confirmed = confirm(`Are you sure you want to delete this ${status} task?`);
+            if (!confirmed) return;
+        }
+        
+        try {
+            const response = await fetch(`${this.apiBase}/tasks/${taskId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to delete task');
+            }
+            
+            // Remove task from local state
+            const taskStatus = this.findTaskStatus(taskId);
+            if (taskStatus && this.tasks[taskStatus]) {
+                this.tasks[taskStatus] = this.tasks[taskStatus].filter(t => t.id !== taskId);
+            }
+            
+            // Re-render the affected column
+            this.renderColumn(taskStatus);
+            this.updateStats();
+            
+            this.showToast('Task deleted successfully', 'success');
+        } catch (error) {
+            console.error('Failed to delete task:', error);
+            this.showToast('Failed to delete task', 'error');
+        }
+    }
+    
     async saveTaskChanges(taskId) {
         this.showLoading(true);
         
@@ -1080,6 +1283,77 @@ class EcosystemManager {
         });
     }
     
+    async refreshAll() {
+        this.showLoading(true);
+        try {
+            // Set timeout for the entire refresh operation
+            const refreshPromise = Promise.race([
+                this.performRefreshOperations(),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Refresh timeout')), 10000)
+                )
+            ]);
+
+            await refreshPromise;
+            this.showToast('All data refreshed', 'success');
+        } catch (error) {
+            console.error('Failed to refresh all data:', error);
+            if (error.message === 'Refresh timeout') {
+                this.showToast('Refresh timed out - server may be slow', 'warning');
+            } else {
+                this.showToast('Failed to refresh data', 'error');
+            }
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async performRefreshOperations() {
+        // Load all tasks with timeout
+        await this.loadAllTasks();
+        
+        // Update queue status with timeout
+        await this.updateQueueStatus();
+        
+        // Trigger queue processing to start claude-code if there are pending tasks
+        try {
+            await this.triggerQueueProcessing();
+        } catch (error) {
+            console.warn('Could not trigger queue processing:', error);
+            // Don't fail the entire refresh if trigger fails
+        }
+        
+        // Update stats
+        this.updateStats();
+        
+        // Apply filters
+        this.applyFilters();
+    }
+
+    async triggerQueueProcessing() {
+        try {
+            const response = await fetch(`${this.apiBase}/queue/trigger`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to trigger queue processing');
+            }
+
+            const result = await response.json();
+            console.log('Queue processing triggered:', result);
+            return result;
+        } catch (error) {
+            console.warn('Failed to trigger queue processing:', error);
+            throw error;
+        }
+    }
+    
     updateFormForType() {
         const type = document.getElementById('task-type').value;
         const operation = document.getElementById('task-operation').value;
@@ -1160,12 +1434,13 @@ class EcosystemManager {
         
         container.appendChild(toast);
         
-        // Auto remove after 5 seconds
+        // Auto remove after timeout (longer for errors)
+        const timeout = type === 'error' ? 15000 : 8000; // 15s for errors, 8s for others
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);
             }
-        }, 5000);
+        }, timeout);
         
         // Click to dismiss
         toast.addEventListener('click', () => {
@@ -1210,6 +1485,110 @@ class EcosystemManager {
         const icon = document.getElementById('dark-mode-icon');
         if (icon) {
             icon.className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
+        }
+    }
+    
+    // Queue Status Management
+    initQueueStatus() {
+        // Initialize UI elements
+        this.updateQueueDisplay();
+        
+        // Start the refresh countdown timer
+        this.startRefreshTimer();
+        
+        // Fetch initial queue processor status
+        this.fetchQueueProcessorStatus();
+        
+        console.log('🔄 Queue status indicators initialized');
+    }
+    
+    updateQueueDisplay() {
+        // Calculate available slots based on in-progress tasks
+        const inProgressCount = (this.tasks['in-progress'] || []).length;
+        this.queueStatus.availableSlots = Math.max(0, this.queueStatus.maxConcurrent - inProgressCount);
+        
+        // Update UI elements
+        const availableSlotsEl = document.getElementById('available-slots');
+        const maxSlotsEl = document.getElementById('max-slots');
+        const processorStatusEl = document.getElementById('processor-status');
+        const processorIconEl = document.getElementById('processor-status-icon');
+        
+        if (availableSlotsEl) availableSlotsEl.textContent = this.queueStatus.availableSlots;
+        if (maxSlotsEl) maxSlotsEl.textContent = this.queueStatus.maxConcurrent;
+        
+        if (processorStatusEl && processorIconEl) {
+            if (this.queueStatus.processorActive) {
+                processorStatusEl.textContent = 'Active';
+                processorIconEl.className = 'fas fa-play';
+                processorIconEl.style.color = 'var(--success-color)';
+            } else {
+                processorStatusEl.textContent = 'Paused';
+                processorIconEl.className = 'fas fa-pause';
+                processorIconEl.style.color = 'var(--warning-color)';
+            }
+        }
+    }
+    
+    startRefreshTimer() {
+        // Clear existing timer
+        if (this.queueStatus.refreshTimer) {
+            clearInterval(this.queueStatus.refreshTimer);
+        }
+        
+        // Update countdown every second
+        this.queueStatus.refreshTimer = setInterval(() => {
+            const now = Date.now();
+            const elapsed = now - this.queueStatus.lastRefresh;
+            const remaining = Math.max(0, this.queueStatus.refreshInterval - elapsed);
+            const secondsRemaining = Math.ceil(remaining / 1000);
+            
+            const countdownEl = document.getElementById('refresh-countdown');
+            if (countdownEl) {
+                countdownEl.textContent = secondsRemaining;
+                
+                // Add visual indicator when refreshing
+                const timerEl = document.querySelector('.queue-timer');
+                if (secondsRemaining <= 1 && timerEl) {
+                    timerEl.classList.add('refreshing');
+                } else if (timerEl) {
+                    timerEl.classList.remove('refreshing');
+                }
+            }
+            
+            // Reset timer when cycle completes
+            if (remaining === 0) {
+                this.queueStatus.lastRefresh = now;
+                // Fetch fresh queue status from API
+                this.fetchQueueProcessorStatus();
+                // Also update queue display when refresh happens
+                this.updateQueueDisplay();
+            }
+        }, 1000);
+    }
+    
+    async fetchQueueProcessorStatus() {
+        try {
+            const response = await fetch(`${this.apiBase}/queue/status`);
+            if (response.ok) {
+                const status = await response.json();
+                this.queueStatus.processorActive = status.processor_active;
+                this.queueStatus.maxConcurrent = status.max_concurrent;
+                this.queueStatus.availableSlots = status.available_slots;
+                this.updateQueueDisplay();
+            }
+        } catch (error) {
+            console.warn('Failed to fetch queue processor status:', error);
+            // Fallback to health endpoint  
+            try {
+                const healthResponse = await fetch('/health');
+                if (healthResponse.ok) {
+                    const healthStatus = await healthResponse.json();
+                    this.queueStatus.processorActive = healthStatus.maintenanceState === 'active';
+                    this.updateQueueDisplay();
+                }
+            } catch (fallbackError) {
+                console.warn('Failed to fetch health status as fallback:', fallbackError);
+            }
         }
     }
 }

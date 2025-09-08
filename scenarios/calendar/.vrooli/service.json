@@ -76,14 +76,6 @@
         "purpose": "Natural language processing for chat interface",
         "model": "llama2:7b-chat",
         "fallback": "Basic command parsing without AI enhancement"
-      },
-      "n8n": {
-        "purpose": "Event-triggered workflow automation",
-        "workflows": [
-          "calendar-reminder.json",
-          "event-automation.json"
-        ],
-        "fallback": "Direct API calls without workflow orchestration"
       }
     }
   },
@@ -94,15 +86,6 @@
       ],
       "seed_files": [
         "initialization/postgres/seed.sql"
-      ]
-    },
-    "n8n": {
-      "workflows": [
-        {
-          "file": "initialization/n8n/calendar-reminder.json",
-          "active": true,
-          "description": "Automated reminder generation and notification sending"
-        }
       ]
     },
     "qdrant": {

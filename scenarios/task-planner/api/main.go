@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -77,25 +78,21 @@ func HTTPError(w http.ResponseWriter, message string, statusCode int, err error)
 
 // TaskPlannerService handles coordination with resources
 type TaskPlannerService struct {
-	db          *sql.DB
-	n8nBaseURL  string
-	windmillURL string
-	qdrantURL   string
-	httpClient  *http.Client
-	logger      *Logger
+	db         *sql.DB
+	qdrantURL  string
+	httpClient *http.Client
+	logger     *Logger
 }
 
 // NewTaskPlannerService creates a new service
-func NewTaskPlannerService(db *sql.DB, n8nURL, windmillURL, qdrantURL string) *TaskPlannerService {
+func NewTaskPlannerService(db *sql.DB, qdrantURL string) *TaskPlannerService {
 	return &TaskPlannerService{
-		db:          db,
-		n8nBaseURL:  n8nURL,
-		windmillURL: windmillURL,
-		qdrantURL:   qdrantURL,
+		db:        db,
+		qdrantURL: qdrantURL,
 		httpClient: &http.Client{
 			Timeout: httpTimeout,
 		},
-		logger:      NewLogger(),
+		logger:    NewLogger(),
 	}
 }
 
@@ -272,203 +269,9 @@ func (s *TaskPlannerService) GetTasks(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ParseText delegates text parsing to n8n workflow
-func (s *TaskPlannerService) ParseText(w http.ResponseWriter, r *http.Request) {
-	var req ParseTextRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
-		return
-	}
 
-	if req.AppID == "" || req.RawText == "" || req.APIToken == "" {
-		HTTPError(w, "Missing required fields: app_id, raw_text, api_token", http.StatusBadRequest, nil)
-		return
-	}
 
-	// Set defaults
-	if req.InputType == "" {
-		req.InputType = "markdown"
-	}
-	if req.SubmittedBy == "" {
-		req.SubmittedBy = "api"
-	}
 
-	// Call n8n text parser workflow
-	webhookURL := fmt.Sprintf("%s/webhook/task-parser", s.n8nBaseURL)
-	reqBody, _ := json.Marshal(req)
-
-	resp, err := s.httpClient.Post(webhookURL, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		HTTPError(w, "Failed to call text parser workflow", http.StatusInternalServerError, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		HTTPError(w, "Text parser workflow failed", resp.StatusCode, nil)
-		return
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		HTTPError(w, "Failed to decode workflow response", http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
-
-// ResearchTask delegates task research to n8n workflow
-func (s *TaskPlannerService) ResearchTask(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["taskId"]
-
-	var req TaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
-		return
-	}
-
-	// Call n8n research workflow
-	webhookURL := fmt.Sprintf("%s/webhook/task-researcher", s.n8nBaseURL)
-	payload := map[string]interface{}{
-		"task_id":       taskID,
-		"force_refresh": req.ForceRefresh,
-	}
-
-	reqBody, _ := json.Marshal(payload)
-	resp, err := s.httpClient.Post(webhookURL, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		HTTPError(w, "Failed to call research workflow", http.StatusInternalServerError, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		HTTPError(w, "Research workflow failed", resp.StatusCode, nil)
-		return
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		HTTPError(w, "Failed to decode workflow response", http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
-
-// ImplementTask delegates task implementation to n8n workflow
-func (s *TaskPlannerService) ImplementTask(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["taskId"]
-
-	var req TaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
-		return
-	}
-
-	// Call n8n implementation workflow
-	webhookURL := fmt.Sprintf("%s/webhook/task-implementer", s.n8nBaseURL)
-	payload := map[string]interface{}{
-		"task_id":               taskID,
-		"override_staging":      req.OverrideStaging,
-		"implementation_notes":  req.ImplementationNotes,
-	}
-
-	reqBody, _ := json.Marshal(payload)
-	resp, err := s.httpClient.Post(webhookURL, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		HTTPError(w, "Failed to call implementation workflow", http.StatusInternalServerError, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		HTTPError(w, "Implementation workflow failed", resp.StatusCode, nil)
-		return
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		HTTPError(w, "Failed to decode workflow response", http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
-
-// UpdateTaskStatus delegates status updates to n8n workflow
-func (s *TaskPlannerService) UpdateTaskStatus(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	taskID := vars["taskId"]
-
-	var req TaskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
-		return
-	}
-
-	if req.ToStatus == "" {
-		HTTPError(w, "Missing required field: to_status", http.StatusBadRequest, nil)
-		return
-	}
-
-	// Validate status
-	validStatuses := []string{"unstructured", "backlog", "staged", "in_progress", "completed", "cancelled", "failed"}
-	isValid := false
-	for _, status := range validStatuses {
-		if req.ToStatus == status {
-			isValid = true
-			break
-		}
-	}
-	if !isValid {
-		HTTPError(w, "Invalid status", http.StatusBadRequest, nil)
-		return
-	}
-
-	// Set default reason
-	if req.Reason == "" {
-		req.Reason = "Manual status update via API"
-	}
-
-	// Call n8n status update workflow
-	webhookURL := fmt.Sprintf("%s/webhook/status-monitor", s.n8nBaseURL)
-	payload := map[string]interface{}{
-		"task_id":      taskID,
-		"to_status":    req.ToStatus,
-		"reason":       req.Reason,
-		"notes":        req.Notes,
-		"triggered_by": "api",
-	}
-
-	reqBody, _ := json.Marshal(payload)
-	resp, err := s.httpClient.Post(webhookURL, "application/json", bytes.NewBuffer(reqBody))
-	if err != nil {
-		HTTPError(w, "Failed to call status update workflow", http.StatusInternalServerError, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode >= 400 {
-		HTTPError(w, "Status update workflow failed", resp.StatusCode, nil)
-		return
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		HTTPError(w, "Failed to decode workflow response", http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
 
 // getResourcePort queries the port registry for a resource's port
 func getResourcePort(resourceName string) string {
@@ -495,40 +298,41 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	// Load configuration
-	port := getEnv("API_PORT", getEnv("PORT", ""))
-	
-	// Use port registry for resource ports
-	n8nPort := getResourcePort("n8n")
-	windmillPort := getResourcePort("windmill")
-	postgresPort := getResourcePort("postgres")
-	qdrantPort := getResourcePort("qdrant")
-	
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
-		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 	
-	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
-		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
-	}
-	
+	// Get Qdrant URL - REQUIRED
 	qdrantURL := os.Getenv("QDRANT_BASE_URL")
 	if qdrantURL == "" {
-		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
+		log.Fatal("❌ QDRANT_BASE_URL environment variable is required")
 	}
 	
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		dbURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/task_planner?sslmode=disable", postgresPort)
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 	
 	// Connect to database
-	db, err := sql.Open("postgres", dbURL)
+	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
 		logger := NewLogger()
-		logger.Error("Failed to connect to database", err)
+		logger.Error("Failed to open database connection", err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -538,17 +342,55 @@ func main() {
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
 	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to ping database", err)
-		os.Exit(1)
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
 	
-	log.Println("Connected to database")
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	
 	// Initialize service
-	service := NewTaskPlannerService(db, n8nURL, windmillURL, qdrantURL)
+	service := NewTaskPlannerService(db, qdrantURL)
 	
 	// Setup routes
 	r := mux.NewRouter()
@@ -559,13 +401,11 @@ func main() {
 	r.HandleFunc("/api/tasks", service.GetTasks).Methods("GET")
 	r.HandleFunc("/api/parse-text", service.ParseText).Methods("POST")
 	r.HandleFunc("/api/tasks/{taskId}/research", service.ResearchTask).Methods("POST")
-	r.HandleFunc("/api/tasks/{taskId}/implement", service.ImplementTask).Methods("POST")
-	r.HandleFunc("/api/tasks/{taskId}/status", service.UpdateTaskStatus).Methods("PUT")
+	r.HandleFunc("/api/tasks/status", service.UpdateTaskStatus).Methods("PUT")
+	r.HandleFunc("/api/tasks/status-history", service.GetTaskStatusHistory).Methods("GET")
 	
 	// Start server
 	log.Printf("Starting Task Planner API on port %s", port)
-	log.Printf("  n8n URL: %s", n8nURL)
-	log.Printf("  Windmill URL: %s", windmillURL)
 	log.Printf("  Qdrant URL: %s", qdrantURL)
 	log.Printf("  Database: %s", dbURL)
 	
@@ -578,10 +418,4 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-}
+// getEnv removed to prevent hardcoded defaults

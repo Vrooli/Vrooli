@@ -3,7 +3,9 @@ package main
 import (
     "database/sql"
     "encoding/json"
+    "fmt"
     "log"
+    "math"
     "net/http"
     "os"
     "time"
@@ -15,6 +17,7 @@ import (
 )
 
 var db *sql.DB
+var invoiceProcessor *InvoiceProcessor
 
 type Invoice struct {
     ID             string          `json:"id"`
@@ -90,22 +93,86 @@ type Company struct {
 }
 
 func initDB() {
+    // Database configuration - support both POSTGRES_URL and individual components
     postgresURL := os.Getenv("POSTGRES_URL")
     if postgresURL == "" {
-        log.Fatal("POSTGRES_URL environment variable is required")
+        // Try to build from individual components
+        dbHost := os.Getenv("POSTGRES_HOST")
+        dbPort := os.Getenv("POSTGRES_PORT")
+        dbUser := os.Getenv("POSTGRES_USER")
+        dbPassword := os.Getenv("POSTGRES_PASSWORD")
+        dbName := os.Getenv("POSTGRES_DB")
+        
+        if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+            log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+        }
+        
+        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+            dbUser, dbPassword, dbHost, dbPort, dbName)
     }
-
+    
     var err error
     db, err = sql.Open("postgres", postgresURL)
     if err != nil {
-        log.Fatal("Failed to connect to database:", err)
+        log.Fatalf("Failed to open database connection: %v", err)
     }
-
-    if err = db.Ping(); err != nil {
-        log.Fatal("Failed to ping database:", err)
+    
+    // Set connection pool settings
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+    
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+    log.Printf("📆 Database URL configured")
+    
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            break
+        }
+        
+        // Calculate exponential backoff delay
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add progressive jitter to prevent thundering herd
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+        
+        // Provide detailed status every few attempts
+        if attempt > 0 && attempt % 3 == 0 {
+            log.Printf("📈 Retry progress:")
+            log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+            log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+            log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+        }
+        
+        time.Sleep(actualDelay)
     }
-
-    log.Println("Connected to database")
+    
+    if pingErr != nil {
+        log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+    }
+    
+    log.Println("🎉 Database connection pool established successfully!")
+    
+    // Initialize database tables
+    if err = initializeDatabase(); err != nil {
+        log.Printf("Warning: Database initialization had issues: %v", err)
+    }
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -400,9 +467,74 @@ func createClientHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(client)
 }
 
+func processInvoiceHandler(w http.ResponseWriter, r *http.Request) {
+    var req InvoiceProcessRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    ctx := r.Context()
+    response, err := invoiceProcessor.ProcessInvoice(ctx, req)
+    if err != nil {
+        http.Error(w, "Failed to process invoice", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    if response.Success {
+        w.WriteHeader(http.StatusCreated)
+    } else {
+        w.WriteHeader(http.StatusBadRequest)
+    }
+    json.NewEncoder(w).Encode(response)
+}
+
+func trackPaymentHandler(w http.ResponseWriter, r *http.Request) {
+    var req PaymentRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+
+    ctx := r.Context()
+    response, err := invoiceProcessor.TrackPayment(ctx, req)
+    if err != nil {
+        http.Error(w, "Failed to track payment", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    if response.Success {
+        w.WriteHeader(http.StatusCreated)
+    } else {
+        w.WriteHeader(http.StatusBadRequest)
+    }
+    json.NewEncoder(w).Encode(response)
+}
+
+func processRecurringInvoicesHandler(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context()
+    response, err := invoiceProcessor.ProcessRecurringInvoices(ctx)
+    if err != nil {
+        http.Error(w, "Failed to process recurring invoices", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
+}
+
 func main() {
     initDB()
     defer db.Close()
+    
+    // Initialize InvoiceProcessor
+    invoiceProcessor = NewInvoiceProcessor(db)
+    
+    // Start background processors
+    go trackOverdueInvoices()
+    go processRecurringInvoices()
 
     router := mux.NewRouter()
 
@@ -414,10 +546,29 @@ func main() {
     router.HandleFunc("/api/invoices", getInvoicesHandler).Methods("GET")
     router.HandleFunc("/api/invoices/{id}", getInvoiceHandler).Methods("GET")
     router.HandleFunc("/api/invoices/{id}/status", updateInvoiceStatusHandler).Methods("PUT")
+    router.HandleFunc("/api/invoices/{id}/pdf", downloadPDFHandler).Methods("GET")
+    router.HandleFunc("/api/invoices/generate-pdf", generatePDFHandler).Methods("POST")
+    
+    // Payment endpoints
+    router.HandleFunc("/api/payments", recordPaymentHandler).Methods("POST")
+    router.HandleFunc("/api/payments/invoice/{invoice_id}", getPaymentsHandler).Methods("GET")
+    router.HandleFunc("/api/payments/summary", getPaymentSummaryHandler).Methods("GET")
+    router.HandleFunc("/api/payments/{id}/refund", refundPaymentHandler).Methods("POST")
+    
+    // Recurring invoice endpoints
+    router.HandleFunc("/api/recurring", createRecurringInvoiceHandler).Methods("POST")
+    router.HandleFunc("/api/recurring", getRecurringInvoicesHandler).Methods("GET")
+    router.HandleFunc("/api/recurring/{id}", updateRecurringInvoiceHandler).Methods("PUT")
+    router.HandleFunc("/api/recurring/{id}", deleteRecurringInvoiceHandler).Methods("DELETE")
 
     // Client endpoints
     router.HandleFunc("/api/clients", getClientsHandler).Methods("GET")
     router.HandleFunc("/api/clients", createClientHandler).Methods("POST")
+
+    // Invoice Processor endpoints  
+    router.HandleFunc("/api/process/invoice", processInvoiceHandler).Methods("POST")
+    router.HandleFunc("/api/process/payment", trackPaymentHandler).Methods("POST")
+    router.HandleFunc("/api/process/recurring", processRecurringInvoicesHandler).Methods("GET", "POST")
 
     // Configure CORS
     c := cors.New(cors.Options{
@@ -428,7 +579,11 @@ func main() {
 
     handler := c.Handler(router)
 
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
     log.Printf("Invoice Generator API starting on port %s", port)
     if err := http.ListenAndServe(":"+port, handler); err != nil {
@@ -436,9 +591,3 @@ func main() {
     }
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

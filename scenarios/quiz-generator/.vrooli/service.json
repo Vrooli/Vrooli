@@ -8,7 +8,13 @@
     "author": "AI Agent",
     "created": "2024-09-05",
     "last_updated": "2024-09-05",
-    "tags": ["education", "assessment", "quiz", "ai", "learning"],
+    "tags": [
+      "education",
+      "assessment",
+      "quiz",
+      "ai",
+      "learning"
+    ],
     "documentation": "docs/README.md"
   },
   "resources": {
@@ -20,16 +26,6 @@
         "config": {
           "database": "quiz_generator",
           "schema": "initialization/storage/postgres/schema.sql"
-        }
-      },
-      {
-        "name": "n8n",
-        "version": ">=1.0",
-        "purpose": "Orchestrate quiz generation workflows",
-        "config": {
-          "workflows": [
-            "initialization/automation/n8n/quiz-generator-ai.json"
-          ]
         }
       },
       {
@@ -86,7 +82,13 @@
       "enabled": true,
       "binary": "quiz-generator",
       "install_path": "~/.vrooli/bin/",
-      "commands": ["generate", "list", "take", "search", "export"]
+      "commands": [
+        "generate",
+        "list",
+        "take",
+        "search",
+        "export"
+      ]
     },
     "ui": {
       "enabled": true,
@@ -98,8 +100,15 @@
     "events": {
       "enabled": true,
       "namespace": "quiz",
-      "publish": ["quiz.generated", "quiz.completed", "question.bank.updated"],
-      "subscribe": ["content.uploaded", "learning.goal.set"]
+      "publish": [
+        "quiz.generated",
+        "quiz.completed",
+        "question.bank.updated"
+      ],
+      "subscribe": [
+        "content.uploaded",
+        "learning.goal.set"
+      ]
     }
   },
   "deployment": {
@@ -170,13 +179,21 @@
         "limits": {
           "quizzes_per_month": "unlimited",
           "questions_per_quiz": "unlimited",
-          "features": ["analytics", "export", "api_access"]
+          "features": [
+            "analytics",
+            "export",
+            "api_access"
+          ]
         }
       },
       {
         "name": "enterprise",
         "price": "custom",
-        "features": ["custom_deployment", "sla", "support"]
+        "features": [
+          "custom_deployment",
+          "sla",
+          "support"
+        ]
       }
     ]
   },
@@ -199,5 +216,22 @@
         "severity": "critical"
       }
     ]
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop quiz-generator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"quiz-generator-api\" || true; sleep 1; pkill -9 -f \"quiz-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/quiz-generator.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/quiz-generator.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

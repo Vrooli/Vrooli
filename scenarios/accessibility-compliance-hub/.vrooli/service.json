@@ -170,6 +170,21 @@
     }
   },
   "lifecycle": {
+    "develop": {
+      "description": "Start accessibility compliance hub services",
+      "steps": [
+        {
+          "name": "start-ui", 
+          "run": "cd ui && python3 -m http.server ${UI_PORT} &",
+          "description": "Start simple UI server for static files"
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Accessibility Compliance Hub running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  Note: This is a UI prototype, full API not yet implemented'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
     "stop": {
       "description": "Stop services",
       "steps": [

@@ -200,12 +200,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f make-it-vegan.start-api 2>/dev/null || true",
+          "run": "pkill -f \"make-it-vegan-api\" || true; sleep 1; pkill -9 -f \"make-it-vegan-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f make-it-vegan.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/make-it-vegan.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/make-it-vegan.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

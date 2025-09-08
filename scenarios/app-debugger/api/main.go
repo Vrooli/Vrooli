@@ -25,6 +25,12 @@ type HealthStatus struct {
     Message string   `json:"message"`
 }
 
+var debugManager *DebugManager
+
+func init() {
+    debugManager = NewDebugManager()
+}
+
 func healthHandler(w http.ResponseWriter, r *http.Request) {
     status := HealthStatus{
         Status:  "healthy",
@@ -48,21 +54,15 @@ func debugHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    // Call n8n workflow
-    n8nURL := os.Getenv("N8N_URL")
-    if n8nURL == "" {
-        n8nURL = "http://localhost:5678"
-    }
-    
-    response := map[string]interface{}{
-        "app_name": req.AppName,
-        "debug_type": req.DebugType,
-        "status": "initiated",
-        "message": "Debug session started",
+    // Start debug session using the debug manager
+    session, err := debugManager.StartDebugSession(req.AppName, req.DebugType)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
     }
     
     w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+    json.NewEncoder(w).Encode(session)
 }
 
 func reportErrorHandler(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +100,11 @@ func listAppsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
     
     http.HandleFunc("/health", healthHandler)
     http.HandleFunc("/api/debug", debugHandler)
@@ -113,9 +117,4 @@ func main() {
     }
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults

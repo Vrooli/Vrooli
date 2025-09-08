@@ -6,7 +6,7 @@
   "type": "scenario",
   "capabilities": [
     "email-processing",
-    "semantic-search", 
+    "semantic-search",
     "ai-rule-generation",
     "multi-tenant-saas"
   ],
@@ -17,7 +17,7 @@
   "resources": {
     "required": [
       "postgres",
-      "qdrant", 
+      "qdrant",
       "scenario-authenticator",
       "mail-in-a-box"
     ],
@@ -37,7 +37,7 @@
     "migrations": "initialization/postgres/",
     "required_tables": [
       "users",
-      "email_accounts", 
+      "email_accounts",
       "triage_rules",
       "processed_emails"
     ]
@@ -69,7 +69,7 @@
         }
       },
       {
-        "name": "business", 
+        "name": "business",
         "price": 99,
         "limits": {
           "email_accounts": 20,
@@ -103,8 +103,29 @@
   "metadata": {
     "created_at": "2025-01-09",
     "business_value": "$20K-50K per deployment",
-    "target_users": ["business-professionals", "executives", "support-teams"],
+    "target_users": [
+      "business-professionals",
+      "executives",
+      "support-teams"
+    ],
     "integration_complexity": "moderate",
     "maintenance_level": "low"
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop email-triage services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"email-triage-api\" || true; sleep 1; pkill -9 -f \"email-triage-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/email-triage/ui\" || true; sleep 1; pkill -9 -f \"scenarios/email-triage/ui\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

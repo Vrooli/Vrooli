@@ -95,7 +95,7 @@ const http = require('http');  // Add for proxy
 
 const app = express();
 const PORT = process.env.PORT || process.env.UI_PORT || 3000;
-const API_PORT = process.env.API_PORT || process.env.SERVICE_PORT || 8080;
+const API_PORT = process.env.API_PORT || 8080;
 
 // === API PROXY IMPLEMENTATION ===
 function proxyToApi(req, res, apiPath) {
@@ -459,7 +459,7 @@ const http = require('http');
 
 const app = express();
 const PORT = process.env.PORT || process.env.UI_PORT || 3003;
-const API_PORT = process.env.API_PORT || process.env.SERVICE_PORT || 8080;
+const API_PORT = process.env.API_PORT;
 
 // Proxy function
 function proxyToApi(req, res, apiPath) {

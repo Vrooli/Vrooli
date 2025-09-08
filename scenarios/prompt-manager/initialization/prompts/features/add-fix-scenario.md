@@ -285,16 +285,23 @@ Create scenarios with robust API foundations:
 
 ## Deployment and Distribution
 
-### 1. Scenario Catalog Integration
+### 1. Scenario Discovery Integration
 ```bash
-# Add to scenario catalog
-jq '.scenarios["your-scenario"] = {
-  "name": "Your Scenario",
-  "description": "Brief description",
-  "category": "productivity",
-  "value": "15000",
+# Scenarios are automatically discovered from the filesystem
+# Ensure your scenario has proper structure and metadata in service.json:
+cat > scenarios/your-scenario/.vrooli/service.json << 'EOF'
+{
+  "service": {
+    "name": "your-scenario",
+    "description": "Brief description",
+    "category": "productivity"
+  },
   "resources": ["postgres", "ollama"]
-}' scripts/scenarios/catalog.json > tmp.json && mv tmp.json scripts/scenarios/catalog.json
+}
+EOF
+
+# Verify discovery
+vrooli scenario list
 ```
 
 ### 2. Customer Deployment Ready

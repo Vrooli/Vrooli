@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
 )
 
@@ -55,19 +57,119 @@ var (
 )
 
 func main() {
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		log.Fatal("POSTGRES_URL environment variable required")
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
 	var err error
-	db, err = sql.Open("postgres", dbURL)
+	db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Failed to open database connection: %v", err)
 	}
 	defer db.Close()
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
+
+	// Initialize Redis client (optional)
+	var redisClient *redis.Client
+	if redisURL := os.Getenv("REDIS_URL"); redisURL != "" {
+		opt, err := redis.ParseURL(redisURL)
+		if err == nil {
+			redisClient = redis.NewClient(opt)
+		}
+	}
+
+	// Initialize feed processor - OLLAMA_URL is required
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+	processor = NewFeedProcessor(db, ollamaURL, redisClient)
+
+	// Start background feed processing
+	go func() {
+		ticker := time.NewTicker(30 * time.Minute)
+		defer ticker.Stop()
+		
+		// Initial processing
+		time.Sleep(10 * time.Second) // Wait for system to stabilize
+		processor.ProcessAllFeeds()
+		
+		for range ticker.C {
+			log.Println("Processing all feeds...")
+			processor.ProcessAllFeeds()
+		}
+	}()
 
 	router := mux.NewRouter()
 	
@@ -99,12 +201,6 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
@@ -286,29 +382,21 @@ func deleteFeedHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func refreshFeedsHandler(w http.ResponseWriter, r *http.Request) {
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
-		http.Error(w, "N8N not configured", http.StatusInternalServerError)
-		return
-	}
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Post(n8nURL+"/webhook/rss-feed-fetcher", "application/json", nil)
-	if err != nil {
-		http.Error(w, "Failed to trigger feed refresh", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Broadcast refresh status to WebSocket clients
-	broadcastUpdate("refresh_started", map[string]string{
-		"status": "in_progress",
-		"message": "Fetching latest news from all sources",
-	})
-
-	// In a real implementation, you'd have a webhook from n8n to notify when complete
+	// Process all feeds asynchronously
 	go func() {
-		time.Sleep(5 * time.Second)
+		// Broadcast refresh status to WebSocket clients
+		broadcastUpdate("refresh_started", map[string]string{
+			"status": "in_progress",
+			"message": "Fetching latest news from all sources",
+		})
+		
+		if processor != nil {
+			err := processor.ProcessAllFeeds()
+			if err != nil {
+				log.Printf("Error processing feeds: %v", err)
+			}
+		}
+		
 		broadcastUpdate("refresh_complete", map[string]string{
 			"status": "complete",
 			"message": "News feed refresh completed",
@@ -325,26 +413,29 @@ func analyzeBiasHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
-		http.Error(w, "N8N not configured", http.StatusInternalServerError)
-		return
-	}
-
-	payload, _ := json.Marshal(map[string]string{"article_id": id})
-	client := &http.Client{Timeout: 30 * time.Second}
-	
-	resp, err := client.Post(n8nURL+"/webhook/bias-analyzer", "application/json", 
-		bytes.NewBuffer(payload))
+	// Get article from database
+	var article Article
+	query := `SELECT id, title, url, source, summary FROM articles WHERE id = $1`
+	err := db.QueryRow(query, id).Scan(&article.ID, &article.Title, &article.URL, &article.Source, &article.Summary)
 	if err != nil {
-		http.Error(w, "Failed to trigger bias analysis", http.StatusInternalServerError)
+		http.Error(w, "Article not found", http.StatusNotFound)
 		return
 	}
-	defer resp.Body.Close()
 
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "analysis_triggered",
+	// Analyze bias using processor
+	if processor != nil {
+		processor.analyzeArticleBias(&article)
+		
+		// Update article in database
+		updateQuery := `UPDATE articles SET bias_score = $1, bias_analysis = $2 WHERE id = $3`
+		db.Exec(updateQuery, article.BiasScore, article.BiasAnalysis, article.ID)
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "analysis_completed",
 		"article_id": id,
+		"bias_score": article.BiasScore,
+		"bias_analysis": article.BiasAnalysis,
 	})
 }
 

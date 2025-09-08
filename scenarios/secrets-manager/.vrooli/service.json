@@ -18,7 +18,6 @@
       "configuration-scanner",
       "credential-validation",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "vault-storage"
     ]
@@ -35,21 +34,6 @@
       "enabled": true,
       "required": true,
       "purpose": "metadata tracking and secret requirement persistence"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/resource-scanner.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/secret-validator.json",
-          "type": "workflow"
-        }
-      ]
     },
     "redis": {
       "type": "redis",
@@ -134,7 +118,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔐 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: secrets-manager --help'",
+          "run": "echo '🔐 Secrets Manager initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: secrets-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -167,7 +151,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$API_PORT\\n  ⚙️  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  🔧 CLI: secrets-manager --help'",
+          "run": "echo '🔐 Secrets Manager running:\\n  🌐 Dashboard: http://localhost:${UI_PORT}\\n  🔌 API: http://localhost:$API_PORT\\n  🔧 CLI: secrets-manager --help'",
           "description": "Display all running service URLs"
         }
       ]

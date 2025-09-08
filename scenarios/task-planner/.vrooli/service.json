@@ -15,7 +15,6 @@
       "ai",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -33,15 +32,6 @@
       "description": "Task dashboard UI port",
       "range": "35000-39999"
     }
-  },
-  "sharedWorkflows": {
-    "n8n": [
-      {
-        "file": "initialization/n8n/ollama.json",
-        "id": "ollama-universal",
-        "purpose": "Shared Ollama API interface for all AI interactions"
-      }
-    ]
   },
   "resources": {
     "postgres": {
@@ -71,33 +61,6 @@
       "enabled": true,
       "required": true,
       "purpose": "Vector database for semantic search of tasks and research"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/task-parser.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/task-researcher.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/task-implementer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/status-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/task-suggester.json",
-          "type": "workflow"
-        }
-      ]
     },
     "ollama": {
       "type": "ollama",
@@ -199,7 +162,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Task Planner initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: task-planner --help'",
+          "run": "echo '🚀 Task Planner initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: task-planner --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -227,7 +190,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: task-planner --help'",
+          "run": "echo '🚀 Task Planner running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: task-planner --help'",
           "description": "Display all running service URLs"
         }
       ]

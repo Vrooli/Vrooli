@@ -1,13 +1,14 @@
 package main
 
 import (
-    "bytes"
     "database/sql"
     "encoding/json"
     "fmt"
     "log"
+    "math"
     "net/http"
     "os"
+    "strings"
     "time"
     
     _ "github.com/lib/pq"
@@ -54,83 +55,176 @@ type HealthResponse struct {
     Service   string `json:"service"`
 }
 
-// Global database connection
+// Global database connection and ROI engine
 var db *sql.DB
+var roiEngine *ROIAnalysisEngine
 
-// Initialize database connection
+// Initialize database connection with exponential backoff
 func initDB() error {
-    dbURL := os.Getenv("POSTGRES_URL")
-    if dbURL == "" {
-        dbURL = "postgres://postgres:password@localhost/vrooli?sslmode=disable"
+    // Database configuration - support both POSTGRES_URL and individual components
+    postgresURL := os.Getenv("POSTGRES_URL")
+    if postgresURL == "" {
+        // Try to build from individual components - REQUIRED, no defaults
+        dbHost := os.Getenv("POSTGRES_HOST")
+        dbPort := os.Getenv("POSTGRES_PORT")
+        dbUser := os.Getenv("POSTGRES_USER")
+        dbPassword := os.Getenv("POSTGRES_PASSWORD")
+        dbName := os.Getenv("POSTGRES_DB")
+        
+        if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+            return fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+        }
+        
+        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+            dbUser, dbPassword, dbHost, dbPort, dbName)
     }
     
     var err error
-    db, err = sql.Open("postgres", dbURL)
+    db, err = sql.Open("postgres", postgresURL)
     if err != nil {
         return err
     }
     
-    return db.Ping()
+    // Set connection pool settings
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+    
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+    log.Printf("📆 Database URL configured")
+    
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            return nil
+        }
+        
+        // Calculate exponential backoff delay
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add progressive jitter to prevent thundering herd
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+        
+        // Provide detailed status every few attempts
+        if attempt > 0 && attempt % 3 == 0 {
+            log.Printf("📈 Retry progress:")
+            log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+            log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+            log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+        }
+        
+        time.Sleep(actualDelay)
+    }
+    
+    return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
 }
 
-// Call N8n ROI analyzer workflow
-func callN8nROIAnalyzer(n8nURL string, req AnalysisRequest) (*N8nAnalysisResponse, error) {
-    requestBody, err := json.Marshal(req)
-    if err != nil {
-        return nil, err
+// Helper functions for response formatting
+
+// getRecommendationFromRating converts overall rating to recommendation
+func getRecommendationFromRating(rating string) string {
+    switch strings.ToLower(rating) {
+    case "excellent":
+        return "Excellent opportunity - High potential"
+    case "good":
+        return "Good opportunity - Moderate potential"  
+    case "fair":
+        return "Fair opportunity - Consider risks"
+    case "poor":
+        return "Poor opportunity - High risk"
+    default:
+        return "Assessment pending"
     }
-    
-    resp, err := http.Post(n8nURL+"/webhook/roi-analyzer", "application/json", bytes.NewBuffer(requestBody))
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("N8n workflow returned status %d", resp.StatusCode)
-    }
-    
-    var analysis N8nAnalysisResponse
-    if err := json.NewDecoder(resp.Body).Decode(&analysis); err != nil {
-        return nil, err
-    }
-    
-    return &analysis, nil
 }
 
-// Store analysis in database
-func storeAnalysis(analysis *N8nAnalysisResponse) error {
+// formatMarketSize formats market size for display
+func formatMarketSize(size float64) string {
+    if size >= 1000000000 {
+        return fmt.Sprintf("$%.1fB", size/1000000000)
+    } else if size >= 1000000 {
+        return fmt.Sprintf("$%.1fM", size/1000000)
+    } else if size >= 1000 {
+        return fmt.Sprintf("$%.1fK", size/1000)
+    }
+    return fmt.Sprintf("$%.0f", size)
+}
+
+// analysisResultsHandler returns stored analysis results
+func analysisResultsHandler(w http.ResponseWriter, r *http.Request) {
     if db == nil {
-        return fmt.Errorf("database not initialized")
+        http.Error(w, "Database not available", http.StatusServiceUnavailable)
+        return
     }
     
     query := `
-        INSERT INTO roi_analyses (analysis_id, idea, budget, timeline, skills, market_focus, 
-                                 roi_percentage, estimated_revenue, payback_months, risk_level, 
-                                 confidence_score, detailed_analysis, created_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        SELECT id, idea, budget, timeline, market_focus, status, success,
+               execution_time_ms, error_message, created_at
+        FROM roi_analyses
+        ORDER BY created_at DESC
+        LIMIT 20
     `
     
-    skillsJSON, _ := json.Marshal(analysis.Input.Skills)
-    detailsJSON, _ := json.Marshal(analysis.DetailedAnalysis)
+    rows, err := db.Query(query)
+    if err != nil {
+        http.Error(w, "Failed to query results", http.StatusInternalServerError)
+        return
+    }
+    defer rows.Close()
     
-    _, err := db.Exec(query,
-        analysis.AnalysisID,
-        analysis.Input.Idea,
-        analysis.Input.Budget,
-        analysis.Input.Timeline,
-        string(skillsJSON),
-        analysis.Input.MarketFocus,
-        analysis.ROIMetrics.ROIPercentage,
-        analysis.ROIMetrics.EstimatedRevenue,
-        analysis.ROIMetrics.PaybackMonths,
-        analysis.ROIMetrics.RiskLevel,
-        analysis.ROIMetrics.ConfidenceScore,
-        string(detailsJSON),
-        time.Now(),
-    )
+    var results []map[string]interface{}
+    for rows.Next() {
+        var id, idea, budget, timeline, marketFocus, status, errorMsg string
+        var success bool
+        var executionTime int64
+        var createdAt time.Time
+        
+        err := rows.Scan(&id, &idea, &budget, &timeline, &marketFocus, &status, 
+                        &success, &executionTime, &errorMsg, &createdAt)
+        if err != nil {
+            continue
+        }
+        
+        result := map[string]interface{}{
+            "id":               id,
+            "idea":             idea,
+            "budget":           budget,
+            "timeline":         timeline,
+            "market_focus":     marketFocus,
+            "status":           status,
+            "success":          success,
+            "execution_time_ms": executionTime,
+            "created_at":       createdAt,
+        }
+        
+        if errorMsg != "" {
+            result["error"] = errorMsg
+        }
+        
+        results = append(results, result)
+    }
     
-    return err
+    response := map[string]interface{}{
+        "results": results,
+        "count":   len(results),
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(response)
 }
 
 // Get recommendation based on ROI score
@@ -251,46 +345,73 @@ func analyzeHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call N8n ROI analyzer workflow
-    n8nURL := os.Getenv("N8N_URL")
-    if n8nURL == "" {
-        n8nURL = "http://localhost:5678"
+    // Convert to comprehensive analysis request
+    comprehensiveReq := &ComprehensiveAnalysisRequest{
+        Idea:          req.Idea,
+        Budget:        req.Budget,
+        Timeline:      req.Timeline,
+        Skills:        req.Skills,
+        MarketFocus:   req.MarketFocus,
+        RiskTolerance: "medium", // Default
     }
     
-    // Set default market focus if not provided
-    if req.MarketFocus == "" {
-        req.MarketFocus = "general"
+    if comprehensiveReq.MarketFocus == "" {
+        comprehensiveReq.MarketFocus = "general"
     }
-    
-    analysis, err := callN8nROIAnalyzer(n8nURL, req)
+
+    // Perform comprehensive analysis using ROI engine (replaces all n8n workflows)
+    analysis, err := roiEngine.PerformComprehensiveAnalysis(comprehensiveReq)
     if err != nil {
-        log.Printf("Error calling N8n analyzer: %v", err)
+        log.Printf("Error performing ROI analysis: %v", err)
         http.Error(w, "Analysis service unavailable", http.StatusServiceUnavailable)
         return
     }
     
-    // Store analysis in database
-    if err := storeAnalysis(analysis); err != nil {
-        log.Printf("Error storing analysis: %v", err)
-        // Continue even if storage fails
-    }
-    
+    // Create simplified response for backward compatibility
     response := map[string]interface{}{
-        "status": "success",
+        "status":  "success",
+        "analysis_id": analysis.AnalysisID,
+        "execution_time_ms": analysis.ExecutionTime,
         "analysis": map[string]interface{}{
-            "roi_score":        analysis.ROIMetrics.ROIPercentage,
-            "recommendation":   getRecommendation(analysis.ROIMetrics.ROIPercentage),
-            "payback_months":   analysis.ROIMetrics.PaybackMonths,
-            "risk_level":       analysis.ROIMetrics.RiskLevel,
-            "market_size":      extractMarketSize(analysis.DetailedAnalysis),
-            "competition":      extractCompetitionLevel(analysis.DetailedAnalysis),
-            "confidence":       analysis.ROIMetrics.ConfidenceScore,
-            "analysis_id":      analysis.AnalysisID,
+            "roi_score":        analysis.ROIAnalysis.ROIPercentage,
+            "recommendation":   getRecommendationFromRating(analysis.Summary.OverallRating),
+            "payback_months":   analysis.ROIAnalysis.PaybackMonths,
+            "risk_level":       analysis.ROIAnalysis.RiskLevel,
+            "market_size":      formatMarketSize(analysis.MarketResearch.MarketSize),
+            "confidence":       analysis.ROIAnalysis.ConfidenceScore,
+            "estimated_revenue": analysis.ROIAnalysis.EstimatedRevenue,
+            "breakeven_month":  analysis.FinancialMetrics.BreakevenMonth,
+            "competitive_score": analysis.Competitive.CompetitiveScore,
         },
+        "comprehensive_analysis": analysis, // Full analysis results
     }
 
     w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(response)
+}
+
+// New comprehensive analysis endpoint for full results
+func comprehensiveAnalysisHandler(w http.ResponseWriter, r *http.Request) {
+    if r.Method != http.MethodPost {
+        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+        return
+    }
+
+    var req ComprehensiveAnalysisRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    analysis, err := roiEngine.PerformComprehensiveAnalysis(&req)
+    if err != nil {
+        log.Printf("Error performing comprehensive analysis: %v", err)
+        http.Error(w, "Analysis service unavailable", http.StatusServiceUnavailable)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(analysis)
 }
 
 func opportunitiesHandler(w http.ResponseWriter, r *http.Request) {
@@ -370,26 +491,42 @@ func main() {
         log.Printf("Warning: Database connection failed: %v", err)
         log.Printf("Continuing with mock data...")
     } else {
-        log.Println("Database connected successfully")
+        log.Println("🎉 Database connection pool established successfully!")
         defer db.Close()
+        
+        // Initialize ROI analysis engine
+        roiEngine = NewROIAnalysisEngine(db)
+        log.Println("ROI Analysis Engine initialized")
     }
     
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+    // Get port from environment - REQUIRED, no defaults
+    port := os.Getenv("API_PORT")
+    if port == "" {
+        log.Fatal("❌ API_PORT environment variable is required")
+    }
 
+    // Original endpoints (backward compatibility)
     http.HandleFunc("/analyze", corsMiddleware(analyzeHandler))
     http.HandleFunc("/opportunities", corsMiddleware(opportunitiesHandler))
     http.HandleFunc("/reports", corsMiddleware(reportsHandler))
     http.HandleFunc("/health", corsMiddleware(healthHandler))
+    
+    // New comprehensive analysis endpoint
+    http.HandleFunc("/comprehensive-analysis", corsMiddleware(comprehensiveAnalysisHandler))
+    http.HandleFunc("/analysis/results", corsMiddleware(analysisResultsHandler))
 
     log.Printf("ROI Fit Analysis API starting on port %s", port)
+    log.Println("Endpoints available:")
+    log.Println("  POST /analyze (legacy)")
+    log.Println("  POST /comprehensive-analysis (full analysis)")
+    log.Println("  GET  /opportunities")
+    log.Println("  GET  /reports")
+    log.Println("  GET  /analysis/results")
+    log.Println("  GET  /health")
+    
     if err := http.ListenAndServe(":"+port, nil); err != nil {
         log.Fatal(err)
     }
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults

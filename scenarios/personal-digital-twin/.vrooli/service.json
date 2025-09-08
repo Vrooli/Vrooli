@@ -245,12 +245,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f personal-digital-twin.start-api 2>/dev/null || true",
+          "run": "pkill -f \"personal-digital-twin-api\" || true; sleep 1; pkill -9 -f \"personal-digital-twin-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f personal-digital-twin.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/personal-digital-twin.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/personal-digital-twin.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

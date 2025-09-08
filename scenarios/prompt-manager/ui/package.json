@@ -12,7 +12,7 @@
     "react-textarea-autosize": "^8.5.0"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh react-scripts start'",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

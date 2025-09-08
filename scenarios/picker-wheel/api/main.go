@@ -5,6 +5,7 @@ import (
     "encoding/json"
     "fmt"
     "log"
+    "math"
     "math/rand"
     "net/http"
     "os"
@@ -49,26 +50,85 @@ var wheels []Wheel
 var history []SpinResult
 
 func initDB() {
+    // Database configuration - support both POSTGRES_URL and individual components
+    postgresURL := os.Getenv("POSTGRES_URL")
+    if postgresURL == "" {
+        // Try to build from individual components - REQUIRED, no defaults
+        dbHost := os.Getenv("POSTGRES_HOST")
+        dbPort := os.Getenv("POSTGRES_PORT")
+        dbUser := os.Getenv("POSTGRES_USER")
+        dbPassword := os.Getenv("POSTGRES_PASSWORD")
+        dbName := os.Getenv("POSTGRES_DB")
+        
+        if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+            log.Println("❌ Database configuration missing. Using in-memory fallback. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+            return
+        }
+        
+        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+            dbUser, dbPassword, dbHost, dbPort, dbName)
+    }
+    
     var err error
-    dbURL := os.Getenv("POSTGRES_URL")
-    if dbURL == "" {
-        log.Println("POSTGRES_URL not set, using in-memory fallback")
-        return
-    }
-    
-    db, err = sql.Open("postgres", dbURL)
+    db, err = sql.Open("postgres", postgresURL)
     if err != nil {
-        log.Printf("Failed to connect to database: %v", err)
+        log.Printf("Failed to open database connection: %v - using in-memory fallback", err)
         return
     }
     
-    if err = db.Ping(); err != nil {
-        log.Printf("Failed to ping database: %v", err)
+    // Set connection pool settings
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+    
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+    log.Printf("📆 Database URL configured")
+    
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            break
+        }
+        
+        // Calculate exponential backoff delay
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add progressive jitter to prevent thundering herd
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+        
+        // Provide detailed status every few attempts
+        if attempt > 0 && attempt % 3 == 0 {
+            log.Printf("📈 Retry progress:")
+            log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+            log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+            log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+        }
+        
+        time.Sleep(actualDelay)
+    }
+    
+    if pingErr != nil {
+        log.Printf("❌ Database connection failed after %d attempts: %v - using in-memory fallback", maxRetries, pingErr)
         db = nil
         return
     }
     
-    log.Println("Successfully connected to PostgreSQL database")
+    log.Println("🎉 Database connection pool established successfully!")
 }
 
 func main() {
@@ -84,7 +144,11 @@ func main() {
     wheels = getDefaultWheels()
     history = []SpinResult{}
     
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
     router := mux.NewRouter()
 
@@ -113,12 +177,7 @@ func main() {
     log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
     response := HealthResponse{

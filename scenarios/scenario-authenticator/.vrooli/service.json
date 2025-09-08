@@ -18,8 +18,7 @@
       "cross-scenario",
       "go-api",
       "postgres-storage",
-      "redis-cache",
-      "n8n-workflows"
+      "redis-cache"
     ]
   },
   "ports": {
@@ -60,30 +59,6 @@
         {
           "file": "initialization/redis/config.lua",
           "type": "script"
-        }
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": false,
-      "purpose": "Workflow automation for auth validation and password reset",
-      "initialization": [
-        {
-          "file": "initialization/n8n/auth-validator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/password-reset.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/token-refresh.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/user-onboarding.json",
-          "type": "workflow"
         }
       ]
     },
@@ -273,8 +248,7 @@
       {
         "name": "auth_validation",
         "description": "JWT token validation for any scenario",
-        "endpoint": "/api/v1/auth/validate",
-        "workflow": "initialization/n8n/auth-validator.json"
+        "endpoint": "/api/v1/auth/validate"
       },
       {
         "name": "user_management",
@@ -287,12 +261,16 @@
         "description": "Session creation and validation",
         "endpoint": "/api/v1/sessions",
         "cli": "scenario-authenticator session"
+      },
+      {
+        "name": "password_reset",
+        "description": "Password reset functionality",
+        "endpoint": "/api/v1/auth/reset-password"
       }
     ],
     "example_integration": {
       "api": "const isValid = await fetch('http://localhost:3252/api/v1/auth/validate', { headers: { 'Authorization': `Bearer ${token}` } });",
-      "cli": "scenario-authenticator token validate $TOKEN",
-      "workflow": "Use auth-validator.json workflow with webhook trigger"
+      "cli": "scenario-authenticator token validate $TOKEN"
     }
   }
 }

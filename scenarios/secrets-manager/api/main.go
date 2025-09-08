@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -106,39 +107,93 @@ type ProvisionResponse struct {
 
 // Database connection
 var db *sql.DB
+var scanner *SecretScanner
+var validator *SecretValidator
 
 func initDB() {
 	var err error
 	
-	// Get database connection details from environment
-	host := getEnvOrDefault("POSTGRES_HOST", "localhost")
-	port := getEnvOrDefault("POSTGRES_PORT", "5432")
-	user := getEnvOrDefault("POSTGRES_USER", "postgres")
-	password := getEnvOrDefault("POSTGRES_PASSWORD", "postgres")
-	dbname := getEnvOrDefault("POSTGRES_DB", "vrooli")
-	
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
-		host, port, user, password, dbname)
+	// Database configuration - support both POSTGRES_URL and individual components
+	connStr := os.Getenv("POSTGRES_URL")
+	if connStr == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	}
 	
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	
-	// Test connection
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
 	
-	log.Printf("✅ Connected to PostgreSQL database at %s:%s/%s", host, port, dbname)
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
+	
+	// Initialize scanner and validator components
+	scanner = NewSecretScanner(db)
+	validator = NewSecretValidator(db)
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnvOrDefault removed to prevent hardcoded defaults
 
 // Resource scanner - scans Vrooli resources for secret requirements
 func scanResourceSecrets(resources []string) ([]ResourceSecret, error) {
@@ -487,38 +542,16 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	startTime := time.Now()
+	// Set defaults
+	if req.ScanType == "" {
+		req.ScanType = "full"
+	}
 	
-	// Perform resource scan
-	discoveredSecrets, err := scanResourceSecrets(req.Resources)
+	// Perform resource scan using new scanner
+	response, err := scanner.ScanResources(req)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Scan failed: %v", err), http.StatusInternalServerError)
 		return
-	}
-	
-	// Store discovered secrets in database (upsert)
-	for _, secret := range discoveredSecrets {
-		storeDiscoveredSecret(secret)
-	}
-	
-	// Create scan record
-	scanRecord := SecretScan{
-		ID:                uuid.New().String(),
-		ScanType:          req.ScanType,
-		ResourcesScanned:  req.Resources,
-		SecretsDiscovered: len(discoveredSecrets),
-		ScanDurationMs:    int(time.Since(startTime).Milliseconds()),
-		ScanTimestamp:     time.Now(),
-		ScanStatus:        "completed",
-	}
-	
-	storeScanRecord(scanRecord)
-	
-	response := ScanResponse{
-		ScanID:            scanRecord.ID,
-		DiscoveredSecrets: discoveredSecrets,
-		ScanDurationMs:    scanRecord.ScanDurationMs,
-		ResourcesScanned:  req.Resources,
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
@@ -534,7 +567,7 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
-	response, err := validateSecrets(req.Resource)
+	response, err := validator.ValidateSecrets(req.Resource)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
 		return
@@ -620,8 +653,14 @@ func main() {
 	corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
 	corsOrigins := handlers.AllowedOrigins([]string{"*"})
 	
-	// Get port from environment
-	port := getEnvOrDefault("API_PORT", getEnvOrDefault("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = os.Getenv("PORT") // Fallback to PORT
+		if port == "" {
+			log.Fatal("❌ API_PORT or PORT environment variable is required")
+		}
+	}
 	
 	log.Printf("🔐 Secrets Manager API starting on port %s", port)
 	log.Printf("   📊 Health check: http://localhost:%s/health", port)

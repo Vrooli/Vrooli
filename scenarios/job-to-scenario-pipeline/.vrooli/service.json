@@ -228,12 +228,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f job-to-scenario-pipeline.start-api 2>/dev/null || true",
+          "run": "pkill -f \"job-to-scenario-pipeline-api\" || true; sleep 1; pkill -9 -f \"job-to-scenario-pipeline-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f job-to-scenario-pipeline.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/job-to-scenario-pipeline.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/job-to-scenario-pipeline.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

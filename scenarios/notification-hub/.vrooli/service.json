@@ -16,7 +16,6 @@
       "analytics",
       "compliance",
       "go-api",
-      "n8n-workflows",
       "nodejs-server",
       "postgres-storage",
       "redis-cache"
@@ -57,38 +56,6 @@
       "required": true,
       "purpose": "Notification queues, rate limiting counters, and caching"
     },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "purpose": "Multi-channel notification workflows and provider integrations",
-      "initialization": [
-        {
-          "file": "initialization/n8n/email-sender-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/sms-sender-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/push-sender-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/notification-router-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/delivery-tracker-workflow.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/unsubscribe-processor-workflow.json",
-          "type": "workflow"
-        }
-      ]
-    }
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -152,7 +119,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🔔 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
+          "run": "echo '🔔 Notification Hub initialized\\n  Web Dashboard: http://localhost:${UI_PORT}\\n  API Docs: http://localhost:${API_PORT}/docs\\n  API: http://localhost:${API_PORT}\\n  CLI: notification-hub --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -180,7 +147,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
+          "run": "echo '🔔 Notification Hub running:\\n  Dashboard: http://localhost:$UI_PORT\\n  API Docs: http://localhost:$API_PORT/docs\\n  API: http://localhost:$API_PORT\\n  CLI: notification-hub --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -215,12 +182,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f notification-hub.start-api 2>/dev/null || true",
+          "run": "pkill -f \"notification-hub-api\" || true; sleep 1; pkill -9 -f \"notification-hub-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f notification-hub.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/notification-hub.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/notification-hub.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

@@ -210,8 +210,14 @@ type ReportRequest struct {
 }
 
 func main() {
-	// Try API_PORT first (allocated by Vrooli), then PORT, then fallback
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = os.Getenv("PORT") // Fallback to PORT for compatibility
+	}
+	if port == "" {
+		log.Fatal("❌ API_PORT or PORT environment variable is required")
+	}
 
 	r := mux.NewRouter()
 
@@ -252,12 +258,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, r))
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// Removed getEnv function - no defaults allowed
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

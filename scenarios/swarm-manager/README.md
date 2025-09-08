@@ -4,7 +4,7 @@
 
 ## 🎯 Purpose & Vision
 
-Swarm Manager replaces the `auto/` folder's loops with intelligent, event-driven orchestration. It decides what work needs to be done, prioritizes it, and dispatches it to the appropriate scenarios - all while learning from outcomes to improve future decisions.
+Swarm Manager decides what work needs to be done, prioritizes it, and dispatches it to the appropriate scenarios - all while learning from outcomes to improve future decisions.
 
 This is not just task management - it's the **decision-making brain** that enables Vrooli to be truly self-improving without human intervention.
 

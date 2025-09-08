@@ -22,7 +22,7 @@
       "scenario-authenticator-integration",
       "calendar-integration",
       "claude-code-integration",
-      "n8n-workflows",
+      "ai-powered-validation",
       "business-premium"
     ]
   },
@@ -104,26 +104,14 @@
       "cli_integration": true,
       "health_check": "resource-claude-code status"
     },
-    "n8n": {
-      "type": "n8n",
+    "ollama": {
+      "type": "ollama",
       "enabled": true,
       "required": false,
-      "purpose": "Complex workflow orchestration and external service integrations",
-      "fallback": "Direct API calls without workflow orchestration",
-      "initialization": [
-        {
-          "file": "initialization/n8n/home-assistant-device-control.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/calendar-automation-scheduler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/automation-safety-validator.json",
-          "type": "workflow"
-        }
-      ]
+      "purpose": "AI-powered automation safety validation and context analysis",
+      "fallback": "Rule-based validation without AI insights",
+      "models": ["llama3.2"],
+      "cli_integration": true
     },
     "notification-hub": {
       "type": "scenario",
@@ -370,12 +358,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f home-automation.start-api 2>/dev/null || true",
+          "run": "pkill -f \"home-automation-api\" || true; sleep 1; pkill -9 -f \"home-automation-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f home-automation.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/home-automation.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/home-automation.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

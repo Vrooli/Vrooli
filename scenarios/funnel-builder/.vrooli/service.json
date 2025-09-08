@@ -212,12 +212,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f funnel-builder.start-api 2>/dev/null || true",
+          "run": "pkill -f \"funnel-builder-api\" || true; sleep 1; pkill -9 -f \"funnel-builder-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f funnel-builder.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/funnel-builder.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/funnel-builder.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

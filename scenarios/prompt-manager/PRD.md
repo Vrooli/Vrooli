@@ -16,7 +16,7 @@ Provides a centralized, campaign-based prompt management system that stores, org
 ### Recursive Value
 **What new scenarios become possible after this exists?**
 1. **prompt-performance-evaluator** - Can use this as the storage backend for A/B testing different prompt variations
-2. **scenario-generator-v1** - Can query for effective scenario generation prompts and patterns
+2. **ecosystem-manager** - Can query for effective scenario generation prompts and patterns
 3. **agent-metareasoning-manager** - Can store and retrieve reasoning chain prompts
 4. **workflow-creator-fixer** - Can access workflow generation prompts that have proven effective
 5. **stream-of-consciousness-analyzer** - Can store campaign-specific analysis prompts
@@ -268,6 +268,6 @@ curl -X POST http://localhost:8085/api/search/prompts \
 - Semantic search requires qdrant to be running
 
 ### Dependencies on Other Scenarios
-- Can enhance **scenario-generator-v1** with proven patterns
+- Can enhance **ecosystem-manager** with proven patterns
 - Supports **agent-metareasoning-manager** with reasoning prompts
 - Enables **workflow-creator-fixer** with workflow generation prompts

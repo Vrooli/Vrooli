@@ -18,7 +18,6 @@
       "cross-scenario-tool",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -38,53 +37,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/auto-organize.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/auto-organize-enhanced.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/auto-organize-advanced.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/semantic-search.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/create-mindmap.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/update-mindmap.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/export-mindmap.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/document-to-mindmap.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/collaborative-sharing.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/intelligent-mindmap-builder.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "ollama": {
       "type": "ollama",
       "enabled": true,
@@ -126,10 +78,6 @@
       "purpose": "Real-time collaboration support and caching"
     }
   },
-  "shared_workflows": [
-    "ollama",
-    "embedding-generator"
-  ],
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -236,12 +184,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f mind-maps.start-api 2>/dev/null || true",
+          "run": "pkill -f \"mind-maps-api\" || true; sleep 1; pkill -9 -f \"mind-maps-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f mind-maps.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/mind-maps.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/mind-maps.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

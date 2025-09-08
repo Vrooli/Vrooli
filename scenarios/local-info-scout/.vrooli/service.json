@@ -92,12 +92,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f local-info-scout.start-api 2>/dev/null || true",
+          "run": "pkill -f \"local-info-scout-api\" || true; sleep 1; pkill -9 -f \"local-info-scout-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f local-info-scout.start-ui 2>/dev/null || true",
+          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/local-info-scout/ui\" || true; sleep 1; pkill -9 -f \"scenarios/local-info-scout/ui\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

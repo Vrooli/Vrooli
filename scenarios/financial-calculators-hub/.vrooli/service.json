@@ -198,12 +198,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f financial-calculators-hub.start-api 2>/dev/null || true",
+          "run": "pkill -f \"financial-calculators-hub-api\" || true; sleep 1; pkill -9 -f \"financial-calculators-hub-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f financial-calculators-hub.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/financial-calculators-hub.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/financial-calculators-hub.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

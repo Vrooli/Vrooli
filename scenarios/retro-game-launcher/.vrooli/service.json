@@ -14,7 +14,6 @@
       "ai-generation",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "ollama-ai",
       "kid-friendly"
@@ -49,17 +48,6 @@
         }
       ]
     },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/game-generation-workflow.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "ollama": {
       "type": "ollama",
       "enabled": true,
@@ -69,11 +57,6 @@
         "codellama"
       ]
     }
-  },
-  "sharedWorkflows": {
-    "n8n": [
-      "ollama"
-    ]
   },
   "lifecycle": {
     "version": "2.0.0",
@@ -150,7 +133,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -178,7 +161,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
+          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$API_PORT\\n  CLI: retro-game-launcher --help'",
           "description": "Display all running service URLs"
         }
       ]

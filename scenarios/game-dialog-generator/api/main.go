@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -101,42 +102,97 @@ var (
 
 // Database initialization
 func initDB() {
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
+	
 	var err error
-	
-	// Get database connection details from environment
-	dbHost := getEnvWithDefault("POSTGRES_HOST", "localhost")
-	dbPort := getEnvWithDefault("POSTGRES_PORT", "5432")
-	dbUser := getEnvWithDefault("POSTGRES_USER", "postgres")
-	dbPassword := getEnvWithDefault("POSTGRES_PASSWORD", "password")
-	dbName := getEnvWithDefault("POSTGRES_DB", "game_dialog_generator")
-	
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
-	db, err = sql.Open("postgres", connStr)
+	db, err = sql.Open("postgres", postgresURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Failed to open database connection: %v", err)
 	}
 	
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
 	
-	log.Println("🌿 Connected to PostgreSQL database successfully!")
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 }
 
-func getEnvWithDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 
 // Initialize external service clients
 func initClients() {
 	restClient = resty.New()
-	ollamaURL = getEnvWithDefault("OLLAMA_URL", "http://localhost:11434")
-	qdrantURL = getEnvWithDefault("QDRANT_URL", "http://localhost:6333")
+	
+	// External service URLs - REQUIRED, no defaults
+	ollamaURL = os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+	qdrantURL = os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		log.Fatal("❌ QDRANT_URL environment variable is required")
+	}
 	
 	log.Printf("🎮 Initialized clients - Ollama: %s, Qdrant: %s", ollamaURL, qdrantURL)
 }
@@ -772,8 +828,11 @@ func main() {
 		api.GET("/projects", listProjectsHandler)
 	}
 	
-	// Get port from environment
-	port := getEnvWithDefault("API_PORT", "8080")
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 	
 	log.Printf("🌿 Game Dialog Generator API starting on port %s with jungle adventure theme! 🎮", port)
 	log.Printf("🔧 Health check: http://localhost:%s/health", port)

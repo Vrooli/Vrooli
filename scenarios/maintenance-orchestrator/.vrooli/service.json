@@ -4,7 +4,12 @@
   "description": "Centralized control plane for all maintenance-related scenarios",
   "version": "1.0.0",
   "category": "system",
-  "tags": ["system", "orchestration", "maintenance", "control"],
+  "tags": [
+    "system",
+    "orchestration",
+    "maintenance",
+    "control"
+  ],
   "enabled": true,
   "type": "local",
   "priority": 100,
@@ -14,7 +19,11 @@
   },
   "dependencies": {
     "required": [],
-    "optional": ["postgres", "redis", "calendar"]
+    "optional": [
+      "postgres",
+      "redis",
+      "calendar"
+    ]
   },
   "resources": {
     "n8n": {
@@ -91,26 +100,55 @@
         "id": "security-only",
         "name": "Security Only",
         "description": "Security-related maintenance only",
-        "tags": ["security"]
+        "tags": [
+          "security"
+        ]
       },
       {
         "id": "performance",
         "name": "Performance",
         "description": "Performance optimization scenarios",
-        "tags": ["performance", "optimization"]
+        "tags": [
+          "performance",
+          "optimization"
+        ]
       },
       {
         "id": "off-hours",
         "name": "Off Hours",
         "description": "Heavy maintenance for quiet periods",
-        "tags": ["heavy", "backup", "cleanup"]
+        "tags": [
+          "heavy",
+          "backup",
+          "cleanup"
+        ]
       },
       {
         "id": "minimal",
         "name": "Minimal",
         "description": "Essential maintenance only",
-        "tags": ["essential", "critical"]
+        "tags": [
+          "essential",
+          "critical"
+        ]
       }
     ]
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop maintenance-orchestrator services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"maintenance-orchestrator-api\" || true; sleep 1; pkill -9 -f \"maintenance-orchestrator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

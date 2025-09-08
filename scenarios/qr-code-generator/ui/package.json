@@ -4,8 +4,8 @@
   "description": "Retro-style QR Code Generator UI",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "PORT=3100 node server.js"
+    "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh PORT=3100 node server.js'"
   },
   "dependencies": {
     "express": "^4.18.2"

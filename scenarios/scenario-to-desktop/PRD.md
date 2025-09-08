@@ -212,7 +212,7 @@ endpoints:
 published_events:
   - name: desktop.build.completed
     payload: { build_id: string, scenario_name: string, success: boolean, platforms: string[] }
-    subscribers: [scenario-improver, notification-hub]
+    subscribers: [ecosystem-manager, notification-hub]
     
   - name: desktop.deployed
     payload: { build_id: string, deployment_urls: Record<string, string>, store_urls: string[] }

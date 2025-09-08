@@ -465,10 +465,96 @@ class ScenarioSurfer {
         document.getElementById('empty-state').style.display = 'none';
     }
     
-    showEmptyState() {
+    async showEmptyState() {
         document.getElementById('loading-screen').style.display = 'none';
         document.getElementById('iframe-container').style.display = 'none';
         document.getElementById('empty-state').style.display = 'flex';
+        
+        // Fetch and display debug information
+        try {
+            const debugResponse = await fetch(`http://localhost:${this.apiPort}/api/v1/scenarios/debug`);
+            if (debugResponse.ok) {
+                const debugData = await debugResponse.json();
+                this.displayDebugInfo(debugData);
+            }
+        } catch (error) {
+            console.error('Failed to fetch debug info:', error);
+        }
+    }
+    
+    displayDebugInfo(debugData) {
+        const debugContainer = document.getElementById('debug-info');
+        if (!debugContainer) return;
+        
+        let debugHTML = '<div class="debug-section">';
+        debugHTML += '<h3>🔍 Debug Information</h3>';
+        debugHTML += '<div class="debug-content">';
+        
+        // Command info
+        debugHTML += '<div class="debug-item">';
+        debugHTML += `<strong>Command:</strong> <code>${debugData.command || 'N/A'}</code>`;
+        debugHTML += '</div>';
+        
+        // Summary from parsed output
+        if (debugData.parsed_output && debugData.parsed_output.summary) {
+            const summary = debugData.parsed_output.summary;
+            debugHTML += '<div class="debug-item">';
+            debugHTML += '<strong>Summary:</strong><br>';
+            debugHTML += `Total Scenarios: ${summary.total_scenarios || 0}<br>`;
+            debugHTML += `Running: ${summary.running || 0}<br>`;
+            debugHTML += `Stopped: ${summary.stopped || 0}`;
+            debugHTML += '</div>';
+        }
+        
+        // Show scenarios if any
+        if (debugData.parsed_output && debugData.parsed_output.scenarios && debugData.parsed_output.scenarios.length > 0) {
+            debugHTML += '<div class="debug-item">';
+            debugHTML += '<strong>Found Scenarios:</strong>';
+            debugHTML += '<div class="scenario-list">';
+            for (const scenario of debugData.parsed_output.scenarios) {
+                debugHTML += '<div class="scenario-debug-item">';
+                debugHTML += `<span class="scenario-name">${scenario.name}</span>`;
+                debugHTML += `<span class="scenario-status ${scenario.status}">${scenario.status}</span>`;
+                if (scenario.ports && Object.keys(scenario.ports).length > 0) {
+                    debugHTML += '<span class="scenario-ports">';
+                    for (const [key, port] of Object.entries(scenario.ports)) {
+                        debugHTML += `${key}:${port} `;
+                    }
+                    debugHTML += '</span>';
+                }
+                debugHTML += `<span class="scenario-health">${scenario.health_status || 'unknown'}</span>`;
+                debugHTML += '</div>';
+            }
+            debugHTML += '</div>';
+            debugHTML += '</div>';
+        }
+        
+        // Show any errors
+        if (debugData.error || debugData.parse_error || debugData.internal_error) {
+            debugHTML += '<div class="debug-item error">';
+            debugHTML += '<strong>Errors:</strong><br>';
+            if (debugData.error) debugHTML += `Command: ${debugData.error}<br>`;
+            if (debugData.parse_error) debugHTML += `Parse: ${debugData.parse_error}<br>`;
+            if (debugData.internal_error) debugHTML += `Internal: ${debugData.internal_error}`;
+            debugHTML += '</div>';
+        }
+        
+        // Collapsible raw output
+        if (debugData.raw_output) {
+            debugHTML += '<details class="debug-item">';
+            debugHTML += '<summary><strong>Raw Output (click to expand)</strong></summary>';
+            debugHTML += `<pre>${this.escapeHtml(debugData.raw_output)}</pre>`;
+            debugHTML += '</details>';
+        }
+        
+        debugHTML += '</div></div>';
+        debugContainer.innerHTML = debugHTML;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
     
     setupNavigation() {

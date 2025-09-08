@@ -208,7 +208,7 @@ published_events:
     
   - name: knowledge.gap.detected
     payload: {domain, concepts, severity}
-    subscribers: [research-assistant, scenario-generator]
+    subscribers: [research-assistant, ecosystem-manager]
     
 consumed_events:
   - name: scenario.knowledge.added

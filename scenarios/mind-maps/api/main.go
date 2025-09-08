@@ -1,11 +1,12 @@
 package main
 
 import (
-    "bytes"
+    "context"
     "database/sql"
     "encoding/json"
     "fmt"
     "log"
+    "math"
     "net/http"
     "os"
     "strings"
@@ -47,62 +48,88 @@ type Response struct {
     Data    interface{} `json:"data,omitempty"`
 }
 
-// Global database connection
+// Global database connection and processor
 var db *sql.DB
-
-// N8N webhook helper function
-func callN8NWebhook(webhookPath string, payload interface{}) (map[string]interface{}, error) {
-    n8nBaseURL := os.Getenv("N8N_BASE_URL")
-    if n8nBaseURL == "" {
-        n8nBaseURL = os.Getenv("SERVICE_N8N_URL")
-        if n8nBaseURL == "" {
-            n8nBaseURL = "http://n8n:5678"
-        }
-    }
-    
-    webhookURL := fmt.Sprintf("%s/webhook/%s", n8nBaseURL, webhookPath)
-    
-    payloadBytes, err := json.Marshal(payload)
-    if err != nil {
-        return nil, fmt.Errorf("failed to marshal payload: %v", err)
-    }
-    
-    resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(payloadBytes))
-    if err != nil {
-        return nil, fmt.Errorf("failed to call webhook: %v", err)
-    }
-    defer resp.Body.Close()
-    
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("webhook returned status %d", resp.StatusCode)
-    }
-    
-    var result map[string]interface{}
-    if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-        return nil, fmt.Errorf("failed to decode response: %v", err)
-    }
-    
-    return result, nil
-}
+var mindMapProcessor *MindMapProcessor
 
 // Initialize database connection and schema
 func initDB() error {
+    // PostgreSQL URL must come from environment - no defaults
     postgresURL := os.Getenv("POSTGRES_URL")
     if postgresURL == "" {
-        log.Fatal("POSTGRES_URL environment variable is required")
+        // Try building from individual components if URL not provided
+        host := os.Getenv("POSTGRES_HOST")
+        port := os.Getenv("POSTGRES_PORT")
+        user := os.Getenv("POSTGRES_USER")
+        password := os.Getenv("POSTGRES_PASSWORD")
+        dbname := os.Getenv("POSTGRES_DB")
+        
+        if host == "" || port == "" || user == "" || password == "" || dbname == "" {
+            return fmt.Errorf("database configuration required: provide POSTGRES_URL or all of POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+        }
+        
+        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+            user, password, host, port, dbname)
     }
     
-    log.Printf("Connecting to database: %s", strings.Replace(postgresURL, "@", "@***", 1))
+    log.Printf("🔄 Connecting to database (credentials hidden)")
     
     var err error
     db, err = sql.Open("postgres", postgresURL)
     if err != nil {
-        return fmt.Errorf("failed to open database: %v", err)
+        return fmt.Errorf("failed to open database connection: %v", err)
     }
     
-    if err = db.Ping(); err != nil {
-        return fmt.Errorf("failed to ping database: %v", err)
+    // Configure connection pool for resilience
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+    
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+    
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            break
+        }
+        
+        // Calculate exponential backoff delay with cap
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add jitter to prevent thundering herd (0-25% additional delay)
+        jitterFactor := math.Min(float64(attempt)/float64(maxRetries), 0.25)
+        jitter := time.Duration(float64(delay) * jitterFactor)
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Database connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before retry (base: %v, jitter: %v)", actualDelay, delay, jitter)
+        
+        // Show progress stats every few attempts
+        if attempt > 0 && attempt % 3 == 0 {
+            log.Printf("📊 Connection retry statistics:")
+            log.Printf("   - Attempts: %d of %d", attempt + 1, maxRetries)
+            log.Printf("   - Time elapsed: ~%v", time.Duration(attempt * 2) * baseDelay)
+            log.Printf("   - Max wait time: %v", maxDelay)
+        }
+        
+        time.Sleep(actualDelay)
     }
+    
+    if pingErr != nil {
+        return fmt.Errorf("database connection failed after %d attempts: %v", maxRetries, pingErr)
+    }
+    
+    log.Println("🎉 Database connection pool established successfully!")
     
     // Check if proper schema exists
     var exists bool
@@ -266,20 +293,20 @@ func createMindMapHandler(w http.ResponseWriter, r *http.Request) {
     mindMap.CreatedAt = createdAt.Format(time.RFC3339)
     mindMap.UpdatedAt = updatedAt.Format(time.RFC3339)
     
-    // Trigger N8N auto-organization workflow if available
+    // Trigger auto-organization in background
     go func() {
-        webhookPayload := map[string]interface{}{
-            "mindMapId":   id,
-            "title":       mindMap.Title,
-            "description": mindMap.Description,
-            "ownerId":     mindMap.OwnerID,
-            "action":      "created",
+        ctx := context.WithTimeout(context.Background(), 30*time.Second)
+        defer ctx.Done()
+        
+        req := OrganizeRequest{
+            MindMapID: id,
+            Method:    "basic",
         }
         
-        if _, err := callN8NWebhook("mind-maps/auto-organize", webhookPayload); err != nil {
-            log.Printf("⚠️ N8N auto-organize webhook failed (non-critical): %v", err)
+        if err := mindMapProcessor.AutoOrganize(ctx, req); err != nil {
+            log.Printf("⚠️ Auto-organize failed (non-critical): %v", err)
         } else {
-            log.Printf("✅ N8N auto-organize triggered for mind map: %s", id)
+            log.Printf("✅ Auto-organize completed for mind map: %s", id)
         }
     }()
     
@@ -744,33 +771,33 @@ func searchHandler(w http.ResponseWriter, r *http.Request) {
         searchMode = mode
     }
     
-    // Try semantic search via N8N if requested
+    // Try semantic search if requested
     if searchMode == "semantic" {
-        log.Printf("Attempting semantic search via N8N for query: %s", query)
-        webhookPayload := map[string]interface{}{
-            "query":         query,
-            "userId":        ownerID,
-            "limit":         20,
-            "includePublic": false,
-            "searchMode":    "semantic",
+        log.Printf("Attempting semantic search for query: %s", query)
+        
+        ctx := context.WithTimeout(context.Background(), 10*time.Second)
+        searchReq := SemanticSearchRequest{
+            Query:      query,
+            Collection: "mind_maps",
+            Limit:      20,
         }
         
-        if n8nResult, err := callN8NWebhook("mind-maps/search", webhookPayload); err == nil {
-            log.Println("✅ Semantic search via N8N successful")
+        if results, err := mindMapProcessor.SemanticSearch(ctx, searchReq); err == nil {
+            log.Println("✅ Semantic search successful")
             response := Response{
                 Status: "success",
                 Data: map[string]interface{}{
-                    "results":     n8nResult["results"],
+                    "results":     results,
                     "query":       query,
                     "search_mode": "semantic",
-                    "source":      "n8n",
+                    "source":      "qdrant",
                 },
             }
             w.Header().Set("Content-Type", "application/json")
             json.NewEncoder(w).Encode(response)
             return
         } else {
-            log.Printf("⚠️ N8N semantic search failed, falling back to simple search: %v", err)
+            log.Printf("⚠️ Semantic search failed, falling back to simple search: %v", err)
         }
     }
     
@@ -898,6 +925,20 @@ func main() {
     }
     defer db.Close()
     
+    // Initialize mind map processor
+    ollamaURL := os.Getenv("OLLAMA_URL")
+    if ollamaURL == "" {
+        ollamaURL = "http://localhost:11434"
+    }
+    
+    qdrantURL := os.Getenv("QDRANT_URL")
+    if qdrantURL == "" {
+        qdrantURL = "http://localhost:6333"
+    }
+    
+    mindMapProcessor = NewMindMapProcessor(db, ollamaURL, qdrantURL)
+    log.Printf("Initialized MindMapProcessor with Ollama: %s, Qdrant: %s", ollamaURL, qdrantURL)
+    
     r := mux.NewRouter()
     
     // Health check
@@ -926,17 +967,17 @@ func main() {
     // Apply CORS middleware
     handler := enableCORS(r)
     
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+    // API port is required from environment - no defaults
+    port := os.Getenv("API_PORT")
+    if port == "" {
+        port = os.Getenv("PORT")
+    }
+    if port == "" {
+        log.Fatal("❌ Missing required API_PORT or PORT environment variable")
+    }
     
-    log.Printf("Mind Maps API starting on port %s", port)
+    log.Printf("🚀 Mind Maps API starting on port %s", port)
     if err := http.ListenAndServe(":"+port, handler); err != nil {
         log.Fatal(err)
     }
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

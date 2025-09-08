@@ -76,7 +76,7 @@ knowledge-observatory status
 knowledge-observatory search "How do scenarios work?"
 
 # View knowledge graph
-knowledge-observatory graph --center "scenario-generator"
+knowledge-observatory graph --center "ecosystem-manager"
 
 # Get quality metrics
 knowledge-observatory metrics --collection vrooli_knowledge

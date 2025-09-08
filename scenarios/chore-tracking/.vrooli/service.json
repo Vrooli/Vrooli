@@ -20,7 +20,6 @@
       "fun",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache"
     ]
@@ -38,32 +37,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/chore-scheduler.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/points-calculator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/achievement-tracker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/reward-manager.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "postgres": {
       "type": "postgres",
       "enabled": true,

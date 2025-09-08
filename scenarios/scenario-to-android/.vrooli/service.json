@@ -52,9 +52,9 @@
   "resources": {
     "required": [
       {
-        "name": "n8n",
-        "purpose": "Orchestrate Android build pipeline and workflow automation",
-        "integration": "initialization/n8n/android-builder.json"
+        "name": "ollama", 
+        "purpose": "AI-powered code generation for Android app templates and build scripts",
+        "models": ["llama3.2"]
       }
     ],
     "optional": [
@@ -380,12 +380,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f scenario-to-android.start-api 2>/dev/null || true",
+          "run": "pkill -f \"scenario-to-android-api\" || true; sleep 1; pkill -9 -f \"scenario-to-android-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f scenario-to-android.start-ui 2>/dev/null || true",
+          "run": "# WARNING: Could not determine UI technology, using generic pattern\npkill -f \"scenarios/scenario-to-android/ui\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-android/ui\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

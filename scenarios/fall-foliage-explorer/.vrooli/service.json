@@ -250,12 +250,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f fall-foliage-explorer.start-api 2>/dev/null || true",
+          "run": "pkill -f \"fall-foliage-explorer-api\" || true; sleep 1; pkill -9 -f \"fall-foliage-explorer-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f fall-foliage-explorer.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/fall-foliage-explorer.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/fall-foliage-explorer.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

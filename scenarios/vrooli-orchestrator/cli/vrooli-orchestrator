@@ -1,0 +1,349 @@
+#!/usr/bin/env bash
+# Vrooli Orchestrator CLI - Profile management and environment orchestration
+# Ultra-thin API wrapper for contextual environment control
+
+set -euo pipefail
+
+# Version information
+CLI_VERSION="1.0.0"
+
+# Configuration
+API_BASE="${VROOLI_ORCHESTRATOR_API_BASE:-http://localhost:${API_PORT:-15001}}"
+API_TOKEN="${VROOLI_ORCHESTRATOR_TOKEN:-vrooli_orchestrator_cli_default_2024}"
+
+# API request helper
+api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local curl_args=("-s" "-X" "$method")
+    curl_args+=("-H" "Content-Type: application/json")
+    curl_args+=("-H" "Authorization: Bearer $API_TOKEN")
+    
+    [[ -n "$data" ]] && curl_args+=("-d" "$data")
+    
+    if ! curl "${curl_args[@]}" "$API_BASE$endpoint" 2>/dev/null; then
+        echo "❌ Failed to connect to Orchestrator API at $API_BASE" >&2
+        echo "   Make sure 'vrooli scenario run vrooli-orchestrator' is running" >&2
+        exit 1
+    fi
+}
+
+# N8N workflow helper for actions that need complex orchestration
+n8n_call() {
+    local endpoint="$1"
+    local data="$2"
+    local n8n_base="${N8N_WEBHOOK_BASE:-http://localhost:5678/webhook}"
+    
+    if ! curl -s -X POST "$n8n_base/$endpoint" -H "Content-Type: application/json" -d "$data" 2>/dev/null; then
+        echo "❌ Failed to connect to N8N workflows" >&2
+        echo "   Profile operations require N8N workflows to be active" >&2
+        exit 1
+    fi
+}
+
+# Format output with jq if available, otherwise raw
+format_output() {
+    if command -v jq >/dev/null 2>&1; then
+        jq '.' 2>/dev/null || cat
+    else
+        cat
+    fi
+}
+
+# Format table output for profile lists
+format_profile_table() {
+    if command -v jq >/dev/null 2>&1; then
+        jq -r '
+            if .profiles then
+                ["NAME", "DISPLAY NAME", "STATUS", "RESOURCES", "SCENARIOS"] as $header |
+                .profiles as $profiles |
+                ($header | @tsv),
+                ("------|-------------|--------|----------|--------" | @tsv),
+                ($profiles[] | [.name, .display_name, .status, (.resources | length | tostring), (.scenarios | length | tostring)] | @tsv)
+            else
+                .
+            end
+        ' 2>/dev/null || cat
+    else
+        cat
+    fi
+}
+
+# Show current active profile status
+show_status() {
+    local json_flag=""
+    [[ "${1:-}" == "--json" ]] && json_flag="--json"
+    
+    echo "🎯 Vrooli Orchestrator Status"
+    echo
+    
+    # Get current active profile
+    local active_result
+    active_result=$(n8n_call "orchestrator/profiles" '{"action": "get_active"}' 2>/dev/null || echo '{"error": "Could not get active profile"}')
+    
+    if [[ -n "$json_flag" ]]; then
+        echo "$active_result" | format_output
+        return
+    fi
+    
+    # Parse and display status
+    if echo "$active_result" | jq -e '.active_profile' >/dev/null 2>&1; then
+        local profile_name
+        profile_name=$(echo "$active_result" | jq -r '.active_profile.profile_name // "unknown"')
+        local activated_at
+        activated_at=$(echo "$active_result" | jq -r '.active_profile.activated_at // "unknown"')
+        
+        echo "✅ Active Profile: $profile_name"
+        echo "   Activated: $activated_at"
+    else
+        echo "⭕ No active profile"
+    fi
+    
+    echo
+    echo "🔧 API Status: $API_BASE"
+    api_call GET "/health" >/dev/null && echo "✅ API healthy" || echo "❌ API unavailable"
+    
+    echo
+    echo "💡 Quick Commands:"
+    echo "   vrooli-orchestrator list-profiles     # Show all profiles"
+    echo "   vrooli-orchestrator activate <name>   # Activate profile"
+    echo "   vrooli-orchestrator deactivate        # Stop current profile"
+}
+
+# Main command dispatcher
+case "${1:-help}" in
+    version|--version|-v)
+        echo "vrooli-orchestrator CLI version $CLI_VERSION"
+        ;;
+        
+    status) 
+        show_status "${2:-}"
+        ;;
+        
+    health) 
+        api_call GET "/health" | format_output
+        ;;
+        
+    list-profiles|list) 
+        local output_format="table"
+        [[ "${2:-}" == "--json" ]] && output_format="json"
+        
+        local result
+        result=$(n8n_call "orchestrator/profiles" '{"action": "list"}')
+        
+        if [[ "$output_format" == "json" ]]; then
+            echo "$result" | format_output
+        else
+            echo "📋 Available Startup Profiles:"
+            echo
+            echo "$result" | format_profile_table
+        fi
+        ;;
+        
+    get-profile|get)
+        [[ -z "${2:-}" ]] && { echo "Usage: $0 get-profile <profile-name>" >&2; exit 1; }
+        n8n_call "orchestrator/profiles" "{\"action\": \"get\", \"profile_name\": \"$2\"}" | format_output
+        ;;
+        
+    create-profile|create)
+        [[ -z "${2:-}" ]] && { echo "Usage: $0 create-profile <name> [options]" >&2; exit 1; }
+        
+        local name="$2"
+        local display_name="${name}"
+        local description=""
+        local resources=""
+        local scenarios=""
+        local auto_browser=""
+        
+        # Parse flags
+        shift 2
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                --display-name)
+                    display_name="$2"
+                    shift 2
+                    ;;
+                --description)
+                    description="$2"
+                    shift 2
+                    ;;
+                --resources)
+                    resources="$2"
+                    shift 2
+                    ;;
+                --scenarios)
+                    scenarios="$2"
+                    shift 2
+                    ;;
+                --auto-browser)
+                    auto_browser="$2"
+                    shift 2
+                    ;;
+                *)
+                    echo "Unknown option: $1" >&2
+                    exit 1
+                    ;;
+            esac
+        done
+        
+        # Build profile JSON
+        local profile_json="{\"name\": \"$name\", \"display_name\": \"$display_name\""
+        [[ -n "$description" ]] && profile_json+=", \"description\": \"$description\""
+        [[ -n "$resources" ]] && profile_json+=", \"resources\": [\"$(echo "$resources" | sed 's/,/", "/g')\"]"
+        [[ -n "$scenarios" ]] && profile_json+=", \"scenarios\": [\"$(echo "$scenarios" | sed 's/,/", "/g')\"]"
+        [[ -n "$auto_browser" ]] && profile_json+=", \"auto_browser\": [\"$(echo "$auto_browser" | sed 's/,/", "/g')\"]"
+        profile_json+="}"
+        
+        local request_json="{\"action\": \"create\", \"profile\": $profile_json}"
+        n8n_call "orchestrator/profiles" "$request_json" | format_output
+        ;;
+        
+    update-profile|update)
+        [[ -z "${2:-}" ]] && { echo "Usage: $0 update-profile <profile-name> [options]" >&2; exit 1; }
+        
+        local name="$2"
+        local updates_json="{"
+        local has_updates=false
+        
+        # Parse flags
+        shift 2
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                --display-name)
+                    [[ "$has_updates" == true ]] && updates_json+=", "
+                    updates_json+="\"display_name\": \"$2\""
+                    has_updates=true
+                    shift 2
+                    ;;
+                --description)
+                    [[ "$has_updates" == true ]] && updates_json+=", "
+                    updates_json+="\"description\": \"$2\""
+                    has_updates=true
+                    shift 2
+                    ;;
+                --resources)
+                    [[ "$has_updates" == true ]] && updates_json+=", "
+                    updates_json+="\"resources\": [\"$(echo "$2" | sed 's/,/", "/g')\"]"
+                    has_updates=true
+                    shift 2
+                    ;;
+                --scenarios)
+                    [[ "$has_updates" == true ]] && updates_json+=", "
+                    updates_json+="\"scenarios\": [\"$(echo "$2" | sed 's/,/", "/g')\"]"
+                    has_updates=true
+                    shift 2
+                    ;;
+                *)
+                    echo "Unknown option: $1" >&2
+                    exit 1
+                    ;;
+            esac
+        done
+        
+        [[ "$has_updates" == false ]] && { echo "No updates specified" >&2; exit 1; }
+        
+        updates_json+="}"
+        local request_json="{\"action\": \"update\", \"profile_name\": \"$name\", \"updates\": $updates_json}"
+        n8n_call "orchestrator/profiles" "$request_json" | format_output
+        ;;
+        
+    delete-profile|delete)
+        [[ -z "${2:-}" ]] && { echo "Usage: $0 delete-profile <profile-name>" >&2; exit 1; }
+        
+        echo "⚠️  Are you sure you want to delete profile '$2'? (y/N)"
+        read -r confirmation
+        [[ "$confirmation" != "y" && "$confirmation" != "Y" ]] && { echo "Cancelled"; exit 0; }
+        
+        n8n_call "orchestrator/profiles" "{\"action\": \"delete\", \"profile_name\": \"$2\"}" | format_output
+        ;;
+        
+    activate)
+        [[ -z "${2:-}" ]] && { echo "Usage: $0 activate <profile-name> [--force]" >&2; exit 1; }
+        
+        local force_flag="false"
+        [[ "${3:-}" == "--force" ]] && force_flag="true"
+        
+        echo "🚀 Activating profile '$2'..."
+        echo "   This will start resources and scenarios defined in the profile."
+        echo "   It may take 30-60 seconds depending on the profile complexity."
+        echo
+        
+        local request_json="{\"profile_name\": \"$2\", \"force\": $force_flag}"
+        n8n_call "orchestrator/activate" "$request_json" | format_output
+        ;;
+        
+    deactivate)
+        echo "⏹️  Deactivating current profile..."
+        echo "   This will stop running scenarios and resources."
+        echo
+        
+        n8n_call "orchestrator/deactivate" '{"action": "deactivate"}' | format_output
+        ;;
+        
+    api) 
+        echo "$API_BASE"
+        ;;
+        
+    help|--help|-h)
+        cat <<-EOF
+		Vrooli Orchestrator CLI - Contextual environment orchestration
+		
+		🎯 Purpose: Manage startup profiles to control which resources and scenarios run
+
+		Usage: $(basename "$0") <command> [options]
+
+		Profile Management:
+		  list-profiles [--json]           List all available profiles
+		  get-profile <name>               Show profile details
+		  create-profile <name> [options]  Create new profile
+		  update-profile <name> [options]  Update existing profile
+		  delete-profile <name>            Delete profile (with confirmation)
+
+		Profile Operations:
+		  activate <name> [--force]        Activate profile (start resources/scenarios)
+		  deactivate                       Deactivate current profile
+		  status [--json]                  Show current status and active profile
+
+		System:
+		  health                           Check API health
+		  api                              Show API base URL
+		  version                          Show CLI version
+		  help                             Show this help
+
+		Create Profile Options:
+		  --display-name <name>            Human-readable profile name
+		  --description <text>             Profile description
+		  --resources <r1,r2,r3>          Comma-separated resource list
+		  --scenarios <s1,s2,s3>          Comma-separated scenario list
+		  --auto-browser <url1,url2>      Comma-separated URL list
+
+		Examples:
+		  $(basename "$0") status
+		  $(basename "$0") list-profiles
+		  $(basename "$0") activate developer-full
+		  $(basename "$0") create-profile my-profile --resources postgres,n8n --scenarios system-monitor
+		  $(basename "$0") deactivate
+
+		Common Profiles:
+		  developer-full     Complete development environment
+		  developer-light    Essential dev tools (laptop-friendly)
+		  business-productivity   Business and productivity tools
+		  creative-suite     Content creation and design tools
+		  gaming-entertainment    Fun and games
+		  demo-showcase      Curated demos for showing Vrooli
+		  minimal            Just postgres and system-monitor
+
+		Environment:
+		  VROOLI_ORCHESTRATOR_API_BASE    API base URL (default: $API_BASE)
+		  VROOLI_ORCHESTRATOR_TOKEN       API authentication token
+		  N8N_WEBHOOK_BASE                N8N webhook base URL
+		EOF
+        ;;
+        
+    *)
+        echo "❌ Unknown command: $1. Use 'help' for usage." >&2
+        exit 1
+        ;;
+esac

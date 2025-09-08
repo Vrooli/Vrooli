@@ -20,11 +20,11 @@
       "javascript-ui",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
-      "redis-cache",
+      "redis-cache", 
       "qdrant-vectors",
-      "ollama-ai"
+      "ollama-ai",
+      "native-go-analysis"
     ]
   },
   "ports": {
@@ -40,33 +40,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/roi-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/market-researcher.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/financial-calculator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/competitive-landscape-analyzer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/enhanced-market-researcher.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "postgres": {
       "type": "postgres",
       "enabled": true,

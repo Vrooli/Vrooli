@@ -1,10 +1,12 @@
 package main
 
 import (
+    "context"
     "database/sql"
     "encoding/json"
     "fmt"
     "log"
+    "math"
     "net/http"
     "os"
     "strconv"
@@ -62,51 +64,87 @@ type Reward struct {
 }
 
 var db *sql.DB
+var choreProcessor *ChoreProcessor
 
 func initDB() {
-    var err error
-    dbHost := getEnv("POSTGRES_HOST", "")
-    if dbHost == "" {
-        log.Fatal("POSTGRES_HOST environment variable is required")
+    // Database configuration - support both POSTGRES_URL and individual components
+    postgresURL := os.Getenv("POSTGRES_URL")
+    if postgresURL == "" {
+        // Try to build from individual components - REQUIRED, no defaults
+        dbHost := os.Getenv("POSTGRES_HOST")
+        dbPort := os.Getenv("POSTGRES_PORT")
+        dbUser := os.Getenv("POSTGRES_USER")
+        dbPassword := os.Getenv("POSTGRES_PASSWORD")
+        dbName := os.Getenv("POSTGRES_DB")
+        
+        if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+            log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+        }
+        
+        postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+            dbUser, dbPassword, dbHost, dbPort, dbName)
     }
-    dbPort := getEnv("POSTGRES_PORT", "")
-    if dbPort == "" {
-        log.Fatal("POSTGRES_PORT environment variable is required")
-    }
-    dbUser := getEnv("POSTGRES_USER", "")
-    if dbUser == "" {
-        log.Fatal("POSTGRES_USER environment variable is required")
-    }
-    dbPassword := getEnv("POSTGRES_PASSWORD", "")
-    if dbPassword == "" {
-        log.Fatal("POSTGRES_PASSWORD environment variable is required")
-    }
-    dbName := getEnv("POSTGRES_DB", "")
-    if dbName == "" {
-        log.Fatal("POSTGRES_DB environment variable is required")
-    }
-
-    connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-        dbHost, dbPort, dbUser, dbPassword, dbName)
     
-    db, err = sql.Open("postgres", connStr)
+    var err error
+    db, err = sql.Open("postgres", postgresURL)
     if err != nil {
-        log.Fatal("Failed to connect to database:", err)
+        log.Fatal("Failed to open database connection:", err)
     }
-
-    if err = db.Ping(); err != nil {
-        log.Fatal("Failed to ping database:", err)
+    
+    // Set connection pool settings
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+    
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+    
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+    log.Printf("📆 Database URL configured")
+    
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            break
+        }
+        
+        // Calculate exponential backoff delay
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add progressive jitter to prevent thundering herd
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+        
+        // Provide detailed status every few attempts
+        if attempt > 0 && attempt % 3 == 0 {
+            log.Printf("📈 Retry progress:")
+            log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+            log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+            log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+        }
+        
+        time.Sleep(actualDelay)
     }
-
-    log.Println("Successfully connected to database")
+    
+    if pingErr != nil {
+        log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+    }
+    
+    log.Println("🎉 Database connection pool established successfully!")
 }
 
-func getEnv(key, defaultValue string) string {
-    if value := os.Getenv(key); value != "" {
-        return value
-    }
-    return defaultValue
-}
+// getEnv removed to prevent hardcoded defaults
 
 // Chore handlers
 func getChores(w http.ResponseWriter, r *http.Request) {
@@ -424,9 +462,83 @@ func healthCheck(w http.ResponseWriter, r *http.Request) {
     })
 }
 
+// generateScheduleHandler generates a weekly schedule for a user
+func generateScheduleHandler(w http.ResponseWriter, r *http.Request) {
+    var req ScheduleRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    ctx := context.Background()
+    assignments, err := choreProcessor.GenerateWeeklySchedule(ctx, req)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Failed to generate schedule: %v", err), http.StatusInternalServerError)
+        return
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "success": true,
+        "assignments": assignments,
+    })
+}
+
+// calculatePointsHandler calculates points for a completed chore
+func calculatePointsHandler(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        UserID  int `json:"user_id"`
+        ChoreID int `json:"chore_id"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    ctx := context.Background()
+    points, err := choreProcessor.CalculatePoints(ctx, req.UserID, req.ChoreID)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Failed to calculate points: %v", err), http.StatusInternalServerError)
+        return
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "success": true,
+        "points_awarded": points,
+    })
+}
+
+// processAchievementsHandler processes achievements for a user
+func processAchievementsHandler(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        UserID int `json:"user_id"`
+    }
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
+    
+    ctx := context.Background()
+    achievements, err := choreProcessor.ProcessAchievements(ctx, req.UserID)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Failed to process achievements: %v", err), http.StatusInternalServerError)
+        return
+    }
+    
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(map[string]interface{}{
+        "success": true,
+        "new_achievements": achievements,
+    })
+}
+
 func main() {
     initDB()
     defer db.Close()
+    
+    // Initialize chore processor
+    choreProcessor = NewChoreProcessor(db)
     
     router := mux.NewRouter()
     
@@ -449,6 +561,11 @@ func main() {
     router.HandleFunc("/api/rewards", getRewards).Methods("GET")
     router.HandleFunc("/api/rewards/{id}/redeem", redeemReward).Methods("POST")
     
+    // Processor routes (replacing n8n workflows)
+    router.HandleFunc("/api/schedule/generate", generateScheduleHandler).Methods("POST")
+    router.HandleFunc("/api/points/calculate", calculatePointsHandler).Methods("POST")
+    router.HandleFunc("/api/achievements/process", processAchievementsHandler).Methods("POST")
+    
     // CORS
     c := cors.New(cors.Options{
         AllowedOrigins: []string{"*"},
@@ -458,7 +575,12 @@ func main() {
     
     handler := c.Handler(router)
     
-    port := getEnv("API_PORT", getEnv("PORT", ""))
+    // Get port from environment - REQUIRED, no defaults
+    port := os.Getenv("API_PORT")
+    if port == "" {
+        log.Fatal("❌ API_PORT environment variable is required")
+    }
+    
     log.Printf("🎮 ChoreQuest API Server starting on port %s", port)
     log.Fatal(http.ListenAndServe(":"+port, handler))
 }

@@ -2,13 +2,22 @@
   "name": "kids-dashboard",
   "version": "1.0.0",
   "description": "Safe, fun dashboard for children to access kid-friendly Vrooli scenarios",
-  "category": ["interface", "family"],
+  "category": [
+    "interface",
+    "family"
+  ],
   "status": "active",
   "metadata": {
     "author": "Vrooli Team",
     "created": "2025-01-06",
     "updated": "2025-01-06",
-    "tags": ["kids", "children", "family", "dashboard", "safe-browsing"],
+    "tags": [
+      "kids",
+      "children",
+      "family",
+      "dashboard",
+      "safe-browsing"
+    ],
     "targetAudience": {
       "ageRange": "5-12",
       "userType": "children",
@@ -43,11 +52,18 @@
     }
   },
   "filtering": {
-    "categoryWhitelist": ["kid-friendly"],
-    "categoryBlacklist": ["system", "development", "admin", "financial"],
+    "categoryWhitelist": [
+      "kid-friendly"
+    ],
+    "categoryBlacklist": [
+      "system",
+      "development",
+      "admin",
+      "financial"
+    ],
     "ageRanges": {
       "young": "5-8",
-      "middle": "9-12",  
+      "middle": "9-12",
       "teen": "13+"
     }
   },
@@ -72,13 +88,34 @@
   },
   "security": {
     "iframeIsolation": true,
-    "sandboxAttributes": ["allow-scripts", "allow-same-origin", "allow-forms"],
+    "sandboxAttributes": [
+      "allow-scripts",
+      "allow-same-origin",
+      "allow-forms"
+    ],
     "preventSystemAccess": true,
     "dataCollection": "none"
   },
   "discovery": {
     "scanInterval": 60,
-    "catalogPath": "../../scripts/scenarios/catalog.json",
-    "scenarioPattern": "../../scenarios/*/service.json"
+    "scenarioPattern": "../../scenarios/*/.vrooli/service.json",
+    "method": "filesystem"
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop kids-dashboard services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"kids-dashboard-api\" || true; sleep 1; pkill -9 -f \"kids-dashboard-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/kids-dashboard.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/kids-dashboard.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
   }
 }

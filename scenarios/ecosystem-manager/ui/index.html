@@ -21,6 +21,27 @@
                     <div class="header-subtitle">Unified Resource & Scenario Management</div>
                 </div>
                 
+                <!-- Queue Status Indicators -->
+                <div class="queue-status">
+                    <div class="queue-info">
+                        <div class="queue-slots">
+                            <i class="fas fa-server"></i>
+                            <span id="queue-slots">Slots: <span id="available-slots">0</span>/<span id="max-slots">1</span></span>
+                        </div>
+                        <div class="queue-timer">
+                            <i class="fas fa-clock"></i>
+                            <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
+                        </div>
+                        <div class="queue-processor-status">
+                            <i class="fas fa-play" id="processor-status-icon"></i>
+                            <span id="processor-status">Active</span>
+                        </div>
+                        <button class="btn-icon refresh-all-btn" onclick="ecosystemManager.refreshAll()" title="Refresh All">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="header-right">
                     <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
                         <i class="fas fa-moon" id="dark-mode-icon"></i>
@@ -37,8 +58,7 @@
         <!-- Filters -->
         <section class="filters">
         <div class="filter-group">
-            <label class="filter-label">Type:</label>
-            <select id="filter-type" class="filter-select" onchange="applyFilters()">
+            <select id="filter-type" class="filter-select" onchange="applyFilters()" title="Type">
                 <option value="">All Types</option>
                 <option value="resource">Resources</option>
                 <option value="scenario">Scenarios</option>
@@ -46,8 +66,7 @@
         </div>
         
         <div class="filter-group">
-            <label class="filter-label">Operation:</label>
-            <select id="filter-operation" class="filter-select" onchange="applyFilters()">
+            <select id="filter-operation" class="filter-select" onchange="applyFilters()" title="Operation">
                 <option value="">All Operations</option>
                 <option value="generator">Generators</option>
                 <option value="improver">Improvers</option>
@@ -55,8 +74,7 @@
         </div>
         
         <div class="filter-group">
-            <label class="filter-label">Category:</label>
-            <select id="filter-category" class="filter-select" onchange="applyFilters()">
+            <select id="filter-category" class="filter-select" onchange="applyFilters()" title="Category">
                 <option value="">All Categories</option>
                 <option value="ai-ml">AI/ML</option>
                 <option value="communication">Communication</option>
@@ -72,8 +90,7 @@
         </div>
         
         <div class="filter-group">
-            <label class="filter-label">Priority:</label>
-            <select id="filter-priority" class="filter-select" onchange="applyFilters()">
+            <select id="filter-priority" class="filter-select" onchange="applyFilters()" title="Priority">
                 <option value="">All Priorities</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -112,11 +129,6 @@
                     <span>Pending</span>
                     <span class="task-count" id="pending-count">0</span>
                 </div>
-                <div class="column-actions">
-                    <button class="btn-icon" onclick="refreshColumn('pending')" title="Refresh">
-                        <i class="fas fa-refresh"></i>
-                    </button>
-                </div>
             </div>
             <div class="column-content" id="pending-tasks">
                 <!-- Tasks will be loaded here -->
@@ -130,11 +142,6 @@
                     <i class="fas fa-spinner fa-spin"></i>
                     <span>In Progress</span>
                     <span class="task-count" id="in-progress-count">0</span>
-                </div>
-                <div class="column-actions">
-                    <button class="btn-icon" onclick="refreshColumn('in-progress')" title="Refresh">
-                        <i class="fas fa-refresh"></i>
-                    </button>
                 </div>
             </div>
             <div class="column-content" id="in-progress-tasks">
@@ -150,11 +157,6 @@
                     <span>Review</span>
                     <span class="task-count" id="review-count">0</span>
                 </div>
-                <div class="column-actions">
-                    <button class="btn-icon" onclick="refreshColumn('review')" title="Refresh">
-                        <i class="fas fa-refresh"></i>
-                    </button>
-                </div>
             </div>
             <div class="column-content" id="review-tasks">
                 <!-- Tasks will be loaded here -->
@@ -169,14 +171,6 @@
                     <span>Completed</span>
                     <span class="task-count" id="completed-count">0</span>
                 </div>
-                <div class="column-actions">
-                    <button class="btn-icon" onclick="refreshColumn('completed')" title="Refresh">
-                        <i class="fas fa-refresh"></i>
-                    </button>
-                    <button class="btn-icon" onclick="toggleCompletedVisibility()" title="Show/Hide All" id="toggle-completed">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </div>
             </div>
             <div class="column-content" id="completed-tasks">
                 <!-- Tasks will be loaded here -->
@@ -190,11 +184,6 @@
                     <i class="fas fa-exclamation-triangle"></i>
                     <span>Failed</span>
                     <span class="task-count" id="failed-count">0</span>
-                </div>
-                <div class="column-actions">
-                    <button class="btn-icon" onclick="refreshColumn('failed')" title="Refresh">
-                        <i class="fas fa-refresh"></i>
-                    </button>
                 </div>
             </div>
             <div class="column-content" id="failed-tasks">
@@ -222,8 +211,7 @@
                     <div class="form-group">
                         <label for="task-type">Type *</label>
                         <select id="task-type" name="type" required onchange="updateFormForType()">
-                            <option value="">Select type...</option>
-                            <option value="resource">Resource</option>
+                            <option value="resource" selected>Resource</option>
                             <option value="scenario">Scenario</option>
                         </select>
                     </div>
@@ -231,8 +219,7 @@
                     <div class="form-group">
                         <label for="task-operation">Operation *</label>
                         <select id="task-operation" name="operation" required onchange="updateFormForOperation()">
-                            <option value="">Select operation...</option>
-                            <option value="generator">Generator (Create New)</option>
+                            <option value="generator" selected>Generator (Create New)</option>
                             <option value="improver">Improver (Enhance Existing)</option>
                         </select>
                     </div>

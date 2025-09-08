@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -100,18 +99,21 @@ type UploadRequest struct {
 
 // App represents the main application
 type App struct {
-	DB          *sql.DB
-	RedisClient *redis.Client
-	N8NBaseURL  string
-	WindmillURL string
-	QdrantURL   string
-	MinioURL    string
-	OllamaURL   string
+	DB              *sql.DB
+	RedisClient     *redis.Client
+	QdrantURL       string
+	MinioURL        string
+	OllamaURL       string
+	ProcessingQueue chan ProcessingJob
+	WorkerPool      *WorkerPool
 }
 
 func main() {
-	// Load environment variables
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
 	// Initialize database
 	db, err := initDB()
@@ -124,23 +126,52 @@ func main() {
 	redisClient := initRedis()
 	defer redisClient.Close()
 
+	// Create processing queue and worker pool
+	processingQueue := make(chan ProcessingJob, 1000)
+	ctx, cancel := context.WithCancel(context.Background())
+	workerPool := &WorkerPool{
+		workers: 10,
+		jobs:    processingQueue,
+		ctx:     ctx,
+		cancel:  cancel,
+	}
+
+	// External service URLs - REQUIRED, no defaults
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		log.Fatal("❌ QDRANT_URL environment variable is required")
+	}
+	minioURL := os.Getenv("MINIO_URL")
+	if minioURL == "" {
+		log.Fatal("❌ MINIO_URL environment variable is required")
+	}
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+
 	// Create app instance
 	app := &App{
-		DB:          db,
-		RedisClient: redisClient,
-		N8NBaseURL:  os.Getenv("N8N_BASE_URL"),
-		WindmillURL: os.Getenv("WINDMILL_BASE_URL"),
-		QdrantURL:   os.Getenv("QDRANT_URL"),
-		MinioURL:    os.Getenv("MINIO_URL"),
-		OllamaURL:   os.Getenv("OLLAMA_URL"),
+		DB:              db,
+		RedisClient:     redisClient,
+		QdrantURL:       qdrantURL,
+		MinioURL:        minioURL,
+		OllamaURL:       ollamaURL,
+		ProcessingQueue: processingQueue,
+		WorkerPool:      workerPool,
 	}
+
+	// Start worker pool
+	app.startWorkers()
 
 	// Setup router
 	router := setupRouter(app)
 
 	log.Printf("Smart File Photo Manager API starting on port %s", port)
-	log.Printf("N8N Base URL: %s", app.N8NBaseURL)
-	log.Printf("Windmill URL: %s", app.WindmillURL)
+	log.Printf("Qdrant URL: %s", app.QdrantURL)
+	log.Printf("MinIO URL: %s", app.MinioURL)
+	log.Printf("Ollama URL: %s", app.OllamaURL)
+	log.Printf("Processing workers: %d", app.WorkerPool.workers)
 	
 	if err := router.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)
@@ -148,27 +179,87 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL == "" {
-		log.Fatal("POSTGRES_URL environment variable is required")
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			return nil, fmt.Errorf("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
-	db, err := sql.Open("postgres", dbURL)
+	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to open database connection: %v", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
+	
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	return db, nil
 }
 
 func initRedis() *redis.Client {
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		redisURL = "redis://localhost:6379"
+		log.Fatal("❌ REDIS_URL environment variable is required")
 	}
 
 	opt, err := redis.ParseURL(redisURL)
@@ -393,8 +484,8 @@ func (app *App) uploadFile(c *gin.Context) {
 		return
 	}
 
-	// Trigger processing via n8n webhook
-	go app.triggerProcessing(fileID, req)
+	// Queue file for processing
+	app.queueFileProcessing(fileID, req)
 
 	c.JSON(201, gin.H{
 		"file_id": fileID,
@@ -403,39 +494,6 @@ func (app *App) uploadFile(c *gin.Context) {
 	})
 }
 
-func (app *App) triggerProcessing(fileID string, req UploadRequest) {
-	if app.N8NBaseURL == "" {
-		log.Printf("N8N Base URL not configured, skipping processing trigger for file %s", fileID)
-		return
-	}
-
-	payload := map[string]interface{}{
-		"file_id":      fileID,
-		"filename":     req.Filename,
-		"mime_type":    req.MimeType,
-		"size_bytes":   req.SizeBytes,
-		"storage_path": req.StoragePath,
-		"folder_path":  req.FolderPath,
-		"metadata":     req.Metadata,
-	}
-
-	jsonData, _ := json.Marshal(payload)
-	webhookURL := fmt.Sprintf("%s/webhook/file-upload", app.N8NBaseURL)
-
-	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Printf("Failed to trigger processing for file %s: %v", fileID, err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		log.Printf("Processing trigger failed for file %s: HTTP %d", fileID, resp.StatusCode)
-		return
-	}
-
-	log.Printf("Processing triggered for file %s", fileID)
-}
 
 func (app *App) updateFile(c *gin.Context) {
 	c.JSON(501, gin.H{"error": "Not implemented yet"})
@@ -558,7 +616,43 @@ func (app *App) applySuggestion(c *gin.Context) {
 }
 
 func (app *App) organizeFiles(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	var req struct {
+		FileIDs []string `json:"file_ids"`
+		Strategy string  `json:"strategy"` // by_type, by_date, by_content, smart
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
+		return
+	}
+	
+	if len(req.FileIDs) == 0 {
+		// Organize all unorganized files
+		query := `SELECT id FROM files WHERE folder_path = '/' OR folder_path IS NULL`
+		rows, _ := app.DB.Query(query)
+		defer rows.Close()
+		
+		for rows.Next() {
+			var id string
+			rows.Scan(&id)
+			req.FileIDs = append(req.FileIDs, id)
+		}
+	}
+	
+	// Queue organization jobs
+	for _, fileID := range req.FileIDs {
+		job := ProcessingJob{
+			FileID:  fileID,
+			JobType: "organize",
+			Payload: req.Strategy,
+		}
+		app.queueJob(job)
+	}
+	
+	c.JSON(200, gin.H{
+		"message": fmt.Sprintf("Queued %d files for organization", len(req.FileIDs)),
+		"file_ids": req.FileIDs,
+	})
 }
 
 func (app *App) batchOrganize(c *gin.Context) {
@@ -566,7 +660,44 @@ func (app *App) batchOrganize(c *gin.Context) {
 }
 
 func (app *App) findDuplicates(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	// Find all duplicate files in the system
+	query := `
+		SELECT file_hash, array_agg(id) as file_ids, COUNT(*) as count
+		FROM files
+		GROUP BY file_hash
+		HAVING COUNT(*) > 1
+		ORDER BY count DESC
+	`
+	
+	rows, err := app.DB.Query(query)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to find duplicates: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+	
+	type DuplicateGroup struct {
+		FileHash string   `json:"file_hash"`
+		FileIDs  []string `json:"file_ids"`
+		Count    int      `json:"count"`
+	}
+	
+	var duplicates []DuplicateGroup
+	for rows.Next() {
+		var group DuplicateGroup
+		var fileIDsJSON []byte
+		err := rows.Scan(&group.FileHash, &fileIDsJSON, &group.Count)
+		if err != nil {
+			continue
+		}
+		json.Unmarshal(fileIDsJSON, &group.FileIDs)
+		duplicates = append(duplicates, group)
+	}
+	
+	c.JSON(200, gin.H{
+		"duplicate_groups": duplicates,
+		"total_groups":     len(duplicates),
+	})
 }
 
 func (app *App) getFolders(c *gin.Context) {
@@ -586,11 +717,52 @@ func (app *App) deleteFolder(c *gin.Context) {
 }
 
 func (app *App) processFile(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	fileID := c.Param("id")
+	
+	// Get file info
+	var req UploadRequest
+	query := `
+		SELECT original_name, mime_type, size_bytes, file_hash, storage_path, folder_path
+		FROM files WHERE id = $1
+	`
+	err := app.DB.QueryRow(query, fileID).Scan(
+		&req.Filename, &req.MimeType, &req.SizeBytes, 
+		&req.FileHash, &req.StoragePath, &req.FolderPath,
+	)
+	
+	if err != nil {
+		c.JSON(404, gin.H{"error": "File not found"})
+		return
+	}
+	
+	// Queue for reprocessing
+	app.queueFileProcessing(fileID, req)
+	
+	c.JSON(200, gin.H{
+		"message": "File queued for processing",
+		"file_id": fileID,
+	})
 }
 
 func (app *App) getProcessingStatus(c *gin.Context) {
-	c.JSON(501, gin.H{"error": "Not implemented yet"})
+	fileID := c.Param("id")
+	
+	var status, stage string
+	var processedAt *time.Time
+	query := `SELECT status, processing_stage, processed_at FROM files WHERE id = $1`
+	err := app.DB.QueryRow(query, fileID).Scan(&status, &stage, &processedAt)
+	
+	if err != nil {
+		c.JSON(404, gin.H{"error": "File not found"})
+		return
+	}
+	
+	c.JSON(200, gin.H{
+		"file_id":          fileID,
+		"status":           status,
+		"processing_stage": stage,
+		"processed_at":     processedAt,
+	})
 }
 
 func (app *App) getStats(c *gin.Context) {
@@ -605,9 +777,3 @@ func (app *App) getProcessingStats(c *gin.Context) {
 	c.JSON(501, gin.H{"error": "Not implemented yet"})
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

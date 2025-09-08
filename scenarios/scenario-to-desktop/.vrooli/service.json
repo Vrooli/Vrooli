@@ -290,12 +290,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f scenario-to-desktop.start-api 2>/dev/null || true",
+          "run": "pkill -f \"scenario-to-desktop-api\" || true; sleep 1; pkill -9 -f \"scenario-to-desktop-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f scenario-to-desktop.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/scenario-to-desktop.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-to-desktop.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

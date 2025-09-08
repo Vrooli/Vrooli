@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -105,11 +106,11 @@ type RecipientRequest struct {
 
 // Server represents the HTTP server
 type Server struct {
-	db     *sql.DB
-	redis  *redis.Client
-	router *gin.Engine
-	port   string
-	n8nURL string
+	db        *sql.DB
+	redis     *redis.Client
+	router    *gin.Engine
+	port      string
+	processor *NotificationProcessor
 }
 
 // =============================================================================
@@ -123,7 +124,10 @@ func main() {
 	}
 
 	log.Printf("🔔 Notification Hub API starting on port %s", server.port)
-	log.Printf("🔗 n8n workflows available at %s", server.n8nURL)
+	log.Printf("📨 Notification processor initialized with %d workers", 5)
+	
+	// Start background notification processing
+	go server.startBackgroundProcessing()
 
 	if err := server.router.Run(":" + server.port); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
@@ -131,27 +135,91 @@ func main() {
 }
 
 func NewServer() (*Server, error) {
-	// Environment variables
-	port := getEnv("API_PORT", getEnv("PORT", ""))
-	postgresURL := getEnv("POSTGRES_URL", "")
-	if postgresURL == "" {
-		log.Fatal("POSTGRES_URL environment variable is required")
+	// Environment variables - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
-	redisURL := getEnv("REDIS_URL", "")
+	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		log.Fatal("REDIS_URL environment variable is required")
+		log.Fatal("❌ REDIS_URL environment variable is required")
 	}
-	n8nURL := getEnv("N8N_BASE_URL", "")
+
+	// Database configuration - support both POSTGRES_URL and individual components
+	postgresURL := os.Getenv("POSTGRES_URL")
+	if postgresURL == "" {
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
 
 	// Initialize database
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("Failed to open database connection: %v", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
+	
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize Redis
 	redisOpts, err := redis.ParseURL(redisURL)
@@ -164,11 +232,14 @@ func NewServer() (*Server, error) {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
+	// Create notification processor
+	processor := NewNotificationProcessor(db, rdb)
+
 	server := &Server{
-		db:     db,
-		redis:  rdb,
-		port:   port,
-		n8nURL: n8nURL,
+		db:        db,
+		redis:     rdb,
+		port:      port,
+		processor: processor,
 	}
 
 	server.setupRoutes()
@@ -596,9 +667,11 @@ func (s *Server) sendNotification(c *gin.Context) {
 		}
 
 		notifications = append(notifications, notificationID)
-
-		// Trigger n8n workflow for immediate processing
-		go s.triggerNotificationWorkflow(notificationID, profile.ID, contactUUID, templateUUID)
+	}
+	
+	// Process notifications immediately if not scheduled for future
+	if req.ScheduledAt == nil || req.ScheduledAt.Before(time.Now().Add(1*time.Minute)) {
+		go s.processor.ProcessPendingNotifications()
 	}
 
 	c.JSON(201, gin.H{
@@ -607,21 +680,18 @@ func (s *Server) sendNotification(c *gin.Context) {
 	})
 }
 
-func (s *Server) triggerNotificationWorkflow(notificationID, profileID, contactID uuid.UUID, templateID *uuid.UUID) {
-	payload := map[string]interface{}{
-		"notification_id": notificationID,
-		"profile_id":      profileID,
-		"contact_id":      contactID,
-		"template_id":     templateID,
-	}
-
-	// Call n8n webhook
-	client := &http.Client{Timeout: 30 * time.Second}
-	payloadBytes, _ := json.Marshal(payload)
+// startBackgroundProcessing runs periodic notification processing
+func (s *Server) startBackgroundProcessing() {
+	ticker := time.NewTicker(10 * time.Second) // Process every 10 seconds
+	defer ticker.Stop()
 	
-	_, err := client.Post(s.n8nURL+"/webhook/notification-router", "application/json", strings.NewReader(string(payloadBytes)))
-	if err != nil {
-		log.Printf("Failed to trigger n8n workflow: %v", err)
+	for {
+		select {
+		case <-ticker.C:
+			if err := s.processor.ProcessPendingNotifications(); err != nil {
+				log.Printf("Error processing notifications: %v", err)
+			}
+		}
 	}
 }
 
@@ -649,12 +719,6 @@ func (s *Server) generateAPIKey(slug string) (string, string, string, error) {
 	return apiKey, string(hash), prefix, nil
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 
 func min(a, b int) int {
 	if a < b {

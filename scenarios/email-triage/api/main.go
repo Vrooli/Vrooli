@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -30,21 +31,85 @@ type Server struct {
 }
 
 func main() {
-	// Load configuration from environment
+	// Load configuration from environment - REQUIRED, no defaults
 	config := loadConfig()
 	
+	// Database configuration - support both DATABASE_URL and individual components
+	databaseURL := config.DatabaseURL
+	if databaseURL == "" {
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+	}
+	
 	// Initialize database connection
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	db, err := sql.Open("postgres", databaseURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		log.Fatalf("Failed to open database connection: %v", err)
 	}
 	defer db.Close()
 	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		log.Fatal("Database ping failed:", err)
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📆 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-	log.Println("Connected to PostgreSQL database")
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	
 	// Initialize services
 	authService := services.NewAuthService(config.AuthServiceURL)
@@ -74,9 +139,15 @@ func main() {
 	
 	handler := c.Handler(router)
 	
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
 	// Create HTTP server
 	srv := &http.Server{
-		Addr:         ":3200",
+		Addr:         ":" + port,
 		Handler:      handler,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 15 * time.Second,
@@ -85,7 +156,7 @@ func main() {
 	
 	// Start server in goroutine
 	go func() {
-		log.Printf("Email Triage API server starting on port 3200")
+		log.Printf("Email Triage API server starting on port %s", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal("Server failed to start:", err)
 		}
@@ -234,19 +305,42 @@ type Config struct {
 }
 
 func loadConfig() Config {
+	// All configuration is REQUIRED - no defaults
+	databaseURL := os.Getenv("DATABASE_URL")
+	// DatabaseURL can be empty - will try individual components if so
+	
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		log.Fatal("❌ QDRANT_URL environment variable is required")
+	}
+	
+	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
+	if authServiceURL == "" {
+		log.Fatal("❌ AUTH_SERVICE_URL environment variable is required")
+	}
+	
+	mailServerURL := os.Getenv("MAIL_SERVER_URL")
+	if mailServerURL == "" {
+		log.Fatal("❌ MAIL_SERVER_URL environment variable is required")
+	}
+	
+	notificationURL := os.Getenv("NOTIFICATION_HUB_URL")
+	if notificationURL == "" {
+		log.Fatal("❌ NOTIFICATION_HUB_URL environment variable is required")
+	}
+	
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+	
 	return Config{
-		DatabaseURL:     getEnvOrDefault("DATABASE_URL", "postgres://postgres:password@localhost/email_triage?sslmode=disable"),
-		QdrantURL:       getEnvOrDefault("QDRANT_URL", "http://localhost:6333"),
-		AuthServiceURL:  getEnvOrDefault("AUTH_SERVICE_URL", "http://localhost:8080"),
-		MailServerURL:   getEnvOrDefault("MAIL_SERVER_URL", "localhost"),
-		NotificationURL: getEnvOrDefault("NOTIFICATION_HUB_URL", "http://localhost:8081"),
-		OllamaURL:       getEnvOrDefault("OLLAMA_URL", "http://localhost:11434"),
+		DatabaseURL:     databaseURL,
+		QdrantURL:       qdrantURL,
+		AuthServiceURL:  authServiceURL,
+		MailServerURL:   mailServerURL,
+		NotificationURL: notificationURL,
+		OllamaURL:       ollamaURL,
 	}
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

@@ -19,9 +19,10 @@ type ErrorResponse struct {
 }
 
 func main() {
+	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "20100"
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 	
 	setupRoutes()
