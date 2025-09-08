@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -159,6 +160,7 @@ func main() {
 	api.HandleFunc("/scenarios", getScenariosHandler).Methods("GET")
 	api.HandleFunc("/scenarios/{name}", getScenarioHandler).Methods("GET")
 	api.HandleFunc("/scenarios/{name}/scan", scanScenarioHandler).Methods("POST")
+	api.HandleFunc("/scenarios/{name}/security-audit", securityAuditHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/endpoints", getScenarioEndpointsHandler).Methods("GET")
 	
 	// Vulnerability management
@@ -186,8 +188,12 @@ func main() {
 		})
 	})
 
-	// Get port from environment
-	port := getEnv("API_PORT", getEnv("PORT", defaultPort))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		logger.Error("❌ API_PORT environment variable is required", nil)
+		os.Exit(1)
+	}
 	logger.Info(fmt.Sprintf("API endpoints available at: http://localhost:%s/api/v1/", port))
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {
@@ -196,22 +202,24 @@ func main() {
 }
 
 func initDB() (*sql.DB, error) {
-	dbHost := getEnv("POSTGRES_HOST", "localhost")
-	dbPort := getEnv("POSTGRES_PORT", "5433")
-	dbName := getEnv("POSTGRES_DB", "vrooli_api_manager")
-	dbUser := getEnv("POSTGRES_USER", "postgres")
-	dbPassword := getEnv("POSTGRES_PASSWORD", "")
+	// ALL database configuration MUST come from environment - no defaults
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	dbUser := os.Getenv("POSTGRES_USER")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DB")
 
-	connStr := fmt.Sprintf("host=%s port=%s dbname=%s user=%s sslmode=disable",
-		dbHost, dbPort, dbName, dbUser)
-	
-	if dbPassword != "" {
-		connStr += " password=" + dbPassword
+	// Validate required environment variables
+	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+		return nil, fmt.Errorf("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 	}
+
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		dbHost, dbPort, dbUser, dbPassword, dbName)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
+		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
 	// Set connection pool settings
@@ -219,11 +227,52 @@ func initDB() (*sql.DB, error) {
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
 
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
+	
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	return db, nil
 }
 
@@ -370,6 +419,96 @@ func scanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	if httpLeakCount > 0 {
 		response["urgent_warning"] = fmt.Sprintf("CRITICAL: %d unclosed HTTP response bodies detected! This is causing TCP connection exhaustion. Fix immediately!", httpLeakCount)
 		response["immediate_action"] = "Run 'pkill -f " + scenarioName + "' to restart this API and clear leaked connections"
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+func securityAuditHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scenarioName := vars["name"]
+	logger := NewLogger()
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Get scan type from request body (optional)
+	var requestBody struct {
+		ScanType string `json:"scan_type"`
+		FilePath string `json:"file_path"`
+	}
+	json.NewDecoder(r.Body).Decode(&requestBody)
+
+	// Get scenario path
+	var scenarioPath string
+	err := db.QueryRow("SELECT path FROM scenarios WHERE name = $1", scenarioName).Scan(&scenarioPath)
+	if err == sql.ErrNoRows {
+		// Try to find the scenario in the filesystem
+		scenarioPath = filepath.Join(os.Getenv("HOME"), "Vrooli", "scenarios", scenarioName)
+		if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+			HTTPError(w, "Scenario not found", http.StatusNotFound, nil)
+			return
+		}
+	} else if err != nil {
+		HTTPError(w, "Failed to query scenario", http.StatusInternalServerError, err)
+		return
+	}
+
+	// If specific file provided, validate it exists
+	if requestBody.FilePath != "" {
+		fullPath := filepath.Join(scenarioPath, requestBody.FilePath)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			HTTPError(w, "Specified file not found", http.StatusNotFound, nil)
+			return
+		}
+	}
+
+	logger.Info(fmt.Sprintf("Starting security audit for scenario: %s", scenarioName))
+
+	// Create scanner and perform security audit
+	scanner := NewVulnerabilityScanner(db)
+	result, err := scanner.SecurityAudit(scenarioPath, scenarioName)
+	if err != nil {
+		HTTPError(w, "Security audit failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	// Count issues by severity
+	severityCount := map[string]int{
+		"CRITICAL": 0,
+		"HIGH":     0,
+		"MEDIUM":   0,
+		"LOW":      0,
+	}
+	for _, issue := range result.Issues {
+		if _, ok := severityCount[issue.Severity]; ok {
+			severityCount[issue.Severity]++
+		}
+	}
+
+	// Generate recommendations
+	recommendations := []string{
+		"Review SQL query patterns for injection risks",
+		"Implement input validation middleware",
+		"Add rate limiting to all endpoints",
+		"Review CORS configuration",
+		"Implement proper error handling",
+	}
+
+	response := map[string]interface{}{
+		"status":         "completed",
+		"scenario":       scenarioName,
+		"audit_time":     result.AuditTime,
+		"issues":         result.Issues,
+		"total_issues":   len(result.Issues),
+		"severity_count": severityCount,
+		"recommendations": recommendations,
+		"timestamp":      time.Now().UTC(),
+	}
+
+	// Add critical warning if high-severity issues found
+	if severityCount["CRITICAL"] > 0 || severityCount["HIGH"] > 0 {
+		response["warning"] = fmt.Sprintf("Found %d CRITICAL and %d HIGH severity issues requiring immediate attention", 
+			severityCount["CRITICAL"], severityCount["HIGH"])
 	}
 
 	json.NewEncoder(w).Encode(response)
@@ -702,9 +841,4 @@ func validateLifecycleProtectionHandler(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(response)
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// Removed getEnv function - no defaults allowed

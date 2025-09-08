@@ -25,8 +25,7 @@
         "POSTGRES_DB": "vrooli_api_manager",
         "POSTGRES_USER": "postgres",
         "POSTGRES_PASSWORD": "",
-        "OLLAMA_URL": "http://localhost:11434",
-        "N8N_URL": "http://localhost:5678"
+        "OLLAMA_URL": "http://localhost:11434"
       }
     },
     "cli": {
@@ -49,9 +48,6 @@
         "nomic-embed-text"
       ]
     },
-    "n8n": {
-      "enabled": true
-    },
     "qdrant": {
       "enabled": true,
       "collections": [
@@ -68,22 +64,6 @@
           "database": "vrooli_api_manager"
         }
       ]
-    },
-    "automation": {
-      "n8n": [
-        {
-          "file": "initialization/automation/n8n/api-scanner.json",
-          "name": "API Scanner Workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/security-auditor.json",
-          "name": "Security Audit Workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/fix-generator.json",
-          "name": "Automated Fix Generation"
-        }
-      ]
     }
   },
   "lifecycle": {
@@ -92,7 +72,7 @@
       "steps": [
         {
           "name": "create-directories",
-          "run": "mkdir -p api cli ui initialization/storage/postgres initialization/automation/n8n data",
+          "run": "mkdir -p api cli ui initialization/storage/postgres data",
           "description": "Create required directories"
         },
         {
@@ -101,14 +81,6 @@
           "description": "Create database schema",
           "condition": {
             "file_exists": "initialization/storage/postgres/schema.sql"
-          }
-        },
-        {
-          "name": "deploy-workflows",
-          "run": "vrooli resource n8n deploy-workflows initialization/automation/n8n/",
-          "description": "Deploy N8n automation workflows",
-          "condition": {
-            "directory_exists": "initialization/automation/n8n"
           }
         }
       ]

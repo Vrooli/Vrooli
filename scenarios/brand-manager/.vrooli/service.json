@@ -303,12 +303,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f brand-manager.start-api 2>/dev/null || true",
+          "run": "pkill -f \"brand-manager-api\" || true; sleep 1; pkill -9 -f \"brand-manager-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f brand-manager.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/brand-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/brand-manager.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

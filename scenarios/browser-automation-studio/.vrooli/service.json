@@ -3,11 +3,17 @@
   "version": "1.0.0",
   "description": "Visual browser automation studio with AI-powered workflow builder and debugging",
   "category": "automation",
-  "tags": ["browser", "automation", "testing", "workflow", "visual", "scraping"],
+  "tags": [
+    "browser",
+    "automation",
+    "testing",
+    "workflow",
+    "visual",
+    "scraping"
+  ],
   "author": "Vrooli AI",
   "license": "MIT",
   "homepage": "https://github.com/Vrooli/Vrooli/tree/main/scenarios/browser-automation-studio",
-  
   "capabilities": {
     "visual-workflow-builder": "Drag-and-drop browser automation workflow creation",
     "real-time-execution": "Live screenshot and log streaming during execution",
@@ -17,7 +23,6 @@
     "api-access": "Full API for programmatic workflow management",
     "cli-access": "Complete CLI for all operations"
   },
-  
   "resources": {
     "required": {
       "browserless": {
@@ -49,7 +54,10 @@
       "ollama": {
         "version": ">=0.1.0",
         "purpose": "AI workflow generation and debugging",
-        "models": ["llama3.2", "codellama"],
+        "models": [
+          "llama3.2",
+          "codellama"
+        ],
         "fallback": "disabled"
       },
       "n8n": {
@@ -61,13 +69,11 @@
       }
     }
   },
-  
   "ports": {
     "api": "${BROWSER_AUTOMATION_API_PORT:-8090}",
     "ui": "${BROWSER_AUTOMATION_UI_PORT:-3090}",
     "websocket": "${BROWSER_AUTOMATION_WS_PORT:-8091}"
   },
-  
   "environment": {
     "NODE_ENV": "${NODE_ENV:-production}",
     "DATABASE_URL": "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/browser_automation_studio",
@@ -80,7 +86,6 @@
     "JWT_SECRET": "${JWT_SECRET:-change-me-in-production}",
     "CLAUDE_API_KEY": "${CLAUDE_API_KEY}"
   },
-  
   "scripts": {
     "setup": "./scripts/setup.sh",
     "start": "./scripts/start.sh",
@@ -89,7 +94,6 @@
     "build": "./scripts/build.sh",
     "migrate": "cd api && go run cmd/migrate/main.go up"
   },
-  
   "healthcheck": {
     "api": {
       "endpoint": "/health",
@@ -104,7 +108,6 @@
       "retries": 3
     }
   },
-  
   "metrics": {
     "workflows_created": 0,
     "workflows_executed": 0,
@@ -112,7 +115,6 @@
     "average_execution_time": 0,
     "screenshots_captured": 0
   },
-  
   "deployment": {
     "type": "container",
     "dockerfile": "Dockerfile",
@@ -124,7 +126,6 @@
       "storage": "20GB"
     }
   },
-  
   "integrations": {
     "provides": [
       {
@@ -162,7 +163,6 @@
       }
     ]
   },
-  
   "ui": {
     "framework": "react",
     "bundler": "vite",
@@ -182,7 +182,6 @@
       "ai-prompt-interface"
     ]
   },
-  
   "api": {
     "framework": "go",
     "router": "chi",
@@ -196,7 +195,6 @@
       "scheduling"
     ]
   },
-  
   "monitoring": {
     "logging": {
       "level": "${LOG_LEVEL:-info}",
@@ -212,6 +210,45 @@
       "enabled": "${METRICS_ENABLED:-true}",
       "exporter": "prometheus",
       "port": 9090
+    }
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop browser-automation-studio services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"browser-automation-studio-api\" || true; sleep 1; pkill -9 -f \"browser-automation-studio-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/browser-automation-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/browser-automation-studio.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o browser-automation-studio-api .",
+          "description": "Build API server"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && ./browser-automation-studio-api",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev || node server.js",
+          "description": "Start UI server",
+          "background": true
+        }
+      ]
     }
   }
 }

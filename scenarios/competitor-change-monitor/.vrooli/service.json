@@ -220,12 +220,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f competitor-change-monitor.start-api 2>/dev/null || true",
+          "run": "pkill -f \"competitor-change-monitor-api\" || true; sleep 1; pkill -9 -f \"competitor-change-monitor-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f competitor-change-monitor.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/competitor-change-monitor.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/competitor-change-monitor.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

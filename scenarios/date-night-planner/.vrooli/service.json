@@ -1,0 +1,328 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "date-night-planner",
+    "displayName": "Date Night Planner",
+    "description": "AI-powered date planning with couple personalization and local integration",
+    "version": "1.0.0",
+    "tags": [
+      "personal-life",
+      "relationships",
+      "dating",
+      "planning",
+      "personalization",
+      "local-events",
+      "couples",
+      "romantic",
+      "multi-scenario-integration",
+      "preference-learning",
+      "nodejs-ui",
+      "go-api",
+      "n8n-workflows",
+      "postgres-storage",
+      "redis-cache",
+      "qdrant-vectors",
+      "ollama-ai",
+      "pastel-aesthetic"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Date Night Planner API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT", 
+      "description": "Date Night Planner UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "n8n": {
+      "type": "n8n",
+      "enabled": true,
+      "required": true,
+      "initialization": [
+        {
+          "file": "initialization/automation/n8n/date-orchestrator.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/preference-analyzer.json", 
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/venue-matcher.json",
+          "type": "workflow"
+        },
+        {
+          "file": "initialization/automation/n8n/memory-recorder.json",
+          "type": "workflow"
+        }
+      ]
+    },
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store couples, date plans, preferences, and memories",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": true,
+      "purpose": "Generate creative date ideas and analyze preferences via shared workflow",
+      "models": [
+        "llama3.2",
+        "nomic-embed-text"
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "purpose": "Cache frequently accessed preferences and venue data for performance"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": true,
+      "required": false,
+      "purpose": "Semantic search of date activities and venue matching for enhanced personalization"
+    }
+  },
+  "integrations": {
+    "scenario-authenticator": {
+      "type": "scenario",
+      "enabled": true,
+      "required": true,
+      "purpose": "Multi-tenant couple authentication and privacy controls",
+      "fallback": "Single-user mode with reduced privacy features"
+    },
+    "contact-book": {
+      "type": "scenario", 
+      "enabled": true,
+      "required": true,
+      "purpose": "Partner preferences, relationship data, and dietary restrictions",
+      "fallback": "Manual preference entry with reduced personalization"
+    },
+    "local-info-scout": {
+      "type": "scenario",
+      "enabled": true,
+      "required": true, 
+      "purpose": "Real-time venue discovery, local events, and weather-aware recommendations",
+      "fallback": "Static venue database with no real-time updates"
+    },
+    "research-assistant": {
+      "type": "scenario",
+      "enabled": true,
+      "required": false,
+      "purpose": "Creative date idea research, trend analysis, and activity inspiration",
+      "fallback": "Curated date idea database with no trend awareness"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Date Night Planner health check configuration",
+      "endpoints": {
+        "api": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "database_connection",
+          "type": "http", 
+          "target": "http://localhost:${API_PORT}/health/database",
+          "critical": true,
+          "timeout": 3000,
+          "interval": 60000
+        },
+        {
+          "name": "n8n_workflows",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health/workflows", 
+          "critical": false,
+          "timeout": 10000,
+          "interval": 120000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Date Night Planner",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/date-night-planner-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "date-night-planner"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "validate-integrations",
+          "run": "echo 'Validating scenario integrations...' && if command -v scenario-authenticator >/dev/null; then echo '✅ scenario-authenticator available'; else echo '⚠️ scenario-authenticator not found - will use fallback mode'; fi && if command -v contact-book >/dev/null; then echo '✅ contact-book available'; else echo '⚠️ contact-book not found - will use fallback mode'; fi && if command -v local-info-scout >/dev/null; then echo '✅ local-info-scout available'; else echo '⚠️ local-info-scout not found - will use fallback mode'; fi",
+          "description": "Validate integration dependencies and fallback modes"
+        },
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate semantic embeddings for venue and activity matching"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add scenario data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o date-night-planner-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '💕 Date Night Planner initialized!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help\\n\\n🌟 Integration Status:\\n  🔐 Auth: scenario-authenticator $(command -v scenario-authenticator >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")\\n  📚 Contacts: contact-book $(command -v contact-book >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")\\n  🗺️ Local Info: local-info-scout $(command -v local-info-scout >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")\\n  🔍 Research: research-assistant $(command -v research-assistant >/dev/null && echo \"✅\" || echo \"❌ (fallback mode)\")'",
+          "description": "Display service access URLs and integration status"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Date Night Planner with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./date-night-planner-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/date-night-planner-api"
+          }
+        },
+        {
+          "name": "start-ui", 
+          "run": "cd ui && node server.js",
+          "description": "Start UI server in background",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '💕 Date Night Planner Services Running!\\n  💖 UI: http://localhost:${UI_PORT}\\n  🔗 API: http://localhost:${API_PORT}\\n  📱 CLI: date-night-planner --help\\n\\n🎯 Key Endpoints:\\n  POST /api/v1/dates/suggest - Generate date suggestions\\n  POST /api/v1/dates/plan - Create date plans\\n  GET /api/v1/couples/{id}/memories - Browse date memories\\n  POST /api/v1/preferences/update - Update couple preferences'",
+          "description": "Display all running service URLs and key endpoints"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Date Night Planner API, CLI, and integrations",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-database-health",
+          "run": "curl -sf http://localhost:$API_PORT/health/database", 
+          "description": "Test database connectivity"
+        },
+        {
+          "name": "test-workflow-health",
+          "run": "curl -sf http://localhost:$API_PORT/health/workflows",
+          "description": "Test n8n workflow connectivity"
+        },
+        {
+          "name": "test-suggest-endpoint",
+          "run": "curl -sf -X POST http://localhost:$API_PORT/api/v1/dates/suggest -H 'Content-Type: application/json' -d '{\"couple_id\":\"test-couple-123\",\"date_type\":\"romantic\",\"budget_max\":100}'",
+          "description": "Test date suggestion API endpoint"
+        },
+        {
+          "name": "test-cli-help",
+          "run": "date-night-planner --help",
+          "description": "Test CLI help command"
+        },
+        {
+          "name": "test-cli-suggest",
+          "run": "date-night-planner suggest test-couple-123 --budget 50 --json",
+          "description": "Test CLI suggestion command"
+        },
+        {
+          "name": "test-integration-fallbacks",
+          "run": "bash test/test-integration-fallbacks.sh",
+          "description": "Test graceful degradation when upstream scenarios are unavailable",
+          "condition": {
+            "file_exists": "test/test-integration-fallbacks.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"date-night-planner-api\" || true; sleep 1; pkill -9 -f \"date-night-planner-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/date-night-planner.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/date-night-planner.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI process"
+        }
+      ]
+    }
+  }
+}

@@ -14,7 +14,7 @@ npm run dev
 ```
 
 This will:
-- Start Vite dev server on port 5173 with hot module replacement
+- Start Vite dev server with hot module replacement
 - Start Express/WebSocket server on port 8085
 - Enable React DevTools and source maps for debugging
 
@@ -107,22 +107,7 @@ ui/
 - **API Service Layer**: Centralized error handling and logging
 - **Responsive Design**: Mobile-friendly Matrix theme
 
-## Environment Variables
-
-Create `.env` file for custom configuration:
-```env
-UI_PORT=8085        # Express server port
-API_PORT=8090       # API server port
-VITE_PORT=5173      # Vite dev server port
-```
-
 ## Troubleshooting
-
-### Port Already in Use
-```bash
-# Kill process on specific port
-lsof -i :5173 && kill -9 $(lsof -t -i :5173)
-```
 
 ### Clean Install
 ```bash

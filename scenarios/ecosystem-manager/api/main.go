@@ -16,7 +16,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // TaskItem represents a unified task in the ecosystem
@@ -360,30 +360,81 @@ func assemblePromptForTask(task TaskItem) (string, error) {
 	return prompt + taskContext.String(), nil
 }
 
+// convertToStringMap converts map[interface{}]interface{} to map[string]interface{}
+// This is needed because YAML unmarshals to interface{} keys but JSON needs string keys
+func convertToStringMap(m interface{}) interface{} {
+	switch v := m.(type) {
+	case map[interface{}]interface{}:
+		result := make(map[string]interface{})
+		for key, value := range v {
+			keyStr, ok := key.(string)
+			if !ok {
+				keyStr = fmt.Sprintf("%v", key)
+			}
+			result[keyStr] = convertToStringMap(value)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, len(v))
+		for i, value := range v {
+			result[i] = convertToStringMap(value)
+		}
+		return result
+	default:
+		return v
+	}
+}
+
 // Queue management functions
 func getQueueItems(status string) ([]TaskItem, error) {
 	queuePath := filepath.Join(queueDir, status)
 	
+	// Debug logging
+	log.Printf("Looking for tasks in: %s", queuePath)
+	
 	files, err := filepath.Glob(filepath.Join(queuePath, "*.yaml"))
 	if err != nil {
+		log.Printf("Error globbing files: %v", err)
 		return nil, err
 	}
 	
+	log.Printf("Found %d files in %s", len(files), status)
+	
 	var items []TaskItem
 	for _, file := range files {
+		log.Printf("Reading file: %s", file)
 		data, err := os.ReadFile(file)
 		if err != nil {
+			log.Printf("Error reading file %s: %v", file, err)
 			continue
 		}
 		
 		var item TaskItem
 		if err := yaml.Unmarshal(data, &item); err != nil {
+			log.Printf("Error unmarshaling YAML from %s: %v", file, err)
 			continue
 		}
 		
+		// Convert interface{} maps to string maps for JSON compatibility
+		if item.Requirements != nil {
+			converted := convertToStringMap(item.Requirements)
+			if m, ok := converted.(map[string]interface{}); ok {
+				item.Requirements = m
+			}
+		}
+		if item.Results != nil {
+			converted := convertToStringMap(item.Results)
+			if m, ok := converted.(map[string]interface{}); ok {
+				item.Results = m
+			}
+		}
+		// AssignedResources should be fine as map[string]bool with yaml.v3
+		
+		log.Printf("Successfully loaded task: %s", item.ID)
 		items = append(items, item)
 	}
 	
+	log.Printf("Returning %d items for status %s", len(items), status)
 	return items, nil
 }
 
@@ -690,108 +741,117 @@ func (qp *QueueProcessor) handleTaskFailure(task TaskItem, errorMsg string) {
 
 // discoverResources scans the filesystem for available resources
 func discoverResources() ([]ResourceInfo, error) {
-	resourcesPath := "../../../resources"
 	var resources []ResourceInfo
 	
-	// Check if resources directory exists
-	if _, err := os.Stat(resourcesPath); os.IsNotExist(err) {
+	// Use vrooli command to get resources list
+	cmd := exec.Command("vrooli", "resource", "list", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Warning: Failed to run 'vrooli resource list --json': %v", err)
+		// Return empty list instead of error to prevent UI issues
 		return resources, nil
 	}
 	
-	// Scan for directories with service.json files
-	pattern := filepath.Join(resourcesPath, "*/service.json")
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan resources: %v", err)
+	// Parse the JSON output
+	var vrooliResources []map[string]interface{}
+	if err := json.Unmarshal(output, &vrooliResources); err != nil {
+		log.Printf("Warning: Failed to parse vrooli resource list output: %v", err)
+		return resources, nil
 	}
 	
-	for _, match := range matches {
-		// Extract resource name from path
-		resourceDir := filepath.Dir(match)
-		resourceName := filepath.Base(resourceDir)
-		
-		// Read service.json
-		var serviceConfig ServiceConfig
-		data, err := os.ReadFile(match)
-		if err != nil {
-			log.Printf("Warning: could not read service.json for %s: %v", resourceName, err)
-			continue
-		}
-		
-		if err := json.Unmarshal(data, &serviceConfig); err != nil {
-			log.Printf("Warning: could not parse service.json for %s: %v", resourceName, err)
-			continue
-		}
-		
-		// Check resource health
-		healthy := checkResourceHealth(resourceName, resourceDir)
-		
+	// Convert to our ResourceInfo format
+	for _, vr := range vrooliResources {
 		resource := ResourceInfo{
-			Name:        resourceName,
-			Path:        resourceDir,
-			Port:        serviceConfig.Port,
-			Category:    serviceConfig.Category,
-			Description: serviceConfig.Description,
-			Version:     serviceConfig.Version,
-			Healthy:     healthy,
+			Name:        getStringField(vr, "Name"),       // vrooli uses uppercase "Name"
+			Path:        getStringField(vr, "path"),
+			Port:        getIntField(vr, "port"),
+			Category:    getStringField(vr, "category"),
+			Description: getStringField(vr, "description"),
+			Version:     getStringField(vr, "version"),
+			Healthy:     getBoolField(vr, "Running"),      // vrooli uses "Running" not "healthy"
 		}
 		
-		resources = append(resources, resource)
+		// Skip empty entries
+		if resource.Name != "" {
+			resources = append(resources, resource)
+		}
 	}
 	
+	log.Printf("Discovered %d resources via vrooli command", len(resources))
 	return resources, nil
+}
+
+// Helper functions for safe field extraction
+func getStringField(m map[string]interface{}, key string) string {
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return ""
+}
+
+func getIntField(m map[string]interface{}, key string) int {
+	if val, ok := m[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return int(v)
+		case int:
+			return v
+		}
+	}
+	return 0
+}
+
+func getBoolField(m map[string]interface{}, key string) bool {
+	if val, ok := m[key]; ok {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return false
 }
 
 // discoverScenarios scans the filesystem for available scenarios
 func discoverScenarios() ([]ScenarioInfo, error) {
-	scenariosPath := "../../../scenarios"
 	var scenarios []ScenarioInfo
 	
-	// Check if scenarios directory exists
-	if _, err := os.Stat(scenariosPath); os.IsNotExist(err) {
+	// Use vrooli command to get scenarios list
+	cmd := exec.Command("vrooli", "scenario", "list", "--json")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Warning: Failed to run 'vrooli scenario list --json': %v", err)
+		// Return empty list instead of error to prevent UI issues
 		return scenarios, nil
 	}
 	
-	// Scan for directories with PRD.md files
-	pattern := filepath.Join(scenariosPath, "*/PRD.md")
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan scenarios: %v", err)
+	// Parse the JSON output
+	var vrooliScenarios []map[string]interface{}
+	if err := json.Unmarshal(output, &vrooliScenarios); err != nil {
+		log.Printf("Warning: Failed to parse vrooli scenario list output: %v", err)
+		return scenarios, nil
 	}
 	
-	for _, match := range matches {
-		// Extract scenario name from path
-		scenarioDir := filepath.Dir(match)
-		scenarioName := filepath.Base(scenarioDir)
-		
-		// Skip self (ecosystem-manager)
-		if scenarioName == "ecosystem-manager" {
-			continue
-		}
-		
-		// Get PRD status
-		prdStatus := getScenarioPRDStatus(scenarioName, match)
-		
-		// Check scenario health
-		healthy := checkScenarioHealth(scenarioName, scenarioDir)
-		
-		// Try to extract description from PRD
-		description := extractDescriptionFromPRD(match)
-		
+	// Convert to our ScenarioInfo format
+	for _, vs := range vrooliScenarios {
 		scenario := ScenarioInfo{
-			Name:            scenarioName,
-			Path:            scenarioDir,
-			Category:        inferScenarioCategory(scenarioName, description),
-			Description:     description,
-			PRDComplete:     prdStatus.CompletionPercentage,
-			Healthy:         healthy,
-			P0Requirements:  prdStatus.P0Requirements,
-			P0Completed:     prdStatus.P0Completed,
+			Name:            getStringField(vs, "name"),
+			Path:            getStringField(vs, "path"),
+			Category:        getStringField(vs, "category"),
+			Description:     getStringField(vs, "description"),
+			PRDComplete:     getIntField(vs, "prd_completion"),
+			Healthy:         getBoolField(vs, "healthy"),
+			P0Requirements:  getIntField(vs, "p0_requirements"),
+			P0Completed:     getIntField(vs, "p0_completed"),
 		}
 		
-		scenarios = append(scenarios, scenario)
+		// Skip empty entries and self
+		if scenario.Name != "" && scenario.Name != "ecosystem-manager" {
+			scenarios = append(scenarios, scenario)
+		}
 	}
-		
+	
+	log.Printf("Discovered %d scenarios via vrooli command", len(scenarios))
 	return scenarios, nil
 }
 
@@ -1188,7 +1248,7 @@ func getTasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Apply filters
-	var filteredItems []TaskItem
+	filteredItems := []TaskItem{} // Initialize as empty slice, not nil
 	for _, item := range items {
 		if taskType != "" && item.Type != taskType {
 			continue
@@ -1203,7 +1263,16 @@ func getTasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(filteredItems)
+	
+	// Debug: Log what we're about to send
+	log.Printf("About to send %d filtered tasks", len(filteredItems))
+	
+	// Encode and check for errors
+	if err := json.NewEncoder(w).Encode(filteredItems); err != nil {
+		log.Printf("Error encoding JSON response: %v", err)
+	} else {
+		log.Printf("Successfully sent JSON response with %d tasks", len(filteredItems))
+	}
 }
 
 func createTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -1288,6 +1357,120 @@ func getTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	http.Error(w, "Task not found", http.StatusNotFound)
+}
+
+func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskID := vars["id"]
+	
+	var updatedTask TaskItem
+	if err := json.NewDecoder(r.Body).Decode(&updatedTask); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+		return
+	}
+	
+	// Find current task location
+	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
+	var currentStatus string
+	var currentTask TaskItem
+	var currentFilePath string
+	
+	for _, status := range statuses {
+		filePath := filepath.Join(queueDir, status, fmt.Sprintf("%s.yaml", taskID))
+		if _, err := os.Stat(filePath); err == nil {
+			currentStatus = status
+			currentFilePath = filePath
+			
+			// Read current task
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("Error reading task file: %v", err), http.StatusInternalServerError)
+				return
+			}
+			
+			if err := yaml.Unmarshal(data, &currentTask); err != nil {
+				http.Error(w, fmt.Sprintf("Error parsing task file: %v", err), http.StatusInternalServerError)
+				return
+			}
+			break
+		}
+	}
+	
+	if currentStatus == "" {
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
+	
+	// Preserve certain fields that shouldn't be changed via general update
+	updatedTask.ID = currentTask.ID
+	updatedTask.Type = currentTask.Type
+	updatedTask.Operation = currentTask.Operation
+	updatedTask.CreatedBy = currentTask.CreatedBy
+	updatedTask.CreatedAt = currentTask.CreatedAt
+	updatedTask.StartedAt = currentTask.StartedAt
+	updatedTask.CompletedAt = currentTask.CompletedAt
+	updatedTask.Results = currentTask.Results
+	
+	// Handle status changes - if status changed, may need to move file
+	newStatus := updatedTask.Status
+	if newStatus != currentStatus {
+		// Set timestamps for status changes
+		now := time.Now().Format(time.RFC3339)
+		updatedTask.UpdatedAt = now
+		
+		if newStatus == "in-progress" && currentTask.StartedAt == "" {
+			updatedTask.StartedAt = now
+		} else if (newStatus == "completed" || newStatus == "failed") && currentTask.CompletedAt == "" {
+			updatedTask.CompletedAt = now
+		}
+	} else {
+		// Just update timestamp
+		updatedTask.UpdatedAt = time.Now().Format(time.RFC3339)
+	}
+	
+	// Save updated task
+	updatedData, err := yaml.Marshal(updatedTask)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error marshaling task: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	// If status changed, move the file to new directory
+	if newStatus != currentStatus {
+		newFilePath := filepath.Join(queueDir, newStatus, fmt.Sprintf("%s.yaml", taskID))
+		
+		// Write to new location
+		if err := os.WriteFile(newFilePath, updatedData, 0644); err != nil {
+			http.Error(w, fmt.Sprintf("Error writing updated task file: %v", err), http.StatusInternalServerError)
+			return
+		}
+		
+		// Remove from old location
+		if err := os.Remove(currentFilePath); err != nil {
+			log.Printf("Warning: Failed to remove old task file %s: %v", currentFilePath, err)
+		}
+	} else {
+		// Update in place
+		if err := os.WriteFile(currentFilePath, updatedData, 0644); err != nil {
+			http.Error(w, fmt.Sprintf("Error writing updated task file: %v", err), http.StatusInternalServerError)
+			return
+		}
+	}
+	
+	// Broadcast the update via WebSocket
+	select {
+	case wsBroadcast <- map[string]interface{}{
+		"type": "task_updated",
+		"task": updatedTask,
+	}:
+	default:
+		// Non-blocking send
+	}
+	
+	log.Printf("Task %s updated successfully", taskID)
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedTask)
 }
 
 func updateTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
@@ -1658,6 +1841,7 @@ func main() {
 	r.HandleFunc("/api/tasks", getTasksHandler).Methods("GET")
 	r.HandleFunc("/api/tasks", createTaskHandler).Methods("POST")
 	r.HandleFunc("/api/tasks/{id}", getTaskHandler).Methods("GET")
+	r.HandleFunc("/api/tasks/{id}", updateTaskHandler).Methods("PUT")
 	r.HandleFunc("/api/tasks/{id}/status", updateTaskStatusHandler).Methods("PUT")
 	r.HandleFunc("/api/tasks/{id}/prompt", getTaskPromptHandler).Methods("GET")
 	r.HandleFunc("/api/tasks/{id}/prompt/assembled", getAssembledPromptHandler).Methods("GET")
@@ -1673,7 +1857,7 @@ func main() {
 	r.HandleFunc("/api/scenarios/{name}/status", getScenarioStatusHandler).Methods("GET")
 	
 	// Static file serving for UI
-	r.PathPrefix("/").Handler(http.FileServer(http.Dir("./ui/")))
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("../ui/")))
 	
 	handler := enableCORS(r)
 	

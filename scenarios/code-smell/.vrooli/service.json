@@ -7,8 +7,20 @@
   "metadata": {
     "author": "AI Agent",
     "created": "2025-09-07",
-    "keywords": ["quality", "lint", "smell", "technical-debt", "auto-fix", "maintenance"],
-    "capabilities": ["smell-detection", "auto-fix", "pattern-learning", "hot-reload"],
+    "keywords": [
+      "quality",
+      "lint",
+      "smell",
+      "technical-debt",
+      "auto-fix",
+      "maintenance"
+    ],
+    "capabilities": [
+      "smell-detection",
+      "auto-fix",
+      "pattern-learning",
+      "hot-reload"
+    ],
     "revenue_potential": "$20K-$40K per deployment",
     "business_value": "Saves 100+ developer hours/month in code review and maintenance"
   },
@@ -52,7 +64,9 @@
     "documentation": "/api/v1/docs",
     "cors": {
       "enabled": true,
-      "origins": ["http://localhost:*"]
+      "origins": [
+        "http://localhost:*"
+      ]
     }
   },
   "cli": {
@@ -92,14 +106,33 @@
   "configuration": {
     "auto_fix": {
       "enabled": true,
-      "risk_levels": ["safe"],
+      "risk_levels": [
+        "safe"
+      ],
       "batch_size": 10,
       "dry_run_default": false
     },
     "analysis": {
       "parallel_workers": 4,
-      "file_extensions": [".js", ".ts", ".jsx", ".tsx", ".go", ".py", ".sh", ".yaml", ".json"],
-      "ignore_patterns": ["node_modules", ".git", "dist", "build", ".next", "__pycache__"],
+      "file_extensions": [
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".go",
+        ".py",
+        ".sh",
+        ".yaml",
+        ".json"
+      ],
+      "ignore_patterns": [
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        ".next",
+        "__pycache__"
+      ],
       "max_file_size_mb": 10
     },
     "learning": {
@@ -125,8 +158,12 @@
       {
         "name": "git-manager",
         "type": "events",
-        "subscribe": ["git.commit.pending"],
-        "publish": ["code-smell.analysis.completed"]
+        "subscribe": [
+          "git.commit.pending"
+        ],
+        "publish": [
+          "code-smell.analysis.completed"
+        ]
       }
     ]
   },
@@ -208,7 +245,50 @@
     },
     "audit_log": {
       "enabled": true,
-      "events": ["fix.applied", "rule.modified", "settings.changed"]
+      "events": [
+        "fix.applied",
+        "rule.modified",
+        "settings.changed"
+      ]
+    }
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop code-smell services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"code-smell-api\" || true; sleep 1; pkill -9 -f \"code-smell-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o code-smell-api .",
+          "description": "Build API server"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && ./code-smell-api",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python -m http.server 8080",
+          "description": "Start UI server",
+          "background": true
+        }
+      ]
     }
   }
 }

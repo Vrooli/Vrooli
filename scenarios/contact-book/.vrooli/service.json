@@ -204,8 +204,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f contact-book.start-api 2>/dev/null || true",
+          "run": "pkill -f \"contact-book-api\" || true; sleep 1; pkill -9 -f \"contact-book-api\" 2>/dev/null || true",
           "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
         }
       ]
     }

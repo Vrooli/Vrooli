@@ -254,13 +254,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f bedtime-story-generator.start-api 2>/dev/null || true",
-          "description": "Stop API server"
+          "run": "pkill -f \"bedtime-story-generator-api\" || true; sleep 1; pkill -9 -f \"bedtime-story-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f bedtime-story-generator.start-ui 2>/dev/null || true",
-          "description": "Stop UI server"
+          "run": "pkill -f \"scenarios/bedtime-story-generator.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/bedtime-story-generator.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
         }
       ]
     }

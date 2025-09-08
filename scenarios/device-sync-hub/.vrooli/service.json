@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "description": "Cross-device file and clipboard synchronization for seamless data sharing",
   "category": "productivity",
-  "tags": ["sync", "mobile", "file-sharing", "cross-device", "productivity"],
-  
+  "tags": [
+    "sync",
+    "mobile",
+    "file-sharing",
+    "cross-device",
+    "productivity"
+  ],
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -12,12 +17,11 @@
       "description": "Device sync API server port"
     },
     "ui": {
-      "env_var": "UI_PORT", 
+      "env_var": "UI_PORT",
       "range": "35000-39999",
       "description": "Device sync UI server port"
     }
   },
-  
   "resources": {
     "required": [
       {
@@ -26,7 +30,7 @@
         "purpose": "User authentication and session management"
       },
       {
-        "name": "postgres", 
+        "name": "postgres",
         "type": "database",
         "purpose": "File metadata and device session storage",
         "schema": "initialization/postgres/schema.sql"
@@ -35,30 +39,22 @@
     "optional": [
       {
         "name": "redis",
-        "type": "cache", 
+        "type": "cache",
         "purpose": "WebSocket session management and caching"
       }
     ]
   },
-  
   "initialization": {
     "postgres": {
       "schema_files": [
         "initialization/postgres/schema.sql"
       ]
     },
-    "n8n": {
-      "workflows": [
-        "initialization/n8n/auth-middleware.json"
-      ]
-    }
   },
-  
   "cli": {
     "binary": "device-sync-hub",
     "install_script": "cli/install.sh"
   },
-  
   "api": {
     "base_url": "http://localhost:3300",
     "endpoints": [
@@ -68,13 +64,13 @@
         "description": "Upload files or text for cross-device sharing"
       },
       {
-        "path": "/api/v1/sync/items", 
+        "path": "/api/v1/sync/items",
         "method": "GET",
         "description": "List all active sync items for user"
       },
       {
         "path": "/api/v1/sync/items/{id}",
-        "method": "DELETE", 
+        "method": "DELETE",
         "description": "Delete a sync item immediately"
       },
       {
@@ -89,23 +85,20 @@
       }
     ]
   },
-  
   "ui_info": {
     "url": "http://localhost:3301",
     "mobile_optimized": true,
     "responsive": true,
     "style": "modern-mobile-first"
   },
-  
   "capabilities": [
     "cross-device-file-sharing",
-    "real-time-sync", 
+    "real-time-sync",
     "mobile-first-ui",
     "clipboard-sharing",
     "secure-authentication",
     "automatic-cleanup"
   ],
-  
   "integration": {
     "provides": [
       {
@@ -122,17 +115,64 @@
       }
     ]
   },
-  
   "testing": {
     "test_file": "scenario-test.yaml",
     "integration_tests": "test/integration.sh",
     "performance_tests": "test/performance.sh"
   },
-  
   "deployment": {
     "type": "local",
     "auto_start": true,
     "health_check_interval": 30,
     "restart_on_failure": true
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize device-sync-hub",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o device-sync-hub-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI tool"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop device-sync-hub services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"device-sync-hub-api\" || true; sleep 1; pkill -9 -f \"device-sync-hub-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./device-sync-hub-api",
+          "description": "Start Go API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python -m http.server 8080",
+          "description": "Start UI server",
+          "background": true
+        }
+      ]
+    }
   }
 }

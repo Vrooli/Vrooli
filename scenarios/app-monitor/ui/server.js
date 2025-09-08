@@ -177,7 +177,7 @@ app.get('/health', (req, res) => {
 if (process.env.NODE_ENV === 'production') {
     const staticPath = path.join(__dirname, 'dist');
     app.use(express.static(staticPath));
-    
+
     // Catch all routes for client-side routing in production
     app.get('*', (req, res) => {
         // Skip API routes
@@ -189,7 +189,7 @@ if (process.env.NODE_ENV === 'production') {
 } else {
     // In development, show helpful message
     app.get('/', (req, res) => {
-        const vitePort = process.env.VITE_PORT || 5173;
+        const vitePort = process.env.VITE_PORT;
         res.send(`
             <html>
                 <head>
@@ -237,13 +237,13 @@ if (process.env.NODE_ENV === 'production') {
             </html>
         `);
     });
-    
+
     // Catch all other routes in development with helpful message
     app.get('*', (req, res) => {
         if (req.path.startsWith('/api')) {
             return res.status(404).json({ error: 'API endpoint not found' });
         }
-        const vitePort = process.env.VITE_PORT || 5173;
+        const vitePort = process.env.VITE_PORT;
         res.status(404).send(`
             <html>
                 <head>

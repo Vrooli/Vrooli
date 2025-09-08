@@ -201,8 +201,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f data-backup-manager.start-api 2>/dev/null || true",
+          "run": "pkill -f \"data-backup-manager-api\" || true; sleep 1; pkill -9 -f \"data-backup-manager-api\" 2>/dev/null || true",
           "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
         }
       ]
     }

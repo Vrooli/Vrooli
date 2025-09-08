@@ -8,43 +8,34 @@
     <link href="styles.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="header-content">
-            <div class="header-left">
-                <h1 class="header-title">
-                    <i class="fas fa-cogs"></i>
-                    Ecosystem Manager
-                </h1>
-                <div class="header-subtitle">Unified Resource & Scenario Management</div>
-            </div>
-            
-            <div class="header-right">
-                <div class="header-stats">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Tasks</span>
-                        <span class="stat-value" id="total-tasks">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Active</span>
-                        <span class="stat-value" id="active-tasks">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Completed</span>
-                        <span class="stat-value" id="completed-tasks">0</span>
-                    </div>
+    <!-- Fixed Top Container -->
+    <div class="fixed-top-container" id="fixed-top-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <h1 class="header-title">
+                        <i class="fas fa-cogs"></i>
+                        Ecosystem Manager
+                    </h1>
+                    <div class="header-subtitle">Unified Resource & Scenario Management</div>
                 </div>
                 
-                <button class="btn btn-primary" onclick="openCreateTaskModal()">
-                    <i class="fas fa-plus"></i>
-                    New Task
-                </button>
+                <div class="header-right">
+                    <button class="dark-mode-toggle" onclick="toggleDarkMode()" title="Toggle dark mode">
+                        <i class="fas fa-moon" id="dark-mode-icon"></i>
+                    </button>
+                    
+                    <button class="btn btn-primary" onclick="openCreateTaskModal()">
+                        <i class="fas fa-plus"></i>
+                        New Task
+                    </button>
+                </div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- Filters -->
-    <section class="filters">
+        <!-- Filters -->
+        <section class="filters">
         <div class="filter-group">
             <label class="filter-label">Type:</label>
             <select id="filter-type" class="filter-select" onchange="applyFilters()">
@@ -109,6 +100,7 @@
             <i class="fas fa-search search-icon"></i>
         </div>
     </section>
+    </div><!-- End Fixed Top Container -->
 
     <!-- Kanban Board -->
     <main class="kanban-board">
@@ -248,14 +240,6 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="task-category">Category *</label>
-                        <select id="task-category" name="category" required>
-                            <option value="">Select category...</option>
-                            <!-- Options will be populated based on type -->
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
                         <label for="task-priority">Priority</label>
                         <select id="task-priority" name="priority">
                             <option value="low">Low</option>
@@ -264,17 +248,17 @@
                             <option value="critical">Critical</option>
                         </select>
                     </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="task-effort">Estimated Effort</label>
-                    <select id="task-effort" name="effort_estimate">
-                        <option value="1h">1 hour</option>
-                        <option value="2h">2 hours</option>
-                        <option value="4h" selected>4 hours</option>
-                        <option value="8h">8 hours</option>
-                        <option value="16h+">16+ hours</option>
-                    </select>
+                    
+                    <div class="form-group">
+                        <label for="task-effort">Estimated Effort</label>
+                        <select id="task-effort" name="effort_estimate">
+                            <option value="1h">1 hour</option>
+                            <option value="2h">2 hours</option>
+                            <option value="4h" selected>4 hours</option>
+                            <option value="8h">8 hours</option>
+                            <option value="16h+">16+ hours</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <!-- Target field for improver operations -->

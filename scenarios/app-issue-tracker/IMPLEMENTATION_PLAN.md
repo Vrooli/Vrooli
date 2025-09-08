@@ -12,7 +12,7 @@ A comprehensive issue tracking system for Vrooli and its scenarios, featuring AI
    - Agent management interface
    - Semantic search API
 
-2. **Windmill UI** (Port 8000)
+2. **Web UI** (Port 35000-39999)
    - Issue dashboard with filtering/sorting
    - Agent management page (prompt templates)
    - Investigation reports viewer
@@ -32,14 +32,14 @@ A comprehensive issue tracking system for Vrooli and its scenarios, featuring AI
 ## Data Flow
 
 ```
-User/CLI → API → PostgreSQL → N8N Workflow → Claude Code
-                      ↓            ↓
-                   Qdrant    Investigation
-                              Report
-                                 ↓
-                           Fix Attempt
-                                 ↓
-                           Git PR/Commit
+User/CLI → API → File System → Claude Code Script
+                      ↓              ↓
+                   Qdrant      Investigation
+                               Report
+                                  ↓
+                            Fix Attempt
+                                  ↓
+                            Git PR/Commit
 ```
 
 ## Key Features
@@ -140,7 +140,7 @@ vrooli-tracker search "authentication error"
 
 ## Next Steps
 1. Implement core API endpoints
-2. Set up Windmill dashboards
+2. Set up Web UI dashboards
 3. Configure Claude Code integration
 4. Create initial agent templates
 5. Build CLI tool

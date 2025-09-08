@@ -21,12 +21,12 @@
   },
   "ports": {
     "api": {
-      "env_var": "CTM_API_PORT",
+      "env_var": "API_PORT",
       "description": "Code Tidiness Manager API port",
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "CTM_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "Cleanup dashboard UI port",
       "range": "35000-39999"
     }
@@ -264,12 +264,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f code-tidiness-manager.start-api 2>/dev/null || true",
+          "run": "pkill -f \"code-tidiness-manager-api\" || true; sleep 1; pkill -9 -f \"code-tidiness-manager-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f code-tidiness-manager.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/code-tidiness-manager.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/code-tidiness-manager.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

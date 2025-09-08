@@ -5,9 +5,9 @@ echo "🚀 Starting App Monitor Development Environment..."
 echo ""
 
 # Set default ports if not already set
-export VITE_PORT=${VITE_PORT:-5173}
-export UI_PORT=${UI_PORT:-8085}
-export API_PORT=${API_PORT:-8090}
+export VITE_PORT=${VITE_PORT}
+export UI_PORT=${UI_PORT}
+export API_PORT=${API_PORT}
 
 # Pass environment variables to Vite
 export VITE_API_PORT=$API_PORT

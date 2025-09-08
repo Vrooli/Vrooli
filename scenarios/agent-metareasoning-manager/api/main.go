@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -948,8 +949,14 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	// Load configuration
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	logger := NewLogger()
+	
+	// Load configuration - REQUIRED environment variables, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		logger.Error("❌ API_PORT environment variable is required", nil)
+		os.Exit(1)
+	}
 	
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
@@ -957,31 +964,45 @@ func main() {
 	postgresPort := getResourcePort("postgres")
 	qdrantPort := getResourcePort("qdrant")
 	
+	// Optional service URLs (can be configured if needed)
 	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
+	if n8nURL == "" && n8nPort != "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
 	
 	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
+	if windmillURL == "" && windmillPort != "" {
 		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 	
 	qdrantURL := os.Getenv("QDRANT_BASE_URL")
-	if qdrantURL == "" {
+	if qdrantURL == "" && qdrantPort != "" {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 	
+	// Database configuration - support both POSTGRES_URL and individual components
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/metareasoning?sslmode=disable", postgresPort)
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			logger.Error("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB", nil)
+			os.Exit(1)
+		}
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 	
 	// Connect to database
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to connect to database", err)
+		logger.Error("Failed to open database connection", err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -991,14 +1012,56 @@ func main() {
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
 	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to ping database", err)
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	logger.Info("🔄 Attempting database connection with exponential backoff...")
+	logger.Info("📊 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt + 1))
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr))
+		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			logger.Info("📈 Retry progress:")
+			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt + 1, maxRetries))
+			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay))
+			logger.Info(fmt.Sprintf("   - Current delay: %v (with jitter: %v)", delay, jitter))
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
 		os.Exit(1)
 	}
 	
-	log.Println("Connected to database")
+	logger.Info("🎉 Database connection pool established successfully!")
+	
+	// Initialize metareasoning engine
+	metareasoningEngine := NewMetareasoningEngine(db)
 	
 	// Initialize discovery service
 	discovery := NewDiscoveryService(db, n8nURL, windmillURL, qdrantURL)
@@ -1022,12 +1085,41 @@ func main() {
 	// Setup routes
 	r := mux.NewRouter()
 	
-	// API endpoints
+	// Health and system endpoints
 	r.HandleFunc("/health", Health).Methods("GET")
 	r.HandleFunc("/workflows", discovery.ListWorkflows).Methods("GET")
 	r.HandleFunc("/workflows/search", discovery.SearchWorkflows).Methods("POST")
 	r.HandleFunc("/analyze", discovery.AnalyzeWorkflow).Methods("POST")
 	r.HandleFunc("/execute/{platform}/{workflowId}", discovery.ExecuteWorkflow).Methods("POST")
+	
+	// Metareasoning endpoints (replacing n8n workflows)
+	r.HandleFunc("/reasoning", func(w http.ResponseWriter, r *http.Request) {
+		handleReasoningRequest(w, r, metareasoningEngine)
+	}).Methods("POST")
+	r.HandleFunc("/reasoning/pros-cons", func(w http.ResponseWriter, r *http.Request) {
+		handleProsCons(w, r, metareasoningEngine)
+	}).Methods("POST")
+	r.HandleFunc("/reasoning/swot", func(w http.ResponseWriter, r *http.Request) {
+		handleSWOT(w, r, metareasoningEngine)
+	}).Methods("POST")
+	r.HandleFunc("/reasoning/risk-assessment", func(w http.ResponseWriter, r *http.Request) {
+		handleRiskAssessment(w, r, metareasoningEngine)
+	}).Methods("POST")
+	r.HandleFunc("/reasoning/self-review", func(w http.ResponseWriter, r *http.Request) {
+		handleSelfReview(w, r, metareasoningEngine)
+	}).Methods("POST")
+	r.HandleFunc("/reasoning/chain", func(w http.ResponseWriter, r *http.Request) {
+		handleReasoningChain(w, r, metareasoningEngine)
+	}).Methods("POST")
+	r.HandleFunc("/reasoning/chain/{id}/status", func(w http.ResponseWriter, r *http.Request) {
+		handleChainStatus(w, r, metareasoningEngine)
+	}).Methods("GET")
+	r.HandleFunc("/reasoning/results", func(w http.ResponseWriter, r *http.Request) {
+		handleReasoningResults(w, r, db)
+	}).Methods("GET")
+	r.HandleFunc("/reasoning/results/{id}", func(w http.ResponseWriter, r *http.Request) {
+		handleReasoningResult(w, r, db)
+	}).Methods("GET")
 	
 	// Start server
 	log.Printf("Starting Metareasoning Coordinator API on port %s", port)
@@ -1045,9 +1137,259 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+// HTTP handlers for metareasoning endpoints
+
+// handleReasoningRequest handles generic reasoning requests
+func handleReasoningRequest(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	var req ReasoningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
 	}
-	return defaultValue
+
+	response, err := engine.ProcessReasoning(&req)
+	if err != nil {
+		HTTPError(w, "Reasoning processing failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
+
+// handleProsCons handles pros and cons analysis requests
+func handleProsCons(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	var req ReasoningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	req.Type = "pros_cons"
+	response, err := engine.ProcessReasoning(&req)
+	if err != nil {
+		HTTPError(w, "Pros/cons analysis failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleSWOT handles SWOT analysis requests
+func handleSWOT(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	var req ReasoningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	req.Type = "swot"
+	response, err := engine.ProcessReasoning(&req)
+	if err != nil {
+		HTTPError(w, "SWOT analysis failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleRiskAssessment handles risk assessment requests
+func handleRiskAssessment(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	var req ReasoningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	req.Type = "risk_assessment"
+	response, err := engine.ProcessReasoning(&req)
+	if err != nil {
+		HTTPError(w, "Risk assessment failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleSelfReview handles self-review analysis requests
+func handleSelfReview(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	var req ReasoningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	req.Type = "self_review"
+	response, err := engine.ProcessReasoning(&req)
+	if err != nil {
+		HTTPError(w, "Self-review analysis failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleReasoningChain handles reasoning chain orchestration requests
+func handleReasoningChain(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	var req ReasoningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
+		return
+	}
+
+	req.Type = "reasoning_chain"
+	response, err := engine.ProcessReasoning(&req)
+	if err != nil {
+		HTTPError(w, "Reasoning chain initialization failed", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleChainStatus handles reasoning chain status requests
+func handleChainStatus(w http.ResponseWriter, r *http.Request, engine *MetareasoningEngine) {
+	vars := mux.Vars(r)
+	chainID := vars["id"]
+
+	engine.chainsMutex.RLock()
+	chain, exists := engine.activeChains[chainID]
+	engine.chainsMutex.RUnlock()
+
+	if !exists {
+		HTTPError(w, "Chain not found", http.StatusNotFound, nil)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(chain)
+}
+
+// handleReasoningResults handles requests to list reasoning results
+func handleReasoningResults(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	limit := 50
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if parsedLimit, err := json.Number(limitStr).Int64(); err == nil && parsedLimit > 0 {
+			limit = int(parsedLimit)
+		}
+	}
+
+	query := `
+		SELECT id, type, confidence, model, execution_time_ms, 
+		       success, error_message, created_at
+		FROM reasoning_results
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
+
+	rows, err := db.Query(query, limit)
+	if err != nil {
+		HTTPError(w, "Failed to query results", http.StatusInternalServerError, err)
+		return
+	}
+	defer rows.Close()
+
+	var results []map[string]interface{}
+	for rows.Next() {
+		var id, resultType, model, errorMessage string
+		var confidence float64
+		var executionTime int64
+		var success bool
+		var createdAt time.Time
+
+		err := rows.Scan(&id, &resultType, &confidence, &model, &executionTime, 
+						&success, &errorMessage, &createdAt)
+		if err != nil {
+			continue
+		}
+
+		result := map[string]interface{}{
+			"id":               id,
+			"type":             resultType,
+			"confidence":       confidence,
+			"model":            model,
+			"execution_time_ms": executionTime,
+			"success":          success,
+			"created_at":       createdAt,
+		}
+
+		if errorMessage != "" {
+			result["error"] = errorMessage
+		}
+
+		results = append(results, result)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"results": results,
+		"count":   len(results),
+	})
+}
+
+// handleReasoningResult handles requests for specific reasoning results
+func handleReasoningResult(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	vars := mux.Vars(r)
+	resultID := vars["id"]
+
+	query := `
+		SELECT id, type, analysis, scores, confidence, model, 
+		       execution_time_ms, success, error_message, created_at
+		FROM reasoning_results
+		WHERE id = $1
+	`
+
+	var id, resultType, model, errorMessage string
+	var analysisJSON, scoresJSON []byte
+	var confidence float64
+	var executionTime int64
+	var success bool
+	var createdAt time.Time
+
+	err := db.QueryRow(query, resultID).Scan(
+		&id, &resultType, &analysisJSON, &scoresJSON, &confidence,
+		&model, &executionTime, &success, &errorMessage, &createdAt,
+	)
+
+	if err == sql.ErrNoRows {
+		HTTPError(w, "Result not found", http.StatusNotFound, nil)
+		return
+	}
+
+	if err != nil {
+		HTTPError(w, "Failed to query result", http.StatusInternalServerError, err)
+		return
+	}
+
+	var analysis interface{}
+	var scores map[string]float64
+
+	json.Unmarshal(analysisJSON, &analysis)
+	json.Unmarshal(scoresJSON, &scores)
+
+	result := map[string]interface{}{
+		"id":               id,
+		"type":             resultType,
+		"analysis":         analysis,
+		"scores":           scores,
+		"confidence":       confidence,
+		"model":            model,
+		"execution_time_ms": executionTime,
+		"success":          success,
+		"created_at":       createdAt,
+	}
+
+	if errorMessage != "" {
+		result["error"] = errorMessage
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// Removed getEnv function - no defaults allowed

@@ -245,13 +245,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f chart-generator.start-api 2>/dev/null || true",
-          "description": "Stop chart generation API server"
+          "run": "pkill -f \"chart-generator-api\" || true; sleep 1; pkill -9 -f \"chart-generator-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f chart-generator.start-ui 2>/dev/null || true",
-          "description": "Stop style management UI server"
+          "run": "true",
+          "description": "Stop UI process"
         }
       ]
     }

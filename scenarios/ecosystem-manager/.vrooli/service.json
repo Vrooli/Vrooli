@@ -187,13 +187,13 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"ecosystem-manager-api\" 2>/dev/null || true; sleep 1; if pgrep -f \"ecosystem-manager-api\" >/dev/null 2>&1; then echo \"⚠️ API processes still running, force killing...\"; pkill -9 -f \"ecosystem-manager-api\" 2>/dev/null || true; sleep 1; fi; if pgrep -f \"ecosystem-manager-api\" >/dev/null 2>&1; then echo \"❌ FAILED to kill API processes\"; false; else echo \"✅ API processes stopped\"; fi",
-          "description": "Stop API process with verification and force kill if needed"
+          "run": "pkill -f \"ecosystem-manager-api\" || true; sleep 1; pkill -9 -f \"ecosystem-manager-api\" 2>/dev/null || true",
+          "description": "Stop API process"
         },
         {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true; sleep 1; if pgrep -f \"scenarios/ecosystem-manager.*vite\" >/dev/null 2>&1; then echo \"⚠️ UI processes still running, force killing...\"; pkill -9 -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true; sleep 1; fi; if pgrep -f \"scenarios/ecosystem-manager.*vite\" >/dev/null 2>&1; then echo \"❌ FAILED to kill UI processes\"; false; else echo \"✅ UI processes stopped\"; fi",
-          "description": "Stop UI vite process with verification and force kill if needed"
+          "name": "stop-ui", 
+          "run": "pkill -f \"scenarios/ecosystem-manager.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/ecosystem-manager.*vite\" 2>/dev/null || true",
+          "description": "Stop UI process"
         },
         {
           "name": "cleanup-stale-tasks",

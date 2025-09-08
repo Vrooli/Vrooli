@@ -203,12 +203,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f core-debugger.start-api 2>/dev/null || true",
+          "run": "pkill -f \"core-debugger-api\" || true; sleep 1; pkill -9 -f \"core-debugger-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f core-debugger.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/core-debugger.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/core-debugger.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

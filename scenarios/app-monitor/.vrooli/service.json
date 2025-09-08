@@ -283,12 +283,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f app-monitor.start-api 2>/dev/null || true",
+          "run": "pkill -f \"app-monitor-api\" || true; sleep 1; pkill -9 -f \"app-monitor-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f app-monitor.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/app-monitor.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/app-monitor.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

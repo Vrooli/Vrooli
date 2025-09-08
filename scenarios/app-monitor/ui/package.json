@@ -4,15 +4,15 @@
   "version": "1.0.0",
   "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
   "scripts": {
-    "dev": "concurrently \"VITE_PORT=${VITE_PORT:-5173} vite\" \"node server.js\"",
-    "dev:vite": "VITE_PORT=${VITE_PORT:-5173} vite",
+    "dev": "concurrently \"VITE_PORT=${VITE_PORT} vite\" \"node server.js\"",
+    "dev:vite": "VITE_PORT=${VITE_PORT} vite",
     "dev:server": "nodemon server.js",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "node server.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit",
-    "debug": "VITE_PORT=${VITE_PORT:-5173} vite --debug --force",
+    "debug": "VITE_PORT=${VITE_PORT} vite --debug --force",
     "clean": "rm -rf dist node_modules .vite"
   },
   "dependencies": {

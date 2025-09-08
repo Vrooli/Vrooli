@@ -2,14 +2,18 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,6 +43,52 @@ type HTTPBodyLeakVulnerability struct {
 	HTTPMethod   string // Get, Post, etc.
 	HasDefer     bool
 	Severity     string
+}
+
+// SecurityAuditResult represents the result of a security audit
+type SecurityAuditResult struct {
+	ScenarioName string          `json:"scenario_name"`
+	ScenarioPath string          `json:"scenario_path"`
+	AuditTime    time.Time       `json:"audit_time"`
+	Issues       []SecurityIssue `json:"issues"`
+}
+
+// SecurityIssue represents a security issue found during audit
+type SecurityIssue struct {
+	ID             uuid.UUID `json:"id"`
+	Severity       string    `json:"severity"` // CRITICAL, HIGH, MEDIUM, LOW
+	Category       string    `json:"category"`
+	Description    string    `json:"description"`
+	FilePath       string    `json:"file_path,omitempty"`
+	LineNumber     int       `json:"line_number,omitempty"`
+	CodeSnippet    string    `json:"code_snippet,omitempty"`
+	Recommendation string    `json:"recommendation,omitempty"`
+	Status         string    `json:"status"` // open, fixed, ignored
+	Source         string    `json:"source,omitempty"` // Pattern Scan, AI Analysis
+}
+
+// ScanResult represents the result of a vulnerability scan
+type ScanResult struct {
+	ScenarioName    string          `json:"scenario_name"`
+	ScenarioPath    string          `json:"scenario_path"`
+	ScanTime        time.Time       `json:"scan_time"`
+	Vulnerabilities []Vulnerability `json:"vulnerabilities"`
+}
+
+// Vulnerability represents a vulnerability found during scanning
+type Vulnerability struct {
+	ID             uuid.UUID  `json:"id"`
+	Type           string     `json:"type"`
+	Severity       string     `json:"severity"`
+	Title          string     `json:"title"`
+	Description    string     `json:"description"`
+	FilePath       string     `json:"file_path,omitempty"`
+	LineNumber     int        `json:"line_number,omitempty"`
+	CodeSnippet    string     `json:"code_snippet,omitempty"`
+	Impact         string     `json:"impact,omitempty"`
+	Recommendation string     `json:"recommendation,omitempty"`
+	Status         string     `json:"status"`
+	Category       string     `json:"category"`
 }
 
 // ScanScenario performs comprehensive vulnerability scanning on a scenario
@@ -98,6 +148,284 @@ func (vs *VulnerabilityScanner) ScanScenario(scenarioPath, scenarioName string) 
 	
 	vs.logger.Info(fmt.Sprintf("Scan completed. Found %d vulnerabilities", len(result.Vulnerabilities)))
 	return result, nil
+}
+
+// SecurityAudit performs a comprehensive security audit using pattern matching and AI analysis
+func (vs *VulnerabilityScanner) SecurityAudit(scenarioPath, scenarioName string) (*SecurityAuditResult, error) {
+	vs.logger.Info(fmt.Sprintf("Starting security audit for scenario: %s", scenarioName))
+	
+	result := &SecurityAuditResult{
+		ScenarioName: scenarioName,
+		ScenarioPath: scenarioPath,
+		AuditTime:    time.Now(),
+		Issues:       []SecurityIssue{},
+	}
+
+	// Find all Go files in the scenario
+	goFiles, err := vs.findGoFiles(scenarioPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find Go files: %w", err)
+	}
+
+	for _, file := range goFiles {
+		vs.logger.Info(fmt.Sprintf("Auditing file: %s", file))
+		
+		// Read file content
+		content, err := ioutil.ReadFile(file)
+		if err != nil {
+			vs.logger.Error(fmt.Sprintf("Failed to read %s", file), err)
+			continue
+		}
+		
+		// Basic security pattern scan
+		issues := vs.basicSecurityScan(string(content), file)
+		result.Issues = append(result.Issues, issues...)
+		
+		// AI-powered security analysis if Ollama is available
+		if ollamaURL := os.Getenv("OLLAMA_URL"); ollamaURL != "" {
+			aiIssues := vs.aiSecurityAnalysis(string(content), file, ollamaURL)
+			result.Issues = append(result.Issues, aiIssues...)
+		}
+	}
+	
+	// Store audit results
+	if err := vs.storeAuditResults(result); err != nil {
+		vs.logger.Error("Failed to store audit results", err)
+	}
+	
+	vs.logger.Info(fmt.Sprintf("Security audit completed. Found %d issues", len(result.Issues)))
+	return result, nil
+}
+
+// basicSecurityScan performs pattern-based security scanning
+func (vs *VulnerabilityScanner) basicSecurityScan(content, filePath string) []SecurityIssue {
+	var issues []SecurityIssue
+	lines := strings.Split(content, "\n")
+	
+	// Security patterns to check
+	patterns := []struct {
+		pattern     string
+		severity    string
+		category    string
+		description string
+	}{
+		{`sql\.Query.*fmt\.Sprintf`, "HIGH", "SQL Injection", "Potential SQL injection via string formatting"},
+		{`fmt\.Sprintf.*%s.*sql\.`, "HIGH", "SQL Injection", "SQL query built with string interpolation"},
+		{`os\.Getenv.*password`, "MEDIUM", "Credential Exposure", "Password from environment variable without encryption"},
+		{`\*\*\*`, "LOW", "Debug Code", "Debug markers found in production code"},
+		{`TODO.*security`, "MEDIUM", "Incomplete Security", "Security-related TODO found"},
+		{`FIXME.*auth`, "MEDIUM", "Authentication Issue", "Authentication issue marked for fixing"},
+		{`exec\.Command`, "HIGH", "Command Injection", "Direct command execution detected"},
+		{`ioutil\.ReadAll.*http\.`, "MEDIUM", "Memory Issue", "Unbounded memory allocation from HTTP response"},
+		{`rand\.\w+\(\)`, "MEDIUM", "Weak Randomness", "Weak random number generation"},
+		{`md5\.`, "HIGH", "Weak Cryptography", "MD5 hash usage detected"},
+		{`sha1\.`, "MEDIUM", "Weak Cryptography", "SHA1 hash usage detected"},
+	}
+	
+	for _, p := range patterns {
+		re := regexp.MustCompile(p.pattern)
+		for lineNum, line := range lines {
+			if re.MatchString(line) {
+				issues = append(issues, SecurityIssue{
+					ID:          uuid.New(),
+					Severity:    p.severity,
+					Category:    p.category,
+					Description: p.description,
+					FilePath:    filePath,
+					LineNumber:  lineNum + 1,
+					CodeSnippet: strings.TrimSpace(line),
+					Status:      "open",
+				})
+			}
+		}
+	}
+	
+	return issues
+}
+
+// aiSecurityAnalysis uses Ollama to perform AI-powered security analysis
+func (vs *VulnerabilityScanner) aiSecurityAnalysis(content, filePath, ollamaURL string) []SecurityIssue {
+	var issues []SecurityIssue
+	
+	prompt := fmt.Sprintf(`Analyze this Go API code for security vulnerabilities. Look for:
+1. SQL injection risks
+2. Missing input validation
+3. Weak authentication/authorization
+4. CORS misconfigurations
+5. Information disclosure
+6. Missing rate limiting
+7. Insecure data storage
+8. Cryptographic weaknesses
+
+Code:
+%s
+
+Provide specific vulnerabilities found with line numbers if possible. Format as JSON array with fields: severity, category, description, line_number, recommendation.`, content)
+	
+	payload := map[string]interface{}{
+		"model":       "llama3.2",
+		"prompt":      prompt,
+		"temperature": 0.1,
+		"format":      "json",
+	}
+	
+	jsonData, _ := json.Marshal(payload)
+	resp, err := http.Post(ollamaURL+"/api/generate", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		vs.logger.Error("Failed to call Ollama for security analysis", err)
+		return issues
+	}
+	defer resp.Body.Close()
+	
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		vs.logger.Error("Failed to decode Ollama response", err)
+		return issues
+	}
+	
+	if response, ok := result["response"].(string); ok {
+		var aiFindings []map[string]interface{}
+		if err := json.Unmarshal([]byte(response), &aiFindings); err == nil {
+			for _, finding := range aiFindings {
+				issue := SecurityIssue{
+					ID:       uuid.New(),
+					FilePath: filePath,
+					Status:   "open",
+					Source:   "AI Analysis",
+				}
+				
+				if s, ok := finding["severity"].(string); ok {
+					issue.Severity = s
+				}
+				if c, ok := finding["category"].(string); ok {
+					issue.Category = c
+				}
+				if d, ok := finding["description"].(string); ok {
+					issue.Description = d
+				}
+				if r, ok := finding["recommendation"].(string); ok {
+					issue.Recommendation = r
+				}
+				if ln, ok := finding["line_number"].(float64); ok {
+					issue.LineNumber = int(ln)
+				}
+				
+				issues = append(issues, issue)
+			}
+		}
+	}
+	
+	return issues
+}
+
+// storeAuditResults stores security audit results in the database
+func (vs *VulnerabilityScanner) storeAuditResults(result *SecurityAuditResult) error {
+	// First, get or create scenario ID
+	var scenarioID uuid.UUID
+	err := vs.db.QueryRow(`
+		INSERT INTO scenarios (id, name, path, status, created_at, updated_at)
+		VALUES ($1, $2, $3, 'active', NOW(), NOW())
+		ON CONFLICT (name) DO UPDATE SET 
+			last_scanned = NOW(),
+			updated_at = NOW()
+		RETURNING id
+	`, uuid.New(), result.ScenarioName, result.ScenarioPath).Scan(&scenarioID)
+	
+	if err != nil {
+		return fmt.Errorf("failed to upsert scenario: %w", err)
+	}
+	
+	// Store each security issue
+	for _, issue := range result.Issues {
+		_, err := vs.db.Exec(`
+			INSERT INTO vulnerability_scans 
+			(id, scenario_id, scan_type, severity, category, title, description, 
+			 file_path, line_number, code_snippet, recommendation, status, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+		`, issue.ID, scenarioID, "security_audit", issue.Severity, issue.Category,
+			issue.Category+" Issue", issue.Description, issue.FilePath, 
+			issue.LineNumber, issue.CodeSnippet, issue.Recommendation, issue.Status)
+		
+		if err != nil {
+			vs.logger.Error("Failed to store security issue", err)
+		}
+	}
+	
+	return nil
+}
+
+// Helper functions for scanning
+func (vs *VulnerabilityScanner) findGoFiles(dirPath string) ([]string, error) {
+	var goFiles []string
+	err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if strings.HasSuffix(path, ".go") && !strings.Contains(path, "vendor/") {
+			goFiles = append(goFiles, path)
+		}
+		return nil
+	})
+	return goFiles, err
+}
+
+func (vs *VulnerabilityScanner) scanForCommonIssues(filePath string) []Vulnerability {
+	var vulns []Vulnerability
+	// Placeholder for common issue scanning
+	// This would include checks for:
+	// - Hardcoded credentials
+	// - Insecure random number generation
+	// - Path traversal vulnerabilities
+	// - etc.
+	return vulns
+}
+
+func (vs *VulnerabilityScanner) storeResults(result *ScanResult) error {
+	// Store scan results in database
+	// Implementation would store each vulnerability found
+	return nil
+}
+
+func (vs *VulnerabilityScanner) generateHTTPLeakDescription(vuln HTTPBodyLeakVulnerability) string {
+	return fmt.Sprintf("HTTP response body not closed in function '%s'. This leaks TCP connections and causes resource exhaustion. %s request at line %d lacks proper defer resp.Body.Close()",
+		vuln.FunctionName, vuln.HTTPMethod, vuln.LineNumber)
+}
+
+func (vs *VulnerabilityScanner) generateHTTPLeakFix(vuln HTTPBodyLeakVulnerability) string {
+	return fmt.Sprintf("Add 'defer resp.Body.Close()' immediately after checking the error from the %s call at line %d in function '%s'",
+		vuln.HTTPMethod, vuln.LineNumber, vuln.FunctionName)
+}
+
+func (vs *VulnerabilityScanner) isHTTPCall(call *ast.CallExpr) bool {
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		if ident, ok := sel.X.(*ast.Ident); ok {
+			if ident.Name == "http" && (sel.Sel.Name == "Get" || sel.Sel.Name == "Post" || 
+				sel.Sel.Name == "Put" || sel.Sel.Name == "Delete" || sel.Sel.Name == "Head") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (vs *VulnerabilityScanner) extractHTTPMethod(call *ast.CallExpr) string {
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		return sel.Sel.Name
+	}
+	return "Unknown"
+}
+
+func (vs *VulnerabilityScanner) isDeferBodyClose(call *ast.CallExpr) bool {
+	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+		if sel.Sel.Name == "Close" {
+			if subSel, ok := sel.X.(*ast.SelectorExpr); ok {
+				if subSel.Sel.Name == "Body" {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // scanForHTTPBodyLeaks uses AST parsing to find unclosed HTTP response bodies

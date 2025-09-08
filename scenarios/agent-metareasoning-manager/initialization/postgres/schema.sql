@@ -91,6 +91,29 @@ CREATE INDEX idx_agent_preferences_task ON agent_preferences(task_type);
 CREATE INDEX idx_search_patterns_embedding ON search_patterns(embedding_id);
 CREATE INDEX idx_search_patterns_count ON search_patterns(search_count DESC);
 
+-- Reasoning results: Store outputs from metareasoning engine (replacing n8n workflows)
+CREATE TABLE IF NOT EXISTS reasoning_results (
+    id TEXT PRIMARY KEY,  -- UUID from the reasoning engine
+    type VARCHAR(50) NOT NULL CHECK (type IN ('pros_cons', 'swot', 'risk_assessment', 'self_review', 'reasoning_chain', 'reasoning_chain_result')),
+    analysis JSONB NOT NULL,  -- The actual analysis output
+    scores JSONB,  -- Calculated scores (e.g. pros_total, cons_total, net_score)
+    confidence DECIMAL(3,2),  -- Confidence level 0.0-1.0
+    recommendation_strength DECIMAL(3,2),  -- How strong the recommendation is
+    model VARCHAR(100) NOT NULL,  -- AI model used (e.g. llama3.2)
+    execution_time_ms INTEGER NOT NULL,
+    success BOOLEAN NOT NULL DEFAULT true,
+    error_message TEXT,
+    vector_id TEXT,  -- Reference to vector embedding if created
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for reasoning results
+CREATE INDEX idx_reasoning_results_type ON reasoning_results(type);
+CREATE INDEX idx_reasoning_results_created ON reasoning_results(created_at DESC);
+CREATE INDEX idx_reasoning_results_success ON reasoning_results(success);
+CREATE INDEX idx_reasoning_results_confidence ON reasoning_results(confidence DESC);
+CREATE INDEX idx_reasoning_results_model ON reasoning_results(model);
+
 -- Update triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

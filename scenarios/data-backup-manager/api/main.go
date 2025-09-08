@@ -328,9 +328,10 @@ func handleMaintenanceAgentToggle(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "20010"
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
 	r := mux.NewRouter()

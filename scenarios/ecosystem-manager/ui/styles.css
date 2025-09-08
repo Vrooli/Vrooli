@@ -9,12 +9,25 @@
     --error-color: #dc3545;
     --info-color: #17a2b8;
     
-    /* Neutrals */
+    /* Light theme neutrals */
     --white: #ffffff;
     --light-gray: #f8f9fa;
     --medium-gray: #6c757d;
     --dark-gray: #343a40;
     --border-gray: #dee2e6;
+    --text-color: #343a40;
+    --bg-color: #f8f9fa;
+    --card-bg: #ffffff;
+    --header-bg: linear-gradient(135deg, #4a90e2, #7b68ee);
+    
+    /* Dark theme colors */
+    --dark-bg: #1a1a1a;
+    --dark-card-bg: #2d2d2d;
+    --dark-light-gray: #3a3a3a;
+    --dark-medium-gray: #9ca3af;
+    --dark-border-gray: #404040;
+    --dark-text-color: #f3f4f6;
+    --dark-header-bg: linear-gradient(135deg, #1e40af, #5b21b6);
     
     /* Status Colors */
     --pending-color: #ffc107;
@@ -52,22 +65,91 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: var(--light-gray);
-    color: var(--dark-gray);
+    background-color: var(--bg-color);
+    color: var(--text-color);
     line-height: 1.5;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Header */
-.header {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+/* Dark mode styles */
+body.dark-mode {
+    --bg-color: var(--dark-bg);
+    --card-bg: var(--dark-card-bg);
+    --light-gray: var(--dark-light-gray);
+    --medium-gray: var(--dark-medium-gray);
+    --border-gray: var(--dark-border-gray);
+    --text-color: var(--dark-text-color);
+    --header-bg: var(--dark-header-bg);
+    --white: #ffffff;
+}
+
+body.dark-mode .loading-overlay {
+    background: rgba(26, 26, 26, 0.9);
+}
+
+body.dark-mode .modal {
+    background: rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode .task-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 8px 25px rgba(74, 144, 226, 0.2);
+}
+
+body.dark-mode .column-header {
+    background: var(--dark-light-gray);
+    border-bottom-color: var(--dark-border-gray);
+}
+
+body.dark-mode .filters {
+    background: var(--dark-card-bg);
+    border-bottom-color: var(--dark-border-gray);
+}
+
+body.dark-mode .fixed-top-container {
+    background: var(--dark-bg);
+}
+
+/* Dark mode toggle */
+.dark-mode-toggle {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     color: var(--white);
-    height: var(--header-height);
-    box-shadow: var(--shadow);
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.dark-mode-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+/* Fixed Top Container */
+.fixed-top-container {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
-    z-index: 1000;
+    z-index: 10000;
+    background: var(--bg-color);
+}
+
+/* Header */
+.header {
+    background: var(--header-bg);
+    color: var(--white);
+    min-height: var(--header-height);
+    box-shadow: var(--shadow);
+    position: relative;
+    transition: background 0.3s ease;
 }
 
 .header-content {
@@ -103,46 +185,22 @@ body {
 .header-right {
     display: flex;
     align-items: center;
-    gap: 2rem;
-}
-
-.header-stats {
-    display: flex;
     gap: 1.5rem;
-}
-
-.stat-item {
-    text-align: center;
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.8rem;
-    opacity: 0.8;
-    margin-bottom: 0.2rem;
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.4rem;
-    font-weight: 700;
 }
 
 /* Filters */
 .filters {
-    background: var(--white);
+    background: var(--card-bg);
     padding: 1rem 2rem;
     border-bottom: 1px solid var(--border-gray);
-    position: fixed;
-    top: var(--header-height);
-    left: 0;
-    right: 0;
-    z-index: 999;
+    position: relative;
     display: flex;
     align-items: center;
     gap: 1.5rem;
     overflow-x: auto;
     min-height: var(--filters-height);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .filter-group {
@@ -163,10 +221,10 @@ body {
     border: 1px solid var(--border-gray);
     border-radius: var(--border-radius);
     font-size: 0.9rem;
-    background: var(--white);
-    color: var(--dark-gray);
+    background: var(--card-bg);
+    color: var(--text-color);
     cursor: pointer;
-    transition: border-color 0.2s;
+    transition: all 0.2s ease;
 }
 
 .filter-select:focus {
@@ -186,7 +244,9 @@ body {
     border-radius: var(--border-radius);
     font-size: 0.9rem;
     width: 250px;
-    transition: border-color 0.2s, width 0.2s;
+    background: var(--card-bg);
+    color: var(--text-color);
+    transition: all 0.2s ease;
 }
 
 .search-input:focus {
@@ -232,14 +292,16 @@ body {
 }
 
 .btn-secondary {
-    background: var(--white);
-    color: var(--dark-gray);
+    background: var(--card-bg);
+    color: var(--text-color);
     border: 1px solid var(--border-gray);
+    transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
     background: var(--light-gray);
     border-color: var(--medium-gray);
+    transform: translateY(-1px);
 }
 
 .btn-icon {
@@ -263,9 +325,9 @@ body {
 
 /* Main Content */
 main {
-    margin-top: calc(var(--header-height) + var(--filters-height));
     padding: 2rem;
-    min-height: calc(100vh - var(--header-height) - var(--filters-height));
+    min-height: 100vh;
+    margin-top: 0;
 }
 
 /* Kanban Board */
@@ -275,15 +337,21 @@ main {
     gap: 1.5rem;
     max-width: 1400px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 .kanban-column {
-    background: var(--white);
+    background: var(--card-bg);
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     display: flex;
     flex-direction: column;
     min-height: 600px;
+    border: 1px solid var(--border-gray);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
 }
 
 .column-header {
@@ -305,7 +373,7 @@ main {
     align-items: center;
     gap: 0.5rem;
     font-weight: 600;
-    color: var(--dark-gray);
+    color: var(--text-color);
 }
 
 .task-count {
@@ -330,13 +398,13 @@ main {
 
 /* Task Cards */
 .task-card {
-    background: var(--white);
+    background: var(--card-bg);
     border: 1px solid var(--border-gray);
     border-radius: var(--border-radius);
     padding: 1rem;
     margin-bottom: 1rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     position: relative;
 }
 
@@ -411,7 +479,7 @@ main {
     font-size: 0.95rem;
     line-height: 1.3;
     margin-bottom: 0.5rem;
-    color: var(--dark-gray);
+    color: var(--text-color);
 }
 
 .task-meta {
@@ -432,11 +500,18 @@ main {
 
 .task-tag {
     background: var(--light-gray);
-    color: var(--dark-gray);
+    color: var(--text-color);
     padding: 0.2rem 0.6rem;
     border-radius: 1rem;
     font-size: 0.8rem;
     font-weight: 500;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.task-tag:hover {
+    transform: scale(1.05);
+    border-color: var(--border-gray);
 }
 
 .task-tag.priority-critical {
@@ -446,7 +521,7 @@ main {
 
 .task-tag.priority-high {
     background: var(--warning-color);
-    color: var(--dark-gray);
+    color: var(--white);
 }
 
 .task-tag.priority-medium {
@@ -477,17 +552,59 @@ main {
 
 .progress-bar {
     background: var(--border-gray);
-    height: 6px;
-    border-radius: 3px;
+    height: 8px;
+    border-radius: 4px;
     overflow: hidden;
     margin-bottom: 0.4rem;
+    position: relative;
 }
 
 .progress-fill {
     height: 100%;
-    background: var(--success-color);
-    transition: width 0.3s;
-    border-radius: 3px;
+    background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+    transition: width 0.5s ease-in-out;
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.progress-animating {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+    }
 }
 
 .progress-text {
@@ -496,6 +613,29 @@ main {
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+/* Task phase indicator */
+.task-phase {
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    margin-top: 0.5rem;
+    padding: 3px 8px;
+    background: rgba(74, 144, 226, 0.1);
+    border-radius: 4px;
+    display: inline-block;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+/* Priority badge animations */
+.priority-badge {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.priority-badge:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .task-footer {
@@ -525,7 +665,7 @@ main {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 2000;
+    z-index: 15000;
     justify-content: center;
     align-items: center;
 }
@@ -535,13 +675,14 @@ main {
 }
 
 .modal-content {
-    background: var(--white);
+    background: var(--card-bg);
     border-radius: var(--border-radius);
     max-width: 600px;
     width: 90%;
     max-height: 90%;
     overflow-y: auto;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-gray);
 }
 
 .modal-content.modal-large {
@@ -558,7 +699,7 @@ main {
 
 .modal-header h3 {
     margin: 0;
-    color: var(--dark-gray);
+    color: var(--text-color);
 }
 
 .modal-close {
@@ -601,7 +742,7 @@ form {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 500;
-    color: var(--dark-gray);
+    color: var(--text-color);
 }
 
 .form-group input,
@@ -612,7 +753,9 @@ form {
     border: 1px solid var(--border-gray);
     border-radius: var(--border-radius);
     font-size: 0.9rem;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    background: var(--card-bg);
+    color: var(--text-color);
+    transition: all 0.2s ease;
 }
 
 .form-group input:focus,
@@ -650,7 +793,7 @@ form {
     display: none;
     justify-content: center;
     align-items: center;
-    z-index: 3000;
+    z-index: 20000;
 }
 
 .loading-overlay.show {
@@ -681,7 +824,7 @@ form {
 }
 
 .toast {
-    background: var(--white);
+    background: var(--card-bg);
     border-radius: var(--border-radius);
     padding: 1rem 1.5rem;
     margin-bottom: 1rem;
@@ -692,6 +835,8 @@ form {
     min-width: 300px;
     border-left: 4px solid var(--info-color);
     animation: slideIn 0.3s ease-out;
+    border: 1px solid var(--border-gray);
+    color: var(--text-color);
 }
 
 .toast.success {
@@ -744,24 +889,20 @@ form {
     }
     
     .header {
-        height: auto;
-        position: relative;
-    }
-    
-    main {
-        margin-top: var(--filters-height);
-    }
-    
-    .filters {
-        top: 0;
-        flex-wrap: wrap;
-        height: auto;
         min-height: auto;
     }
     
-    .header-stats {
-        order: -1;
+    .filters {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: auto;
+        padding: 1rem;
     }
+    
+    .fixed-top-container {
+        position: relative;
+    }
+    
 }
 
 @media (max-width: 600px) {
@@ -805,3 +946,150 @@ form {
 .mb-1 { margin-bottom: 0.5rem; }
 .mb-2 { margin-bottom: 1rem; }
 .mb-3 { margin-bottom: 1.5rem; }
+
+/* Additional UI improvements */
+
+/* Better focus states */
+*:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+button:focus,
+.btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Improved column hover effects */
+.kanban-column:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Better task card animations */
+.task-card {
+    transform-origin: center;
+}
+
+.task-card:hover {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    transform: translateY(-3px);
+    border-color: var(--primary-color);
+}
+
+/* Loading animation improvements */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.task-card {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Improved scrollbars for dark mode */
+.column-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.column-content::-webkit-scrollbar-track {
+    background: var(--light-gray);
+    border-radius: 4px;
+}
+
+.column-content::-webkit-scrollbar-thumb {
+    background: var(--medium-gray);
+    border-radius: 4px;
+}
+
+.column-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-color);
+}
+
+/* Better modal animations */
+.modal.show .modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Enhanced button hover effects */
+.btn:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* Better spacing for mobile */
+@media (max-width: 600px) {
+    .header-content {
+        padding: 0.5rem;
+    }
+    
+}
+
+/* Improved kanban board spacing */
+.kanban-board {
+    padding: 0 1rem;
+}
+
+@media (max-width: 1200px) {
+    .kanban-board {
+        gap: 1rem;
+        padding: 0 0.5rem;
+    }
+}
+
+/* Enhanced progress bar */
+.progress-fill {
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--success-color) 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: progressShimmer 2s infinite;
+}
+
+@keyframes progressShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --border-gray: #999999;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

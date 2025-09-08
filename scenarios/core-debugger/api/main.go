@@ -415,8 +415,11 @@ func main() {
 	// Apply CORS
 	handler := corsMiddleware(router)
 
-	// Get port from environment
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	// Get port from environment - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 
 	log.Printf("Core Debugger API starting on port %s", port)
 	log.Printf("Data directory: %s", dataDir)
@@ -424,11 +427,4 @@ func main() {
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
 }

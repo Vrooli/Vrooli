@@ -263,12 +263,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f db-schema-explorer.start-api 2>/dev/null || true",
+          "run": "pkill -f \"db-schema-explorer-api\" || true; sleep 1; pkill -9 -f \"db-schema-explorer-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f db-schema-explorer.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/db-schema-explorer.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/db-schema-explorer.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

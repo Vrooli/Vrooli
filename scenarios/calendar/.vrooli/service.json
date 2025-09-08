@@ -3,13 +3,21 @@
     "name": "calendar",
     "description": "Universal scheduling intelligence system that enables time-aware workflows and cross-scenario temporal coordination",
     "category": "automation",
-    "keywords": ["scheduling", "calendar", "events", "time", "automation", "ai", "notifications"],
+    "keywords": [
+      "scheduling",
+      "calendar",
+      "events",
+      "time",
+      "automation",
+      "ai",
+      "notifications"
+    ],
     "version": "1.0.0",
     "author": "Vrooli AI",
     "created": "2024-01-04",
     "capabilities": [
       "event-scheduling",
-      "recurring-patterns", 
+      "recurring-patterns",
       "ai-search",
       "natural-language-scheduling",
       "event-automation",
@@ -18,7 +26,6 @@
     ],
     "value_proposition": "Transforms any scenario into time-aware, schedulable system with AI-powered temporal intelligence"
   },
-  
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -27,22 +34,20 @@
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "35000-39999", 
+      "range": "35000-39999",
       "description": "Professional calendar interface with week/month views"
     }
   },
-  
   "resources": {
     "required": {
       "postgres": {
         "instance_name": "calendar-system",
-        "database": "calendar_system", 
+        "database": "calendar_system",
         "purpose": "Event storage, user schedules, recurring patterns",
         "schema_file": "initialization/postgres/schema.sql",
         "estimated_size": "10GB for 100K events",
         "backup_frequency": "daily"
       },
-      
       "qdrant": {
         "collection": "calendar_events",
         "dimensions": 1536,
@@ -50,42 +55,47 @@
         "purpose": "AI-powered semantic event search and scheduling intelligence",
         "estimated_vectors": "1M events with embeddings"
       },
-      
       "scenario-authenticator": {
         "purpose": "Multi-user authentication and user context",
         "api_endpoint": "/api/v1/auth/validate",
         "required_version": "1.0.0"
       },
-      
       "notification-hub": {
         "purpose": "Event reminders and schedule change notifications",
-        "profile_id": "calendar-system-prod", 
+        "profile_id": "calendar-system-prod",
         "required_version": "1.0.0",
-        "templates": ["event-reminder", "schedule-change", "event-conflict"]
+        "templates": [
+          "event-reminder",
+          "schedule-change",
+          "event-conflict"
+        ]
       }
     },
-    
     "optional": {
       "ollama": {
         "purpose": "Natural language processing for chat interface",
         "model": "llama2:7b-chat",
         "fallback": "Basic command parsing without AI enhancement"
       },
-      
       "n8n": {
         "purpose": "Event-triggered workflow automation",
-        "workflows": ["calendar-reminder.json", "event-automation.json"],
+        "workflows": [
+          "calendar-reminder.json",
+          "event-automation.json"
+        ],
         "fallback": "Direct API calls without workflow orchestration"
       }
     }
   },
-  
   "initialization": {
     "postgres": {
-      "schema_files": ["initialization/postgres/schema.sql"],
-      "seed_files": ["initialization/postgres/seed.sql"]
+      "schema_files": [
+        "initialization/postgres/schema.sql"
+      ],
+      "seed_files": [
+        "initialization/postgres/seed.sql"
+      ]
     },
-    
     "n8n": {
       "workflows": [
         {
@@ -95,7 +105,6 @@
         }
       ]
     },
-    
     "qdrant": {
       "collections": [
         {
@@ -110,7 +119,6 @@
       ]
     }
   },
-  
   "cli": {
     "binary_name": "calendar",
     "install_script": "cli/install.sh",
@@ -122,27 +130,24 @@
       "remind": "Reminder management and testing"
     }
   },
-  
   "integration": {
     "provides": {
       "api": {
         "base_url": "http://localhost:3300/api/v1",
         "key_endpoints": [
           "POST /events - Create calendar events",
-          "GET /events - List and search events", 
+          "GET /events - List and search events",
           "POST /schedule/chat - Natural language scheduling",
           "POST /schedule/optimize - AI schedule optimization"
         ]
       },
-      
       "events": {
         "publishes": [
           "calendar.event.created",
-          "calendar.event.starting", 
+          "calendar.event.starting",
           "calendar.schedule.optimized"
         ]
       },
-      
       "capabilities": [
         "time-based-workflow-orchestration",
         "event-scheduling",
@@ -150,14 +155,20 @@
         "multi-user-calendar-management"
       ]
     },
-    
     "consumes": {
-      "scenario-authenticator": ["user-authentication", "jwt-validation"],
-      "notification-hub": ["multi-channel-notifications", "template-system"],
-      "ollama": ["natural-language-processing"]
+      "scenario-authenticator": [
+        "user-authentication",
+        "jwt-validation"
+      ],
+      "notification-hub": [
+        "multi-channel-notifications",
+        "template-system"
+      ],
+      "ollama": [
+        "natural-language-processing"
+      ]
     }
   },
-  
   "deployment": {
     "health_checks": [
       "api:http://localhost:3300/health",
@@ -165,21 +176,68 @@
       "postgres:resource-postgres status calendar-system",
       "qdrant:curl -f http://localhost:6333/collections/calendar_events"
     ],
-    
     "startup_timeout": 120,
     "shutdown_timeout": 30,
-    
     "monitoring": {
-      "metrics": ["api_response_time", "event_creation_rate", "search_accuracy"],
-      "alerts": ["high_api_latency", "notification_delivery_failure", "auth_service_down"]
+      "metrics": [
+        "api_response_time",
+        "event_creation_rate",
+        "search_accuracy"
+      ],
+      "alerts": [
+        "high_api_latency",
+        "notification_delivery_failure",
+        "auth_service_down"
+      ]
     }
   },
-  
   "security": {
     "authentication": "JWT tokens via scenario-authenticator",
     "authorization": "User-based event access control",
     "data_encryption": "Event data encrypted at rest",
     "audit_logging": "All calendar modifications logged",
-    "compliance": ["GDPR", "SOC2"]
+    "compliance": [
+      "GDPR",
+      "SOC2"
+    ]
+  },
+  "lifecycle": {
+    "stop": {
+      "description": "Stop calendar services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"calendar-api\" || true; sleep 1; pkill -9 -f \"calendar-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "true",
+          "description": "Stop UI process"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Development mode",
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o calendar-api .",
+          "description": "Build API server"
+        },
+        {
+          "name": "start-api",
+          "run": "cd api && ./calendar-api",
+          "description": "Start API server",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && python -m http.server 8080",
+          "description": "Start UI server",
+          "background": true
+        }
+      ]
+    }
   }
 }

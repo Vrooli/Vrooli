@@ -202,12 +202,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f app-personalizer.start-api 2>/dev/null || true",
+          "run": "pkill -f \"app-personalizer-api\" || true; sleep 1; pkill -9 -f \"app-personalizer-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f app-personalizer.start-ui 2>/dev/null || true",
+          "run": "true",
           "description": "Stop UI process"
         }
       ]

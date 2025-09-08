@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -431,8 +432,14 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
-	// Load configuration
-	port := getEnv("API_PORT", getEnv("PORT", ""))
+	logger := NewLogger()
+	
+	// Load configuration - REQUIRED environment variables, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		logger.Error("❌ API_PORT environment variable is required", nil)
+		os.Exit(1)
+	}
 	
 	// Use port registry for resource ports
 	n8nPort := getResourcePort("n8n")
@@ -441,36 +448,51 @@ func main() {
 	qdrantPort := getResourcePort("qdrant")
 	minioPort := getResourcePort("minio")
 	
+	// Optional service URLs (can be configured if needed)
 	n8nURL := os.Getenv("N8N_BASE_URL")
-	if n8nURL == "" {
+	if n8nURL == "" && n8nPort != "" {
 		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
 	
 	windmillURL := os.Getenv("WINDMILL_BASE_URL")
-	if windmillURL == "" {
+	if windmillURL == "" && windmillPort != "" {
 		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
 	}
 	
+	// Database configuration - support both POSTGRES_URL and individual components
 	postgresURL := os.Getenv("POSTGRES_URL")
 	if postgresURL == "" {
-		postgresURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/campaign_content_studio?sslmode=disable", postgresPort)
+		// Try to build from individual components
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			logger.Error("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB", nil)
+			os.Exit(1)
+		}
+		
+		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 	
+	// Optional service URLs
 	qdrantURL := os.Getenv("QDRANT_URL")
-	if qdrantURL == "" {
+	if qdrantURL == "" && qdrantPort != "" {
 		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 	
 	minioURL := os.Getenv("MINIO_URL")
-	if minioURL == "" {
+	if minioURL == "" && minioPort != "" {
 		minioURL = fmt.Sprintf("http://localhost:%s", minioPort)
 	}
 	
 	// Connect to database
 	db, err := sql.Open("postgres", postgresURL)
 	if err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to connect to database", err)
+		logger.Error("Failed to open database connection", err)
 		os.Exit(1)
 	}
 	defer db.Close()
@@ -480,14 +502,53 @@ func main() {
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
 	
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		logger := NewLogger()
-		logger.Error("Failed to ping database", err)
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	logger.Info("🔄 Attempting database connection with exponential backoff...")
+	logger.Info("📊 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt + 1))
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr))
+		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			logger.Info("📈 Retry progress:")
+			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt + 1, maxRetries))
+			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay))
+			logger.Info(fmt.Sprintf("   - Current delay: %v (with jitter: %v)", delay, jitter))
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
 		os.Exit(1)
 	}
 	
-	log.Println("Connected to database")
+	logger.Info("🎉 Database connection pool established successfully!")
 	
 	// Initialize campaign service
 	service := NewCampaignService(db, n8nURL, windmillURL, postgresURL, qdrantURL, minioURL)
@@ -520,9 +581,4 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// Removed getEnv function - no defaults allowed

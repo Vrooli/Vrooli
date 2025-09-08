@@ -254,12 +254,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f campaign-content-studio.start-api 2>/dev/null || true",
+          "run": "pkill -f \"campaign-content-studio-api\" || true; sleep 1; pkill -9 -f \"campaign-content-studio-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f campaign-content-studio.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/campaign-content-studio.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/campaign-content-studio.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]

@@ -212,12 +212,12 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f chore-tracking.start-api 2>/dev/null || true",
+          "run": "pkill -f \"chore-tracking-api\" || true; sleep 1; pkill -9 -f \"chore-tracking-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f chore-tracking.start-ui 2>/dev/null || true",
+          "run": "pkill -f \"scenarios/chore-tracking.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/chore-tracking.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]
