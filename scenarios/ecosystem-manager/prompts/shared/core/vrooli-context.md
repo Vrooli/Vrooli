@@ -16,7 +16,6 @@ Vrooli is a **self-improving AI platform** that orchestrates local resources to 
 Resources are the fundamental services that provide capabilities:
 - **AI/ML**: claude-code, ollama, comfyui, whisper
 - **Storage**: postgres, redis, minio, qdrant, questdb
-- **Automation**: n8n, node-red, huginn, windmill
 - **Development**: judge0, browserless, vault
 - **Monitoring**: Various monitoring and security tools
 

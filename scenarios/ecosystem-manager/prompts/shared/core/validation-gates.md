@@ -18,7 +18,7 @@ curl -sf http://localhost:${PORT}/health  # Must respond 200
 ```bash
 # Test each declared resource connection
 # Test API compatibility (no breaking changes)
-# Test shared workflows still load
+# Test shared APIs still respond
 # For UI scenarios: Take and READ screenshots to verify visual integration
 ```
 **FAIL = STOP**: Broken integrations break ecosystem

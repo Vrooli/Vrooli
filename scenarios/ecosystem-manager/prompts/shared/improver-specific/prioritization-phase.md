@@ -119,7 +119,7 @@ Score these normally:
 ```markdown
 P1 requirements are important:
 - Significantly improve user experience
-- Enable important workflows
+- Enable important integrations
 - Improve system reliability
 
 Prioritize P1s that:
@@ -149,7 +149,7 @@ Prioritize improvements that benefit multiple scenarios:
 ```markdown
 ## Cross-Scenario Value
 High Priority:
-- Shared workflow improvements
+- Shared API improvements
 - Common resource enhancements
 - Reusable component creation
 - Pattern standardization
