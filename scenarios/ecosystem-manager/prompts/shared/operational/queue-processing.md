@@ -1,7 +1,7 @@
 # Queue Processing
 
 ## Purpose
-Queue processing ensures organized, collision-free work distribution across multiple agents. The queue system provides visibility, prevents duplicate work, and enables manual intervention.
+The queue system provides organized work distribution and prevents duplicate work. Understanding the queue structure and task schema helps agents work effectively within the system.
 
 ## Queue System Architecture
 
@@ -91,86 +91,14 @@ result:
   follow_up_items: null
 ```
 
-## Queue Selection Process
+## Task Processing
 
-### Selection Algorithm
-```python
-def select_queue_item():
-    # 1. Check cooldowns
-    available_items = filter_cooldown_expired(pending_items)
-    
-    # 2. Calculate priority scores
-    for item in available_items:
-        item.score = calculate_priority_score(item)
-    
-    # 3. Sort by score
-    sorted_items = sort_by_score_desc(available_items)
-    
-    # 4. Check dependencies
-    for item in sorted_items:
-        if dependencies_met(item):
-            return item
-    
-    return None  # No suitable items
+### When Tasks Fail
+1. **First failure**: Move back to pending with error note
+2. **Second failure**: Break into smaller tasks
+3. **Third failure**: Mark as blocked, needs human help
 
-def calculate_priority_score(item):
-    # Weighted scoring
-    impact_weight = 0.4
-    urgency_weight = 0.3
-    success_weight = 0.2
-    cost_weight = 0.1
-    
-    # Normalize urgency to number
-    urgency_score = {
-        'critical': 10,
-        'high': 7,
-        'medium': 5,
-        'low': 3
-    }[item.urgency]
-    
-    # Inverse cost (lower cost = higher score)
-    cost_score = {
-        'minimal': 10,
-        'moderate': 5,
-        'heavy': 2
-    }[item.resource_cost]
-    
-    score = (
-        item.impact * impact_weight +
-        urgency_score * urgency_weight +
-        item.success_prob * 10 * success_weight +
-        cost_score * cost_weight
-    )
-    
-    # Boost for critical priority
-    if item.priority == 'critical':
-        score *= 1.5
-        
-    return score
-```
-
-## Simple Queue Operations
-
-### Adding Tasks
-```bash
-# Use the CLI (recommended)
-ecosystem-manager add resource matrix-synapse --category communication
-ecosystem-manager add scenario chat-bot --category ai-tools
-
-# Or manually copy template
-cp queue/templates/resource-generation.yaml queue/pending/100-matrix.yaml
-# Edit file with your requirements
-```
-
-### Processing Tasks  
-```bash
-# Let the system handle it automatically, or manually:
-ecosystem-manager select-task          # Gets next priority task
-ecosystem-manager status <task-id>     # Check progress
-ecosystem-manager complete <task-id>   # Mark as done
-```
-
-### Queue Status
+### Queue Status Check
 ```bash
 # Simple status check
 ecosystem-manager queue                # Show current status
@@ -186,19 +114,6 @@ find queue/completed -name "*.yaml" -mtime +7 -delete
 # Move stale in-progress tasks back to pending (daily)
 find queue/in-progress -name "*.yaml" -mtime +1 -exec mv {} queue/pending/ \;
 ```
-
-## Queue Rules
-
-### Priority Levels (Simple)
-- **Critical**: System broken, security issue
-- **High**: P0 requirements, major functionality missing
-- **Medium**: P1 requirements, improvements
-- **Low**: P2 requirements, nice-to-haves
-
-### When Tasks Fail
-1. **First failure**: Move back to pending with error note
-2. **Second failure**: Break into smaller tasks
-3. **Third failure**: Mark as blocked, needs human help
 
 ## Key Queue Principles
 

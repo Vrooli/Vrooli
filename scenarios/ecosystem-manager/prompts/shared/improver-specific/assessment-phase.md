@@ -14,7 +14,7 @@
 ```bash
 # Test what PRD claims works
 vrooli [resource/scenario] [name] develop  # Start it
-curl localhost:$PORT/health                # Health check
+{{STANDARD_HEALTH_CHECK}}                  # Health check
 ./test.sh                                  # Run tests
 
 # For EACH ✅ in PRD.md:

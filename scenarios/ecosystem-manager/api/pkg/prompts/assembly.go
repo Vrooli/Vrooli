@@ -122,6 +122,9 @@ func (a *Assembler) GeneratePromptSections(task tasks.TaskItem) ([]string, error
 		len(allSections), 
 		len(a.PromptsConfig.BaseSections) + len(operationConfig.AdditionalSections))
 	
+	// Log the actual sections being used for debugging
+	log.Printf("Sections for task %s: %v", task.ID, allSections)
+	
 	return allSections, nil
 }
 
@@ -253,6 +256,12 @@ func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 
 // AssemblePromptForTask generates a complete prompt for a specific task
 func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
+	// Reload config to pick up changes (hot-reload capability)
+	configFile := filepath.Join(a.PromptsDir, "sections.yaml")
+	if err := a.loadConfig(configFile); err != nil {
+		log.Printf("Warning: Failed to reload config, using cached version: %v", err)
+	}
+	
 	sections, err := a.GeneratePromptSections(task)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate sections: %v", err)

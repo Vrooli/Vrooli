@@ -61,7 +61,7 @@ vrooli resource {{RESOURCE_NAME}} logs      # View recent logs
 ## Validation Tests
 ```bash
 # Test these work before marking P0 complete:
-curl localhost:{{PORT}}/health              # Returns 200 OK
+{{STANDARD_HEALTH_CHECK}}                   # Returns 200 OK
 vrooli resource {{RESOURCE_NAME}} status    # Shows running
 vrooli resource {{RESOURCE_NAME}} test      # All tests pass
 ```

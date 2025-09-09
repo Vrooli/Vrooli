@@ -1,12 +1,11 @@
 # Scaffolding Phase
 
 ## Purpose
-Scaffolding creates the minimal viable structure that future improvers can build upon. The goal is NOT to implement everything, but to create a solid foundation with correct structure and patterns.
+Scaffolding creates the minimal viable structure that future improvers can build upon. The goal is NOT to implement everything, but to create a solid foundation.
 
 ## Scaffolding Allocation: 20% of Total Effort
 
 ### Scaffolding Philosophy
-
 Think of scaffolding as **planting a seed**:
 - Create the right structure
 - Implement core patterns
@@ -18,7 +17,6 @@ Think of scaffolding as **planting a seed**:
 ## Scaffolding Process
 
 ### Step 1: Template Selection
-
 Based on research, choose approach:
 
 ```bash
@@ -36,214 +34,65 @@ cp -r resources/[similar-resource]/* resources/[new-name]/
 # Take structure from template, patterns from existing
 ```
 
-### Step 2: Structure Creation
+### Step 2: Reference Existing Implementations
+Study similar resources and scenarios to understand:
+- Directory structure patterns
+- Configuration approaches
+- Integration patterns
+- Documentation style
 
-#### For Scenarios
-```bash
-scenarios/[name]/
-├── .vrooli/
-│   └── service.json          # Resource dependencies
-├── api/
-│   ├── main.go              # API server
-│   ├── go.mod               # Dependencies
-│   └── README.md            # API documentation
-├── cli/
-│   ├── [name]-cli           # CLI executable
-│   ├── install.sh           # Installation script
-│   └── README.md            # CLI documentation
-├── ui/
-│   ├── index.html           # Main UI
-│   ├── package.json         # Dependencies
-│   ├── server.js            # Dev server
-│   └── README.md            # UI documentation
-├── initialization/
-│   └── [any seed data]      # Initial content
-├── prompts/
-│   └── prompt.md            # Agent prompts
-├── tests/
-│   └── test.sh              # Basic tests
-├── PRD.md                   # Product requirements
-└── README.md                # Main documentation
-```
-
-#### For Resources
-```bash
-resources/[name]/
-├── lib/
-│   ├── core.sh              # Core functions
-│   ├── health.sh            # Health checks
-│   ├── lifecycle.sh         # Setup/start/stop
-│   └── content.sh           # Content management
-├── cli.sh                   # CLI entry point
-├── inject.sh                # Content injection
-├── manage.sh                # Management scripts
-├── service.json             # Configuration
-├── Dockerfile               # If containerized
-├── docker-compose.yml       # If using compose
-├── PRD.md                   # Product requirements
-└── README.md                # Documentation
-```
+Use `vrooli resource [name] content` and `vrooli scenario [name] content` to explore existing implementations.
 
 ### Step 3: Core Implementation
-
-#### Minimal Viable Functionality
-
-Implement ONLY:
+Implement ONLY the essentials:
 1. **Health check endpoint** - Must respond to health checks
-2. **Basic lifecycle** - Must start/stop cleanly
+2. **Basic lifecycle** - Must start/stop cleanly  
 3. **One P0 requirement** - Prove the concept works
 4. **Basic CLI command** - Minimum interaction
 
-#### Security Implementation (MANDATORY)
-**All scaffolding must implement security from day one:**
-{{INCLUDE: shared/core/security-requirements.md}}
-
-Focus on Phase 1 (Design Security) and Phase 2 (Implementation Security) requirements.
-
-**Minimal Implementation Pattern:**
-```pseudo
-API_SERVER:
-  GET /health → {"healthy": true}
-  GET /api/core → {"status": "operational"} 
-  PORT = env.PORT || default
-  
-CLI_COMMANDS:
-  setup → initialize_dependencies()
-  start → launch_service()
-  stop → graceful_shutdown()
-  health → check_endpoints()
-```
+Security requirements are handled by other prompt sections.
 
 ### Step 4: Configuration
-
-#### service.json Template
-```json
-{
-  "name": "[name]",
-  "version": "0.1.0",
-  "description": "[One line description]",
-  "status": "scaffold",
-  "type": "[scenario|resource]",
-  "category": "[category]",
-  "ports": {
-    "api": 3000,
-    "ui": 3001
-  },
-  "dependencies": {
-    "required": ["postgres", "qdrant"],
-    "optional": ["redis"]
-  },
-  "resources": {
-    "memory": "256MB",
-    "cpu": "0.5"
-  }
-}
-```
+Create basic configuration files following the patterns from your template or reference implementations. Check existing similar projects for configuration examples.
 
 ### Step 5: Documentation
+Create minimal but clear documentation:
+- README.md with purpose and basic usage
+- PRD.md as the primary deliverable
+- Basic API/CLI documentation if applicable
 
-#### Minimal README.md
-```markdown
-# [Name]
+Reference existing documentation patterns from similar resources/scenarios.
 
-[One paragraph description based on PRD]
+## Scaffolding Success Criteria
+- Structure matches established patterns
+- Health checks work
+- One P0 requirement is demonstrably functional
+- Clear documentation for improvers
+- Follows security and lifecycle patterns
 
-## Status
-🚧 **Scaffold** - Basic structure in place, ready for improvement
+## Common Scaffolding Mistakes
 
-## Quick Start
-\`\`\`bash
-# Setup
-vrooli scenario [name] setup
+**Over-Engineering**
+❌ Bad: Implementing all P0 requirements
+✅ Good: One P0 + solid structure
 
-# Run
-vrooli scenario [name] run
+**Template Deviation**
+❌ Bad: Creating unique structure
+✅ Good: Following established patterns
 
-# Test
-vrooli scenario [name] test
-\`\`\`
+**No Reference Study**
+❌ Bad: Creating from scratch
+✅ Good: Learning from existing implementations
 
-## Completed Features
-- ✅ Basic structure
-- ✅ Health checks
-- ✅ [One P0 feature]
-
-## TODO
-See PRD.md for complete requirements list.
-
-## Development
-This is a scaffold ready for improvement. See PRD.md for requirements and priorities.
-```
-
-## Scaffolding Quality Checklist
-
-### Structure
-- [ ] Correct directory structure for type
-- [ ] All required files present
-- [ ] Consistent naming throughout
-- [ ] Proper file permissions
-
-### Functionality
-- [ ] Health check responds
-- [ ] Service starts/stops cleanly
-- [ ] One P0 requirement works
-- [ ] Basic CLI commands function
-
-### Configuration
-- [ ] service.json valid and complete
-- [ ] Ports allocated correctly
-- [ ] Dependencies listed
-- [ ] Resource limits set
-
-### Documentation
-- [ ] PRD.md complete and detailed
-- [ ] README.md explains status
-- [ ] Setup instructions work
-- [ ] TODOs clearly marked
-
-## Scaffolding Anti-Patterns
-
-### Over-Implementation
-❌ **Bad**: Trying to implement all P0 requirements
-✅ **Good**: One working P0 + solid structure
-
-### Under-Documentation
-❌ **Bad**: "TODO: Add documentation"
-✅ **Good**: Complete PRD + basic README
-
-### Poor Structure
-❌ **Bad**: Everything in one file
-✅ **Good**: Proper separation of concerns
-
-### No Extension Points
-❌ **Bad**: Hardcoded, rigid implementation
-✅ **Good**: Clear places to add features
-
-## Scaffolding Success Metrics
-
-- **Can improvers understand it?** Clear structure and docs
-- **Can it be extended easily?** Good patterns in place
-- **Does it actually run?** Basic functionality works
-- **Is the vision clear?** PRD tells the story
-
-## Remember for Scaffolding
-
-**You're planting a seed** - Focus on strong roots, not full growth
-
-**Structure matters most** - Right patterns enable everything
-
-**Document the vision** - PRD guides all future work  
-
-**Prove the concept** - One working feature validates approach
-
-**Leave room to grow** - Don't over-constrain the future
-
-The scaffold is the foundation. Make it solid, clear, and extensible. Future improvers will thank you.
+## Remember
+- Templates are in `scripts/[type]/templates/`
+- Study existing implementations with `vrooli [type] [name] content`
+- Focus on structure, not completeness
+- Leave clear extension points for improvers
 
 ## When Scaffolding Is Complete
-
 After completing all scaffolding work (PRD + structure + basic implementation), follow the comprehensive completion protocol:
 
-**{{INCLUDE: shared/operational/task-completion-protocol.md}}**
+<!-- task-completion-protocol.md already included in base sections -->
 
 Proper task completion transforms your scaffolding work into permanent ecosystem knowledge and ensures smooth handoff to improvers.

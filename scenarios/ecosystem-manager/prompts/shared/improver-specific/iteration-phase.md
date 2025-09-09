@@ -20,7 +20,7 @@ Think of it like climbing a mountain - each step up is secure before taking the 
 #### Create Safety Checkpoint
 ```bash
 # Record current state
-curl localhost:PORT/health > /tmp/before-health.txt
+{{STANDARD_HEALTH_CHECK}} > /tmp/before-health.txt
 # OR
 ./test.sh > /tmp/before-test.txt
 
@@ -99,7 +99,7 @@ VALIDATION:
   maintain_fallback(existing_logic) → no_regression
 
 HEALTH_CHECKS:
-  {{INCLUDE: resource-specific/health-checks.md}}
+  <!-- health-checks.md already included in base sections -->
 ```
 
 ### Step 3: Validation
@@ -113,7 +113,7 @@ curl -X POST localhost:3000/api/login -d '{"user":"test","pass":"test"}'
 
 # Verify old functionality still works
 echo "Testing existing features..."
-curl localhost:3000/api/health
+{{STANDARD_HEALTH_CHECK}}/api
 # Expected: {"healthy": true}
 
 # Run existing tests
@@ -133,8 +133,7 @@ echo "Running test suite..."
 ```
 
 #### Security Validation (MANDATORY)
-**Every iteration must pass security validation:**
-{{INCLUDE: shared/core/security-requirements.md}}
+**Every iteration must pass security validation** - See base security requirements.
 
 Run Phase 3 (Validation Security) checks after every change.
 
@@ -164,43 +163,6 @@ Run Phase 3 (Validation Security) checks after every change.
   - Test: `curl localhost:3000/api/search?q=test`
 ```
 
-## Iteration Patterns by Type
-
-### Bug Fix Iterations
-```bash
-# 1. Reproduce the bug
-# 2. Write failing test
-# 3. Fix the bug
-# 4. Verify test passes
-# 5. Check no new issues
-```
-
-### Feature Addition Iterations
-```bash
-# 1. Add feature flag/config
-# 2. Implement behind flag
-# 3. Test with flag on
-# 4. Test with flag off
-# 5. Enable when stable
-```
-
-### Performance Iterations
-```bash
-# 1. Measure baseline
-# 2. Make optimization
-# 3. Measure improvement
-# 4. Verify functionality unchanged
-# 5. Document gains
-```
-
-### Refactoring Iterations
-```bash
-# 1. Add comprehensive tests
-# 2. Refactor small section
-# 3. Run all tests
-# 4. Repeat for next section
-# 5. Remove old code when safe
-```
 
 ## Iteration Anti-Patterns
 
@@ -268,6 +230,6 @@ Each iteration is a permanent step forward. Make it count. Make it solid. Make i
 
 After completing all iteration changes, follow the comprehensive completion protocol:
 
-**{{INCLUDE: shared/operational/task-completion-protocol.md}}**
+<!-- task-completion-protocol.md already included in base sections -->
 
 Proper task completion ensures your iteration work becomes permanent knowledge that enhances all future agents.

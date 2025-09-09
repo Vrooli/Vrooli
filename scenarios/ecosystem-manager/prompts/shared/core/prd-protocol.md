@@ -1,94 +1,24 @@
 # 📋 PRD Protocol: Single Source of Truth
 
-## PRD Purpose & Importance
 **The PRD is the PRIMARY DELIVERABLE** for generators (50% effort) and the PROGRESS TRACKER for improvers.
 
-## PRD Structure (ALL Sections MANDATORY)
+{{INCLUDE: ../patterns/prd-essentials.md}}
 
-### 1. Executive Summary (5 lines MAX)
-- **What**: One-line description
-- **Why**: Problem being solved  
-- **Who**: Target users
-- **Value**: Revenue/efficiency gain
-- **Priority**: P0/P1/P2 designation
+## Required Sections
+1. **Executive Summary** (5 lines): What/Why/Who/Value/Priority
+2. **Requirements Checklist** (P0/P1/P2 with checkboxes)  
+3. **Technical Specifications** (Architecture/Dependencies/APIs)
+4. **Success Metrics** (Completion/Quality/Performance targets)
 
-### 2. Requirements Checklist
-```markdown
-## P0 Requirements (Must Have - Day 1)
-- [ ] Requirement 1 with specific acceptance criteria
-- [ ] Requirement 2 with measurable outcome
-- [ ] Requirement 3 with testable behavior
+## Generator Rules (50% of effort)
+**MUST**: 5+ P0 requirements, acceptance criteria, technical approach, revenue justification
+**Process**: Research → Requirements → Technical → Metrics → PRD.md
+**Quality Gate**: All sections filled, revenue > $10K justified
 
-## P1 Requirements (Should Have - Week 1)  
-- [ ] Enhancement 1 with clear benefit
-- [ ] Enhancement 2 with user impact
-
-## P2 Requirements (Nice to Have - Month 1)
-- [ ] Future feature 1
-- [ ] Future feature 2
-```
-
-### 3. Technical Specifications
-- **Architecture**: Component diagram or bullet list
-- **Dependencies**: Required resources/services
-- **APIs**: Endpoint definitions
-- **Data Models**: Schema/structure
-- **Performance**: Target metrics (response time, throughput)
-
-### 4. Success Metrics
-- **Completion**: X% of P0 done = launched
-- **Quality**: Test coverage target
-- **Performance**: Response time < Xms
-- **Adoption**: Target usage numbers
-
-## Generator PRD Rules (50% of effort)
-
-### MUST Include
-✅ **5+ P0 requirements** minimum
-✅ **Specific acceptance criteria** for each requirement
-✅ **Technical implementation** approach
-✅ **Revenue potential** with justification
-✅ **Competitive analysis** (what exists elsewhere)
-
-### Creation Process
-1. Research findings → Requirements
-2. Requirements → Technical approach
-3. Technical approach → Implementation plan
-4. Implementation plan → Success metrics
-5. Everything → Single PRD.md file
-
-### Quality Gates for Generator PRDs
-- [ ] All sections present and filled
-- [ ] 5+ P0 requirements defined
-- [ ] Each requirement has acceptance criteria
-- [ ] Technical approach is specific
-- [ ] Revenue potential > $10K justified
-
-## Improver PRD Rules (Validation & Progress)
-
-### MUST Do
-✅ **Test every ✅** - Uncheck if broken
-✅ **Add completion date** when checking boxes
-✅ **Update percentages** after changes
-✅ **Document why** unchecking items
-✅ **Keep history** of changes at bottom
-
-### Validation Process (20% of assessment)
-```markdown
-For each ✅ in PRD:
-1. Test the feature
-2. If works: Keep checked, add date
-3. If broken: Uncheck, add "BROKEN: [error]"
-4. If partial: Note "PARTIAL: [what works]"
-```
-
-### Progress Tracking
-```markdown
-## Progress History
-- 2024-01-15: 20% → 35% (Added user auth)
-- 2024-01-16: 35% → 30% (Unchecked broken features)
-- 2024-01-17: 30% → 45% (Fixed auth, added API)
-```
+## Improver Rules (Validation & Progress)
+**MUST**: Test every ✅, add completion dates, update percentages, document changes
+**Validation**: Test → Keep/Uncheck/Note partial → Update history
+**Progress Format**: `Date: X% → Y% (Change description)`
 
 ## PRD Template Examples
 
@@ -142,21 +72,9 @@ For each ✅ in PRD:
 - **Performance**: <2s invoice generation
 ```
 
-## Common PRD Mistakes to AVOID
-
-### For Generators
-❌ **Vague requirements** like "good UX"
-❌ **Missing acceptance criteria**
-❌ **No revenue justification**
-❌ **Copying PRDs without customization**
-❌ **Under 5 P0 requirements**
-
-### For Improvers
-❌ **Trusting checkmarks without testing**
-❌ **Not updating percentages**
-❌ **Adding features not in PRD**
-❌ **Checking boxes for partial work**
-❌ **No documentation of changes**
+## Common Mistakes
+**Generators**: Vague requirements, missing criteria, no revenue justification, <5 P0s
+**Improvers**: Trusting recent checkmarks are accurate, not updating %, adding unplanned features
 
 ## PRD Checkbox Rules
 
@@ -197,10 +115,7 @@ See sections.yaml for standardized time allocations.
 - Next steps are clear
 
 ## Golden Rules
-
-1. **PRD is contract** - What's in PRD gets built
-2. **PRD is truth** - Checkmarks must be honest
-3. **PRD is progress** - Track everything
-4. **PRD is permanent** - Never delete history
-
-Remember: **Bad PRD = Bad Product. Good PRD = Good Product.**
+1. PRD is contract - What's in PRD gets built
+2. PRD is truth - Checkmarks must be honest  
+3. PRD is progress - Track everything
+4. PRD is permanent - Never delete history

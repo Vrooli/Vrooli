@@ -59,7 +59,7 @@ GET  /api/health         → status check
 ## Validation Tests
 ```bash
 # Test these work before marking P0 complete:
-curl localhost:{{PORT}}/api/health     # Returns 200 OK  
+{{STANDARD_HEALTH_CHECK}}/api            # Returns 200 OK  
 {{PRIMARY_TEST_COMMAND_1}}             # {{EXPECTED_RESULT_1}}
 {{PRIMARY_TEST_COMMAND_2}}             # {{EXPECTED_RESULT_2}}
 ```

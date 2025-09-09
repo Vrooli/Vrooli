@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text Tools - Comprehensive Text Processing Platform</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <span class="logo-icon">📝</span>
+                <h1>Text Tools</h1>
+            </div>
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-tool="diff">Diff</button>
+                <button class="nav-tab" data-tool="search">Search</button>
+                <button class="nav-tab" data-tool="transform">Transform</button>
+                <button class="nav-tab" data-tool="extract">Extract</button>
+                <button class="nav-tab" data-tool="analyze">Analyze</button>
+                <button class="nav-tab" data-tool="pipeline">Pipeline</button>
+            </nav>
+            <div class="header-actions">
+                <button id="api-docs-btn" class="btn-secondary">API Docs</button>
+                <span class="status-indicator" id="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">Connecting...</span>
+                </span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="app-main">
+            <!-- Diff Tool -->
+            <div class="tool-panel active" id="diff-panel">
+                <div class="tool-header">
+                    <h2>Text Comparison</h2>
+                    <div class="tool-options">
+                        <select id="diff-type">
+                            <option value="line">Line by Line</option>
+                            <option value="word">Word by Word</option>
+                            <option value="character">Character</option>
+                            <option value="semantic">Semantic</option>
+                        </select>
+                        <label class="checkbox">
+                            <input type="checkbox" id="diff-ignore-whitespace">
+                            <span>Ignore Whitespace</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="diff-ignore-case">
+                            <span>Ignore Case</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="diff-container">
+                    <div class="diff-pane">
+                        <div class="pane-header">
+                            <span>Original Text</span>
+                            <button class="btn-small" onclick="document.getElementById('diff-text1').value=''">Clear</button>
+                        </div>
+                        <textarea id="diff-text1" class="code-editor" placeholder="Enter or paste original text here..."></textarea>
+                    </div>
+                    <div class="diff-pane">
+                        <div class="pane-header">
+                            <span>Modified Text</span>
+                            <button class="btn-small" onclick="document.getElementById('diff-text2').value=''">Clear</button>
+                        </div>
+                        <textarea id="diff-text2" class="code-editor" placeholder="Enter or paste modified text here..."></textarea>
+                    </div>
+                </div>
+                <div class="action-bar">
+                    <button class="btn-primary" id="diff-compare-btn">Compare</button>
+                    <span class="similarity-score" id="diff-similarity"></span>
+                </div>
+                <div class="results-container" id="diff-results"></div>
+            </div>
+
+            <!-- Search Tool -->
+            <div class="tool-panel" id="search-panel">
+                <div class="tool-header">
+                    <h2>Pattern Search</h2>
+                    <div class="tool-options">
+                        <label class="checkbox">
+                            <input type="checkbox" id="search-regex">
+                            <span>Regex</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="search-case-sensitive">
+                            <span>Case Sensitive</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="search-whole-word">
+                            <span>Whole Word</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="search-fuzzy">
+                            <span>Fuzzy Match</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="search-semantic">
+                            <span>Semantic</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="search-container">
+                    <div class="search-input-group">
+                        <input type="text" id="search-pattern" placeholder="Enter search pattern..." class="search-input">
+                        <button class="btn-primary" id="search-btn">Search</button>
+                    </div>
+                    <textarea id="search-text" class="code-editor large" placeholder="Enter text to search in..."></textarea>
+                </div>
+                <div class="results-container" id="search-results"></div>
+            </div>
+
+            <!-- Transform Tool -->
+            <div class="tool-panel" id="transform-panel">
+                <div class="tool-header">
+                    <h2>Text Transformation</h2>
+                    <div class="tool-options">
+                        <button class="transform-btn" data-transform="upper">UPPERCASE</button>
+                        <button class="transform-btn" data-transform="lower">lowercase</button>
+                        <button class="transform-btn" data-transform="title">Title Case</button>
+                        <button class="transform-btn" data-transform="camel">camelCase</button>
+                        <button class="transform-btn" data-transform="snake">snake_case</button>
+                        <button class="transform-btn" data-transform="kebab">kebab-case</button>
+                        <button class="transform-btn" data-transform="base64-encode">Base64 Encode</button>
+                        <button class="transform-btn" data-transform="base64-decode">Base64 Decode</button>
+                        <button class="transform-btn" data-transform="url-encode">URL Encode</button>
+                        <button class="transform-btn" data-transform="url-decode">URL Decode</button>
+                        <button class="transform-btn" data-transform="html-escape">HTML Escape</button>
+                        <button class="transform-btn" data-transform="sanitize">Sanitize</button>
+                    </div>
+                </div>
+                <div class="transform-container">
+                    <div class="transform-pane">
+                        <div class="pane-header">
+                            <span>Input Text</span>
+                            <span class="char-count" id="transform-input-count">0 characters</span>
+                        </div>
+                        <textarea id="transform-input" class="code-editor" placeholder="Enter text to transform..."></textarea>
+                    </div>
+                    <div class="transform-pane">
+                        <div class="pane-header">
+                            <span>Output</span>
+                            <button class="btn-small" id="transform-copy-btn">Copy</button>
+                        </div>
+                        <textarea id="transform-output" class="code-editor" readonly placeholder="Transformed text will appear here..."></textarea>
+                    </div>
+                </div>
+                <div class="transform-chain">
+                    <h3>Transformation Pipeline</h3>
+                    <div id="transform-pipeline" class="pipeline-steps"></div>
+                    <button class="btn-secondary" id="transform-apply-pipeline">Apply Pipeline</button>
+                </div>
+            </div>
+
+            <!-- Extract Tool -->
+            <div class="tool-panel" id="extract-panel">
+                <div class="tool-header">
+                    <h2>Text Extraction</h2>
+                    <div class="tool-options">
+                        <select id="extract-format">
+                            <option value="auto">Auto Detect</option>
+                            <option value="pdf">PDF</option>
+                            <option value="html">HTML</option>
+                            <option value="docx">Word Document</option>
+                            <option value="image">Image (OCR)</option>
+                            <option value="markdown">Markdown</option>
+                        </select>
+                        <label class="checkbox">
+                            <input type="checkbox" id="extract-ocr">
+                            <span>Enable OCR</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="extract-metadata">
+                            <span>Extract Metadata</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="extract-container">
+                    <div class="file-upload-area" id="extract-upload">
+                        <svg class="upload-icon" viewBox="0 0 24 24" width="48" height="48">
+                            <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/>
+                        </svg>
+                        <p>Drag & drop files here or click to browse</p>
+                        <input type="file" id="extract-file-input" hidden>
+                    </div>
+                    <div class="extract-url-input">
+                        <input type="url" id="extract-url" placeholder="Or enter URL to extract from...">
+                        <button class="btn-primary" id="extract-url-btn">Extract from URL</button>
+                    </div>
+                </div>
+                <div class="results-container" id="extract-results"></div>
+            </div>
+
+            <!-- Analyze Tool -->
+            <div class="tool-panel" id="analyze-panel">
+                <div class="tool-header">
+                    <h2>Text Analysis</h2>
+                    <div class="tool-options">
+                        <label class="checkbox">
+                            <input type="checkbox" id="analyze-entities" checked>
+                            <span>Named Entities</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="analyze-sentiment" checked>
+                            <span>Sentiment</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="analyze-keywords" checked>
+                            <span>Keywords</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="analyze-language" checked>
+                            <span>Language</span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" id="analyze-summary">
+                            <span>Summary</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="analyze-container">
+                    <textarea id="analyze-text" class="code-editor large" placeholder="Enter text to analyze..."></textarea>
+                    <div class="analyze-controls">
+                        <div class="summary-length" id="summary-controls" style="display:none;">
+                            <label>Summary Length:</label>
+                            <input type="number" id="summary-length" value="200" min="50" max="1000">
+                            <span>words</span>
+                        </div>
+                        <button class="btn-primary" id="analyze-btn">Analyze Text</button>
+                    </div>
+                </div>
+                <div class="analysis-results" id="analyze-results">
+                    <div class="stats-grid" id="text-stats"></div>
+                    <div class="analysis-sections" id="analysis-sections"></div>
+                </div>
+            </div>
+
+            <!-- Pipeline Tool -->
+            <div class="tool-panel" id="pipeline-panel">
+                <div class="tool-header">
+                    <h2>Processing Pipeline Builder</h2>
+                    <button class="btn-secondary" id="pipeline-save-btn">Save Pipeline</button>
+                </div>
+                <div class="pipeline-container">
+                    <div class="pipeline-sidebar">
+                        <h3>Available Operations</h3>
+                        <div class="operation-list">
+                            <div class="operation-item" draggable="true" data-op="extract">📄 Extract</div>
+                            <div class="operation-item" draggable="true" data-op="transform">🔄 Transform</div>
+                            <div class="operation-item" draggable="true" data-op="search">🔍 Search</div>
+                            <div class="operation-item" draggable="true" data-op="analyze">📊 Analyze</div>
+                            <div class="operation-item" draggable="true" data-op="filter">🔽 Filter</div>
+                            <div class="operation-item" draggable="true" data-op="split">✂️ Split</div>
+                            <div class="operation-item" draggable="true" data-op="merge">🔗 Merge</div>
+                            <div class="operation-item" draggable="true" data-op="template">📝 Template</div>
+                        </div>
+                    </div>
+                    <div class="pipeline-canvas" id="pipeline-canvas">
+                        <div class="pipeline-flow" id="pipeline-flow">
+                            <div class="pipeline-node start-node">
+                                <span>Input</span>
+                            </div>
+                            <div class="pipeline-placeholder">
+                                Drag operations here to build your pipeline
+                            </div>
+                            <div class="pipeline-node end-node">
+                                <span>Output</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="pipeline-controls">
+                    <textarea id="pipeline-input" placeholder="Enter input text for pipeline..."></textarea>
+                    <button class="btn-primary" id="pipeline-run-btn">Run Pipeline</button>
+                    <div id="pipeline-output"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- API Documentation Modal -->
+        <div class="modal" id="api-docs-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>API Documentation</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="api-section">
+                        <h3>Base URL</h3>
+                        <code class="api-url">http://localhost:14000/api/v1/text</code>
+                    </div>
+                    
+                    <div class="api-section">
+                        <h3>Endpoints</h3>
+                        <div class="api-endpoint">
+                            <h4>POST /diff</h4>
+                            <p>Compare two texts and return differences</p>
+                            <pre><code>{
+  "text1": "string or {document_id: 'uuid'}",
+  "text2": "string or {document_id: 'uuid'}",
+  "options": {
+    "type": "line|word|character|semantic",
+    "ignore_whitespace": boolean,
+    "ignore_case": boolean
+  }
+}</code></pre>
+                        </div>
+                        
+                        <div class="api-endpoint">
+                            <h4>POST /search</h4>
+                            <p>Search for patterns in text</p>
+                            <pre><code>{
+  "text": "string",
+  "pattern": "string",
+  "options": {
+    "regex": boolean,
+    "case_sensitive": boolean,
+    "whole_word": boolean,
+    "fuzzy": boolean,
+    "semantic": boolean
+  }
+}</code></pre>
+                        </div>
+                        
+                        <div class="api-endpoint">
+                            <h4>POST /transform</h4>
+                            <p>Transform text with various operations</p>
+                            <pre><code>{
+  "text": "string",
+  "transformations": [
+    {
+      "type": "case|encode|format|sanitize",
+      "parameters": {}
+    }
+  ]
+}</code></pre>
+                        </div>
+                        
+                        <div class="api-endpoint">
+                            <h4>POST /extract</h4>
+                            <p>Extract text from documents</p>
+                            <pre><code>{
+  "source": {url: "string"} | {file: "base64"},
+  "format": "pdf|html|docx|image|auto",
+  "options": {
+    "ocr": boolean,
+    "preserve_formatting": boolean,
+    "extract_metadata": boolean
+  }
+}</code></pre>
+                        </div>
+                        
+                        <div class="api-endpoint">
+                            <h4>POST /analyze</h4>
+                            <p>Perform NLP analysis on text</p>
+                            <pre><code>{
+  "text": "string",
+  "analyses": ["entities", "sentiment", "summary", "keywords", "language"],
+  "options": {
+    "summary_length": number,
+    "entity_types": ["person", "location", "organization"]
+  }
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -114,7 +114,7 @@ try {
 **Health Check Implementation**
 
 See comprehensive health check patterns and implementations in:
-{{INCLUDE: resource-specific/health-checks.md}}
+<!-- health-checks.md already included in base sections -->
 
 **CLI Command Structure**
 ```bash
@@ -173,7 +173,7 @@ vrooli resource [name] health
 
 # UI Visual Validation (CRITICAL for scenarios with UI)
 # See comprehensive UI validation guide:
-{{INCLUDE: scenario-specific/ui-validation.md}}
+{{INCLUDE: ../scenario-specific/ui-validation.md}}
 ```
 
 ### Phase 4: Documentation and Finalization (10%)

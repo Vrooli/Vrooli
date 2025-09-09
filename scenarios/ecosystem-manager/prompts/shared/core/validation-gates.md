@@ -8,7 +8,7 @@ Every change MUST pass ALL gates. No exceptions.
 **Verify**: Component starts, responds, stops
 ```bash
 ./manage.sh setup && ./manage.sh develop  # Must start
-curl -sf http://localhost:${PORT}/health  # Must respond 200
+{{TIMEOUT_HEALTH_CHECK}}  # Must respond 200
 ./manage.sh stop                          # Must stop < 10 sec
 ```
 **FAIL = STOP**: Don't proceed if basics don't work
@@ -103,7 +103,7 @@ vrooli resource qdrant embeddings refresh --path .
 # 1-minute validation
 [ -f PRD.md ] && grep -q "\[x\]" PRD.md  # Has content?
 [ -f README.md ]                          # Has docs?
-./manage.sh develop && curl localhost:${PORT}/health  # Works?
+./manage.sh develop && {{STANDARD_HEALTH_CHECK}}  # Works?
 ```
 
 ### For Improvers  
