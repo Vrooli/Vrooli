@@ -18,13 +18,40 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 source "${EMBEDDINGS_DIR}/lib/code-extractor.sh"
 
-# Configuration (check if already defined to avoid readonly errors)
+# Configuration with proper default handling
 if [[ -z "${CODE_EXTRACT_TIMEOUT:-}" ]]; then
-    readonly CODE_EXTRACT_TIMEOUT=2  # Timeout per file in seconds (reduced from 5)
-    readonly MAX_FILES_PER_BATCH=300  # Process in chunks to prevent memory issues (increased for better performance)
+    readonly CODE_EXTRACT_TIMEOUT=10  # Timeout per file in seconds (reduced from 5)
+fi
+if [[ -z "${MAX_FILES_PER_BATCH:-}" ]]; then
+    readonly MAX_FILES_PER_BATCH=50  # Process in chunks to prevent memory issues (increased for better performance)
+fi
+if [[ -z "${MAX_RETRIES:-}" ]]; then
     readonly MAX_RETRIES=1  # Retry failed files this many times (reduced from 2)
+fi
+if [[ -z "${SKIP_LARGE_FILES_MB:-}" ]]; then
     readonly SKIP_LARGE_FILES_MB=5  # Skip files larger than this (in MB) (reduced from 10)
 fi
+
+#######################################
+# Find code files in a directory
+# Arguments:
+#   $1 - Directory to search
+# Returns: List of code files (one per line)
+#######################################
+qdrant::extract::find_code() {
+    local directory="${1:-.}"
+    
+    find "$directory" -type f \( \
+        -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \
+        -o -name "*.py" -o -name "*.go" -o -name "*.rs" \
+        -o -name "*.java" -o -name "*.cs" -o -name "*.rb" \
+        -o -name "*.php" -o -name "*.swift" -o -name "*.kt" \
+        -o -name "*.cpp" -o -name "*.c" -o -name "*.h" -o -name "*.hpp" \
+        -o -name "*.sql" -o -name "*.sh" -o -name "*.bash" \
+        -o -name "*.css" -o -name "*.scss" -o -name "*.sass" \
+        -o -name "*.m" -o -name "*.r" -o -name "*.R" \
+    \) 2>/dev/null | grep -v node_modules | grep -v ".git/" | grep -v "__pycache__" | sort
+}
 
 #######################################
 # Extract code with timeout and error handling
@@ -232,8 +259,8 @@ qdrant::embeddings::process_code() {
     # Extract code to temp file with improved batch processing
     local output_file="$TEMP_DIR/code.jsonl"
     
-    # Use the improved batch processor
-    if ! qdrant::extract::code_batch_improved "." "$output_file" >&2; then
+    # Use the improved batch processor - search from APP_ROOT
+    if ! qdrant::extract::code_batch_improved "$APP_ROOT" "$output_file" >&2; then
         log::error "Code extraction failed"
         echo "0"
         return 1

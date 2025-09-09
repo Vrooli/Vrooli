@@ -14,10 +14,18 @@ export default function Layout({ children, isConnected }: LayoutProps) {
   const [appCount, setAppCount] = useState(0);
   const [resourceCount, setResourceCount] = useState(0);
   const [uptime, setUptime] = useState('00:00:00');
+  const [isFetching, setIsFetching] = useState(false);
 
   // Fetch counts and system info
   useEffect(() => {
     const fetchData = async () => {
+      // Skip if already fetching to prevent request stacking
+      if (isFetching) {
+        console.log('Skipping fetch - already in progress');
+        return;
+      }
+      
+      setIsFetching(true);
       try {
         // Fetch app count
         const apps = await appService.getApps();
@@ -34,14 +42,16 @@ export default function Layout({ children, isConnected }: LayoutProps) {
         }
       } catch (error) {
         console.error('Failed to fetch layout data:', error);
+      } finally {
+        setIsFetching(false);
       }
     };
     
     fetchData();
-    const interval = setInterval(fetchData, 10000); // Update every 10 seconds
+    const interval = setInterval(fetchData, 60000); // Update every 60 seconds (reduced from 10s to prevent CPU overload)
     
     return () => clearInterval(interval);
-  }, []);
+  }, [isFetching]);
 
   // Handle quick actions
   const handleRestartAll = async () => {
@@ -65,7 +75,6 @@ export default function Layout({ children, isConnected }: LayoutProps) {
     { path: '/metrics', label: 'METRICS', icon: '▶' },
     { path: '/logs', label: 'SYSTEM LOGS', icon: '▶' },
     { path: '/resources', label: 'RESOURCES', icon: '▶' },
-    { path: '/terminal', label: 'TERMINAL', icon: '▶' },
   ];
 
   return (

@@ -42,11 +42,10 @@ OPTIONS:
 WHAT THIS PHASE TESTS:
   1. service.json configuration files (root, resources, scenarios)
   2. Resource file construction (existence, permissions, syntax)
-  3. Scenario catalog.json structure and content validation
-  4. Individual scenario service.json validation
-  5. Auto-converter and tool structure validation
-  6. Generated app structure validation (required files)
-  7. Directory structure requirements
+  3. Individual scenario service.json validation
+  4. Auto-converter and tool structure validation
+  5. Generated app structure validation (required files)
+  6. Directory structure requirements
 
 SCOPING EXAMPLES:
   ./test-structure.sh --resource=ollama           # Test only ollama resource structure
@@ -384,98 +383,7 @@ test_resource_construction() {
     return 0
 }
 
-# Test scenario catalog structure
-test_scenario_catalog() {
-    log_info "📋 Testing scenario catalog structure..."
-    
-    # Skip if we're scoped to resources only
-    if [[ -n "$SCOPE_RESOURCE" && -z "$SCOPE_SCENARIO" ]]; then
-        log_info "⏭️ Skipping scenario catalog (scoped to resources)"
-        return 0
-    fi
-    
-    local catalog_file="$PROJECT_ROOT/scenarios/catalog.json"
-    
-    if ! should_test_path "$catalog_file"; then
-        log_info "⏭️ Skipping scenario catalog (outside scope)"
-        return 0
-    fi
-    
-    local relative_path
-    relative_path=$(relative_path "$catalog_file")
-    
-    # Test 1: Catalog file exists
-    if run_cached_test "$catalog_file" "existence" "assert_file_exists '$catalog_file' 'scenario catalog'" "catalog-exists: $relative_path"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-        return 1
-    fi
-    
-    # Test 2: Valid JSON
-    if run_cached_test "$catalog_file" "json-valid" "assert_json_valid '$catalog_file' 'scenario catalog'" "catalog-json: $relative_path"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-        return 1
-    fi
-    
-    # Test 3: Has required structure
-    if command -v jq >/dev/null 2>&1; then
-        if run_cached_test "$catalog_file" "structure" "validate_catalog_structure '$catalog_file'" "catalog-structure: $relative_path"; then
-            increment_test_counter "passed"
-        else
-            increment_test_counter "failed"
-        fi
-    else
-        log_test_skip "catalog-structure: $relative_path" "jq not available"
-        increment_test_counter "skipped"
-    fi
-    
-    return 0
-}
-
-# Validate catalog structure with jq
-validate_catalog_structure() {
-    local catalog_file="$1"
-    
-    # Check that catalog has required fields
-    if ! jq -e '.scenarios' "$catalog_file" >/dev/null 2>&1; then
-        log_error "Catalog missing 'scenarios' field"
-        return 1
-    fi
-    
-    if ! jq -e '.scenarios | type == "array"' "$catalog_file" >/dev/null 2>&1; then
-        log_error "Catalog 'scenarios' field is not an array"
-        return 1
-    fi
-    
-    # Check that each scenario has required fields
-    local scenarios_count
-    scenarios_count=$(jq '.scenarios | length' "$catalog_file" 2>/dev/null || echo "0")
-    
-    if [[ $scenarios_count -eq 0 ]]; then
-        log_warning "Catalog contains no scenarios"
-        return 0
-    fi
-    
-    log_debug "Found $scenarios_count scenarios in catalog"
-    
-    # Validate each scenario entry
-    for ((i=0; i<scenarios_count; i++)); do
-        local scenario_name
-        scenario_name=$(jq -r ".scenarios[$i].name // \"unknown\"" "$catalog_file" 2>/dev/null)
-        
-        if [[ "$scenario_name" == "null" ]] || [[ "$scenario_name" == "unknown" ]]; then
-            log_error "Scenario at index $i missing 'name' field"
-            return 1
-        fi
-        
-        log_debug "Validating scenario: $scenario_name"
-    done
-    
-    return 0
-}
+# NOTE: catalog.json testing removed - scenarios are now discovered dynamically from filesystem
 
 # Test scenario tools structure
 test_tools_structure() {
@@ -640,13 +548,10 @@ run_structure_validation() {
     # Test 2: Resource construction
     test_resource_construction
     
-    # Test 3: Scenario catalog
-    test_scenario_catalog
-    
-    # Test 4: Tools structure
+    # Test 3: Tools structure
     test_tools_structure
     
-    # Test 5: Generated app structure
+    # Test 4: Generated app structure
     test_scenario_structure
     
     # Save cache before printing results
@@ -704,8 +609,7 @@ main() {
 
 # Export functions for testing
 export -f run_structure_validation test_service_json_configs test_resource_construction
-export -f test_scenario_catalog validate_catalog_structure test_tools_structure
-export -f test_scenario_structure should_test_path
+export -f test_tools_structure test_scenario_structure should_test_path
 
 # Run main function if script is executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

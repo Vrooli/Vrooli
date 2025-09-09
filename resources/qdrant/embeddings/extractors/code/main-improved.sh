@@ -18,11 +18,13 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
 source "${EMBEDDINGS_DIR}/lib/code-extractor.sh"
 
-# Configuration
-readonly CODE_EXTRACT_TIMEOUT=5  # Timeout per file in seconds
-readonly MAX_FILES_PER_BATCH=100  # Process in chunks to prevent memory issues
-readonly MAX_RETRIES=2  # Retry failed files this many times
-readonly SKIP_LARGE_FILES_MB=10  # Skip files larger than this (in MB)
+# Configuration (check if already defined to avoid readonly errors)
+if [[ -z "${CODE_EXTRACT_TIMEOUT:-}" ]]; then
+    readonly CODE_EXTRACT_TIMEOUT=5  # Timeout per file in seconds
+    readonly MAX_FILES_PER_BATCH=100  # Process in chunks to prevent memory issues
+    readonly MAX_RETRIES=2  # Retry failed files this many times
+    readonly SKIP_LARGE_FILES_MB=10  # Skip files larger than this (in MB)
+fi
 
 #######################################
 # Extract code with timeout and error handling

@@ -188,7 +188,7 @@ error_handler::execute_with_retry() {
             --argjson attempt "$attempt" \
             --argjson exit_code "$exit_code" \
             --argjson duration "$duration" \
-            --arg result "$result" \
+            --arg result "${result:0:100}" \
             '{
                 command: $command,
                 attempt: $attempt,

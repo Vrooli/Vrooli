@@ -8,7 +8,7 @@ Before ANY modification:
 ```bash
 # Capture current state
 ./test.sh > baseline_tests.txt
-{{STANDARD_HEALTH_CHECK}} > baseline_health.txt
+timeout 5 curl -sf http://localhost:${PORT}/health > baseline_health.txt
 docker ps > baseline_containers.txt
 ps aux | grep $RESOURCE > baseline_processes.txt
 

@@ -290,7 +290,7 @@ qdrant::embedding::process_batch() {
         text_batch="[]"
         metadata_batch="[]"
         
-        echo "$batch_items" | jq -c '.[]' | while IFS= read -r item; do
+        while IFS= read -r item; do
             local content
             content=$(echo "$item" | jq -r '.content // empty')
             if [[ -n "$content" ]]; then
@@ -299,7 +299,7 @@ qdrant::embedding::process_batch() {
                 meta=$(echo "$item" | jq '.metadata // {}')
                 metadata_batch=$(echo "$metadata_batch" | jq --argjson m "$meta" '. + [$m]')
             fi
-        done
+        done < <(echo "$batch_items" | jq -c '.[]')
         
         # Generate embeddings for entire batch in ONE API call
         log::debug "Generating embeddings for batch of $current_batch_size items..."
@@ -492,9 +492,47 @@ qdrant::embedding::process_jsonl_file() {
                 
                 # Generate embeddings for entire batch in ONE call
                 local embeddings
-                embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL")
+                log::info "Generating embeddings for batch of $batch_count items..."
+                if ! embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL"); then
+                    log::error "FATAL: Embedding generation failed for batch $batch_num. This is a critical error that cannot be recovered."
+                    log::error "Input text batch: $(echo "$text_batch" | jq -c '. | length') items"
+                    exit 1
+                fi
                 
-                if [[ -n "$embeddings" ]] && [[ "$embeddings" != "[]" ]]; then
+                # Validate that embeddings were actually generated
+                if [[ -z "$embeddings" ]] || [[ "$embeddings" == "[]" ]] || [[ "$embeddings" == "null" ]]; then
+                    log::error "FATAL: Embedding generation returned empty/null result for batch $batch_num"
+                    log::error "This indicates a critical failure in the embedding service"
+                    exit 1
+                fi
+                
+                # Validate embedding count matches input count
+                local embedding_count
+                embedding_count=$(echo "$embeddings" | jq 'length')
+                if [[ "$embedding_count" -ne "$batch_count" ]]; then
+                    log::error "FATAL: Embedding count mismatch: expected $batch_count, got $embedding_count"
+                    exit 1
+                fi
+                
+                # Validate that embeddings contain actual vectors
+                local first_embedding
+                first_embedding=$(echo "$embeddings" | jq '.[0]')
+                if [[ "$first_embedding" == "null" ]] || [[ -z "$first_embedding" ]]; then
+                    log::error "FATAL: First embedding is null or empty - embedding generation failed"
+                    exit 1
+                fi
+                
+                # Validate vector dimensions
+                local vector_size
+                vector_size=$(echo "$first_embedding" | jq 'length')
+                if [[ "$vector_size" -ne "1024" ]]; then
+                    log::error "FATAL: Invalid vector size: expected 1024, got $vector_size"
+                    exit 1
+                fi
+                
+                log::success "Generated $embedding_count valid embeddings with correct dimensions"
+                
+                if true; then
                     # Build metadata array from temp file
                     local metadata_batch
                     metadata_batch=$(jq -s '.' "$temp_metadata")
@@ -530,11 +568,32 @@ qdrant::embedding::process_jsonl_file() {
                     local points=$(cat "$points_json")
                     rm -f "$points_json"
                     
-                    # Store batch in Qdrant
-                    if [[ $(echo "$points" | jq 'length') -gt 0 ]]; then
-                        qdrant::collections::batch_upsert "$collection" "$points" || \
-                            log::error "Failed to upsert batch to $collection"
+                    # Validate points before upserting
+                    local points_count
+                    points_count=$(echo "$points" | jq 'length')
+                    if [[ "$points_count" -eq 0 ]]; then
+                        log::error "FATAL: No valid points generated for batch $batch_num"
+                        exit 1
                     fi
+                    
+                    # Validate first point has vector
+                    local first_point_vector
+                    first_point_vector=$(echo "$points" | jq '.[0].vector')
+                    if [[ "$first_point_vector" == "null" ]] || [[ -z "$first_point_vector" ]]; then
+                        log::error "FATAL: Points generated without vectors - this is a critical bug"
+                        exit 1
+                    fi
+                    
+                    log::info "Upserting $points_count validated points to collection '$collection'..."
+                    
+                    # Store batch in Qdrant with strict error checking
+                    if ! qdrant::collections::batch_upsert "$collection" "$points"; then
+                        log::error "FATAL: Failed to upsert batch $batch_num to collection '$collection'"
+                        log::error "This is a critical error - embeddings were generated but could not be stored"
+                        exit 1
+                    fi
+                    
+                    log::success "Successfully stored batch $batch_num ($points_count points) in '$collection'"
                 fi
                 
                 # Reset for next batch
@@ -553,10 +612,31 @@ qdrant::embedding::process_jsonl_file() {
         local text_batch
         text_batch=$(jq -Rs 'split("\n") | map(select(. != ""))' "$temp_texts")
         
-        local embeddings
-        embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL")
+        log::info "Processing final batch of $batch_count items..."
         
-        if [[ -n "$embeddings" ]] && [[ "$embeddings" != "[]" ]]; then
+        # Generate embeddings for final batch with strict error checking
+        local embeddings
+        if ! embeddings=$(qdrant::embeddings::generate_batch "$text_batch" "$DEFAULT_MODEL"); then
+            log::error "FATAL: Embedding generation failed for final batch"
+            exit 1
+        fi
+        
+        # Validate final batch embeddings
+        if [[ -z "$embeddings" ]] || [[ "$embeddings" == "[]" ]] || [[ "$embeddings" == "null" ]]; then
+            log::error "FATAL: Final batch embedding generation returned empty/null result"
+            exit 1
+        fi
+        
+        local final_embedding_count
+        final_embedding_count=$(echo "$embeddings" | jq 'length')
+        if [[ "$final_embedding_count" -ne "$batch_count" ]]; then
+            log::error "FATAL: Final batch embedding count mismatch: expected $batch_count, got $final_embedding_count"
+            exit 1
+        fi
+        
+        log::success "Generated $final_embedding_count valid embeddings for final batch"
+        
+        if true; then
             # Build metadata array from temp file
             local metadata_batch
             metadata_batch=$(jq -s '.' "$temp_metadata")
@@ -592,14 +672,46 @@ qdrant::embedding::process_jsonl_file() {
             local points=$(cat "$points_json")
             rm -f "$points_json"
             
-            if [[ $(echo "$points" | jq 'length') -gt 0 ]]; then
-                qdrant::collections::batch_upsert "$collection" "$points" || \
-                    log::error "Failed to upsert final batch to $collection"
+            local final_points_count
+            final_points_count=$(echo "$points" | jq 'length')
+            if [[ "$final_points_count" -eq 0 ]]; then
+                log::error "FATAL: No valid points generated for final batch"
+                exit 1
             fi
+            
+            # Validate final batch points have vectors
+            local final_point_vector
+            final_point_vector=$(echo "$points" | jq '.[0].vector')
+            if [[ "$final_point_vector" == "null" ]] || [[ -z "$final_point_vector" ]]; then
+                log::error "FATAL: Final batch points generated without vectors"
+                exit 1
+            fi
+            
+            log::info "Upserting final batch: $final_points_count validated points to collection '$collection'..."
+            
+            if ! qdrant::collections::batch_upsert "$collection" "$points"; then
+                log::error "FATAL: Failed to upsert final batch to collection '$collection'"
+                exit 1
+            fi
+            
+            log::success "Successfully stored final batch ($final_points_count points) in '$collection'"
         fi
     fi
     
-    log::success "Processed $processed_count/$total_lines items using real batch embeddings"
+    # Final validation - verify actual points in collection
+    log::info "Validating embeddings were successfully stored..."
+    if command -v curl >/dev/null 2>&1; then
+        local actual_count
+        actual_count=$(curl -s "http://localhost:6333/collections/$collection" 2>/dev/null | jq -r '.result.points_count // 0')
+        if [[ "$actual_count" -gt 0 ]]; then
+            log::success "VALIDATION PASSED: Collection '$collection' now contains $actual_count points"
+        else
+            log::error "FATAL VALIDATION FAILURE: Collection '$collection' has $actual_count points after processing"
+            exit 1
+        fi
+    fi
+    
+    log::success "Successfully processed $processed_count/$total_lines items with VERIFIED embeddings"
     echo "$processed_count"
 }
 

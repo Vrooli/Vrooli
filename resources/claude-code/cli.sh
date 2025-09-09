@@ -522,9 +522,18 @@ claude_code_for() {
 claude_code_run() {
     local prompt="${*:-}"
     
-    if [[ -z "$prompt" ]]; then
+    # Check if prompt is "-" to read from stdin
+    if [[ "$prompt" == "-" ]]; then
+        # Read entire stdin into prompt
+        prompt=$(cat)
+        if [[ -z "$prompt" ]]; then
+            log::error "No prompt provided via stdin"
+            return 1
+        fi
+    elif [[ -z "$prompt" ]]; then
         log::error "Prompt required"
         echo "Usage: resource-claude-code run <prompt>"
+        echo "  or: echo \"prompt\" | resource-claude-code run -"
         echo ""
         echo "Examples:"
         echo "  resource-claude-code run \"Write a hello world program\""
@@ -532,9 +541,14 @@ claude_code_run() {
         return 1
     fi
     
-    # Set environment variables for claude_code::run function
-    export PROMPT="$prompt"
-    export MAX_TURNS="${MAX_TURNS:-5}"
+    # For large prompts, use a temp file to avoid environment variable size limits
+    local prompt_file
+    prompt_file=$(mktemp)
+    echo "$prompt" > "$prompt_file"
+    
+    # Set environment variables for claude_code::run function (except prompt)
+    export PROMPT_FILE="$prompt_file"  # Pass file path instead of content
+    export MAX_TURNS="${MAX_TURNS:-30}"
     export TIMEOUT="${TIMEOUT:-600}"
     export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
     export ALLOWED_TOOLS="${ALLOWED_TOOLS:-Read,Write,Edit,Bash,LS,Glob,Grep}"
@@ -545,9 +559,15 @@ claude_code_run() {
     
     if command -v claude_code::run &>/dev/null; then
         claude_code::run
+        local result=$?
+        rm -f "$prompt_file"
+        return $result
     else
         # Fall back to direct claude command with non-interactive mode
         echo "$prompt" | claude --print --max-turns "${MAX_TURNS:-5}"
+        local result=$?
+        rm -f "$prompt_file"
+        return $result
     fi
 }
 

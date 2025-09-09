@@ -5,15 +5,13 @@ import AppsView from '@/components/views/AppsView';
 import MetricsView from '@/components/views/MetricsView';
 import LogsView from '@/components/views/LogsView';
 import ResourcesView from '@/components/views/ResourcesView';
-import TerminalView from '@/components/views/TerminalView';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
-import { metricsService, appService } from '@/services/api';
-import type { App, SystemMetrics } from '@/types';
+import { appService } from '@/services/api';
+import type { App } from '@/types';
 import './App.css';
 
 function App() {
   const [apps, setApps] = useState<App[]>([]);
-  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   // WebSocket connection for real-time updates
@@ -30,9 +28,8 @@ function App() {
         return prev;
       });
     },
-    onMetricUpdate: (newMetrics) => {
-      console.log('Metrics update received:', newMetrics);
-      setMetrics(newMetrics);
+    onMetricUpdate: (_newMetrics) => {
+      // Metrics are now handled by system-monitor iframe
     },
     onLogEntry: (log) => {
       console.log('Log entry received:', log);
@@ -61,13 +58,6 @@ function App() {
         const initialApps = await appService.getApps();
         console.log('[App] Initial apps loaded:', initialApps.length);
         setApps(initialApps);
-        
-        // Fetch initial metrics
-        const initialMetrics = await metricsService.getSystemMetrics();
-        console.log('[App] Initial metrics loaded:', initialMetrics);
-        if (initialMetrics) {
-          setMetrics(initialMetrics);
-        }
       } catch (error) {
         console.error('[App] Failed to fetch initial data:', error);
       }
@@ -84,11 +74,10 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/apps" replace />} />
             <Route path="/apps" element={<AppsView apps={apps} setApps={setApps} />} />
-            <Route path="/metrics" element={<MetricsView metrics={metrics} />} />
+            <Route path="/metrics" element={<MetricsView />} />
             <Route path="/logs" element={<LogsView />} />
             <Route path="/logs/:appId" element={<LogsView />} />
             <Route path="/resources" element={<ResourcesView />} />
-            <Route path="/terminal" element={<TerminalView />} />
             <Route path="*" element={<Navigate to="/apps" replace />} />
           </Routes>
         </Layout>

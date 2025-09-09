@@ -45,6 +45,14 @@ if [[ -z "${MSG_COLLECTION_CREATED:-}" ]]; then
     qdrant::messages::init 2>/dev/null || true
 fi
 
+# Load API client immediately - don't wait for lazy loading
+if ! type -t qdrant::client::get_collection_info > /dev/null 2>&1; then
+    # shellcheck disable=SC1091
+    source "${APP_ROOT}/resources/qdrant/lib/api-client.sh" 2>/dev/null || {
+        echo "[WARNING] Failed to load Qdrant API client at initialization" >&2
+    }
+fi
+
 # Configuration and messages initialized by CLI
 # qdrant::export_config and qdrant::messages::init called by main script
 
@@ -72,6 +80,7 @@ qdrant::collections::verify_init() {
 #######################################
 qdrant::collections::create() {
     qdrant::collections::verify_init || return 1
+    qdrant::collections::ensure_api_client || return 1
     
     local collection_name="$1"
     local vector_size="${2:-1536}"
@@ -1213,16 +1222,38 @@ qdrant::collections::batch_upsert_chunk() {
         return 1
     fi
     
+    # Validate payload before sending
+    local payload_size
+    payload_size=$(du -b "$temp_payload" | cut -f1)
+    log::debug "Sending batch upsert request: ${payload_size} bytes to collection '${collection_name}'"
+    
     # Send batch upsert request using file input with timeout
     local response
     local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
+    local curl_exit_code=0
+    
     response=$(timeout "$timeout" curl -s -X PUT \
         -H "Content-Type: application/json" \
         -d @"$temp_payload" \
-        "${QDRANT_BASE_URL}/collections/${collection_name}/points" 2>/dev/null)
+        "${QDRANT_BASE_URL}/collections/${collection_name}/points" 2>&1) || curl_exit_code=$?
     
-    if [[ $? -ne 0 || -z "$response" ]]; then
-        log::error "Failed to send batch upsert request"
+    if [[ $curl_exit_code -ne 0 ]]; then
+        log::error "CURL request failed with exit code $curl_exit_code"
+        log::error "Response: $response"
+        log::error "URL: ${QDRANT_BASE_URL}/collections/${collection_name}/points"
+        return 1
+    fi
+    
+    if [[ -z "$response" ]]; then
+        log::error "Empty response from Qdrant server"
+        log::error "This indicates a network or server error"
+        return 1
+    fi
+    
+    # Validate response is valid JSON
+    if ! echo "$response" | jq . >/dev/null 2>&1; then
+        log::error "Invalid JSON response from Qdrant:"
+        log::error "Response: $response"
         return 1
     fi
     
@@ -1231,11 +1262,18 @@ qdrant::collections::batch_upsert_chunk() {
     status=$(echo "$response" | jq -r '.status // "error"' 2>/dev/null)
     
     if [[ "$status" == "ok" ]]; then
+        # Log success details
+        local points_count
+        points_count=$(jq '.points | length' "$temp_payload")
+        log::debug "Successfully upserted $points_count points to collection '${collection_name}'"
         return 0
     else
         local error_msg
-        error_msg=$(echo "$response" | jq -r '.result // "Unknown error"' 2>/dev/null)
-        log::error "Batch upsert failed: $error_msg"
+        error_msg=$(echo "$response" | jq -r '.result.message // .result // "Unknown error"' 2>/dev/null)
+        log::error "QDRANT UPSERT FAILED for collection '${collection_name}'"
+        log::error "Status: $status"
+        log::error "Error: $error_msg"
+        log::error "Full response: $response"
         return 1
     fi
 }

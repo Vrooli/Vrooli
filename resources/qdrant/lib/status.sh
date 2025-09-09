@@ -66,7 +66,11 @@ qdrant::status::collect_data() {
         if docker::is_running "$QDRANT_CONTAINER_NAME"; then
             running="true"
             
-            if qdrant::health::is_healthy; then
+            # Skip health check in fast mode
+            if [[ "$fast_mode" == "true" ]]; then
+                healthy="unknown"
+                health_message="Running - Health check skipped (fast mode)"
+            elif HTTP_TIMEOUT=2 qdrant::health::is_healthy; then
                 healthy="true"
                 health_message="Healthy - All systems operational, vector database ready"
             else
@@ -104,9 +108,9 @@ qdrant::status::collect_data() {
     
     # Runtime information (only if running and healthy)
     if [[ "$running" == "true" && "$healthy" == "true" ]]; then
-        # Get cluster info
+        # Get cluster info with timeout
         local cluster_info
-        cluster_info=$(qdrant::client::get_cluster_info 2>/dev/null)
+        cluster_info=$(timeout 5s qdrant::client::get_cluster_info 2>/dev/null || echo "{}")
         
         if [[ -n "$cluster_info" ]]; then
             # Parse cluster info
@@ -131,9 +135,9 @@ qdrant::status::collect_data() {
             fi
         fi
         
-        # Get collection count
+        # Get collection count with timeout
         local collections_info
-        collections_info=$(qdrant::client::get_collections 2>/dev/null)
+        collections_info=$(timeout 5s qdrant::client::get_collections 2>/dev/null || echo "{}")
         
         if [[ -n "$collections_info" ]]; then
             local collection_count

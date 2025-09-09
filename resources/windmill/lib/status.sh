@@ -128,15 +128,15 @@ windmill::status::collect_data() {
         local worker_running="false"
         local db_running="false"
         
-        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_SERVER_CONTAINER}$"; then
+        if timeout 5s docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_SERVER_CONTAINER}$"; then
             server_running="true"
         fi
         
-        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "${WINDMILL_WORKER_CONTAINER}"; then
+        if timeout 5s docker ps --format "{{.Names}}" 2>/dev/null | grep -q "${WINDMILL_WORKER_CONTAINER}"; then
             worker_running="true"
         fi
         
-        if docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_DB_CONTAINER_NAME}$"; then
+        if timeout 5s docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WINDMILL_DB_CONTAINER_NAME}$"; then
             db_running="true"
         fi
         

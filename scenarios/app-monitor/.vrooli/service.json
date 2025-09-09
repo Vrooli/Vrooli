@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "app-monitor",
@@ -184,14 +184,6 @@
           }
         },
         {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build React app for production",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
           "name": "start-ui",
           "run": "cd ui && NODE_ENV=production node server.js",
           "description": "Start Express server with built React app",
@@ -202,7 +194,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display all running service URLs"
         }
       ]

@@ -1,78 +1,83 @@
 import { useState, useEffect } from 'react';
-import { metricsService } from '@/services/api';
-import type { SystemMetrics } from '@/types';
+import { appService } from '@/services/api';
 import './MetricsView.css';
 
-interface MetricsViewProps {
-  metrics: SystemMetrics | null;
-}
-
-export default function MetricsView({ metrics }: MetricsViewProps) {
-  const [interval, setInterval] = useState<'1m' | '5m' | '15m' | '1h'>('5m');
-  const [loading, setLoading] = useState(false);
+export default function MetricsView() {
+  const [systemMonitorUrl, setSystemMonitorUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchMetricsHistory();
-  }, [interval]);
+    fetchSystemMonitorUrl();
+  }, []);
 
-  const fetchMetricsHistory = async () => {
-    setLoading(true);
+  const fetchSystemMonitorUrl = async () => {
     try {
-      // For now, just log - can be used for historical charts later
-      const data = await metricsService.getMetricsHistory(interval);
-      console.log('Metrics history:', data);
-    } catch (error) {
-      console.error('Failed to fetch metrics history:', error);
+      // Get all running apps to find system-monitor
+      const apps = await appService.getApps();
+      
+      // Find system-monitor scenario
+      const systemMonitor = apps.find(app => 
+        app.scenario_name === 'system-monitor' || 
+        app.name === 'system-monitor' ||
+        app.id === 'system-monitor'
+      );
+      
+      if (systemMonitor && systemMonitor.port_mappings) {
+        // Look for UI_PORT or ui port
+        const uiPort = systemMonitor.port_mappings.UI_PORT || 
+                      systemMonitor.port_mappings.ui ||
+                      systemMonitor.port_mappings.port;
+        
+        if (uiPort) {
+          setSystemMonitorUrl(`http://localhost:${uiPort}`);
+        } else {
+          setError('System Monitor is running but no UI port found');
+        }
+      } else {
+        setError('System Monitor is not running. Please start it with: vrooli scenario run system-monitor');
+      }
+    } catch (err) {
+      console.error('Failed to fetch system monitor URL:', err);
+      setError('Failed to connect to system monitor');
     } finally {
       setLoading(false);
     }
   };
 
-  // Show loading state when metrics haven't loaded yet
-  if (!metrics) {
+  if (loading) {
     return (
       <div className="metrics-view">
         <div className="panel-header">
-          <h2>PERFORMANCE METRICS</h2>
-          <div className="panel-controls">
-            <select className="metric-select" disabled>
-              <option>Loading...</option>
-            </select>
-          </div>
+          <h2>SYSTEM METRICS</h2>
         </div>
+        <div className="metrics-container loading-state">
+          <div className="loading-spinner">⟳</div>
+          <p>Locating System Monitor...</p>
+        </div>
+      </div>
+    );
+  }
 
-        <div className="metrics-container">
-          <div className="metric-card loading">
-            <h3>CPU USAGE</h3>
-            <div className="metric-chart">
-              <div className="metric-bar loading-bar"></div>
-            </div>
-            <div className="metric-value">Loading...</div>
-          </div>
-          
-          <div className="metric-card loading">
-            <h3>MEMORY</h3>
-            <div className="metric-chart">
-              <div className="metric-bar loading-bar"></div>
-            </div>
-            <div className="metric-value">Loading...</div>
-          </div>
-          
-          <div className="metric-card loading">
-            <h3>NETWORK I/O</h3>
-            <div className="metric-chart">
-              <div className="metric-bar loading-bar"></div>
-            </div>
-            <div className="metric-value">Loading...</div>
-          </div>
-          
-          <div className="metric-card loading">
-            <h3>DISK USAGE</h3>
-            <div className="metric-chart">
-              <div className="metric-bar loading-bar"></div>
-            </div>
-            <div className="metric-value">Loading...</div>
-          </div>
+  if (error) {
+    return (
+      <div className="metrics-view">
+        <div className="panel-header">
+          <h2>SYSTEM METRICS</h2>
+        </div>
+        <div className="metrics-container error-state">
+          <div className="error-icon">⚠</div>
+          <p>{error}</p>
+          <button 
+            className="control-btn refresh"
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              fetchSystemMonitorUrl();
+            }}
+          >
+            RETRY
+          </button>
         </div>
       </div>
     );
@@ -81,60 +86,32 @@ export default function MetricsView({ metrics }: MetricsViewProps) {
   return (
     <div className="metrics-view">
       <div className="panel-header">
-        <h2>PERFORMANCE METRICS</h2>
+        <h2>SYSTEM METRICS</h2>
         <div className="panel-controls">
-          <select
-            className="metric-select"
-            value={interval}
-            onChange={(e) => setInterval(e.target.value as any)}
+          <a 
+            href={systemMonitorUrl!} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="control-btn"
+            title="Open in new tab"
           >
-            <option value="1m">1 MIN</option>
-            <option value="5m">5 MIN</option>
-            <option value="15m">15 MIN</option>
-            <option value="1h">1 HOUR</option>
-          </select>
+            ↗
+          </a>
         </div>
       </div>
-
-      <div className="metrics-container">
-        <div className="metric-card">
-          <h3>CPU USAGE</h3>
-          <div className="metric-chart">
-            <div className="metric-bar" style={{ height: `${metrics.cpu}%` }}></div>
-          </div>
-          <div className="metric-value">{metrics.cpu.toFixed(1)}%</div>
-        </div>
-        
-        <div className="metric-card">
-          <h3>MEMORY</h3>
-          <div className="metric-chart">
-            <div className="metric-bar" style={{ height: `${metrics.memory}%` }}></div>
-          </div>
-          <div className="metric-value">{metrics.memory.toFixed(1)}%</div>
-        </div>
-        
-        <div className="metric-card">
-          <h3>NETWORK I/O</h3>
-          <div className="metric-chart">
-            <div className="metric-bar" style={{ height: `${Math.min(metrics.network / 10, 100)}%` }}></div>
-          </div>
-          <div className="metric-value">{metrics.network.toFixed(1)} KB/s</div>
-        </div>
-        
-        <div className="metric-card">
-          <h3>DISK USAGE</h3>
-          <div className="metric-chart">
-            <div className="metric-bar" style={{ height: `${metrics.disk}%` }}></div>
-          </div>
-          <div className="metric-value">{metrics.disk.toFixed(1)}%</div>
-        </div>
+      <div className="metrics-iframe-container">
+        <iframe
+          src={systemMonitorUrl!}
+          title="System Monitor"
+          className="metrics-iframe"
+          style={{
+            width: '100%',
+            height: 'calc(100vh - 200px)',
+            border: 'none',
+            backgroundColor: '#0a0e0a'
+          }}
+        />
       </div>
-
-      {loading && (
-        <div className="loading-overlay">
-          <div className="spinner small"></div>
-        </div>
-      )}
     </div>
   );
 }

@@ -6,46 +6,95 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"app-monitor-api/repository"
 )
 
+// Cache for orchestrator data to prevent excessive command execution
+type orchestratorCache struct {
+	data      []repository.App
+	timestamp time.Time
+	mu        sync.RWMutex
+}
+
 // AppService handles business logic for application management
 type AppService struct {
-	repo repository.AppRepository
+	repo  repository.AppRepository
+	cache *orchestratorCache
 }
 
 // NewAppService creates a new app service
 func NewAppService(repo repository.AppRepository) *AppService {
-	return &AppService{repo: repo}
+	return &AppService{
+		repo: repo,
+		cache: &orchestratorCache{},
+	}
 }
 
 // OrchestratorResponse represents the response from vrooli scenario status --json
 type OrchestratorResponse struct {
-	Total   int               `json:"total"`
-	Running int               `json:"running"`
-	Apps    []OrchestratorApp `json:"apps"`
+	Success bool `json:"success"`
+	Summary struct {
+		TotalScenarios int `json:"total_scenarios"`
+		Running        int `json:"running"`
+		Stopped        int `json:"stopped"`
+	} `json:"summary"`
+	Scenarios []OrchestratorApp `json:"scenarios"`
 }
 
 // OrchestratorApp represents an app from the orchestrator
 type OrchestratorApp struct {
-	Name           string         `json:"name"`
-	Status         string         `json:"status"`
-	ActualHealth   string         `json:"actual_health,omitempty"`
-	AllocatedPorts map[string]int `json:"allocated_ports,omitempty"`
-	PID            int            `json:"pid,omitempty"`
-	StartedAt      string         `json:"started_at,omitempty"`
-	StoppedAt      string         `json:"stopped_at,omitempty"`
-	RestartCount   int            `json:"restart_count,omitempty"`
+	Name         string         `json:"name"`
+	DisplayName  string         `json:"display_name"`
+	Description  string         `json:"description"`
+	Status       string         `json:"status"`
+	HealthStatus *string        `json:"health_status"`
+	Ports        map[string]int `json:"ports"`
+	Processes    int            `json:"processes"`
+	Runtime      string         `json:"runtime"`
+	StartedAt    string         `json:"started_at,omitempty"`
+	Tags         []string       `json:"tags,omitempty"`
 }
 
-// GetAppsFromOrchestrator fetches app status from the vrooli orchestrator
+// GetAppsFromOrchestrator fetches app status from the vrooli orchestrator with caching
 func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.App, error) {
-	// Execute vrooli scenario status --json
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", "--json")
+	// Check cache first (cache valid for 15 seconds)
+	s.cache.mu.RLock()
+	if time.Since(s.cache.timestamp) < 15*time.Second && len(s.cache.data) > 0 {
+		cachedData := s.cache.data
+		s.cache.mu.RUnlock()
+		return cachedData, nil
+	}
+	s.cache.mu.RUnlock()
+
+	// Prevent concurrent fetches using mutex (add a fetchMutex field to orchestratorCache)
+	// For now, use the write lock as a simple mutex
+	s.cache.mu.Lock()
+	
+	// Check cache again after acquiring lock
+	if time.Since(s.cache.timestamp) < 15*time.Second && len(s.cache.data) > 0 {
+		cachedData := s.cache.data
+		s.cache.mu.Unlock()
+		return cachedData, nil
+	}
+	
+	// Keep the lock while fetching to prevent concurrent fetches
+	defer s.cache.mu.Unlock()
+
+	// Execute vrooli scenario status --json with timeout
+	// 15 second timeout to account for scenarios with issues that need attention
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
+		// Return cached data if available on error (we already have the lock)
+		if len(s.cache.data) > 0 {
+			return s.cache.data, nil
+		}
 		return nil, fmt.Errorf("failed to execute vrooli scenario status: %w", err)
 	}
 
@@ -56,26 +105,32 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	}
 
 	// Convert orchestrator apps to our App format
-	apps := make([]repository.App, 0, len(orchestratorResp.Apps))
-	for _, orchApp := range orchestratorResp.Apps {
+	apps := make([]repository.App, 0, len(orchestratorResp.Scenarios))
+	for _, orchApp := range orchestratorResp.Scenarios {
 		// Map orchestrator status to our status format
 		status := orchApp.Status
-		if orchApp.Status == "running" && orchApp.ActualHealth != "" {
+		if orchApp.Status == "running" && orchApp.HealthStatus != nil && *orchApp.HealthStatus != "" {
 			// Use actual health for running apps
-			if orchApp.ActualHealth == "degraded" || orchApp.ActualHealth == "unhealthy" {
-				status = orchApp.ActualHealth
+			if *orchApp.HealthStatus == "degraded" || *orchApp.HealthStatus == "unhealthy" {
+				status = *orchApp.HealthStatus
 			}
 		}
 
 		// Format ports for display
 		portMappings := make(map[string]interface{})
-		for name, port := range orchApp.AllocatedPorts {
+		for name, port := range orchApp.Ports {
 			portMappings[name] = port
+		}
+
+		// Use DisplayName if available, otherwise fall back to Name
+		displayName := orchApp.DisplayName
+		if displayName == "" {
+			displayName = orchApp.Name
 		}
 
 		app := repository.App{
 			ID:           orchApp.Name, // Use name as ID for now
-			Name:         orchApp.Name,
+			Name:         displayName,
 			ScenarioName: orchApp.Name,
 			Status:       status,
 			PortMappings: portMappings,
@@ -95,6 +150,10 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 
 		apps = append(apps, app)
 	}
+
+	// Update cache (we already have the lock from above)
+	s.cache.data = apps
+	s.cache.timestamp = time.Now()
 
 	return apps, nil
 }
@@ -137,7 +196,11 @@ func (s *AppService) UpdateAppStatus(ctx context.Context, id string, status stri
 
 // StartApp starts an application using vrooli commands
 func (s *AppService) StartApp(ctx context.Context, appName string) error {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "run", appName)
+	// Add timeout to prevent hanging (60s for start as it can take time)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "run", appName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to start app %s: %w (output: %s)", appName, err, string(output))
@@ -153,7 +216,11 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 
 // StopApp stops an application using vrooli commands
 func (s *AppService) StopApp(ctx context.Context, appName string) error {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", appName)
+	// Add timeout to prevent hanging (20s for stop to allow graceful shutdown)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "stop", appName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to stop app %s: %w (output: %s)", appName, err, string(output))
@@ -174,7 +241,11 @@ func (s *AppService) GetAppLogs(ctx context.Context, appName string, logType str
 		args = append(args, "--type", logType)
 	}
 
-	cmd := exec.CommandContext(ctx, "vrooli", args...)
+	// Add timeout to prevent hanging (10s for logs as they can be large)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Don't fail on "not found" errors - just return empty logs

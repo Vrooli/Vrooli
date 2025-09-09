@@ -104,24 +104,36 @@ claude_code::check_usage_limits() {
 	local usage_json
 	usage_json=$(claude_code::get_usage 2>/dev/null) || return 0
 	
+	# Create temp file for usage JSON to avoid argument length issues
+	local temp_json
+	temp_json=$(mktemp)
+	echo "$usage_json" > "$temp_json"
+	
 	# Parse usage data and check against limits
-	local tier=$(echo "$usage_json" | jq -r '.subscription_tier // "free"')
-	local five_hour_usage=$(echo "$usage_json" | jq -r '.last_5_hours // 0')
-	local daily_usage=$(echo "$usage_json" | jq -r '.current_day_requests // 0')
-	local weekly_usage=$(echo "$usage_json" | jq -r '.current_week_requests // 0')
+	local tier=$(jq -r '.subscription_tier // "free"' "$temp_json")
+	local five_hour_usage=$(jq -r '.last_5_hours // 0' "$temp_json")
+	local daily_usage=$(jq -r '.current_day_requests // 0' "$temp_json")
+	local weekly_usage=$(jq -r '.current_week_requests // 0' "$temp_json")
 	
 	# Get limits based on tier (fallback to "free" tier limits if tier not found)
 	local tier_key="$tier"
 	[[ "$tier" == "max" ]] && tier_key="max_100"
 	
-	local five_hour_limit=$(echo "$usage_json" | jq -r ".estimated_limits.\"$tier_key\".\"5_hour\" // .estimated_limits.free.\"5_hour\"")
-	local daily_limit=$(echo "$usage_json" | jq -r ".estimated_limits.\"$tier_key\".daily // .estimated_limits.free.daily")
-	local weekly_limit=$(echo "$usage_json" | jq -r ".estimated_limits.\"$tier_key\".weekly // .estimated_limits.free.weekly")
+	local five_hour_limit=$(jq -r ".estimated_limits.\"$tier_key\".\"5_hour\" // .estimated_limits.free.\"5_hour\"" "$temp_json")
+	local daily_limit=$(jq -r ".estimated_limits.\"$tier_key\".daily // .estimated_limits.free.daily" "$temp_json")
+	local weekly_limit=$(jq -r ".estimated_limits.\"$tier_key\".weekly // .estimated_limits.free.weekly" "$temp_json")
 	
-	# Check thresholds
-	local five_hour_pct=$((five_hour_usage * 100 / five_hour_limit))
-	local daily_pct=$((daily_usage * 100 / daily_limit))
-	local weekly_pct=$((weekly_usage * 100 / weekly_limit))
+	# Clean up temp file
+	rm -f "$temp_json"
+	
+	# Check thresholds (avoid division by zero)
+	local five_hour_pct=0
+	local daily_pct=0
+	local weekly_pct=0
+	
+	[[ $five_hour_limit -gt 0 ]] && five_hour_pct=$((five_hour_usage * 100 / five_hour_limit))
+	[[ $daily_limit -gt 0 ]] && daily_pct=$((daily_usage * 100 / daily_limit))
+	[[ $weekly_limit -gt 0 ]] && weekly_pct=$((weekly_usage * 100 / weekly_limit))
 	
 	# Critical threshold (95%+)
 	if [[ $five_hour_pct -ge 95 ]] || [[ $daily_pct -ge 95 ]] || [[ $weekly_pct -ge 95 ]]; then

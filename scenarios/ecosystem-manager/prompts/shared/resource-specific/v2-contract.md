@@ -80,10 +80,10 @@ resource-<name> manage uninstall
 ### ❌ No Timeout in Health Checks
 ```bash
 # BAD
-{{STANDARD_HEALTH_CHECK}}
+curl -sf http://localhost:${PORT}/health
 
 # GOOD (per universal.yaml spec)
-{{TIMEOUT_HEALTH_CHECK}}
+timeout 5 curl -sf http://localhost:${PORT}/health
 ```
 
 ### ❌ Incomplete Command Structure

@@ -18,10 +18,15 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_UTILS_DIR}/log.sh" 2>/dev/null || echo() { printf "%s\n" "$*"; }
 
-# Configuration
-QDRANT_BASE_URL="${QDRANT_BASE_URL:-http://localhost:6333}"
+# Configuration with readonly conflict protection
+if [[ -z "${QDRANT_BASE_URL:-}" ]]; then
+    QDRANT_BASE_URL="http://localhost:6333"
+fi
 HTTP_TIMEOUT="${HTTP_TIMEOUT:-30}"
-MAX_RETRIES="${MAX_RETRIES:-3}"
+# Only set MAX_RETRIES if not already defined (avoid readonly conflicts)
+if [[ -z "${MAX_RETRIES:-}" ]]; then
+    MAX_RETRIES=3
+fi
 INITIAL_RETRY_DELAY="${INITIAL_RETRY_DELAY:-1}"
 MAX_RETRY_DELAY="${MAX_RETRY_DELAY:-30}"
 CIRCUIT_BREAKER_THRESHOLD="${CIRCUIT_BREAKER_THRESHOLD:-5}"

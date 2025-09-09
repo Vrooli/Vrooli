@@ -139,8 +139,12 @@ func (s *MetricsService) collectSystemMetrics(ctx context.Context) (*SystemMetri
 
 // getCPUUsage retrieves current CPU usage percentage
 func (s *MetricsService) getCPUUsage(ctx context.Context) (float64, error) {
+	// Add timeout to prevent hanging
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	
 	// Try using /proc/stat for more reliable CPU calculation
-	cmd := exec.CommandContext(ctx, "bash", "-c", `
+	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
 		grep 'cpu ' /proc/stat | head -1 | awk '{
 			idle=$5; 
 			total=0; 
@@ -151,8 +155,8 @@ func (s *MetricsService) getCPUUsage(ctx context.Context) (float64, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		// Fallback to top command
-		cmd = exec.CommandContext(ctx, "bash", "-c", "top -b -n1 | grep '%Cpu' | awk '{print 100-$8}'")
+		// Fallback to top command (reuse timeout context)
+		cmd = exec.CommandContext(ctxWithTimeout, "bash", "-c", "top -b -n1 | grep '%Cpu' | awk '{print 100-$8}'")
 		output, err = cmd.Output()
 		if err != nil {
 			return 0, fmt.Errorf("failed to get CPU usage: %w", err)
@@ -178,8 +182,12 @@ func (s *MetricsService) getCPUUsage(ctx context.Context) (float64, error) {
 
 // getMemoryUsage retrieves current memory usage percentage
 func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
+	// Add timeout to prevent hanging
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	
 	// Use /proc/meminfo for more accurate memory calculation
-	cmd := exec.CommandContext(ctx, "bash", "-c", `
+	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
 		awk '/MemTotal:/ {total=$2} /MemAvailable:/ {available=$2} END {
 			if (total > 0) printf "%.1f", 100*(1-available/total)
 		}' /proc/meminfo
@@ -187,8 +195,8 @@ func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
 
 	output, err := cmd.Output()
 	if err != nil {
-		// Fallback to free command
-		cmd = exec.CommandContext(ctx, "bash", "-c", "free -m | awk 'NR==2{printf \"%.1f\", $3*100/$2}'")
+		// Fallback to free command (reuse timeout context)
+		cmd = exec.CommandContext(ctxWithTimeout, "bash", "-c", "free -m | awk 'NR==2{printf \"%.1f\", $3*100/$2}'")
 		output, err = cmd.Output()
 		if err != nil {
 			return 0, fmt.Errorf("failed to get memory usage: %w", err)
@@ -213,7 +221,11 @@ func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
 
 // getDiskUsage retrieves current disk usage percentage for root filesystem
 func (s *MetricsService) getDiskUsage(ctx context.Context) (float64, error) {
-	cmd := exec.CommandContext(ctx, "bash", "-c", "df / | awk 'NR==2 {print $5}' | sed 's/%//'")
+	// Add timeout to prevent hanging
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", "df / | awk 'NR==2 {print $5}' | sed 's/%//'")
 	output, err := cmd.Output()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get disk usage: %w", err)
@@ -237,8 +249,12 @@ func (s *MetricsService) getDiskUsage(ctx context.Context) (float64, error) {
 
 // getNetworkUsage retrieves current network I/O rate in KB/s
 func (s *MetricsService) getNetworkUsage(ctx context.Context) (float64, error) {
+	// Add timeout to prevent hanging
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	
 	// Try to get network stats from /proc/net/dev
-	cmd := exec.CommandContext(ctx, "bash", "-c", `
+	cmd := exec.CommandContext(ctxWithTimeout, "bash", "-c", `
 		awk '/:/ {
 			rx+=$2; tx+=$10
 		} END {

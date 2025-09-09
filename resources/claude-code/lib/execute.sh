@@ -15,7 +15,10 @@ claude_code::run() {
         return 1
     fi
     
-    if [[ -z "${PROMPT:-}" ]]; then
+    # Read prompt from file or environment variable (file takes precedence for large prompts)
+    if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
+        PROMPT=$(cat "$PROMPT_FILE")
+    elif [[ -z "${PROMPT:-}" ]]; then
         log::error "No prompt provided. Use --prompt \"Your prompt here\""
         return 1
     fi
@@ -105,7 +108,14 @@ claude_code::run() {
         # - Execute via LiteLLM API instead of Claude CLI
     fi
     
-    log::info "Executing: timeout ${TIMEOUT:-600} claude ${cmd_args[*]} \"$PROMPT\""
+    # Check prompt size and log warning if large
+    local prompt_size=${#PROMPT}
+    if [[ $prompt_size -gt 100000 ]]; then
+        log::warn "Large prompt detected: $prompt_size characters ($(( prompt_size / 1024 )) KB)"
+        log::info "Using file-based approach to avoid argument length limits"
+    fi
+    
+    log::info "Executing: timeout ${TIMEOUT:-600} claude ${cmd_args[*]} (prompt: $prompt_size chars)"
     echo
     
     # Track the request
@@ -122,10 +132,11 @@ claude_code::run() {
     temp_output_file=$(mktemp)
     
     # Use timeout with streaming to prevent hanging, capture minimal output for error handling
-    # Claude expects prompt as argument, not stdin
+    # Pass prompt via stdin to avoid argument length limits
+    # The --print flag is already added above, so stdin will work
     {
-        timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" "$PROMPT" 2>&1
-        echo $? > "${temp_output_file}.exit"
+        echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
+        echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
     } | tee "$temp_output_file"
     
     exit_code=$(cat "${temp_output_file}.exit" 2>/dev/null || echo "124")
@@ -146,9 +157,13 @@ claude_code::run() {
         
         # First check if the output is a JSON error response (even if exit_code is 0)
         # This handles the case where Claude returns JSON with is_error:true
-        if echo "$output" | jq -e '.' >/dev/null 2>&1; then
-            local is_error=$(echo "$output" | jq -r '.is_error // false' 2>/dev/null)
-            local result=$(echo "$output" | jq -r '.result // ""' 2>/dev/null)
+        local temp_out
+        temp_out=$(mktemp)
+        echo "$output" > "$temp_out"
+        
+        if jq -e '.' "$temp_out" >/dev/null 2>&1; then
+            local is_error=$(jq -r '.is_error // false' "$temp_out" 2>/dev/null)
+            local result=$(jq -r '.result // ""' "$temp_out" 2>/dev/null)
             
             if [[ "$is_error" == "true" ]] && [[ "$result" =~ "Claude AI usage limit reached" ]]; then
                 # This is a JSON usage limit error - handle it specially
@@ -158,9 +173,15 @@ claude_code::run() {
                 # Record the rate limit encounter
                 claude_code::record_rate_limit "$rate_info"
                 
-                local limit_type=$(echo "$rate_info" | jq -r '.limit_type')
-                local reset_time=$(echo "$rate_info" | jq -r '.reset_time')
-                local retry_after=$(echo "$rate_info" | jq -r '.retry_after')
+                local temp_rate
+                temp_rate=$(mktemp)
+                echo "$rate_info" > "$temp_rate"
+                
+                local limit_type=$(jq -r '.limit_type' "$temp_rate")
+                local reset_time=$(jq -r '.reset_time' "$temp_rate")
+                local retry_after=$(jq -r '.retry_after' "$temp_rate")
+                
+                rm -f "$temp_rate"
                 
                 log::error "Rate/Usage limit reached (type: $limit_type)"
                 
@@ -183,9 +204,15 @@ claude_code::run() {
                 
                 # Show current usage statistics
                 local usage_json=$(claude_code::get_usage)
-                local last_5h=$(echo "$usage_json" | jq -r '.last_5_hours')
-                local daily=$(echo "$usage_json" | jq -r '.current_day_requests')
-                local weekly=$(echo "$usage_json" | jq -r '.current_week_requests')
+                local temp_usage
+                temp_usage=$(mktemp)
+                echo "$usage_json" > "$temp_usage"
+                
+                local last_5h=$(jq -r '.last_5_hours' "$temp_usage")
+                local daily=$(jq -r '.current_day_requests' "$temp_usage")
+                local weekly=$(jq -r '.current_week_requests' "$temp_usage")
+                
+                rm -f "$temp_usage"
                 
                 log::info "Current usage statistics:"
                 log::info "  - Last 5 hours: $last_5h requests"
@@ -247,15 +274,27 @@ claude_code::run() {
             elif [[ "$output" =~ "usage limit" ]] || [[ "$output" =~ "rate limit" ]]; then
             # Use advanced rate limit detection
             local rate_info=$(claude_code::detect_rate_limit "$output" "$exit_code")
-            local is_rate_limited=$(echo "$rate_info" | jq -r '.detected')
+            local temp_ri
+            temp_ri=$(mktemp)
+            echo "$rate_info" > "$temp_ri"
+            
+            local is_rate_limited=$(jq -r '.detected' "$temp_ri")
+            
+            rm -f "$temp_ri"
             
             if [[ "$is_rate_limited" == "true" ]]; then
                 # Record the rate limit encounter
                 claude_code::record_rate_limit "$rate_info"
                 
-                local limit_type=$(echo "$rate_info" | jq -r '.limit_type')
-                local reset_time=$(echo "$rate_info" | jq -r '.reset_time')
-                local retry_after=$(echo "$rate_info" | jq -r '.retry_after')
+                local temp_rate
+                temp_rate=$(mktemp)
+                echo "$rate_info" > "$temp_rate"
+                
+                local limit_type=$(jq -r '.limit_type' "$temp_rate")
+                local reset_time=$(jq -r '.reset_time' "$temp_rate")
+                local retry_after=$(jq -r '.retry_after' "$temp_rate")
+                
+                rm -f "$temp_rate"
                 
                 log::error "Rate/Usage limit reached (type: $limit_type)"
                 
@@ -278,9 +317,15 @@ claude_code::run() {
                 
                 # Show current usage statistics
                 local usage_json=$(claude_code::get_usage)
-                local last_5h=$(echo "$usage_json" | jq -r '.last_5_hours')
-                local daily=$(echo "$usage_json" | jq -r '.current_day_requests')
-                local weekly=$(echo "$usage_json" | jq -r '.current_week_requests')
+                local temp_usage
+                temp_usage=$(mktemp)
+                echo "$usage_json" > "$temp_usage"
+                
+                local last_5h=$(jq -r '.last_5_hours' "$temp_usage")
+                local daily=$(jq -r '.current_day_requests' "$temp_usage")
+                local weekly=$(jq -r '.current_week_requests' "$temp_usage")
+                
+                rm -f "$temp_usage"
                 
                 log::info "Current usage statistics:"
                 log::info "  - Last 5 hours: $last_5h requests"
@@ -328,7 +373,7 @@ claude_code::run() {
         fi
         
         # Cleanup temp files
-        rm -f "$temp_output_file" "${temp_output_file}.exit"
+        rm -f "$temp_out" "$temp_output_file" "${temp_output_file}.exit"
         return $exit_code
     fi
     
@@ -610,7 +655,10 @@ claude_code::batch() {
         return 1
     fi
     
-    if [[ -z "${PROMPT:-}" ]]; then
+    # Read prompt from file or environment variable (file takes precedence for large prompts)
+    if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
+        PROMPT=$(cat "$PROMPT_FILE")
+    elif [[ -z "${PROMPT:-}" ]]; then
         log::error "No prompt provided. Use --prompt \"Your prompt here\""
         return 1
     fi

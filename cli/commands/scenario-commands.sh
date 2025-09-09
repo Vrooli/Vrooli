@@ -19,7 +19,7 @@ USAGE:
     vrooli scenario <subcommand> [options]
 
 SUBCOMMANDS:
-    start <name>            Start a scenario
+    start <name> [options]  Start a scenario
     start <name1> <name2>...Start multiple scenarios
     start-all               Start all available scenarios
     stop <name>             Stop a running scenario
@@ -29,6 +29,9 @@ SUBCOMMANDS:
     logs <name> [options]   View logs for a scenario
     status [name] [--json]  Show scenario status
 
+OPTIONS FOR START:
+    --clean-stale           Clean stale port locks before starting
+
 OPTIONS FOR LOGS:
     --follow, -f            Follow log output (live view)
     --step <name>           View specific background step log
@@ -37,6 +40,7 @@ OPTIONS FOR LOGS:
 
 EXAMPLES:
     vrooli scenario start make-it-vegan         # Start a specific scenario
+    vrooli scenario start make-it-vegan --clean-stale # Start with stale lock cleanup
     vrooli scenario start picker-wheel invoice-generator # Start multiple scenarios
     vrooli scenario start-all                   # Start all scenarios
     vrooli scenario stop swarm-manager           # Stop a specific scenario
@@ -661,13 +665,29 @@ main() {
                         else
                             case "$status" in
                                 stopped)
-                                    status_display="⚫ stopped"
+                                    # Check if there's error context for better status display
+                                    local error_context
+                                    error_context=$(echo "$response" | jq -r --arg name "$name" '.data[] | select(.name == $name) | .last_error // ""' 2>/dev/null || echo "")
+                                    if [[ -n "$error_context" ]] && [[ "$error_context" != "null" ]] && [[ "$error_context" != "" ]]; then
+                                        if [[ "$error_context" =~ PORT.*CONFLICT|port.*conflict|Lock|LOCK ]]; then
+                                            status_display="⚫ port conflict"
+                                        elif [[ "$error_context" =~ RANGE.*EXHAUSTED|range.*exhausted ]]; then
+                                            status_display="⚫ no ports"
+                                        else
+                                            status_display="⚫ error"
+                                        fi
+                                    else
+                                        status_display="⚫ stopped"
+                                    fi
                                     ;;
                                 error)
                                     status_display="🔴 error"
                                     ;;
                                 starting)
                                     status_display="🟡 starting"
+                                    ;;
+                                failed)
+                                    status_display="🔴 failed"
                                     ;;
                                 *)
                                     status_display="❓ $status"
@@ -731,19 +751,61 @@ main() {
                 echo "📋 SCENARIO: $scenario_name"
                 echo "═══════════════════════════════════════"
                 
-                # Status with color
+                # Status with color and detailed failure types
+                local health_status
+                health_status=$(echo "$response" | jq -r '.data.health_status // "unknown"' 2>/dev/null)
+                local last_error
+                last_error=$(echo "$response" | jq -r '.data.last_error // ""' 2>/dev/null)
+                
                 case "$status" in
                     running)
-                        echo "Status:        🟢 RUNNING"
+                        case "$health_status" in
+                            healthy)
+                                echo "Status:        🟢 RUNNING (healthy)"
+                                ;;
+                            degraded)
+                                echo "Status:        🟡 RUNNING (degraded)"
+                                ;;
+                            unhealthy)
+                                echo "Status:        🔴 RUNNING (unhealthy)"
+                                ;;
+                            *)
+                                echo "Status:        🟢 RUNNING"
+                                ;;
+                        esac
                         ;;
                     stopped)
-                        echo "Status:        ⚫ STOPPED"
+                        if [[ -n "$last_error" ]] && [[ "$last_error" != "null" ]]; then
+                            if [[ "$last_error" =~ PORT.*CONFLICT|port.*conflict|Lock|LOCK ]]; then
+                                echo "Status:        ⚫ STOPPED (port conflict)"
+                                echo "Issue:         Port allocation failed"
+                                echo "Solution:      rm ~/.vrooli/state/scenarios/.port_*.lock"
+                            elif [[ "$last_error" =~ RANGE.*EXHAUSTED|range.*exhausted ]]; then
+                                echo "Status:        ⚫ STOPPED (no ports available)"
+                                echo "Issue:         Port range exhausted"
+                                echo "Solution:      vrooli resource restart"
+                            else
+                                echo "Status:        ⚫ STOPPED (error)"
+                                echo "Last Error:    $last_error"
+                            fi
+                        else
+                            echo "Status:        ⚫ STOPPED"
+                        fi
                         ;;
                     error)
                         echo "Status:        🔴 ERROR"
+                        if [[ -n "$last_error" ]] && [[ "$last_error" != "null" ]]; then
+                            echo "Error Detail:  $last_error"
+                        fi
                         ;;
                     starting)
                         echo "Status:        🟡 STARTING"
+                        ;;
+                    failed)
+                        echo "Status:        🔴 FAILED"
+                        if [[ -n "$last_error" ]] && [[ "$last_error" != "null" ]]; then
+                            echo "Failure:       $last_error"
+                        fi
                         ;;
                     *)
                         echo "Status:        ❓ $status"

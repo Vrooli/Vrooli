@@ -1,11 +1,11 @@
 import axios, { AxiosError } from 'axios';
-import type { App, Resource, SystemMetrics, LogEntry, ApiResponse, AppLogsResponse } from '@/types';
+import type { App, Resource, LogEntry, ApiResponse, AppLogsResponse } from '@/types';
 import { logger } from '@/services/logger';
 
 // Create axios instance with default config
 const api = axios.create({
   baseURL: '/api',
-  timeout: 30000,
+  timeout: 35000, // 35s to accommodate 30s backend timeout for resource checks
   headers: {
     'Content-Type': 'application/json',
   },
@@ -129,30 +129,7 @@ export const resourceService = {
   },
 };
 
-// System Metrics
-export const metricsService = {
-  // Get current system metrics
-  async getSystemMetrics(): Promise<SystemMetrics | null> {
-    try {
-      const { data } = await api.get<SystemMetrics>('/system/metrics');
-      return data;
-    } catch (error) {
-      logger.error('Failed to fetch system metrics', error);
-      return null; // Return null instead of fake zeros to indicate loading/error state
-    }
-  },
-
-  // Get historical metrics
-  async getMetricsHistory(interval: '1m' | '5m' | '15m' | '1h' = '5m'): Promise<SystemMetrics[]> {
-    try {
-      const { data } = await api.get<ApiResponse<SystemMetrics[]>>(`/metrics/history?interval=${interval}`);
-      return data.data || [];
-    } catch (error) {
-      logger.error('Failed to fetch metrics history', error);
-      return [];
-    }
-  },
-};
+// Metrics are now handled by system-monitor iframe
 
 // System Logs
 export const logService = {
@@ -225,17 +202,6 @@ export const healthService = {
   },
 };
 
-// Terminal/Command Service
-export const terminalService = {
-  async executeCommand(command: string): Promise<string> {
-    try {
-      const { data } = await api.post<ApiResponse<{ output: string }>>('/terminal/execute', { command });
-      return data.data?.output || '';
-    } catch (error) {
-      logger.error('Failed to execute command', error);
-      return `Error: ${error instanceof Error ? error.message : 'Command execution failed'}`;
-    }
-  },
-};
+// Terminal service removed - functionality not needed
 
 export default api;

@@ -50,23 +50,51 @@ qdrant::search::parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --text|-t)
+                if [[ $# -lt 2 ]]; then
+                    log::error "Missing value for $1"
+                    return 1
+                fi
                 text="$2"
                 shift 2
                 ;;
             --collection|-c)
+                if [[ $# -lt 2 ]]; then
+                    log::error "Missing value for $1"
+                    return 1
+                fi
                 collection="$2"
                 shift 2
                 ;;
             --embedding|-e)
+                if [[ $# -lt 2 ]]; then
+                    log::error "Missing value for $1"
+                    return 1
+                fi
                 embedding="$2"
                 shift 2
                 ;;
             --limit|-l)
+                if [[ $# -lt 2 ]]; then
+                    log::error "Missing value for $1"
+                    return 1
+                fi
                 limit="$2"
                 shift 2
                 ;;
             --model|-m)
+                if [[ $# -lt 2 ]]; then
+                    log::error "Missing value for $1"
+                    return 1
+                fi
                 model="$2"
+                shift 2
+                ;;
+            --query)
+                if [[ $# -lt 2 ]]; then
+                    log::error "Missing value for $1"
+                    return 1
+                fi
+                text="$2"
                 shift 2
                 ;;
             *)
@@ -279,10 +307,7 @@ qdrant::search::by_vector() {
         return 1
     fi
     
-    # Format and display results
-    qdrant::search::format_results "$response"
-    
-    # Also return the raw JSON for programmatic use
+    # Return the raw JSON for programmatic use
     echo "$response" | jq '.result' 2>/dev/null
 }
 

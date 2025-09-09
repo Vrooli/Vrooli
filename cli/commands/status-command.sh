@@ -28,6 +28,10 @@ source "${APP_ROOT}/cli/lib/arg-parser.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/cli/lib/output-formatter.sh"
 
+# Source zombie detector for consistent zombie/orphan detection
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/zombie-detector.sh" 2>/dev/null || true
+
 # Configuration paths
 RESOURCES_CONFIG="${var_ROOT_DIR}/.vrooli/service.json"
 API_BASE="http://localhost:${VROOLI_API_PORT:-8092}"
@@ -556,53 +560,19 @@ collect_system_data() {
         docker_status="unavailable"
     fi
     
-    # Count zombie processes (ALL defunct processes)
+    # Use zombie detector utility for consistent detection
     local zombie_count=0
-    zombie_count=$(ps aux | grep '<defunct>' | grep -v grep | wc -l 2>/dev/null || echo "0")
-    
-    # Count orphaned Vrooli processes 
     local orphan_count=0
-    orphan_count=$(bash -c '
-        processes_dir="$HOME/.vrooli/processes/scenarios"
-        orphan_count=0
-        
-        # Get Vrooli-related processes into a temporary file to avoid subshell issues
-        temp_file=$(mktemp)
-        ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v "bash -c" > "$temp_file"
-        
-        while IFS= read -r line; do
-            if [[ -z "$line" ]]; then continue; fi
-            
-            # Extract PID (second field)
-            pid=$(echo "$line" | awk "{print \$2}")
-            if [[ ! "$pid" =~ ^[0-9]+$ ]]; then continue; fi
-            
-            # Skip own processes
-            if echo "$line" | grep -q "vrooli-api\|status-command"; then continue; fi
-            
-            # Check if PID is tracked
-            is_tracked=false
-            if [[ -d "$processes_dir" ]]; then
-                for json_file in "$processes_dir"/*/*.json; do
-                    if [[ -f "$json_file" ]]; then
-                        tracked_pid=$(jq -r ".pid // empty" "$json_file" 2>/dev/null)
-                        if [[ "$tracked_pid" == "$pid" ]]; then
-                            is_tracked=true
-                            break
-                        fi
-                    fi
-                done
-            fi
-            
-            # If not tracked, its an orphan
-            if [[ "$is_tracked" == "false" ]]; then
-                ((orphan_count++))
-            fi
-        done < "$temp_file"
-        
-        rm -f "$temp_file"
-        echo $orphan_count
-    ' 2>/dev/null || echo "0")
+    
+    # Check if zombie detector is available
+    if command -v zombie::count_zombies >/dev/null 2>&1; then
+        zombie_count=$(zombie::count_zombies)
+        orphan_count=$(zombie::count_orphans)
+    else
+        # Fallback to basic detection if zombie detector not available
+        zombie_count=$(ps aux | grep '<defunct>' | grep -v grep | wc -l 2>/dev/null || echo "0")
+        orphan_count=0  # Skip complex orphan detection in fallback
+    fi
     
     # Output raw data
     echo "memory:${mem_info}"

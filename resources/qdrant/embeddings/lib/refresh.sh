@@ -147,7 +147,8 @@ embeddings_refresh_impl() {
     
     # If no app_id provided, get current app
     if [[ -z "$app_id" ]]; then
-        app_id=$(qdrant::identity::get_app_id)
+        # app_id=$(qdrant::identity::get_app_id)  # Function doesn't exist yet
+        app_id="${QDRANT_APP_ID:-}"
     fi
     
     if [[ -z "$app_id" ]]; then
@@ -157,10 +158,11 @@ embeddings_refresh_impl() {
     
     # Check if refresh is needed
     if [[ "$force" != "yes" ]]; then
-        if ! qdrant::identity::needs_reindex; then
-            log::info "Embeddings are up to date for app: $app_id"
-            return 0
-        fi
+        # if ! qdrant::identity::needs_reindex; then  # Function doesn't exist yet
+        #     log::info "Embeddings are up to date for app: $app_id"
+        #     return 0
+        # fi
+        log::info "Skipping reindex check (identity module not available)"
     fi
     
     log::info "Refreshing embeddings for app: $app_id"
@@ -218,8 +220,29 @@ embeddings_refresh_impl() {
     # Process initialization/workflows
     if [[ -d "${APP_ROOT}/initialization" ]]; then
         {
-            log::info "Processing initialization workflows..."
-            qdrant::embeddings::process_initialization "$app_id" > "$TEMP_DIR/init_count" 2>&1
+            bash -c "
+                # Source all required libraries and setup environment
+                source '${APP_ROOT}/scripts/lib/utils/var.sh'
+                source '${var_LIB_UTILS_DIR}/log.sh'
+                source '${EMBEDDINGS_DIR}/config/unified.sh'
+                source '${APP_ROOT}/resources/qdrant/lib/collections.sh'
+                source '${APP_ROOT}/resources/qdrant/lib/embeddings.sh'
+                source '${APP_ROOT}/resources/qdrant/lib/models.sh'
+                source '${EMBEDDINGS_DIR}/lib/embedding-service.sh'
+                
+                # Set correct working directory and environment
+                cd '${APP_ROOT}'
+                export TEMP_DIR='${TEMP_DIR}'
+                
+                # Source and run initialization extractor
+                if [[ -f '${EMBEDDINGS_DIR}/extractors/initialization/main.sh' ]]; then
+                    source '${EMBEDDINGS_DIR}/extractors/initialization/main.sh'
+                    log::info 'Processing initialization workflows...'
+                    qdrant::embeddings::process_initialization '$app_id'
+                else
+                    echo '0'
+                fi
+            " > "$TEMP_DIR/init_count" 2>&1
         } &
         pids+=($!)
         job_names+=("initialization")
@@ -227,44 +250,149 @@ embeddings_refresh_impl() {
     
     # Process scenarios
     {
-        log::info "Processing scenarios..."
-        qdrant::embeddings::process_scenarios "$app_id" > "$TEMP_DIR/scenario_count" 2>&1
+        # Create wrapper script for proper environment
+        cat > "$TEMP_DIR/scenarios_wrapper.sh" << 'EOF'
+#!/bin/bash
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${var_LIB_UTILS_DIR}/log.sh"
+source "${EMBEDDINGS_DIR}/config/unified.sh"
+source "${APP_ROOT}/resources/qdrant/lib/collections.sh"
+source "${APP_ROOT}/resources/qdrant/lib/embeddings.sh"
+source "${APP_ROOT}/resources/qdrant/lib/models.sh"
+source "${EMBEDDINGS_DIR}/lib/embedding-service.sh"
+
+cd "${APP_ROOT}"
+if [[ -f "${EMBEDDINGS_DIR}/extractors/scenarios/main.sh" ]]; then
+    source "${EMBEDDINGS_DIR}/extractors/scenarios/main.sh"
+    qdrant::embeddings::process_scenarios "$1"
+else
+    echo "0"
+fi
+EOF
+        chmod +x "$TEMP_DIR/scenarios_wrapper.sh"
+        APP_ROOT="$APP_ROOT" EMBEDDINGS_DIR="$EMBEDDINGS_DIR" TEMP_DIR="$TEMP_DIR" "$TEMP_DIR/scenarios_wrapper.sh" "$app_id" > "$TEMP_DIR/scenario_count" 2>&1
     } &
     pids+=($!)
     job_names+=("scenarios")
     
     # Process documentation
     {
-        log::info "Processing documentation..."
-        (
-            # Source markdown parser for docs extractor
-            source "${EMBEDDINGS_DIR}/parsers/markdown.sh"
-            qdrant::embeddings::process_documentation "$app_id"
-        ) > "$TEMP_DIR/doc_count" 2>&1
+        bash -c "
+            # Source all required libraries and setup environment
+            source '${APP_ROOT}/scripts/lib/utils/var.sh'
+            source '${var_LIB_UTILS_DIR}/log.sh'
+            source '${EMBEDDINGS_DIR}/config/unified.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/collections.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/embeddings.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/models.sh'
+            source '${EMBEDDINGS_DIR}/lib/embedding-service.sh'
+            
+            # Set correct working directory and environment
+            cd '${APP_ROOT}'
+            export TEMP_DIR='${TEMP_DIR}'
+            export APP_ROOT='${APP_ROOT}'
+            
+            # Source parsers and docs extractor
+            source '${EMBEDDINGS_DIR}/parsers/markdown.sh'
+            if [[ -f '${EMBEDDINGS_DIR}/extractors/docs/main.sh' ]]; then
+                source '${EMBEDDINGS_DIR}/extractors/docs/main.sh'
+                log::info 'Processing documentation...'
+                qdrant::embeddings::process_documentation '$app_id'
+            else
+                echo '0'
+            fi
+        " > "$TEMP_DIR/doc_count" 2>&1
     } &
     pids+=($!)
     job_names+=("documentation")
     
     # Process code
     {
-        log::info "Processing code..."
-        qdrant::embeddings::process_code "$app_id" > "$TEMP_DIR/code_count" 2>&1
+        bash -c "
+            # Source all required libraries and setup environment
+            source '${APP_ROOT}/scripts/lib/utils/var.sh'
+            source '${var_LIB_UTILS_DIR}/log.sh'
+            source '${EMBEDDINGS_DIR}/config/unified.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/collections.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/embeddings.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/models.sh'
+            source '${EMBEDDINGS_DIR}/lib/embedding-service.sh'
+            
+            # Set correct working directory and environment
+            cd '${APP_ROOT}'
+            export TEMP_DIR='${TEMP_DIR}'
+            export APP_ROOT='${APP_ROOT}'
+            export CODE_MAX_FILES='${CODE_MAX_FILES:-10000}'
+            
+            # Source and run code extractor
+            if [[ -f '${EMBEDDINGS_DIR}/extractors/code/main.sh' ]]; then
+                source '${EMBEDDINGS_DIR}/extractors/code/main.sh'
+                log::info 'Processing code...'
+                qdrant::embeddings::process_code '$app_id'
+            else
+                echo '0'
+            fi
+        " > "$TEMP_DIR/code_count" 2>&1
     } &
     pids+=($!)
     job_names+=("code")
     
     # Process resources
     {
-        log::info "Processing resources..."
-        qdrant::embeddings::process_resources "$app_id" > "$TEMP_DIR/resource_count" 2>&1
+        bash -c "
+            # Source all required libraries and setup environment
+            source '${APP_ROOT}/scripts/lib/utils/var.sh'
+            source '${var_LIB_UTILS_DIR}/log.sh'
+            source '${EMBEDDINGS_DIR}/config/unified.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/collections.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/embeddings.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/models.sh'
+            source '${EMBEDDINGS_DIR}/lib/embedding-service.sh'
+            
+            # Set correct working directory and environment
+            cd '${APP_ROOT}'
+            export TEMP_DIR='${TEMP_DIR}'
+            export APP_ROOT='${APP_ROOT}'
+            
+            # Source and run resources extractor
+            if [[ -f '${EMBEDDINGS_DIR}/extractors/resources/main.sh' ]]; then
+                source '${EMBEDDINGS_DIR}/extractors/resources/main.sh'
+                log::info 'Processing resources...'
+                qdrant::embeddings::process_resources '$app_id'
+            else
+                echo '0'
+            fi
+        " > "$TEMP_DIR/resource_count" 2>&1
     } &
     pids+=($!)
     job_names+=("resources")
     
     # Process file trees
     {
-        log::info "Processing file trees..."
-        qdrant::embeddings::process_file_trees "$app_id" > "$TEMP_DIR/filetrees_count" 2>&1
+        bash -c "
+            # Source all required libraries and setup environment
+            source '${APP_ROOT}/scripts/lib/utils/var.sh'
+            source '${var_LIB_UTILS_DIR}/log.sh'
+            source '${EMBEDDINGS_DIR}/config/unified.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/collections.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/embeddings.sh'
+            source '${APP_ROOT}/resources/qdrant/lib/models.sh'
+            source '${EMBEDDINGS_DIR}/lib/embedding-service.sh'
+            
+            # Set correct working directory and environment
+            cd '${APP_ROOT}'
+            export TEMP_DIR='${TEMP_DIR}'
+            export APP_ROOT='${APP_ROOT}'
+            
+            # Source and run filetrees extractor
+            if [[ -f '${EMBEDDINGS_DIR}/extractors/filetrees/main.sh' ]]; then
+                source '${EMBEDDINGS_DIR}/extractors/filetrees/main.sh'
+                log::info 'Processing file trees...'
+                qdrant::embeddings::process_file_trees '$app_id'
+            else
+                echo '0'
+            fi
+        " > "$TEMP_DIR/filetrees_count" 2>&1
     } &
     pids+=($!)
     job_names+=("filetrees")
@@ -424,6 +552,7 @@ embeddings_refresh_sequential() {
             # Set correct working directory and environment
             cd '${APP_ROOT}'
             export TEMP_DIR='${TEMP_DIR}'
+            export APP_ROOT='${APP_ROOT}'
             
             # Source the specific extractor
             if [[ '$extractor' == 'initialization' ]] && [[ -f '${EMBEDDINGS_DIR}/extractors/initialization/main.sh' ]]; then
@@ -534,23 +663,15 @@ embeddings_process_initialization() {
                 local name=$(jq -r '.name // "Unnamed"' "$workflow_file" 2>/dev/null || echo "Unnamed")
                 local content="N8n workflow: $name - $(jq -r '.description // "No description"' "$workflow_file" 2>/dev/null || echo "")"
                 
-                # Generate embedding
-                local embedding=$(qdrant::embeddings::generate "$content")
+                # Create metadata
+                local metadata=$(jq -n \
+                    --arg name "$name" \
+                    --arg file "$workflow_file" \
+                    '{name: $name, file: $file}')
                 
-                if [[ -n "$embedding" ]]; then
-                    # Create payload
-                    local payload=$(jq -n \
-                        --arg content "$content" \
-                        --arg type "workflow" \
-                        --arg app_id "$app_id" \
-                        --arg name "$name" \
-                        --arg file "$workflow_file" \
-                        '{content: $content, type: $type, app_id: $app_id, name: $name, file: $file}')
-                    
-                    # Store in Qdrant
-                    if qdrant::embeddings::store "$collection" "$embedding" "$payload"; then
-                        ((count++))
-                    fi
+                # Process through embedding service
+                if qdrant::embedding::process_item "$content" "workflow" "$collection" "$app_id" "$metadata"; then
+                    ((count++))
                 fi
             fi
         done
@@ -672,3 +793,26 @@ export -f embeddings_refresh_impl
 export -f embeddings_process_initialization
 export -f embeddings_validate_refresh
 export -f embeddings_validate_impl
+
+# Main execution block - run if script is executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    # Parse command and execute
+    case "${1:-}" in
+        init)
+            shift
+            embeddings_init_impl "$@"
+            ;;
+        refresh)
+            shift
+            embeddings_refresh_impl "$@"
+            ;;
+        validate)
+            shift
+            embeddings_validate_impl "$@"
+            ;;
+        *)
+            # Default to refresh if no command specified
+            embeddings_refresh_impl "$@"
+            ;;
+    esac
+fi

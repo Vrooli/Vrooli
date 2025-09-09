@@ -1,33 +1,51 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"app-monitor-api/services"
 
 	"github.com/gin-gonic/gin"
 )
 
+// resourceCache caches resource status to prevent excessive command execution
+type resourceCache struct {
+	data       []map[string]interface{}
+	timestamp  time.Time
+	mu         sync.RWMutex
+	fetching   bool
+	fetchMutex sync.Mutex
+}
+
 // SystemHandler handles system-related endpoints
 type SystemHandler struct {
 	metricsService *services.MetricsService
+	resourceCache  *resourceCache
 }
 
 // NewSystemHandler creates a new system handler
 func NewSystemHandler(metricsService *services.MetricsService) *SystemHandler {
 	return &SystemHandler{
 		metricsService: metricsService,
+		resourceCache:  &resourceCache{},
 	}
 }
 
 // GetSystemInfo returns system information including orchestrator status
 func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
+	// Create context with timeout (5s for system info)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
 	// Get orchestrator PID
-	pidCmd := exec.Command("bash", "-c", "ps aux | grep 'enhanced_orchestrator.py' | grep -v grep | awk '{print $2}' | head -1")
+	pidCmd := exec.CommandContext(ctx, "bash", "-c", "ps aux | grep 'enhanced_orchestrator.py' | grep -v grep | awk '{print $2}' | head -1")
 	pidOutput, err := pidCmd.Output()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -46,8 +64,8 @@ func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 		return
 	}
 
-	// Get uptime using the PID
-	uptimeCmd := exec.Command("ps", "-p", pid, "-o", "etime=")
+	// Get uptime using the PID (reuse context)
+	uptimeCmd := exec.CommandContext(ctx, "ps", "-p", pid, "-o", "etime=")
 	uptimeOutput, err := uptimeCmd.Output()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -76,25 +94,69 @@ func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 	})
 }
 
-// GetSystemMetrics returns current system metrics
+// GetSystemMetrics placeholder - metrics are now handled by system-monitor iframe
 func (h *SystemHandler) GetSystemMetrics(c *gin.Context) {
-	metrics, err := h.metricsService.GetSystemMetrics(c.Request.Context())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch system metrics",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, metrics)
+	// Return empty metrics - actual metrics shown via system-monitor iframe
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Metrics are displayed via system-monitor iframe",
+	})
 }
 
-// GetResources returns the status of all resources
+// GetResources returns the status of all resources with caching
 func (h *SystemHandler) GetResources(c *gin.Context) {
-	// Execute vrooli resource status --json
-	cmd := exec.Command("vrooli", "resource", "status", "--json")
+	// Check cache first (cache valid for 20 seconds)
+	h.resourceCache.mu.RLock()
+	if time.Since(h.resourceCache.timestamp) < 20*time.Second && len(h.resourceCache.data) > 0 {
+		cachedData := h.resourceCache.data
+		h.resourceCache.mu.RUnlock()
+		c.JSON(http.StatusOK, cachedData)
+		return
+	}
+	h.resourceCache.mu.RUnlock()
+
+	// Prevent concurrent fetches
+	h.resourceCache.fetchMutex.Lock()
+	defer h.resourceCache.fetchMutex.Unlock()
+	
+	// Check cache again after acquiring lock (another request might have updated it)
+	h.resourceCache.mu.RLock()
+	if time.Since(h.resourceCache.timestamp) < 20*time.Second && len(h.resourceCache.data) > 0 {
+		cachedData := h.resourceCache.data
+		h.resourceCache.mu.RUnlock()
+		c.JSON(http.StatusOK, cachedData)
+		return
+	}
+	h.resourceCache.mu.RUnlock()
+	
+	// Mark as fetching
+	h.resourceCache.mu.Lock()
+	h.resourceCache.fetching = true
+	h.resourceCache.mu.Unlock()
+	
+	defer func() {
+		h.resourceCache.mu.Lock()
+		h.resourceCache.fetching = false
+		h.resourceCache.mu.Unlock()
+	}()
+
+	// Execute vrooli resource status --json with timeout (use --fast to skip health checks)
+	// 30 second timeout to account for slow resources that need attention
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "vrooli", "resource", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
+		// Return cached data if available on error
+		h.resourceCache.mu.RLock()
+		if len(h.resourceCache.data) > 0 {
+			cachedData := h.resourceCache.data
+			h.resourceCache.mu.RUnlock()
+			c.JSON(http.StatusOK, cachedData)
+			return
+		}
+		h.resourceCache.mu.RUnlock()
+		
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to fetch resources",
 		})
@@ -133,6 +195,12 @@ func (h *SystemHandler) GetResources(c *gin.Context) {
 			"running": running,
 		})
 	}
+
+	// Update cache
+	h.resourceCache.mu.Lock()
+	h.resourceCache.data = transformedResources
+	h.resourceCache.timestamp = time.Now()
+	h.resourceCache.mu.Unlock()
 
 	c.JSON(http.StatusOK, transformedResources)
 }

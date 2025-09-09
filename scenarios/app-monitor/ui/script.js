@@ -718,7 +718,7 @@ function switchView(view) {
     switch (view) {
         case 'metrics':
             initializeCharts();
-            // Refresh metrics every 5 seconds when on metrics view
+            // Refresh metrics every 30 seconds when on metrics view (reduced from 5s to prevent CPU overload)
             if (window.metricsInterval) {
                 clearInterval(window.metricsInterval);
             }
@@ -728,7 +728,7 @@ function switchView(view) {
                 } else {
                     clearInterval(window.metricsInterval);
                 }
-            }, 5000);
+            }, 30000);
             break;
         case 'terminal':
             document.getElementById('terminal-input').focus();

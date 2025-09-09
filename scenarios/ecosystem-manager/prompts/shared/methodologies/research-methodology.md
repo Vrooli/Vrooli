@@ -1,124 +1,111 @@
 # Research Methodology
 
-## Purpose
-Research is the foundation of high-quality scenario and resource creation. Proper research prevents duplicated work, identifies proven patterns, and learns from past failures.
+## Core Principle
+**Research prevents duplication.** 30% of generator effort, 20% of improver effort.
 
-## Research Phases (30% of generator effort - see sections.yaml)
+## Research Checklist (MUST complete ALL)
+- [ ] Search for duplicates (5 Qdrant searches)
+- [ ] Find reusable patterns/templates
+- [ ] Validate market need
+- [ ] Check technical feasibility
+- [ ] Learn from past failures
 
-### Phase 1: Local Memory Search (50% of research time)
+## Phase 1: Memory Search (50% of time)
 
-#### Mandatory Qdrant Searches
-**Follow the standard 5-command search sequence** defined in core/memory-search-patterns.md before creating ANYTHING.
-
-#### Required Research Outputs
-- **5 strategic Qdrant findings** with specific insights
-- **3+ reusable patterns** identified from existing work
-- **3+ failure patterns** to avoid
-- **List of dependencies** and integration points
-
-### Phase 2: External Research (50% of research time)
-
-#### Web Research Requirements
+### Required Searches
 ```bash
-# Documentation research
-- Official documentation for any tools/frameworks
-- API documentation for external services
-- Best practices guides and tutorials
+# 1. Exact duplicates
+vrooli resource qdrant search "[exact name]"
+grep -r "[name]" /home/matthalloran8/Vrooli
 
-# Code research
-- GitHub repositories with similar functionality
-- Stack Overflow solutions for common problems
-- Open source implementations for reference
+# 2. Similar functionality
+vrooli resource qdrant search "[category] [function]"
 
-# Business research
-- Competitor analysis for similar solutions
-- Market validation for the use case
-- Revenue potential assessment
+# 3. Past failures
+vrooli resource qdrant search "[name] issue problem broken"
+
+# 4. Best practices
+vrooli resource qdrant search "[category] pattern template"
+
+# 5. Integration points
+vrooli resource qdrant search "[dependency] integration"
 ```
 
-#### Required External Outputs
-- **5+ external references** with URLs and key insights
-- **3+ code examples** from reputable sources
-- **Security considerations** relevant to the implementation
-- **Performance benchmarks** or expectations
+### Required Outputs
+- 5 Qdrant findings with insights
+- 3+ reusable patterns identified
+- 3+ failure patterns to avoid
+- List of dependencies
 
-### Phase 3: Research Synthesis
+## Phase 2: External Research (50% of time)
 
-#### Pattern Identification
-Analyze research to identify:
-1. **Common successful patterns** - What works consistently
-2. **Anti-patterns to avoid** - What fails consistently
-3. **Unique opportunities** - Gaps in existing solutions
-4. **Integration possibilities** - How to connect with existing work
+### Web Research Targets
+```yaml
+Technical:
+  - Official docs for tools/frameworks
+  - GitHub similar implementations  
+  - Stack Overflow solutions
+  - Security considerations
 
-#### Knowledge Documentation
-Document your research findings:
+Business:
+  - Competitor analysis
+  - Market validation
+  - Revenue models
+  - User pain points
+
+Standards:
+  - Industry standards/RFCs
+  - API design patterns
+  - Authentication methods
+  - Data formats
+```
+
+### Required Outputs
+- 5+ external references with URLs
+- 3+ code examples
+- Security considerations
+- Performance expectations
+
+## Phase 3: Synthesis
+
+### Go/No-Go Decision
+**STOP if:**
+- >80% overlap with existing
+- No unique value
+- Required resources unavailable
+
+**PROCEED if:**
+- Unique value confirmed
+- Template selected
+- Feasibility validated
+
+### Document in PRD
 ```markdown
-## Research Summary
-
-### Similar Existing Work
-- [Name]: [Description] - [Key insights]
-- ...
-
-### Patterns to Follow
-- [Pattern]: [Why it works] - [Where to apply]
-- ...
-
-### Pitfalls to Avoid
-- [Problem]: [Why it fails] - [How to prevent]
-- ...
-
-### External References
-- [Source]: [URL] - [Key takeaways]
-- ...
+## Research Findings
+- **Similar Work**: [list 2-3 most similar]
+- **Template Selected**: [pattern to copy]
+- **Unique Value**: [1 sentence differentiator]
+- **External References**: [5+ URLs]
+- **Security Notes**: [considerations]
 ```
 
-## Research Quality Checklist
+## Quick Research Commands
+```bash
+# Full duplicate check
+vrooli resource qdrant search "[name]" && \
+grep -r "[name]" /home/matthalloran8/Vrooli && \
+find /home/matthalloran8/Vrooli -name "*[name]*"
 
-Before proceeding past research:
-- [ ] Searched Qdrant with 5 focused queries
-- [ ] Found and analyzed 10+ relevant memory items
-- [ ] Identified 5+ reusable patterns
-- [ ] Documented 3+ failure patterns to avoid
-- [ ] Gathered 5+ external references
-- [ ] Created comprehensive research summary
-- [ ] Identified all dependencies and integrations
-- [ ] Assessed business value and revenue potential
+# Pattern mining
+vrooli resource qdrant search "template [category]" code
+find /home/matthalloran8/Vrooli/*/templates/*
 
-## Common Research Mistakes
-
-### Insufficient Memory Search
-❌ **Bad**: Quick search with 1-2 queries
-✅ **Good**: Focused search with 5 strategic queries
-
-### Ignoring Failures
-❌ **Bad**: Only looking at successful implementations
-✅ **Good**: Actively searching for and learning from failures
-
-### Shallow External Research
-❌ **Bad**: Quick Google search
-✅ **Good**: Deep dive into documentation, code, and best practices
-
-### No Pattern Analysis
-❌ **Bad**: Collecting information without synthesis
-✅ **Good**: Identifying patterns, anti-patterns, and opportunities
-
-## Research ROI
-
-Good research provides 10x return:
-- **Prevents duplicate work** (saves days)
-- **Avoids known failures** (saves iterations)
-- **Leverages proven patterns** (improves quality)
-- **Identifies integration points** (enables reuse)
-- **Validates business value** (ensures revenue)
+# Failure check
+vrooli resource qdrant search "[name] broken issue" docs
+```
 
 ## Remember
-
-**Research is not optional** - it's the foundation of quality work. The time invested in research pays back exponentially through:
-- Fewer failures
-- Better implementations
-- Faster development
-- Higher quality results
-- Greater business value
-
-Never skip research to "save time" - it always costs more in the long run.
+- Research saves 10x development time
+- Patterns > Original code
+- Learn from failures
+- Document everything

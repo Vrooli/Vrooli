@@ -91,7 +91,51 @@ func countZombieProcesses() (int, error) {
 }
 
 // Count orphaned Vrooli processes (running but not properly tracked)
+// A process is only an orphan if neither it nor any of its ancestors are tracked
 func countOrphanProcesses() (int, error) {
+	// First, build a set of all tracked PIDs
+	trackedPIDs := make(map[string]bool)
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
+	
+	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
+		err := filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil // Skip errors, continue walking
+			}
+			
+			if !strings.HasSuffix(path, ".json") {
+				return nil
+			}
+			
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			
+			var processInfo map[string]interface{}
+			if err := json.Unmarshal(data, &processInfo); err != nil {
+				return nil
+			}
+			
+			// Get both PID and PGID if available
+			if pidFloat, ok := processInfo["pid"].(float64); ok {
+				pid := fmt.Sprintf("%.0f", pidFloat)
+				trackedPIDs[pid] = true
+			}
+			
+			if pgidFloat, ok := processInfo["pgid"].(float64); ok {
+				pgid := fmt.Sprintf("%.0f", pgidFloat)
+				trackedPIDs[pgid] = true
+			}
+			
+			return nil
+		})
+		
+		if err != nil {
+			log.Printf("Error walking process directory: %v", err)
+		}
+	}
+	
 	// Get all Vrooli-related running processes
 	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c'`)
 	output, err := cmd.CombinedOutput()
@@ -106,7 +150,6 @@ func countOrphanProcesses() (int, error) {
 	}
 	
 	orphanCount := 0
-	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
 	
 	for _, line := range processLines {
 		if strings.TrimSpace(line) == "" {
@@ -125,56 +168,43 @@ func countOrphanProcesses() (int, error) {
 		}
 		
 		// Skip our own API process
-		if strings.Contains(line, "./vrooli-api") {
+		if strings.Contains(line, "./vrooli-api") || strings.Contains(line, "vrooli-api-new") {
 			continue
 		}
 		
-		// Check if this PID is tracked in any scenario
-		isTracked := false
-		if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
-			// Search all scenario tracking files for this PID
-			err := filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return nil // Skip errors, continue walking
-				}
-				
-				if !strings.HasSuffix(path, ".json") {
-					return nil
-				}
-				
-				data, err := os.ReadFile(path)
-				if err != nil {
-					return nil
-				}
-				
-				var processInfo map[string]interface{}
-				if err := json.Unmarshal(data, &processInfo); err != nil {
-					return nil
-				}
-				
-				if pidFloat, ok := processInfo["pid"].(float64); ok {
-					if fmt.Sprintf("%.0f", pidFloat) == pid {
-						isTracked = true
-						return filepath.SkipAll // Found it, stop searching
-					}
-				}
-				
-				return nil
-			})
-			
-			if err == filepath.SkipAll {
-				// Found the PID, it's tracked
-				continue
-			}
+		// Check if this process or any of its ancestors are tracked
+		if isProcessOrAncestorTracked(pid, trackedPIDs) {
+			continue // This process is tracked or is a child of a tracked process
 		}
 		
-		// If not tracked, it's an orphan
-		if !isTracked {
-			orphanCount++
-		}
+		// If not tracked and no tracked ancestors, it's an orphan
+		orphanCount++
 	}
 	
 	return orphanCount, nil
+}
+
+// Helper function to check if a process or any of its ancestors are tracked
+func isProcessOrAncestorTracked(pid string, trackedPIDs map[string]bool) bool {
+	// Check the process itself
+	if trackedPIDs[pid] {
+		return true
+	}
+	
+	// Get the parent PID
+	ppidCmd := exec.Command("ps", "-o", "ppid=", "-p", pid)
+	ppidOutput, err := ppidCmd.Output()
+	if err != nil {
+		return false // Can't determine parent, assume not tracked
+	}
+	
+	ppid := strings.TrimSpace(string(ppidOutput))
+	if ppid == "" || ppid == "0" || ppid == "1" {
+		return false // Reached init or no parent
+	}
+	
+	// Recursively check parent
+	return isProcessOrAncestorTracked(ppid, trackedPIDs)
 }
 
 // Get zombie status with thresholds for display
@@ -210,6 +240,73 @@ func getOrphanStatus() (count int, status string, emoji string) {
 }
 
 // Get combined process health status
+// Get enhanced process metrics for detailed monitoring
+func getEnhancedProcessMetrics() map[string]interface{} {
+	metrics := make(map[string]interface{})
+	
+	// Count tracked processes
+	trackedCount := 0
+	runningTrackedCount := 0
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
+	
+	if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
+		filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil || !strings.HasSuffix(path, ".json") {
+				return nil
+			}
+			
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return nil
+			}
+			
+			var processInfo map[string]interface{}
+			if err := json.Unmarshal(data, &processInfo); err != nil {
+				return nil
+			}
+			
+			if pidFloat, ok := processInfo["pid"].(float64); ok {
+				trackedCount++
+				pid := fmt.Sprintf("%.0f", pidFloat)
+				
+				// Check if process is running
+				checkCmd := exec.Command("kill", "-0", pid)
+				if err := checkCmd.Run(); err == nil {
+					runningTrackedCount++
+				}
+			}
+			
+			return nil
+		})
+	}
+	
+	// Count all Vrooli-related processes
+	totalProcesses := 0
+	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c' | wc -l`)
+	if output, err := cmd.Output(); err == nil {
+		fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &totalProcesses)
+	}
+	
+	// Calculate child processes (total - tracked - API)
+	childProcesses := totalProcesses - runningTrackedCount - 1 // -1 for API itself
+	if childProcesses < 0 {
+		childProcesses = 0
+	}
+	
+	// Get zombie and orphan counts
+	zombieCount, _ := countZombieProcesses()
+	orphanCount, _ := countOrphanProcesses()
+	
+	metrics["tracked_processes"] = trackedCount
+	metrics["running_tracked"] = runningTrackedCount
+	metrics["child_processes"] = childProcesses
+	metrics["total_processes"] = totalProcesses
+	metrics["zombie_processes"] = zombieCount
+	metrics["orphan_processes"] = orphanCount
+	
+	return metrics
+}
+
 func getProcessHealthStatus() (zombieCount, orphanCount int, overallStatus string) {
 	zombieCount, zombieStatus, _ := getZombieStatus()
 	orphanCount, orphanStatus, _ := getOrphanStatus()
@@ -1542,6 +1639,26 @@ func handleLifecycle(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// === Process Metrics ===
+func processMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	metrics := getEnhancedProcessMetrics()
+	
+	// Add status interpretations
+	metrics["status"] = "healthy"
+	if zombies, ok := metrics["zombie_processes"].(int); ok && zombies > 5 {
+		metrics["status"] = "warning"
+	}
+	if orphans, ok := metrics["orphan_processes"].(int); ok && orphans > 3 {
+		metrics["status"] = "warning"
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    metrics,
+	})
+}
+
 // === Health Check ===
 func healthCheck(w http.ResponseWriter, r *http.Request) {
 	// Get process health information
@@ -1711,6 +1828,7 @@ func main() {
 
 	// Health
 	r.HandleFunc("/health", healthCheck).Methods("GET")
+	r.HandleFunc("/metrics/processes", processMetricsHandler).Methods("GET")
 
 	// Apps API - Enhanced with orchestrator
 	r.HandleFunc("/apps", listApps).Methods("GET")

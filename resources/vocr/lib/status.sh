@@ -53,7 +53,7 @@ vocr::status::collect_data() {
     # Check health
     local health="unknown"
     if [[ "$running" == "true" ]]; then
-        if curl -s -f "http://${VOCR_HOST}:${VOCR_PORT}/health" >/dev/null 2>&1; then
+        if timeout 5s curl -s -f "http://${VOCR_HOST}:${VOCR_PORT}/health" >/dev/null 2>&1; then
             # Service is responding, check if essential tools are available
             local missing_deps=""
             local fallback_script="${APP_ROOT}/data/vocr/scrot-fallback"
@@ -63,7 +63,7 @@ vocr::status::collect_data() {
                 # Check for tesseract in various forms
                 if ! command -v tesseract &>/dev/null && \
                    ! [[ -x "${VOCR_DATA_DIR}/tesseract-wrapper.sh" ]] && \
-                   ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^tesseract-vocr$"; then
+                   ! timeout 5s docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^tesseract-vocr$"; then
                     missing_deps="tesseract"
                 fi
             fi
@@ -118,7 +118,7 @@ vocr::status::collect_data() {
         tesseract_installed="true"
     elif [[ -x "${VOCR_DATA_DIR}/tesseract-wrapper.sh" ]]; then
         tesseract_installed="true"
-    elif docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^tesseract-vocr$"; then
+    elif timeout 5s docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^tesseract-vocr$"; then
         tesseract_installed="true"
     fi
     data+=("tesseract_installed" "$tesseract_installed")

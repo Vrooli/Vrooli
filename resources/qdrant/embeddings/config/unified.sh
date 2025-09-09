@@ -305,3 +305,10 @@ qdrant::embeddings::validate_config() {
 if [[ -z "${QDRANT_EMBEDDINGS_CONFIG_EXPORTED:-}" ]]; then
     qdrant::embeddings::export_config
 fi
+# === IMMEDIATE FIXES APPLIED $(date) ===
+# Increase timeouts for large dataset processing
+export EMBEDDING_PROCESSING_TIMEOUT=1200  # 20 minutes per extractor
+export CODE_EXTRACT_TIMEOUT=10           # 10 seconds per code file
+export EMBEDDING_MAX_WORKERS=8           # Reduce workers to prevent overload
+export MAX_FILES_PER_BATCH=50            # Smaller batches for reliability
+export QDRANT_EMBEDDING_BATCH_SIZE=10    # Smaller batch size for stability
