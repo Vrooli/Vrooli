@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import type { App, Resource, SystemMetrics, LogEntry, ApiResponse, AppLogsResponse } from '@/types';
+import { logger } from '@/services/logger';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -13,11 +14,11 @@ const api = axios.create({
 // Request interceptor for debugging
 api.interceptors.request.use(
   (config) => {
-    console.debug(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data);
+    logger.logAPICall(config.method || 'GET', config.url || '', config.data);
     return config;
   },
   (error) => {
-    console.error('[API] Request error:', error);
+    logger.error('API Request error', error);
     return Promise.reject(error);
   }
 );
@@ -25,12 +26,12 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    console.debug(`[API] Response:`, response.data);
+    logger.logAPIResponse(response.config.url || '', response.status, response.data);
     return response;
   },
   (error: AxiosError<ApiResponse>) => {
     const message = error.response?.data?.error || error.message || 'Network error';
-    console.error('[API] Response error:', message);
+    logger.error('API Response error', { message, status: error.response?.status });
     
     // Enhanced error object
     const enhancedError = {
@@ -49,37 +50,10 @@ export const appService = {
   // Get all apps
   async getApps(): Promise<App[]> {
     try {
-      // Add visible debugging
-      const startTime = Date.now();
-      console.log('[DEBUG] Fetching apps from /api/apps...');
-      
       const { data } = await api.get<App[]>('/apps');
-      
-      const elapsed = Date.now() - startTime;
-      console.log(`[DEBUG] Apps fetched in ${elapsed}ms:`, data?.length || 0);
-      
-      // Also show in UI for debugging
-      if (typeof window !== 'undefined' && data && data.length > 0) {
-        const debugDiv = document.createElement('div');
-        debugDiv.style.cssText = 'position:fixed;top:0;right:0;background:green;color:white;padding:10px;z-index:9999';
-        debugDiv.textContent = `API SUCCESS: ${data.length} apps loaded`;
-        document.body.appendChild(debugDiv);
-        setTimeout(() => debugDiv.remove(), 3000);
-      }
-      
       return data || [];
     } catch (error) {
-      console.error('Failed to fetch apps:', error);
-      
-      // Show error in UI for debugging
-      if (typeof window !== 'undefined') {
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = 'position:fixed;top:0;right:0;background:red;color:white;padding:10px;z-index:9999';
-        errorDiv.textContent = `API ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        document.body.appendChild(errorDiv);
-        setTimeout(() => errorDiv.remove(), 5000);
-      }
-      
+      logger.error('Failed to fetch apps', error);
       return [];
     }
   },
@@ -90,7 +64,7 @@ export const appService = {
       const { data } = await api.get<ApiResponse<App>>(`/apps/${id}`);
       return data.data || null;
     } catch (error) {
-      console.error(`Failed to fetch app ${id}:`, error);
+      logger.error(`Failed to fetch app ${id}`, error);
       return null;
     }
   },
@@ -101,7 +75,7 @@ export const appService = {
       const { data } = await api.post<ApiResponse>(`/apps/${id}/${action}`);
       return data.success !== false;
     } catch (error) {
-      console.error(`Failed to ${action} app ${id}:`, error);
+      logger.error(`Failed to ${action} app ${id}`, error);
       return false;
     }
   },
@@ -113,7 +87,7 @@ export const appService = {
       const { data } = await api.get<AppLogsResponse>(`/logs/${appName}?${params}`);
       return data;
     } catch (error) {
-      console.error(`Failed to fetch logs for ${appName}:`, error);
+      logger.error(`Failed to fetch logs for ${appName}`, error);
       return { logs: [], error: 'Failed to fetch logs' };
     }
   },
@@ -124,7 +98,7 @@ export const appService = {
       const { data } = await api.post<ApiResponse>(`/apps/all/${action}`);
       return data.success !== false;
     } catch (error) {
-      console.error(`Failed to ${action} all apps:`, error);
+      logger.error(`Failed to ${action} all apps`, error);
       return false;
     }
   },
@@ -138,7 +112,7 @@ export const resourceService = {
       const { data } = await api.get<Resource[]>('/resources');
       return data || [];
     } catch (error) {
-      console.error('Failed to fetch resources:', error);
+      logger.error('Failed to fetch resources', error);
       return [];
     }
   },
@@ -149,7 +123,7 @@ export const resourceService = {
       const { data } = await api.get<ApiResponse<Resource>>(`/resources/${id}/status`);
       return data.data || null;
     } catch (error) {
-      console.error(`Failed to fetch resource ${id}:`, error);
+      logger.error(`Failed to fetch resource ${id}`, error);
       return null;
     }
   },
@@ -163,7 +137,7 @@ export const metricsService = {
       const { data } = await api.get<SystemMetrics>('/system/metrics');
       return data;
     } catch (error) {
-      console.error('Failed to fetch system metrics:', error);
+      logger.error('Failed to fetch system metrics', error);
       return null; // Return null instead of fake zeros to indicate loading/error state
     }
   },
@@ -174,7 +148,7 @@ export const metricsService = {
       const { data } = await api.get<ApiResponse<SystemMetrics[]>>(`/metrics/history?interval=${interval}`);
       return data.data || [];
     } catch (error) {
-      console.error('Failed to fetch metrics history:', error);
+      logger.error('Failed to fetch metrics history', error);
       return [];
     }
   },
@@ -189,7 +163,7 @@ export const logService = {
       const { data } = await api.get<ApiResponse<LogEntry[]>>(`/logs${params}`);
       return data.data || [];
     } catch (error) {
-      console.error('Failed to fetch system logs:', error);
+      logger.error('Failed to fetch system logs', error);
       return [];
     }
   },
@@ -203,12 +177,12 @@ export const logService = {
         const log = JSON.parse(event.data) as LogEntry;
         onMessage(log);
       } catch (error) {
-        console.error('Failed to parse log stream message:', error);
+        logger.error('Failed to parse log stream message', error);
       }
     };
     
     eventSource.onerror = (error) => {
-      console.error('Log stream error:', error);
+      logger.error('Log stream error', error);
     };
     
     return eventSource;
@@ -222,7 +196,7 @@ export const systemService = {
       const { data } = await api.get('/system/info');
       return data;
     } catch (error) {
-      console.error('Failed to fetch system info:', error);
+      logger.error('Failed to fetch system info', error);
       return null;
     }
   },
@@ -235,7 +209,7 @@ export const healthService = {
       const { data } = await api.get('/health');
       return data.status === 'healthy';
     } catch (error) {
-      console.error('Health check failed:', error);
+      logger.error('Health check failed', error);
       return false;
     }
   },
@@ -245,7 +219,7 @@ export const healthService = {
       const { data } = await api.post<ApiResponse>('/health/check');
       return data;
     } catch (error) {
-      console.error('Health check action failed:', error);
+      logger.error('Health check action failed', error);
       return { success: false, error: 'Health check failed' };
     }
   },
@@ -258,7 +232,7 @@ export const terminalService = {
       const { data } = await api.post<ApiResponse<{ output: string }>>('/terminal/execute', { command });
       return data.data?.output || '';
     } catch (error) {
-      console.error('Failed to execute command:', error);
+      logger.error('Failed to execute command', error);
       return `Error: ${error instanceof Error ? error.message : 'Command execution failed'}`;
     }
   },

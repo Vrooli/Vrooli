@@ -65,15 +65,62 @@ func (a *Assembler) SelectPromptAssembly(taskType, operation string) (tasks.Oper
 	return config, nil
 }
 
-// GeneratePromptSections creates the section list for a task
+// GeneratePromptSections creates the section list for a task with conditional filtering
 func (a *Assembler) GeneratePromptSections(task tasks.TaskItem) ([]string, error) {
 	operationConfig, err := a.SelectPromptAssembly(task.Type, task.Operation)
 	if err != nil {
 		return nil, err
 	}
 	
-	// Combine base sections with operation-specific sections
-	allSections := append(a.PromptsConfig.BaseSections, operationConfig.AdditionalSections...)
+	// Start with base sections
+	allSections := make([]string, len(a.PromptsConfig.BaseSections))
+	copy(allSections, a.PromptsConfig.BaseSections)
+	
+	// Apply conditional filtering to base sections
+	filteredBase := []string{}
+	for _, section := range allSections {
+		// Skip operational sections that aren't relevant
+		if task.Operation == "generator" && strings.Contains(section, "improver-specific") {
+			continue // Skip improver sections for generators
+		}
+		if task.Operation == "improver" && strings.Contains(section, "generator-specific") {
+			continue // Skip generator sections for improvers
+		}
+		
+		// Skip type-specific sections that don't match
+		if task.Type == "resource" && strings.Contains(section, "scenario-specific") {
+			continue // Skip scenario sections for resources
+		}
+		if task.Type == "scenario" && strings.Contains(section, "resource-specific") {
+			continue // Skip resource sections for scenarios
+		}
+		
+		filteredBase = append(filteredBase, section)
+	}
+	
+	// Add operation-specific sections with same filtering
+	filteredAdditional := []string{}
+	for _, section := range operationConfig.AdditionalSections {
+		// Apply same filtering logic
+		if task.Type == "resource" && strings.Contains(section, "scenario-specific") {
+			log.Printf("Skipping scenario-specific section for resource task: %s", section)
+			continue
+		}
+		if task.Type == "scenario" && strings.Contains(section, "resource-specific") {
+			log.Printf("Skipping resource-specific section for scenario task: %s", section)
+			continue
+		}
+		
+		filteredAdditional = append(filteredAdditional, section)
+	}
+	
+	// Combine filtered sections
+	allSections = append(filteredBase, filteredAdditional...)
+	
+	log.Printf("Task %s (%s-%s): Using %d sections (filtered from %d)", 
+		task.ID, task.Type, task.Operation, 
+		len(allSections), 
+		len(a.PromptsConfig.BaseSections) + len(operationConfig.AdditionalSections))
 	
 	return allSections, nil
 }

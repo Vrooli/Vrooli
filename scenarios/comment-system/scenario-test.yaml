@@ -1,0 +1,244 @@
+version: 1.0
+scenario: comment-system
+
+# Structure validation - files and directories that MUST exist:
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go
+    - api/go.mod
+    - cli/comment-system
+    - cli/install.sh
+    - ui/index.html
+    - ui/package.json
+    - ui/sdk/vrooli-comments.js
+    - initialization/storage/postgres/schema.sql
+    - docs/integration.md
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - ui
+    - ui/sdk
+    - ui/styles
+    - ui/scripts
+    - initialization/storage/postgres
+    - docs
+
+# Resource validation:
+resources:
+  required: 
+    - postgres
+  optional: 
+    - redis
+  health_timeout: 60
+
+# Declarative tests:
+tests:
+  # Resource health checks:
+  - name: "PostgreSQL is accessible"
+    type: http
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests:
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: "healthy"
+        
+  - name: "PostgreSQL health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health/postgres
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Comments endpoint accepts GET requests"
+    type: http
+    service: api
+    endpoint: /api/v1/comments/test-scenario
+    method: GET
+    expect:
+      status: 200
+      body:
+        comments: []
+        
+  - name: "Config endpoint returns scenario configuration"
+    type: http
+    service: api
+    endpoint: /api/v1/config/test-scenario
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "API documentation is available"
+    type: http
+    service: api
+    endpoint: /docs
+    method: GET
+    expect:
+      status: 200
+      
+  # CLI command tests:
+  - name: "CLI status command executes"
+    type: exec
+    command: ./cli/comment-system status --json
+    expect:
+      exit_code: 0
+      output_contains: ["status"]
+      
+  - name: "CLI help command works"
+    type: exec
+    command: ./cli/comment-system help
+    expect:
+      exit_code: 0
+      output_contains: ["Comment System CLI", "Commands:"]
+      
+  - name: "CLI version command works"
+    type: exec
+    command: ./cli/comment-system version
+    expect:
+      exit_code: 0
+      output_contains: ["Comment System CLI v1.0.0"]
+      
+  # Database tests:
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('scenario_configs', 'comments', 'comment_history', 'comment_mentions', 'comment_reactions')"
+    expect:
+      rows: 
+        - table_count: 5
+        
+  - name: "Test scenario configuration exists"
+    type: sql
+    service: postgres
+    query: "SELECT scenario_name FROM scenario_configs WHERE scenario_name = 'test-scenario'"
+    expect:
+      rows:
+        - scenario_name: "test-scenario"
+        
+  # UI tests:
+  - name: "Admin dashboard is accessible"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "UI health endpoint responds"
+    type: http
+    service: ui
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "JavaScript SDK is accessible"
+    type: http
+    service: ui
+    endpoint: /sdk/vrooli-comments.js
+    method: GET
+    expect:
+      status: 200
+      headers:
+        content-type: "application/javascript"
+        
+  # Integration tests:
+  - name: "Comments can be created via API"
+    type: http
+    service: api
+    endpoint: /api/v1/comments/test-scenario
+    method: POST
+    headers:
+      Content-Type: "application/json"
+    body:
+      content: "Test comment for validation"
+      content_type: "plaintext"
+    expect:
+      status: 201
+      body:
+        success: true
+        
+  - name: "Scenario configuration can be updated"
+    type: http
+    service: api
+    endpoint: /api/v1/config/test-scenario
+    method: POST
+    headers:
+      Content-Type: "application/json" 
+    body:
+      auth_required: false
+      allow_anonymous: true
+    expect:
+      status: 200
+      body:
+        success: true
+        
+  # Performance tests:
+  - name: "API responds within acceptable time"
+    type: http
+    service: api
+    endpoint: /api/v1/comments/test-scenario
+    method: GET
+    timeout: 1000  # 1 second
+    expect:
+      status: 200
+      response_time_ms: 500  # Less than 500ms
+      
+  # File existence tests:
+  - name: "CLI script is executable"
+    type: exec
+    command: test -x ./cli/comment-system
+    expect:
+      exit_code: 0
+      
+  - name: "Install script is executable"
+    type: exec
+    command: test -x ./cli/install.sh
+    expect:
+      exit_code: 0
+      
+  - name: "Go module has required dependencies"
+    type: exec
+    command: cd api && go mod verify
+    expect:
+      exit_code: 0
+      
+  - name: "SDK contains VrooliComments API"
+    type: exec
+    command: grep -q "VrooliComments" ./ui/sdk/vrooli-comments.js
+    expect:
+      exit_code: 0
+      
+  # Security tests:
+  - name: "Database schema has proper constraints"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) as constraint_count FROM information_schema.check_constraints WHERE constraint_schema = 'public'"
+    expect:
+      rows:
+        - constraint_count: 10  # Approximate number of check constraints
+        
+  - name: "API uses CORS headers"
+    type: http
+    service: api
+    endpoint: /api/v1/comments/test-scenario
+    method: OPTIONS
+    expect:
+      status: 204
+      headers:
+        access-control-allow-origin: "*"

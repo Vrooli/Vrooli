@@ -34,11 +34,10 @@ operations:
     description: Creates new resources with v2.0 contract compliance and proper scaffolding
     
     additional_sections:
-      # Methodologies specific to generators
-      - shared/methodologies/research-methodology
+      # Unified research methodology (combines research-methodology + research-phase)
+      - shared/methodologies/unified-research
       
       # Generator-specific sections
-      - shared/generator-specific/research-phase
       - shared/generator-specific/web-research
       - shared/generator-specific/qdrant-deep-search
       - shared/generator-specific/duplicate-detection
@@ -81,11 +80,10 @@ operations:
     description: Iteratively improves existing resources for v2.0 compliance and reliability
     
     additional_sections:
-      # Methodologies specific to improvers
-      - shared/methodologies/assessment-methodology
+      # Unified assessment methodology
+      - shared/methodologies/research-methodology
       
       # Improver-specific sections
-      - shared/improver-specific/assessment-phase
       - shared/improver-specific/progress-verification
       - shared/improver-specific/regression-detection
       - shared/improver-specific/prioritization-phase
@@ -126,11 +124,10 @@ operations:
     description: Creates new scenarios from scratch with comprehensive PRDs
     
     additional_sections:
-      # Methodologies specific to generators
-      - shared/methodologies/research-methodology
+      # Unified research methodology (combines research-methodology + research-phase)
+      - shared/methodologies/unified-research
       
       # Generator-specific sections
-      - shared/generator-specific/research-phase
       - shared/generator-specific/web-research
       - shared/generator-specific/qdrant-deep-search
       - shared/generator-specific/duplicate-detection
@@ -170,11 +167,10 @@ operations:
     description: Iteratively improves existing scenarios to advance PRD completion
     
     additional_sections:
-      # Methodologies specific to improvers
-      - shared/methodologies/assessment-methodology
+      # Unified assessment methodology
+      - shared/methodologies/research-methodology
       
       # Improver-specific sections
-      - shared/improver-specific/assessment-phase
       - shared/improver-specific/progress-verification
       - shared/improver-specific/regression-detection
       - shared/improver-specific/prioritization-phase
