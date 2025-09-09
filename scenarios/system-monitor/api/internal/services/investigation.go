@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vrooli/system-monitor/internal/config"
-	"github.com/vrooli/system-monitor/internal/models"
-	"github.com/vrooli/system-monitor/internal/repository"
+	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/models"
+	"system-monitor-api/internal/repository"
 )
 
 // InvestigationService handles anomaly investigations

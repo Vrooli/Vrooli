@@ -2,15 +2,14 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
-	"github.com/vrooli/system-monitor/internal/collectors"
-	"github.com/vrooli/system-monitor/internal/config"
-	"github.com/vrooli/system-monitor/internal/models"
-	"github.com/vrooli/system-monitor/internal/repository"
+	"system-monitor-api/internal/collectors"
+	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/models"
+	"system-monitor-api/internal/repository"
 )
 
 // MonitorService handles system monitoring operations
@@ -170,7 +169,7 @@ func (s *MonitorService) GetDetailedMetrics(ctx context.Context) (*models.Detail
 	memData, _ := memCollector.Collect(ctx)
 	netData, _ := netCollector.Collect(ctx)
 	diskData, _ := diskCollector.Collect(ctx)
-	processData, _ := processCollector.Collect(ctx)
+	_, _ = processCollector.Collect(ctx) // Collected but not used here
 	
 	// Get top processes
 	topCPUProcs, _ := collectors.GetTopProcessesByCPU(5)

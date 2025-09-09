@@ -12,15 +12,16 @@ class EcosystemManager {
         this.ws = null;
         this.wsReconnectInterval = null;
         
-        // Queue status tracking
+        // Queue status tracking - will be updated from settings
         this.queueStatus = {
             maxConcurrent: 1,
             availableSlots: 1,
-            processorActive: true,
+            processorActive: false, // Default to false for safety
             lastRefresh: Date.now(),
-            refreshInterval: 30000, // 30 seconds
+            refreshInterval: 30000, // 30 seconds default, will be updated from settings
             refreshTimer: null
         };
+        this.autoRefreshInterval = null; // Track the auto-refresh interval
         
         // Configuration - will be loaded dynamically
         this.categoryOptions = {
@@ -37,7 +38,7 @@ class EcosystemManager {
         
         try {
             // Initialize settings (including theme) before loading content
-            this.initSettings();
+            await this.initSettings();
             
             // Set up dynamic layout adjustment
             this.adjustMainLayout();
@@ -378,13 +379,23 @@ class EcosystemManager {
     }
     
     setupAutoRefresh() {
-        // Refresh every 30 seconds (as fallback if WebSocket fails)
-        setInterval(() => {
+        // Clear any existing auto-refresh interval
+        if (this.autoRefreshInterval) {
+            clearInterval(this.autoRefreshInterval);
+        }
+        
+        // Use refresh interval from settings (convert seconds to milliseconds)
+        const refreshMs = (this.settings?.refresh_interval || 30) * 1000;
+        
+        // Refresh based on settings interval (as fallback if WebSocket fails)
+        this.autoRefreshInterval = setInterval(() => {
             if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 console.log('WebSocket not connected, refreshing tasks...');
                 this.loadAllTasks();
             }
-        }, 30000);
+        }, refreshMs);
+        
+        console.log(`Auto-refresh set to ${refreshMs/1000} seconds`);
     }
     
     setupEventListeners() {
@@ -501,6 +512,12 @@ class EcosystemManager {
         
         // Disable clicking during drag
         e.target.onclick = null;
+        
+        // Start auto-scroll detection
+        this.startAutoScroll();
+        
+        // Add dragging indicator to body for visual feedback
+        document.body.classList.add('dragging-active');
     }
     
     handleDragEnd(e) {
@@ -514,6 +531,12 @@ class EcosystemManager {
         document.querySelectorAll('.kanban-column').forEach(col => {
             col.classList.remove('drag-over');
         });
+        
+        // Stop auto-scroll
+        this.stopAutoScroll();
+        
+        // Remove dragging indicator from body
+        document.body.classList.remove('dragging-active');
         
         this.draggedTask = null;
     }
@@ -552,18 +575,28 @@ class EcosystemManager {
         // Clean up task state when moving to a different status
         const cleanedTask = { ...this.draggedTask };
         
-        // Clear error-related fields when moving out of failed
-        if (sourceStatus === 'failed') {
+        // Clear execution results when moving from completed/failed to pending/in-progress
+        const isBackwardsTransition = (sourceStatus === 'completed' || sourceStatus === 'failed') && 
+                                      (targetStatus === 'pending' || targetStatus === 'in-progress');
+        
+        if (isBackwardsTransition) {
+            // Clear all execution-related data for a fresh start
             delete cleanedTask.results;
+            delete cleanedTask.started_at;
+            delete cleanedTask.completed_at;
+            cleanedTask.progress_percentage = 0;
+            cleanedTask.current_phase = '';
         }
         
         // Update phase based on new status
         if (targetStatus === 'pending') {
             cleanedTask.current_phase = 'pending';
-            cleanedTask.progress_percentage = 0;
+            if (!isBackwardsTransition) {
+                cleanedTask.progress_percentage = 0;
+            }
         } else if (targetStatus === 'in-progress') {
             cleanedTask.current_phase = 'in-progress';
-            if (cleanedTask.progress_percentage === 0 || cleanedTask.progress_percentage === 100) {
+            if (!isBackwardsTransition && (cleanedTask.progress_percentage === 0 || cleanedTask.progress_percentage === 100)) {
                 cleanedTask.progress_percentage = 25;
             }
         } else if (targetStatus === 'review') {
@@ -578,16 +611,26 @@ class EcosystemManager {
         
         // Update task status via API
         try {
+            // Build the request body - explicitly include all fields we want to update
+            const requestBody = {
+                ...cleanedTask,
+                status: targetStatus,
+                updated_at: new Date().toISOString()
+            };
+            
+            // Log for debugging
+            console.log(`Moving task ${this.draggedTask.id} from ${sourceStatus} to ${targetStatus}`, {
+                isBackwardsTransition,
+                hasResults: !!requestBody.results,
+                requestBody
+            });
+            
             const response = await fetch(`${this.apiBase}/tasks/${this.draggedTask.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    ...cleanedTask,
-                    status: targetStatus,
-                    updated_at: new Date().toISOString()
-                })
+                body: JSON.stringify(requestBody)
             });
             
             if (!response.ok) {
@@ -595,6 +638,24 @@ class EcosystemManager {
             }
             
             const updatedTask = await response.json();
+            
+            // Log the response for debugging
+            console.log(`Task ${updatedTask.id} updated response:`, {
+                hasResults: !!updatedTask.results,
+                status: updatedTask.status,
+                updatedTask
+            });
+            
+            // Ensure results are cleared for pending/in-progress if they somehow persist
+            if ((targetStatus === 'pending' || targetStatus === 'in-progress') && 
+                (sourceStatus === 'completed' || sourceStatus === 'failed')) {
+                if (updatedTask.results) {
+                    console.warn(`WARNING: Backend didn't clear results for task ${updatedTask.id} when moving to ${targetStatus}. Clearing locally.`);
+                    delete updatedTask.results;
+                    delete updatedTask.started_at;
+                    delete updatedTask.completed_at;
+                }
+            }
             
             // Move task in local data
             this.moveTaskBetweenColumns(updatedTask, sourceStatus, targetStatus);
@@ -616,6 +677,278 @@ class EcosystemManager {
             console.error('Failed to update task status:', error);
             this.showToast(`Failed to move task: ${error.message}`, 'error');
         }
+    }
+    
+    // Auto-scrolling during drag operations
+    startAutoScroll() {
+        // Stop any existing auto-scroll
+        this.stopAutoScroll();
+        
+        // Track mouse/touch position and scroll state
+        this.autoScrollData = {
+            active: true,
+            mouseX: 0,
+            mouseY: 0,
+            scrollSpeed: 15,
+            edgeSize: 80, // Distance from edge to trigger scroll
+            animationId: null
+        };
+        
+        // Handle both mouse and touch events for position tracking
+        this.handleAutoScrollMove = (e) => {
+            if (!this.autoScrollData.active) return;
+            
+            // Get coordinates from mouse or touch event
+            if (e.type === 'touchmove' && e.touches && e.touches.length > 0) {
+                this.autoScrollData.mouseX = e.touches[0].clientX;
+                this.autoScrollData.mouseY = e.touches[0].clientY;
+            } else if (e.type === 'dragover') {
+                this.autoScrollData.mouseX = e.clientX;
+                this.autoScrollData.mouseY = e.clientY;
+            }
+        };
+        
+        // Listen for drag/touch movement
+        document.addEventListener('dragover', this.handleAutoScrollMove);
+        document.addEventListener('touchmove', this.handleAutoScrollMove, { passive: false });
+        
+        // Auto-scroll animation loop
+        const performAutoScroll = () => {
+            if (!this.autoScrollData || !this.autoScrollData.active) return;
+            
+            const { mouseX, mouseY, scrollSpeed, edgeSize } = this.autoScrollData;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            // Calculate distance from edges
+            const distanceFromLeft = mouseX;
+            const distanceFromRight = viewportWidth - mouseX;
+            const distanceFromTop = mouseY;
+            const distanceFromBottom = viewportHeight - mouseY;
+            
+            let scrollX = 0;
+            let scrollY = 0;
+            
+            // Horizontal scrolling
+            if (distanceFromLeft < edgeSize && distanceFromLeft > 0) {
+                // Scroll left - stronger scroll the closer to edge
+                scrollX = -scrollSpeed * (1 - distanceFromLeft / edgeSize);
+            } else if (distanceFromRight < edgeSize && distanceFromRight > 0) {
+                // Scroll right
+                scrollX = scrollSpeed * (1 - distanceFromRight / edgeSize);
+            }
+            
+            // Vertical scrolling
+            if (distanceFromTop < edgeSize && distanceFromTop > 0) {
+                // Scroll up
+                scrollY = -scrollSpeed * (1 - distanceFromTop / edgeSize);
+            } else if (distanceFromBottom < edgeSize && distanceFromBottom > 0) {
+                // Scroll down
+                scrollY = scrollSpeed * (1 - distanceFromBottom / edgeSize);
+            }
+            
+            // Apply scrolling to the window
+            if (scrollX !== 0 || scrollY !== 0) {
+                window.scrollBy(scrollX, scrollY);
+                
+                // Also handle horizontal scrolling on the kanban board for responsive layouts
+                const kanbanBoard = document.querySelector('.kanban-board');
+                if (kanbanBoard) {
+                    const kanbanRect = kanbanBoard.getBoundingClientRect();
+                    const mouseRelativeX = mouseX - kanbanRect.left;
+                    
+                    // Check if kanban board has horizontal overflow
+                    if (kanbanBoard.scrollWidth > kanbanBoard.clientWidth) {
+                        if (mouseRelativeX < edgeSize && kanbanBoard.scrollLeft > 0) {
+                            kanbanBoard.scrollLeft -= scrollSpeed * (1 - mouseRelativeX / edgeSize);
+                        } else if (mouseRelativeX > kanbanRect.width - edgeSize && 
+                                 kanbanBoard.scrollLeft < kanbanBoard.scrollWidth - kanbanBoard.clientWidth) {
+                            kanbanBoard.scrollLeft += scrollSpeed * (1 - (kanbanRect.width - mouseRelativeX) / edgeSize);
+                        }
+                    }
+                }
+                
+                // Also check individual columns for vertical scrolling
+                const columns = document.querySelectorAll('.column-content');
+                columns.forEach(column => {
+                    const columnRect = column.getBoundingClientRect();
+                    // Check if mouse is over this column
+                    if (mouseX >= columnRect.left && mouseX <= columnRect.right) {
+                        const mouseRelativeY = mouseY - columnRect.top;
+                        
+                        // Vertical scrolling within column
+                        if (column.scrollHeight > column.clientHeight) {
+                            if (mouseRelativeY < edgeSize && column.scrollTop > 0) {
+                                column.scrollTop -= scrollSpeed * (1 - mouseRelativeY / edgeSize);
+                            } else if (mouseRelativeY > columnRect.height - edgeSize && 
+                                     column.scrollTop < column.scrollHeight - column.clientHeight) {
+                                column.scrollTop += scrollSpeed * (1 - (columnRect.height - mouseRelativeY) / edgeSize);
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Continue the animation loop
+            this.autoScrollData.animationId = requestAnimationFrame(performAutoScroll);
+        };
+        
+        // Start the animation loop
+        this.autoScrollData.animationId = requestAnimationFrame(performAutoScroll);
+    }
+    
+    stopAutoScroll() {
+        if (this.autoScrollData) {
+            this.autoScrollData.active = false;
+            
+            if (this.autoScrollData.animationId) {
+                cancelAnimationFrame(this.autoScrollData.animationId);
+            }
+        }
+        
+        if (this.handleAutoScrollMove) {
+            document.removeEventListener('dragover', this.handleAutoScrollMove);
+            document.removeEventListener('touchmove', this.handleAutoScrollMove);
+            this.handleAutoScrollMove = null;
+        }
+        
+        this.autoScrollData = null;
+    }
+    
+    // Touch support for mobile drag and drop
+    addTouchDragSupport(element, task) {
+        let touchItem = null;
+        let touchOffset = null;
+        let draggedClone = null;
+        
+        element.addEventListener('touchstart', (e) => {
+            // Prevent default to avoid scrolling while dragging
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            touchItem = element;
+            this.draggedTask = task;
+            
+            // Calculate offset from touch point to element position
+            const rect = element.getBoundingClientRect();
+            touchOffset = {
+                x: touch.clientX - rect.left,
+                y: touch.clientY - rect.top
+            };
+            
+            // Create a visual clone that follows the finger
+            draggedClone = element.cloneNode(true);
+            draggedClone.style.position = 'fixed';
+            draggedClone.style.width = rect.width + 'px';
+            draggedClone.style.opacity = '0.8';
+            draggedClone.style.zIndex = '10000';
+            draggedClone.style.pointerEvents = 'none';
+            draggedClone.style.transform = 'rotate(2deg)';
+            draggedClone.style.transition = 'none';
+            document.body.appendChild(draggedClone);
+            
+            // Position the clone at the touch point
+            draggedClone.style.left = (touch.clientX - touchOffset.x) + 'px';
+            draggedClone.style.top = (touch.clientY - touchOffset.y) + 'px';
+            
+            // Add dragging class to original element
+            element.classList.add('dragging');
+            
+            // Start auto-scroll
+            this.startAutoScroll();
+            
+            // Add dragging indicator to body for visual feedback
+            document.body.classList.add('dragging-active');
+        }, { passive: false });
+        
+        element.addEventListener('touchmove', (e) => {
+            if (!touchItem || !draggedClone) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            
+            // Move the clone with the finger
+            draggedClone.style.left = (touch.clientX - touchOffset.x) + 'px';
+            draggedClone.style.top = (touch.clientY - touchOffset.y) + 'px';
+            
+            // Find the element under the touch point
+            draggedClone.style.display = 'none'; // Temporarily hide clone to get element below
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            draggedClone.style.display = '';
+            
+            // Check if we're over a drop zone (kanban column)
+            if (elementBelow) {
+                const dropZone = elementBelow.closest('.kanban-column');
+                
+                // Remove drag-over class from all columns
+                document.querySelectorAll('.kanban-column').forEach(col => {
+                    col.classList.remove('drag-over');
+                });
+                
+                // Add drag-over class to current column
+                if (dropZone) {
+                    dropZone.classList.add('drag-over');
+                }
+            }
+        }, { passive: false });
+        
+        element.addEventListener('touchend', async (e) => {
+            if (!touchItem || !draggedClone) return;
+            e.preventDefault();
+            
+            const touch = e.changedTouches[0];
+            
+            // Remove the clone
+            if (draggedClone) {
+                draggedClone.remove();
+                draggedClone = null;
+            }
+            
+            // Remove dragging class
+            element.classList.remove('dragging');
+            
+            // Find the element under the touch point
+            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            if (elementBelow) {
+                const dropZone = elementBelow.closest('.kanban-column');
+                
+                if (dropZone) {
+                    // Get the target status from the column
+                    const targetStatus = dropZone.getAttribute('data-status');
+                    
+                    if (targetStatus) {
+                        // Simulate the drop event
+                        const fakeDropEvent = {
+                            preventDefault: () => {},
+                            currentTarget: dropZone
+                        };
+                        
+                        await this.handleDrop(fakeDropEvent, targetStatus);
+                    }
+                }
+            }
+            
+            // Clean up
+            document.querySelectorAll('.kanban-column').forEach(col => {
+                col.classList.remove('drag-over');
+            });
+            
+            // Stop auto-scroll
+            this.stopAutoScroll();
+            
+            // Remove dragging indicator from body
+            document.body.classList.remove('dragging-active');
+            
+            touchItem = null;
+            touchOffset = null;
+            this.draggedTask = null;
+        }, { passive: false });
+        
+        // Prevent context menu on long press
+        element.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
     }
     
     renderColumn(status) {
@@ -687,6 +1020,9 @@ class EcosystemManager {
         card.addEventListener('dragstart', (e) => this.handleDragStart(e, task));
         card.addEventListener('dragend', (e) => this.handleDragEnd(e));
         
+        // Add touch event support for mobile drag and drop
+        this.addTouchDragSupport(card, task);
+        
         const typeIcon = task.type === 'resource' ? 'fas fa-cog' : 'fas fa-bullseye';
         const operationClass = task.operation;
         
@@ -719,7 +1055,7 @@ class EcosystemManager {
             ${task.status === 'failed' && task.results && task.results.error ? `
                 <div class="task-error">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <span class="error-message">${this.escapeHtml(task.results.error)}</span>
+                    <span class="error-message">${this.formatErrorText(task.results.error)}</span>
                 </div>
             ` : ''}
             
@@ -1064,8 +1400,8 @@ class EcosystemManager {
                                       placeholder="Additional details, requirements, or context...">${this.escapeHtml(task.notes || '')}</textarea>
                         </div>
                         
-                        <!-- Task Results (if available) -->
-                        ${task.results ? `
+                        <!-- Task Results (only show for completed/failed tasks) -->
+                        ${task.results && (task.status === 'completed' || task.status === 'failed') ? `
                             <div class="form-group">
                                 <label>Execution Results</label>
                                 <div class="execution-results ${task.results.success ? 'success' : 'error'}">
@@ -1074,11 +1410,23 @@ class EcosystemManager {
                                         <span class="${task.results.success ? 'status-success' : 'status-error'}">
                                             ${task.results.success ? '✅ Success' : '❌ Failed'}
                                         </span>
+                                        ${task.results.timeout_failure ? '<span style="color: #ff9800; margin-left: 8px;">⏰ TIMEOUT</span>' : ''}
                                     </div>
+                                    
+                                    <!-- Timing Information -->
+                                    ${task.results.execution_time || task.results.timeout_allowed ? `
+                                        <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                                                ${task.results.execution_time ? `<span><strong>⏱️ Runtime:</strong> ${task.results.execution_time}</span>` : ''}
+                                                ${task.results.timeout_allowed ? `<span><strong>⏰ Timeout:</strong> ${task.results.timeout_allowed}</span>` : ''}
+                                            </div>
+                                            ${task.results.started_at ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px;">Started: ${new Date(task.results.started_at).toLocaleString()}</div>` : ''}
+                                        </div>
+                                    ` : ''}
                                     ${task.results.error ? `
                                         <div style="margin-bottom: 0.5rem;">
                                             <strong>Error:</strong> 
-                                            <span class="status-error">${this.escapeHtml(task.results.error)}</span>
+                                            <div class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px;">${this.formatErrorText(task.results.error)}</div>
                                         </div>
                                     ` : ''}
                                     ${task.results.output ? `
@@ -1294,8 +1642,8 @@ class EcosystemManager {
         // Load all tasks with timeout
         await this.loadAllTasks();
         
-        // Update queue status with timeout
-        await this.updateQueueStatus();
+        // Fetch and update queue status
+        await this.fetchQueueProcessorStatus();
         
         // Trigger queue processing to start claude-code if there are pending tasks
         try {
@@ -1416,11 +1764,43 @@ class EcosystemManager {
         return div.innerHTML;
     }
     
+    // Format error text for display with proper line breaks and structure
+    formatErrorText(errorText) {
+        if (!errorText) return '';
+        
+        // First escape HTML to prevent XSS
+        const escapedText = this.escapeHtml(errorText);
+        
+        // Convert \n to actual line breaks
+        const withLineBreaks = escapedText.replace(/\\n/g, '\n');
+        
+        // Convert actual newlines to <br> tags
+        return withLineBreaks.replace(/\n/g, '<br>');
+    }
+    
     // Dark mode functionality
     // Settings Management
-    initSettings() {
-        // Load settings from localStorage or use defaults
-        this.settings = this.loadSettings();
+    async initSettings() {
+        // Load settings from backend API, fallback to localStorage, then defaults
+        await this.loadSettingsFromBackend();
+        
+        // Apply settings to queue status
+        this.queueStatus.maxConcurrent = this.settings.slots || 1;
+        this.queueStatus.refreshInterval = (this.settings.refresh_interval || 30) * 1000; // Convert to milliseconds
+        this.queueStatus.processorActive = this.settings.active || false;
+        
+        console.log('Applied settings to queue:', {
+            slots: this.queueStatus.maxConcurrent,
+            refreshInterval: this.queueStatus.refreshInterval,
+            active: this.queueStatus.processorActive
+        });
+        
+        // If settings say processor should be active, apply that to backend
+        // This handles the case where API starts paused but settings say active
+        if (this.settings.active) {
+            console.log('Settings indicate processor should be active, applying to backend...');
+            this.applyProcessorActiveState(true);
+        }
         
         // Apply theme
         this.applyTheme(this.settings.theme);
@@ -1432,7 +1812,7 @@ class EcosystemManager {
         }
     }
     
-    loadSettings() {
+    async loadSettingsFromBackend() {
         const defaultSettings = {
             // Display settings
             theme: 'light',
@@ -1445,35 +1825,122 @@ class EcosystemManager {
             // Agent settings
             max_turns: 60,
             allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
-            skip_permissions: true
+            skip_permissions: true,
+            task_timeout: 30
         };
         
         try {
+            // Try loading from backend first
+            const response = await fetch(`${this.apiBase}/settings`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.settings) {
+                    this.settings = data.settings;
+                    console.log('Settings loaded from backend:', this.settings);
+                    return;
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to load settings from backend:', error);
+        }
+        
+        // Fallback to localStorage
+        try {
             const saved = localStorage.getItem('ecosystem-manager-settings');
             if (saved) {
-                return { ...defaultSettings, ...JSON.parse(saved) };
+                this.settings = { ...defaultSettings, ...JSON.parse(saved) };
+                console.log('Settings loaded from localStorage (backend unavailable)');
+                return;
             }
         } catch (error) {
             console.warn('Failed to load settings from localStorage:', error);
         }
         
-        return defaultSettings;
+        // Final fallback to defaults
+        this.settings = defaultSettings;
+        console.log('Settings loaded from defaults');
     }
     
-    saveSettings(settings) {
+    loadSettings() {
+        // Legacy function - now replaced by loadSettingsFromBackend
+        return this.settings || this.loadSettingsFromBackend();
+    }
+    
+    async saveSettings(settings) {
         try {
-            this.settings = { ...this.settings, ...settings };
-            localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
+            const newSettings = { ...this.settings, ...settings };
             
-            // Apply theme immediately if it changed
-            if (settings.theme) {
-                this.applyTheme(settings.theme);
+            // Save to backend API
+            const response = await fetch(`${this.apiBase}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newSettings)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.settings = data.settings;
+                    
+                    // Also save to localStorage as backup
+                    localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
+                    
+                    // Apply theme immediately if it changed
+                    if (settings.theme) {
+                        this.applyTheme(settings.theme);
+                    }
+                    
+                    console.log('Settings saved to backend successfully');
+                    return true;
+                }
             }
             
-            return true;
+            throw new Error('Backend save failed');
+            
         } catch (error) {
-            console.error('Failed to save settings:', error);
-            return false;
+            console.error('Failed to save settings to backend:', error);
+            
+            // Fallback to localStorage only
+            try {
+                this.settings = { ...this.settings, ...settings };
+                localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
+                
+                if (settings.theme) {
+                    this.applyTheme(settings.theme);
+                }
+                
+                console.log('Settings saved to localStorage as fallback');
+                return true;
+            } catch (localError) {
+                console.error('Failed to save settings even to localStorage:', localError);
+                return false;
+            }
+        }
+    }
+    
+    async applyProcessorActiveState(shouldBeActive) {
+        // Apply the processor active state by re-saving settings
+        // This triggers the backend to start/stop the processor
+        try {
+            const response = await fetch(`${this.apiBase}/settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...this.settings,
+                    active: shouldBeActive
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    console.log(`Processor ${shouldBeActive ? 'activated' : 'paused'} successfully`);
+                    this.queueStatus.processorActive = shouldBeActive;
+                    this.updateQueueDisplay();
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to apply processor active state:', error);
         }
     }
     
@@ -1526,9 +1993,11 @@ class EcosystemManager {
         document.getElementById('max-turns-value').textContent = this.settings.max_turns;
         document.getElementById('settings-tools').value = this.settings.allowed_tools;
         document.getElementById('settings-skip-permissions').checked = this.settings.skip_permissions;
+        document.getElementById('settings-task-timeout').value = this.settings.task_timeout || 30;
+        document.getElementById('task-timeout-value').textContent = this.settings.task_timeout || 30;
     }
     
-    saveSettingsFromForm() {
+    async saveSettingsFromForm() {
         const form = document.getElementById('settings-form');
         const formData = new FormData(form);
         
@@ -1544,34 +2013,96 @@ class EcosystemManager {
             // Agent settings
             max_turns: parseInt(formData.get('max_turns')),
             allowed_tools: formData.get('allowed_tools'),
-            skip_permissions: formData.get('skip_permissions') === 'on'
+            skip_permissions: formData.get('skip_permissions') === 'on',
+            task_timeout: parseInt(formData.get('task_timeout'))
         };
         
-        if (this.saveSettings(newSettings)) {
-            this.closeSettingsModal();
-            this.showToast('Settings saved successfully', 'success');
-            
-            // TODO: Send settings to backend API if needed
-            this.syncSettingsWithBackend(newSettings);
-        } else {
+        this.showLoading(true);
+        
+        try {
+            const success = await this.saveSettings(newSettings);
+            if (success) {
+                // Apply updated settings to queue status
+                this.queueStatus.maxConcurrent = newSettings.slots;
+                this.queueStatus.refreshInterval = newSettings.refresh_interval * 1000; // Convert to milliseconds
+                this.queueStatus.processorActive = newSettings.active;
+                
+                // Restart the refresh timer with new interval
+                this.queueStatus.lastRefresh = Date.now(); // Reset the timer
+                this.startRefreshTimer();
+                
+                // Update auto-refresh with new interval
+                this.setupAutoRefresh();
+                
+                // Update queue display immediately
+                this.updateQueueDisplay();
+                
+                this.closeSettingsModal();
+                this.showToast('Settings saved successfully', 'success');
+            } else {
+                this.showToast('Failed to save settings', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving settings:', error);
             this.showToast('Failed to save settings', 'error');
+        } finally {
+            this.showLoading(false);
         }
     }
     
-    resetSettingsToDefault() {
-        const defaultSettings = {
-            theme: 'light',
-            slots: 1,
-            refresh_interval: 30,
-            active: false,
-            max_turns: 60,
-            allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
-            skip_permissions: true
-        };
+    async resetSettingsToDefault() {
+        this.showLoading(true);
         
-        if (this.saveSettings(defaultSettings)) {
-            this.populateSettingsForm();
-            this.showToast('Settings reset to defaults', 'info');
+        try {
+            // Call the backend reset API
+            const response = await fetch(`${this.apiBase}/settings/reset`, {
+                method: 'POST'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    this.settings = data.settings;
+                    
+                    // Update localStorage as backup
+                    localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
+                    
+                    // Update UI
+                    this.populateSettingsForm();
+                    this.applyTheme(this.settings.theme);
+                    
+                    this.showToast('Settings reset to defaults', 'info');
+                    console.log('Settings reset via backend API');
+                    return;
+                }
+            }
+            
+            throw new Error('Backend reset failed');
+            
+        } catch (error) {
+            console.error('Failed to reset settings via backend:', error);
+            
+            // Fallback to local reset
+            const defaultSettings = {
+                theme: 'light',
+                slots: 1,
+                refresh_interval: 30,
+                active: false,
+                max_turns: 60,
+                allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
+                skip_permissions: true,
+                task_timeout: 30
+            };
+            
+            const success = await this.saveSettings(defaultSettings);
+            if (success) {
+                this.populateSettingsForm();
+                this.showToast('Settings reset to defaults (fallback)', 'info');
+            } else {
+                this.showToast('Failed to reset settings', 'error');
+            }
+        } finally {
+            this.showLoading(false);
         }
     }
     
@@ -1583,21 +2114,6 @@ class EcosystemManager {
         }
     }
     
-    async syncSettingsWithBackend(settings) {
-        try {
-            // TODO: Implement backend API endpoint for settings
-            // const response = await fetch(`${this.apiBase}/settings`, {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify(settings)
-            // });
-            // if (!response.ok) throw new Error('Failed to sync settings');
-            
-            console.log('Settings would be synced with backend:', settings);
-        } catch (error) {
-            console.warn('Failed to sync settings with backend:', error);
-        }
-    }
     
     // Legacy function name for backwards compatibility
     initDarkMode() {
@@ -1606,7 +2122,7 @@ class EcosystemManager {
     
     // Queue Status Management
     initQueueStatus() {
-        // Initialize UI elements
+        // Initialize UI elements with settings-based values
         this.updateQueueDisplay();
         
         // Start the refresh countdown timer
@@ -1615,7 +2131,11 @@ class EcosystemManager {
         // Fetch initial queue processor status
         this.fetchQueueProcessorStatus();
         
-        console.log('🔄 Queue status indicators initialized');
+        console.log('🔄 Queue status indicators initialized with settings:', {
+            slots: this.queueStatus.maxConcurrent,
+            refreshInterval: this.queueStatus.refreshInterval / 1000 + 's',
+            active: this.queueStatus.processorActive
+        });
     }
     
     updateQueueDisplay() {
@@ -1687,9 +2207,10 @@ class EcosystemManager {
             const response = await fetch(`${this.apiBase}/queue/status`);
             if (response.ok) {
                 const status = await response.json();
+                // Only update processor active status, don't override settings-based values
                 this.queueStatus.processorActive = status.processor_active;
-                this.queueStatus.maxConcurrent = status.max_concurrent;
-                this.queueStatus.availableSlots = status.available_slots;
+                // Don't override maxConcurrent or refreshInterval - those come from settings
+                // Just update available slots based on current task count
                 this.updateQueueDisplay();
             }
         } catch (error) {

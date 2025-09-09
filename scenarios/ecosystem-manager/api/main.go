@@ -30,6 +30,7 @@ var (
 	queueHandlers     *handlers.QueueHandlers
 	discoveryHandlers *handlers.DiscoveryHandlers
 	healthHandlers    *handlers.HealthHandlers
+	settingsHandlers  *handlers.SettingsHandlers
 )
 
 func main() {
@@ -41,9 +42,11 @@ func main() {
 		log.Fatalf("Failed to initialize components: %v", err)
 	}
 	
-	// Start queue processor
-	processor.Start()
-	defer processor.Stop()
+	// SAFETY FEATURE: Always start paused on API startup
+	// The processor will be started when user enables it in UI
+	// This ensures tasks don't execute automatically on startup
+	log.Println("⚠️  Queue processor initialized but NOT started (safety feature)")
+	log.Println("💡  Enable the processor in the UI settings to start processing tasks")
 	
 	// Set up HTTP server
 	router := setupRoutes()
@@ -116,6 +119,7 @@ func initializeComponents() error {
 	queueHandlers = handlers.NewQueueHandlers(processor, wsManager)
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers = handlers.NewHealthHandlers(processor)
+	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager)
 	log.Println("✅ HTTP handlers initialized")
 	
 	return nil
@@ -160,6 +164,11 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/queue/stop", queueHandlers.StopQueueProcessorHandler).Methods("POST")
 	api.HandleFunc("/queue/start", queueHandlers.StartQueueProcessorHandler).Methods("POST")
 	api.HandleFunc("/queue/processes/terminate", queueHandlers.TerminateProcessHandler).Methods("POST")
+	
+	// Settings routes
+	api.HandleFunc("/settings", settingsHandlers.GetSettingsHandler).Methods("GET")
+	api.HandleFunc("/settings", settingsHandlers.UpdateSettingsHandler).Methods("PUT")
+	api.HandleFunc("/settings/reset", settingsHandlers.ResetSettingsHandler).Methods("POST")
 	
 	// Discovery routes
 	api.HandleFunc("/resources", discoveryHandlers.GetResourcesHandler).Methods("GET")

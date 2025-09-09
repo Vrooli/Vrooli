@@ -172,12 +172,50 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	updatedTask.Operation = currentTask.Operation
 	updatedTask.CreatedBy = currentTask.CreatedBy
 	updatedTask.CreatedAt = currentTask.CreatedAt
-	updatedTask.StartedAt = currentTask.StartedAt
-	updatedTask.CompletedAt = currentTask.CompletedAt
-	updatedTask.Results = currentTask.Results
 	
-	// Handle status changes - if status changed, may need to move file
+	// Handle backwards status transitions (completed/failed -> pending/in-progress)
+	// This happens when users drag tasks back to re-execute them
 	newStatus := updatedTask.Status
+	isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") && 
+	                        (newStatus == "pending" || newStatus == "in-progress")
+	
+	// Debug logging
+	log.Printf("Task %s status transition: '%s' -> '%s' (backwards: %v)", 
+		taskID, currentStatus, newStatus, isBackwardsTransition)
+	log.Printf("Task %s incoming data - has results: %v, status: '%s'", 
+		taskID, updatedTask.Results != nil, updatedTask.Status)
+	
+	if isBackwardsTransition {
+		// Clear execution results and timestamps for fresh execution
+		log.Printf("Task %s moved backwards from %s to %s - clearing execution data", taskID, currentStatus, newStatus)
+		updatedTask.Results = nil
+		updatedTask.StartedAt = ""
+		updatedTask.CompletedAt = ""
+		updatedTask.ProgressPercent = 0
+		updatedTask.CurrentPhase = ""
+	} else {
+		// Normal status transitions - preserve existing data if not provided
+		// Only preserve if the frontend didn't explicitly clear them
+		if updatedTask.StartedAt == "" {
+			updatedTask.StartedAt = currentTask.StartedAt
+		}
+		if updatedTask.CompletedAt == "" {
+			updatedTask.CompletedAt = currentTask.CompletedAt
+		}
+		// IMPORTANT: Don't preserve results if it's a backwards transition that wasn't detected
+		// This can happen if status strings don't match exactly
+		if updatedTask.Results == nil && currentTask.Results != nil {
+			// Check if this might be an undetected backwards transition
+			if newStatus == "pending" || newStatus == "in-progress" {
+				log.Printf("Task %s: Not preserving results when moving to %s", taskID, newStatus)
+				// Keep results as nil
+			} else {
+				updatedTask.Results = currentTask.Results
+			}
+		}
+	}
+	
+	// Handle status changes - if status changed, may need to move file  
 	if newStatus != currentStatus {
 		// Set timestamps for status changes
 		now := time.Now().Format(time.RFC3339)
@@ -211,13 +249,27 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	
 	// Save updated task
 	if newStatus != currentStatus {
-		// Move to new status
+		// CRITICAL: Delete from old location FIRST before saving to new location
+		// This prevents duplicates if save succeeds but delete fails
+		oldStatus, deleteErr := h.storage.DeleteTask(taskID)
+		if deleteErr != nil {
+			log.Printf("ERROR: Failed to delete task %s from old location: %v", taskID, deleteErr)
+			http.Error(w, fmt.Sprintf("Failed to move task: %v", deleteErr), http.StatusInternalServerError)
+			return
+		}
+		log.Printf("Successfully deleted task %s from %s", taskID, oldStatus)
+		
+		// Now save to new status
 		if err := h.storage.SaveQueueItem(updatedTask, newStatus); err != nil {
+			// Try to restore to old location if save fails
+			log.Printf("ERROR: Failed to save task %s to %s: %v", taskID, newStatus, err)
+			if restoreErr := h.storage.SaveQueueItem(updatedTask, currentStatus); restoreErr != nil {
+				log.Printf("CRITICAL: Failed to restore task %s to %s: %v", taskID, currentStatus, restoreErr)
+			}
 			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
 			return
 		}
-		// Remove from old status
-		h.storage.DeleteTask(taskID) // This will find and delete from the old location
+		log.Printf("Successfully saved task %s to %s", taskID, newStatus)
 	} else {
 		// Update in place
 		if err := h.storage.SaveQueueItem(updatedTask, currentStatus); err != nil {
@@ -356,6 +408,20 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 	// Update task fields
 	if update.Status != "" && update.Status != currentStatus {
 		task.Status = update.Status
+		
+		// Handle backwards status transitions (completed/failed -> pending/in-progress)
+		isBackwardsTransition := (currentStatus == "completed" || currentStatus == "failed") && 
+		                        (update.Status == "pending" || update.Status == "in-progress")
+		
+		if isBackwardsTransition {
+			// Clear execution results and timestamps for fresh execution
+			log.Printf("Task %s moved backwards from %s to %s - clearing execution data", taskID, currentStatus, update.Status)
+			task.Results = nil
+			task.StartedAt = ""
+			task.CompletedAt = ""
+			task.ProgressPercent = 0
+			task.CurrentPhase = ""
+		}
 		
 		// CRITICAL: If task is moved OUT of in-progress, terminate any running process
 		if currentStatus == "in-progress" && update.Status != "in-progress" {

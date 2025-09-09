@@ -1,11 +1,10 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
-	"github.com/vrooli/system-monitor/internal/config"
-	"github.com/vrooli/system-monitor/internal/services"
+	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/services"
 )
 
 // MetricsHandler handles metrics-related requests

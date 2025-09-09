@@ -168,7 +168,7 @@
         },
         {
           "name": "show-status",
-          "run": "echo \"🎉 Ecosystem Manager is running at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${API_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\""
+          "run": "echo \"🎉 Ecosystem Manager is running at http://localhost:${API_PORT}\" && echo \"📊 Dashboard: http://localhost:${UI_PORT}\" && echo \"🔌 API Base: http://localhost:${API_PORT}/api\""
         }
       ]
     },

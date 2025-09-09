@@ -149,6 +149,66 @@ type TrendData struct {
 	Alert      bool    `json:"alert"`    // if trend indicates potential issues
 }
 
+// Additional models needed for the new report service
+
+// TimeRange represents a time range (compatible with repository.TimeRange)
+type TimeRange struct {
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
+}
+
+// PerformanceAnalysis provides detailed performance statistics
+type PerformanceAnalysis struct {
+	CPU       MetricStats `json:"cpu"`
+	Memory    MetricStats `json:"memory"`
+	TimeRange string      `json:"time_range"`
+}
+
+// MetricStats contains statistical analysis of a metric
+type MetricStats struct {
+	Average     float64   `json:"average"`
+	Min         float64   `json:"min"`
+	Max         float64   `json:"max"`
+	StdDev      float64   `json:"std_dev"`
+	PeakValue   float64   `json:"peak_value"`
+	PeakTime    time.Time `json:"peak_time"`
+	MinTime     time.Time `json:"min_time"`
+}
+
+// Trend represents a trend in metrics
+type Trend struct {
+	Name          string  `json:"name"`
+	Direction     string  `json:"direction"`
+	Change        float64 `json:"change"`
+	ChangePercent float64 `json:"change_percent"`
+}
+
+// Update DetailedSystemReport to include new fields needed by ReportService
+type EnhancedSystemReport struct {
+	ReportID            string                   `json:"report_id"`
+	ReportType          string                   `json:"report_type"`
+	GeneratedAt         time.Time                `json:"generated_at"`
+	TimeRange           TimeRange                `json:"time_range"`
+	ActualDuration      string                   `json:"actual_duration"`
+	DateRangeDisplay    string                   `json:"date_range_display"`
+	ExecutiveSummary    EnhancedExecutiveSummary `json:"executive_summary"`
+	Performance         PerformanceAnalysis      `json:"performance"`
+	Trends              []Trend                  `json:"trends"`
+	Recommendations     []string                 `json:"recommendations"`
+	Highlights          []string                 `json:"highlights"`
+	MetricsCount        int                      `json:"metrics_count"`
+	AlertsCount         int                      `json:"alerts_count"`
+	InvestigationsCount int                      `json:"investigations_count"`
+}
+
+// Update ExecutiveSummary to include new fields
+type EnhancedExecutiveSummary struct {
+	OverallHealth     string   `json:"overall_health"`
+	KeyFindings       []string `json:"key_findings"`
+	TimeDescription   string   `json:"time_description"`
+	MetricsAnalyzed   int      `json:"metrics_analyzed"`
+}
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
 	Status    string                 `json:"status"`

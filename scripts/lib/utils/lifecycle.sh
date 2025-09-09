@@ -55,7 +55,7 @@ lifecycle::start_tracked_process() {
         port="$UI_PORT"
     fi
     
-    # Start process with identifiable environment
+    # Start process in new process group with identifiable environment
     (
         cd "$(pwd)"
         
@@ -66,16 +66,18 @@ lifecycle::start_tracked_process() {
         export VROOLI_STEP="$step_name"
         export VROOLI_LIFECYCLE_MANAGED="true"
         
-        # Execute the actual command
-        exec bash -c "$cmd"
+        # Execute the actual command in new session/process group
+        exec setsid bash -c "$cmd"
     ) >> "$log_file" 2>&1 &
     
     local pid=$!
+    local pgid=$pid  # With setsid, the PID becomes the PGID
     
-    # Create comprehensive process metadata WITH PORT
+    # Create comprehensive process metadata WITH PORT AND PGID
     cat > "$process_dir/${step_name}.json" << EOF_JSON
 {
     "pid": $pid,
+    "pgid": $pgid,
     "process_id": "$process_id", 
     "phase": "$phase",
     "scenario": "$app_name",
@@ -186,25 +188,65 @@ lifecycle::stop_scenario_processes() {
     }
     
     local stopped_count=0
+    local -a process_groups=()
+    local -a step_names=()
+    local -a step_files=()
     
+    # Phase 1: Collect all process groups and send SIGTERM
     for step_file in "$scenario_dir"/*.json; do
         [[ -f "$step_file" ]] || continue
         
         local pid=$(jq -r '.pid' "$step_file" 2>/dev/null)
+        local pgid=$(jq -r '.pgid // .pid' "$step_file" 2>/dev/null)  # Fallback to PID if no PGID
         local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
         
-        if [[ "$pid" =~ ^[0-9]+$ ]]; then
-            if kill -0 "$pid" 2>/dev/null; then
-                log::info "Stopping $scenario_name:$step_name (PID: $pid)"
-                kill -"$signal" "$pid" 2>/dev/null && stopped_count=$((stopped_count + 1))
+        if [[ "$pgid" =~ ^[0-9]+$ ]]; then
+            if kill -0 -"$pgid" 2>/dev/null; then
+                log::info "Stopping $scenario_name:$step_name process group (PGID: $pgid)"
+                if kill -"$signal" -"$pgid" 2>/dev/null; then
+                    process_groups+=("$pgid")
+                    step_names+=("$step_name")
+                    step_files+=("$step_file")
+                    ((stopped_count++))
+                fi
+            else
+                log::debug "Process group $pgid already stopped"
             fi
+        fi
+    done
+    
+    # Phase 2: Wait for graceful shutdown
+    if [[ ${#process_groups[@]} -gt 0 ]]; then
+        log::debug "Waiting 2 seconds for graceful shutdown..."
+        sleep 2
+        
+        # Phase 3: Verify and force kill survivors
+        local force_killed=0
+        for i in "${!process_groups[@]}"; do
+            local pgid="${process_groups[$i]}"
+            local step_name="${step_names[$i]}"
             
-            # Cleanup metadata
+            if kill -0 -"$pgid" 2>/dev/null; then
+                log::info "Force killing survivors in $scenario_name:$step_name (PGID: $pgid)"
+                kill -KILL -"$pgid" 2>/dev/null && ((force_killed++))
+            fi
+        done
+        
+        if [[ $force_killed -gt 0 ]]; then
+            log::debug "Force killed $force_killed process groups"
+            sleep 1  # Brief pause after force kill
+        fi
+    fi
+    
+    # Phase 4: Cleanup metadata files
+    for step_file in "${step_files[@]}"; do
+        if [[ -f "$step_file" ]]; then
+            local step_name=$(jq -r '.step' "$step_file" 2>/dev/null)
             rm -f "$step_file" "$scenario_dir/${step_name}.pid" 2>/dev/null
         fi
     done
     
-    log::info "Stopped $stopped_count processes for scenario: $scenario_name"
+    log::info "Stopped $stopped_count process groups for scenario: $scenario_name"
     return 0
 }
 
@@ -256,6 +298,18 @@ lifecycle::execute_phase() {
         else
             local error_msg
             error_msg=$(echo "$env_result" | jq -r '.message // .error // "Unknown error"')
+            echo ""
+            echo "🚨 SCENARIO STARTUP FAILED: Port Allocation Error"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Scenario: $SCENARIO_NAME"
+            echo "Error: $error_msg"
+            echo ""
+            echo "💡 Common Solutions:"
+            echo "   • Clean stale port locks: rm ~/.vrooli/state/scenarios/.port_*.lock"
+            echo "   • Restart resources: vrooli resource restart"
+            echo "   • Check running scenarios: vrooli status --verbose"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
             log::error "Environment setup failed: $error_msg"
             return 1
         fi

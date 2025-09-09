@@ -7,9 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/vrooli/system-monitor/internal/config"
-	"github.com/vrooli/system-monitor/internal/models"
-	"github.com/vrooli/system-monitor/internal/services"
+	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/models"
+	"system-monitor-api/internal/services"
 )
 
 // HealthHandler handles health check requests

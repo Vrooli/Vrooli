@@ -1,0 +1,244 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "scenario-to-mcp",
+    "displayName": "Scenario to MCP",
+    "description": "Add Model Context Protocol (MCP) support to any Vrooli scenario, enabling external AI tools to discover and use scenario capabilities",
+    "version": "1.0.0",
+    "tags": [
+      "vrooli-enhancement",
+      "mcp",
+      "ai-tools",
+      "integration",
+      "interoperability",
+      "automation",
+      "tool-discovery",
+      "react-ui",
+      "go-api",
+      "postgres-storage"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Main API port for MCP management",
+      "range": "3290-3299"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React dashboard UI port",
+      "range": "3290-3299"
+    },
+    "registry": {
+      "env_var": "REGISTRY_PORT",
+      "description": "MCP registry discovery service port",
+      "range": "3290-3299"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store MCP registry, endpoint metadata, and usage analytics",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": false,
+      "required": false,
+      "purpose": "Cache MCP endpoint discovery for performance"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario to MCP health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/",
+        "registry": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "registry_endpoint",
+          "type": "http",
+          "target": "http://localhost:${REGISTRY_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 10000
+    },
+    "setup": {
+      "description": "Initialize Scenario to MCP",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-to-mcp-api",
+              "cli/scenario-to-mcp"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "scenario-to-mcp"
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install React UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React dashboard"
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o scenario-to-mcp-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Scenario to MCP initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Scenario to MCP services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-to-mcp-api",
+          "description": "Start Go API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-mcp-api"
+          }
+        },
+        {
+          "name": "start-registry",
+          "run": "cd api && ./scenario-to-mcp-api --registry-mode",
+          "description": "Start MCP registry service",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-to-mcp-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm run dev",
+          "description": "Start React dashboard in development mode",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Registry: http://localhost:${REGISTRY_PORT}/registry\\n  CLI: scenario-to-mcp --help\\n\\nKey endpoints:\\n  GET /api/v1/mcp/endpoints - List all MCP endpoints\\n  POST /api/v1/mcp/add - Add MCP to scenario\\n  GET /api/v1/mcp/registry - Service discovery'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Scenario to MCP services",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-registry-health",
+          "run": "curl -sf http://localhost:$REGISTRY_PORT/health",
+          "description": "Test registry health endpoint"
+        },
+        {
+          "name": "test-mcp-detection",
+          "run": "node lib/detector.test.js",
+          "description": "Test MCP detection library",
+          "condition": {
+            "file_exists": "lib/detector.test.js"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats scenario-to-mcp.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/scenario-to-mcp.bats"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop all services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-to-mcp-api\" || true; sleep 1; pkill -9 -f \"scenario-to-mcp-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"npm run dev\" || true; pkill -f \"vite\" || true",
+          "description": "Stop UI development server"
+        }
+      ]
+    }
+  }
+}

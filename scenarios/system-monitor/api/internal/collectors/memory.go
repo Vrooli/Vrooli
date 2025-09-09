@@ -52,14 +52,20 @@ func (c *MemoryCollector) getMemoryUsage() float64 {
 		return float64(45 + (time.Now().Second() % 20))
 	}
 	
-	cmd := exec.Command("bash", "-c", "free | grep Mem | awk '{print ($3/$2) * 100.0}'")
+	// Use (total - available) / total for accurate memory usage
+	// This accounts for memory that can't be reclaimed easily
+	cmd := exec.Command("bash", "-c", "free | grep Mem | awk '{print (($2-$7)/$2) * 100.0}'")
 	output, err := cmd.Output()
 	if err != nil {
-		return 0.0
+		return 30.0 // Default fallback
 	}
 	
 	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
 	if err != nil {
+		return 30.0
+	}
+	// Ensure non-negative value
+	if usage < 0 {
 		return 0.0
 	}
 	return usage

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
+	"github.com/ecosystem-manager/api/pkg/settings"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
@@ -83,6 +84,14 @@ func (qp *Processor) Pause() {
 func (qp *Processor) Resume() {
 	qp.mu.Lock()
 	defer qp.mu.Unlock()
+	
+	// If processor isn't running at all, start it
+	if !qp.isRunning {
+		qp.isRunning = true
+		go qp.processLoop()
+		log.Println("Queue processor started from Resume()")
+	}
+	
 	qp.isPaused = false
 	log.Println("Queue processor resumed from maintenance")
 }
@@ -150,8 +159,9 @@ func (qp *Processor) ProcessQueue() {
 		return // No tasks to process
 	}
 	
-	// Limit concurrent tasks (configurable, defaulting to 1 for now)
-	maxConcurrent := 1
+	// Limit concurrent tasks based on settings
+	currentSettings := settings.GetSettings()
+	maxConcurrent := currentSettings.Slots
 	availableSlots := maxConcurrent - executingCount
 	if availableSlots <= 0 {
 		log.Printf("Queue processor: %d tasks already executing, %d available slots", executingCount, availableSlots)
@@ -347,7 +357,9 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 		}
 	}
 	
-	maxConcurrent := 1 // This should match the value in ProcessQueue
+	// Get maxConcurrent and refresh interval from settings
+	currentSettings := settings.GetSettings()
+	maxConcurrent := currentSettings.Slots
 	availableSlots := maxConcurrent - executingCount
 	
 	return map[string]interface{}{
@@ -358,7 +370,7 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 		"available_slots":     availableSlots,
 		"pending_count":       len(pendingTasks),
 		"ready_in_progress":   readyInProgress,
-		"refresh_interval":    30, // seconds
+		"refresh_interval":    currentSettings.RefreshInterval, // from settings
 		"processor_running":   isRunning && !isPaused,
 		"timestamp":           time.Now().Unix(),
 	}

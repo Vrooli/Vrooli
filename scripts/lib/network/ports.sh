@@ -251,14 +251,23 @@ ports::allocate_scenario() {
         if [[ -n "$fixed_port" && "$fixed_port" != "null" ]]; then
             # Fixed port allocation
             if ! ports::is_port_available "$fixed_port" "$scenario_name"; then
-                errors+=("Fixed port $fixed_port for $port_name conflicts")
+                # Check if there's a recent lock file for better error message
+                local lock_file="$SCENARIO_STATE_DIR/.port_${fixed_port}.lock"
+                if [[ -f "$lock_file" ]]; then
+                    local lock_info
+                    lock_info=$(cat "$lock_file" 2>/dev/null || echo "unknown")
+                    local lock_scenario="${lock_info%%:*}"
+                    errors+=("PORT CONFLICT: Fixed port $fixed_port for '$port_name' is locked by scenario '$lock_scenario'. Clean stale locks with: rm ~/.vrooli/state/scenarios/.port_${fixed_port}.lock")
+                else
+                    errors+=("PORT CONFLICT: Fixed port $fixed_port for '$port_name' is in use by another process")
+                fi
                 continue
             fi
             
             # Claim the port with lock file
             local lock_file="$SCENARIO_STATE_DIR/.port_${fixed_port}.lock"
             if ! (set -C; echo "${scenario_name}:$$:$(date +%s)" > "$lock_file") 2>/dev/null; then
-                errors+=("Could not claim fixed port $fixed_port for $port_name")
+                errors+=("LOCK FAILURE: Could not claim fixed port $fixed_port for '$port_name' (race condition or permission issue)")
                 continue
             fi
             
@@ -279,7 +288,7 @@ ports::allocate_scenario() {
                 if [[ -n "$available_port" ]]; then
                     allocated_ports["$port_name"]="$available_port"
                 else
-                    errors+=("No available ports in range $port_range for $port_name")
+                    errors+=("RANGE EXHAUSTED: No available ports in range $port_range for '$port_name'. Try: vrooli resource restart to free up resources, or check for stale locks in ~/.vrooli/state/scenarios/")
                     continue
                 fi
             else

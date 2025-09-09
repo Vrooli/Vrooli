@@ -13,6 +13,19 @@ import (
 // CPUCollector collects CPU metrics
 type CPUCollector struct {
 	BaseCollector
+	lastCPUStats *cpuStats
+	lastSampleTime time.Time
+}
+
+type cpuStats struct {
+	user   uint64
+	nice   uint64
+	system uint64
+	idle   uint64
+	iowait uint64
+	irq    uint64
+	softirq uint64
+	steal  uint64
 }
 
 // NewCPUCollector creates a new CPU collector
@@ -46,23 +59,89 @@ func (c *CPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 	}, nil
 }
 
-// getCPUUsage returns current CPU usage percentage
+// getCPUUsage returns current CPU usage percentage using delta calculation
 func (c *CPUCollector) getCPUUsage() float64 {
 	if runtime.GOOS != "linux" {
 		// Fallback for non-Linux systems
 		return float64(15 + (time.Now().Second() % 30))
 	}
 	
-	cmd := exec.Command("bash", "-c", "grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4+$5)} END {print usage}'")
+	// Read current CPU stats
+	cmd := exec.Command("bash", "-c", "grep '^cpu ' /proc/stat")
 	output, err := cmd.Output()
 	if err != nil {
 		return 0.0
 	}
 	
-	usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
-	if err != nil {
+	fields := strings.Fields(strings.TrimSpace(string(output)))
+	if len(fields) < 8 {
 		return 0.0
 	}
+	
+	// Parse current stats
+	current := &cpuStats{}
+	current.user, _ = strconv.ParseUint(fields[1], 10, 64)
+	current.nice, _ = strconv.ParseUint(fields[2], 10, 64)
+	current.system, _ = strconv.ParseUint(fields[3], 10, 64)
+	current.idle, _ = strconv.ParseUint(fields[4], 10, 64)
+	if len(fields) > 5 {
+		current.iowait, _ = strconv.ParseUint(fields[5], 10, 64)
+	}
+	if len(fields) > 6 {
+		current.irq, _ = strconv.ParseUint(fields[6], 10, 64)
+	}
+	if len(fields) > 7 {
+		current.softirq, _ = strconv.ParseUint(fields[7], 10, 64)
+	}
+	if len(fields) > 8 {
+		current.steal, _ = strconv.ParseUint(fields[8], 10, 64)
+	}
+	
+	now := time.Now()
+	
+	// If we don't have a previous sample, store this one and use top command as fallback
+	if c.lastCPUStats == nil || now.Sub(c.lastSampleTime) > 30*time.Second {
+		c.lastCPUStats = current
+		c.lastSampleTime = now
+		
+		// Use top command for immediate reading
+		cmd := exec.Command("bash", "-c", "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\([0-9.]*\)%* id.*/\1/' | awk '{print 100 - $1}'")
+		output, err := cmd.Output()
+		if err != nil {
+			return 25.0 // Default fallback
+		}
+		usage, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
+		if err != nil {
+			return 25.0
+		}
+		return usage
+	}
+	
+	// Calculate delta
+	deltaUser := current.user - c.lastCPUStats.user
+	deltaNice := current.nice - c.lastCPUStats.nice
+	deltaSystem := current.system - c.lastCPUStats.system
+	deltaIdle := current.idle - c.lastCPUStats.idle
+	deltaIowait := current.iowait - c.lastCPUStats.iowait
+	deltaIrq := current.irq - c.lastCPUStats.irq
+	deltaSoftirq := current.softirq - c.lastCPUStats.softirq
+	deltaSteal := current.steal - c.lastCPUStats.steal
+	
+	// Calculate total delta
+	deltaTotal := deltaUser + deltaNice + deltaSystem + deltaIdle + deltaIowait + deltaIrq + deltaSoftirq + deltaSteal
+	
+	// Update last stats
+	c.lastCPUStats = current
+	c.lastSampleTime = now
+	
+	if deltaTotal == 0 {
+		return 0.0
+	}
+	
+	// Calculate usage percentage (everything except idle and iowait)
+	deltaUsed := deltaUser + deltaNice + deltaSystem + deltaIrq + deltaSoftirq + deltaSteal
+	usage := (float64(deltaUsed) / float64(deltaTotal)) * 100.0
+	
 	return usage
 }
 

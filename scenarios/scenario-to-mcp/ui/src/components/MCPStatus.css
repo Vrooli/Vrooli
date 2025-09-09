@@ -1,0 +1,84 @@
+.mcp-status {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.status-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.status-active {
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  color: #00ff88;
+}
+
+.status-icon.active {
+  color: #00ff88;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.status-inactive {
+  background: rgba(255, 136, 0, 0.1);
+  border: 1px solid rgba(255, 136, 0, 0.3);
+  color: #ff8800;
+}
+
+.status-icon.inactive {
+  color: #ff8800;
+}
+
+.status-pending {
+  background: rgba(255, 255, 0, 0.1);
+  border: 1px solid rgba(255, 255, 0, 0.3);
+  color: #ffff00;
+}
+
+.status-icon.pending {
+  color: #ffff00;
+  animation: spin 2s linear infinite;
+}
+
+.status-error {
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  color: #ff6666;
+}
+
+.status-icon.error {
+  color: #ff6666;
+}
+
+.status-none {
+  background: rgba(128, 128, 128, 0.1);
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  color: #808080;
+}
+
+.status-icon.unknown {
+  color: #808080;
+}
+
+.status-label {
+  white-space: nowrap;
+}

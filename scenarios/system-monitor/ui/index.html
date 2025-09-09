@@ -20,6 +20,15 @@
             <div class="status-indicator">
                 <span class="status-dot" id="status-dot"></span>
                 <span class="status-text" id="status-text">INITIALIZING...</span>
+                <button class="system-output-btn" onclick="refreshDashboard()" title="Refresh Dashboard">
+                    <span class="btn-icon">🔄</span>
+                    REFRESH
+                </button>
+                <button class="system-output-btn" onclick="toggleTerminal()" title="Toggle System Output">
+                    <span class="btn-icon">📟</span>
+                    OUTPUT
+                    <span id="error-badge" class="notification-badge" style="display: none;">0</span>
+                </button>
             </div>
         </div>
     </header>
@@ -308,28 +317,27 @@
                 </div>
             </section>
 
-            <!-- Control Panel -->
-            <section class="control-panel">
+            <!-- Generated Reports -->
+            <section class="reports-panel">
                 <div class="panel-header">
-                    <h2>SYSTEM CONTROLS</h2>
+                    <h2>GENERATED REPORTS</h2>
+                    <div class="report-controls">
+                        <button class="btn-action" onclick="generateReport('daily')">
+                            <span class="btn-icon">📊</span>
+                            GENERATE DAILY
+                        </button>
+                        <button class="btn-action" onclick="generateReport('weekly')">
+                            <span class="btn-icon">📈</span>
+                            GENERATE WEEKLY
+                        </button>
+                        <button class="btn-action" onclick="refreshReports()">
+                            <span class="btn-icon">🔄</span>
+                            REFRESH
+                        </button>
+                    </div>
                 </div>
-                <div class="control-grid">
-                    <button class="control-btn" onclick="generateReport('daily')">
-                        <span class="btn-icon">📊</span>
-                        DAILY REPORT
-                    </button>
-                    <button class="control-btn" onclick="generateReport('weekly')">
-                        <span class="btn-icon">📈</span>
-                        WEEKLY REPORT
-                    </button>
-                    <button class="control-btn" onclick="simulateAnomaly()">
-                        <span class="btn-icon">⚠️</span>
-                        SIMULATE ANOMALY
-                    </button>
-                    <button class="control-btn" onclick="refreshDashboard()">
-                        <span class="btn-icon">🔄</span>
-                        REFRESH
-                    </button>
+                <div class="reports-list" id="reports-list">
+                    <div class="loading">LOADING REPORTS...</div>
                 </div>
             </section>
         </div>
@@ -343,6 +351,19 @@
         </div>
         <div class="terminal-content" id="terminal-content">
             <div class="terminal-line">[SYSTEM] System Monitor initialized</div>
+        </div>
+    </div>
+
+    <!-- Report Viewer Modal -->
+    <div class="report-modal" id="report-modal">
+        <div class="report-modal-content">
+            <div class="report-modal-header">
+                <h3 id="report-modal-title">System Report</h3>
+                <button class="report-modal-close" onclick="closeReportModal()">×</button>
+            </div>
+            <div class="report-modal-body" id="report-modal-body">
+                <div class="loading">LOADING REPORT...</div>
+            </div>
         </div>
     </div>
 

@@ -28,7 +28,14 @@ class SystemMonitor {
         this.processMetrics = null;
         this.infrastructureMetrics = null;
         
+        // Error tracking
+        this.unreadErrorCount = 0;
+        this.lastErrorCheck = Date.now();
+        
         this.init();
+        
+        // Start error checking
+        this.startErrorPolling();
     }
 
     init() {
@@ -52,8 +59,7 @@ class SystemMonitor {
         this.initializeExpandableCards();
         this.addTerminalLine('System Monitor dashboard initialized', 'success');
         
-        // Make terminal visible by default for debugging
-        document.getElementById('terminal').classList.add('open');
+        // Terminal stays hidden by default - user can toggle it with the system output button
     }
 
     setupEventListeners() {
@@ -62,6 +68,59 @@ class SystemMonitor {
         
         // Handle window focus to refresh data
         window.addEventListener('focus', () => this.refreshDashboard());
+    }
+    
+    // Error tracking methods
+    async startErrorPolling() {
+        // Check for errors every 10 seconds
+        setInterval(() => this.checkForErrors(), 10000);
+        
+        // Initial check
+        setTimeout(() => this.checkForErrors(), 2000);
+    }
+    
+    async checkForErrors() {
+        try {
+            const response = await fetch(`${this.baseUrl}/api/errors?unread_only=true`);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            this.updateErrorBadge(data.unread_count || 0);
+        } catch (error) {
+            console.log('Error checking for errors:', error);
+        }
+    }
+    
+    updateErrorBadge(count) {
+        const badge = document.getElementById('error-badge');
+        if (!badge) return;
+        
+        this.unreadErrorCount = count;
+        
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count.toString();
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    async markErrorsAsRead() {
+        try {
+            await fetch(`${this.baseUrl}/api/errors/mark-read`, { method: 'POST' });
+            this.updateErrorBadge(0);
+        } catch (error) {
+            console.log('Error marking errors as read:', error);
+        }
+    }
+    
+    logError(message, details = '') {
+        // Log to console and potentially send to API
+        console.error('UI Error:', message, details);
+        this.addTerminalLine(`ERROR: ${message}${details ? ' - ' + details : ''}`, 'error');
+        
+        // Update error count immediately for client-side errors
+        this.checkForErrors();
     }
 
     async checkApiHealth() {
@@ -495,8 +554,11 @@ class SystemMonitor {
                 arrow.classList.add('expanded');
             }, 10);
             
-            // Fetch fresh detailed data when expanding
-            this.fetchDetailedMetrics();
+            // Fetch fresh detailed data immediately when expanding
+            this.fetchDetailedMetrics().then(() => {
+                // Update the detailed displays immediately
+                this.updateDetailedDisplays();
+            });
         }
     }
 
@@ -519,11 +581,15 @@ class SystemMonitor {
                 arrow.classList.add('expanded');
             }, 10);
             
-            // Fetch specific data based on panel
+            // Fetch specific data immediately based on panel
             if (panelId === 'process') {
-                this.fetchProcessMetrics();
+                this.fetchProcessMetrics().then(() => {
+                    this.updateProcessDisplay();
+                });
             } else if (panelId === 'infrastructure') {
-                this.fetchInfrastructureMetrics();
+                this.fetchInfrastructureMetrics().then(() => {
+                    this.updateInfrastructureDisplay();
+                });
             }
         }
     }
@@ -869,19 +935,6 @@ async function generateReport(type) {
     }
 }
 
-async function simulateAnomaly() {
-    try {
-        const response = await fetch(`${monitor.baseUrl}/api/test/anomaly/cpu`);
-        const result = await response.json();
-        
-        if (result.anomaly_detected) {
-            monitor.addTerminalLine(`Anomaly simulated: ${result.anomaly_type} at ${result.cpu_usage}%`, 'warning');
-        }
-        
-    } catch (error) {
-        monitor.addTerminalLine(`Anomaly simulation failed: ${error.message}`, 'error');
-    }
-}
 
 async function triggerInvestigation() {
     const button = document.querySelector('.btn-action');
@@ -929,7 +982,14 @@ async function triggerInvestigation() {
 
 function toggleTerminal() {
     const terminal = document.getElementById('terminal');
+    const wasOpen = terminal.classList.contains('open');
+    
     terminal.classList.toggle('open');
+    
+    // If terminal was just opened, mark errors as read
+    if (!wasOpen && window.monitor) {
+        window.monitor.markErrorsAsRead();
+    }
 }
 
 function refreshDashboard() {
@@ -985,5 +1045,293 @@ document.addEventListener('DOMContentLoaded', () => {
     monitor = new SystemMonitor();
     console.log('SystemMonitor instance created:', !!monitor);
     
-    // Terminal stays hidden by default - user can toggle it if needed
+    // Load reports on startup
+    setTimeout(() => {
+        if (monitor) {
+            fetchReports();
+        }
+    }, 2000);
 });
+
+// Report-related functions
+
+async function fetchReports() {
+    try {
+        // Ensure monitor is initialized
+        if (!monitor || !monitor.baseUrl) {
+            console.warn('Monitor not initialized, retrying in 2 seconds...');
+            setTimeout(fetchReports, 2000);
+            return;
+        }
+        
+        console.log(`Fetching reports from: ${monitor.baseUrl}/api/reports`);
+        const response = await fetch(`${monitor.baseUrl}/api/reports`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Reports data received:', data);
+        
+        displayReports(data.reports || []);
+    } catch (error) {
+        console.error('Error fetching reports:', error);
+        if (window.monitor) {
+            window.monitor.logError('Failed to load reports', error.message);
+        }
+        displayReportsError();
+    }
+}
+
+function displayReports(reports) {
+    const reportsList = document.getElementById('reports-list');
+    
+    if (!reports || reports.length === 0) {
+        reportsList.innerHTML = '<div class="no-reports">NO REPORTS GENERATED YET<br><span style="font-size: 0.8rem; opacity: 0.6;">Use the buttons below to generate daily or weekly reports</span></div>';
+        return;
+    }
+    
+    const reportsHtml = reports.map(report => {
+        const date = new Date(report.generated_at).toLocaleString();
+        const reportType = report.report_type;
+        const typeClass = reportType === 'weekly' ? 'weekly' : 'daily';
+        
+        return `
+            <div class="report-item" onclick="viewReport('${report.report_id}')">
+                <div class="report-info">
+                    <div class="report-title">${reportType} System Report</div>
+                    <div class="report-meta">Generated: ${date} | ID: ${report.report_id.substring(0, 8)}</div>
+                </div>
+                <div class="report-type ${typeClass}">${reportType}</div>
+            </div>
+        `;
+    }).join('');
+    
+    reportsList.innerHTML = reportsHtml;
+}
+
+function displayReportsError() {
+    const reportsList = document.getElementById('reports-list');
+    reportsList.innerHTML = '<div class="no-reports">ERROR LOADING REPORTS<br><span style="font-size: 0.8rem; opacity: 0.6;">Check browser console for details</span></div>';
+}
+
+async function viewReport(reportId) {
+    const modal = document.getElementById('report-modal');
+    const title = document.getElementById('report-modal-title');
+    const body = document.getElementById('report-modal-body');
+    
+    // Show modal with loading
+    title.textContent = 'Loading Report...';
+    body.innerHTML = '<div class="loading">LOADING REPORT...</div>';
+    modal.classList.add('show');
+    
+    try {
+        const response = await fetch(`${monitor.baseUrl}/api/reports/${reportId}`);
+        const report = await response.json();
+        displayReportContent(report);
+    } catch (error) {
+        console.error('Error fetching report:', error);
+        if (window.monitor) {
+            window.monitor.logError('Failed to load individual report', `Report ID: ${reportId} - ${error.message}`);
+        }
+        body.innerHTML = '<div class="error">ERROR LOADING REPORT</div>';
+    }
+}
+
+function displayReportContent(report) {
+    const title = document.getElementById('report-modal-title');
+    const body = document.getElementById('report-modal-body');
+    
+    title.textContent = `${report.report_type.toUpperCase()} SYSTEM REPORT`;
+    
+    // Extract content from nested structure
+    const content = report.content || report; // Support both nested and flat structure
+    const executiveSummary = content.executive_summary || {};
+    const performance = content.performance || {};
+    const trends = content.trends || [];
+    const recommendations = content.recommendations || [];
+    const highlights = content.highlights || [];
+    
+    // Helper function to format timestamps
+    const formatPeakTime = (timeStr) => {
+        if (!timeStr) return '';
+        const date = new Date(timeStr);
+        return date.toLocaleString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    };
+    
+    // Build date range section
+    const dateRangeSection = `
+        <div class="report-section">
+            <h4>Report Period</h4>
+            <div class="report-summary">
+                <div class="summary-card" style="grid-column: span 2;">
+                    <span class="summary-value" style="font-size: 0.9rem;">${content.date_range_display || report.date_range || 'N/A'}</span>
+                    <span class="summary-label">Date Range</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${content.actual_duration || 'N/A'}</span>
+                    <span class="summary-label">Duration</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${content.metrics_count || report.metrics_count || 'N/A'}</span>
+                    <span class="summary-label">Data Points</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Build report summary
+    const summaryCards = `
+        <div class="report-section">
+            <h4>Executive Summary</h4>
+            <div class="report-summary">
+                <div class="summary-card">
+                    <span class="summary-value">${executiveSummary.overall_health || 'Unknown'}</span>
+                    <span class="summary-label">System Health</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${content.alerts_count || report.alerts_count || 0}</span>
+                    <span class="summary-label">Alerts</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${content.investigations_count || report.investigations_count || 0}</span>
+                    <span class="summary-label">Investigations</span>
+                </div>
+            </div>
+            ${executiveSummary.key_findings && executiveSummary.key_findings.length > 0 ? `
+                <div style="margin-top: 1rem;">
+                    <h5>Key Findings</h5>
+                    <ul style="margin: 0.5rem 0; padding-left: 1.5rem; font-size: 0.9rem;">
+                        ${executiveSummary.key_findings.map(finding => `<li>${finding}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    // Build performance section with peak times
+    const performanceSection = `
+        <div class="report-section">
+            <h4>Performance Analysis</h4>
+            <div class="report-summary">
+                <div class="summary-card">
+                    <span class="summary-value">${performance.cpu?.average?.toFixed(1) || 'N/A'}%</span>
+                    <span class="summary-label">Avg CPU Usage</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${((performance.cpu?.peak_value || performance.cpu?.max) || 0).toFixed(1)}%</span>
+                    <span class="summary-label">Peak CPU Usage</span>
+                    ${performance.cpu?.peak_time ? `<div style="font-size: 0.7rem; color: #00cc00; margin-top: 0.2rem;">${formatPeakTime(performance.cpu.peak_time)}</div>` : ''}
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${performance.memory?.average?.toFixed(1) || 'N/A'}%</span>
+                    <span class="summary-label">Avg Memory Usage</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${((performance.memory?.peak_value || performance.memory?.max) || 0).toFixed(1)}%</span>
+                    <span class="summary-label">Peak Memory Usage</span>
+                    ${performance.memory?.peak_time ? `<div style="font-size: 0.7rem; color: #00cc00; margin-top: 0.2rem;">${formatPeakTime(performance.memory.peak_time)}</div>` : ''}
+                </div>
+            </div>
+            <div class="report-summary" style="margin-top: 1rem;">
+                <div class="summary-card">
+                    <span class="summary-value">${performance.cpu?.min?.toFixed(1) || 'N/A'}%</span>
+                    <span class="summary-label">Min CPU Usage</span>
+                    ${performance.cpu?.min_time ? `<div style="font-size: 0.7rem; color: #00cc00; margin-top: 0.2rem;">${formatPeakTime(performance.cpu.min_time)}</div>` : ''}
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${performance.cpu?.std_dev?.toFixed(2) || 'N/A'}</span>
+                    <span class="summary-label">CPU Std Dev</span>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${performance.memory?.min?.toFixed(1) || 'N/A'}%</span>
+                    <span class="summary-label">Min Memory Usage</span>
+                    ${performance.memory?.min_time ? `<div style="font-size: 0.7rem; color: #00cc00; margin-top: 0.2rem;">${formatPeakTime(performance.memory.min_time)}</div>` : ''}
+                </div>
+                <div class="summary-card">
+                    <span class="summary-value">${performance.memory?.std_dev?.toFixed(2) || 'N/A'}</span>
+                    <span class="summary-label">Memory Std Dev</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Build highlights
+    const highlightsSection = highlights && highlights.length > 0 ? `
+        <div class="report-section">
+            <h4>Key Highlights</h4>
+            <div class="report-highlights">
+                <ul>
+                    ${highlights.map(highlight => `<li>${highlight}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+    ` : '';
+    
+    // Build recommendations
+    const recommendationsSection = recommendations && recommendations.length > 0 ? `
+        <div class="report-section">
+            <h4>Recommendations</h4>
+            <div class="report-highlights">
+                <ul>
+                    ${recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+    ` : '';
+    
+    // Build trends
+    const trendsSection = trends && trends.length > 0 ? `
+        <div class="report-section">
+            <h4>System Trends</h4>
+            <div class="report-highlights">
+                <ul>
+                    ${trends.map(trend => `<li>${trend.name}: ${trend.direction} (${trend.change_percent > 0 ? '+' : ''}${trend.change_percent.toFixed(1)}%)</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+    ` : '';
+    
+    body.innerHTML = dateRangeSection + summaryCards + performanceSection + highlightsSection + recommendationsSection + trendsSection;
+}
+
+function closeReportModal() {
+    const modal = document.getElementById('report-modal');
+    modal.classList.remove('show');
+}
+
+function refreshReports() {
+    const reportsList = document.getElementById('reports-list');
+    reportsList.innerHTML = '<div class="loading">REFRESHING REPORTS...</div>';
+    fetchReports();
+}
+
+// Update the generateReport function to refresh the reports list after generation
+async function generateReport(type) {
+    try {
+        const response = await fetch(`${monitor.baseUrl}/api/reports/generate`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ type })
+        });
+        
+        const result = await response.json();
+        monitor.addTerminalLine(`${type.toUpperCase()} report generated: ${result.report_id}`, 'success');
+        
+        // Refresh the reports list to show the new report
+        setTimeout(() => {
+            fetchReports();
+        }, 1000);
+        
+    } catch (error) {
+        monitor.addTerminalLine(`Report generation failed: ${error.message}`, 'error');
+    }
+}

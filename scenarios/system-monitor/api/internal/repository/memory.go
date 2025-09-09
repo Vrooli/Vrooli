@@ -3,10 +3,11 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
-	"github.com/vrooli/system-monitor/internal/models"
+	"system-monitor-api/internal/models"
 )
 
 // MemoryRepository provides an in-memory implementation of all repositories
@@ -15,6 +16,7 @@ type MemoryRepository struct {
 	metrics         []metricEntry
 	investigations  map[string]*models.Investigation
 	reports         map[string]*models.Report
+	enhancedReports map[string]*models.EnhancedSystemReport
 	alerts          map[string]*models.Alert
 	anomalies       map[string]*models.Anomaly
 	thresholds      map[string]*models.Threshold
@@ -30,13 +32,14 @@ type metricEntry struct {
 // NewMemoryRepository creates a new in-memory repository
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{
-		metrics:        make([]metricEntry, 0),
-		investigations: make(map[string]*models.Investigation),
-		reports:        make(map[string]*models.Report),
-		alerts:         make(map[string]*models.Alert),
-		anomalies:      make(map[string]*models.Anomaly),
-		thresholds:     make(map[string]*models.Threshold),
-		violations:     make([]models.ThresholdViolation, 0),
+		metrics:         make([]metricEntry, 0),
+		investigations:  make(map[string]*models.Investigation),
+		reports:         make(map[string]*models.Report),
+		enhancedReports: make(map[string]*models.EnhancedSystemReport),
+		alerts:          make(map[string]*models.Alert),
+		anomalies:       make(map[string]*models.Anomaly),
+		thresholds:      make(map[string]*models.Threshold),
+		violations:      make([]models.ThresholdViolation, 0),
 	}
 }
 
@@ -64,28 +67,67 @@ func (r *MemoryRepository) GetMetrics(ctx context.Context, filter MetricsFilter)
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	
-	var results []*models.MetricsResponse
+	// Group metrics by timestamp to combine collectors
+	metricsMap := make(map[time.Time]*models.MetricsResponse)
+	
 	for _, entry := range r.metrics {
 		if filter.CollectorName != "" && entry.CollectorName != filter.CollectorName {
 			continue
 		}
 		
-		// Convert to MetricsResponse (simplified)
-		response := &models.MetricsResponse{
-			Timestamp: entry.Timestamp,
+		// Check if within time range
+		if !filter.TimeRange.StartTime.IsZero() && entry.Timestamp.Before(filter.TimeRange.StartTime) {
+			continue
+		}
+		if !filter.TimeRange.EndTime.IsZero() && entry.Timestamp.After(filter.TimeRange.EndTime) {
+			continue
 		}
 		
-		if cpu, ok := entry.Values["cpu_usage"].(float64); ok {
-			response.CPUUsage = cpu
-		}
-		if mem, ok := entry.Values["memory_usage"].(float64); ok {
-			response.MemoryUsage = mem
-		}
-		if tcp, ok := entry.Values["tcp_connections"].(int); ok {
-			response.TCPConnections = tcp
+		// Get or create response for this timestamp
+		response, exists := metricsMap[entry.Timestamp]
+		if !exists {
+			response = &models.MetricsResponse{
+				Timestamp: entry.Timestamp,
+			}
+			metricsMap[entry.Timestamp] = response
 		}
 		
+		// CPU metrics - check for the correct field name based on collector
+		if entry.CollectorName == "cpu" {
+			if cpu, ok := entry.Values["usage_percent"].(float64); ok {
+				response.CPUUsage = cpu
+			}
+		}
+		
+		// Memory metrics
+		if entry.CollectorName == "memory" {
+			if mem, ok := entry.Values["usage_percent"].(float64); ok {
+				response.MemoryUsage = mem
+			}
+		}
+		
+		// Network metrics
+		if entry.CollectorName == "network" {
+			if tcp, ok := entry.Values["tcp_connections"].(int); ok {
+				response.TCPConnections = tcp
+			}
+		}
+	}
+	
+	// Convert map to slice
+	var results []*models.MetricsResponse
+	for _, response := range metricsMap {
 		results = append(results, response)
+	}
+	
+	// Sort by timestamp
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].Timestamp.Before(results[j].Timestamp)
+	})
+	
+	// Apply limit if specified
+	if filter.Limit > 0 && len(results) > filter.Limit {
+		results = results[len(results)-filter.Limit:]
 	}
 	
 	return results, nil
@@ -99,31 +141,45 @@ func (r *MemoryRepository) GetLatestMetrics(ctx context.Context) (*models.Metric
 		return nil, fmt.Errorf("no metrics available")
 	}
 	
-	// Find latest metrics with required values
+	// Combine latest metrics from different collectors
+	response := &models.MetricsResponse{
+		Timestamp: time.Now(),
+	}
+	
+	// Get latest CPU metrics
 	for i := len(r.metrics) - 1; i >= 0; i-- {
 		entry := r.metrics[i]
-		response := &models.MetricsResponse{
-			Timestamp: entry.Timestamp,
-		}
-		
-		// Try to extract standard metrics
-		if cpu, ok := entry.Values["usage_percent"].(float64); ok {
-			response.CPUUsage = cpu
-		}
-		if mem, ok := entry.Values["usage_percent"].(float64); ok && entry.CollectorName == "memory" {
-			response.MemoryUsage = mem
-		}
-		if tcp, ok := entry.Values["tcp_connections"].(int); ok {
-			response.TCPConnections = tcp
-		}
-		
-		// Return first complete set
-		if response.CPUUsage > 0 || response.MemoryUsage > 0 {
-			return response, nil
+		if entry.CollectorName == "cpu" {
+			if cpu, ok := entry.Values["usage_percent"].(float64); ok {
+				response.CPUUsage = cpu
+				break
+			}
 		}
 	}
 	
-	return nil, fmt.Errorf("no complete metrics found")
+	// Get latest Memory metrics
+	for i := len(r.metrics) - 1; i >= 0; i-- {
+		entry := r.metrics[i]
+		if entry.CollectorName == "memory" {
+			if mem, ok := entry.Values["usage_percent"].(float64); ok {
+				response.MemoryUsage = mem
+				break
+			}
+		}
+	}
+	
+	// Get latest Network metrics
+	for i := len(r.metrics) - 1; i >= 0; i-- {
+		entry := r.metrics[i]
+		if entry.CollectorName == "network" {
+			if tcp, ok := entry.Values["tcp_connections"].(int); ok {
+				response.TCPConnections = tcp
+				break
+			}
+		}
+	}
+	
+	return response, nil
 }
 
 func (r *MemoryRepository) GetDetailedMetrics(ctx context.Context, timeRange TimeRange) (*models.DetailedMetrics, error) {
@@ -161,6 +217,18 @@ func (r *MemoryRepository) GetAggregatedMetrics(ctx context.Context, aggregation
 		"min":     10.0,
 		"count":   100,
 	}, nil
+}
+
+// GetEarliestMetricTime returns the timestamp of the earliest stored metric
+func (r *MemoryRepository) GetEarliestMetricTime(ctx context.Context) (time.Time, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	if len(r.metrics) == 0 {
+		return time.Time{}, fmt.Errorf("no metrics available")
+	}
+	
+	return r.metrics[0].Timestamp, nil
 }
 
 // InvestigationRepository implementation
@@ -298,6 +366,37 @@ func (r *MemoryRepository) GetDetailedReport(ctx context.Context, id string) (*m
 	}
 	
 	return nil, fmt.Errorf("detailed report not found")
+}
+
+func (r *MemoryRepository) SaveEnhancedReport(ctx context.Context, report *models.EnhancedSystemReport) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	
+	r.enhancedReports[report.ReportID] = report
+	return nil
+}
+
+func (r *MemoryRepository) GetEnhancedReport(ctx context.Context, id string) (*models.EnhancedSystemReport, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	if report, exists := r.enhancedReports[id]; exists {
+		return report, nil
+	}
+	
+	return nil, fmt.Errorf("enhanced report not found")
+}
+
+func (r *MemoryRepository) ListEnhancedReports(ctx context.Context) ([]*models.EnhancedSystemReport, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	
+	var reports []*models.EnhancedSystemReport
+	for _, report := range r.enhancedReports {
+		reports = append(reports, report)
+	}
+	
+	return reports, nil
 }
 
 // ThresholdRepository implementation

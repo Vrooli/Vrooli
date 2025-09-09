@@ -7,18 +7,17 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	
-	"github.com/vrooli/system-monitor/internal/config"
-	"github.com/vrooli/system-monitor/internal/handlers"
-	"github.com/vrooli/system-monitor/internal/middleware"
-	"github.com/vrooli/system-monitor/internal/repository"
-	"github.com/vrooli/system-monitor/internal/services"
+	"system-monitor-api/internal/config"
+	"system-monitor-api/internal/handlers"
+	"system-monitor-api/internal/middleware"
+	"system-monitor-api/internal/repository"
+	"system-monitor-api/internal/services"
 )
 
 func main() {
@@ -53,6 +52,7 @@ func main() {
 	alertSvc := services.NewAlertService(cfg, repo)
 	monitorSvc := services.NewMonitorService(cfg, repo, alertSvc)
 	investigationSvc := services.NewInvestigationService(cfg, repo, alertSvc)
+	reportSvc := services.NewReportService(cfg, repo)
 	
 	// Start monitoring service
 	if err := monitorSvc.Start(); err != nil {
@@ -63,9 +63,10 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(cfg, monitorSvc)
 	metricsHandler := handlers.NewMetricsHandler(cfg, monitorSvc)
 	investigationHandler := handlers.NewInvestigationHandler(cfg, investigationSvc)
+	reportHandler := handlers.NewReportHandler(cfg, reportSvc)
 	
 	// Setup routes
-	router := setupRoutes(cfg, healthHandler, metricsHandler, investigationHandler)
+	router := setupRoutes(cfg, healthHandler, metricsHandler, investigationHandler, reportHandler)
 	
 	// Setup middleware
 	handler := setupMiddleware(cfg, router)
@@ -143,7 +144,7 @@ func connectDatabase(cfg *config.Config) (*sql.DB, error) {
 	return nil, err
 }
 
-func setupRoutes(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler) *mux.Router {
+func setupRoutes(cfg *config.Config, health *handlers.HealthHandler, metrics *handlers.MetricsHandler, investigation *handlers.InvestigationHandler, report *handlers.ReportHandler) *mux.Router {
 	r := mux.NewRouter()
 	
 	// Health endpoint
@@ -164,9 +165,12 @@ func setupRoutes(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	r.HandleFunc("/api/investigations/{id}/progress", investigation.UpdateInvestigationProgress).Methods("PUT")
 	r.HandleFunc("/api/investigations/{id}/step", investigation.AddInvestigationStep).Methods("POST")
 	
+	// Report endpoints (order matters - more specific routes first)
+	r.HandleFunc("/api/reports/generate", report.GenerateReport).Methods("POST")
+	r.HandleFunc("/api/reports/{id}", report.GetReport).Methods("GET")
+	r.HandleFunc("/api/reports", report.ListReports).Methods("GET")
+	
 	// Legacy endpoints for backward compatibility
-	r.HandleFunc("/api/reports/generate", legacyReportHandler).Methods("POST")
-	r.HandleFunc("/api/test/anomaly/cpu", legacyAnomalyHandler).Methods("GET")
 	r.HandleFunc("/api/logs", legacyLogsHandler).Methods("GET")
 	
 	return r
@@ -217,30 +221,6 @@ func waitForShutdown(monitorSvc *services.MonitorService, srv *http.Server, db *
 }
 
 // Legacy handlers for backward compatibility
-
-func legacyReportHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"status":       "success",
-		"report_id":    "report_" + strconv.FormatInt(time.Now().Unix(), 10),
-		"generated_at": time.Now().Format(time.RFC3339),
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-func legacyAnomalyHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
-		"anomaly_detected": true,
-		"anomaly_type":     "high_cpu",
-		"cpu_usage":        95.5,
-		"threshold":        80.0,
-		"detected_at":      time.Now().Format(time.RFC3339),
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
 
 func legacyLogsHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{

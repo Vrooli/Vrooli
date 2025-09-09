@@ -1,0 +1,403 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+API_URL="${IMAGE_TOOLS_API_URL:-http://localhost:8080}"
+VERSION="1.0.0"
+
+show_help() {
+    cat << EOF
+Image Tools CLI - Digital Darkroom for Developers
+Version: $VERSION
+
+USAGE:
+    image-tools <command> [options]
+
+COMMANDS:
+    compress <file>     Compress an image file
+    resize <file>       Resize an image
+    convert <file>      Convert image format
+    metadata <file>     View or strip metadata
+    batch <dir>         Process multiple images
+    status              Check service status
+    help                Show this help message
+    version             Show version information
+
+OPTIONS:
+    --quality <1-100>       Compression quality (default: 85)
+    --width <pixels>        Target width for resize
+    --height <pixels>       Target height for resize
+    --maintain-aspect       Keep aspect ratio when resizing
+    --format <type>         Target format for conversion
+    --output <path>         Output file path
+    --strip                 Strip metadata (for metadata command)
+    --json                  Output in JSON format
+
+EXAMPLES:
+    image-tools compress photo.jpg --quality 70
+    image-tools resize image.png --width 800 --maintain-aspect
+    image-tools convert logo.png --format webp
+    image-tools metadata photo.jpg --strip
+    image-tools batch ./images --operations compress --quality 80
+
+EOF
+}
+
+show_version() {
+    echo "image-tools v$VERSION"
+    echo "© 2025 Vrooli Labs - Digital Darkroom"
+}
+
+check_status() {
+    echo "Checking Image Tools API status..."
+    
+    if curl -s -f "$API_URL/api/v1/health" > /dev/null 2>&1; then
+        response=$(curl -s "$API_URL/api/v1/health")
+        
+        if [[ "$1" == "--json" ]]; then
+            echo "$response"
+        else
+            plugins=$(echo "$response" | jq -r '.plugins // 0')
+            echo "✓ API is healthy"
+            echo "✓ $plugins plugins loaded"
+        fi
+        return 0
+    else
+        echo "✗ API is not responding at $API_URL"
+        return 1
+    fi
+}
+
+compress_image() {
+    local file="$1"
+    shift
+    
+    local quality=85
+    local output=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --quality)
+                quality="$2"
+                shift 2
+                ;;
+            --output)
+                output="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    echo "Compressing $file with quality $quality..."
+    
+    response=$(curl -s -X POST \
+        -F "image=@$file" \
+        -F "quality=$quality" \
+        "$API_URL/api/v1/image/compress")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        original_size=$(echo "$response" | jq -r '.original_size // 0')
+        compressed_size=$(echo "$response" | jq -r '.compressed_size // 0')
+        savings=$(echo "$response" | jq -r '.savings_percent // 0')
+        
+        echo "✓ Compression complete"
+        echo "  Original: $(format_size $original_size)"
+        echo "  Compressed: $(format_size $compressed_size)"
+        echo "  Savings: ${savings}%"
+        
+        if [[ -n "$output" ]]; then
+            echo "  Output saved to: $output"
+        fi
+    fi
+}
+
+resize_image() {
+    local file="$1"
+    shift
+    
+    local width=""
+    local height=""
+    local maintain_aspect=false
+    local output=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --width)
+                width="$2"
+                shift 2
+                ;;
+            --height)
+                height="$2"
+                shift 2
+                ;;
+            --maintain-aspect)
+                maintain_aspect=true
+                shift
+                ;;
+            --output)
+                output="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    if [[ -z "$width" && -z "$height" ]]; then
+        echo "Error: Please specify --width and/or --height" >&2
+        return 1
+    fi
+    
+    echo "Resizing $file..."
+    
+    response=$(curl -s -X POST \
+        -F "image=@$file" \
+        -F "width=${width:-0}" \
+        -F "height=${height:-0}" \
+        -F "maintain_aspect=$maintain_aspect" \
+        "$API_URL/api/v1/image/resize")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        new_width=$(echo "$response" | jq -r '.dimensions.width // 0')
+        new_height=$(echo "$response" | jq -r '.dimensions.height // 0')
+        
+        echo "✓ Resize complete"
+        echo "  New dimensions: ${new_width} × ${new_height}"
+        
+        if [[ -n "$output" ]]; then
+            echo "  Output saved to: $output"
+        fi
+    fi
+}
+
+convert_image() {
+    local file="$1"
+    shift
+    
+    local format=""
+    local output=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --output)
+                output="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    if [[ -z "$format" ]]; then
+        echo "Error: Please specify --format" >&2
+        return 1
+    fi
+    
+    echo "Converting $file to $format..."
+    
+    response=$(curl -s -X POST \
+        -F "image=@$file" \
+        -F "target_format=$format" \
+        "$API_URL/api/v1/image/convert")
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$response"
+    else
+        size=$(echo "$response" | jq -r '.size // 0')
+        
+        echo "✓ Conversion complete"
+        echo "  Format: $format"
+        echo "  Size: $(format_size $size)"
+        
+        if [[ -n "$output" ]]; then
+            echo "  Output saved to: $output"
+        fi
+    fi
+}
+
+handle_metadata() {
+    local file="$1"
+    shift
+    
+    local strip=false
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --strip)
+                strip=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ ! -f "$file" ]]; then
+        echo "Error: File not found: $file" >&2
+        return 1
+    fi
+    
+    if [[ "$strip" == true ]]; then
+        echo "Stripping metadata from $file..."
+        
+        response=$(curl -s -X POST \
+            -F "image=@$file" \
+            "$API_URL/api/v1/image/metadata?action=strip")
+        
+        if [[ "$json_output" == true ]]; then
+            echo "$response"
+        else
+            echo "✓ Metadata stripped"
+        fi
+    else
+        echo "Reading metadata from $file..."
+        
+        response=$(curl -s -X POST \
+            -F "image=@$file" \
+            "$API_URL/api/v1/image/metadata?action=read")
+        
+        if [[ "$json_output" == true ]]; then
+            echo "$response"
+        else
+            format=$(echo "$response" | jq -r '.format // "unknown"')
+            width=$(echo "$response" | jq -r '.width // 0')
+            height=$(echo "$response" | jq -r '.height // 0')
+            size=$(echo "$response" | jq -r '.size_bytes // 0')
+            
+            echo "Image Information:"
+            echo "  Format: $format"
+            echo "  Dimensions: ${width} × ${height}"
+            echo "  Size: $(format_size $size)"
+            
+            metadata=$(echo "$response" | jq -r '.metadata // {}')
+            if [[ "$metadata" != "{}" ]]; then
+                echo "  Metadata:"
+                echo "$metadata" | jq -r 'to_entries[] | "    \(.key): \(.value)"'
+            fi
+        fi
+    fi
+}
+
+batch_process() {
+    local dir="$1"
+    shift
+    
+    if [[ ! -d "$dir" ]]; then
+        echo "Error: Directory not found: $dir" >&2
+        return 1
+    fi
+    
+    echo "Processing images in $dir..."
+    
+    local count=0
+    for file in "$dir"/*.{jpg,jpeg,png,webp,gif} 2>/dev/null; do
+        if [[ -f "$file" ]]; then
+            echo "Processing: $(basename "$file")"
+            compress_image "$file" "$@"
+            ((count++))
+        fi
+    done
+    
+    echo "✓ Processed $count images"
+}
+
+format_size() {
+    local bytes=$1
+    
+    if [[ $bytes -lt 1024 ]]; then
+        echo "${bytes}B"
+    elif [[ $bytes -lt 1048576 ]]; then
+        echo "$((bytes / 1024))KB"
+    else
+        echo "$((bytes / 1048576))MB"
+    fi
+}
+
+# Main command handling
+case "${1:-}" in
+    compress)
+        shift
+        compress_image "$@"
+        ;;
+    resize)
+        shift
+        resize_image "$@"
+        ;;
+    convert)
+        shift
+        convert_image "$@"
+        ;;
+    metadata)
+        shift
+        handle_metadata "$@"
+        ;;
+    batch)
+        shift
+        batch_process "$@"
+        ;;
+    status)
+        shift
+        check_status "$@"
+        ;;
+    version|--version|-v)
+        show_version
+        ;;
+    help|--help|-h|"")
+        show_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'image-tools help' for usage information"
+        exit 1
+        ;;
+esac

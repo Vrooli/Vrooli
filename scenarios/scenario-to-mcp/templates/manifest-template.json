@@ -1,0 +1,30 @@
+{
+  "name": "{{SCENARIO_NAME}}",
+  "version": "1.0.0",
+  "description": "MCP interface for {{SCENARIO_NAME}} scenario",
+  "protocol_version": "1.0",
+  "capabilities": {
+    "tools": {{TOOLS_ARRAY}},
+    "resources": {
+      "list": true,
+      "read": true
+    },
+    "prompts": false,
+    "sampling": false
+  },
+  "server": {
+    "command": "node",
+    "args": ["mcp/server.js"],
+    "env": {
+      "MCP_PORT": "{{MCP_PORT}}",
+      "API_PORT": "{{API_PORT}}",
+      "SCENARIO_PATH": "{{SCENARIO_PATH}}"
+    }
+  },
+  "metadata": {
+    "scenario": "{{SCENARIO_NAME}}",
+    "generated_by": "scenario-to-mcp",
+    "generated_at": "{{TIMESTAMP}}",
+    "vrooli_version": "1.0.0"
+  }
+}

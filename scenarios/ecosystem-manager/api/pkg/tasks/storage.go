@@ -134,7 +134,7 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
 	data, err := os.ReadFile(fromPath)
 	if err != nil {
-		return fmt.Errorf("failed to read task: %v", err)
+		return fmt.Errorf("failed to read task from %s: %v", fromPath, err)
 	}
 	
 	var task TaskItem
@@ -160,17 +160,25 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 		task.Status = "failed"
 	}
 	
-	// Save updated task to new location
-	if err := s.SaveQueueItem(task, toStatus); err != nil {
-		return fmt.Errorf("failed to save task to %s: %v", toStatus, err)
-	}
-	
-	// Remove from old location
+	// CRITICAL: Remove from old location FIRST to prevent duplicates
+	// If this fails, we abort the whole operation
 	if err := os.Remove(fromPath); err != nil {
 		return fmt.Errorf("failed to remove task from %s: %v", fromStatus, err)
 	}
+	log.Printf("Deleted task %s from %s", taskID, fromStatus)
 	
-	log.Printf("Moved task %s from %s to %s", taskID, fromStatus, toStatus)
+	// Now save to new location
+	if err := s.SaveQueueItem(task, toStatus); err != nil {
+		// Try to restore to old location since we already deleted it
+		log.Printf("ERROR: Failed to save task %s to %s, attempting restore to %s", taskID, toStatus, fromStatus)
+		if restoreErr := s.SaveQueueItem(task, fromStatus); restoreErr != nil {
+			log.Printf("CRITICAL: Failed to restore task %s to %s: %v", taskID, fromStatus, restoreErr)
+			return fmt.Errorf("failed to save task to %s and failed to restore: save error: %v, restore error: %v", toStatus, err, restoreErr)
+		}
+		return fmt.Errorf("failed to save task to %s (restored to %s): %v", toStatus, fromStatus, err)
+	}
+	
+	log.Printf("Successfully moved task %s from %s to %s", taskID, fromStatus, toStatus)
 	return nil
 }
 

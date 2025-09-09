@@ -388,6 +388,16 @@
                             </label>
                             <small class="form-help">Allow Claude to bypass permission prompts for faster execution</small>
                         </div>
+                        
+                        <div class="form-group">
+                            <label for="settings-task-timeout">Task Timeout (minutes)</label>
+                            <div class="slider-container">
+                                <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30" 
+                                       oninput="updateSliderValue('settings-task-timeout', 'task-timeout-value')">
+                                <span id="task-timeout-value" class="slider-value">30</span>
+                            </div>
+                            <small class="form-help">Maximum time for task execution (5-240 minutes)</small>
+                        </div>
                     </div>
                     
                     <!-- Action Buttons -->

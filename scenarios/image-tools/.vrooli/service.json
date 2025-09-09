@@ -1,0 +1,120 @@
+{
+  "name": "image-tools",
+  "version": "1.0.0",
+  "description": "Comprehensive image manipulation toolkit with compression, resizing, format conversion, and metadata management",
+  "category": "utilities",
+  "tags": ["image", "compression", "optimization", "conversion", "developer-tools"],
+  "author": "Vrooli",
+  "status": "development",
+  "ports": {
+    "api": "${service.ports.image-tools.api}",
+    "ui": "${service.ports.image-tools.ui}"
+  },
+  "resources": {
+    "required": ["minio"],
+    "optional": ["redis", "ollama"]
+  },
+  "dependencies": [],
+  "initialization": {
+    "automation": {
+      "n8n": {
+        "workflows": []
+      }
+    },
+    "storage": {
+      "minio": {
+        "buckets": ["image-tools-originals", "image-tools-processed", "image-tools-cache"]
+      }
+    }
+  },
+  "api": {
+    "type": "rest",
+    "framework": "go-fiber",
+    "endpoints": [
+      {
+        "path": "/api/v1/image/compress",
+        "method": "POST",
+        "description": "Compress image with quality settings"
+      },
+      {
+        "path": "/api/v1/image/resize",
+        "method": "POST",
+        "description": "Resize image to specific dimensions"
+      },
+      {
+        "path": "/api/v1/image/convert",
+        "method": "POST",
+        "description": "Convert between image formats"
+      },
+      {
+        "path": "/api/v1/image/metadata",
+        "method": "POST",
+        "description": "Strip or modify image metadata"
+      },
+      {
+        "path": "/api/v1/image/batch",
+        "method": "POST",
+        "description": "Process multiple images with same settings"
+      },
+      {
+        "path": "/api/v1/plugins",
+        "method": "GET",
+        "description": "List available format plugins"
+      }
+    ]
+  },
+  "ui": {
+    "type": "static",
+    "framework": "vanilla-js",
+    "style": "retro-photo-lab",
+    "features": [
+      "drag-drop-upload",
+      "live-preview",
+      "before-after-comparison",
+      "batch-processing",
+      "format-detection"
+    ]
+  },
+  "cli": {
+    "binary": "image-tools",
+    "commands": [
+      "compress",
+      "resize",
+      "convert",
+      "metadata",
+      "batch",
+      "status",
+      "help",
+      "version"
+    ]
+  },
+  "plugins": {
+    "jpeg": {
+      "library": "mozjpeg-go",
+      "features": ["progressive", "optimize", "quality-control"]
+    },
+    "png": {
+      "library": "pngquant-go",
+      "features": ["color-reduction", "dithering", "transparency"]
+    },
+    "webp": {
+      "library": "libwebp-go",
+      "features": ["lossless", "quality", "alpha"]
+    },
+    "svg": {
+      "library": "svgo",
+      "features": ["minify", "optimize-paths", "remove-metadata"]
+    }
+  },
+  "performance": {
+    "max_file_size_mb": 100,
+    "concurrent_workers": 4,
+    "cache_ttl_seconds": 3600,
+    "timeout_seconds": 30
+  },
+  "deployment": {
+    "docker": true,
+    "kubernetes": true,
+    "serverless": false
+  }
+}

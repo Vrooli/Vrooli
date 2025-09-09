@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Darkroom - Image Tools</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="darkroom">
+        <header class="darkroom-header">
+            <div class="logo">
+                <span class="logo-text">DIGITAL DARKROOM</span>
+                <div class="red-light pulsing"></div>
+            </div>
+            <div class="film-strip"></div>
+        </header>
+
+        <main class="workspace">
+            <section class="control-panel">
+                <div class="control-group">
+                    <h3 class="control-label">EXPOSURE CONTROLS</h3>
+                    
+                    <div class="operation-selector">
+                        <button class="toggle-switch active" data-operation="compress">
+                            <span class="switch-light"></span>
+                            COMPRESS
+                        </button>
+                        <button class="toggle-switch" data-operation="resize">
+                            <span class="switch-light"></span>
+                            RESIZE
+                        </button>
+                        <button class="toggle-switch" data-operation="convert">
+                            <span class="switch-light"></span>
+                            CONVERT
+                        </button>
+                        <button class="toggle-switch" data-operation="metadata">
+                            <span class="switch-light"></span>
+                            METADATA
+                        </button>
+                    </div>
+                </div>
+
+                <div class="control-group" id="compress-controls">
+                    <div class="dial-control">
+                        <label class="vintage-label">QUALITY</label>
+                        <div class="dial-wrapper">
+                            <input type="range" id="quality-dial" min="1" max="100" value="85" class="vintage-dial">
+                            <div class="dial-display">85%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group hidden" id="resize-controls">
+                    <div class="input-group">
+                        <label class="vintage-label">WIDTH</label>
+                        <input type="number" id="width-input" class="vintage-input" placeholder="pixels">
+                    </div>
+                    <div class="input-group">
+                        <label class="vintage-label">HEIGHT</label>
+                        <input type="number" id="height-input" class="vintage-input" placeholder="pixels">
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="maintain-aspect" class="vintage-checkbox" checked>
+                        <label for="maintain-aspect" class="vintage-label">MAINTAIN ASPECT</label>
+                    </div>
+                </div>
+
+                <div class="control-group hidden" id="convert-controls">
+                    <label class="vintage-label">TARGET FORMAT</label>
+                    <div class="format-selector">
+                        <button class="format-btn" data-format="jpeg">JPEG</button>
+                        <button class="format-btn" data-format="png">PNG</button>
+                        <button class="format-btn" data-format="webp">WEBP</button>
+                        <button class="format-btn" data-format="svg">SVG</button>
+                    </div>
+                </div>
+
+                <div class="control-group hidden" id="metadata-controls">
+                    <div class="metadata-options">
+                        <button class="action-btn strip-btn">STRIP METADATA</button>
+                        <button class="action-btn view-btn">VIEW METADATA</button>
+                    </div>
+                </div>
+
+                <button class="develop-btn" id="process-btn">
+                    <span class="btn-text">DEVELOP</span>
+                    <div class="developing-indicator hidden">
+                        <div class="chemical-bubble"></div>
+                        <div class="chemical-bubble"></div>
+                        <div class="chemical-bubble"></div>
+                    </div>
+                </button>
+            </section>
+
+            <section class="preview-area">
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-zone-content">
+                        <div class="film-icon">📷</div>
+                        <p class="drop-text">Drop your negative here</p>
+                        <p class="drop-subtext">or click to browse</p>
+                        <input type="file" id="file-input" accept="image/*" hidden>
+                    </div>
+                </div>
+
+                <div class="preview-container hidden" id="preview-container">
+                    <div class="preview-split">
+                        <div class="preview-side original">
+                            <div class="preview-header">
+                                <span class="preview-label">ORIGINAL</span>
+                                <span class="size-indicator" id="original-size">--</span>
+                            </div>
+                            <div class="image-holder">
+                                <img id="original-image" alt="Original">
+                                <div class="film-perforations left"></div>
+                                <div class="film-perforations right"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="split-handle" id="split-handle">
+                            <div class="handle-grip"></div>
+                        </div>
+                        
+                        <div class="preview-side processed">
+                            <div class="preview-header">
+                                <span class="preview-label">PROCESSED</span>
+                                <span class="size-indicator" id="processed-size">--</span>
+                            </div>
+                            <div class="image-holder">
+                                <img id="processed-image" alt="Processed">
+                                <div class="film-perforations left"></div>
+                                <div class="film-perforations right"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="stats-panel">
+                        <div class="stat-item">
+                            <span class="stat-label">COMPRESSION</span>
+                            <span class="stat-value" id="compression-ratio">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">SAVINGS</span>
+                            <span class="stat-value" id="savings-percent">--</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">DIMENSIONS</span>
+                            <span class="stat-value" id="dimensions">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="metadata-viewer hidden" id="metadata-viewer">
+                    <h3 class="metadata-title">EXIF DATA</h3>
+                    <div class="metadata-content" id="metadata-content"></div>
+                </div>
+            </section>
+
+            <section class="batch-tray hidden" id="batch-tray">
+                <h3 class="tray-label">FILM ROLL</h3>
+                <div class="film-roll" id="film-roll"></div>
+            </section>
+        </main>
+
+        <footer class="darkroom-footer">
+            <div class="status-lights">
+                <div class="status-light ready" title="System Ready"></div>
+                <div class="status-light processing hidden" title="Processing"></div>
+                <div class="status-light error hidden" title="Error"></div>
+            </div>
+            <div class="copyright">© 2025 VROOLI LABS</div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

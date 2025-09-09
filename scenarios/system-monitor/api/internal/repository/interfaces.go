@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/vrooli/system-monitor/internal/models"
+	"system-monitor-api/internal/models"
 )
 
 // Repository aggregates all repository interfaces
@@ -74,6 +74,15 @@ type ReportRepository interface {
 	
 	// GetDetailedReport retrieves a detailed report
 	GetDetailedReport(ctx context.Context, id string) (*models.DetailedSystemReport, error)
+	
+	// SaveEnhancedReport saves an enhanced system report
+	SaveEnhancedReport(ctx context.Context, report *models.EnhancedSystemReport) error
+	
+	// GetEnhancedReport retrieves an enhanced report
+	GetEnhancedReport(ctx context.Context, id string) (*models.EnhancedSystemReport, error)
+	
+	// ListEnhancedReports retrieves all enhanced reports
+	ListEnhancedReports(ctx context.Context) ([]*models.EnhancedSystemReport, error)
 }
 
 // ThresholdRepository handles threshold configuration persistence
