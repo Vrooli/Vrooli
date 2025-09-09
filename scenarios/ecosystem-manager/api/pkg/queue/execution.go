@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -192,8 +193,29 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem) (*tasks.
 		}, nil
 	}
 	
-	// Success case
+	// Check output for error patterns even if exit code is 0
 	outputStr := string(output)
+	
+	// Check for common error patterns that might not set exit code
+	if strings.Contains(outputStr, "Error: Reached max turns") {
+		log.Printf("Claude Code hit max turns limit for task %s", task.ID)
+		return &tasks.ClaudeCodeResponse{
+			Success: false,
+			Error:   "Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS.",
+			Output:  outputStr,
+		}, nil
+	}
+	
+	if strings.Contains(outputStr, "error:") || strings.Contains(outputStr, "Error:") {
+		log.Printf("Claude Code returned error for task %s: %s", task.ID, outputStr)
+		return &tasks.ClaudeCodeResponse{
+			Success: false,
+			Error:   "Claude execution failed - check output for details",
+			Output:  outputStr,
+		}, nil
+	}
+	
+	// Success case
 	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(outputStr))
 	
 	return &tasks.ClaudeCodeResponse{

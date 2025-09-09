@@ -556,11 +556,61 @@ collect_system_data() {
         docker_status="unavailable"
     fi
     
+    # Count zombie processes (ALL defunct processes)
+    local zombie_count=0
+    zombie_count=$(ps aux | grep '<defunct>' | grep -v grep | wc -l 2>/dev/null || echo "0")
+    
+    # Count orphaned Vrooli processes 
+    local orphan_count=0
+    orphan_count=$(bash -c '
+        processes_dir="$HOME/.vrooli/processes/scenarios"
+        orphan_count=0
+        
+        # Get Vrooli-related processes into a temporary file to avoid subshell issues
+        temp_file=$(mktemp)
+        ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v "bash -c" > "$temp_file"
+        
+        while IFS= read -r line; do
+            if [[ -z "$line" ]]; then continue; fi
+            
+            # Extract PID (second field)
+            pid=$(echo "$line" | awk "{print \$2}")
+            if [[ ! "$pid" =~ ^[0-9]+$ ]]; then continue; fi
+            
+            # Skip own processes
+            if echo "$line" | grep -q "vrooli-api\|status-command"; then continue; fi
+            
+            # Check if PID is tracked
+            is_tracked=false
+            if [[ -d "$processes_dir" ]]; then
+                for json_file in "$processes_dir"/*/*.json; do
+                    if [[ -f "$json_file" ]]; then
+                        tracked_pid=$(jq -r ".pid // empty" "$json_file" 2>/dev/null)
+                        if [[ "$tracked_pid" == "$pid" ]]; then
+                            is_tracked=true
+                            break
+                        fi
+                    fi
+                done
+            fi
+            
+            # If not tracked, its an orphan
+            if [[ "$is_tracked" == "false" ]]; then
+                ((orphan_count++))
+            fi
+        done < "$temp_file"
+        
+        rm -f "$temp_file"
+        echo $orphan_count
+    ' 2>/dev/null || echo "0")
+    
     # Output raw data
     echo "memory:${mem_info}"
     echo "disk:${disk_info}"
     echo "load:${load_avg}"
     echo "docker:${docker_status}"
+    echo "zombies:${zombie_count}"
+    echo "orphans:${orphan_count}"
 }
 
 get_system_data() {
@@ -568,17 +618,21 @@ get_system_data() {
     raw_data=$(collect_system_data)
     
     # Parse collected data
-    local mem_info disk_info load_avg docker_status
+    local mem_info disk_info load_avg docker_status zombie_count orphan_count
     mem_info=$(echo "$raw_data" | grep "^memory:" | cut -d: -f2)
     disk_info=$(echo "$raw_data" | grep "^disk:" | cut -d: -f2)
     load_avg=$(echo "$raw_data" | grep "^load:" | cut -d: -f2-)
     docker_status=$(echo "$raw_data" | grep "^docker:" | cut -d: -f2)
+    zombie_count=$(echo "$raw_data" | grep "^zombies:" | cut -d: -f2)
+    orphan_count=$(echo "$raw_data" | grep "^orphans:" | cut -d: -f2)
     
     echo "type:system"
     echo "memory:${mem_info}"
     echo "disk:${disk_info}"
     echo "load:${load_avg}"
     echo "docker:${docker_status}"
+    echo "zombies:${zombie_count}"
+    echo "orphans:${orphan_count}"
 }
 
 ################################################################################
@@ -590,26 +644,50 @@ format_system_data() {
     local format="$1"
     local raw_data="$2"
     
-    local memory disk load docker
+    local memory disk load docker zombies orphans
     memory=$(echo "$raw_data" | grep "^memory:" | cut -d: -f2)
     disk=$(echo "$raw_data" | grep "^disk:" | cut -d: -f2)
     load=$(echo "$raw_data" | grep "^load:" | cut -d: -f2-)
     docker=$(echo "$raw_data" | grep "^docker:" | cut -d: -f2)
+    zombies=$(echo "$raw_data" | grep "^zombies:" | cut -d: -f2)
+    orphans=$(echo "$raw_data" | grep "^orphans:" | cut -d: -f2)
     
     if [[ "$format" == "json" ]]; then
         format::key_value json \
             memory_usage "${memory}%" \
             disk_usage "${disk}%" \
             load_average "${load}" \
-            docker "${docker}"
+            docker "${docker}" \
+            zombie_processes "${zombies}" \
+            orphan_processes "${orphans}"
     else
         local docker_icon="✅"
         [[ "$docker" == "unavailable" ]] && docker_icon="❌"
+        
+        # Determine zombie status icon
+        local zombie_icon="✅"
+        local zombie_val="${zombies:-0}"
+        if [[ $zombie_val -gt 20 ]]; then
+            zombie_icon="🔴"
+        elif [[ $zombie_val -gt 5 ]]; then
+            zombie_icon="⚠️"
+        fi
+        
+        # Determine orphan status icon
+        local orphan_icon="✅"
+        local orphan_val="${orphans:-0}"
+        if [[ $orphan_val -gt 10 ]]; then
+            orphan_icon="🔴"
+        elif [[ $orphan_val -gt 3 ]]; then
+            orphan_icon="⚠️"
+        fi
         
         local rows=()
         rows+=("Memory:${memory}% used:$([ -n "${memory}" ] && [ ${memory%.*} -gt 80 ] && echo '⚠️' || echo '✅')")
         rows+=("Disk:${disk}% used:$([ -n "${disk}" ] && [ ${disk%.*} -gt 80 ] && echo '⚠️' || echo '✅')")
         rows+=("Load:${load}:📊")
+        rows+=("Zombies:${zombies}:${zombie_icon}")
+        rows+=("Orphans:${orphans}:${orphan_icon}")
         rows+=("Docker:${docker}:${docker_icon}")
         
         format::table "$format" "Metric" "Value" "Status" -- "${rows[@]}"

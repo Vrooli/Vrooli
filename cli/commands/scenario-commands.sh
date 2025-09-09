@@ -623,6 +623,13 @@ main() {
                 echo "Total Scenarios: $total"
                 echo "Running: $running"
                 echo "Stopped: $((total - running))"
+                
+                # Check for system warnings
+                local system_warnings=$(echo "$response" | jq -r '.system_warnings // null' 2>/dev/null)
+                if [[ "$system_warnings" != "null" ]] && [[ -n "$system_warnings" ]]; then
+                    echo ""
+                    echo "$response" | jq -r '.system_warnings[]? | .emoji + " " + .message + " (system-wide)"' 2>/dev/null
+                fi
                 echo ""
                 
                 if [[ "$total" -gt 0 ]] && [[ "$data_check" != "null" ]]; then

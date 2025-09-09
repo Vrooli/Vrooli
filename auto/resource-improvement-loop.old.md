@@ -225,7 +225,6 @@ Vault → Ollama → Qdrant → Browserless → PostgreSQL/Redis/MinIO → Quest
   - Set up TURN server for voice/video calls
   - TLS certificates required for federation
   - Consider Dendrite as lighter alternative for resource-constrained environments
-- **Integration points:** Can trigger n8n/Huginn workflows via webhooks, integrate with authentication systems via SSO, bridge to external chat platforms
 - **Resource usage:** Medium-heavy; scales with user count and federation traffic
 
 #### **OWASP ZAP** (Security)

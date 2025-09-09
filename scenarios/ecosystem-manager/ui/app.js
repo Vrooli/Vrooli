@@ -36,8 +36,8 @@ class EcosystemManager {
         console.log('🚀 Initializing Ecosystem Manager UI...');
         
         try {
-            // Initialize dark mode before loading content
-            this.initDarkMode();
+            // Initialize settings (including theme) before loading content
+            this.initSettings();
             
             // Set up dynamic layout adjustment
             this.adjustMainLayout();
@@ -1064,6 +1064,35 @@ class EcosystemManager {
                                       placeholder="Additional details, requirements, or context...">${this.escapeHtml(task.notes || '')}</textarea>
                         </div>
                         
+                        <!-- Task Results (if available) -->
+                        ${task.results ? `
+                            <div class="form-group">
+                                <label>Execution Results</label>
+                                <div class="execution-results ${task.results.success ? 'success' : 'error'}">
+                                    <div style="margin-bottom: 0.5rem;">
+                                        <strong>Status:</strong> 
+                                        <span class="${task.results.success ? 'status-success' : 'status-error'}">
+                                            ${task.results.success ? '✅ Success' : '❌ Failed'}
+                                        </span>
+                                    </div>
+                                    ${task.results.error ? `
+                                        <div style="margin-bottom: 0.5rem;">
+                                            <strong>Error:</strong> 
+                                            <span class="status-error">${this.escapeHtml(task.results.error)}</span>
+                                        </div>
+                                    ` : ''}
+                                    ${task.results.output ? `
+                                        <details style="margin-top: 0.5rem;">
+                                            <summary class="output-summary">
+                                                📋 View Claude Output (click to expand)
+                                            </summary>
+                                            <pre class="claude-output">${this.escapeHtml(task.results.output)}</pre>
+                                        </details>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
                         <!-- Metadata (read-only) -->
                         <div class="form-group">
                             <label>Task Information</label>
@@ -1388,35 +1417,191 @@ class EcosystemManager {
     }
     
     // Dark mode functionality
-    initDarkMode() {
-        // Check for saved theme preference or default to light mode
-        const savedTheme = localStorage.getItem('dark-mode');
-        if (savedTheme === 'enabled') {
-            document.body.classList.add('dark-mode');
-            this.updateDarkModeIcon(true);
-        }
-    }
-    
-    toggleDarkMode() {
-        const body = document.body;
-        const isDarkMode = body.classList.contains('dark-mode');
+    // Settings Management
+    initSettings() {
+        // Load settings from localStorage or use defaults
+        this.settings = this.loadSettings();
         
-        if (isDarkMode) {
-            body.classList.remove('dark-mode');
-            localStorage.setItem('dark-mode', 'disabled');
-            this.updateDarkModeIcon(false);
-        } else {
-            body.classList.add('dark-mode');
-            localStorage.setItem('dark-mode', 'enabled');
-            this.updateDarkModeIcon(true);
+        // Apply theme
+        this.applyTheme(this.settings.theme);
+        
+        // Set up media query listener for auto theme
+        if (window.matchMedia) {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            mediaQuery.addListener(() => this.applyTheme(this.settings.theme));
         }
     }
     
-    updateDarkModeIcon(isDarkMode) {
-        const icon = document.getElementById('dark-mode-icon');
-        if (icon) {
-            icon.className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
+    loadSettings() {
+        const defaultSettings = {
+            // Display settings
+            theme: 'light',
+            
+            // Queue processor settings
+            slots: 1,
+            refresh_interval: 30,
+            active: false,
+            
+            // Agent settings
+            max_turns: 60,
+            allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
+            skip_permissions: true
+        };
+        
+        try {
+            const saved = localStorage.getItem('ecosystem-manager-settings');
+            if (saved) {
+                return { ...defaultSettings, ...JSON.parse(saved) };
+            }
+        } catch (error) {
+            console.warn('Failed to load settings from localStorage:', error);
         }
+        
+        return defaultSettings;
+    }
+    
+    saveSettings(settings) {
+        try {
+            this.settings = { ...this.settings, ...settings };
+            localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
+            
+            // Apply theme immediately if it changed
+            if (settings.theme) {
+                this.applyTheme(settings.theme);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            return false;
+        }
+    }
+    
+    applyTheme(theme) {
+        const body = document.body;
+        
+        switch (theme) {
+            case 'dark':
+                body.classList.add('dark-mode');
+                break;
+            case 'light':
+                body.classList.remove('dark-mode');
+                break;
+            case 'auto':
+                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    body.classList.add('dark-mode');
+                } else {
+                    body.classList.remove('dark-mode');
+                }
+                break;
+        }
+    }
+    
+    openSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        
+        // Populate form with current settings
+        this.populateSettingsForm();
+        
+        modal.classList.add('show');
+    }
+    
+    closeSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        modal.classList.remove('show');
+    }
+    
+    populateSettingsForm() {
+        // Display settings
+        document.getElementById('settings-theme').value = this.settings.theme;
+        
+        // Queue processor settings
+        document.getElementById('settings-slots').value = this.settings.slots;
+        document.getElementById('slots-value').textContent = this.settings.slots;
+        document.getElementById('settings-refresh').value = this.settings.refresh_interval;
+        document.getElementById('settings-active').checked = this.settings.active;
+        
+        // Agent settings
+        document.getElementById('settings-max-turns').value = this.settings.max_turns;
+        document.getElementById('max-turns-value').textContent = this.settings.max_turns;
+        document.getElementById('settings-tools').value = this.settings.allowed_tools;
+        document.getElementById('settings-skip-permissions').checked = this.settings.skip_permissions;
+    }
+    
+    saveSettingsFromForm() {
+        const form = document.getElementById('settings-form');
+        const formData = new FormData(form);
+        
+        const newSettings = {
+            // Display settings
+            theme: formData.get('theme'),
+            
+            // Queue processor settings
+            slots: parseInt(formData.get('slots')),
+            refresh_interval: parseInt(formData.get('refresh_interval')),
+            active: formData.get('active') === 'on',
+            
+            // Agent settings
+            max_turns: parseInt(formData.get('max_turns')),
+            allowed_tools: formData.get('allowed_tools'),
+            skip_permissions: formData.get('skip_permissions') === 'on'
+        };
+        
+        if (this.saveSettings(newSettings)) {
+            this.closeSettingsModal();
+            this.showToast('Settings saved successfully', 'success');
+            
+            // TODO: Send settings to backend API if needed
+            this.syncSettingsWithBackend(newSettings);
+        } else {
+            this.showToast('Failed to save settings', 'error');
+        }
+    }
+    
+    resetSettingsToDefault() {
+        const defaultSettings = {
+            theme: 'light',
+            slots: 1,
+            refresh_interval: 30,
+            active: false,
+            max_turns: 60,
+            allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
+            skip_permissions: true
+        };
+        
+        if (this.saveSettings(defaultSettings)) {
+            this.populateSettingsForm();
+            this.showToast('Settings reset to defaults', 'info');
+        }
+    }
+    
+    updateSliderValue(sliderId, valueId) {
+        const slider = document.getElementById(sliderId);
+        const valueSpan = document.getElementById(valueId);
+        if (slider && valueSpan) {
+            valueSpan.textContent = slider.value;
+        }
+    }
+    
+    async syncSettingsWithBackend(settings) {
+        try {
+            // TODO: Implement backend API endpoint for settings
+            // const response = await fetch(`${this.apiBase}/settings`, {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(settings)
+            // });
+            // if (!response.ok) throw new Error('Failed to sync settings');
+            
+            console.log('Settings would be synced with backend:', settings);
+        } catch (error) {
+            console.warn('Failed to sync settings with backend:', error);
+        }
+    }
+    
+    // Legacy function name for backwards compatibility
+    initDarkMode() {
+        this.initSettings();
     }
     
     // Queue Status Management
@@ -1535,8 +1720,18 @@ window.applyFilters = () => ecosystemManager?.applyFilters();
 window.clearFilters = () => ecosystemManager?.clearFilters();
 window.refreshColumn = (status) => ecosystemManager?.refreshColumn(status);
 window.toggleCompletedVisibility = () => ecosystemManager?.toggleCompletedVisibility();
+// Form functions
 window.updateFormForType = () => ecosystemManager?.updateFormForType();
 window.updateFormForOperation = () => ecosystemManager?.updateFormForOperation();
+
+// Settings functions
+window.openSettingsModal = () => ecosystemManager?.openSettingsModal();
+window.closeSettingsModal = () => ecosystemManager?.closeSettingsModal();
+window.saveSettings = () => ecosystemManager?.saveSettingsFromForm();
+window.resetSettingsToDefault = () => ecosystemManager?.resetSettingsToDefault();
+window.updateSliderValue = (sliderId, valueId) => ecosystemManager?.updateSliderValue(sliderId, valueId);
+
+// Legacy dark mode function (for backwards compatibility)
 window.toggleDarkMode = () => ecosystemManager?.toggleDarkMode();
 
 document.addEventListener('DOMContentLoaded', () => {

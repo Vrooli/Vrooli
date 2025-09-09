@@ -73,6 +73,160 @@ func checkForkBomb() error {
 	return nil
 }
 
+// Count zombie processes on the system (ALL defunct processes)
+func countZombieProcesses() (int, error) {
+	cmd := exec.Command("bash", "-c", "ps aux | grep '<defunct>' | grep -v grep | wc -l")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If command fails, return 0 as we can't determine zombie count
+		return 0, fmt.Errorf("failed to count zombies: %v", err)
+	}
+	
+	count := 0
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count); err != nil {
+		return 0, fmt.Errorf("failed to parse zombie count: %v", err)
+	}
+	
+	return count, nil
+}
+
+// Count orphaned Vrooli processes (running but not properly tracked)
+func countOrphanProcesses() (int, error) {
+	// Get all Vrooli-related running processes
+	cmd := exec.Command("bash", "-c", `ps aux | grep -E "(vrooli|/scenarios/.*/(api|ui)|node_modules/.bin/vite|ecosystem-manager|picker-wheel)" | grep -v grep | grep -v 'bash -c'`)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// If command fails, assume no orphans
+		return 0, nil
+	}
+	
+	processLines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(processLines) == 1 && processLines[0] == "" {
+		return 0, nil // No processes found
+	}
+	
+	orphanCount := 0
+	processesDir := filepath.Join(os.Getenv("HOME"), ".vrooli/processes/scenarios")
+	
+	for _, line := range processLines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		
+		// Extract PID (second field)
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			continue
+		}
+		
+		pid := fields[1]
+		if !regexp.MustCompile(`^\d+$`).MatchString(pid) {
+			continue
+		}
+		
+		// Skip our own API process
+		if strings.Contains(line, "./vrooli-api") {
+			continue
+		}
+		
+		// Check if this PID is tracked in any scenario
+		isTracked := false
+		if _, err := os.Stat(processesDir); !os.IsNotExist(err) {
+			// Search all scenario tracking files for this PID
+			err := filepath.Walk(processesDir, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return nil // Skip errors, continue walking
+				}
+				
+				if !strings.HasSuffix(path, ".json") {
+					return nil
+				}
+				
+				data, err := os.ReadFile(path)
+				if err != nil {
+					return nil
+				}
+				
+				var processInfo map[string]interface{}
+				if err := json.Unmarshal(data, &processInfo); err != nil {
+					return nil
+				}
+				
+				if pidFloat, ok := processInfo["pid"].(float64); ok {
+					if fmt.Sprintf("%.0f", pidFloat) == pid {
+						isTracked = true
+						return filepath.SkipAll // Found it, stop searching
+					}
+				}
+				
+				return nil
+			})
+			
+			if err == filepath.SkipAll {
+				// Found the PID, it's tracked
+				continue
+			}
+		}
+		
+		// If not tracked, it's an orphan
+		if !isTracked {
+			orphanCount++
+		}
+	}
+	
+	return orphanCount, nil
+}
+
+// Get zombie status with thresholds for display
+func getZombieStatus() (count int, status string, emoji string) {
+	count, _ = countZombieProcesses() // Ignore error, default to 0
+	
+	switch {
+	case count == 0:
+		return count, "healthy", "✅"
+	case count <= 5:
+		return count, "normal", "✅"
+	case count <= 20:
+		return count, "warning", "⚠️"
+	default:
+		return count, "critical", "🔴"
+	}
+}
+
+// Get orphan status with thresholds for display
+func getOrphanStatus() (count int, status string, emoji string) {
+	count, _ = countOrphanProcesses() // Ignore error, default to 0
+	
+	switch {
+	case count == 0:
+		return count, "healthy", "✅"
+	case count <= 3:
+		return count, "normal", "✅"
+	case count <= 10:
+		return count, "warning", "⚠️"
+	default:
+		return count, "critical", "🔴"
+	}
+}
+
+// Get combined process health status
+func getProcessHealthStatus() (zombieCount, orphanCount int, overallStatus string) {
+	zombieCount, zombieStatus, _ := getZombieStatus()
+	orphanCount, orphanStatus, _ := getOrphanStatus()
+	
+	// Overall status is worst of the two
+	if zombieStatus == "critical" || orphanStatus == "critical" {
+		return zombieCount, orphanCount, "critical"
+	}
+	if zombieStatus == "warning" || orphanStatus == "warning" {
+		return zombieCount, orphanCount, "warning"
+	}
+	if zombieStatus == "normal" || orphanStatus == "normal" {
+		return zombieCount, orphanCount, "normal"
+	}
+	return zombieCount, orphanCount, "healthy"
+}
+
 // Discover ports for a specific scenario by reading process environment variables
 func discoverScenarioPorts(scenarioName string) map[string]int {
 	ports := make(map[string]int)
@@ -654,6 +808,18 @@ func startScenarioNative(name string) error {
 		return err
 	}
 	
+	// CRITICAL: Wait for process in background to prevent zombies
+	// The lifecycle.sh script starts background processes and exits,
+	// we must reap it when it finishes to prevent it becoming a zombie
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			// Log but don't fail - lifecycle script exit is expected
+			log.Printf("Scenario %s lifecycle process exited: %v", name, err)
+		} else {
+			log.Printf("Scenario %s lifecycle process completed successfully", name)
+		}
+	}()
+	
 	// Wait for health checks to pass (if configured)
 	if err := waitForScenarioHealth(name, healthConfig); err != nil {
 		// Health checks failed, but process might still be running
@@ -1153,6 +1319,11 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 	for i, scenario := range runningScenarios {
 		runningMap[scenario.Name] = &runningScenarios[i]
 	}
+	
+	// Get process health information for system warnings
+	zombieCount, orphanCount, processStatus := getProcessHealthStatus()
+	zombieCount, zombieStatus, zombieEmoji := getZombieStatus()
+	orphanCount, orphanStatus, orphanEmoji := getOrphanStatus()
 
 	scenarios := []map[string]interface{}{}
 	for _, entry := range entries {
@@ -1224,7 +1395,41 @@ func listScenariosNative(w http.ResponseWriter, r *http.Request) {
 		scenarios = append(scenarios, scenario)
 	}
 
-	json.NewEncoder(w).Encode(Response{Success: true, Data: scenarios})
+	// Build response with optional system warnings
+	response := map[string]interface{}{
+		"success": true,
+		"data":    scenarios,
+	}
+	
+	// Add system warnings if necessary
+	var warnings []map[string]interface{}
+	
+	if zombieStatus != "healthy" && zombieStatus != "normal" {
+		warnings = append(warnings, map[string]interface{}{
+			"type":    "zombies",
+			"count":   zombieCount,
+			"status":  zombieStatus,
+			"emoji":   zombieEmoji,
+			"message": fmt.Sprintf("System has %d zombie processes %s", zombieCount, zombieEmoji),
+		})
+	}
+	
+	if orphanStatus != "healthy" && orphanStatus != "normal" {
+		warnings = append(warnings, map[string]interface{}{
+			"type":    "orphans",
+			"count":   orphanCount,
+			"status":  orphanStatus,
+			"emoji":   orphanEmoji,
+			"message": fmt.Sprintf("System has %d orphaned processes %s", orphanCount, orphanEmoji),
+		})
+	}
+	
+	if len(warnings) > 0 {
+		response["system_warnings"] = warnings
+		response["system_health"] = processStatus
+	}
+	
+	json.NewEncoder(w).Encode(response)
 }
 
 // Get detailed scenario status with ports (replaces Python /scenarios/{name})
@@ -1339,11 +1544,36 @@ func handleLifecycle(w http.ResponseWriter, r *http.Request) {
 
 // === Health Check ===
 func healthCheck(w http.ResponseWriter, r *http.Request) {
+	// Get process health information
+	zombieCount, orphanCount, processStatus := getProcessHealthStatus()
+	zombieCount, zombieStatus, _ := getZombieStatus()
+	orphanCount, orphanStatus, _ := getOrphanStatus()
+	
+	// Determine overall health based on process status
+	overallStatus := "healthy"
+	if processStatus == "critical" {
+		overallStatus = "unhealthy"
+	} else if processStatus == "warning" {
+		overallStatus = "degraded"
+	}
+	
+	// Set appropriate HTTP status code
+	if overallStatus != "healthy" {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
+	
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":      "healthy",
+		"status":      overallStatus,
 		"version":     "1.0.0",
 		"vrooli_root": vrooliRoot,
 		"apps_dir":    appsDir,
+		"system": map[string]interface{}{
+			"zombie_processes": zombieCount,
+			"zombie_status":    zombieStatus,
+			"orphan_processes": orphanCount,
+			"orphan_status":    orphanStatus,
+			"process_health":   processStatus,
+		},
 		"apis": map[string]bool{
 			"apps":      true,
 			"scenarios": true,

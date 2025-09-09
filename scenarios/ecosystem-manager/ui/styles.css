@@ -1247,3 +1247,174 @@ body.dark-mode .queue-info {
         margin-right: 0.5rem;
     }
 }
+
+/* Settings Modal Styles */
+.settings-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-gray);
+}
+
+.settings-section-title {
+    margin: 0 0 1rem 0;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.settings-section-title i {
+    font-size: 1rem;
+}
+
+/* Slider Styles */
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+.slider-container input[type="range"] {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border-gray);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+.slider-container input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+}
+
+.slider-container input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: none;
+}
+
+.slider-value {
+    min-width: 2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-align: center;
+}
+
+/* Checkbox Styles for Settings */
+.settings-section label {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.settings-section input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    flex-shrink: 0;
+}
+
+/* Settings Button */
+.settings-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: rotate(15deg);
+}
+
+/* Execution Results Styling */
+.execution-results {
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    border: 1px solid;
+}
+
+.execution-results.success {
+    background: #f0f8ff;
+    border-color: var(--success-color);
+}
+
+.execution-results.error {
+    background: #fff0f0;
+    border-color: var(--error-color);
+}
+
+.execution-results .status-success {
+    color: var(--success-color);
+}
+
+.execution-results .status-error {
+    color: var(--error-color);
+}
+
+.execution-results .claude-output {
+    background: #f5f5f5;
+    padding: 0.8rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.execution-results .output-summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--info-color);
+}
+
+/* Dark Mode Adjustments for Execution Results */
+body.dark-mode .execution-results.success {
+    background: rgba(76, 175, 80, 0.1);
+    border-color: var(--success-color);
+}
+
+body.dark-mode .execution-results.error {
+    background: rgba(244, 67, 54, 0.1);
+    border-color: var(--error-color);
+}
+
+body.dark-mode .execution-results .claude-output {
+    background: var(--dark-light-gray);
+    color: var(--dark-text-color);
+}
+
+/* Dark Mode Adjustments for Settings */
+body.dark-mode .settings-section {
+    background: var(--dark-light-gray);
+    border-color: var(--dark-border-gray);
+}
+
+body.dark-mode .slider-container input[type="range"] {
+    background: var(--dark-border-gray);
+}
+
