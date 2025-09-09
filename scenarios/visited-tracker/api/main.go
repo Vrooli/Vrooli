@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -112,46 +113,81 @@ var db *sql.DB
 var logger *Logger
 
 func initDB() error {
-	// Get database connection details from environment
-	host := os.Getenv("POSTGRES_HOST")
-	if host == "" {
-		host = "localhost"
+	// Database configuration - support both POSTGRES_URL and individual components
+	dbURL := os.Getenv("POSTGRES_URL")
+	if dbURL == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		host := os.Getenv("POSTGRES_HOST")
+		port := os.Getenv("POSTGRES_PORT")
+		user := os.Getenv("POSTGRES_USER")
+		password := os.Getenv("POSTGRES_PASSWORD")
+		dbname := os.Getenv("POSTGRES_DB")
+		
+		if host == "" || port == "" || user == "" || password == "" || dbname == "" {
+			return fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			user, password, host, port, dbname)
 	}
-
-	port := os.Getenv("POSTGRES_PORT")
-	if port == "" {
-		port = "5433"
-	}
-
-	user := os.Getenv("POSTGRES_USER")
-	if user == "" {
-		user = "vrooli"
-	}
-
-	password := os.Getenv("POSTGRES_PASSWORD")
-	if password == "" {
-		return fmt.Errorf("POSTGRES_PASSWORD environment variable is required")
-	}
-
-	dbname := os.Getenv("POSTGRES_DB")
-	if dbname == "" {
-		dbname = "vrooli"
-	}
-
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
 
 	var err error
-	db, err = sql.Open("postgres", psqlInfo)
+	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
 		return fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	if err = db.Ping(); err != nil {
-		return fmt.Errorf("failed to ping database: %w", err)
-	}
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
-	logger.Info("Database connection established")
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	logger.Info("🔄 Attempting database connection with exponential backoff...")
+	logger.Info("📂 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt + 1))
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		logger.Info(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr))
+		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			logger.Info("📈 Retry progress:")
+			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt + 1, maxRetries))
+			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay))
+			logger.Info(fmt.Sprintf("   - Current delay: %v (with jitter: %v)", delay, jitter))
+		}
+		
+		time.Sleep(actualDelay)
+	}
+	
+	if pingErr != nil {
+		return fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	}
+	
+	logger.Info("🎉 Database connection pool established successfully!")
 
 	// Initialize schema
 	if err = initSchema(); err != nil {
@@ -781,8 +817,14 @@ func main() {
 		})
 	})
 
-	// Get port from environment
-	port := getEnv("API_PORT", getEnv("PORT", "8080"))
+	// Port configuration - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		port = os.Getenv("PORT")
+	}
+	if port == "" {
+		log.Fatalf("❌ API_PORT or PORT environment variable is required")
+	}
 	logger.Info(fmt.Sprintf("API endpoints: http://localhost:%s/api/v1/campaigns", port))
 
 	if err := http.ListenAndServe(":"+port, r); err != nil {
@@ -790,9 +832,3 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}

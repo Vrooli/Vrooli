@@ -5,6 +5,7 @@ import (
     "encoding/json"
     "fmt"
     "log"
+    "math"
     "os"
     "time"
 
@@ -64,11 +65,31 @@ type Subject struct {
 func initDB() {
     godotenv.Load()
     
-    dbHost := getEnv("POSTGRES_HOST", "localhost")
-    dbPort := getEnv("POSTGRES_PORT", "5432")
-    dbUser := getEnv("POSTGRES_USER", "postgres")
-    dbPassword := getEnv("POSTGRES_PASSWORD", "postgres")
-    dbName := getEnv("POSTGRES_DB", "study_buddy")
+    // All database configuration must come from environment variables - NO DEFAULTS
+    dbHost := os.Getenv("POSTGRES_HOST")
+    if dbHost == "" {
+        log.Fatal("❌ POSTGRES_HOST environment variable is required")
+    }
+    
+    dbPort := os.Getenv("POSTGRES_PORT")
+    if dbPort == "" {
+        log.Fatal("❌ POSTGRES_PORT environment variable is required")
+    }
+    
+    dbUser := os.Getenv("POSTGRES_USER")
+    if dbUser == "" {
+        log.Fatal("❌ POSTGRES_USER environment variable is required")
+    }
+    
+    dbPassword := os.Getenv("POSTGRES_PASSWORD")
+    if dbPassword == "" {
+        log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
+    }
+    
+    dbName := os.Getenv("POSTGRES_DB")
+    if dbName == "" {
+        log.Fatal("❌ POSTGRES_DB environment variable is required")
+    }
     
     psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
         dbHost, dbPort, dbUser, dbPassword, dbName)
@@ -76,23 +97,51 @@ func initDB() {
     var err error
     db, err = sql.Open("postgres", psqlInfo)
     if err != nil {
-        log.Fatal(err)
+        log.Fatalf("❌ Failed to open database connection: %v", err)
     }
     
-    err = db.Ping()
-    if err != nil {
-        log.Fatal(err)
+    // Configure connection pool
+    db.SetMaxOpenConns(25)
+    db.SetMaxIdleConns(5)
+    db.SetConnMaxLifetime(5 * time.Minute)
+
+    // Implement exponential backoff for database connection
+    maxRetries := 10
+    baseDelay := 1 * time.Second
+    maxDelay := 30 * time.Second
+
+    log.Println("🔄 Attempting database connection with exponential backoff...")
+
+    var pingErr error
+    for attempt := 0; attempt < maxRetries; attempt++ {
+        pingErr = db.Ping()
+        if pingErr == nil {
+            log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+            break
+        }
+        
+        // Calculate exponential backoff delay
+        delay := time.Duration(math.Min(
+            float64(baseDelay) * math.Pow(2, float64(attempt)),
+            float64(maxDelay),
+        ))
+        
+        // Add progressive jitter to prevent thundering herd
+        jitterRange := float64(delay) * 0.25
+        jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+        actualDelay := delay + jitter
+        
+        log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+        log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+        
+        time.Sleep(actualDelay)
     }
-    
-    log.Println("Successfully connected to database")
+
+    if pingErr != nil {
+        log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+    }
 }
 
-func getEnv(key, defaultValue string) string {
-    if value := os.Getenv(key); value != "" {
-        return value
-    }
-    return defaultValue
-}
 
 func main() {
     initDB()
@@ -146,7 +195,13 @@ func main() {
     router.POST("/api/ai/generate-flashcards", generateFlashcardsFromText)
     router.POST("/api/ai/study-plan", generateStudyPlan)
     
-    port := getEnv("API_PORT", getEnv("PORT", ""))
+    port := os.Getenv("API_PORT")
+    if port == "" {
+        port = os.Getenv("PORT") // Fallback to PORT for compatibility
+    }
+    if port == "" {
+        log.Fatal("❌ API_PORT or PORT environment variable is required")
+    }
     log.Printf("Starting Study Buddy API on port %s", port)
     router.Run(":" + port)
 }

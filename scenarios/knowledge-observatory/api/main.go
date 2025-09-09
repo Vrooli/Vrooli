@@ -160,6 +160,50 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		log.Printf("Warning: Could not connect to PostgreSQL: %v", err)
 		db = nil
+	} else {
+		// Configure connection pool
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(5 * time.Minute)
+		
+		// Implement exponential backoff for database connection
+		maxRetries := 10
+		baseDelay := 1 * time.Second
+		maxDelay := 30 * time.Second
+		
+		log.Println("🔄 Attempting database connection with exponential backoff...")
+		
+		var pingErr error
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			pingErr = db.Ping()
+			if pingErr == nil {
+				log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+				break
+			}
+			
+			// Calculate exponential backoff delay
+			delay := time.Duration(math.Min(
+				float64(baseDelay) * math.Pow(2, float64(attempt)),
+				float64(maxDelay),
+			))
+			
+			// Add progressive jitter to prevent thundering herd
+			jitterRange := float64(delay) * 0.25
+			jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+			actualDelay := delay + jitter
+			
+			log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+			log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+			
+			time.Sleep(actualDelay)
+		}
+		
+		if pingErr != nil {
+			log.Printf("⚠️  Database connection failed after %d attempts: %v (continuing without database)", maxRetries, pingErr)
+			db = nil
+		} else {
+			log.Println("🎉 Database connection pool established successfully!")
+		}
 	}
 
 	return &Server{
@@ -658,7 +702,20 @@ func requireEnv(key string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}
-	log.Fatalf("%s environment variable is required", key)
+	// Build POSTGRES_URL from individual components if not set
+	if key == "POSTGRES_URL" {
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
+			return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+				dbUser, dbPassword, dbHost, dbPort, dbName)
+		}
+	}
+	log.Fatalf("❌ %s environment variable is required (or provide POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB)", key)
 	return ""
 }
 

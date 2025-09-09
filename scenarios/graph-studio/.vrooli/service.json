@@ -1,0 +1,249 @@
+{
+  "name": "graph-studio",
+  "version": "1.0.0",
+  "description": "Unified platform for creating, validating, and converting all forms of graph-based visualizations and data structures",
+  "category": "visualization",
+  "tags": [
+    "graphs",
+    "diagrams",
+    "mind-maps",
+    "bpmn",
+    "uml",
+    "visualization",
+    "knowledge-graphs",
+    "workflow",
+    "architecture"
+  ],
+  "status": "development",
+  "metadata": {
+    "author": "AI Agent (graph-studio-builder)",
+    "created": "2024-12-09",
+    "revenue_potential": "$30K-$80K",
+    "complexity": "high",
+    "reusability": "10/10"
+  },
+  "services": {
+    "api": {
+      "enabled": true,
+      "port": "${service.graph-studio.api_port}",
+      "healthcheck": "/health",
+      "startup_timeout": 60,
+      "env": {
+        "API_PORT": "${service.graph-studio.api_port}",
+        "POSTGRES_HOST": "${service.postgres.host}",
+        "POSTGRES_PORT": "${service.postgres.port}",
+        "POSTGRES_USER": "${service.postgres.user}",
+        "POSTGRES_PASSWORD": "${service.postgres.password}",
+        "POSTGRES_DB": "graph_studio",
+        "MINIO_ENDPOINT": "${service.minio.endpoint}",
+        "MINIO_ACCESS_KEY": "${service.minio.access_key}",
+        "MINIO_SECRET_KEY": "${service.minio.secret_key}",
+        "N8N_URL": "${service.n8n.url}",
+        "REDIS_URL": "${service.redis.url}",
+        "OLLAMA_URL": "${service.ollama.url}",
+        "QDRANT_URL": "${service.qdrant.url}",
+        "LOG_LEVEL": "info",
+        "CORS_ORIGINS": "*",
+        "MAX_GRAPH_SIZE": "10000",
+        "PLUGIN_DIR": "./plugins"
+      }
+    },
+    "ui": {
+      "enabled": true,
+      "port": "${service.graph-studio.ui_port}",
+      "framework": "react",
+      "build_command": "npm run build",
+      "serve_command": "npm run serve",
+      "env": {
+        "VITE_API_URL": "http://localhost:${service.graph-studio.api_port}",
+        "VITE_WS_URL": "ws://localhost:${service.graph-studio.api_port}",
+        "VITE_APP_NAME": "Graph Studio",
+        "VITE_ENABLE_AI": "${service.ollama.enabled}"
+      }
+    },
+    "cli": {
+      "enabled": true,
+      "binary": "graph-studio",
+      "install_script": "./cli/install.sh",
+      "commands": [
+        "status",
+        "help",
+        "version",
+        "list",
+        "create",
+        "validate",
+        "convert",
+        "render",
+        "export",
+        "import",
+        "plugins"
+      ]
+    }
+  },
+  "resources": {
+    "required": [
+      {
+        "name": "postgres",
+        "purpose": "Store graph metadata, relationships, and versioning",
+        "initialization": {
+          "database": "graph_studio",
+          "schema_file": "initialization/postgres/schema.sql"
+        }
+      },
+      {
+        "name": "n8n",
+        "purpose": "Orchestrate graph transformations and analysis workflows",
+        "initialization": {
+          "workflows": [
+            "initialization/n8n/graph-operations.json",
+            "initialization/n8n/graph-validation.json"
+          ]
+        }
+      },
+      {
+        "name": "minio",
+        "purpose": "Store large graph files and visualization assets",
+        "initialization": {
+          "buckets": ["graph-files", "graph-renders", "graph-exports"]
+        }
+      }
+    ],
+    "optional": [
+      {
+        "name": "ollama",
+        "purpose": "AI-powered graph suggestions and natural language queries",
+        "fallback": "Disable AI features"
+      },
+      {
+        "name": "redis",
+        "purpose": "Cache frequently accessed graphs and session state",
+        "fallback": "No caching, direct database queries"
+      },
+      {
+        "name": "qdrant",
+        "purpose": "Vector search for semantic graph similarity",
+        "fallback": "Keyword-based search only"
+      }
+    ]
+  },
+  "plugins": {
+    "visualization": {
+      "mind-maps": {
+        "name": "Mind Maps",
+        "description": "Hierarchical thought organization and brainstorming",
+        "formats": ["freemind", "xmind", "mermaid"],
+        "enabled": true,
+        "priority": 1
+      },
+      "network-graphs": {
+        "name": "Network Graphs",
+        "description": "Relationship and connection modeling",
+        "formats": ["cytoscape", "graphml", "gexf", "d3"],
+        "enabled": true,
+        "priority": 2
+      }
+    },
+    "process": {
+      "bpmn": {
+        "name": "BPMN 2.0",
+        "description": "Business Process Model and Notation",
+        "formats": ["bpmn", "xml"],
+        "enabled": true,
+        "priority": 1
+      },
+      "dmn": {
+        "name": "DMN",
+        "description": "Decision Model and Notation",
+        "formats": ["dmn", "xml"],
+        "enabled": false,
+        "priority": 2
+      },
+      "cmmn": {
+        "name": "CMMN",
+        "description": "Case Management Model and Notation",
+        "formats": ["cmmn", "xml"],
+        "enabled": false,
+        "priority": 3
+      }
+    },
+    "architecture": {
+      "uml": {
+        "name": "UML",
+        "description": "Unified Modeling Language diagrams",
+        "formats": ["plantuml", "xmi", "mermaid"],
+        "enabled": false,
+        "priority": 1
+      },
+      "erd": {
+        "name": "ERD",
+        "description": "Entity Relationship Diagrams",
+        "formats": ["sql", "dbml", "mermaid"],
+        "enabled": false,
+        "priority": 2
+      }
+    },
+    "semantic": {
+      "rdf": {
+        "name": "RDF",
+        "description": "Resource Description Framework",
+        "formats": ["turtle", "n-triples", "rdf-xml"],
+        "enabled": false,
+        "priority": 1
+      },
+      "owl": {
+        "name": "OWL",
+        "description": "Web Ontology Language",
+        "formats": ["owl", "turtle"],
+        "enabled": false,
+        "priority": 2
+      }
+    }
+  },
+  "deployment": {
+    "targets": ["local", "docker", "kubernetes"],
+    "scaling": {
+      "min_instances": 1,
+      "max_instances": 10,
+      "cpu_threshold": 70,
+      "memory_threshold": 80
+    }
+  },
+  "monitoring": {
+    "metrics": [
+      "graph_operations_total",
+      "plugin_load_time",
+      "conversion_success_rate",
+      "api_response_time",
+      "active_users"
+    ],
+    "alerts": [
+      {
+        "name": "high_memory_usage",
+        "condition": "memory > 2GB",
+        "severity": "warning"
+      },
+      {
+        "name": "conversion_failures",
+        "condition": "conversion_success_rate < 0.95",
+        "severity": "error"
+      }
+    ]
+  },
+  "integrations": {
+    "webhooks": {
+      "enabled": true,
+      "events": [
+        "graph.created",
+        "graph.updated",
+        "graph.converted",
+        "plugin.loaded"
+      ]
+    },
+    "api": {
+      "version": "v1",
+      "base_path": "/api/v1",
+      "rate_limit": "1000/hour",
+      "authentication": "optional"
+    }
+  }
+}

@@ -1,10 +1,8 @@
 package main
 
 import (
-    "bytes"
+    "context"
     "encoding/json"
-    "fmt"
-    "io/ioutil"
     "log"
     "net/http"
     "os"
@@ -40,8 +38,16 @@ type HealthResponse struct {
     Service   string    `json:"service"`
 }
 
+var seoProcessor *SEOProcessor
+
 func main() {
 	port := getEnv("API_PORT", getEnv("PORT", ""))
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+
+	// Initialize SEO Processor
+	seoProcessor = NewSEOProcessor()
 
     // Enable CORS
     http.HandleFunc("/health", corsMiddleware(healthHandler))
@@ -88,45 +94,6 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
 }
 
-func callN8nWorkflow(webhookPath string, payload interface{}) (map[string]interface{}, error) {
-    n8nURL := os.Getenv("N8N_BASE_URL")
-    if n8nURL == "" {
-        n8nURL = "http://localhost:5678"
-    }
-    
-    fullURL := fmt.Sprintf("%s/webhook/%s", n8nURL, webhookPath)
-    
-    payloadBytes, err := json.Marshal(payload)
-    if err != nil {
-        return nil, err
-    }
-    
-    req, err := http.NewRequest("POST", fullURL, bytes.NewBuffer(payloadBytes))
-    if err != nil {
-        return nil, err
-    }
-    
-    req.Header.Set("Content-Type", "application/json")
-    
-    client := &http.Client{Timeout: 60 * time.Second}
-    resp, err := client.Do(req)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-    
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        return nil, err
-    }
-    
-    var result map[string]interface{}
-    if err := json.Unmarshal(body, &result); err != nil {
-        return nil, err
-    }
-    
-    return result, nil
-}
 
 func seoAuditHandler(w http.ResponseWriter, r *http.Request) {
     if r.Method != http.MethodPost {
@@ -140,24 +107,17 @@ func seoAuditHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call n8n workflow
-    result, err := callN8nWorkflow("seo-audit", map[string]interface{}{
-        "url":   req.URL,
-        "depth": req.Depth,
-    })
-    
+    if req.URL == "" {
+        http.Error(w, "URL is required", http.StatusBadRequest)
+        return
+    }
+
+    // Use SEO Processor to perform audit
+    ctx := context.Background()
+    result, err := seoProcessor.PerformSEOAudit(ctx, req.URL, req.Depth)
     if err != nil {
-        log.Printf("Error calling n8n workflow: %v", err)
-        // Return a fallback response
-        response := map[string]interface{}{
-            "url":        req.URL,
-            "audit_id":   fmt.Sprintf("audit_%d", time.Now().Unix()),
-            "status":     "processing",
-            "message":    "SEO audit initiated. Results will be available shortly.",
-            "created_at": time.Now(),
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
+        log.Printf("Error performing SEO audit: %v", err)
+        http.Error(w, "Failed to perform SEO audit", http.StatusInternalServerError)
         return
     }
 
@@ -177,21 +137,17 @@ func contentOptimizeHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call n8n workflow
-    result, err := callN8nWorkflow("content-optimizer", map[string]interface{}{
-        "content":         req.Content,
-        "target_keywords": req.TargetKeywords,
-        "content_type":    req.ContentType,
-    })
-    
+    if req.Content == "" {
+        http.Error(w, "Content is required", http.StatusBadRequest)
+        return
+    }
+
+    // Use SEO Processor to optimize content
+    ctx := context.Background()
+    result, err := seoProcessor.OptimizeContent(ctx, req.Content, req.TargetKeywords, req.ContentType)
     if err != nil {
-        log.Printf("Error calling n8n workflow: %v", err)
-        response := map[string]interface{}{
-            "status":  "error",
-            "message": "Content optimization service temporarily unavailable",
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
+        log.Printf("Error optimizing content: %v", err)
+        http.Error(w, "Failed to optimize content", http.StatusInternalServerError)
         return
     }
 
@@ -211,21 +167,17 @@ func competitorAnalysisHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call n8n workflow
-    result, err := callN8nWorkflow("competitor-analyzer", map[string]interface{}{
-        "competitor_url": req.CompetitorURL,
-        "your_url":       req.YourURL,
-        "analysis_type":  req.AnalysisType,
-    })
-    
+    if req.YourURL == "" || req.CompetitorURL == "" {
+        http.Error(w, "Both your_url and competitor_url are required", http.StatusBadRequest)
+        return
+    }
+
+    // Use SEO Processor to analyze competitor
+    ctx := context.Background()
+    result, err := seoProcessor.AnalyzeCompetitor(ctx, req.YourURL, req.CompetitorURL, req.AnalysisType)
     if err != nil {
-        log.Printf("Error calling n8n workflow: %v", err)
-        response := map[string]interface{}{
-            "status":  "error",
-            "message": "Competitor analysis service temporarily unavailable",
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
+        log.Printf("Error analyzing competitor: %v", err)
+        http.Error(w, "Failed to analyze competitor", http.StatusInternalServerError)
         return
     }
 
@@ -245,30 +197,17 @@ func keywordResearchHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Call n8n workflow
-    result, err := callN8nWorkflow("keyword-researcher", map[string]interface{}{
-        "seed_keyword":    req.SeedKeyword,
-        "target_location": req.TargetLocation,
-        "language":        req.Language,
-    })
-    
+    if req.SeedKeyword == "" {
+        http.Error(w, "Seed keyword is required", http.StatusBadRequest)
+        return
+    }
+
+    // Use SEO Processor to research keywords
+    ctx := context.Background()
+    result, err := seoProcessor.ResearchKeywords(ctx, req.SeedKeyword, req.TargetLocation, req.Language)
     if err != nil {
-        log.Printf("Error calling n8n workflow: %v", err)
-        // Return mock data for now
-        response := map[string]interface{}{
-            "keywords": []map[string]interface{}{
-                {
-                    "keyword":     req.SeedKeyword,
-                    "volume":      "10K-100K",
-                    "competition": "Medium",
-                    "cpc":         "$2.50",
-                    "intent":      "Informational",
-                },
-            },
-            "status": "success",
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
+        log.Printf("Error researching keywords: %v", err)
+        http.Error(w, "Failed to research keywords", http.StatusInternalServerError)
         return
     }
 

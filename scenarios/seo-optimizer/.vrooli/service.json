@@ -19,7 +19,6 @@
       "javascript-ui",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "postgres-storage",
       "redis-cache",
       "qdrant-vectors",
@@ -39,34 +38,6 @@
     }
   },
   "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "shared_workflows": [
-        "ollama",
-        "embedding-generator",
-        "structured-data-extractor"
-      ],
-      "initialization": [
-        {
-          "file": "initialization/n8n/seo-audit.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/keyword-researcher.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/content-optimizer.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/competitor-analyzer.json",
-          "type": "workflow"
-        }
-      ]
-    },
     "postgres": {
       "type": "postgres",
       "enabled": true,

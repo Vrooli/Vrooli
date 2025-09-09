@@ -726,9 +726,6 @@ class EcosystemManager {
             <div class="task-footer">
                 <div class="task-id">${task.id}</div>
                 <div class="task-actions">
-                    <button class="btn-icon" onclick="event.stopPropagation(); ecosystemManager.updateTaskStatus('${task.id}')" title="Update Status">
-                        <i class="fas fa-edit"></i>
-                    </button>
                     <button class="btn-icon btn-delete" onclick="event.stopPropagation(); ecosystemManager.deleteTask('${task.id}', '${task.status}')" title="Delete Task">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -1104,50 +1101,6 @@ class EcosystemManager {
         }
     }
     
-    async updateTaskStatus(taskId, newStatus = null, progress = null) {
-        if (!newStatus) {
-            // Show a simple prompt for now
-            newStatus = prompt('Enter new status (pending, in-progress, completed, failed):');
-            if (!newStatus) return;
-        }
-        
-        if (progress === null && newStatus === 'in-progress') {
-            progress = parseInt(prompt('Enter progress percentage (0-100):') || '0');
-        }
-        
-        try {
-            const updateData = { status: newStatus };
-            if (progress !== null) {
-                updateData.progress_percentage = progress;
-            }
-            
-            const response = await fetch(`${this.apiBase}/tasks/${taskId}/status`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updateData)
-            });
-            
-            if (!response.ok) throw new Error('Failed to update task status');
-            
-            this.showToast('Task status updated successfully', 'success');
-            await this.loadAllTasks();
-            this.closeAllModals();
-            
-        } catch (error) {
-            console.error('Failed to update task status:', error);
-            this.showToast('Failed to update task status', 'error');
-        }
-    }
-    
-    async startTask(taskId) {
-        await this.updateTaskStatus(taskId, 'in-progress', 0);
-    }
-    
-    async completeTask(taskId) {
-        await this.updateTaskStatus(taskId, 'completed', 100);
-    }
     
     async deleteTask(taskId, status) {
         // No confirmation needed for completed or failed tasks
@@ -1382,28 +1335,6 @@ class EcosystemManager {
         }
     }
     
-    updateTargetOptions(type) {
-        const targetSelect = document.getElementById('task-target');
-        targetSelect.innerHTML = '<option value="">Select target to improve...</option>';
-        
-        // Get the appropriate list based on type
-        const items = type === 'resource' ? this.resources : this.scenarios;
-        
-        if (items && items.length > 0) {
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.name;
-                option.textContent = `${item.name}${item.description ? ' - ' + item.description.substring(0, 50) : ''}`;
-                targetSelect.appendChild(option);
-            });
-        } else {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = `No ${type}s discovered`;
-            option.disabled = true;
-            targetSelect.appendChild(option);
-        }
-    }
     
     // Utility functions
     showLoading(show = true) {

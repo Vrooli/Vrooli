@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -99,30 +100,30 @@ func initDB() {
 	// Load environment variables
 	godotenv.Load()
 	
-	// Get database configuration from environment
+	// Get database configuration from environment (no defaults)
 	dbHost := os.Getenv("POSTGRES_HOST")
 	if dbHost == "" {
-		dbHost = "localhost"
+		log.Fatal("❌ POSTGRES_HOST environment variable is required")
 	}
 	
 	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
-		dbPort = "5432"
+		log.Fatal("❌ POSTGRES_PORT environment variable is required")
 	}
 	
 	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {
-		dbUser = "postgres"
+		log.Fatal("❌ POSTGRES_USER environment variable is required")
 	}
 	
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		dbPassword = "postgres"
+		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
 	}
 	
 	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
-		dbName = "vrooli"
+		log.Fatal("❌ POSTGRES_DB environment variable is required")
 	}
 	
 	// Construct connection string
@@ -134,12 +135,46 @@ func initDB() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	
-	// Test connection
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	// Configure connection pool
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		time.Sleep(actualDelay)
 	}
-	
-	log.Println("Successfully connected to database")
+
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
 }
 
 // Health check endpoint

@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 )
 
 type HealthResponse struct {
@@ -203,6 +207,7 @@ var (
 	investigations      = make(map[string]*Investigation)
 	investigationsMutex sync.RWMutex
 	startTime           = time.Now()
+	monitoringProcessor *MonitoringProcessor
 )
 
 type ReportRequest struct {
@@ -218,6 +223,65 @@ func main() {
 	if port == "" {
 		log.Fatal("❌ API_PORT or PORT environment variable is required")
 	}
+
+	// Initialize database connection (optional - will use mock data if unavailable)
+	var db *sql.DB
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL != "" {
+		var err error
+		db, err = sql.Open("postgres", dbURL)
+		if err != nil {
+			log.Printf("Warning: Failed to connect to database: %v", err)
+		} else {
+			// Configure connection pool
+			db.SetMaxOpenConns(25)
+			db.SetMaxIdleConns(5)
+			db.SetConnMaxLifetime(5 * time.Minute)
+
+			// Implement exponential backoff for database connection
+			maxRetries := 10
+			baseDelay := 1 * time.Second
+			maxDelay := 30 * time.Second
+
+			log.Println("🔄 Attempting database connection with exponential backoff...")
+
+			var pingErr error
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				pingErr = db.Ping()
+				if pingErr == nil {
+					log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+					break
+				}
+				
+				// Calculate exponential backoff delay
+				delay := time.Duration(math.Min(
+					float64(baseDelay) * math.Pow(2, float64(attempt)),
+					float64(maxDelay),
+				))
+				
+				// Add progressive jitter to prevent thundering herd
+				jitterRange := float64(delay) * 0.25
+				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+				actualDelay := delay + jitter
+				
+				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+				
+				time.Sleep(actualDelay)
+			}
+
+			if pingErr != nil {
+				log.Printf("⚠️ Database connection failed after %d attempts, continuing without database: %v", maxRetries, pingErr)
+				db.Close()
+				db = nil
+			}
+		}
+	} else {
+		log.Printf("DATABASE_URL not set, using mock data")
+	}
+
+	// Initialize MonitoringProcessor
+	monitoringProcessor = NewMonitoringProcessor(db)
 
 	r := mux.NewRouter()
 
@@ -241,6 +305,11 @@ func main() {
 
 	// Report endpoints
 	r.HandleFunc("/api/reports/generate", generateReportHandler).Methods("POST")
+
+	// New MonitoringProcessor endpoints
+	r.HandleFunc("/api/monitoring/threshold-check", thresholdMonitorHandler).Methods("POST")
+	r.HandleFunc("/api/monitoring/investigate-anomaly", anomalyInvestigationHandler).Methods("POST")
+	r.HandleFunc("/api/monitoring/generate-report", systemReportHandler).Methods("POST")
 
 	// Test endpoints for anomaly simulation
 	r.HandleFunc("/api/test/anomaly/cpu", simulateHighCPUHandler).Methods("GET")
@@ -1682,4 +1751,63 @@ func getStorageIOStats() struct {
 		ReadMBPerSec   float64 `json:"read_mb_per_sec"`
 		WriteMBPerSec  float64 `json:"write_mb_per_sec"`
 	}{0.2, iowait, 15.0, 8.0}
+}
+
+// New handler functions using MonitoringProcessor
+
+func thresholdMonitorHandler(w http.ResponseWriter, r *http.Request) {
+	var req ThresholdMonitorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	result, err := monitoringProcessor.MonitorThresholds(ctx, req)
+	if err != nil {
+		log.Printf("Error monitoring thresholds: %v", err)
+		http.Error(w, "Failed to monitor thresholds", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func anomalyInvestigationHandler(w http.ResponseWriter, r *http.Request) {
+	var req AnomalyInvestigationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	result, err := monitoringProcessor.InvestigateAnomaly(ctx, req)
+	if err != nil {
+		log.Printf("Error investigating anomaly: %v", err)
+		http.Error(w, "Failed to investigate anomaly", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+func systemReportHandler(w http.ResponseWriter, r *http.Request) {
+	var req ReportGenerationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+	result, err := monitoringProcessor.GenerateReport(ctx, req)
+	if err != nil {
+		log.Printf("Error generating report: %v", err)
+		http.Error(w, "Failed to generate report", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }

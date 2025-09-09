@@ -13,7 +13,7 @@
       "technical-debt",
       "cleanup-automation",
       "go-api",
-      "n8n-workflows",
+      "native-go-processing",
       "postgres-storage",
       "redis-cache",
       "dashboard-ui"
@@ -21,12 +21,12 @@
   },
   "ports": {
     "api": {
-      "env_var": "API_PORT",
+      "env_var": "TIDINESS_API_PORT",
       "description": "Code Tidiness Manager API port",
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "UI_PORT",
+      "env_var": "TIDINESS_UI_PORT",
       "description": "Cleanup dashboard UI port",
       "range": "35000-39999"
     }
@@ -50,28 +50,9 @@
     },
     "redis": {
       "type": "redis",
-      "enabled": true,
-      "required": true,
+      "enabled": false,
+      "required": false,
       "purpose": "Cache scan results and temporary analysis data for performance"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/code-scanner.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/cleanup-executor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/automation/n8n/pattern-analyzer.json",
-          "type": "workflow"
-        }
-      ]
     },
     "qdrant": {
       "type": "qdrant",
@@ -102,7 +83,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${CTM_API_PORT}/health",
+          "target": "http://localhost:${TIDINESS_API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -110,7 +91,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${CTM_UI_PORT}/health",
+          "target": "http://localhost:${TIDINESS_UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -118,12 +99,6 @@
         {
           "name": "postgres_connection",
           "type": "postgres",
-          "critical": true,
-          "timeout": 5000
-        },
-        {
-          "name": "redis_connection",
-          "type": "redis",
           "critical": true,
           "timeout": 5000
         }
@@ -139,7 +114,7 @@
           {
             "type": "binaries",
             "targets": [
-              "api/code-tidiness-manager-api"
+              "api/tidiness-manager-api"
             ]
           },
           {
@@ -175,7 +150,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o code-tidiness-manager-api .",
+          "run": "cd api && go mod download && go build -o tidiness-manager-api .",
           "description": "Build Go API server"
         },
         {
@@ -185,7 +160,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${CTM_UI_PORT}\\n  API: http://localhost:${CTM_API_PORT}\\n  CLI: code-tidiness-manager --help'",
+          "run": "echo '🧹 Code Tidiness Manager initialized\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -195,11 +170,11 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./code-tidiness-manager-api",
+          "run": "cd api && ./tidiness-manager-api",
           "description": "Start Go API server",
           "background": true,
           "condition": {
-            "file_exists": "api/code-tidiness-manager-api"
+            "file_exists": "api/tidiness-manager-api"
           }
         },
         {
@@ -213,7 +188,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${CTM_UI_PORT}\\n  API: http://localhost:${CTM_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
+          "run": "echo '🧹 Code Tidiness Manager running:\\n  Dashboard: http://localhost:${TIDINESS_UI_PORT}\\n  API: http://localhost:${TIDINESS_API_PORT}\\n  CLI: code-tidiness-manager --help\\n\\n  Run a scan: code-tidiness-manager scan'",
           "description": "Display all running service URLs"
         }
       ]
@@ -231,17 +206,17 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$CTM_API_PORT/health",
+          "run": "curl -sf http://localhost:${TIDINESS_API_PORT}/health",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-scan-endpoint",
-          "run": "curl -sf -X POST http://localhost:$CTM_API_PORT/api/v1/tidiness/scan -H 'Content-Type: application/json' -d '{\"paths\": [\"test/\"], \"types\": [\"backup_files\"]}'",
+          "run": "curl -sf -X POST http://localhost:${TIDINESS_API_PORT}/api/v1/scan -H 'Content-Type: application/json' -d '{\"paths\": [\"test/\"], \"types\": [\"backup_files\"]}'",
           "description": "Test scan initiation"
         },
         {
           "name": "test-suggestions-endpoint",
-          "run": "curl -sf http://localhost:$CTM_API_PORT/api/v1/tidiness/suggestions",
+          "run": "curl -sf http://localhost:${TIDINESS_API_PORT}/api/v1/analyze -X POST -H 'Content-Type: application/json' -d '{\"analysis_type\": \"todo_comments\"}'",
           "description": "Test suggestions retrieval"
         },
         {
@@ -264,7 +239,7 @@
       "steps": [
         {
           "name": "stop-api",
-          "run": "pkill -f \"code-tidiness-manager-api\" || true; sleep 1; pkill -9 -f \"code-tidiness-manager-api\" 2>/dev/null || true",
+          "run": "pkill -f \"tidiness-manager-api\" || true; sleep 1; pkill -9 -f \"tidiness-manager-api\" 2>/dev/null || true",
           "description": "Stop API process"
         },
         {

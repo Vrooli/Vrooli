@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -23,26 +25,26 @@ type App struct {
 func main() {
 	app := &App{}
 	
-	// Database connection
-	dbHost := getEnv("POSTGRES_HOST", "")
+	// Database connection - REQUIRED, no defaults
+	dbHost := os.Getenv("POSTGRES_HOST")
 	if dbHost == "" {
-		log.Fatal("POSTGRES_HOST environment variable is required")
+		log.Fatal("❌ POSTGRES_HOST environment variable is required")
 	}
-	dbPort := getEnv("POSTGRES_PORT", "")
+	dbPort := os.Getenv("POSTGRES_PORT")
 	if dbPort == "" {
-		log.Fatal("POSTGRES_PORT environment variable is required")
+		log.Fatal("❌ POSTGRES_PORT environment variable is required")
 	}
-	dbUser := getEnv("POSTGRES_USER", "")
+	dbUser := os.Getenv("POSTGRES_USER")
 	if dbUser == "" {
-		log.Fatal("POSTGRES_USER environment variable is required")
+		log.Fatal("❌ POSTGRES_USER environment variable is required")
 	}
-	dbPassword := getEnv("POSTGRES_PASSWORD", "")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
 	if dbPassword == "" {
-		log.Fatal("POSTGRES_PASSWORD environment variable is required")
+		log.Fatal("❌ POSTGRES_PASSWORD environment variable is required")
 	}
-	dbName := getEnv("POSTGRES_DB", "")
+	dbName := os.Getenv("POSTGRES_DB")
 	if dbName == "" {
-		log.Fatal("POSTGRES_DB environment variable is required")
+		log.Fatal("❌ POSTGRES_DB environment variable is required")
 	}
 	
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -55,10 +57,48 @@ func main() {
 	}
 	defer app.DB.Close()
 	
-	// Test connection
-	if err := app.DB.Ping(); err != nil {
-		log.Fatal("Database ping failed:", err)
+	// Configure connection pool
+	app.DB.SetMaxOpenConns(25)
+	app.DB.SetMaxIdleConns(5)
+	app.DB.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = app.DB.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		time.Sleep(actualDelay)
 	}
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize components
 	app.DeviceController = NewDeviceController(app.DB)

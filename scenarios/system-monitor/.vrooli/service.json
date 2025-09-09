@@ -19,7 +19,6 @@
       "dark-theme",
       "nodejs-ui",
       "go-api",
-      "n8n-workflows",
       "node-red-flows",
       "postgres-storage",
       "redis-cache",
@@ -77,11 +76,6 @@
       "required": true,
       "purpose": "real-time alerts and caching"
     },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true
-    },
     "node-red": {
       "type": "node-red",
       "enabled": true,
@@ -115,23 +109,6 @@
       {
         "file": "initialization/postgres/schema.sql",
         "type": "schema"
-      }
-    ],
-    "n8n": [
-      {
-        "name": "threshold-monitor",
-        "file": "initialization/n8n/threshold-monitor.json",
-        "active": true
-      },
-      {
-        "name": "scheduled-reports",
-        "file": "initialization/n8n/scheduled-reports.json",
-        "active": true
-      },
-      {
-        "name": "anomaly-investigator",
-        "file": "initialization/n8n/anomaly-investigator.json",
-        "active": true
       }
     ],
     "questdb": [

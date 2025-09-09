@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/gorilla/mux"
@@ -128,41 +130,81 @@ type QueueItem struct {
 var db *sql.DB
 
 func initDB() {
-	var err error
-	dbHost := os.Getenv("POSTGRES_HOST")
-	if dbHost == "" {
-		dbHost = "localhost"
+	// Database configuration - support both POSTGRES_URL and individual components
+	connStr := os.Getenv("POSTGRES_URL")
+	if connStr == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
 	}
-	dbPort := os.Getenv("POSTGRES_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbUser := os.Getenv("POSTGRES_USER")
-	if dbUser == "" {
-		dbUser = "postgres"
-	}
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "postgres"
-	}
-	dbName := os.Getenv("POSTGRES_DB")
-	if dbName == "" {
-		dbName = "video_downloader"
-	}
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
 	
+	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-
-	if err = db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📹 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
-	log.Println("Connected to database")
+	
+	if pingErr != nil {
+		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -622,9 +664,4 @@ func main() {
 	}
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
+// getEnv function removed - no hardcoded defaults for configuration

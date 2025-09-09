@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -740,10 +741,22 @@ func (s *Server) generateWidgetEmbedCode(chatbotID string, widgetConfig map[stri
 
 // Database setup
 func setupDatabase() (*sql.DB, error) {
-	// Get database connection string from environment
-	dbURL := os.Getenv("DATABASE_URL")
+	// Database configuration - support both POSTGRES_URL and individual components
+	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:password@localhost:5432/postgres?sslmode=disable"
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			return nil, fmt.Errorf("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
 	db, err := sql.Open("postgres", dbURL)
@@ -756,11 +769,52 @@ func setupDatabase() (*sql.DB, error) {
 	db.SetMaxIdleConns(maxIdleConnections)
 	db.SetConnMaxLifetime(connMaxLifetime)
 
-	// Test connection
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %v", err)
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("🤖 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
+	
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	return db, nil
 }
 
@@ -775,10 +829,10 @@ func main() {
 	}
 	defer db.Close()
 
-	// Get configuration from environment
+	// Get configuration from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = defaultPort
+		logger.Fatalf("❌ API_PORT environment variable is required")
 	}
 
 	ollamaURL := os.Getenv("OLLAMA_URL")

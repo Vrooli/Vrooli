@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -11,6 +13,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	_ "github.com/lib/pq"
 )
 
 // ChartGenerationRequest represents a request to generate a chart
@@ -58,7 +61,78 @@ type StyleResponse struct {
 	IsDefault   bool   `json:"is_default"`
 }
 
+var chartProcessor *ChartProcessor
+
 func main() {
+	// Initialize database connection (optional for chart generation)
+	var db *sql.DB
+	var err error
+	
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	dbUser := os.Getenv("POSTGRES_USER")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DB")
+	
+	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
+		connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+		
+		db, err = sql.Open("postgres", connStr)
+		if err == nil {
+			// Configure connection pool
+			db.SetMaxOpenConns(25)
+			db.SetMaxIdleConns(5)
+			db.SetConnMaxLifetime(5 * time.Minute)
+			
+			// Implement exponential backoff for database connection
+			maxRetries := 10
+			baseDelay := 1 * time.Second
+			maxDelay := 30 * time.Second
+			
+			log.Println("🔄 Attempting database connection with exponential backoff...")
+			
+			var pingErr error
+			for attempt := 0; attempt < maxRetries; attempt++ {
+				pingErr = db.Ping()
+				if pingErr == nil {
+					log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+					break
+				}
+				
+				// Calculate exponential backoff delay
+				delay := time.Duration(math.Min(
+					float64(baseDelay) * math.Pow(2, float64(attempt)),
+					float64(maxDelay),
+				))
+				
+				// Add progressive jitter to prevent thundering herd
+				jitterRange := float64(delay) * 0.25
+				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+				actualDelay := delay + jitter
+				
+				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+				
+				time.Sleep(actualDelay)
+			}
+			
+			if pingErr != nil {
+				log.Printf("⚠️  Database connection failed after %d attempts: %v (continuing without database)", maxRetries, pingErr)
+				db = nil
+			}
+		} else {
+			log.Printf("⚠️  Database connection failed: %v (continuing without database)", err)
+			db = nil
+		}
+	} else {
+		log.Println("📝 Database not configured (continuing without database)")
+	}
+
+	// Initialize Chart Processor
+	chartProcessor = NewChartProcessor(db)
+	log.Println("🎨 Chart processor initialized")
+
 	// Get port from environment or use default
 	port := os.Getenv("CHART_API_PORT")
 	if port == "" {
@@ -85,6 +159,11 @@ func main() {
 	// Template endpoints
 	r.HandleFunc("/api/v1/templates", getTemplatesHandler).Methods("GET")
 	r.HandleFunc("/api/v1/templates/{id}", getTemplateHandler).Methods("GET")
+
+	// Chart processor endpoints (replaces n8n workflows)
+	r.HandleFunc("/chart-generator", chartGenerationHandler).Methods("POST")
+	r.HandleFunc("/validate-data", dataValidationHandler).Methods("POST")
+	r.HandleFunc("/styles", stylesHandler).Methods("GET")
 
 	// Set up CORS
 	c := cors.New(cors.Options{
@@ -368,4 +447,71 @@ func sendErrorResponse(w http.ResponseWriter, message, errorType string, statusC
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(response)
+}
+
+// Chart processor handlers (replaces n8n workflows)
+
+func chartGenerationHandler(w http.ResponseWriter, r *http.Request) {
+	var req ChartGenerationProcessorRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendErrorResponse(w, "Invalid request body", "validation_error", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	result, err := chartProcessor.GenerateChart(ctx, req)
+	if err != nil {
+		log.Printf("Chart generation error: %v", err)
+		sendErrorResponse(w, "Chart generation failed", "generation_error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	
+	if result.Success {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	
+	json.NewEncoder(w).Encode(result)
+}
+
+func dataValidationHandler(w http.ResponseWriter, r *http.Request) {
+	var req DataValidationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		sendErrorResponse(w, "Invalid request body", "validation_error", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	result, err := chartProcessor.ValidateData(ctx, req)
+	if err != nil {
+		log.Printf("Data validation error: %v", err)
+		sendErrorResponse(w, "Data validation failed", "validation_error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	
+	if result.Valid {
+		w.WriteHeader(http.StatusOK)
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+	}
+	
+	json.NewEncoder(w).Encode(result)
+}
+
+func stylesHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	result, err := chartProcessor.GetAvailableStyles(ctx)
+	if err != nil {
+		log.Printf("Get styles error: %v", err)
+		sendErrorResponse(w, "Failed to get styles", "styles_error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }

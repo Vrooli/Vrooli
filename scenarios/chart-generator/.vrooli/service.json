@@ -16,7 +16,7 @@
       "professional-output",
       "customizable-styling",
       "go-api",
-      "n8n-workflows",
+      "native-go-processing",
       "postgres-storage",
       "cli-integration"
     ]
@@ -47,25 +47,6 @@
         {
           "file": "initialization/storage/postgres/seed-styles.sql",
           "type": "seed"
-        }
-      ]
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/chart-generation.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/style-management.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/data-validation.json",
-          "type": "workflow"
         }
       ]
     },
@@ -159,7 +140,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${CHART_UI_PORT}\\n  Chart Generation API: http://localhost:${CHART_API_PORT}\\n  N8N Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
+          "run": "echo '🎨 Chart Generator initialized\\n  Style Management UI: http://localhost:${CHART_UI_PORT}\\n  Chart Generation API: http://localhost:${CHART_API_PORT}\\n  CLI: chart-generator --help\\n  \\n📊 Quick Test: chart-generator generate bar --data sample-data.json --format png,svg'",
           "description": "Display service access URLs and usage examples"
         }
       ]
@@ -187,7 +168,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${CHART_UI_PORT}\\n  Chart API: http://localhost:${CHART_API_PORT}\\n  N8N Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
+          "run": "echo '🎨 Chart Generator Services Running:\\n  Style Management: http://localhost:${CHART_UI_PORT}\\n  Chart API: http://localhost:${CHART_API_PORT}\\n  Database: postgres://${RESOURCE_PORTS[postgres]}\\n  \\n📋 CLI Usage: chart-generator --help'",
           "description": "Display all running service URLs and CLI info"
         }
       ]
@@ -229,9 +210,9 @@
           "description": "Test CLI styles listing"
         },
         {
-          "name": "test-n8n-workflow",
-          "run": "resource-n8n list-workflows | grep -q 'chart-generation' || echo 'N8N workflow test skipped - not critical'",
-          "description": "Verify N8N workflow deployment"
+          "name": "test-native-endpoints",
+          "run": "curl -sf http://localhost:${CHART_API_PORT}/chart-generator -X POST -H 'Content-Type: application/json' -d '{\"chart_type\":\"bar\",\"data\":[{\"x\":\"Test\",\"y\":42}]}' && curl -sf http://localhost:${CHART_API_PORT}/validate-data -X POST -H 'Content-Type: application/json' -d '{\"data\":[{\"x\":\"A\",\"y\":10}]}' && curl -sf http://localhost:${CHART_API_PORT}/styles",
+          "description": "Test native Go endpoints replacing n8n workflows"
         },
         {
           "name": "test-database-schema",

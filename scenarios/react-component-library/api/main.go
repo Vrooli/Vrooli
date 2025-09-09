@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -44,8 +46,11 @@ func main() {
 	// Setup router
 	router := setupRouter(componentHandler, healthHandler)
 
-	// Start server
-	port := getEnvOrDefault("API_PORT", "8090")
+	// Start server - REQUIRED, no defaults
+	port := os.Getenv("API_PORT")
+	if port == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
 	log.Printf("🚀 React Component Library API starting on port %s", port)
 	log.Printf("📚 API Documentation: http://localhost:%s/api/docs", port)
 	log.Printf("🔍 Health Check: http://localhost:%s/health", port)
@@ -56,26 +61,85 @@ func main() {
 }
 
 func initDatabase() (*sql.DB, error) {
-	dbHost := getEnvOrDefault("DB_HOST", "localhost")
-	dbPort := getEnvOrDefault("DB_PORT", "5432")
-	dbUser := getEnvOrDefault("DB_USER", "postgres")
-	dbPassword := getEnvOrDefault("DB_PASSWORD", "postgres")
-	dbName := getEnvOrDefault("DB_NAME", "postgres")
-	dbSchema := getEnvOrDefault("DB_SCHEMA", "react_component_library")
-
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, dbSchema)
+	// Database configuration - support both POSTGRES_URL and individual components
+	connStr := os.Getenv("POSTGRES_URL")
+	if connStr == "" {
+		// Try to build from individual components - REQUIRED, no defaults
+		dbHost := os.Getenv("POSTGRES_HOST")
+		dbPort := os.Getenv("POSTGRES_PORT")
+		dbUser := os.Getenv("POSTGRES_USER")
+		dbPassword := os.Getenv("POSTGRES_PASSWORD")
+		dbName := os.Getenv("POSTGRES_DB")
+		dbSchema := os.Getenv("DB_SCHEMA")
+		
+		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		
+		if dbSchema == "" {
+			dbSchema = "react_component_library" // This is application-specific, not a credential
+		}
+		
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable search_path=%s",
+			dbHost, dbPort, dbUser, dbPassword, dbName, dbSchema)
+	}
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database: %w", err)
+	
+	// Set connection pool settings
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
+	
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+	
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+	log.Printf("📊 Database URL configured")
+	
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = db.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		// Provide detailed status every few attempts
+		if attempt > 0 && attempt % 3 == 0 {
+			log.Printf("📈 Retry progress:")
+			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+		}
+		
+		time.Sleep(actualDelay)
 	}
-
-	log.Printf("✅ Connected to PostgreSQL database: %s@%s:%s/%s", dbUser, dbHost, dbPort, dbName)
+	
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %w", maxRetries, pingErr)
+	}
+	
+	log.Println("🎉 Database connection pool established successfully!")
 	return db, nil
 }
 
@@ -100,9 +164,9 @@ func setupRouter(componentHandler *handlers.ComponentHandler, healthHandler *han
 		AllowCredentials: true,
 	}))
 
-	// Rate limiting middleware
-	rateLimitRPM, _ := strconv.Atoi(getEnvOrDefault("RATE_LIMIT_RPM", "200"))
-	aiRateLimitRPM, _ := strconv.Atoi(getEnvOrDefault("AI_RATE_LIMIT_RPM", "10"))
+	// Rate limiting middleware - with sensible defaults for non-sensitive config
+	rateLimitRPM, _ := strconv.Atoi(getEnvWithDefault("RATE_LIMIT_RPM", "200"))
+	aiRateLimitRPM, _ := strconv.Atoi(getEnvWithDefault("AI_RATE_LIMIT_RPM", "10"))
 	router.Use(middleware.RateLimit(rateLimitRPM, aiRateLimitRPM))
 
 	// Health endpoints
@@ -174,7 +238,9 @@ func setupRouter(componentHandler *handlers.ComponentHandler, healthHandler *han
 	return router
 }
 
-func getEnvOrDefault(key, defaultValue string) string {
+// getEnvWithDefault - ONLY for non-sensitive configuration values like rate limits, UI settings
+// NEVER use for credentials, database passwords, API keys, or security-sensitive values
+func getEnvWithDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
 	}

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -144,40 +145,61 @@ func main() {
 }
 
 func loadConfiguration() *Configuration {
-	config := &Configuration{
-		APIPort:     getEnv("API_PORT", "18000"),
-		UIPort:      getEnv("UI_PORT", "38000"),
-		DatabaseURL: getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5432/vrooli_social_media_scheduler?sslmode=disable"),
-		RedisURL:    getEnv("REDIS_URL", "redis://localhost:6379/0"),
-		MinIOURL:    getEnv("MINIO_URL", "http://localhost:9000"),
-		OllamaURL:   getEnv("OLLAMA_URL", "http://localhost:11434"),
-		JWTSecret:   getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
-		Environment: getEnv("ENVIRONMENT", "development"),
+	// All configuration must come from environment variables - NO DEFAULTS
+	apiPort := os.Getenv("API_PORT")
+	if apiPort == "" {
+		log.Fatal("❌ API_PORT environment variable is required")
+	}
+	
+	uiPort := os.Getenv("UI_PORT")
+	if uiPort == "" {
+		log.Fatal("❌ UI_PORT environment variable is required")
+	}
+	
+	databaseURL := os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		log.Fatal("❌ DATABASE_URL environment variable is required")
+	}
+	
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL == "" {
+		log.Fatal("❌ REDIS_URL environment variable is required")
+	}
+	
+	minioURL := os.Getenv("MINIO_URL")
+	if minioURL == "" {
+		log.Fatal("❌ MINIO_URL environment variable is required")
+	}
+	
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		log.Fatal("❌ OLLAMA_URL environment variable is required")
+	}
+	
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("❌ JWT_SECRET environment variable is required")
+	}
+	
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		log.Fatal("❌ ENVIRONMENT environment variable is required")
 	}
 
-	// Use resource ports if available
-	if pgPort := os.Getenv("RESOURCE_PORTS_postgres"); pgPort != "" {
-		config.DatabaseURL = fmt.Sprintf("postgres://postgres:password@localhost:%s/vrooli_social_media_scheduler?sslmode=disable", pgPort)
-	}
-	if redisPort := os.Getenv("RESOURCE_PORTS_redis"); redisPort != "" {
-		config.RedisURL = fmt.Sprintf("redis://localhost:%s/0", redisPort)
-	}
-	if minioPort := os.Getenv("RESOURCE_PORTS_minio"); minioPort != "" {
-		config.MinIOURL = fmt.Sprintf("http://localhost:%s", minioPort)
-	}
-	if ollamaPort := os.Getenv("RESOURCE_PORTS_ollama"); ollamaPort != "" {
-		config.OllamaURL = fmt.Sprintf("http://localhost:%s", ollamaPort)
+	config := &Configuration{
+		APIPort:     apiPort,
+		UIPort:      uiPort,
+		DatabaseURL: databaseURL,
+		RedisURL:    redisURL,
+		MinIOURL:    minioURL,
+		OllamaURL:   ollamaURL,
+		JWTSecret:   jwtSecret,
+		Environment: environment,
 	}
 
 	return config
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 
 func initializeApplication(config *Configuration) (*Application, error) {
 	app := &Application{Config: config}
@@ -189,9 +211,45 @@ func initializeApplication(config *Configuration) (*Application, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Test database connection
-	if err = app.DB.Ping(); err != nil {
-		return nil, fmt.Errorf("database ping failed: %w", err)
+	// Configure connection pool
+	app.DB.SetMaxOpenConns(25)
+	app.DB.SetMaxIdleConns(5)
+	app.DB.SetConnMaxLifetime(5 * time.Minute)
+
+	// Implement exponential backoff for database connection
+	maxRetries := 10
+	baseDelay := 1 * time.Second
+	maxDelay := 30 * time.Second
+
+	log.Println("🔄 Attempting database connection with exponential backoff...")
+
+	var pingErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		pingErr = app.DB.Ping()
+		if pingErr == nil {
+			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			break
+		}
+		
+		// Calculate exponential backoff delay
+		delay := time.Duration(math.Min(
+			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(maxDelay),
+		))
+		
+		// Add progressive jitter to prevent thundering herd
+		jitterRange := float64(delay) * 0.25
+		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
+		actualDelay := delay + jitter
+		
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		
+		time.Sleep(actualDelay)
+	}
+
+	if pingErr != nil {
+		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
 
 	// Initialize Redis

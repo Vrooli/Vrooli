@@ -64,6 +64,7 @@ type TestResult struct {
 }
 
 var db *sql.DB
+var algorithmProcessor *AlgorithmProcessor
 
 func main() {
 	// Initialize database connection with exponential backoff
@@ -149,6 +150,14 @@ func main() {
 	
 	log.Println("🎉 Database connection established and verified!")
 
+	// Initialize Algorithm Processor
+	judge0URL := os.Getenv("JUDGE0_URL")
+	if judge0URL == "" {
+		judge0URL = "http://localhost:2358" // Default Judge0 port
+	}
+	algorithmProcessor = NewAlgorithmProcessor(judge0URL)
+	log.Printf("🔧 Algorithm processor initialized with Judge0 at %s", judge0URL)
+
 	// Set up routes
 	router := mux.NewRouter()
 
@@ -162,6 +171,10 @@ func main() {
 	router.HandleFunc("/api/v1/algorithms/validate", validateAlgorithmHandler).Methods("POST")
 	router.HandleFunc("/api/v1/algorithms/categories", getCategoriesHandler).Methods("GET")
 	router.HandleFunc("/api/v1/algorithms/stats", getStatsHandler).Methods("GET")
+
+	// Algorithm execution endpoints (replaces n8n workflows)
+	router.HandleFunc("/api/algorithm/execute", algorithmExecuteHandler).Methods("POST")
+	router.HandleFunc("/api/algorithm/validate-batch", algorithmValidateBatchHandler).Methods("POST")
 
 	// Enable CORS
 	c := cors.New(cors.Options{
@@ -541,4 +554,50 @@ func getStatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// Algorithm execution handlers (replaces n8n workflows)
+
+func algorithmExecuteHandler(w http.ResponseWriter, r *http.Request) {
+	var req AlgorithmExecutionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	result, err := algorithmProcessor.ExecuteAlgorithm(ctx, req)
+	if err != nil {
+		log.Printf("Algorithm execution error: %v", err)
+		http.Error(w, "Algorithm execution failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	
+	// Return 202 if execution not complete, 200 if complete
+	if !result.ExecutionComplete {
+		w.WriteHeader(http.StatusAccepted)
+	}
+	
+	json.NewEncoder(w).Encode(result)
+}
+
+func algorithmValidateBatchHandler(w http.ResponseWriter, r *http.Request) {
+	var req BatchValidationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	result, err := algorithmProcessor.ValidateBatch(ctx, req)
+	if err != nil {
+		log.Printf("Batch validation error: %v", err)
+		http.Error(w, fmt.Sprintf("Batch validation failed: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
 }
