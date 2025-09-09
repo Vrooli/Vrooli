@@ -1,0 +1,247 @@
+version: 1.0
+scenario: tech-tree-designer
+
+# Structure validation - files and directories that MUST exist
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - README.md
+    - api/main.go
+    - api/go.mod
+    - cli/tech-tree-designer
+    - cli/install.sh
+    - initialization/postgres/schema.sql
+    - initialization/postgres/seed.sql
+    - ui/package.json
+    - ui/index.html
+    - ui/src/main.jsx
+    - ui/src/App.jsx
+    - ui/vite.config.js
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/postgres
+    - ui
+    - ui/src
+    - ui/src/components
+    - tests
+
+# Resource validation
+resources:
+  required: [postgres]
+  optional: [ollama]
+  health_timeout: 60
+
+# Declarative tests
+tests:
+  # Database schema validation
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('tech_trees', 'sectors', 'progression_stages', 'scenario_mappings')"
+    expect:
+      rows:
+        - count: 4
+
+  # API endpoint tests
+  - name: "API health endpoint responds"
+    type: http
+    service: api
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      body:
+        status: healthy
+
+  - name: "Tech tree sectors endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/tech-tree/sectors
+    method: GET
+    expect:
+      status: 200
+      body:
+        sectors: []
+
+  - name: "Strategic milestones endpoint works"
+    type: http
+    service: api
+    endpoint: /api/v1/milestones
+    method: GET
+    expect:
+      status: 200
+
+  # CLI command tests
+  - name: "CLI help command executes"
+    type: exec
+    command: ./cli/tech-tree-designer help
+    expect:
+      exit_code: 0
+      output_contains: ["Strategic Intelligence", "COMMANDS"]
+
+  - name: "CLI version command executes"
+    type: exec
+    command: ./cli/tech-tree-designer version
+    expect:
+      exit_code: 0
+      output_contains: ["Tech Tree Designer CLI"]
+
+  # UI tests
+  - name: "UI health check"
+    type: http
+    service: ui
+    endpoint: /
+    method: GET
+    expect:
+      status: 200
+      body_contains: ["Tech Tree Designer"]
+
+  # Build tests
+  - name: "Go API builds successfully"
+    type: exec
+    command: cd api && go build -o test-build . && rm test-build
+    expect:
+      exit_code: 0
+
+  - name: "UI builds successfully"
+    type: exec
+    command: cd ui && npm install && npm run build
+    expect:
+      exit_code: 0
+
+  # Integration tests
+  - name: "Database seed data is populated"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM sectors WHERE tree_id IS NOT NULL"
+    expect:
+      rows:
+        - count: [">", 0]
+
+  - name: "Strategic analysis endpoint with sample data"
+    type: http
+    service: api
+    endpoint: /api/v1/tech-tree/analyze
+    method: POST
+    body:
+      current_resources: 5
+      time_horizon: 12
+      priority_sectors: ["software", "manufacturing"]
+    expect:
+      status: 200
+      body:
+        recommendations: []
+
+  # Performance tests
+  - name: "API responds quickly"
+    type: http
+    service: api
+    endpoint: /api/v1/tech-tree/sectors
+    method: GET
+    timeout: 2000
+    expect:
+      status: 200
+      response_time: ["<", 2000]
+
+# Test scenarios for strategic intelligence
+strategic_tests:
+  - name: "Complete scenario mapping workflow"
+    steps:
+      - description: "Add new scenario mapping"
+        type: http
+        service: api
+        endpoint: /api/v1/progress/scenarios
+        method: POST
+        body:
+          scenario_name: "test-scenario"
+          stage_id: "550e8400-e29b-41d4-a716-446655441001"
+          completion_status: "in_progress"
+          contribution_weight: 0.8
+          priority: 2
+          estimated_impact: 7.5
+        expect:
+          status: 200
+
+      - description: "Update scenario status"
+        type: http
+        service: api
+        endpoint: /api/v1/progress/scenarios/test-scenario
+        method: PUT
+        body:
+          completion_status: "completed"
+          notes: "Test completion"
+        expect:
+          status: 200
+
+      - description: "Verify progress calculation"
+        type: sql
+        service: postgres
+        query: "SELECT progress_percentage FROM progression_stages WHERE id = '550e8400-e29b-41d4-a716-446655441001'"
+        expect:
+          rows:
+            - progress_percentage: [">", 0]
+
+# CLI integration tests
+cli_tests:
+  - name: "Strategic analysis via CLI"
+    command: ./cli/tech-tree-designer analyze --resources 5 --timeline 12 --json
+    expect:
+      exit_code: 0
+      output_contains: ["recommendations"]
+
+  - name: "Sector listing via CLI"
+    command: ./cli/tech-tree-designer sectors --json
+    expect:
+      exit_code: 0
+      output_contains: ["sectors"]
+
+  - name: "Milestone viewing via CLI"
+    command: ./cli/tech-tree-designer milestones --json
+    expect:
+      exit_code: 0
+      output_contains: ["milestones"]
+
+# Performance benchmarks
+performance:
+  - name: "Tech tree rendering performance"
+    type: http
+    service: api
+    endpoint: /api/v1/tech-tree/sectors
+    concurrent_requests: 10
+    duration: 30
+    expect:
+      avg_response_time: ["<", 500]
+      success_rate: [">", 0.95]
+
+  - name: "Strategic analysis performance"
+    type: http
+    service: api  
+    endpoint: /api/v1/tech-tree/analyze
+    method: POST
+    body:
+      current_resources: 8
+      time_horizon: 24
+      priority_sectors: ["software", "manufacturing", "healthcare"]
+    expect:
+      response_time: ["<", 5000]
+
+# End-to-end validation
+e2e_tests:
+  - name: "Complete strategic planning workflow"
+    description: "Validates the complete user journey from viewing sectors to getting recommendations"
+    steps:
+      - "View all technology sectors"
+      - "Select specific sector for detailed analysis"  
+      - "Request AI strategic recommendations"
+      - "Update scenario progress"
+      - "View updated civilization progress"
+    validation:
+      - "All API endpoints respond correctly"
+      - "Progress calculations update automatically"
+      - "Strategic recommendations are contextually relevant"
+      - "UI displays real-time updates"

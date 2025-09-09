@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tech Tree Designer - Strategic Intelligence</title>
+    <meta name="description" content="Strategic visualization and analysis of complete technology development pathways from basic tools to civilization-scale digital twins">
+    
+    <!-- Preload critical fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Critical CSS for immediate rendering */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #e2e8f0;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #root {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* Loading screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .loading-logo {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6, #06b6d4, #10b981);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            margin-bottom: 1rem;
+            animation: pulse 2s infinite;
+        }
+        
+        .loading-text {
+            font-size: 1.2rem;
+            color: #94a3b8;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #334155;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Strategic command interface styling */
+        .strategic-interface {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid #334155;
+            backdrop-filter: blur(10px);
+        }
+        
+        .tech-node {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid #475569;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .tech-node:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #10b981 0%, #3b82f6 50%, #06b6d4 100%);
+            height: 4px;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <!-- Loading screen -->
+        <div class="loading-screen" id="loading-screen">
+            <div class="loading-logo">⚡ TECH TREE DESIGNER</div>
+            <div class="loading-text">
+                Strategic Intelligence System<br>
+                <strong>Initializing Civilization Roadmap...</strong>
+            </div>
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Remove loading screen once React app loads
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const loadingScreen = document.getElementById('loading-screen');
+                if (loadingScreen) {
+                    loadingScreen.style.opacity = '0';
+                    setTimeout(() => {
+                        loadingScreen.remove();
+                    }, 500);
+                }
+            }, 1000);
+        });
+        
+        // Health check endpoint for service monitoring
+        window.__TECH_TREE_HEALTH__ = {
+            status: 'initializing',
+            timestamp: Date.now(),
+            service: 'tech-tree-designer-ui'
+        };
+        
+        // Expose health endpoint
+        if (typeof window !== 'undefined') {
+            window.addEventListener('message', (event) => {
+                if (event.data.type === 'HEALTH_CHECK') {
+                    event.source.postMessage({
+                        type: 'HEALTH_RESPONSE',
+                        data: window.__TECH_TREE_HEALTH__
+                    }, event.origin);
+                }
+            });
+        }
+    </script>
+    
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

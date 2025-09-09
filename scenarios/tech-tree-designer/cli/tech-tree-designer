@@ -1,0 +1,611 @@
+#!/bin/bash
+
+# Tech Tree Designer CLI - Strategic Intelligence Command Interface
+# Provides command-line access to civilization technology roadmap analysis
+
+set -e
+
+# Configuration
+API_PORT=${API_PORT:-8080}
+API_BASE="http://localhost:${API_PORT}/api/v1"
+CONFIG_DIR="$HOME/.vrooli/tech-tree-designer"
+CONFIG_FILE="$CONFIG_DIR/config.yaml"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Create config directory if it doesn't exist
+mkdir -p "$CONFIG_DIR"
+
+# Help function
+show_help() {
+    cat << EOF
+🌟 Tech Tree Designer CLI - Strategic Intelligence Command Interface
+
+USAGE:
+    tech-tree-designer COMMAND [OPTIONS]
+
+COMMANDS:
+    status              Show tech tree progress and system health
+    analyze             AI-powered analysis of optimal development paths  
+    progress            Update or view scenario progress mapping
+    visualize           Launch interactive tech tree visualization
+    recommend           Get AI recommendations for next scenarios to build
+    sectors             List all technology sectors with progress
+    milestones          View strategic milestones on path to superintelligence
+    dependencies        Show stage dependencies and bottlenecks
+    help                Show this help message
+    version             Show CLI and API version information
+
+ANALYSIS COMMANDS:
+    tech-tree-designer analyze --resources 5 --timeline 12 --priority software,manufacturing
+    tech-tree-designer recommend --priority software,healthcare --json
+
+PROGRESS TRACKING:
+    tech-tree-designer progress --list
+    tech-tree-designer progress --scenario graph-studio --status completed
+    tech-tree-designer progress --scenario research-assistant --status in_progress
+
+VISUALIZATION:
+    tech-tree-designer visualize --full
+    tech-tree-designer sectors --category manufacturing
+
+STRATEGIC PLANNING:
+    tech-tree-designer milestones
+    tech-tree-designer dependencies --bottlenecks
+    tech-tree-designer status --verbose
+
+FLAGS:
+    --json              Output in JSON format
+    --verbose           Show detailed information
+    --resources N       Available development resources (1-10 scale)
+    --timeline N        Planning horizon in months
+    --priority SECTORS  Comma-separated priority sectors
+    --scenario NAME     Target scenario name
+    --status STATUS     Scenario completion status (not_started|in_progress|completed|blocked)
+    --category CAT      Filter by sector category
+    --full              Show complete civilization tree
+    --bottlenecks       Focus on dependency bottlenecks
+
+EXAMPLES:
+    # Get strategic overview
+    tech-tree-designer status --verbose
+
+    # Analyze optimal development path
+    tech-tree-designer analyze --resources 8 --timeline 6 --priority software,manufacturing
+
+    # Update scenario progress
+    tech-tree-designer progress --scenario tech-tree-designer --status in_progress
+
+    # Get AI recommendations  
+    tech-tree-designer recommend --priority healthcare,education
+
+    # View civilization milestones
+    tech-tree-designer milestones
+
+🎯 Strategic Intelligence: Guiding Vrooli's evolution toward superintelligence
+EOF
+}
+
+# Version function
+show_version() {
+    echo "Tech Tree Designer CLI v1.0.0"
+    
+    # Try to get API version
+    if command -v curl &> /dev/null; then
+        API_VERSION=$(curl -s "$API_BASE/../health" 2>/dev/null | grep -o '"service":"[^"]*"' | cut -d':' -f2 | tr -d '"' || echo "unknown")
+        echo "API Service: $API_VERSION"
+    fi
+    
+    echo "Strategic Intelligence System: Operational"
+}
+
+# Check API health
+check_api_health() {
+    if ! command -v curl &> /dev/null; then
+        echo -e "${RED}Error: curl is required but not installed${NC}" >&2
+        exit 1
+    fi
+    
+    if ! curl -s "$API_BASE/../health" > /dev/null 2>&1; then
+        echo -e "${RED}Error: Tech Tree Designer API is not running on port $API_PORT${NC}" >&2
+        echo -e "${YELLOW}Start the API with: vrooli scenario run tech-tree-designer${NC}" >&2
+        exit 1
+    fi
+}
+
+# Format JSON output
+format_json() {
+    if command -v jq &> /dev/null; then
+        jq '.'
+    else
+        cat
+    fi
+}
+
+# Status command
+cmd_status() {
+    local verbose=false
+    local json_output=false
+    local sector=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --sector)
+                sector="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    if [[ "$json_output" == "true" ]]; then
+        if [[ -n "$sector" ]]; then
+            curl -s "$API_BASE/tech-tree/sectors" | jq ".sectors[] | select(.name == \"$sector\")" | format_json
+        else
+            curl -s "$API_BASE/tech-tree/sectors" | format_json
+        fi
+    else
+        echo -e "${CYAN}🌟 Tech Tree Strategic Status${NC}"
+        echo -e "${CYAN}================================${NC}"
+        
+        # Get sectors data
+        SECTORS_DATA=$(curl -s "$API_BASE/tech-tree/sectors")
+        
+        if [[ "$verbose" == "true" ]]; then
+            echo -e "\n${GREEN}📊 Sector Progress Overview:${NC}"
+            echo "$SECTORS_DATA" | jq -r '.sectors[] | "  • \(.name): \(.progress_percentage | round)% (\(.category))"' | sort
+            
+            echo -e "\n${BLUE}🎯 Strategic Milestones:${NC}"
+            curl -s "$API_BASE/milestones" | jq -r '.milestones[] | "  • \(.name): \(.completion_percentage | round)% complete"'
+            
+            echo -e "\n${PURPLE}🔗 Key Dependencies:${NC}"
+            curl -s "$API_BASE/dependencies" | jq -r '.dependencies[:3][] | "  • \(.dependent_name) depends on \(.prerequisite_name)"'
+        else
+            # Compact overview
+            TOTAL_SECTORS=$(echo "$SECTORS_DATA" | jq '.sectors | length')
+            AVG_PROGRESS=$(echo "$SECTORS_DATA" | jq '.sectors | map(.progress_percentage) | add / length | round')
+            
+            echo -e "Total Sectors: ${GREEN}$TOTAL_SECTORS${NC}"
+            echo -e "Average Progress: ${GREEN}$AVG_PROGRESS%${NC}"
+            echo -e "Path to Superintelligence: ${YELLOW}In Progress${NC}"
+            
+            echo -e "\n${YELLOW}Top Progress:${NC}"
+            echo "$SECTORS_DATA" | jq -r '.sectors | sort_by(.progress_percentage) | reverse | .[:3][] | "  \(.name): \(.progress_percentage | round)%"'
+        fi
+    fi
+}
+
+# Analyze command
+cmd_analyze() {
+    local resources=5
+    local timeline=12
+    local priority=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --resources)
+                resources="$2"
+                shift 2
+                ;;
+            --timeline)
+                timeline="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    # Build request payload
+    local payload="{\"current_resources\": $resources, \"time_horizon\": $timeline"
+    if [[ -n "$priority" ]]; then
+        IFS=',' read -ra SECTORS <<< "$priority"
+        local sector_array=$(printf '"%s",' "${SECTORS[@]}")
+        sector_array="[${sector_array%,}]"
+        payload="$payload, \"priority_sectors\": $sector_array"
+    fi
+    payload="$payload}"
+    
+    if [[ "$json_output" == "true" ]]; then
+        curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$API_BASE/tech-tree/analyze" | format_json
+    else
+        echo -e "${CYAN}🧠 Strategic Intelligence Analysis${NC}"
+        echo -e "${CYAN}===================================${NC}"
+        
+        ANALYSIS=$(curl -s -X POST -H "Content-Type: application/json" -d "$payload" "$API_BASE/tech-tree/analyze")
+        
+        echo -e "\n${GREEN}📋 Strategic Recommendations:${NC}"
+        echo "$ANALYSIS" | jq -r '.recommendations[] | "  🎯 \(.scenario) (Priority: \(.priority_score | round*10)/100)"'
+        echo "$ANALYSIS" | jq -r '.recommendations[0] | "     Reasoning: \(.reasoning)"'
+        
+        echo -e "\n${BLUE}📅 Projected Timeline:${NC}"
+        echo "$ANALYSIS" | jq -r '.projected_timeline.milestones[] | "  • \(.name): \(.estimated_completion[:10])"'
+        
+        echo -e "\n${YELLOW}⚠️  Current Bottlenecks:${NC}"
+        echo "$ANALYSIS" | jq -r '.bottleneck_analysis[] | "  • \(.)"'
+    fi
+}
+
+# Progress command
+cmd_progress() {
+    local list_mode=false
+    local scenario=""
+    local status=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --list)
+                list_mode=true
+                shift
+                ;;
+            --scenario)
+                scenario="$2"
+                shift 2
+                ;;
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    if [[ "$list_mode" == "true" ]]; then
+        if [[ "$json_output" == "true" ]]; then
+            curl -s "$API_BASE/progress/scenarios" | format_json
+        else
+            echo -e "${CYAN}📋 Scenario Progress Tracking${NC}"
+            echo -e "${CYAN}==============================${NC}"
+            
+            curl -s "$API_BASE/progress/scenarios" | jq -r '.scenario_mappings[] | 
+                "• \(.mapping.scenario_name) → \(.sector_name)/\(.stage_name)
+                  Status: \(.mapping.completion_status) | Impact: \(.mapping.estimated_impact)/10 | Priority: P\(.mapping.priority-1)"'
+        fi
+    elif [[ -n "$scenario" && -n "$status" ]]; then
+        # Update scenario status
+        local payload="{\"completion_status\": \"$status\", \"notes\": \"Updated via CLI\"}"
+        
+        RESULT=$(curl -s -X PUT -H "Content-Type: application/json" -d "$payload" "$API_BASE/progress/scenarios/$scenario")
+        
+        if [[ "$json_output" == "true" ]]; then
+            echo "$RESULT" | format_json
+        else
+            echo -e "${GREEN}✅ Scenario Updated${NC}"
+            echo "Scenario: $scenario"
+            echo "Status: $status"
+            echo -e "${YELLOW}Progress calculations updating...${NC}"
+        fi
+    else
+        echo "Usage: tech-tree-designer progress [--list] [--scenario NAME --status STATUS]" >&2
+        exit 1
+    fi
+}
+
+# Recommend command
+cmd_recommend() {
+    local priority=""
+    local json_output=false
+    local resources=5
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --resources)
+                resources="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    local url="$API_BASE/recommendations?resources=$resources"
+    
+    if [[ "$json_output" == "true" ]]; then
+        curl -s "$url" | format_json
+    else
+        echo -e "${CYAN}🎯 AI Strategic Recommendations${NC}"
+        echo -e "${CYAN}=================================${NC}"
+        
+        RECOMMENDATIONS=$(curl -s "$url")
+        
+        echo "$RECOMMENDATIONS" | jq -r '.recommendations[] | 
+            "🚀 \(.scenario)
+             Priority Score: \(.priority_score | round*10)/100
+             Impact Multiplier: \(.impact_multiplier)x
+             💡 \(.reasoning)
+            "'
+    fi
+}
+
+# Sectors command
+cmd_sectors() {
+    local category=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    if [[ "$json_output" == "true" ]]; then
+        SECTORS=$(curl -s "$API_BASE/tech-tree/sectors")
+        if [[ -n "$category" ]]; then
+            echo "$SECTORS" | jq ".sectors[] | select(.category == \"$category\")" | format_json
+        else
+            echo "$SECTORS" | format_json
+        fi
+    else
+        echo -e "${CYAN}🏗️  Technology Sectors${NC}"
+        echo -e "${CYAN}======================${NC}"
+        
+        SECTORS=$(curl -s "$API_BASE/tech-tree/sectors")
+        
+        if [[ -n "$category" ]]; then
+            echo "$SECTORS" | jq -r ".sectors[] | select(.category == \"$category\") | 
+                \"📁 \(.name)
+                   Progress: \(.progress_percentage | round)%
+                   \(.description)
+                \""
+        else
+            echo "$SECTORS" | jq -r '.sectors[] | 
+                "📁 \(.name) (\(.category))
+                   Progress: \(.progress_percentage | round)% | \(.description)
+                "'
+        fi
+    fi
+}
+
+# Milestones command
+cmd_milestones() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    if [[ "$json_output" == "true" ]]; then
+        curl -s "$API_BASE/milestones" | format_json
+    else
+        echo -e "${CYAN}🎯 Strategic Milestones - Path to Superintelligence${NC}"
+        echo -e "${CYAN}==================================================${NC}"
+        
+        curl -s "$API_BASE/milestones" | jq -r '.milestones[] | 
+            "🏆 \(.name)
+               Progress: \(.completion_percentage | round)%
+               Value: $\(.business_value_estimate | . / 1000000 | round)M
+               \(.description)
+            "'
+    fi
+}
+
+# Visualize command (launches browser)
+cmd_visualize() {
+    local full=false
+    local sector=""
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --full)
+                full=true
+                shift
+                ;;
+            --sector)
+                sector="$2"
+                shift 2
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    # Try to determine UI port
+    UI_PORT=${UI_PORT:-3000}
+    local url="http://localhost:$UI_PORT"
+    
+    if [[ "$full" == "true" ]]; then
+        url="$url?view=full"
+    elif [[ -n "$sector" ]]; then
+        url="$url?sector=$sector"
+    fi
+    
+    echo -e "${GREEN}🚀 Launching Tech Tree Visualization...${NC}"
+    echo "URL: $url"
+    
+    # Try to open browser
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "$url"
+    elif command -v open &> /dev/null; then
+        open "$url"
+    else
+        echo -e "${YELLOW}Please open your browser to: $url${NC}"
+    fi
+}
+
+# Dependencies command
+cmd_dependencies() {
+    local bottlenecks=false
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --bottlenecks)
+                bottlenecks=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                echo "Unknown option: $1" >&2
+                exit 1
+                ;;
+        esac
+    done
+    
+    check_api_health
+    
+    if [[ "$json_output" == "true" ]]; then
+        curl -s "$API_BASE/dependencies" | format_json
+    else
+        echo -e "${CYAN}🔗 Strategic Dependencies${NC}"
+        echo -e "${CYAN}=========================${NC}"
+        
+        DEPS=$(curl -s "$API_BASE/dependencies")
+        
+        if [[ "$bottlenecks" == "true" ]]; then
+            echo -e "\n${RED}⚠️  Critical Dependencies (Potential Bottlenecks):${NC}"
+            echo "$DEPS" | jq -r '.dependencies[] | select(.dependency.dependency_strength >= 0.8) | 
+                "🚨 \(.dependent_name) REQUIRES \(.prerequisite_name)
+                   Strength: \(.dependency.dependency_strength * 100 | round)%
+                   \(.dependency.description)
+                "'
+        else
+            echo "$DEPS" | jq -r '.dependencies[] | 
+                "🔗 \(.dependent_name) ← \(.prerequisite_name)
+                   Type: \(.dependency.dependency_type) | Strength: \(.dependency.dependency_strength * 100 | round)%
+                   \(.dependency.description)
+                "'
+        fi
+    fi
+}
+
+# Main command router
+main() {
+    if [[ $# -eq 0 ]]; then
+        show_help
+        exit 0
+    fi
+
+    case "$1" in
+        status)
+            shift
+            cmd_status "$@"
+            ;;
+        analyze)
+            shift
+            cmd_analyze "$@"
+            ;;
+        progress)
+            shift
+            cmd_progress "$@"
+            ;;
+        visualize)
+            shift
+            cmd_visualize "$@"
+            ;;
+        recommend)
+            shift  
+            cmd_recommend "$@"
+            ;;
+        sectors)
+            shift
+            cmd_sectors "$@"
+            ;;
+        milestones)
+            shift
+            cmd_milestones "$@"
+            ;;
+        dependencies)
+            shift
+            cmd_dependencies "$@"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        version|--version|-v)
+            show_version
+            ;;
+        *)
+            echo "Unknown command: $1" >&2
+            echo "Use 'tech-tree-designer help' to see available commands." >&2
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
