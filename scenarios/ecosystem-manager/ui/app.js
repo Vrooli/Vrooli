@@ -1414,12 +1414,13 @@ class EcosystemManager {
                                     </div>
                                     
                                     <!-- Timing Information -->
-                                    ${task.results.execution_time || task.results.timeout_allowed ? `
+                                    ${task.results.execution_time || task.results.timeout_allowed || task.results.prompt_size ? `
                                         <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
                                             <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
                                                 ${task.results.execution_time ? `<span><strong>⏱️ Runtime:</strong> ${task.results.execution_time}</span>` : ''}
                                                 ${task.results.timeout_allowed ? `<span><strong>⏰ Timeout:</strong> ${task.results.timeout_allowed}</span>` : ''}
                                             </div>
+                                            ${task.results.prompt_size ? `<div style="font-size: 0.9em; margin-top: 4px;"><strong>📝 Prompt Size:</strong> ${task.results.prompt_size}</div>` : ''}
                                             ${task.results.started_at ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px;">Started: ${new Date(task.results.started_at).toLocaleString()}</div>` : ''}
                                         </div>
                                     ` : ''}

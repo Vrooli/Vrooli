@@ -28,10 +28,10 @@ type MaintenanceStateResponse struct {
 }
 
 func TestMaintenanceIntegration(t *testing.T) {
-	// Get API port from environment or use default
+	// Get API port from environment - required
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "30500"
+		t.Fatal("API_PORT environment variable is required but not set")
 	}
 	baseURL := fmt.Sprintf("http://localhost:%s", port)
 	

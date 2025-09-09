@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -51,16 +52,15 @@ func main() {
 	// Set up HTTP server
 	router := setupRoutes()
 	
-	// Get port from environment
+	// Get port from environment - fail if not set
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = "5020" // Default port
+		log.Fatal("API_PORT environment variable is required but not set")
 	}
 	
 	// Validate port
 	if _, err := strconv.Atoi(port); err != nil {
-		log.Printf("Invalid API_PORT '%s', using default 5020", port)
-		port = "5020"
+		log.Fatalf("Invalid API_PORT '%s': %v", port, err)
 	}
 	
 	log.Printf("✅ Ecosystem Manager API starting on port %s", port)
@@ -76,9 +76,19 @@ func main() {
 
 // initializeComponents initializes all core system components
 func initializeComponents() error {
-	// Determine directories
-	queueDir := filepath.Join("..", "queue")
-	promptsDir := filepath.Join("..", "prompts")
+	// Determine directories relative to the executable
+	// This ensures the paths work correctly regardless of where the binary is run from
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %v", err)
+	}
+	execDir := filepath.Dir(execPath)
+	
+	// The ecosystem-manager structure has queue and prompts at the scenario root
+	// The API binary is in scenarios/ecosystem-manager/api/
+	scenarioRoot := filepath.Join(execDir, "..")
+	queueDir := filepath.Join(scenarioRoot, "queue")
+	promptsDir := filepath.Join(scenarioRoot, "prompts")
 	
 	// Ensure queue directories exist
 	dirs := []string{"pending", "in-progress", "review", "completed", "failed"}
@@ -94,7 +104,6 @@ func initializeComponents() error {
 	log.Println("✅ Task storage initialized")
 	
 	// Initialize prompts assembler
-	var err error
 	assembler, err = prompts.NewAssembler(promptsDir)
 	if err != nil {
 		return err

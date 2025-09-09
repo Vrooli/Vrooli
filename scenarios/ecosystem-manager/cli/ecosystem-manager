@@ -5,7 +5,11 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-API_BASE_URL="${API_BASE_URL:-http://localhost:30500/api}"
+# API_BASE_URL must be provided by environment
+if [[ -z "$API_BASE_URL" ]]; then
+    echo "Error: API_BASE_URL environment variable is required but not set" >&2
+    exit 1
+fi
 
 # Colors
 RED='\033[0;31m'

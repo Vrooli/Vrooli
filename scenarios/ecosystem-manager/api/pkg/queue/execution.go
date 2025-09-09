@@ -42,6 +42,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	qp.storage.SaveQueueItem(task, "in-progress")
 	qp.broadcastUpdate("task_progress", task)
 	
+	// Log prompt size for debugging
+	promptSizeKB := float64(len(prompt)) / 1024.0
+	promptSizeMB := promptSizeKB / 1024.0
+	log.Printf("Task %s: Prompt size: %d characters (%.2f KB / %.2f MB)", task.ID, len(prompt), promptSizeKB, promptSizeMB)
+	
 	// Call Claude Code resource
 	result, err := qp.callClaudeCode(prompt, task, executionStartTime, timeoutDuration)
 	executionTime := time.Since(executionStartTime)
@@ -56,7 +61,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	if result.Success {
 		log.Printf("Task %s completed successfully in %v (timeout was %v)", task.ID, executionTime.Round(time.Second), timeoutDuration)
 		
-		// Update task with results including timing
+		// Update task with results including timing and prompt size
 		task.Results = map[string]interface{}{
 			"success":         true,
 			"message":         result.Message,
@@ -65,6 +70,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			"timeout_allowed": timeoutDuration.String(),
 			"started_at":      executionStartTime.Format(time.RFC3339),
 			"completed_at":    time.Now().Format(time.RFC3339),
+			"prompt_size":     fmt.Sprintf("%d chars (%.2f KB)", len(prompt), promptSizeKB),
 		}
 		task.ProgressPercent = 100
 		task.CurrentPhase = "completed"
@@ -103,6 +109,10 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 	// Determine if this was a timeout failure
 	isTimeout := strings.Contains(errorMsg, "timed out") || strings.Contains(errorMsg, "timeout")
 	
+	// Get the prompt for size calculation (if available)
+	prompt, _ := qp.assembler.AssemblePromptForTask(task)
+	promptSizeKB := float64(len(prompt)) / 1024.0
+	
 	task.Results = map[string]interface{}{
 		"success":         false,
 		"error":           errorMsg,
@@ -111,6 +121,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 		"started_at":      startTime.Format(time.RFC3339),
 		"failed_at":       time.Now().Format(time.RFC3339),
 		"timeout_failure": isTimeout,
+		"prompt_size":     fmt.Sprintf("%d chars (%.2f KB)", len(prompt), promptSizeKB),
 	}
 	
 	task.CurrentPhase = "failed"
@@ -177,6 +188,8 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	
 	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%dm", 
 		currentSettings.MaxTurns, currentSettings.AllowedTools, currentSettings.SkipPermissions, currentSettings.TaskTimeout)
+	log.Printf("Working directory: %s", cmd.Dir)
+	log.Printf("Full environment: %v", cmd.Env)
 	
 	// Set up pipes for stdin and stdout
 	stdinPipe, err := cmd.StdinPipe()
@@ -192,6 +205,14 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		return &tasks.ClaudeCodeResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to create stdout pipe: %v", err),
+		}, nil
+	}
+	
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return &tasks.ClaudeCodeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Failed to create stderr pipe: %v", err),
 		}, nil
 	}
 	
@@ -215,7 +236,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		}
 	}()
 	
-	// Read output from stdout
+	// Read output from stdout and stderr
 	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
 		return &tasks.ClaudeCodeResponse{
@@ -224,8 +245,25 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		}, nil
 	}
 	
+	stderrOutput, err := io.ReadAll(stderrPipe)
+	if err != nil {
+		log.Printf("Warning: Failed to read stderr: %v", err)
+		stderrOutput = []byte("(failed to read stderr)")
+	}
+	
 	// Wait for completion
 	waitErr := cmd.Wait()
+	
+	// Log the exit details for debugging
+	if waitErr != nil {
+		log.Printf("Command failed with error: %v", waitErr)
+		log.Printf("STDERR: %s", string(stderrOutput))
+		if exitError, ok := waitErr.(*exec.ExitError); ok {
+			log.Printf("Exit code: %d", exitError.ExitCode())
+		}
+	} else {
+		log.Printf("Command completed successfully")
+	}
 	
 	// Handle different exit scenarios
 	if ctx.Err() == context.DeadlineExceeded {
@@ -248,10 +286,14 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		
 		// Extract exit code
 		if exitError, ok := waitErr.(*exec.ExitError); ok {
-			log.Printf("Claude Code failed with exit code %d: %s", exitError.ExitCode(), string(output))
+			combinedOutput := string(output)
+			if len(stderrOutput) > 0 {
+				combinedOutput += "\n\nSTDERR:\n" + string(stderrOutput)
+			}
+			log.Printf("Claude Code failed with exit code %d: %s", exitError.ExitCode(), combinedOutput)
 			return &tasks.ClaudeCodeResponse{
 				Success: false,
-				Error:   fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitError.ExitCode(), string(output)),
+				Error:   fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitError.ExitCode(), combinedOutput),
 			}, nil
 		}
 		return &tasks.ClaudeCodeResponse{
