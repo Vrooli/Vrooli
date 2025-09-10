@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AudioCraft Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API port for AudioCraft service",
+      "minimum": 1,
+      "maximum": 65535,
+      "default": 7862
+    },
+    "model_size": {
+      "type": "string",
+      "description": "Model variant to use",
+      "enum": ["small", "medium", "large", "melody"],
+      "default": "medium"
+    },
+    "use_gpu": {
+      "type": "boolean",
+      "description": "Enable GPU acceleration",
+      "default": false
+    },
+    "max_duration": {
+      "type": "integer",
+      "description": "Maximum generation duration in seconds",
+      "minimum": 1,
+      "maximum": 300,
+      "default": 120
+    },
+    "batch_size": {
+      "type": "integer",
+      "description": "Number of generations to process in parallel",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 1
+    },
+    "memory_efficient": {
+      "type": "boolean",
+      "description": "Enable memory-efficient mode",
+      "default": false
+    },
+    "cache_size": {
+      "type": "integer",
+      "description": "Number of cached generations",
+      "minimum": 0,
+      "maximum": 1000,
+      "default": 100
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "default": "INFO"
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

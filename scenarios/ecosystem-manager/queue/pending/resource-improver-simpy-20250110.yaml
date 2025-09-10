@@ -1,0 +1,93 @@
+id: "resource-improver-simpy-20250110"
+title: "Improve SimPy resource - performance and health checks"
+
+# Core classification
+type: "resource"
+operation: "improver"
+category: "improvement"
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "4h"
+urgency: "normal"
+impact_score: 7
+
+# Resource improvement requirements
+requirements:
+  target_resource: "simpy"
+  
+  improvement_areas:
+    - "performance"
+    - "health_checks"
+    - "documentation"
+  
+  assessment_focus:
+    - "Current v2.0 contract compliance status"
+    - "Discrete event simulation performance optimization"
+    - "Health monitoring for long-running simulations"
+    - "Integration with physics modeling workflows"
+    - "Memory management for large-scale simulations"
+  
+  deliverables:
+    - "Updated PRD.md with accurate simulation capabilities"
+    - "Enhanced health checks for simulation state monitoring"
+    - "Performance optimizations for large discrete event models"
+    - "Improved error handling for simulation failures"
+    - "Physics simulation examples and documentation"
+  
+  prd_focus:
+    - "Validate existing discrete event simulation claims"
+    - "Complete missing P0 performance monitoring requirements"
+    - "Add comprehensive physics modeling documentation"
+    - "Update completion percentages for simulation features"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: ["physics-modeling", "process-optimization"]
+related_resources: ["blender", "openscad", "pandas-ai"]
+
+# Resource allocation
+assigned_resources:
+  claude_code: true
+  postgres: true
+  qdrant: true
+  web_search: false
+
+# Progress tracking
+status: "pending"
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+
+# Quality gates for resource improvement
+validation_criteria:
+  - "PRD.md accurately reflects SimPy discrete event capabilities"
+  - "Health checks detect simulation deadlocks and performance issues"
+  - "Performance optimizations handle large-scale event processing"
+  - "Integration with physics workflows is seamless"
+  - "All improvements maintain simulation accuracy"
+  - "Documentation includes practical physics modeling examples"
+
+# Metadata
+created_by: "user"
+created_at: "2025-01-10T15:45:00Z"
+updated_at: "2025-01-10T15:45:00Z"
+tags: ["resource-improvement", "physics", "simulation", "performance"]
+notes: "Focus on making SimPy more robust for complex discrete event simulations and physics modeling. Essential for process optimization and physical system modeling scenarios."
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    improvements_made: 0
+    regression_tests_passed: 0
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    test_results: ""

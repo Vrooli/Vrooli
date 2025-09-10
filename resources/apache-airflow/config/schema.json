@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Apache Airflow Resource Configuration",
+  "type": "object",
+  "properties": {
+    "webserver_port": {
+      "type": "integer",
+      "description": "Port for Airflow web UI",
+      "default": 48080,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "redis_port": {
+      "type": "integer",
+      "description": "Port for Redis message broker",
+      "default": 46379,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "postgres_port": {
+      "type": "integer",
+      "description": "Port for PostgreSQL metadata database",
+      "default": 45432,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "executor": {
+      "type": "string",
+      "description": "Airflow executor type",
+      "enum": ["CeleryExecutor", "LocalExecutor", "SequentialExecutor", "KubernetesExecutor"],
+      "default": "CeleryExecutor"
+    },
+    "worker_count": {
+      "type": "integer",
+      "description": "Number of Celery workers",
+      "default": 2,
+      "minimum": 1,
+      "maximum": 10
+    },
+    "worker_concurrency": {
+      "type": "integer",
+      "description": "Concurrent tasks per worker",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 32
+    },
+    "parallelism": {
+      "type": "integer",
+      "description": "Maximum parallel task instances",
+      "default": 32,
+      "minimum": 1,
+      "maximum": 128
+    },
+    "dag_concurrency": {
+      "type": "integer",
+      "description": "Maximum concurrent DAG runs",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 64
+    },
+    "enable_flower": {
+      "type": "boolean",
+      "description": "Enable Flower monitoring UI",
+      "default": false
+    },
+    "enable_example_dags": {
+      "type": "boolean",
+      "description": "Load example DAGs",
+      "default": true
+    },
+    "enable_metrics": {
+      "type": "boolean",
+      "description": "Enable Prometheus metrics export",
+      "default": false
+    },
+    "admin_user": {
+      "type": "string",
+      "description": "Admin username for web UI",
+      "default": "admin"
+    },
+    "admin_password": {
+      "type": "string",
+      "description": "Admin password for web UI",
+      "default": "admin"
+    },
+    "admin_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Admin email address",
+      "default": "admin@example.com"
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      "default": "INFO"
+    }
+  },
+  "required": ["webserver_port", "executor"],
+  "additionalProperties": false
+}

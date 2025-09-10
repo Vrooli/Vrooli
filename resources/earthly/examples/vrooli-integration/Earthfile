@@ -1,0 +1,154 @@
+VERSION 0.8
+FROM golang:1.21-alpine AS go-base
+FROM node:20-alpine AS node-base
+FROM python:3.11-alpine AS python-base
+
+# Vrooli scenario builder - optimized for multi-language support
+vrooli-base:
+    FROM alpine:3.18
+    RUN apk add --no-cache bash curl jq git make
+    WORKDIR /workspace
+
+# Build Go API for scenarios
+build-go-api:
+    FROM +go-base
+    ARG SCENARIO_NAME
+    COPY ./scenarios/${SCENARIO_NAME}/api /app
+    WORKDIR /app
+    RUN go mod download
+    RUN CGO_ENABLED=0 GOOS=linux go build -o scenario-api ./cmd/api
+    SAVE ARTIFACT scenario-api AS LOCAL ./build/scenario-api
+    SAVE IMAGE --cache-hint
+
+# Build Node.js UI for scenarios  
+build-node-ui:
+    FROM +node-base
+    ARG SCENARIO_NAME
+    COPY ./scenarios/${SCENARIO_NAME}/ui /app
+    WORKDIR /app
+    RUN npm ci --cache /tmp/npm-cache
+    RUN npm run build
+    SAVE ARTIFACT dist AS LOCAL ./build/ui
+    SAVE IMAGE --cache-hint
+
+# Build Python CLI for scenarios
+build-python-cli:
+    FROM +python-base
+    ARG SCENARIO_NAME
+    COPY ./scenarios/${SCENARIO_NAME}/cli /app
+    WORKDIR /app
+    RUN pip install --no-cache-dir -r requirements.txt
+    RUN python -m py_compile *.py
+    SAVE ARTIFACT . AS LOCAL ./build/cli
+    SAVE IMAGE --cache-hint
+
+# Test scenario components in parallel
+test-scenario:
+    ARG SCENARIO_NAME
+    BUILD +test-go-api --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD +test-node-ui --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD +test-python-cli --SCENARIO_NAME=${SCENARIO_NAME}
+
+test-go-api:
+    FROM +go-base
+    ARG SCENARIO_NAME
+    COPY ./scenarios/${SCENARIO_NAME}/api /app
+    WORKDIR /app
+    RUN go test -v ./...
+    
+test-node-ui:
+    FROM +node-base
+    ARG SCENARIO_NAME
+    COPY ./scenarios/${SCENARIO_NAME}/ui /app
+    WORKDIR /app
+    RUN npm ci
+    RUN npm test
+
+test-python-cli:
+    FROM +python-base
+    ARG SCENARIO_NAME
+    COPY ./scenarios/${SCENARIO_NAME}/cli /app
+    WORKDIR /app
+    RUN pip install -r requirements.txt
+    RUN python -m pytest
+
+# Build all Vrooli resources in parallel
+build-resources:
+    BUILD +build-postgres
+    BUILD +build-redis
+    BUILD +build-ollama
+    BUILD +build-qdrant
+
+build-postgres:
+    FROM postgres:16-alpine
+    COPY ./resources/postgres/init.sql /docker-entrypoint-initdb.d/
+    SAVE IMAGE vrooli/postgres:latest
+
+build-redis:
+    FROM redis:7-alpine
+    COPY ./resources/redis/redis.conf /usr/local/etc/redis/
+    SAVE IMAGE vrooli/redis:latest
+
+build-ollama:
+    FROM ollama/ollama:latest
+    COPY ./resources/ollama/models.txt /models.txt
+    RUN cat /models.txt | xargs -I {} ollama pull {} || true
+    SAVE IMAGE vrooli/ollama:latest
+
+build-qdrant:
+    FROM qdrant/qdrant:latest
+    COPY ./resources/qdrant/config.yaml /qdrant/config/
+    SAVE IMAGE vrooli/qdrant:latest
+
+# CI/CD Pipeline - complete build and test
+ci-pipeline:
+    ARG SCENARIO_NAME
+    ARG PLATFORM=linux/amd64
+    BUILD --platform=${PLATFORM} +vrooli-base
+    BUILD --platform=${PLATFORM} +build-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD --platform=${PLATFORM} +test-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD --platform=${PLATFORM} +package-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+
+# Build complete scenario
+build-scenario:
+    ARG SCENARIO_NAME
+    BUILD +build-go-api --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD +build-node-ui --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD +build-python-cli --SCENARIO_NAME=${SCENARIO_NAME}
+
+# Package scenario for deployment
+package-scenario:
+    FROM +vrooli-base
+    ARG SCENARIO_NAME
+    COPY +build-go-api/scenario-api /package/api/
+    COPY +build-node-ui/dist /package/ui/
+    COPY +build-python-cli/. /package/cli/
+    RUN tar -czf ${SCENARIO_NAME}.tar.gz /package
+    SAVE ARTIFACT ${SCENARIO_NAME}.tar.gz AS LOCAL ./dist/${SCENARIO_NAME}.tar.gz
+
+# Multi-platform build example
+multi-platform:
+    ARG SCENARIO_NAME
+    BUILD --platform=linux/amd64 +build-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD --platform=linux/arm64 +build-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD --platform=darwin/amd64 +build-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+    BUILD --platform=darwin/arm64 +build-scenario --SCENARIO_NAME=${SCENARIO_NAME}
+
+# Development environment with hot reload
+dev:
+    FROM +vrooli-base
+    RUN apk add --no-cache nodejs npm go python3 py3-pip
+    WORKDIR /workspace
+    CMD ["bash"]
+
+# Clean build artifacts
+clean:
+    LOCALLY
+    RUN rm -rf ./build ./dist
+    RUN earthly prune -a
+
+# Complete Vrooli build
+all:
+    BUILD +build-resources
+    BUILD +ci-pipeline --SCENARIO_NAME=ecosystem-manager
+    BUILD +ci-pipeline --SCENARIO_NAME=resource-generator

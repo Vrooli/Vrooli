@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Godot Engine Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "api_port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 11457
+    },
+    "lsp_port": {
+      "type": "integer",
+      "description": "GDScript Language Server Protocol port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 6005
+    },
+    "version": {
+      "type": "string",
+      "description": "Godot Engine version",
+      "pattern": "^[0-9]+\\.[0-9]+\\.?[0-9]*$",
+      "default": "4.3"
+    },
+    "projects_dir": {
+      "type": "string",
+      "description": "Directory for Godot projects",
+      "default": "${HOME}/.vrooli/godot/projects"
+    },
+    "exports_dir": {
+      "type": "string",
+      "description": "Directory for exported games",
+      "default": "${HOME}/.vrooli/godot/exports"
+    },
+    "max_concurrent_builds": {
+      "type": "integer",
+      "description": "Maximum concurrent project builds",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 2
+    },
+    "memory_limit": {
+      "type": "string",
+      "description": "Memory limit for Godot process",
+      "pattern": "^[0-9]+[MG]$",
+      "default": "2G"
+    },
+    "cpu_limit": {
+      "type": "number",
+      "description": "CPU core limit",
+      "minimum": 0.5,
+      "maximum": 16,
+      "default": 2
+    },
+    "ai_enabled": {
+      "type": "boolean",
+      "description": "Enable AI code generation features",
+      "default": false
+    },
+    "ai_model": {
+      "type": "string",
+      "description": "AI model for code generation",
+      "default": "codellama"
+    },
+    "sandbox_enabled": {
+      "type": "boolean",
+      "description": "Enable project sandboxing",
+      "default": true
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+      "default": "INFO"
+    }
+  },
+  "required": ["api_port", "lsp_port", "version"],
+  "additionalProperties": false
+}

@@ -1,0 +1,93 @@
+id: "resource-improver-judge0-20250110"
+title: "Improve Judge0 resource - performance and health checks"
+
+# Core classification
+type: "resource"
+operation: "improver"
+category: "improvement"
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "4h"
+urgency: "normal"
+impact_score: 7
+
+# Resource improvement requirements
+requirements:
+  target_resource: "judge0"
+  
+  improvement_areas:
+    - "performance"
+    - "health_checks"
+    - "v2_contract_compliance"
+  
+  assessment_focus:
+    - "Current v2.0 contract compliance status"
+    - "Code execution performance and resource usage"
+    - "Health check robustness and error detection"
+    - "Security sandboxing effectiveness"
+    - "Language support completeness"
+  
+  deliverables:
+    - "Updated PRD.md with accurate performance metrics"
+    - "Enhanced health check implementation with detailed diagnostics"
+    - "Optimized execution timeouts and resource limits"
+    - "Improved error handling for failed executions"
+    - "Performance benchmarks for supported languages"
+  
+  prd_focus:
+    - "Validate existing performance claims are accurate"
+    - "Complete missing P0 health monitoring requirements"
+    - "Add security validation requirements"
+    - "Update completion percentages for execution features"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: ["coding-assistant", "education-platform"]
+related_resources: ["browserless", "vault"]
+
+# Resource allocation
+assigned_resources:
+  claude_code: true
+  postgres: true
+  qdrant: true
+  web_search: false
+
+# Progress tracking
+status: "pending"
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+
+# Quality gates for resource improvement
+validation_criteria:
+  - "PRD.md accurately reflects current Judge0 capabilities"
+  - "Health checks detect all critical failure modes"
+  - "Performance optimizations show measurable improvements"
+  - "Security sandboxing prevents code execution exploits"
+  - "All improvements maintain backward compatibility"
+  - "Error messages provide actionable debugging information"
+
+# Metadata
+created_by: "user"
+created_at: "2025-01-10T15:35:00Z"
+updated_at: "2025-01-10T15:35:00Z"
+tags: ["resource-improvement", "performance", "security", "coding"]
+notes: "Focus on making Judge0 more robust and performant for code execution tasks. Critical for educational and development scenarios."
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    improvements_made: 0
+    regression_tests_passed: 0
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    test_results: ""

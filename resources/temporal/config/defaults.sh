@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Temporal Resource - Default Configuration
+
+# Service ports (from port registry)
+export TEMPORAL_PORT="${TEMPORAL_PORT:-7233}"
+export TEMPORAL_GRPC_PORT="${TEMPORAL_GRPC_PORT:-7234}"
+
+# Database configuration
+export TEMPORAL_DB_HOST="${TEMPORAL_DB_HOST:-temporal-postgres}"
+export TEMPORAL_DB_PORT="${TEMPORAL_DB_PORT:-5432}"
+export TEMPORAL_DB_USER="${TEMPORAL_DB_USER:-temporal}"
+export TEMPORAL_DB_PASSWORD="${TEMPORAL_DB_PASSWORD:-temporal}"
+export TEMPORAL_DB_NAME="${TEMPORAL_DB_NAME:-temporal}"
+
+# Temporal configuration
+export TEMPORAL_NAMESPACE="${TEMPORAL_NAMESPACE:-default}"
+export TEMPORAL_RETENTION="${TEMPORAL_RETENTION:-30d}"
+export TEMPORAL_NUM_HISTORY_SHARDS="${TEMPORAL_NUM_HISTORY_SHARDS:-4}"
+export TEMPORAL_LOG_LEVEL="${TEMPORAL_LOG_LEVEL:-info}"
+
+# Container configuration
+export TEMPORAL_CONTAINER_NAME="${TEMPORAL_CONTAINER_NAME:-temporal-server}"
+export TEMPORAL_DB_CONTAINER_NAME="${TEMPORAL_DB_CONTAINER_NAME:-temporal-postgres}"
+export TEMPORAL_NETWORK_NAME="${TEMPORAL_NETWORK_NAME:-temporal-network}"
+
+# Performance tuning
+export TEMPORAL_MAX_CONNS="${TEMPORAL_MAX_CONNS:-20}"
+export TEMPORAL_MAX_IDLE_CONNS="${TEMPORAL_MAX_IDLE_CONNS:-20}"
+
+# Timeouts
+export TEMPORAL_STARTUP_TIMEOUT="${TEMPORAL_STARTUP_TIMEOUT:-60}"
+export TEMPORAL_HEALTH_CHECK_TIMEOUT="${TEMPORAL_HEALTH_CHECK_TIMEOUT:-5}"
+export TEMPORAL_SHUTDOWN_TIMEOUT="${TEMPORAL_SHUTDOWN_TIMEOUT:-30}"

@@ -1,0 +1,67 @@
+{
+  "name": "audiocraft",
+  "description": "Meta's comprehensive audio generation framework",
+  "version": "1.0.0",
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 120,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "resource_requirements": {
+    "memory": "8GB",
+    "storage": "20GB",
+    "cpu": "4 cores",
+    "gpu": "optional"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "timeout": 5,
+    "interval": 30
+  },
+  "capabilities": [
+    "music-generation",
+    "sound-effects",
+    "audio-compression",
+    "melody-conditioning"
+  ],
+  "api": {
+    "type": "REST",
+    "port": 7862,
+    "endpoints": [
+      "/api/generate/music",
+      "/api/generate/sound",
+      "/api/generate/melody",
+      "/api/encode",
+      "/api/decode",
+      "/api/models"
+    ]
+  },
+  "models": {
+    "musicgen": {
+      "variants": ["small", "medium", "large", "melody"],
+      "default": "medium",
+      "parameters": {
+        "small": "300M",
+        "medium": "1.5B",
+        "large": "3.3B",
+        "melody": "1.5B"
+      }
+    },
+    "audiogen": {
+      "variants": ["medium"],
+      "default": "medium",
+      "parameters": {
+        "medium": "1B"
+      }
+    },
+    "encodec": {
+      "compression_ratio": 10,
+      "sample_rates": [24000, 48000]
+    }
+  },
+  "license": {
+    "code": "MIT",
+    "weights": "CC-BY-NC-4.0"
+  }
+}

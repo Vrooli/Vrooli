@@ -1,0 +1,40 @@
+id: resource-generator-virustotal-20250110-023000
+title: VirusTotal Malware Scanning API
+type: resource
+operation: generator
+category: security
+priority: high
+effort_estimate: 5h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T12:27:42-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:30:00Z"
+updated_at: "2025-09-10T12:27:42-04:00"
+tags:
+    - security
+    - malware
+    - threat-intelligence
+    - api
+notes: '- **What it does:** Threat intelligence platform aggregating 70+ antivirus engines and sandboxes for comprehensive malware analysis. Features file/URL/domain/IP scanning, YARA rule matching, retrohunting, and AI-powered code analysis with extensive SIEM/SOAR integration. - **Use when:** Scenarios need malware detection, threat intelligence enrichment, security incident investigation, or automated threat analysis. Critical for security operations, incident response, and maintaining threat awareness. - **Technical requirements:** - REST API v3 with JSON responses - Public tier: 500 requests/day limit - Premium tier: SLA-guaranteed access - Integration with major SIEM/SOAR platforms - Support for hash, URL, domain, IP lookups'
+results:
+    error: "Claude Code execution failed (exit code 1): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53767 chars)\n\nAPI Error: Request timed out.\n"
+    execution_time: 7m52s
+    failed_at: "2025-09-10T12:27:42-04:00"
+    prompt_size: 54181 chars (52.91 KB)
+    started_at: "2025-09-10T12:19:50-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true

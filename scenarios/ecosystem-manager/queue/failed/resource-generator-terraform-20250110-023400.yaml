@@ -1,0 +1,40 @@
+id: resource-generator-terraform-20250110-023400
+title: Terraform Infrastructure as Code
+type: resource
+operation: generator
+category: devops
+priority: high
+effort_estimate: 8h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T12:21:16-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:34:00Z"
+updated_at: "2025-09-10T12:21:16-04:00"
+tags:
+    - iac
+    - infrastructure
+    - automation
+    - multi-cloud
+notes: '- **What it does:** HashiCorp''s declarative infrastructure as code tool for multi-cloud resource provisioning and management. Features HCL configuration language, comprehensive provider ecosystem, state management for drift detection, and modular, version-controlled infrastructure definitions. - **Use when:** Scenarios need infrastructure automation, multi-cloud deployments, resource provisioning, or configuration management. Essential for DevOps workflows, cloud migrations, and maintaining infrastructure consistency across environments. - **Technical requirements:** - HCL (HashiCorp Configuration Language) - 3000+ provider plugins (AWS, Azure, GCP, K8s) - State file management (local/remote) - Plan/Apply workflow with drift detection - HCP Terraform for team collaboration'
+results:
+    error: "Claude Code execution failed (exit code 1): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53816 chars)\n\nAPI Error: Request timed out.\n"
+    execution_time: 7m56s
+    failed_at: "2025-09-10T12:21:16-04:00"
+    prompt_size: 54230 chars (52.96 KB)
+    started_at: "2025-09-10T12:13:20-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true

@@ -51,7 +51,9 @@ CLI_COMMAND_HANDLERS["manage::start"]="pandas_ai::docker::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="pandas_ai::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="pandas_ai::docker::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="pandas_ai::test::smoke"
+CLI_COMMAND_HANDLERS["test::all"]="pandas_ai::test::all"
 CLI_COMMAND_HANDLERS["test::integration"]="pandas_ai::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="pandas_ai::test::unit"
 
 # Override content handlers for pandas-ai specific data analysis functionality
 CLI_COMMAND_HANDLERS["content::add"]="pandas_ai::content::add"

@@ -1441,6 +1441,11 @@ class EcosystemManager {
                                 Cancel
                             </button>
                             
+                            <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude">
+                                <i class="fas fa-file-alt"></i>
+                                View Prompt
+                            </button>
+                            
                             <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')">
                                 <i class="fas fa-save"></i>
                                 Save Changes
@@ -1580,6 +1585,83 @@ class EcosystemManager {
     
     closeTaskDetailsModal() {
         document.getElementById('task-details-modal').classList.remove('show');
+    }
+    
+    async viewTaskPrompt(taskId) {
+        try {
+            const response = await fetch(`${this.apiBase}/tasks/${taskId}/prompt/assembled`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch prompt');
+            }
+            
+            const data = await response.json();
+            
+            // Remove any existing prompt modal first
+            const existingModal = document.getElementById('promptModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Create a modal to display the prompt
+            const modalDiv = document.createElement('div');
+            modalDiv.id = 'promptModal';
+            modalDiv.className = 'modal show';
+            modalDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999999;';
+            
+            modalDiv.innerHTML = `
+                <div class="modal-content" style="background: white; border-radius: 8px; max-width: 900px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="modal-header" style="padding: 1rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0;">Task Prompt - ${taskId}</h2>
+                        <button class="modal-close" onclick="document.getElementById('promptModal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body" style="padding: 1rem; overflow-y: auto; flex: 1;">
+                        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f5f5f5; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                                <div>
+                                    <strong>Prompt Length:</strong> ${data.prompt_length.toLocaleString()} characters
+                                </div>
+                                <div>
+                                    <strong>Source:</strong> ${data.prompt_cached ? '📁 Cached from execution' : '🔄 Freshly assembled'}
+                                </div>
+                                <div>
+                                    <strong>Task Status:</strong> ${data.task_status}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="position: relative;">
+                            <button class="btn btn-sm btn-secondary" 
+                                    onclick="navigator.clipboard.writeText(document.getElementById('promptContent').textContent); ecosystemManager.showToast('Prompt copied to clipboard', 'success')"
+                                    style="position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10;">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                            <pre id="promptContent" style="background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; max-height: 60vh; white-space: pre-wrap; word-wrap: break-word; margin: 0;">${this.escapeHtml(data.prompt)}</pre>
+                        </div>
+                    </div>
+                    <div class="modal-footer" style="padding: 1rem; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end;">
+                        <button class="btn btn-secondary" onclick="document.getElementById('promptModal').remove()">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Add click handler to close on backdrop click
+            modalDiv.addEventListener('click', (e) => {
+                if (e.target === modalDiv) {
+                    modalDiv.remove();
+                }
+            });
+            
+            // Append to body
+            document.body.appendChild(modalDiv);
+            
+        } catch (error) {
+            console.error('Failed to fetch prompt:', error);
+            this.showToast(`Failed to fetch prompt: ${error.message}`, 'error');
+        }
     }
     
     closeAllModals() {
@@ -2721,6 +2803,11 @@ class EcosystemManager {
                             <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeTaskDetailsModal()">
                                 <i class="fas fa-times"></i>
                                 Cancel
+                            </button>
+                            
+                            <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude">
+                                <i class="fas fa-file-alt"></i>
+                                View Prompt
                             </button>
                             
                             ${task.status === 'in-progress' && !this.runningProcesses[taskId] ? `

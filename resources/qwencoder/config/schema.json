@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QwenCoder Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 11452
+    },
+    "model": {
+      "type": "string",
+      "description": "Default model to load",
+      "enum": [
+        "qwencoder-0.5b",
+        "qwencoder-1.5b",
+        "qwencoder-7b",
+        "qwencoder-14b",
+        "qwencoder-32b"
+      ],
+      "default": "qwencoder-1.5b"
+    },
+    "device": {
+      "type": "string",
+      "description": "Compute device",
+      "enum": ["auto", "cpu", "cuda", "mps"],
+      "default": "auto"
+    },
+    "max_memory": {
+      "type": "string",
+      "description": "Maximum memory allocation",
+      "pattern": "^[0-9]+[KMG]B$",
+      "default": "16GB"
+    },
+    "quantization": {
+      "type": "string",
+      "description": "Model quantization",
+      "enum": ["none", "8bit", "4bit"],
+      "default": "none"
+    },
+    "context_length": {
+      "type": "integer",
+      "description": "Maximum context length in tokens",
+      "minimum": 1024,
+      "maximum": 1048576,
+      "default": 262144
+    },
+    "batch_size": {
+      "type": "integer",
+      "description": "Inference batch size",
+      "minimum": 1,
+      "maximum": 32,
+      "default": 1
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "description": "API request timeout in seconds",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 60
+        },
+        "max_requests": {
+          "type": "integer",
+          "description": "Maximum concurrent requests",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "rate_limit": {
+          "type": "integer",
+          "description": "Requests per second limit",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["text", "json"],
+          "default": "json"
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "Model-specific configurations",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "auto_download": {
+            "type": "boolean",
+            "default": false
+          },
+          "max_tokens": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2,
+            "default": 0.7
+          }
+        }
+      }
+    }
+  },
+  "required": ["port", "model", "device"],
+  "additionalProperties": false
+}

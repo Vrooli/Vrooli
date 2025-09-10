@@ -1,0 +1,223 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "JupyterHub Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "authentication": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["native", "oauth", "github", "google", "ldap"],
+          "default": "native",
+          "description": "Authentication method to use"
+        },
+        "admin_users": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of admin usernames"
+        },
+        "allowed_users": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Whitelist of allowed users (empty = all)"
+        },
+        "oauth": {
+          "type": "object",
+          "properties": {
+            "client_id": {"type": "string"},
+            "client_secret": {"type": "string"},
+            "authorize_url": {"type": "string"},
+            "token_url": {"type": "string"},
+            "userdata_url": {"type": "string"}
+          }
+        }
+      }
+    },
+    "spawner": {
+      "type": "object",
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": ["DockerSpawner", "KubeSpawner", "LocalProcessSpawner"],
+          "default": "DockerSpawner"
+        },
+        "image": {
+          "type": "string",
+          "default": "jupyter/scipy-notebook:latest",
+          "description": "Default notebook image"
+        },
+        "cpu_limit": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 16,
+          "default": 2,
+          "description": "CPU cores per user"
+        },
+        "mem_limit": {
+          "type": "string",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "4G",
+          "description": "Memory limit per user"
+        },
+        "storage_limit": {
+          "type": "string",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "10G",
+          "description": "Storage limit per user"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 600,
+          "default": 120,
+          "description": "Spawn timeout in seconds"
+        }
+      }
+    },
+    "hub": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 8000
+        },
+        "api_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 8001
+        },
+        "proxy_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 8081
+        },
+        "ssl_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "ssl_cert": {
+          "type": "string",
+          "description": "Path to SSL certificate"
+        },
+        "ssl_key": {
+          "type": "string",
+          "description": "Path to SSL key"
+        }
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {"type": "string"},
+          "display_name": {"type": "string"},
+          "description": {"type": "string"},
+          "default": {"type": "boolean"},
+          "cpu_limit": {"type": "number"},
+          "mem_limit": {"type": "string"},
+          "image": {"type": "string"},
+          "env": {
+            "type": "object",
+            "additionalProperties": {"type": "string"}
+          }
+        },
+        "required": ["name", "display_name"]
+      },
+      "description": "User server profiles"
+    },
+    "services": {
+      "type": "object",
+      "properties": {
+        "cull": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true,
+              "description": "Enable idle server culling"
+            },
+            "timeout": {
+              "type": "integer",
+              "minimum": 300,
+              "default": 3600,
+              "description": "Idle timeout in seconds"
+            },
+            "interval": {
+              "type": "integer",
+              "minimum": 60,
+              "default": 600,
+              "description": "Cull check interval"
+            }
+          }
+        },
+        "backup": {
+          "type": "object",
+          "properties": {
+            "enabled": {"type": "boolean", "default": true},
+            "schedule": {"type": "string", "default": "0 2 * * *"},
+            "retention_days": {"type": "integer", "default": 30}
+          }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["sqlite", "postgresql", "mysql"],
+          "default": "postgresql"
+        },
+        "url": {
+          "type": "string",
+          "description": "Database connection URL"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "default": "%(asctime)s %(levelname)s %(message)s"
+        },
+        "access_log": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "extensions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "allowed": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Allowed extensions (empty = all)"
+        },
+        "preinstalled": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Extensions to preinstall"
+        }
+      }
+    }
+  },
+  "required": ["hub", "spawner"],
+  "additionalProperties": false
+}

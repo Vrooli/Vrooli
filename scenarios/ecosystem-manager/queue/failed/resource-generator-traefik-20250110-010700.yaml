@@ -1,0 +1,39 @@
+id: resource-generator-traefik-20250110-010700
+title: Traefik API Gateway & Routing
+type: resource
+operation: generator
+category: infrastructure
+priority: high
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T12:19:39-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:07:00Z"
+updated_at: "2025-09-10T12:19:39-04:00"
+tags:
+    - infrastructure
+    - routing
+    - gateway
+notes: '- **What it does:** Cloud-native reverse proxy and load balancer with automatic service discovery, dynamic configuration, and built-in observability. Simplifies routing, load balancing, and SSL management. - **Use when:** Need unified API gateway for all resources, automatic SSL certificates via Let''s Encrypt, service mesh capabilities, or advanced routing rules. Essential for production deployments. - **Technical requirements:** - Single binary or Docker container - Supports Docker, Kubernetes, Consul service discovery - Minimal CPU/memory footprint - Network access to backend services - Optional persistent storage for certificates'
+results:
+    error: "Claude Code execution failed (exit code 1): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53676 chars)\n\nAPI Error: 503 upstream connect error or disconnect/reset before headers. reset reason: remote connection failure, transport failure reason: delayed connect error: Connection refused\n"
+    execution_time: 3m19s
+    failed_at: "2025-09-10T12:19:39-04:00"
+    prompt_size: 54090 chars (52.82 KB)
+    started_at: "2025-09-10T12:16:20-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true

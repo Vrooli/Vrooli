@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Step-CA Configuration Schema",
+  "type": "object",
+  "properties": {
+    "ca_name": {
+      "type": "string",
+      "description": "Name of the Certificate Authority",
+      "default": "Vrooli CA"
+    },
+    "dns_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "DNS names for the CA certificate",
+      "default": ["localhost", "vrooli-step-ca"]
+    },
+    "provisioner": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Provisioner name",
+          "default": "admin"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["JWK", "OIDC", "ACME", "X5C", "SSHPOP"],
+          "description": "Provisioner type",
+          "default": "JWK"
+        }
+      }
+    },
+    "certificate_defaults": {
+      "type": "object",
+      "properties": {
+        "duration": {
+          "type": "string",
+          "description": "Default certificate duration",
+          "pattern": "^[0-9]+[hd]$",
+          "default": "24h"
+        },
+        "max_duration": {
+          "type": "string",
+          "description": "Maximum certificate duration",
+          "pattern": "^[0-9]+[hd]$",
+          "default": "720h"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["badger", "bbolt", "postgresql", "mysql"],
+          "description": "Database backend type",
+          "default": "badger"
+        },
+        "datasource": {
+          "type": "string",
+          "description": "Database connection string (for PostgreSQL/MySQL)"
+        }
+      }
+    },
+    "oidc": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable OIDC authentication",
+          "default": false
+        },
+        "client_id": {
+          "type": "string",
+          "description": "OIDC client ID"
+        },
+        "client_secret": {
+          "type": "string",
+          "description": "OIDC client secret"
+        },
+        "issuer": {
+          "type": "string",
+          "description": "OIDC issuer URL"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "max_connections": {
+          "type": "integer",
+          "description": "Maximum concurrent connections",
+          "minimum": 10,
+          "maximum": 10000,
+          "default": 100
+        },
+        "cache_size": {
+          "type": "integer",
+          "description": "Certificate cache size",
+          "minimum": 100,
+          "maximum": 100000,
+          "default": 10000
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "properties": {
+        "memory_limit": {
+          "type": "string",
+          "description": "Docker memory limit",
+          "pattern": "^[0-9]+[mg]$",
+          "default": "512m"
+        },
+        "cpu_limit": {
+          "type": "string",
+          "description": "Docker CPU limit",
+          "pattern": "^[0-9]+(\\.[0-9]+)?$",
+          "default": "0.5"
+        }
+      }
+    }
+  },
+  "required": ["ca_name", "provisioner"],
+  "additionalProperties": false
+}

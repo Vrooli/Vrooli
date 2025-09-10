@@ -1,0 +1,37 @@
+{
+  "startup_order": 300,
+  "dependencies": [],
+  "startup_timeout": 120,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "data",
+  "subcategory": "streaming",
+  "capabilities": [
+    "event-streaming",
+    "message-queue",
+    "pub-sub",
+    "log-aggregation",
+    "distributed-commit-log"
+  ],
+  "resource_requirements": {
+    "memory": "1GB minimum, 2GB recommended",
+    "cpu": "2 cores recommended",
+    "storage": "10GB minimum for logs"
+  },
+  "health_check": {
+    "endpoint": "kafka-broker-api-versions.sh",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "ports": {
+    "broker": 29092,
+    "controller": 29093,
+    "external": 29094,
+    "jmx": 29099
+  },
+  "version": "3.8.0",
+  "mode": "KRaft",
+  "description": "Apache Kafka distributed event streaming platform"
+}

@@ -1,0 +1,78 @@
+id: resource-improver-n8n-20250110
+title: Improve n8n resource - CLI standardization and workflow optimization
+type: resource
+operation: improver
+category: improvement
+priority: high
+effort_estimate: 5h
+urgency: normal
+impact_score: 8
+requirements:
+    assessment_focus:
+        - Current v2.0 contract compliance status
+        - CLI command structure for workflow management
+        - Workflow execution performance optimization
+        - Integration with Vrooli automation pipelines
+        - Error handling and workflow debugging capabilities
+    deliverables:
+        - Updated PRD.md with comprehensive workflow capabilities
+        - Standardized CLI commands for workflow operations
+        - Performance optimizations for complex workflow execution
+        - Enhanced error handling and debugging tools
+        - Integration patterns for Vrooli automation scenarios
+    improvement_areas:
+        - cli_standardization
+        - performance
+        - v2_contract_compliance
+    prd_focus:
+        - Validate existing workflow automation claims
+        - Complete missing P0 CLI standardization requirements
+        - Add comprehensive workflow management documentation
+        - Update completion percentages for automation features
+    target_resource: n8n
+dependencies: []
+blocks: []
+related_scenarios:
+    - automation-platform
+    - data-pipeline
+    - ecosystem-manager
+related_resources:
+    - windmill
+    - huginn
+    - airbyte
+assigned_resources:
+    claude_code: true
+    postgres: true
+    qdrant: true
+    web_search: false
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T12:42:20-04:00"
+estimated_completion: ""
+validation_criteria:
+    - PRD.md accurately reflects n8n workflow capabilities
+    - CLI commands follow consistent workflow management patterns
+    - Performance improvements handle complex workflow execution
+    - Integration with Vrooli ecosystem enables seamless automation
+    - Error handling provides actionable workflow debugging
+    - All improvements maintain workflow compatibility
+created_by: user
+created_at: "2025-01-10T15:50:00Z"
+updated_at: "2025-09-10T12:42:20-04:00"
+tags:
+    - resource-improvement
+    - automation
+    - workflows
+    - coding
+notes: Focus on making n8n more accessible and performant for automation workflows. High priority due to central role in Vrooli automation and data pipeline scenarios.
+results:
+    error: "Claude Code execution failed (exit code 124): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53161 chars)\n\n"
+    execution_time: 10m0s
+    failed_at: "2025-09-10T12:42:20-04:00"
+    prompt_size: 53468 chars (52.21 KB)
+    started_at: "2025-09-10T12:32:20-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true

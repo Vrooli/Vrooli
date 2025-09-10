@@ -40,7 +40,7 @@ sagemath::install::execute() {
     
     # Register CLI
     echo "Registering SageMath CLI..."
-    "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "execution/sagemath"
+    "${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh" "${APP_ROOT}/resources/sagemath" 2>/dev/null || true
     
     # Create initial test script
     cat > "$SAGEMATH_SCRIPTS_DIR/test.sage" << 'EOF'

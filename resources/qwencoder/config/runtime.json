@@ -1,0 +1,61 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 180,
+  "startup_time_estimate": "60-180s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "health_check": {
+    "endpoint": "/health",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "min_memory": "4GB",
+    "recommended_memory": "16GB",
+    "min_disk": "10GB",
+    "recommended_disk": "50GB",
+    "gpu_optional": true
+  },
+  "capabilities": [
+    "code_generation",
+    "code_completion",
+    "bug_detection",
+    "code_review",
+    "function_calling",
+    "multi_language",
+    "large_context"
+  ],
+  "api_compatibility": {
+    "openai": true,
+    "streaming": true,
+    "function_calling": true,
+    "embeddings": false
+  },
+  "supported_models": [
+    {
+      "name": "qwencoder-0.5b",
+      "size": "2GB",
+      "context": 32768,
+      "use_case": "lightweight_completion"
+    },
+    {
+      "name": "qwencoder-1.5b",
+      "size": "4GB",
+      "context": 131072,
+      "use_case": "standard_development"
+    },
+    {
+      "name": "qwencoder-7b",
+      "size": "16GB",
+      "context": 262144,
+      "use_case": "complex_generation"
+    }
+  ],
+  "integration_points": {
+    "input": ["code_snippets", "prompts", "context"],
+    "output": ["generated_code", "suggestions", "reviews"],
+    "protocols": ["REST", "WebSocket"]
+  }
+}

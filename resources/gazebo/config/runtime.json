@@ -1,0 +1,54 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-30s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "resource_type": "simulation",
+  "capabilities": [
+    "3d-physics-simulation",
+    "robotics-modeling",
+    "sensor-simulation",
+    "python-api",
+    "headless-operation",
+    "multi-physics-engines"
+  ],
+  "health_check": {
+    "endpoint": "http://localhost:11456/health",
+    "timeout": 5,
+    "interval": 30
+  },
+  "resource_limits": {
+    "memory": "2G",
+    "cpu": 2,
+    "disk": "10G"
+  },
+  "lifecycle_hooks": {
+    "pre_start": [],
+    "post_start": ["wait_for_health"],
+    "pre_stop": ["save_state"],
+    "post_stop": ["cleanup_temp"]
+  },
+  "configuration": {
+    "physics_engine": "dart",
+    "headless": true,
+    "gpu_enabled": false,
+    "max_simulations": 5
+  },
+  "integration_points": {
+    "ros2": {
+      "enabled": false,
+      "domain_id": 0
+    },
+    "python": {
+      "version": "3.10",
+      "context_size": 256000
+    }
+  },
+  "monitoring": {
+    "metrics_enabled": true,
+    "log_level": "info",
+    "performance_tracking": true
+  }
+}

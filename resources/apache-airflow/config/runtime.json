@@ -1,0 +1,48 @@
+{
+  "name": "apache-airflow",
+  "version": "3.0.6",
+  "description": "Enterprise-grade data pipeline orchestration with DAG-based workflow management",
+  "startup_order": 600,
+  "dependencies": [],
+  "optional_dependencies": ["postgres", "redis", "qdrant", "minio", "prometheus"],
+  "startup_time_estimate": "30-60s",
+  "startup_timeout": 120,
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "data",
+  "health_check": {
+    "endpoint": "http://localhost:48080/health",
+    "timeout": 5,
+    "interval": 30,
+    "max_retries": 3
+  },
+  "ports": {
+    "webserver": 48080,
+    "flower": 45555,
+    "redis": 46379,
+    "postgres": 45432
+  },
+  "resource_requirements": {
+    "memory": "4GB",
+    "cpu": "2 cores",
+    "disk": "10GB"
+  },
+  "capabilities": [
+    "dag-orchestration",
+    "scheduled-execution",
+    "workflow-versioning",
+    "remote-tasks",
+    "ml-pipelines",
+    "data-etl"
+  ],
+  "integrations": [
+    "postgres",
+    "redis",
+    "s3",
+    "kubernetes",
+    "spark",
+    "dbt",
+    "snowflake"
+  ]
+}

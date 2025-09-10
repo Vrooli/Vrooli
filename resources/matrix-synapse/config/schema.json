@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Matrix Synapse Resource Configuration Schema",
+  "type": "object",
+  "required": [
+    "MATRIX_SYNAPSE_SERVER_NAME",
+    "SYNAPSE_DB_PASSWORD",
+    "SYNAPSE_REGISTRATION_SECRET"
+  ],
+  "properties": {
+    "MATRIX_SYNAPSE_PORT": {
+      "type": "integer",
+      "description": "Port for Matrix client/server API",
+      "default": 8008,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "MATRIX_SYNAPSE_SERVER_NAME": {
+      "type": "string",
+      "description": "The public-facing domain name of the server",
+      "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
+      "examples": ["matrix.example.com", "vrooli.local"]
+    },
+    "SYNAPSE_DB_PASSWORD": {
+      "type": "string",
+      "description": "PostgreSQL database password",
+      "minLength": 8
+    },
+    "SYNAPSE_REGISTRATION_SECRET": {
+      "type": "string",
+      "description": "Shared secret for user registration",
+      "minLength": 32
+    },
+    "MATRIX_SYNAPSE_FEDERATION_ENABLED": {
+      "type": "boolean",
+      "description": "Enable federation with other Matrix servers",
+      "default": false
+    },
+    "MATRIX_SYNAPSE_FEDERATION_PORT": {
+      "type": "integer",
+      "description": "Port for Matrix federation API",
+      "default": 8448,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "MATRIX_SYNAPSE_MAX_UPLOAD_SIZE": {
+      "type": "string",
+      "description": "Maximum file upload size",
+      "pattern": "^[0-9]+[KMG]?$",
+      "default": "50M",
+      "examples": ["10M", "100M", "1G"]
+    },
+    "MATRIX_SYNAPSE_ENABLE_REGISTRATION": {
+      "type": "boolean",
+      "description": "Enable user self-registration",
+      "default": true
+    },
+    "MATRIX_SYNAPSE_DB_HOST": {
+      "type": "string",
+      "description": "PostgreSQL host",
+      "default": "localhost"
+    },
+    "MATRIX_SYNAPSE_DB_PORT": {
+      "type": "integer",
+      "description": "PostgreSQL port",
+      "default": 5433,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "MATRIX_SYNAPSE_DB_NAME": {
+      "type": "string",
+      "description": "PostgreSQL database name",
+      "default": "synapse",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+    },
+    "MATRIX_SYNAPSE_DB_USER": {
+      "type": "string",
+      "description": "PostgreSQL username",
+      "default": "synapse",
+      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$"
+    },
+    "MATRIX_SYNAPSE_CACHE_FACTOR": {
+      "type": "number",
+      "description": "Cache size multiplier",
+      "default": 0.5,
+      "minimum": 0.1,
+      "maximum": 10
+    },
+    "MATRIX_SYNAPSE_DATA_DIR": {
+      "type": "string",
+      "description": "Data directory path",
+      "default": "${HOME}/.vrooli/resources/matrix-synapse"
+    },
+    "MATRIX_SYNAPSE_LOG_LEVEL": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+      "default": "INFO"
+    }
+  },
+  "additionalProperties": false
+}

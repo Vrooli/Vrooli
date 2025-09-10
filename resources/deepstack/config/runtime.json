@@ -1,0 +1,42 @@
+{
+  "startup_order": 350,
+  "dependencies": [],
+  "optional_dependencies": ["redis", "minio"],
+  "startup_timeout": 90,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 2,
+  "priority": "high",
+  "description": "Computer vision AI engine with object detection, face recognition, and scene classification",
+  "category": "ai-ml",
+  "capabilities": {
+    "object_detection": true,
+    "face_recognition": true,
+    "scene_classification": true,
+    "custom_models": true,
+    "gpu_acceleration": true,
+    "batch_processing": true
+  },
+  "resource_requirements": {
+    "cpu": {
+      "minimum": 4,
+      "recommended": 8
+    },
+    "memory": {
+      "minimum": "8GB",
+      "recommended": "16GB"
+    },
+    "storage": {
+      "minimum": "10GB",
+      "recommended": "20GB"
+    },
+    "gpu": {
+      "optional": true,
+      "recommended": "NVIDIA GTX 1060 6GB+"
+    }
+  },
+  "api": {
+    "port": 11453,
+    "protocol": "http",
+    "base_path": "/v1/vision"
+  }
+}

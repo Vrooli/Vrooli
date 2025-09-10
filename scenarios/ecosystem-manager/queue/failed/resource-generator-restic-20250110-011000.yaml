@@ -1,0 +1,39 @@
+id: resource-generator-restic-20250110-011000
+title: Restic Backup & Recovery
+type: resource
+operation: generator
+category: infrastructure
+priority: high
+effort_estimate: 4h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T12:12:50-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:10:00Z"
+updated_at: "2025-09-10T12:12:50-04:00"
+tags:
+    - backup
+    - security
+    - disaster-recovery
+notes: '- **What it does:** Fast, secure backup program with client-side encryption, efficient deduplication, and support for multiple storage backends. Provides ransomware-resistant backups with incremental snapshots. - **Use when:** Need automated backup strategy for all Vrooli resources, disaster recovery capabilities, or cross-platform backup solution. Critical for protecting generated scenarios and databases. - **Technical requirements:** - Single Go binary (no dependencies) - Supports Linux, macOS, Windows, BSD - Storage backend (S3, MinIO, SFTP, local) - Minimal memory for operation - Network access to backup destination'
+results:
+    error: "Claude Code execution failed (exit code 124): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53657 chars)\n\n"
+    execution_time: 10m0s
+    failed_at: "2025-09-10T12:12:50-04:00"
+    prompt_size: 54071 chars (52.80 KB)
+    started_at: "2025-09-10T12:02:50-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true

@@ -1,0 +1,23 @@
+{
+  "startup_order": 550,
+  "dependencies": ["postgres"],
+  "startup_timeout": 120,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "ports": {
+    "webapp": 8000,
+    "server": 8001,
+    "temporal": 8006
+  },
+  "resource_requirements": {
+    "memory": "4GB",
+    "cpu": "2 cores",
+    "storage": "10GB"
+  },
+  "health_check": {
+    "endpoint": "http://localhost:8001/api/v1/health",
+    "timeout": 5,
+    "interval": 30
+  }
+}

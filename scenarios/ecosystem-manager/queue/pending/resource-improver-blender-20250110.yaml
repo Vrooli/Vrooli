@@ -1,0 +1,93 @@
+id: "resource-improver-blender-20250110"
+title: "Improve Blender resource - 3D physics simulation optimization"
+
+# Core classification
+type: "resource"
+operation: "improver"
+category: "improvement"
+
+# Priority and scheduling
+priority: "medium"
+effort_estimate: "6h"
+urgency: "normal"
+impact_score: 7
+
+# Resource improvement requirements
+requirements:
+  target_resource: "blender"
+  
+  improvement_areas:
+    - "performance"
+    - "cli_standardization"
+    - "documentation"
+  
+  assessment_focus:
+    - "Current v2.0 contract compliance status"
+    - "3D physics simulation performance optimization"
+    - "CLI command structure for headless operations"
+    - "Physics engine accuracy and stability"
+    - "Integration with computational physics workflows"
+  
+  deliverables:
+    - "Updated PRD.md with comprehensive 3D physics capabilities"
+    - "Optimized physics simulation performance"
+    - "Standardized CLI commands for headless rendering"
+    - "Enhanced physics accuracy validation tools"
+    - "Integration patterns for physics modeling scenarios"
+  
+  prd_focus:
+    - "Validate existing 3D physics simulation claims"
+    - "Complete missing P0 physics engine requirements"
+    - "Add comprehensive 3D modeling documentation"
+    - "Update completion percentages for simulation features"
+
+# Dependencies and relationships
+dependencies: []
+blocks: []
+related_scenarios: ["3d-modeling", "physics-simulation", "visualization"]
+related_resources: ["openscad", "simpy", "ffmpeg"]
+
+# Resource allocation
+assigned_resources:
+  claude_code: true
+  postgres: true
+  qdrant: true
+  web_search: false
+
+# Progress tracking
+status: "pending"
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+
+# Quality gates for resource improvement
+validation_criteria:
+  - "PRD.md accurately reflects Blender 3D physics capabilities"
+  - "Physics simulation performance meets computational requirements"
+  - "CLI commands enable effective headless operation"
+  - "Physics accuracy maintains scientific validity"
+  - "Integration with Vrooli workflows is seamless"
+  - "All improvements maintain rendering quality"
+
+# Metadata
+created_by: "user"
+created_at: "2025-01-10T16:10:00Z"
+updated_at: "2025-01-10T16:10:00Z"
+tags: ["resource-improvement", "3d", "physics", "simulation"]
+notes: "Focus on optimizing 3D physics simulation capabilities and CLI integration. Essential for computational physics and 3D modeling scenarios."
+
+# Results (populated after completion)
+results:
+  files_created: []
+  files_modified: []
+  metrics:
+    time_spent: ""
+    prd_completion_percentage: 0
+    improvements_made: 0
+    regression_tests_passed: 0
+  artifacts:
+    prd_location: ""
+    improvement_summary: ""
+    test_results: ""

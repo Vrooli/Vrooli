@@ -1,0 +1,95 @@
+{
+  "name": "matrix-synapse",
+  "description": "Matrix Synapse homeserver for federated real-time communication",
+  "version": "2.0.0",
+  "category": "communication",
+  "startup_order": 600,
+  "dependencies": ["postgres"],
+  "optional_dependencies": ["redis", "vault"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "health_check": {
+    "endpoint": "/_matrix/client/versions",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "cpu": "2 cores recommended",
+    "memory": "2GB minimum, 4GB recommended",
+    "disk": "10GB minimum for database and media",
+    "network": "Ports 8008 (client), 8448 (federation optional)"
+  },
+  "capabilities": [
+    "real-time-messaging",
+    "end-to-end-encryption",
+    "federation",
+    "room-management",
+    "user-management",
+    "bot-integration",
+    "bridge-support",
+    "media-storage",
+    "voice-video-optional"
+  ],
+  "api_endpoints": {
+    "health": "/_matrix/client/versions",
+    "register": "/_matrix/client/v3/register",
+    "login": "/_matrix/client/v3/login",
+    "sync": "/_matrix/client/v3/sync",
+    "rooms": "/_matrix/client/v3/rooms",
+    "admin": "/_synapse/admin/v1"
+  },
+  "configuration": {
+    "required": [
+      "MATRIX_SYNAPSE_SERVER_NAME",
+      "SYNAPSE_DB_PASSWORD",
+      "SYNAPSE_REGISTRATION_SECRET"
+    ],
+    "optional": [
+      "MATRIX_SYNAPSE_PORT",
+      "MATRIX_SYNAPSE_FEDERATION_ENABLED",
+      "MATRIX_SYNAPSE_MAX_UPLOAD_SIZE"
+    ]
+  },
+  "integration_points": {
+    "postgres": {
+      "purpose": "Primary data storage",
+      "required": true
+    },
+    "redis": {
+      "purpose": "Caching and performance",
+      "required": false
+    },
+    "vault": {
+      "purpose": "Secret management",
+      "required": false
+    }
+  },
+  "lifecycle_hooks": {
+    "pre_install": "Check Python 3.8+ and PostgreSQL availability",
+    "post_install": "Generate signing keys and initial configuration",
+    "pre_start": "Ensure database is initialized",
+    "post_start": "Create admin user if not exists",
+    "pre_stop": "Gracefully disconnect clients",
+    "post_stop": "Clean up PID file"
+  },
+  "monitoring": {
+    "metrics_endpoint": "/_synapse/metrics",
+    "log_files": ["homeserver.log"],
+    "key_metrics": [
+      "active_users",
+      "message_count",
+      "room_count",
+      "federation_latency"
+    ]
+  },
+  "security": {
+    "authentication": "Matrix user/password or access token",
+    "encryption": "E2E encryption for private rooms",
+    "rate_limiting": "Enabled by default",
+    "audit_logging": "Available in log files"
+  }
+}

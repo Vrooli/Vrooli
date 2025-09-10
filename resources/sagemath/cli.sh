@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SAGEMATH_CLI_DIR}/config/defaults.sh"
 
 # Source SageMath libraries
-for lib in common docker install status content; do
+for lib in common docker install status content test; do
     lib_file="${SAGEMATH_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -52,7 +52,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="sagemath::install::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="sagemath::docker::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="sagemath::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="sagemath::docker::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="sagemath::status::check"
+CLI_COMMAND_HANDLERS["test::smoke"]="sagemath::test::smoke"
+CLI_COMMAND_HANDLERS["test::unit"]="sagemath::test::unit"
+CLI_COMMAND_HANDLERS["test::integration"]="sagemath::test::integration"
+CLI_COMMAND_HANDLERS["test::all"]="sagemath::test::all"
 
 # Content handlers for mathematical computation functionality
 CLI_COMMAND_HANDLERS["content::add"]="sagemath::content::add"
@@ -73,6 +76,9 @@ cli::register_command "logs" "Show SageMath container logs" "sagemath::docker::l
 # Mathematical computation specific operations
 cli::register_subcommand "content" "calculate" "Calculate mathematical expression" "sagemath::content::calculate"
 cli::register_subcommand "content" "notebook" "Open Jupyter notebook interface" "sagemath::content::notebook"
+
+# SageMath-specific test commands
+cli::register_subcommand "test" "performance" "Run performance benchmarks" "sagemath::test::performance"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

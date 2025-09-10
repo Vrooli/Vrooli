@@ -98,6 +98,30 @@ pandas_ai::test::integration() {
     return 0
 }
 
+# All tests - delegate to test runner
+pandas_ai::test::all() {
+    local test_runner="${APP_ROOT}/resources/pandas-ai/test/run-tests.sh"
+    if [[ -f "${test_runner}" ]]; then
+        bash "${test_runner}" all
+    else
+        log::info "Running basic smoke test..."
+        pandas_ai::test::smoke
+    fi
+}
+
+# Unit tests
+pandas_ai::test::unit() {
+    local test_script="${APP_ROOT}/resources/pandas-ai/test/phases/test-unit.sh"
+    if [[ -f "${test_script}" ]]; then
+        bash "${test_script}"
+    else
+        log::warn "Unit tests not implemented"
+        return 2
+    fi
+}
+
 # Export functions for use by CLI
 export -f pandas_ai::test::smoke
 export -f pandas_ai::test::integration
+export -f pandas_ai::test::all
+export -f pandas_ai::test::unit

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -358,11 +359,23 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Generate the full assembled prompt
-	prompt, err := h.assembler.AssemblePromptForTask(*task)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
-		return
+	var prompt string
+	var fromCache bool
+
+	// First check if we have a cached prompt in /tmp
+	promptPath := fmt.Sprintf("/tmp/ecosystem-prompt-%s.txt", taskID)
+	if cachedPrompt, err := os.ReadFile(promptPath); err == nil {
+		prompt = string(cachedPrompt)
+		fromCache = true
+		log.Printf("Using cached prompt from %s", promptPath)
+	} else {
+		// Generate the full assembled prompt
+		prompt, err = h.assembler.AssemblePromptForTask(*task)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
+			return
+		}
+		fromCache = false
 	}
 
 	// Get operation config for metadata
@@ -373,6 +386,7 @@ func (h *TaskHandlers) GetAssembledPromptHandler(w http.ResponseWriter, r *http.
 		"operation":        fmt.Sprintf("%s-%s", task.Type, task.Operation),
 		"prompt":           prompt,
 		"prompt_length":    len(prompt),
+		"prompt_cached":    fromCache,
 		"operation_config": operationConfig,
 		"task_status":      status,
 		"task_details":     task,

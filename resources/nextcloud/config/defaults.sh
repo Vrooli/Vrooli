@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Nextcloud Resource - Default Configuration
+# This file contains default settings that can be overridden by environment variables
+
+# Service Configuration
+export NEXTCLOUD_PORT="${NEXTCLOUD_PORT:-8086}"
+export NEXTCLOUD_CONTAINER_NAME="${NEXTCLOUD_CONTAINER_NAME:-nextcloud_nextcloud_1}"
+export NEXTCLOUD_IMAGE="${NEXTCLOUD_IMAGE:-nextcloud:stable}"
+export NEXTCLOUD_NETWORK="${NEXTCLOUD_NETWORK:-nextcloud_network}"
+
+# Admin Configuration
+export NEXTCLOUD_ADMIN_USER="${NEXTCLOUD_ADMIN_USER:-admin}"
+export NEXTCLOUD_ADMIN_PASSWORD="${NEXTCLOUD_ADMIN_PASSWORD:-changeme}"
+
+# Database Configuration
+export NEXTCLOUD_DB_TYPE="${NEXTCLOUD_DB_TYPE:-pgsql}"
+export NEXTCLOUD_DB_HOST="${NEXTCLOUD_DB_HOST:-nextcloud_postgres}"
+export NEXTCLOUD_DB_NAME="${NEXTCLOUD_DB_NAME:-nextcloud}"
+export NEXTCLOUD_DB_USER="${NEXTCLOUD_DB_USER:-nextcloud}"
+export NEXTCLOUD_DB_PASSWORD="${NEXTCLOUD_DB_PASSWORD:-nextcloud_db_pass}"
+
+# Redis Configuration
+export NEXTCLOUD_REDIS_HOST="${NEXTCLOUD_REDIS_HOST:-nextcloud_redis}"
+export NEXTCLOUD_REDIS_PORT="${NEXTCLOUD_REDIS_PORT:-6379}"
+
+# Storage Configuration
+export NEXTCLOUD_DATA_DIR="${NEXTCLOUD_DATA_DIR:-/var/www/html/data}"
+export NEXTCLOUD_VOLUME_NAME="${NEXTCLOUD_VOLUME_NAME:-nextcloud_data}"
+export NEXTCLOUD_DB_VOLUME="${NEXTCLOUD_DB_VOLUME:-nextcloud_db}"
+export NEXTCLOUD_REDIS_VOLUME="${NEXTCLOUD_REDIS_VOLUME:-nextcloud_redis}"
+
+# Performance Configuration
+export NEXTCLOUD_MEMORY_LIMIT="${NEXTCLOUD_MEMORY_LIMIT:-512M}"
+export NEXTCLOUD_UPLOAD_MAX_SIZE="${NEXTCLOUD_UPLOAD_MAX_SIZE:-10G}"
+export NEXTCLOUD_MAX_EXECUTION_TIME="${NEXTCLOUD_MAX_EXECUTION_TIME:-3600}"
+
+# Security Configuration
+export NEXTCLOUD_TRUSTED_DOMAINS="${NEXTCLOUD_TRUSTED_DOMAINS:-localhost}"
+export NEXTCLOUD_OVERWRITE_PROTOCOL="${NEXTCLOUD_OVERWRITE_PROTOCOL:-http}"
+export NEXTCLOUD_OVERWRITE_HOST="${NEXTCLOUD_OVERWRITE_HOST:-localhost:${NEXTCLOUD_PORT}}"
+
+# Timeouts
+export NEXTCLOUD_STARTUP_TIMEOUT="${NEXTCLOUD_STARTUP_TIMEOUT:-60}"
+export NEXTCLOUD_SHUTDOWN_TIMEOUT="${NEXTCLOUD_SHUTDOWN_TIMEOUT:-30}"
+export NEXTCLOUD_HEALTH_CHECK_TIMEOUT="${NEXTCLOUD_HEALTH_CHECK_TIMEOUT:-5}"
+export NEXTCLOUD_HEALTH_CHECK_RETRIES="${NEXTCLOUD_HEALTH_CHECK_RETRIES:-10}"
+export NEXTCLOUD_HEALTH_CHECK_DELAY="${NEXTCLOUD_HEALTH_CHECK_DELAY:-3}"
+
+# Logging
+export NEXTCLOUD_LOG_LEVEL="${NEXTCLOUD_LOG_LEVEL:-2}"  # 0=DEBUG, 1=INFO, 2=WARNING, 3=ERROR, 4=FATAL
+export NEXTCLOUD_LOG_TYPE="${NEXTCLOUD_LOG_TYPE:-file}"
+
+# Feature Flags
+export NEXTCLOUD_ENABLE_PREVIEWS="${NEXTCLOUD_ENABLE_PREVIEWS:-true}"
+export NEXTCLOUD_ENABLE_APU="${NEXTCLOUD_ENABLE_APU:-false}"  # All-in-one PHP Unit
+export NEXTCLOUD_ENABLE_CRON="${NEXTCLOUD_ENABLE_CRON:-true}"
+
+# External Storage (optional)
+export NEXTCLOUD_S3_BUCKET="${NEXTCLOUD_S3_BUCKET:-}"
+export NEXTCLOUD_S3_KEY="${NEXTCLOUD_S3_KEY:-}"
+export NEXTCLOUD_S3_SECRET="${NEXTCLOUD_S3_SECRET:-}"
+export NEXTCLOUD_S3_REGION="${NEXTCLOUD_S3_REGION:-us-east-1}"
+export NEXTCLOUD_S3_ENDPOINT="${NEXTCLOUD_S3_ENDPOINT:-}"  # For MinIO or other S3-compatible storage
+
+# Docker Compose Template Path
+export NEXTCLOUD_COMPOSE_FILE="${NEXTCLOUD_COMPOSE_FILE:-/home/matthalloran8/Vrooli/resources/nextcloud/docker/docker-compose.yml}"
+
+# Test Configuration
+export NEXTCLOUD_TEST_USER="${NEXTCLOUD_TEST_USER:-testuser}"
+export NEXTCLOUD_TEST_PASSWORD="${NEXTCLOUD_TEST_PASSWORD:-testpass}"
+export NEXTCLOUD_TEST_FILE="${NEXTCLOUD_TEST_FILE:-/tmp/nextcloud_test_file.txt}"

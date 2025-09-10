@@ -6,14 +6,16 @@ Pandas AI provides conversational AI-powered data analysis infrastructure for Vr
 ## Quick Start
 ```bash
 # Install and start
-vrooli resource install pandas-ai
-vrooli resource start pandas-ai
+vrooli resource pandas-ai manage install
+vrooli resource pandas-ai manage start
 
 # Check status
-resource-pandas-ai status
+vrooli resource pandas-ai status
 
-# Analyze data
-resource-pandas-ai analyze --file data.csv --query "Show me the top 5 products by revenue"
+# Test the service
+curl -X POST http://localhost:8095/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"query": "describe the data", "data": {"sales": [100,200,300], "month": [1,2,3]}}'
 ```
 
 ## Key Features
@@ -43,13 +45,185 @@ resource-pandas-ai analyze --file data.csv --query "Show me the top 5 products b
 └────────┘   └────────┘
 ```
 
+## API Usage Examples
+
+### Basic Data Analysis
+```bash
+# Describe data
+curl -X POST http://localhost:8095/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "describe the data",
+    "data": {
+      "product": ["A", "B", "C"],
+      "sales": [100, 150, 200],
+      "profit": [20, 35, 45]
+    }
+  }'
+
+# Calculate mean values
+curl -X POST http://localhost:8095/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "calculate mean",
+    "data": {
+      "temperature": [20, 22, 21, 23, 22],
+      "humidity": [45, 50, 48, 52, 49]
+    }
+  }'
+
+# Get summary statistics
+curl -X POST http://localhost:8095/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "summary",
+    "data": {
+      "scores": [85, 90, 78, 92, 88, 95, 82]
+    }
+  }'
+```
+
+### CSV File Analysis
+```bash
+# Analyze a CSV file
+curl -X POST http://localhost:8095/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "show top 5 rows",
+    "csv_path": "/path/to/data.csv"
+  }'
+```
+
+### Available Query Operations
+- `describe` or `summary` - Get comprehensive data overview
+- `mean` - Calculate mean values
+- `sum` - Calculate sum of columns
+- `count` - Count non-null values
+- `max` - Find maximum values
+- `min` - Find minimum values
+- `head` - Show first 5 rows
+- `tail` - Show last 5 rows
+- `columns` - List column names
+
 ## CLI Reference
 
-### Basic Commands
-- `start` - Start the Pandas AI service
-- `stop` - Stop the service
-- `status` - Check service health and configuration
-- `install` - Install Pandas AI and dependencies
+### Lifecycle Management
+```bash
+# Install the resource
+vrooli resource pandas-ai manage install
+
+# Start the service
+vrooli resource pandas-ai manage start --wait
+
+# Stop the service
+vrooli resource pandas-ai manage stop
+
+# Restart the service
+vrooli resource pandas-ai manage restart
+
+# Uninstall completely
+vrooli resource pandas-ai manage uninstall
+```
+
+### Testing
+```bash
+# Run smoke tests (quick health check)
+vrooli resource pandas-ai test smoke
+
+# Run all tests
+vrooli resource pandas-ai test all
+```
+
+### Status & Monitoring
+```bash
+# Check service status
+vrooli resource pandas-ai status
+
+# View logs
+vrooli resource pandas-ai logs
+
+# Get resource info
+vrooli resource pandas-ai info --json
+```
+
+## Integration with Other Resources
+
+### PostgreSQL Integration
+```python
+# Example: Analyzing PostgreSQL data
+import requests
+
+# Query data from PostgreSQL through Pandas-AI
+response = requests.post('http://localhost:8095/analyze', json={
+    'query': 'show customer revenue by month',
+    'csv_path': '/path/to/exported/postgres/data.csv'
+})
+```
+
+### Redis Integration
+```python
+# Caching analysis results in Redis
+# Pandas-AI can read cached datasets from Redis exports
+```
+
+### SageMath Integration
+```python
+# Use Pandas-AI for data preparation before mathematical modeling
+# 1. Analyze and clean data with Pandas-AI
+# 2. Export results for SageMath processing
+# 3. Combine statistical analysis with symbolic math
+```
+
+### Integration Best Practices
+1. **Data Pipeline**: PostgreSQL → Pandas-AI → Visualization
+2. **Caching Strategy**: Use Redis for frequently accessed analysis results
+3. **Math Workflows**: Pandas-AI for statistics → SageMath for advanced math
+4. **Report Generation**: Pandas-AI analysis → N8n for automated reports
+
+## Performance Optimization
+
+### Configuration
+```bash
+# Set analysis timeout (default: 10 seconds)
+export PANDAS_AI_TIMEOUT=15
+
+# Configure max workers for concurrent requests
+export PANDAS_AI_MAX_WORKERS=4
+```
+
+### Tips for Large Datasets
+1. **Use sampling**: For initial exploration, use a subset of data
+2. **Chunk processing**: Break large files into smaller chunks
+3. **Cache results**: Store frequently used analysis results
+4. **Optimize queries**: Use specific operations (mean, sum) instead of generic "analyze"
+
+## Troubleshooting
+
+### Common Issues
+
+**Service not responding**
+```bash
+# Check if service is running
+vrooli resource pandas-ai status
+
+# Restart if needed
+vrooli resource pandas-ai manage restart
+```
+
+**Analysis timeout**
+```bash
+# Increase timeout for complex queries
+export PANDAS_AI_TIMEOUT=30
+vrooli resource pandas-ai manage restart
+```
+
+**Memory issues with large datasets**
+```bash
+# Monitor memory usage
+htop
+
+# Consider using data sampling or chunking
+```
 - `restart` - Restart the service
 
 ### Content Management

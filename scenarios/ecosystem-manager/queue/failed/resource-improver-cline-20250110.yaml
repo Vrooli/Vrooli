@@ -1,0 +1,78 @@
+id: resource-improver-cline-20250110
+title: Improve Cline resource - AI assistant integration
+type: resource
+operation: improver
+category: improvement
+priority: high
+effort_estimate: 5h
+urgency: normal
+impact_score: 8
+requirements:
+    assessment_focus:
+        - Current v2.0 contract compliance status
+        - AI assistant integration with terminal workflows
+        - Performance optimization for code assistance
+        - Context understanding and retention capabilities
+        - Integration with Vrooli development pipelines
+    deliverables:
+        - Updated PRD.md with accurate AI assistant capabilities
+        - Standardized CLI commands for AI interactions
+        - Performance optimizations for code assistance
+        - Enhanced context awareness for better suggestions
+        - Integration patterns for development workflows
+    improvement_areas:
+        - cli_standardization
+        - performance
+        - v2_contract_compliance
+    prd_focus:
+        - Validate existing AI assistant integration claims
+        - Complete missing P0 CLI standardization requirements
+        - Add comprehensive AI interaction documentation
+        - Update completion percentages for assistant features
+    target_resource: cline
+dependencies: []
+blocks: []
+related_scenarios:
+    - ai-assistant
+    - development-platform
+    - coding-assistant
+related_resources:
+    - codex
+    - judge0
+    - opencode
+assigned_resources:
+    claude_code: true
+    postgres: true
+    qdrant: true
+    web_search: false
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T12:31:59-04:00"
+estimated_completion: ""
+validation_criteria:
+    - PRD.md accurately reflects Cline AI assistant capabilities
+    - CLI commands follow consistent interaction patterns
+    - Performance improvements show measurable response times
+    - AI context retention enhances development workflows
+    - Integration with Vrooli ecosystem is seamless
+    - All improvements maintain code quality assistance
+created_by: user
+created_at: "2025-01-10T16:15:00Z"
+updated_at: "2025-09-10T12:31:59-04:00"
+tags:
+    - resource-improvement
+    - ai
+    - assistant
+    - coding
+notes: Focus on optimizing AI-assisted development capabilities and terminal integration. High priority due to role in AI-powered coding workflows.
+results:
+    error: "Claude Code execution failed (exit code 1): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53112 chars)\n\nAPI Error: 503 upstream connect error or disconnect/reset before headers. reset reason: remote connection failure, transport failure reason: delayed connect error: Connection refused\n"
+    execution_time: 4m9s
+    failed_at: "2025-09-10T12:31:59-04:00"
+    prompt_size: 53419 chars (52.17 KB)
+    started_at: "2025-09-10T12:27:50-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true

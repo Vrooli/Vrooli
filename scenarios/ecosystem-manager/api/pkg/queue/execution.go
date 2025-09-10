@@ -36,6 +36,15 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		return
 	}
 
+	// Store the assembled prompt in /tmp for debugging
+	promptPath := filepath.Join("/tmp", fmt.Sprintf("ecosystem-prompt-%s.txt", task.ID))
+	if err := os.WriteFile(promptPath, []byte(prompt), 0644); err != nil {
+		log.Printf("Warning: Failed to save prompt to %s: %v", promptPath, err)
+		// Don't fail the task, just log the warning
+	} else {
+		log.Printf("Saved assembled prompt to %s", promptPath)
+	}
+
 	// Update task progress
 	task.CurrentPhase = "prompt_assembled"
 	task.ProgressPercent = 25

@@ -7,11 +7,31 @@
 
 # Universal Contract v2.0 handler for content::add
 sagemath::content::add() {
-    local file="${1:-}"
+    local file=""
+    local name=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --file)
+                file="$2"
+                shift 2
+                ;;
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                # Assume it's the file if no flag provided
+                file="$1"
+                shift
+                ;;
+        esac
+    done
     
     if [ -z "$file" ]; then
         echo "Error: No file specified" >&2
-        echo "Usage: resource-sagemath content add <file.sage|file.ipynb>" >&2
+        echo "Usage: resource-sagemath content add --file <file.sage|file.ipynb> [--name <custom_name>]" >&2
         return 1
     fi
     
@@ -23,15 +43,20 @@ sagemath::content::add() {
     local filename=$(basename "$file")
     local extension="${filename##*.}"
     
+    # Use custom name if provided
+    if [ -n "$name" ]; then
+        filename="$name"
+    fi
+    
     echo "Adding SageMath content: $filename"
     
     case "$extension" in
         sage|py)
-            cp "$file" "$SAGEMATH_SCRIPTS_DIR/"
+            cp "$file" "$SAGEMATH_SCRIPTS_DIR/$filename"
             echo "✅ Script added to: $SAGEMATH_SCRIPTS_DIR/$filename"
             ;;
         ipynb)
-            cp "$file" "$SAGEMATH_NOTEBOOKS_DIR/"
+            cp "$file" "$SAGEMATH_NOTEBOOKS_DIR/$filename"
             echo "✅ Notebook added to: $SAGEMATH_NOTEBOOKS_DIR/$filename"
             ;;
         *)
@@ -58,9 +83,9 @@ sagemath::content::list() {
         for script in "$SAGEMATH_SCRIPTS_DIR"/*.sage "$SAGEMATH_SCRIPTS_DIR"/*.py; do
             if [ -f "$script" ]; then
                 echo "   $(basename "$script")"
-                ((scripts_count++))
+                ((scripts_count++)) || true
             fi
-        done
+        done 2>/dev/null
     fi
     [ $scripts_count -eq 0 ] && echo "   (none)"
     echo ""
@@ -72,9 +97,9 @@ sagemath::content::list() {
         for notebook in "$SAGEMATH_NOTEBOOKS_DIR"/*.ipynb; do
             if [ -f "$notebook" ]; then
                 echo "   $(basename "$notebook")"
-                ((notebooks_count++))
+                ((notebooks_count++)) || true
             fi
-        done
+        done 2>/dev/null
     fi
     [ $notebooks_count -eq 0 ] && echo "   (none)"
     echo ""
@@ -122,7 +147,21 @@ sagemath::content::get() {
 
 # Universal Contract v2.0 handler for content::remove
 sagemath::content::remove() {
-    local item="${1:-}"
+    local item=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                item="$2"
+                shift 2
+                ;;
+            *)
+                item="$1"
+                shift
+                ;;
+        esac
+    done
     
     if [ -z "$item" ]; then
         echo "Error: No content item specified" >&2
@@ -156,7 +195,27 @@ sagemath::content::remove() {
 
 # Universal Contract v2.0 handler for content::execute
 sagemath::content::execute() {
-    local expression_or_file="${1:-}"
+    local expression_or_file=""
+    local name=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                expression_or_file="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # If name is provided, use it as the file
+    if [ -n "$name" ]; then
+        expression_or_file="$name"
+    fi
     
     if [ -z "$expression_or_file" ]; then
         echo "Error: No expression or file specified" >&2

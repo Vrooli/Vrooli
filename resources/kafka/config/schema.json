@@ -1,0 +1,122 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Kafka Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Kafka broker port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 29092
+    },
+    "controller_port": {
+      "type": "integer",
+      "description": "KRaft controller port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 29093
+    },
+    "external_port": {
+      "type": "integer",
+      "description": "External client access port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 29094
+    },
+    "heap_size": {
+      "type": "string",
+      "description": "JVM heap size (e.g., '1G', '2G')",
+      "pattern": "^[0-9]+[MG]$",
+      "default": "1G"
+    },
+    "log_retention_hours": {
+      "type": "integer",
+      "description": "Message retention time in hours",
+      "minimum": 1,
+      "maximum": 8760,
+      "default": 168
+    },
+    "replication_factor": {
+      "type": "integer",
+      "description": "Default replication factor for topics",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 1
+    },
+    "num_partitions": {
+      "type": "integer",
+      "description": "Default number of partitions for new topics",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 3
+    },
+    "auto_create_topics": {
+      "type": "boolean",
+      "description": "Automatically create topics when referenced",
+      "default": true
+    },
+    "compression_type": {
+      "type": "string",
+      "description": "Default compression type for topics",
+      "enum": ["none", "gzip", "snappy", "lz4", "zstd"],
+      "default": "snappy"
+    },
+    "max_message_bytes": {
+      "type": "integer",
+      "description": "Maximum message size in bytes",
+      "minimum": 1024,
+      "maximum": 104857600,
+      "default": 1048576
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable security features",
+          "default": false
+        },
+        "ssl_enabled": {
+          "type": "boolean",
+          "description": "Enable SSL/TLS encryption",
+          "default": false
+        },
+        "sasl_enabled": {
+          "type": "boolean",
+          "description": "Enable SASL authentication",
+          "default": false
+        },
+        "acl_enabled": {
+          "type": "boolean",
+          "description": "Enable access control lists",
+          "default": false
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "properties": {
+        "jmx_enabled": {
+          "type": "boolean",
+          "description": "Enable JMX monitoring",
+          "default": true
+        },
+        "jmx_port": {
+          "type": "integer",
+          "description": "JMX monitoring port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 29099
+        },
+        "metrics_enabled": {
+          "type": "boolean",
+          "description": "Enable metrics collection",
+          "default": true
+        }
+      }
+    }
+  },
+  "required": ["port", "controller_port", "heap_size"],
+  "additionalProperties": false
+}

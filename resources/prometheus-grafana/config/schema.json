@@ -1,0 +1,246 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Prometheus + Grafana Configuration Schema",
+  "description": "Configuration schema for the Prometheus and Grafana monitoring stack",
+  "type": "object",
+  "properties": {
+    "prometheus": {
+      "type": "object",
+      "description": "Prometheus server configuration",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "Prometheus HTTP port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 9090
+        },
+        "retention": {
+          "type": "string",
+          "description": "Data retention period",
+          "pattern": "^[0-9]+[dwmy]$",
+          "default": "15d"
+        },
+        "scrape_interval": {
+          "type": "string",
+          "description": "Default scrape interval",
+          "pattern": "^[0-9]+[smh]$",
+          "default": "15s"
+        },
+        "evaluation_interval": {
+          "type": "string",
+          "description": "Rule evaluation interval",
+          "pattern": "^[0-9]+[smh]$",
+          "default": "15s"
+        },
+        "storage_path": {
+          "type": "string",
+          "description": "Path for metrics storage",
+          "default": "./data/prometheus"
+        }
+      },
+      "required": ["port"]
+    },
+    "grafana": {
+      "type": "object",
+      "description": "Grafana configuration",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "Grafana HTTP port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 3030
+        },
+        "admin_user": {
+          "type": "string",
+          "description": "Admin username",
+          "default": "admin"
+        },
+        "admin_password": {
+          "type": "string",
+          "description": "Admin password (generated if empty)",
+          "minLength": 8
+        },
+        "anonymous_enabled": {
+          "type": "boolean",
+          "description": "Enable anonymous access",
+          "default": false
+        },
+        "storage_path": {
+          "type": "string",
+          "description": "Path for Grafana data",
+          "default": "./data/grafana"
+        }
+      },
+      "required": ["port", "admin_user"]
+    },
+    "alertmanager": {
+      "type": "object",
+      "description": "Alertmanager configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable Alertmanager",
+          "default": true
+        },
+        "port": {
+          "type": "integer",
+          "description": "Alertmanager HTTP port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 9093
+        },
+        "storage_path": {
+          "type": "string",
+          "description": "Path for alert data",
+          "default": "./data/alertmanager"
+        }
+      }
+    },
+    "exporters": {
+      "type": "object",
+      "description": "Metric exporters configuration",
+      "properties": {
+        "node_exporter": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "port": {
+              "type": "integer",
+              "default": 9100
+            }
+          }
+        },
+        "postgres_exporter": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "port": {
+              "type": "integer",
+              "default": 9187
+            }
+          }
+        },
+        "redis_exporter": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "port": {
+              "type": "integer",
+              "default": 9121
+            }
+          }
+        }
+      }
+    },
+    "service_discovery": {
+      "type": "object",
+      "description": "Service discovery configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable automatic service discovery",
+          "default": true
+        },
+        "docker": {
+          "type": "boolean",
+          "description": "Discover Docker containers",
+          "default": true
+        },
+        "static_targets": {
+          "type": "array",
+          "description": "Static scrape targets",
+          "items": {
+            "type": "object",
+            "properties": {
+              "job": {
+                "type": "string"
+              },
+              "targets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["job", "targets"]
+          }
+        }
+      }
+    },
+    "alerts": {
+      "type": "object",
+      "description": "Alert configuration",
+      "properties": {
+        "email": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "smtp_host": {
+              "type": "string"
+            },
+            "smtp_port": {
+              "type": "integer",
+              "default": 587
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "webhook": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "tls_enabled": {
+          "type": "boolean",
+          "description": "Enable TLS/SSL",
+          "default": false
+        },
+        "tls_cert_path": {
+          "type": "string",
+          "description": "Path to TLS certificate"
+        },
+        "tls_key_path": {
+          "type": "string",
+          "description": "Path to TLS key"
+        }
+      }
+    }
+  },
+  "required": ["prometheus", "grafana"]
+}

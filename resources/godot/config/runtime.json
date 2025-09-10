@@ -1,0 +1,19 @@
+{
+  "startup_order": 850,
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "dependencies": [],
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "category": "development",
+  "description": "Godot Engine game development platform",
+  "ports": {
+    "api": 11457,
+    "lsp": 6005,
+    "debug": 6007
+  },
+  "health_endpoint": "/health",
+  "optional_dependencies": ["minio", "ollama"],
+  "memory_requirements": "2GB",
+  "cpu_requirements": "2 cores"
+}

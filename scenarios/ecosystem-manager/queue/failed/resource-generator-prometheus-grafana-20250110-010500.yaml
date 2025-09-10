@@ -1,0 +1,39 @@
+id: resource-generator-prometheus-grafana-20250110-010500
+title: Prometheus + Grafana Observability Stack
+type: resource
+operation: generator
+category: monitoring
+priority: high
+effort_estimate: 10h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T11:50:09-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:05:00Z"
+updated_at: "2025-09-10T11:50:09-04:00"
+tags:
+    - monitoring
+    - observability
+    - metrics
+notes: '- **What it does:** Complete monitoring and observability stack with Prometheus for metrics collection/alerting and Grafana for visualization. Provides real-time insights into resource health, performance, and usage patterns. - **Use when:** Need comprehensive monitoring of all resources, performance optimization, alerting on anomalies, or creating operational dashboards. Critical for maintaining platform reliability. - **Technical requirements:** - Prometheus server for time-series data - Exporters for each monitored resource - Alertmanager for notification routing - Grafana for dashboard creation - Service discovery for dynamic targets'
+results:
+    error: Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS.
+    execution_time: 9m44s
+    failed_at: "2025-09-10T11:50:09-04:00"
+    prompt_size: 54113 chars (52.84 KB)
+    started_at: "2025-09-10T11:40:26-04:00"
+    success: false
+    timeout_allowed: 30m0s
+    timeout_failure: false

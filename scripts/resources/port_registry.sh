@@ -15,16 +15,24 @@ declare -g -A RESOURCE_PORTS=(
     ["litellm"]="11435"        # LiteLLM unified LLM proxy server
     ["whisper"]="8090"         # Speech-to-text service (keeping original port)
     ["unstructured-io"]="11450" # Document processing and extraction
+    ["nsfw-detector"]="11451"  # NSFW content detection and moderation AI
+    ["qwencoder"]="11452"      # QwenCoder code generation LLM
+    ["deepstack"]="11453"      # DeepStack computer vision AI (object detection, face recognition)
+    ["gazebo"]="11456"         # Gazebo robotics simulation platform (3D physics, sensors, robot modeling)
+    ["godot"]="11457"          # Godot Engine game development platform (GDScript, 2D/3D engine)
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
     ["comfyui"]="8188"         # AI-powered image generation workflows
     ["node-red"]="1880"        # Flow-based automation (Node-RED default port)
     ["windmill"]="5681"        # Developer-centric workflow automation
+    ["temporal"]="7233"        # Temporal workflow orchestration (frontend)
+    ["temporal-grpc"]="7234"   # Temporal gRPC service
     
     # Storage Services (9xxx range + vector databases)
     ["minio"]="9000"           # Object storage (S3 compatible)
     ["vault"]="8200"           # HashiCorp Vault secret management
+    ["step-ca"]="9010"         # Private certificate authority with ACME support
     ["qdrant"]="6333"          # Vector database for AI embeddings
     ["questdb"]="9009"         # Time-series database for analytics
     ["postgres"]="5433"        # PostgreSQL instances (5433-5499 range for client instances)
@@ -42,6 +50,12 @@ declare -g -A RESOURCE_PORTS=(
     # Search Services (82xx range - moved to avoid conflict with debug range)
     ["searxng"]="8280"         # SearXNG metasearch engine
     
+    # Security Services (81xx range)
+    ["owasp-zap"]="8180"       # OWASP ZAP security scanner API
+    
+    # Infrastructure Services (80xx range)
+    ["restic"]="8085"          # Encrypted backup and recovery service
+    
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
     ["llamaindex"]="8091"      # RAG and document processing
@@ -52,6 +66,27 @@ declare -g -A RESOURCE_PORTS=(
     ["erpnext"]="8020"         # Complete open-source ERP suite
     ["blender"]="8093"         # 3D creation suite with Python API
     ["vocr"]="9420"            # Vision OCR - Advanced screen recognition and AI-powered image analysis
+    ["matrix-synapse"]="8008"  # Matrix Synapse federated communication server
+    ["audiocraft"]="7862"      # Meta's comprehensive audio generation suite (MusicGen + AudioGen + EnCodec)
+    
+    # Collaboration Services (80xx range)
+    ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform
+    
+    # Data Integration Services (80xx range)
+    ["airbyte"]="8002"         # Airbyte ELT platform webapp (moved from 8000)
+    ["airbyte-server"]="8003"  # Airbyte API server (moved from 8001)
+    ["airbyte-temporal"]="8006" # Airbyte workflow orchestration
+    
+    # Interactive Computing Services (80xx range)
+    ["jupyterhub"]="8000"      # JupyterHub multi-user notebook server
+    ["jupyterhub-api"]="8001"  # JupyterHub API endpoint
+    ["jupyterhub-proxy"]="8081" # JupyterHub proxy API
+    
+    # Monitoring Services (90xx range)
+    ["prometheus"]="9090"       # Prometheus metrics database
+    ["grafana"]="3030"         # Grafana visualization (non-standard port to avoid conflicts)
+    ["alertmanager"]="9093"    # Prometheus Alertmanager
+    ["node-exporter"]="9100"   # Node metrics exporter
     
     # Future services can use:
     # - 11xxx for AI services

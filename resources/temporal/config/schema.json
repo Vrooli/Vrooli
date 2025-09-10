@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Temporal Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "ports": {
+      "type": "object",
+      "properties": {
+        "web_ui": {
+          "type": "integer",
+          "description": "Port for Temporal Web UI",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 7233
+        },
+        "grpc": {
+          "type": "integer",
+          "description": "Port for gRPC worker connections",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 7234
+        }
+      },
+      "required": ["web_ui", "grpc"]
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "PostgreSQL host",
+          "default": "temporal-postgres"
+        },
+        "port": {
+          "type": "integer",
+          "description": "PostgreSQL port",
+          "default": 5432
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user",
+          "default": "temporal"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password",
+          "format": "password"
+        },
+        "name": {
+          "type": "string",
+          "description": "Database name",
+          "default": "temporal"
+        }
+      },
+      "required": ["host", "port", "user", "password", "name"]
+    },
+    "temporal": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "description": "Default namespace",
+          "default": "default"
+        },
+        "retention": {
+          "type": "string",
+          "description": "Workflow history retention period",
+          "pattern": "^[0-9]+[dhms]$",
+          "default": "30d"
+        },
+        "num_history_shards": {
+          "type": "integer",
+          "description": "Number of history shards",
+          "minimum": 1,
+          "maximum": 16384,
+          "default": 4
+        },
+        "log_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error", "fatal"],
+          "default": "info"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "max_connections": {
+          "type": "integer",
+          "description": "Maximum database connections",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "max_idle_connections": {
+          "type": "integer",
+          "description": "Maximum idle database connections",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "properties": {
+        "startup": {
+          "type": "integer",
+          "description": "Startup timeout in seconds",
+          "minimum": 10,
+          "maximum": 300,
+          "default": 60
+        },
+        "health_check": {
+          "type": "integer",
+          "description": "Health check timeout in seconds",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 5
+        },
+        "shutdown": {
+          "type": "integer",
+          "description": "Shutdown timeout in seconds",
+          "minimum": 5,
+          "maximum": 60,
+          "default": 30
+        }
+      }
+    }
+  },
+  "required": ["ports", "database"],
+  "additionalProperties": false
+}

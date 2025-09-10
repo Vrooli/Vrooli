@@ -20,7 +20,6 @@ base_sections:
   
   # Operational procedures (shared across all operations)
   - shared/operational/queue-processing
-  - shared/operational/selection-algorithms
   - shared/operational/failure-recovery
   - shared/operational/collision-avoidance
   - shared/operational/task-completion-protocol
@@ -48,7 +47,6 @@ operations:
       # Resource-specific knowledge
       - shared/resource-specific/v2-contract
       - shared/resource-specific/port-allocation
-      - shared/resource-specific/cli-integration
     
     variables:
       scenario_type: "resource"
@@ -92,7 +90,6 @@ operations:
       # Resource-specific knowledge
       - shared/resource-specific/v2-contract
       - shared/resource-specific/port-allocation
-      - shared/resource-specific/cli-integration
     
     variables:
       scenario_type: "resource"

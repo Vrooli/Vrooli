@@ -1,0 +1,39 @@
+id: resource-generator-owasp-zap-20250110-010000
+title: OWASP ZAP Security Scanner
+type: resource
+operation: generator
+category: security
+priority: high
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T11:50:22-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:00:00Z"
+updated_at: "2025-09-10T11:50:22-04:00"
+tags:
+    - security
+    - testing
+    - compliance
+notes: '- **What it does:** Web application security scanner with automated vulnerability detection, providing security testing automation and compliance checking. Includes active/passive scanning, authentication handling, and API testing capabilities. - **Use when:** Need automated security testing for generated apps, compliance validation, or continuous security monitoring. Critical for scenarios handling sensitive data or requiring security certifications. - **Technical requirements:** - Java-based; runs in daemon mode for API access - REST API for integration with CI/CD pipelines - Supports authentication (forms, OAuth, SAML) - Can spider and scan single-page applications - Configurable scan policies and alert thresholds'
+results:
+    error: "Claude Code execution failed (exit code 124): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 60 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53755 chars)\n\n"
+    execution_time: 10m0s
+    failed_at: "2025-09-10T11:50:22-04:00"
+    prompt_size: 54169 chars (52.90 KB)
+    started_at: "2025-09-10T11:40:22-04:00"
+    success: false
+    timeout_allowed: 30m0s
+    timeout_failure: true

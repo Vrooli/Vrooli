@@ -1,0 +1,245 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Nextcloud Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "HTTP port for Nextcloud web interface",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8086
+    },
+    "admin": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Admin username",
+          "minLength": 3,
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "description": "Admin password",
+          "minLength": 8,
+          "default": "changeme"
+        }
+      },
+      "required": ["username", "password"]
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["pgsql", "mysql", "sqlite"],
+          "description": "Database type",
+          "default": "pgsql"
+        },
+        "host": {
+          "type": "string",
+          "description": "Database host",
+          "default": "nextcloud_postgres"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Database port",
+          "default": 5432
+        },
+        "name": {
+          "type": "string",
+          "description": "Database name",
+          "default": "nextcloud"
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user",
+          "default": "nextcloud"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password",
+          "default": "nextcloud_db_pass"
+        }
+      },
+      "required": ["type", "host", "name", "user", "password"]
+    },
+    "redis": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Redis host",
+          "default": "nextcloud_redis"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Redis port",
+          "default": 6379
+        },
+        "password": {
+          "type": "string",
+          "description": "Redis password (optional)",
+          "default": ""
+        }
+      },
+      "required": ["host", "port"]
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "dataDir": {
+          "type": "string",
+          "description": "Data directory path inside container",
+          "default": "/var/www/html/data"
+        },
+        "maxUploadSize": {
+          "type": "string",
+          "description": "Maximum upload size",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "10G"
+        },
+        "quotaDefault": {
+          "type": "string",
+          "description": "Default user quota",
+          "pattern": "^[0-9]+[KMG]$|^none$",
+          "default": "none"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "memoryLimit": {
+          "type": "string",
+          "description": "PHP memory limit",
+          "pattern": "^[0-9]+[KMG]$",
+          "default": "512M"
+        },
+        "maxExecutionTime": {
+          "type": "integer",
+          "description": "Maximum execution time in seconds",
+          "minimum": 30,
+          "default": 3600
+        },
+        "opcacheMemory": {
+          "type": "integer",
+          "description": "OPcache memory in MB",
+          "minimum": 128,
+          "default": 128
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "trustedDomains": {
+          "type": "array",
+          "description": "List of trusted domains",
+          "items": {
+            "type": "string"
+          },
+          "default": ["localhost"]
+        },
+        "overwriteProtocol": {
+          "type": "string",
+          "enum": ["http", "https"],
+          "description": "Protocol for generated URLs",
+          "default": "http"
+        },
+        "forceSSL": {
+          "type": "boolean",
+          "description": "Force SSL connections",
+          "default": false
+        },
+        "tokenAuthEnforced": {
+          "type": "boolean",
+          "description": "Enforce token authentication for WebDAV",
+          "default": false
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "enablePreviews": {
+          "type": "boolean",
+          "description": "Enable file previews",
+          "default": true
+        },
+        "enableCron": {
+          "type": "boolean",
+          "description": "Enable background jobs via cron",
+          "default": true
+        },
+        "enableAPCu": {
+          "type": "boolean",
+          "description": "Enable APCu cache",
+          "default": false
+        },
+        "defaultApp": {
+          "type": "string",
+          "description": "Default app after login",
+          "default": "files"
+        }
+      }
+    },
+    "externalStorage": {
+      "type": "object",
+      "properties": {
+        "s3": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "bucket": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            },
+            "secret": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string",
+              "default": "us-east-1"
+            },
+            "endpoint": {
+              "type": "string",
+              "description": "S3-compatible endpoint (for MinIO, etc.)"
+            }
+          }
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "description": "Log level (0=DEBUG, 1=INFO, 2=WARNING, 3=ERROR, 4=FATAL)",
+          "minimum": 0,
+          "maximum": 4,
+          "default": 2
+        },
+        "type": {
+          "type": "string",
+          "enum": ["file", "syslog", "errorlog"],
+          "description": "Log type",
+          "default": "file"
+        },
+        "rotate": {
+          "type": "integer",
+          "description": "Log rotation size in bytes",
+          "default": 104857600
+        }
+      }
+    }
+  },
+  "required": ["port", "admin", "database"],
+  "additionalProperties": false
+}

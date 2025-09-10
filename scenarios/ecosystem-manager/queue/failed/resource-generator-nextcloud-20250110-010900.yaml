@@ -1,0 +1,39 @@
+id: resource-generator-nextcloud-20250110-010900
+title: Nextcloud File Collaboration
+type: resource
+operation: generator
+category: productivity
+priority: medium
+effort_estimate: 8h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-10T13:42:20-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:09:00Z"
+updated_at: "2025-09-10T13:42:20-04:00"
+tags:
+    - collaboration
+    - files
+    - storage
+notes: '- **What it does:** Self-hosted file sync and share platform with integrated office suite, video conferencing, and groupware. Provides complete collaboration infrastructure while maintaining full data sovereignty. - **Use when:** Scenarios need file sharing, document collaboration, or team communication without third-party data exposure. Complements MinIO with user-friendly interfaces. - **Technical requirements:** - PHP 8.0+ with Apache/Nginx - PostgreSQL/MySQL database - Redis for caching and file locking - Storage backend (local, S3-compatible, or external) - HTTPS with valid certificates'
+results:
+    error: "Claude Code execution failed (exit code 124): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 75 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 53635 chars)\n\n"
+    execution_time: 10m0s
+    failed_at: "2025-09-10T13:42:20-04:00"
+    prompt_size: 54049 chars (52.78 KB)
+    started_at: "2025-09-10T13:32:20-04:00"
+    success: false
+    timeout_allowed: 49m0s
+    timeout_failure: true
