@@ -4,34 +4,34 @@ import "time"
 
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
-	ID                string                 `json:"id" yaml:"id"`
-	Title             string                 `json:"title" yaml:"title"`
-	Type              string                 `json:"type" yaml:"type"`                           // resource | scenario
-	Operation         string                 `json:"operation" yaml:"operation"`                 // generator | improver
-	Category          string                 `json:"category" yaml:"category"`
-	Priority          string                 `json:"priority" yaml:"priority"`
-	EffortEstimate    string                 `json:"effort_estimate" yaml:"effort_estimate"`
-	Urgency           string                 `json:"urgency" yaml:"urgency"`
-	ImpactScore       int                    `json:"impact_score" yaml:"impact_score"`
-	Requirements      map[string]interface{} `json:"requirements" yaml:"requirements"`
-	Dependencies      []string               `json:"dependencies" yaml:"dependencies"`
-	Blocks            []string               `json:"blocks" yaml:"blocks"`
-	RelatedScenarios  []string               `json:"related_scenarios" yaml:"related_scenarios"`
-	RelatedResources  []string               `json:"related_resources" yaml:"related_resources"`
-	AssignedResources map[string]bool        `json:"assigned_resources" yaml:"assigned_resources"`
-	Status            string                 `json:"status" yaml:"status"`
-	ProgressPercent   int                    `json:"progress_percentage" yaml:"progress_percentage"`
-	CurrentPhase      string                 `json:"current_phase" yaml:"current_phase"`
-	StartedAt         string                 `json:"started_at" yaml:"started_at"`
-	CompletedAt       string                 `json:"completed_at" yaml:"completed_at"`
-	EstimatedComplete string                 `json:"estimated_completion" yaml:"estimated_completion"`
-	ValidationCriteria []string              `json:"validation_criteria" yaml:"validation_criteria"`
-	CreatedBy         string                 `json:"created_by" yaml:"created_by"`
-	CreatedAt         string                 `json:"created_at" yaml:"created_at"`
-	UpdatedAt         string                 `json:"updated_at" yaml:"updated_at"`
-	Tags              []string               `json:"tags" yaml:"tags"`
-	Notes             string                 `json:"notes" yaml:"notes"`
-	Results           map[string]interface{} `json:"results" yaml:"results"`
+	ID                 string                 `json:"id" yaml:"id"`
+	Title              string                 `json:"title" yaml:"title"`
+	Type               string                 `json:"type" yaml:"type"`           // resource | scenario
+	Operation          string                 `json:"operation" yaml:"operation"` // generator | improver
+	Category           string                 `json:"category" yaml:"category"`
+	Priority           string                 `json:"priority" yaml:"priority"`
+	EffortEstimate     string                 `json:"effort_estimate" yaml:"effort_estimate"`
+	Urgency            string                 `json:"urgency" yaml:"urgency"`
+	ImpactScore        int                    `json:"impact_score" yaml:"impact_score"`
+	Requirements       map[string]interface{} `json:"requirements" yaml:"requirements"`
+	Dependencies       []string               `json:"dependencies" yaml:"dependencies"`
+	Blocks             []string               `json:"blocks" yaml:"blocks"`
+	RelatedScenarios   []string               `json:"related_scenarios" yaml:"related_scenarios"`
+	RelatedResources   []string               `json:"related_resources" yaml:"related_resources"`
+	AssignedResources  map[string]bool        `json:"assigned_resources" yaml:"assigned_resources"`
+	Status             string                 `json:"status" yaml:"status"`
+	ProgressPercent    int                    `json:"progress_percentage" yaml:"progress_percentage"`
+	CurrentPhase       string                 `json:"current_phase" yaml:"current_phase"`
+	StartedAt          string                 `json:"started_at" yaml:"started_at"`
+	CompletedAt        string                 `json:"completed_at" yaml:"completed_at"`
+	EstimatedComplete  string                 `json:"estimated_completion" yaml:"estimated_completion"`
+	ValidationCriteria []string               `json:"validation_criteria" yaml:"validation_criteria"`
+	CreatedBy          string                 `json:"created_by" yaml:"created_by"`
+	CreatedAt          string                 `json:"created_at" yaml:"created_at"`
+	UpdatedAt          string                 `json:"updated_at" yaml:"updated_at"`
+	Tags               []string               `json:"tags" yaml:"tags"`
+	Notes              string                 `json:"notes" yaml:"notes"`
+	Results            map[string]interface{} `json:"results" yaml:"results"`
 }
 
 // OperationConfig represents configuration for each operation type
@@ -74,12 +74,12 @@ type ClaudeCodeResponse struct {
 
 // RunningProcess tracks an executing claude-code process
 type RunningProcess struct {
-	TaskID      string
-	Cmd         interface{} // Will hold *exec.Cmd but avoid import here
-	Context     interface{} // Will hold context.Context
-	Cancel      interface{} // Will hold context.CancelFunc
-	StartTime   time.Time
-	ProcessID   int
+	TaskID    string
+	Cmd       interface{} // Will hold *exec.Cmd but avoid import here
+	Context   interface{} // Will hold context.Context
+	Cancel    interface{} // Will hold context.CancelFunc
+	StartTime time.Time
+	ProcessID int
 }
 
 // ResourceInfo represents information about a discovered resource
@@ -95,14 +95,14 @@ type ResourceInfo struct {
 
 // ScenarioInfo represents information about a discovered scenario
 type ScenarioInfo struct {
-	Name            string `json:"name"`
-	Path            string `json:"path"`
-	Category        string `json:"category"`
-	Description     string `json:"description"`
-	PRDComplete     int    `json:"prd_completion_percentage"`
-	Healthy         bool   `json:"healthy"`
-	P0Requirements  int    `json:"p0_requirements"`
-	P0Completed     int    `json:"p0_completed"`
+	Name           string `json:"name"`
+	Path           string `json:"path"`
+	Category       string `json:"category"`
+	Description    string `json:"description"`
+	PRDComplete    int    `json:"prd_completion_percentage"`
+	Healthy        bool   `json:"healthy"`
+	P0Requirements int    `json:"p0_requirements"`
+	P0Completed    int    `json:"p0_completed"`
 }
 
 // PRDStatus represents the status of a scenario's PRD

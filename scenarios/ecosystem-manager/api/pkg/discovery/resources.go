@@ -11,7 +11,7 @@ import (
 // DiscoverResources scans the filesystem for available resources
 func DiscoverResources() ([]tasks.ResourceInfo, error) {
 	var resources []tasks.ResourceInfo
-	
+
 	// Use vrooli command to get resources list
 	cmd := exec.Command("vrooli", "resource", "list", "--json")
 	output, err := cmd.Output()
@@ -20,32 +20,32 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 		// Return empty list instead of error to prevent UI issues
 		return resources, nil
 	}
-	
+
 	// Parse the JSON output
 	var vrooliResources []map[string]interface{}
 	if err := json.Unmarshal(output, &vrooliResources); err != nil {
 		log.Printf("Warning: Failed to parse vrooli resource list output: %v", err)
 		return resources, nil
 	}
-	
+
 	// Convert to our ResourceInfo format
 	for _, vr := range vrooliResources {
 		resource := tasks.ResourceInfo{
-			Name:        getStringField(vr, "Name"),       // vrooli uses uppercase "Name"
+			Name:        getStringField(vr, "Name"), // vrooli uses uppercase "Name"
 			Path:        getStringField(vr, "path"),
 			Port:        getIntField(vr, "port"),
 			Category:    getStringField(vr, "category"),
 			Description: getStringField(vr, "description"),
 			Version:     getStringField(vr, "version"),
-			Healthy:     getBoolField(vr, "Running"),      // vrooli uses "Running" not "healthy"
+			Healthy:     getBoolField(vr, "Running"), // vrooli uses "Running" not "healthy"
 		}
-		
+
 		// Skip empty entries
 		if resource.Name != "" {
 			resources = append(resources, resource)
 		}
 	}
-	
+
 	log.Printf("Discovered %d resources via vrooli command", len(resources))
 	return resources, nil
 }

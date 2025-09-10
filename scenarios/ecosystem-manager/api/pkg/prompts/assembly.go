@@ -30,13 +30,13 @@ func NewAssembler(promptsDir string) (*Assembler, error) {
 	assembler := &Assembler{
 		PromptsDir: promptsDir,
 	}
-	
+
 	// Load prompts configuration
 	configFile := filepath.Join(promptsDir, "sections.yaml")
 	if err := assembler.loadConfig(configFile); err != nil {
 		return nil, fmt.Errorf("failed to load prompts config: %v", err)
 	}
-	
+
 	return assembler, nil
 }
 
@@ -46,11 +46,11 @@ func (a *Assembler) loadConfig(configFile string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	if err := yaml.Unmarshal(data, &a.PromptsConfig); err != nil {
 		return err
 	}
-	
+
 	log.Println("Loaded prompts configuration for", len(a.PromptsConfig.Operations), "operations")
 	return nil
 }
@@ -71,61 +71,77 @@ func (a *Assembler) GeneratePromptSections(task tasks.TaskItem) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	
-	// Start with base sections
-	allSections := make([]string, len(a.PromptsConfig.BaseSections))
-	copy(allSections, a.PromptsConfig.BaseSections)
-	
-	// Apply conditional filtering to base sections
-	filteredBase := []string{}
-	for _, section := range allSections {
-		// Skip operational sections that aren't relevant
-		if task.Operation == "generator" && strings.Contains(section, "improver-specific") {
-			continue // Skip improver sections for generators
+
+	// Helper function to determine if a section should be skipped
+	shouldSkipSection := func(section string, taskType string, taskOperation string) bool {
+		// Skip operation-specific sections that don't match
+		if taskOperation == "generator" && strings.Contains(section, "improver-specific") {
+			log.Printf("Skipping improver-specific section for generator task: %s", section)
+			return true
 		}
-		if task.Operation == "improver" && strings.Contains(section, "generator-specific") {
-			continue // Skip generator sections for improvers
+		if taskOperation == "improver" && strings.Contains(section, "generator-specific") {
+			log.Printf("Skipping generator-specific section for improver task: %s", section)
+			return true
 		}
-		
+
 		// Skip type-specific sections that don't match
-		if task.Type == "resource" && strings.Contains(section, "scenario-specific") {
-			continue // Skip scenario sections for resources
-		}
-		if task.Type == "scenario" && strings.Contains(section, "resource-specific") {
-			continue // Skip resource sections for scenarios
-		}
-		
-		filteredBase = append(filteredBase, section)
-	}
-	
-	// Add operation-specific sections with same filtering
-	filteredAdditional := []string{}
-	for _, section := range operationConfig.AdditionalSections {
-		// Apply same filtering logic
-		if task.Type == "resource" && strings.Contains(section, "scenario-specific") {
+		if taskType == "resource" && strings.Contains(section, "scenario-specific") {
 			log.Printf("Skipping scenario-specific section for resource task: %s", section)
-			continue
+			return true
 		}
-		if task.Type == "scenario" && strings.Contains(section, "resource-specific") {
+		if taskType == "scenario" && strings.Contains(section, "resource-specific") {
 			log.Printf("Skipping resource-specific section for scenario task: %s", section)
-			continue
+			return true
 		}
-		
-		filteredAdditional = append(filteredAdditional, section)
+
+		return false
 	}
-	
-	// Combine filtered sections
-	allSections = append(filteredBase, filteredAdditional...)
-	
-	log.Printf("Task %s (%s-%s): Using %d sections (filtered from %d)", 
-		task.ID, task.Type, task.Operation, 
-		len(allSections), 
-		len(a.PromptsConfig.BaseSections) + len(operationConfig.AdditionalSections))
-	
+
+	// Filter base sections
+	filteredSections := []string{}
+	for _, section := range a.PromptsConfig.BaseSections {
+		if !shouldSkipSection(section, task.Type, task.Operation) {
+			filteredSections = append(filteredSections, section)
+		}
+	}
+
+	// Filter and add operation-specific sections
+	for _, section := range operationConfig.AdditionalSections {
+		if !shouldSkipSection(section, task.Type, task.Operation) {
+			filteredSections = append(filteredSections, section)
+		}
+	}
+
+	// Use the filtered sections
+	allSections := filteredSections
+
+	log.Printf("Task %s (%s-%s): Using %d sections (filtered from %d)",
+		task.ID, task.Type, task.Operation,
+		len(allSections),
+		len(a.PromptsConfig.BaseSections)+len(operationConfig.AdditionalSections))
+
 	// Log the actual sections being used for debugging
 	log.Printf("Sections for task %s: %v", task.ID, allSections)
-	
+
 	return allSections, nil
+}
+
+// isCriticalInclude determines if an include path is critical and must not fail
+func (a *Assembler) isCriticalInclude(includePath string) bool {
+	// Critical includes are core sections that all operations need
+	criticalPaths := []string{
+		"shared/core/",
+		"shared/methodologies/",
+		"shared/operational/",
+		"patterns/prd-essentials",
+	}
+
+	for _, critical := range criticalPaths {
+		if strings.Contains(includePath, critical) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveIncludes recursively resolves {{INCLUDE: path}} directives in content
@@ -134,24 +150,27 @@ func (a *Assembler) resolveIncludes(content string, basePath string, depth int) 
 	if depth > 10 {
 		return content, fmt.Errorf("include depth exceeded (max 10)")
 	}
-	
+
 	// Pattern to match {{INCLUDE: path}} directives
 	includePattern := regexp.MustCompile(`\{\{INCLUDE:\s*([^\}]+)\}\}`)
-	
-	// Track errors
-	var resolveErrors []string
-	
+
+	// Track errors separately for critical and non-critical
+	var criticalErrors []string
+	var warningErrors []string
+
 	// Replace all includes
 	resolved := includePattern.ReplaceAllStringFunc(content, func(match string) string {
 		// Extract the path from the match
 		submatches := includePattern.FindStringSubmatch(match)
 		if len(submatches) < 2 {
-			resolveErrors = append(resolveErrors, fmt.Sprintf("Invalid include directive: %s", match))
+			errorMsg := fmt.Sprintf("Invalid include directive: %s", match)
+			criticalErrors = append(criticalErrors, errorMsg)
 			return match
 		}
-		
+
 		includePath := strings.TrimSpace(submatches[1])
-		
+		isCritical := a.isCriticalInclude(includePath)
+
 		// Resolve the full path
 		var fullPath string
 		if filepath.IsAbs(includePath) {
@@ -159,58 +178,76 @@ func (a *Assembler) resolveIncludes(content string, basePath string, depth int) 
 		} else {
 			fullPath = filepath.Join(basePath, includePath)
 		}
-		
+
 		// Ensure .md extension
 		if !strings.HasSuffix(fullPath, ".md") {
 			fullPath += ".md"
 		}
-		
+
 		// Read the included file
 		includeContent, err := os.ReadFile(fullPath)
 		if err != nil {
-			log.Printf("Warning: Failed to include %s: %v", includePath, err)
-			resolveErrors = append(resolveErrors, fmt.Sprintf("Failed to include %s: %v", includePath, err))
-			return fmt.Sprintf("<!-- INCLUDE FAILED: %s -->", includePath)
+			errorMsg := fmt.Sprintf("Failed to include %s: %v", includePath, err)
+			if isCritical {
+				log.Printf("CRITICAL: %s", errorMsg)
+				criticalErrors = append(criticalErrors, errorMsg)
+				return fmt.Sprintf("<!-- CRITICAL INCLUDE FAILED: %s -->", includePath)
+			} else {
+				log.Printf("Warning: %s", errorMsg)
+				warningErrors = append(warningErrors, errorMsg)
+				return fmt.Sprintf("<!-- INCLUDE FAILED: %s -->", includePath)
+			}
 		}
-		
+
 		// Recursively resolve includes in the included content
 		resolvedInclude, err := a.resolveIncludes(string(includeContent), filepath.Dir(fullPath), depth+1)
 		if err != nil {
-			log.Printf("Warning: Failed to resolve includes in %s: %v", includePath, err)
-			return string(includeContent) // Return unresolved content
+			errorMsg := fmt.Sprintf("Failed to resolve includes in %s: %v", includePath, err)
+			if isCritical {
+				log.Printf("CRITICAL: %s", errorMsg)
+				criticalErrors = append(criticalErrors, errorMsg)
+				return string(includeContent) // Return unresolved content
+			} else {
+				log.Printf("Warning: %s", errorMsg)
+				return string(includeContent) // Return unresolved content
+			}
 		}
-		
+
 		return resolvedInclude
 	})
-	
-	// Return error if any includes failed
-	if len(resolveErrors) > 0 {
-		log.Printf("Include resolution warnings: %v", resolveErrors)
-		// Don't fail completely, just log warnings
+
+	// Log warnings if any non-critical includes failed
+	if len(warningErrors) > 0 {
+		log.Printf("Include resolution warnings: %v", warningErrors)
 	}
-	
+
+	// Return error if any critical includes failed
+	if len(criticalErrors) > 0 {
+		return resolved, fmt.Errorf("critical include failures: %v", criticalErrors)
+	}
+
 	return resolved, nil
 }
 
 // AssemblePrompt reads and concatenates prompt sections into a full prompt
 func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 	var promptBuilder strings.Builder
-	
+
 	promptBuilder.WriteString("# Ecosystem Manager Task Execution\n\n")
 	promptBuilder.WriteString("You are executing a task for the Vrooli Ecosystem Manager.\n\n")
 	promptBuilder.WriteString("---\n\n")
-	
+
 	for i, section := range sections {
 		// Convert section path to file path
 		var filePath string
-		
+
 		// Check if section already has .md extension
 		if strings.HasSuffix(section, ".md") {
 			filePath = filepath.Join(a.PromptsDir, section)
 		} else {
-			filePath = filepath.Join(a.PromptsDir, section + ".md")
+			filePath = filepath.Join(a.PromptsDir, section+".md")
 		}
-		
+
 		// Check if file exists
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			// Try without the prompts prefix if it's an absolute path
@@ -228,13 +265,13 @@ func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 				continue // Skip missing sections with warning
 			}
 		}
-		
+
 		// Read the file content
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read section %s: %v", section, err)
 		}
-		
+
 		// Resolve any {{INCLUDE:}} directives in the content
 		resolvedContent, err := a.resolveIncludes(string(content), filepath.Dir(filePath), 0)
 		if err != nil {
@@ -242,7 +279,7 @@ func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 			// Continue with partially resolved content
 			resolvedContent = string(content)
 		}
-		
+
 		// Add section header for clarity
 		sectionName := filepath.Base(section)
 		sectionName = strings.TrimSuffix(sectionName, ".md")
@@ -250,7 +287,7 @@ func (a *Assembler) AssemblePrompt(sections []string) (string, error) {
 		promptBuilder.WriteString(resolvedContent)
 		promptBuilder.WriteString("\n\n---\n\n")
 	}
-	
+
 	return promptBuilder.String(), nil
 }
 
@@ -261,17 +298,17 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
 	if err := a.loadConfig(configFile); err != nil {
 		log.Printf("Warning: Failed to reload config, using cached version: %v", err)
 	}
-	
+
 	sections, err := a.GeneratePromptSections(task)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate sections: %v", err)
 	}
-	
+
 	prompt, err := a.AssemblePrompt(sections)
 	if err != nil {
 		return "", fmt.Errorf("failed to assemble prompt: %v", err)
 	}
-	
+
 	// Add task-specific context to the prompt
 	var taskContext strings.Builder
 	taskContext.WriteString("\n\n## Task Context\n\n")
@@ -281,17 +318,17 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
 	taskContext.WriteString(fmt.Sprintf("**Operation**: %s\n", task.Operation))
 	taskContext.WriteString(fmt.Sprintf("**Category**: %s\n", task.Category))
 	taskContext.WriteString(fmt.Sprintf("**Priority**: %s\n", task.Priority))
-	
+
 	if task.Requirements != nil && len(task.Requirements) > 0 {
 		taskContext.WriteString("\n### Requirements\n")
 		requirementsJSON, _ := json.MarshalIndent(task.Requirements, "", "  ")
 		taskContext.WriteString(string(requirementsJSON))
 	}
-	
+
 	if len(task.Notes) > 0 {
 		taskContext.WriteString(fmt.Sprintf("\n### Notes\n%s\n", task.Notes))
 	}
-	
+
 	return prompt + taskContext.String(), nil
 }
 

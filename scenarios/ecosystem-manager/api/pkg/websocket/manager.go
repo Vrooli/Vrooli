@@ -11,10 +11,10 @@ import (
 
 // Manager handles WebSocket connections and broadcasting
 type Manager struct {
-	upgrader    websocket.Upgrader
-	clients     map[*websocket.Conn]bool
+	upgrader     websocket.Upgrader
+	clients      map[*websocket.Conn]bool
 	clientsMutex sync.RWMutex
-	broadcast   chan interface{}
+	broadcast    chan interface{}
 }
 
 // NewManager creates a new WebSocket manager
@@ -28,10 +28,10 @@ func NewManager() *Manager {
 		clients:   make(map[*websocket.Conn]bool),
 		broadcast: make(chan interface{}),
 	}
-	
+
 	// Start the broadcaster goroutine
 	go manager.startBroadcaster()
-	
+
 	return manager
 }
 
@@ -48,22 +48,22 @@ func (m *Manager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer conn.Close()
-	
+
 	// Register client
 	m.clientsMutex.Lock()
 	m.clients[conn] = true
 	clientCount := len(m.clients)
 	m.clientsMutex.Unlock()
-	
+
 	log.Printf("WebSocket client connected. Total clients: %d", clientCount)
-	
+
 	// Send initial state
 	conn.WriteJSON(map[string]interface{}{
 		"type":      "connected",
 		"message":   "Connected to Ecosystem Manager",
 		"timestamp": time.Now().Unix(),
 	})
-	
+
 	// Cleanup on disconnect
 	defer func() {
 		m.clientsMutex.Lock()
@@ -72,7 +72,7 @@ func (m *Manager) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		m.clientsMutex.Unlock()
 		log.Printf("WebSocket client disconnected. Total clients: %d", clientCount)
 	}()
-	
+
 	// Keep connection alive and handle incoming messages
 	for {
 		_, _, err := conn.ReadMessage()
@@ -99,7 +99,7 @@ func (m *Manager) startBroadcaster() {
 func (m *Manager) broadcastToAll(update interface{}) {
 	m.clientsMutex.RLock()
 	defer m.clientsMutex.RUnlock()
-	
+
 	for client := range m.clients {
 		err := client.WriteJSON(update)
 		if err != nil {
@@ -117,7 +117,7 @@ func (m *Manager) BroadcastUpdate(updateType string, data interface{}) {
 		"data":      data,
 		"timestamp": time.Now().Unix(),
 	}
-	
+
 	// Non-blocking send
 	select {
 	case m.broadcast <- update:

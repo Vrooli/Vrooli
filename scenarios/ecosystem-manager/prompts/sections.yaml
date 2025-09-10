@@ -10,8 +10,8 @@ description: Unified system for generating and improving resources and scenarios
 base_sections:
   # Core knowledge (all operations need these)
   - shared/core/vrooli-context
-  - shared/core/memory-system
-  - shared/core/validation-gates
+  - shared/core/memory-search-patterns
+  # Note: validation-gates are now operation-specific (see each operation below)
   - shared/core/prd-protocol
   - shared/core/security-requirements
   
@@ -34,11 +34,13 @@ operations:
     description: Creates new resources with v2.0 contract compliance and proper scaffolding
     
     additional_sections:
+      # Resource-specific validation gates
+      - shared/core/resource-validation-gates
+      
       # Research methodology (comprehensive research approach)
       - shared/methodologies/research-methodology
       
       # Generator-specific sections
-      - shared/generator-specific/qdrant-deep-search
       - shared/generator-specific/duplicate-detection
       - shared/generator-specific/scaffolding-phase
       - shared/generator-specific/seeding-guidelines
@@ -46,7 +48,6 @@ operations:
       # Resource-specific knowledge
       - shared/resource-specific/v2-contract
       - shared/resource-specific/port-allocation
-      - shared/resource-specific/health-checks
       - shared/resource-specific/cli-integration
     
     variables:
@@ -79,8 +80,8 @@ operations:
     description: Iteratively improves existing resources for v2.0 compliance and reliability
     
     additional_sections:
-      # Assessment methodology for improvers
-      - shared/methodologies/research-methodology
+      # Resource-specific validation gates
+      - shared/core/resource-validation-gates
       
       # Improver-specific sections
       - shared/improver-specific/progress-verification
@@ -91,7 +92,6 @@ operations:
       # Resource-specific knowledge
       - shared/resource-specific/v2-contract
       - shared/resource-specific/port-allocation
-      - shared/resource-specific/health-checks
       - shared/resource-specific/cli-integration
     
     variables:
@@ -123,11 +123,13 @@ operations:
     description: Creates new scenarios from scratch with comprehensive PRDs
     
     additional_sections:
+      # Scenario-specific validation gates
+      - shared/core/scenario-validation-gates
+      
       # Research methodology (comprehensive research approach)
       - shared/methodologies/research-methodology
       
       # Generator-specific sections
-      - shared/generator-specific/qdrant-deep-search
       - shared/generator-specific/duplicate-detection
       - shared/generator-specific/scaffolding-phase
       - shared/generator-specific/seeding-guidelines
@@ -164,8 +166,8 @@ operations:
     description: Iteratively improves existing scenarios to advance PRD completion
     
     additional_sections:
-      # Assessment methodology for improvers
-      - shared/methodologies/research-methodology
+      # Scenario-specific validation gates
+      - shared/core/scenario-validation-gates
       
       # Improver-specific sections
       - shared/improver-specific/progress-verification

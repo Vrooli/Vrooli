@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
+	"regexp"
 	"strings"
 	"time"
 
@@ -58,18 +58,18 @@ func convertToStringMap(m interface{}) interface{} {
 // GetQueueItems retrieves all tasks with the specified status
 func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 	queuePath := filepath.Join(s.QueueDir, status)
-	
+
 	// Debug logging
 	log.Printf("Looking for tasks in: %s", queuePath)
-	
+
 	files, err := filepath.Glob(filepath.Join(queuePath, "*.yaml"))
 	if err != nil {
 		log.Printf("Error globbing files: %v", err)
 		return nil, err
 	}
-	
+
 	log.Printf("Found %d files in %s", len(files), status)
-	
+
 	var items []TaskItem
 	for _, file := range files {
 		log.Printf("Reading file: %s", file)
@@ -78,13 +78,13 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 			log.Printf("Error reading file %s: %v", file, err)
 			continue
 		}
-		
+
 		var item TaskItem
 		if err := yaml.Unmarshal(data, &item); err != nil {
 			log.Printf("Error unmarshaling YAML from %s: %v", file, err)
 			continue
 		}
-		
+
 		// Convert interface{} maps to string maps for JSON compatibility
 		if item.Requirements != nil {
 			converted := convertToStringMap(item.Requirements)
@@ -99,38 +99,80 @@ func (s *Storage) GetQueueItems(status string) ([]TaskItem, error) {
 			}
 		}
 		// AssignedResources should be fine as map[string]bool with yaml.v3
-		
+
 		log.Printf("Successfully loaded task: %s", item.ID)
 		items = append(items, item)
 	}
-	
+
 	log.Printf("Returning %d items for status %s", len(items), status)
 	return items, nil
 }
 
-// SaveQueueItem saves a task to the specified status directory
+// SaveQueueItem saves a task to the specified status directory using atomic write
 func (s *Storage) SaveQueueItem(item TaskItem, status string) error {
 	queuePath := filepath.Join(s.QueueDir, status)
 	filename := fmt.Sprintf("%s.yaml", item.ID)
 	filePath := filepath.Join(queuePath, filename)
-	
+
 	data, err := yaml.Marshal(item)
 	if err != nil {
 		return err
 	}
-	
-	return os.WriteFile(filePath, data, 0644)
+
+	// Use atomic write to prevent partial writes or corruption
+	return s.atomicWriteFile(filePath, data, 0644)
+}
+
+// atomicWriteFile writes data to a file atomically by writing to a temp file first
+func (s *Storage) atomicWriteFile(filePath string, data []byte, perm os.FileMode) error {
+	// Create temp file in same directory to ensure same filesystem
+	dir := filepath.Dir(filePath)
+	tempFile, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %v", err)
+	}
+	tempPath := tempFile.Name()
+
+	// Ensure cleanup on any error
+	defer func() {
+		// Remove temp file if it still exists (in case of error)
+		os.Remove(tempPath)
+	}()
+
+	// Write data to temp file
+	if _, err := tempFile.Write(data); err != nil {
+		tempFile.Close()
+		return fmt.Errorf("failed to write to temp file: %v", err)
+	}
+
+	// Close temp file before rename
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %v", err)
+	}
+
+	// Set proper permissions
+	if err := os.Chmod(tempPath, perm); err != nil {
+		return fmt.Errorf("failed to set permissions: %v", err)
+	}
+
+	// Atomic rename - this is atomic on same filesystem
+	if err := os.Rename(tempPath, filePath); err != nil {
+		return fmt.Errorf("failed to rename temp file to target: %v", err)
+	}
+
+	return nil
 }
 
 // MoveQueueItem moves a task from one status to another (atomic rename)
 func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
 	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", itemID))
 	toPath := filepath.Join(s.QueueDir, toStatus, fmt.Sprintf("%s.yaml", itemID))
-	
+
 	return os.Rename(fromPath, toPath)
 }
 
 // MoveTask moves a task between queue states and updates timestamps
+// Uses atomic operations to prevent task loss
 func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 	// Read the task
 	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
@@ -138,16 +180,16 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read task from %s: %v", fromPath, err)
 	}
-	
+
 	var task TaskItem
 	if err := yaml.Unmarshal(data, &task); err != nil {
 		return fmt.Errorf("failed to unmarshal task: %v", err)
 	}
-	
+
 	// Update timestamps based on status change
 	now := time.Now().Format(time.RFC3339)
 	task.UpdatedAt = now
-	
+
 	switch toStatus {
 	case "in-progress":
 		task.StartedAt = now
@@ -161,25 +203,26 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 		task.CompletedAt = now
 		task.Status = "failed"
 	}
-	
-	// CRITICAL: Remove from old location FIRST to prevent duplicates
-	// If this fails, we abort the whole operation
-	if err := os.Remove(fromPath); err != nil {
-		return fmt.Errorf("failed to remove task from %s: %v", fromStatus, err)
-	}
-	log.Printf("Deleted task %s from %s", taskID, fromStatus)
-	
-	// Now save to new location
+
+	// SAFE APPROACH: Save to new location FIRST, then remove from old
+	// This ensures we never lose the task even if operations fail
 	if err := s.SaveQueueItem(task, toStatus); err != nil {
-		// Try to restore to old location since we already deleted it
-		log.Printf("ERROR: Failed to save task %s to %s, attempting restore to %s", taskID, toStatus, fromStatus)
-		if restoreErr := s.SaveQueueItem(task, fromStatus); restoreErr != nil {
-			log.Printf("CRITICAL: Failed to restore task %s to %s: %v", taskID, fromStatus, restoreErr)
-			return fmt.Errorf("failed to save task to %s and failed to restore: save error: %v, restore error: %v", toStatus, err, restoreErr)
-		}
-		return fmt.Errorf("failed to save task to %s (restored to %s): %v", toStatus, fromStatus, err)
+		return fmt.Errorf("failed to save task to %s: %v", toStatus, err)
 	}
-	
+	log.Printf("Saved task %s to %s", taskID, toStatus)
+
+	// Now remove from old location
+	// If this fails, we have a duplicate but haven't lost the task
+	if err := os.Remove(fromPath); err != nil {
+		// Try to clean up the duplicate we just created
+		toPath := filepath.Join(s.QueueDir, toStatus, fmt.Sprintf("%s.yaml", taskID))
+		if cleanupErr := os.Remove(toPath); cleanupErr != nil {
+			log.Printf("WARNING: Task %s exists in both %s and %s: %v", taskID, fromStatus, toStatus, err)
+			return fmt.Errorf("failed to remove task from %s (task now exists in both locations): %v", fromStatus, err)
+		}
+		return fmt.Errorf("failed to remove task from %s (cleaned up duplicate): %v", fromStatus, err)
+	}
+
 	log.Printf("Successfully moved task %s from %s to %s", taskID, fromStatus, toStatus)
 	return nil
 }
@@ -187,7 +230,7 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 // GetTaskByID finds a task by ID across all queue statuses
 func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
-	
+
 	// Strategy 1: Try exact filename match
 	for _, status := range statuses {
 		filePath := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))
@@ -196,30 +239,31 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 			if err != nil {
 				continue
 			}
-			
+
 			var task TaskItem
 			if err := yaml.Unmarshal(data, &task); err != nil {
 				continue
 			}
-			
+
 			return &task, status, nil
 		}
 	}
-	
+
 	// Strategy 2: Try to find a file where the filename (without .yaml) starts with the taskID
 	// This handles cases where the ID has extra suffix but filename doesn't
-	// First, try removing the last timestamp segment from the taskID
+	// Use regex to detect timestamp patterns more robustly
 	taskIDPrefix := taskID
-	if lastDash := strings.LastIndex(taskID, "-"); lastDash > 0 {
-		// Check if the part after the last dash looks like a timestamp (6 digits)
-		suffix := taskID[lastDash+1:]
-		if len(suffix) == 6 {
-			if _, err := strconv.Atoi(suffix); err == nil {
-				taskIDPrefix = taskID[:lastDash]
-			}
-		}
+
+	// Pattern matches common timestamp formats at the end:
+	// - 6 digits (HHMMSS format like 010900)
+	// - 8 digits (YYYYMMDD format like 20250110)
+	// - timestamp with dashes like 2025-01-10
+	timestampPattern := regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
+	if matches := timestampPattern.FindStringSubmatch(taskID); len(matches) > 0 {
+		// Remove the timestamp suffix to get the base ID
+		taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
 	}
-	
+
 	// Try to find file with the prefix
 	for _, status := range statuses {
 		dirPath := filepath.Join(s.QueueDir, status)
@@ -227,20 +271,20 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 		if err != nil {
 			continue
 		}
-		
+
 		for _, entry := range entries {
 			if entry.IsDir() {
 				continue
 			}
-			
+
 			filename := entry.Name()
 			if !strings.HasSuffix(filename, ".yaml") {
 				continue
 			}
-			
+
 			// Remove .yaml extension
 			nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
-			
+
 			// Check if this file matches our taskID or taskIDPrefix
 			if nameWithoutExt == taskIDPrefix || nameWithoutExt == taskID {
 				filePath := filepath.Join(dirPath, filename)
@@ -248,12 +292,12 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 				if err != nil {
 					continue
 				}
-				
+
 				var task TaskItem
 				if err := yaml.Unmarshal(data, &task); err != nil {
 					continue
 				}
-				
+
 				// Verify the ID matches what we're looking for
 				if task.ID == taskID {
 					return &task, status, nil
@@ -261,7 +305,7 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 			}
 		}
 	}
-	
+
 	// Strategy 3: As a last resort, scan all files and match by internal ID
 	for _, status := range statuses {
 		dirPath := filepath.Join(s.QueueDir, status)
@@ -269,36 +313,36 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 		if err != nil {
 			continue
 		}
-		
+
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
 				continue
 			}
-			
+
 			filePath := filepath.Join(dirPath, entry.Name())
 			data, err := os.ReadFile(filePath)
 			if err != nil {
 				continue
 			}
-			
+
 			var task TaskItem
 			if err := yaml.Unmarshal(data, &task); err != nil {
 				continue
 			}
-			
+
 			if task.ID == taskID {
 				return &task, status, nil
 			}
 		}
 	}
-	
+
 	return nil, "", fmt.Errorf("task not found: %s", taskID)
 }
 
 // DeleteTask removes a task file from the appropriate status directory
 func (s *Storage) DeleteTask(taskID string) (string, error) {
 	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
-	
+
 	for _, status := range statuses {
 		filePath := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))
 		if _, err := os.Stat(filePath); err == nil {
@@ -306,12 +350,12 @@ func (s *Storage) DeleteTask(taskID string) (string, error) {
 			if err := os.Remove(filePath); err != nil {
 				return status, fmt.Errorf("failed to delete task: %v", err)
 			}
-			
+
 			log.Printf("Deleted task %s from %s", taskID, status)
 			return status, nil
 		}
 	}
-	
+
 	return "", fmt.Errorf("task not found: %s", taskID)
 }
 

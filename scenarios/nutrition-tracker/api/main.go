@@ -10,8 +10,8 @@ import (
 	"os"
 	"time"
 
-	_ "github.com/lib/pq"
 	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
 	"github.com/rs/cors"
 )
 
@@ -47,16 +47,16 @@ type Food struct {
 }
 
 type NutritionGoals struct {
-	UserID         string  `json:"user_id"`
-	DailyCalories  int     `json:"daily_calories"`
-	ProteinGrams   int     `json:"protein_grams"`
-	CarbsGrams     int     `json:"carbs_grams"`
-	FatGrams       int     `json:"fat_grams"`
-	FiberGrams     int     `json:"fiber_grams"`
-	SugarLimit     int     `json:"sugar_limit"`
-	SodiumLimit    int     `json:"sodium_limit"`
-	WeightGoal     string  `json:"weight_goal"`
-	ActivityLevel  string  `json:"activity_level"`
+	UserID        string `json:"user_id"`
+	DailyCalories int    `json:"daily_calories"`
+	ProteinGrams  int    `json:"protein_grams"`
+	CarbsGrams    int    `json:"carbs_grams"`
+	FatGrams      int    `json:"fat_grams"`
+	FiberGrams    int    `json:"fiber_grams"`
+	SugarLimit    int    `json:"sugar_limit"`
+	SodiumLimit   int    `json:"sodium_limit"`
+	WeightGoal    string `json:"weight_goal"`
+	ActivityLevel string `json:"activity_level"`
 }
 
 type DailySummary struct {
@@ -124,47 +124,47 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("🍎 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Setup routes
@@ -178,15 +178,15 @@ func main() {
 	router.HandleFunc("/api/meals/{id}", getMeal).Methods("GET")
 	router.HandleFunc("/api/meals/{id}", updateMeal).Methods("PUT")
 	router.HandleFunc("/api/meals/{id}", deleteMeal).Methods("DELETE")
-	
+
 	router.HandleFunc("/api/foods", getFoods).Methods("GET")
 	router.HandleFunc("/api/foods/search", searchFoods).Methods("GET")
 	router.HandleFunc("/api/foods", createFood).Methods("POST")
-	
+
 	router.HandleFunc("/api/nutrition", getNutritionSummary).Methods("GET")
 	router.HandleFunc("/api/goals", getGoals).Methods("GET")
 	router.HandleFunc("/api/goals", updateGoals).Methods("POST", "PUT")
-	
+
 	router.HandleFunc("/api/suggestions", getMealSuggestions).Methods("GET")
 
 	// Setup CORS
@@ -207,7 +207,7 @@ func main() {
 	if port == "" {
 		log.Fatal("❌ API_PORT or PORT environment variable is required")
 	}
-	
+
 	// Start server
 	log.Printf("Starting Nutrition Tracker API on port %s", port)
 	if err := http.ListenAndServe(":"+port, handler); err != nil {
@@ -534,7 +534,7 @@ func createFood(w http.ResponseWriter, r *http.Request) {
 func getNutritionSummary(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	date := r.URL.Query().Get("date")
-	
+
 	if userID == "" {
 		userID = "demo-user-123"
 	}
@@ -650,27 +650,27 @@ func getMealSuggestions(w http.ResponseWriter, r *http.Request) {
 	// For now, return mock suggestions
 	suggestions := []map[string]interface{}{
 		{
-			"meal_name":           "Grilled Chicken Salad",
-			"calories":            380,
-			"protein":             35,
-			"carbs":               20,
-			"fat":                 18,
+			"meal_name":             "Grilled Chicken Salad",
+			"calories":              380,
+			"protein":               35,
+			"carbs":                 20,
+			"fat":                   18,
 			"recommendation_reason": "High protein to meet your daily goal",
 		},
 		{
-			"meal_name":           "Quinoa Buddha Bowl",
-			"calories":            420,
-			"protein":             18,
-			"carbs":               55,
-			"fat":                 15,
+			"meal_name":             "Quinoa Buddha Bowl",
+			"calories":              420,
+			"protein":               18,
+			"carbs":                 55,
+			"fat":                   15,
 			"recommendation_reason": "Balanced macros with complex carbs",
 		},
 		{
-			"meal_name":           "Greek Yogurt Parfait",
-			"calories":            280,
-			"protein":             20,
-			"carbs":               35,
-			"fat":                 8,
+			"meal_name":             "Greek Yogurt Parfait",
+			"calories":              280,
+			"protein":               20,
+			"carbs":                 35,
+			"fat":                   8,
 			"recommendation_reason": "Perfect post-workout snack",
 		},
 	}
@@ -680,4 +680,3 @@ func getMealSuggestions(w http.ResponseWriter, r *http.Request) {
 		"suggestions": suggestions,
 	})
 }
-

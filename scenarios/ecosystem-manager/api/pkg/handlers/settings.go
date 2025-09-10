@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
-	"net/http"
 	"log"
+	"net/http"
 
 	"github.com/ecosystem-manager/api/pkg/queue"
-	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
 // SettingsHandlers contains handlers for settings-related endpoints
@@ -15,7 +15,6 @@ type SettingsHandlers struct {
 	processor *queue.Processor
 	wsManager *websocket.Manager
 }
-
 
 // NewSettingsHandlers creates a new settings handlers instance
 func NewSettingsHandlers(processor *queue.Processor, wsManager *websocket.Manager) *SettingsHandlers {
@@ -28,7 +27,7 @@ func NewSettingsHandlers(processor *queue.Processor, wsManager *websocket.Manage
 // GetSettingsHandler returns current settings
 func (h *SettingsHandlers) GetSettingsHandler(w http.ResponseWriter, r *http.Request) {
 	currentSettings := settings.GetSettings()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
@@ -43,7 +42,7 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate settings
 	if newSettings.Slots < 1 || newSettings.Slots > 5 {
 		http.Error(w, "Slots must be between 1 and 5", http.StatusBadRequest)
@@ -61,14 +60,14 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 		http.Error(w, "Task timeout must be between 5 and 240 minutes", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Store old active state for comparison
 	oldSettings := settings.GetSettings()
 	wasActive := oldSettings.Active
-	
+
 	// Update settings
 	settings.UpdateSettings(newSettings)
-	
+
 	// Apply processor settings
 	if wasActive != newSettings.Active {
 		if newSettings.Active {
@@ -79,18 +78,18 @@ func (h *SettingsHandlers) UpdateSettingsHandler(w http.ResponseWriter, r *http.
 			log.Println("Queue processor paused via settings")
 		}
 	}
-	
+
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_updated", newSettings)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"settings": newSettings,
 		"message":  "Settings updated successfully",
 	})
-	
-	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm", 
+
+	log.Printf("Settings updated: slots=%d, refresh=%ds, active=%v, max_turns=%d, timeout=%dm",
 		newSettings.Slots, newSettings.RefreshInterval, newSettings.Active, newSettings.MaxTurns, newSettings.TaskTimeout)
 }
 
@@ -101,19 +100,19 @@ func (h *SettingsHandlers) ResetSettingsHandler(w http.ResponseWriter, r *http.R
 		h.processor.Pause()
 		log.Println("Queue processor paused during settings reset")
 	}
-	
+
 	// Reset to defaults
 	newSettings := settings.ResetSettings()
-	
+
 	// Broadcast settings change via WebSocket
 	h.wsManager.BroadcastUpdate("settings_reset", newSettings)
-	
-	w.Header().Set("Content-Type", "application/json") 
+
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"settings": newSettings,
 		"message":  "Settings reset to defaults",
 	})
-	
+
 	log.Println("Settings reset to defaults")
 }

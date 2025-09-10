@@ -8,12 +8,12 @@ import (
 type Settings struct {
 	// Display settings
 	Theme string `json:"theme"`
-	
-	// Queue processor settings  
+
+	// Queue processor settings
 	Slots           int  `json:"slots"`
 	RefreshInterval int  `json:"refresh_interval"`
 	Active          bool `json:"active"`
-	
+
 	// Agent settings
 	MaxTurns        int    `json:"max_turns"`
 	AllowedTools    string `json:"allowed_tools"`
@@ -29,7 +29,7 @@ var (
 		RefreshInterval: 30,
 		Active:          false, // ALWAYS start inactive for safety
 		MaxTurns:        60,
-		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep", 
+		AllowedTools:    "Read,Write,Edit,Bash,LS,Glob,Grep",
 		SkipPermissions: true,
 		TaskTimeout:     30, // 30 minutes default timeout
 	}
@@ -54,7 +54,7 @@ func UpdateSettings(newSettings Settings) {
 func ResetSettings() Settings {
 	settingsMutex.Lock()
 	defer settingsMutex.Unlock()
-	
+
 	currentSettings = Settings{
 		Theme:           "light",
 		Slots:           1,
@@ -65,7 +65,7 @@ func ResetSettings() Settings {
 		SkipPermissions: true,
 		TaskTimeout:     30, // 30 minutes default timeout
 	}
-	
+
 	return currentSettings
 }
 

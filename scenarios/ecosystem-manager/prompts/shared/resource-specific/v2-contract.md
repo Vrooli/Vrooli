@@ -86,6 +86,50 @@ curl -sf http://localhost:${PORT}/health
 timeout 5 curl -sf http://localhost:${PORT}/health
 ```
 
+## Health Check Implementation Standards
+
+Health checks are the heartbeat of resources. They ensure services are alive, responsive, and ready to serve.
+
+### Health Check Requirements
+- **Response Time**: Must respond in <1 second (preferably <500ms)
+- **Timeout**: Always use `timeout 5` wrapper for safety
+- **Content**: Return meaningful status in response body
+- **Dependencies**: Include critical dependency checks only
+- **Startup Grace**: Allow services time to initialize before failing
+
+### Standard Health Check Commands
+```bash
+# System-wide health
+vrooli status                    # Overall system health
+vrooli status --verbose          # Detailed system status
+vrooli status --json             # JSON output for scripts
+
+# Resource health
+vrooli resource status           # All resources
+vrooli resource status <name>    # Specific resource  
+vrooli resource status --json    # JSON format
+
+# Required health endpoint
+timeout 5 curl -sf http://localhost:${PORT}/health
+```
+
+### Health Check Best Practices
+
+**DO:**
+✅ Keep checks fast (<1 second ideally)  
+✅ Check actual functionality, not just process existence  
+✅ Include dependency checks for critical services only  
+✅ Add appropriate timeouts to prevent hanging  
+✅ Return meaningful status in response body  
+✅ Implement graceful degradation for non-critical checks  
+
+**DON'T:**
+❌ Check everything - Focus on critical paths  
+❌ Block on slow checks - Use async where possible  
+❌ Ignore failures - Log and alert appropriately  
+❌ Return OK when degraded - Be honest about state  
+❌ Forget startup time - Allow services to initialize
+
 ### ❌ Incomplete Command Structure
 ```bash
 # BAD - Missing required subcommands

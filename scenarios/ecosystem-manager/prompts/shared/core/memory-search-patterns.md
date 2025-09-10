@@ -1,38 +1,35 @@
 # Standard Memory Search Patterns
 
-## Required Search Sequence (5 commands max)
+## Flexible Search Strategy
 
-Before starting ANY work, run these exact searches in order:
+Before starting work, search for existing knowledge using the most appropriate method:
 
-### 1. Exact Match Search
+### Option A: Qdrant Search (If Available)
 ```bash
-vrooli resource qdrant search-all "[exact-name] [category]"
+# Try with 10-second timeout
+timeout 10 vrooli resource qdrant search "[exact-name] [category]"
+timeout 10 vrooli resource qdrant search "[core-functionality]"
+timeout 10 vrooli resource qdrant search "[category] implementation"
 ```
-**Purpose**: Find identical or near-identical existing work
+**Note**: If Qdrant is slow or unavailable, skip to Option B
 
-### 2. Functional Equivalent Search
+### Option B: File Search (Always Available)
 ```bash
-vrooli resource qdrant search-all "[core-functionality]"
-```
-**Purpose**: Find different implementations of same capability
+# 1. Exact match search
+rg -i "exact-name" /home/matthalloran8/Vrooli --type md
 
-### 3. Component Reuse Search
-```bash
-vrooli resource qdrant search "[major-component] implementation" code
-```
-**Purpose**: Find existing code patterns to reuse
+# 2. Functional equivalent search
+rg -i "core-functionality|similar-feature" /home/matthalloran8/Vrooli/scenarios
 
-### 4. Failure Analysis Search
-```bash
-vrooli resource qdrant search-all "[category] failed"
-```
-**Purpose**: Learn what's been tried and didn't work
+# 3. Component reuse search
+rg -i "component-name.*implementation" /home/matthalloran8/Vrooli --type go --type js
 
-### 5. Pattern Mining Search
-```bash
-vrooli resource qdrant search-all "[category] template"
+# 4. Failure analysis search
+rg -i "(failed|error|issue).*category-name" /home/matthalloran8/Vrooli --type md
+
+# 5. Pattern mining search
+find /home/matthalloran8/Vrooli/scenarios -name "*template*" -o -name "*example*"
 ```
-**Purpose**: Find proven templates and structures
 
 ## Search Result Analysis
 
