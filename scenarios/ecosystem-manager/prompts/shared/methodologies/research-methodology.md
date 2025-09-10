@@ -100,20 +100,6 @@ Standards:
 - **Security Notes**: [considerations]
 ```
 
-## Quick Research Commands
-```bash
-# Full duplicate check (flexible approach)
-(timeout 10 vrooli resource qdrant search "[name]" 2>/dev/null || rg -i "[name]" /home/matthalloran8/Vrooli) && \
-find /home/matthalloran8/Vrooli -name "*[name]*"
-
-# Pattern mining (try Qdrant first, fallback to file search)
-timeout 10 vrooli resource qdrant search "template [category]" code 2>/dev/null || \
-find /home/matthalloran8/Vrooli/*/templates/*
-
-# Failure check (flexible)
-timeout 10 vrooli resource qdrant search "[name] broken issue" docs 2>/dev/null || \
-rg -i "(failed|error|issue).*[name]" /home/matthalloran8/Vrooli --type md
-```
 
 ## Remember
 - Research saves 10x development time

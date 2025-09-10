@@ -74,40 +74,6 @@ The Qdrant vector database serves as Vrooli's long-term memory:
 5. **Quality Over Quantity**: Better to do one thing well
 6. **Business Value Focus**: Every scenario must generate revenue
 
-## System Goals
-
-### Short Term (3 months)
-- 100+ production scenarios
-- Complete resource coverage
-- Fully autonomous improvement cycles
-
-### Medium Term (6 months)
-- 500+ scenarios
-- Industry-specific scenario packs
-- Enterprise deployment capabilities
-
-### Long Term (1 year)
-- 1000+ scenarios
-- Self-designing scenarios
-- Autonomous business generation
-
-## Success Metrics
-
-- **Scenario Count**: Number of production scenarios
-- **PRD Completion**: Average PRD completion percentage
-- **Revenue Per Scenario**: Average revenue generated
-- **Memory Utilization**: Queries per scenario creation
-- **Cross-Scenario Usage**: Scenarios using shared components
-- **Improvement Velocity**: Improvements per week
-
-## The Vrooli Advantage
-
-What makes Vrooli unique:
-1. **Permanent Learning**: Nothing is ever forgotten
-2. **Compound Intelligence**: Each scenario makes others smarter
-3. **Local-First**: All resources run locally for security/control
-4. **Revenue-Focused**: Every scenario generates business value
-5. **Self-Improving**: The system gets better automatically
 
 ## Remember
 

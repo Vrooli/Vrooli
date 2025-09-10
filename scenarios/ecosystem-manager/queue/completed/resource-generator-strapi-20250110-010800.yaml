@@ -1,0 +1,39 @@
+id: resource-generator-strapi-20250110-010800
+title: Strapi Headless CMS
+type: resource
+operation: generator
+category: content
+priority: medium
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: completed
+progress_percentage: 100
+current_phase: completed
+started_at: ""
+completed_at: "2025-09-10T16:28:26-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:08:00Z"
+updated_at: "2025-09-10T16:28:26-04:00"
+tags:
+    - cms
+    - content
+    - api
+notes: '- **What it does:** Open-source headless CMS built on Node.js that provides a customizable API and admin panel for content management. Version 5 offers 100% JavaScript/TypeScript codebase with REST and GraphQL APIs. - **Use when:** Scenarios need structured content management, rapid API development, or multi-channel content delivery. Perfect for building content-driven applications without custom backend. - **Technical requirements:** - Node.js 18 or 20 - PostgreSQL/MySQL/SQLite database - Docker support via official images - File storage (local or S3-compatible) - PM2 or similar for production'
+results:
+    completed_at: "2025-09-10T16:28:26-04:00"
+    execution_time: 1m20s
+    message: Task completed successfully
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 600 claude --print --max-turns 60 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 16 chars)\n\n## Summary\n\n**Vrooli** is a revolutionary self-improving intelligence platform that enables AI agents to build complete business applications locally. Here's what I discovered:\n\n### \U0001F3AF Core Architecture\n\n**Three-Layer System:**\n1. **Scenarios** - Dual-purpose templates that serve as both integration tests AND $10K-50K revenue-generating business applications\n2. **Resources** - 30+ local services (databases, AI models, automation tools) that agents orchestrate to build complete applications  \n3. **Recursive Intelligence** - Every solution becomes a permanent capability that improves future problem-solving\n\n### \U0001F680 Key Components\n\n**Resources** (in `/resources/`):\n- **AI**: Ollama, Claude Code, Whisper, Gemini\n- **Storage**: PostgreSQL, Redis, Qdrant, MinIO, Vault\n- **Automation**: n8n, Windmill, Node-RED, Agent-S2\n- **Execution**: Judge0, Browserless, ComfyUI\n\n**Scenarios** (in `/scenarios/`) - 130+ business applications including:\n- Research Assistant\n- Document Processing Pipeline\n- Content Creation Studio  \n- App Monitor\n- Ecosystem Manager (meta-scenario that improves Vrooli itself)\n\n### \U0001F4A1 Revolutionary Concept\n\nVrooli isn't just automation - it's **artificial evolution**. The system:\n- Generates complete applications (UI + API + database + CLI) from requirements\n- Preserves your customizations through intelligent modification detection\n- Compounds intelligence - every solved problem makes future problems easier\n- Creates business value directly - each scenario can generate $10K-50K revenue\n\n### \U0001F527 Technical Implementation\n\n- **Local-first**: Everything runs on your hardware for complete privacy\n- **Language-agnostic**: Go, Node.js, Python components work together\n- **Service.json lifecycle**: v2.0 declarative configuration for scenario management\n- **CLI-driven**: `vrooli` command for all operations\n\nThe vision: Every household and business running their own Vrooli server, generating custom software instantly without cloud dependencies.\n"
+    prompt_size: 41063 chars (40.10 KB)
+    started_at: "2025-09-10T16:27:06-04:00"
+    success: true
+    timeout_allowed: 30m0s
