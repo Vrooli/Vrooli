@@ -1,0 +1,35 @@
+id: resource-generator-qwencoder-20250110-022800
+title: QwenCoder Code Generation LLM
+type: resource
+operation: generator
+category: ai
+priority: high
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:28:00Z"
+updated_at: "2025-01-10T02:28:00Z"
+tags: ["llm", "code-generation", "ai", "alibaba"]
+notes: "- **What it does:** Alibaba's code-specific LLM series supporting 92+ programming languages with models from 0.5B to 480B parameters. Features 256K token context (expandable to 1M), achieving 85%+ on HumanEval with code generation, repair, reasoning, and fill-in-the-middle capabilities.
+- **Use when:** Scenarios need automated code generation, code review, bug fixing, or programming assistance. Essential for AI-powered development tools, code completion services, and automated software engineering workflows.
+- **Technical requirements:**
+  - Models from 0.5B to 32B for local deployment
+  - Apache 2.0 license for commercial use
+  - Native function calling support
+  - OpenAI-compatible API format
+  - 7.5 trillion token training corpus"
+results: {}

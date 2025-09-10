@@ -1,0 +1,35 @@
+id: resource-generator-openfoam-20250110-022400
+title: OpenFOAM CFD Simulation Platform
+type: resource
+operation: generator
+category: simulation
+priority: low
+effort_estimate: 12h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:24:00Z"
+updated_at: "2025-01-10T02:24:00Z"
+tags: ["cfd", "simulation", "fluid-dynamics", "physics"]
+notes: "- **What it does:** Leading open-source computational fluid dynamics software for complex fluid flow, heat transfer, chemical reactions, and electromagnetics simulation. Features mathematical notation syntax, cloud API integration, and OpenFOAMGPT 2.0 for automated end-to-end CFD workflows.
+- **Use when:** Scenarios need fluid dynamics simulation, aerodynamics analysis, heat transfer modeling, or turbulence studies. Essential for engineering design validation, environmental flow modeling, and industrial process optimization.
+- **Technical requirements:**
+  - C++ core with Python bindings
+  - Support for 100M+ cell meshes
+  - Spark, AWS Athena, or DuckDB backends
+  - MPI for parallel processing
+  - ParaView for post-processing visualization"
+results: {}

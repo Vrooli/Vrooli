@@ -1,0 +1,35 @@
+id: resource-generator-step-ca-20250110-022200
+title: Step-CA Private Certificate Authority
+type: resource
+operation: generator
+category: security
+priority: high
+effort_estimate: 8h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:22:00Z"
+updated_at: "2025-01-10T02:22:00Z"
+tags: ["security", "pki", "certificates", "acme"]
+notes: "- **What it does:** Open-source private certificate authority for X.509 and SSH certificates with ACME protocol support. Automates certificate lifecycle management with multiple authentication methods, customizable certificate fields, and HSM/KMS integration for secure key storage.
+- **Use when:** Scenarios need internal PKI, mutual TLS authentication, automated certificate management, or migration from Active Directory Certificate Services. Essential for zero-trust architectures, microservices authentication, and DevOps certificate automation.
+- **Technical requirements:**
+  - ACME protocol for automated enrollment/renewal
+  - Support for OIDC, cloud APIs, one-time tokens
+  - Badger, BoltDB, Postgres, or MySQL backends
+  - HSM/KMS support (PKCS#11, AWS KMS, Google Cloud KMS)
+  - 24-hour default certificate lifetime (configurable)"
+results: {}

@@ -1,0 +1,35 @@
+id: resource-generator-godot-20250110-022300
+title: Godot Engine Game Development Platform
+type: resource
+operation: generator
+category: development
+priority: medium
+effort_estimate: 10h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:23:00Z"
+updated_at: "2025-01-10T02:23:00Z"
+tags: ["gaming", "3d", "2d", "gdscript", "ai"]
+notes: "- **What it does:** Free, open-source game engine with built-in GDScript language, node-based scene system, and comprehensive 2D/3D development tools. Features AI-powered code generation, asset creation assistance, and integrated debugging tools for rapid game prototyping and production.
+- **Use when:** Scenarios need game development, interactive simulations, educational software, or visualization tools. Ideal for indie developers, prototyping interactive experiences, and creating cross-platform applications without licensing fees.
+- **Technical requirements:**
+  - GDScript, C#, C++, or GDExtension support
+  - Node and Scene system architecture
+  - OGRE-based rendering with Vulkan/OpenGL
+  - AI assistant integration for code generation
+  - Export to desktop, mobile, web, and consoles"
+results: {}
