@@ -188,7 +188,9 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	defer cancel()
 
 	// Use stdin instead of command line argument to avoid "argument list too long"
-	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-")
+	// Pass the timeout in seconds to resource-claude-code
+	timeoutSeconds := int(timeoutDuration.Seconds())
+	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-", "--timeout", strconv.Itoa(timeoutSeconds))
 	cmd.Dir = vrooliRoot
 
 	// Apply settings to Claude execution via environment variables
@@ -204,8 +206,8 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		cmd.Env = append(cmd.Env, "SKIP_PERMISSIONS=no")
 	}
 
-	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%dm",
-		currentSettings.MaxTurns, currentSettings.AllowedTools, currentSettings.SkipPermissions, currentSettings.TaskTimeout)
+	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds (%dm)",
+		currentSettings.MaxTurns, currentSettings.AllowedTools, currentSettings.SkipPermissions, timeoutSeconds, currentSettings.TaskTimeout)
 	log.Printf("Working directory: %s", cmd.Dir)
 	log.Printf("Full environment: %v", cmd.Env)
 

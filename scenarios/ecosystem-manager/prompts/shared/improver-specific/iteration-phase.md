@@ -35,12 +35,7 @@ diff /tmp/before.txt /tmp/after.txt
 ```
 
 ### 4. Update PRD Immediately
-```markdown
-- [x] Feature implemented
-  - Date: 2025-01-07
-  - Test: `curl localhost:PORT/api/feature`
-  - Note: [any limitations]
-```
+Update checkboxes following the format in the 'prd-protocol' section.
 
 ## Common Patterns
 
@@ -66,7 +61,7 @@ CLI_Commands:
 - [ ] Single focused change
 - [ ] Test new functionality
 - [ ] Verify no regressions
-- [ ] Update PRD
+- [ ] Update PRD (see 'prd-protocol' section)
 - [ ] Commit if successful
 
 ## Failure Protocol

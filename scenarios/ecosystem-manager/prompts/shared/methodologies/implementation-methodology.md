@@ -9,7 +9,7 @@
 
 ### Phase 1: Setup (10% effort)
 - Verify dependencies, tools, permissions
-- Define success criteria aligned with PRD requirement
+- Define success criteria aligned with PRD requirement (see 'prd-protocol' section)
 - Prepare rollback procedure and test commands
 
 ### Phase 2: Core Implementation (60% effort)
@@ -20,7 +20,7 @@
 - Integrate incrementally: dependencies → service.json → CLI → API
 
 **Improvers (Enhancing Existing):**
-- Focus on ONE PRD requirement per iteration
+- Focus on ONE PRD requirement per iteration (see 'prd-protocol' section)
 - Preserve existing functionality (no regressions)
 - Update integration points as needed
 
@@ -35,16 +35,14 @@
 - Integration: dependencies, APIs, CLI commands, UI (if applicable)
 - Performance: response times, resource usage, scaling
 
-**Validation Commands:**
-```
-vrooli scenario run/test [name]
-vrooli resource [name] start/test/health
-```
+**Test Commands:**
+- **Resources**: See 'resource-testing-reference' section
+- **Scenarios**: See 'scenario-testing-reference' section
 
 ### Phase 4: Documentation & Finalization (10% effort)
 - Update README: features, usage, troubleshooting
 - Update relevant docs: e.g. PROBLEMS.md with problems you discovered
-- Update PRD: check completed requirements, note decisions
+- Update PRD per 'prd-protocol' section guidelines
 - Update Qdrant memory for future reference
 
 ## Best Practices
@@ -61,7 +59,7 @@ vrooli resource [name] start/test/health
 ## Success Metrics
 - First-time success rate >80%
 - 100% test pass rate
-- PRD advancement with each iteration
+- PRD advancement with each iteration (see 'prd-protocol' section)
 - Clear, complete documentation
 - Reusable components
 

@@ -10,7 +10,6 @@ description: Unified system for generating and improving resources and scenarios
 base_sections:
   # Core knowledge (all operations need these)
   - shared/core/vrooli-context
-  - shared/core/memory-search-patterns
   # Note: validation-gates are now operation-specific (see each operation below)
   - shared/core/prd-protocol
   - shared/core/security-requirements
@@ -35,6 +34,9 @@ operations:
     additional_sections:
       # Resource-specific validation gates
       - shared/core/resource-validation-gates
+      
+      # Testing reference for resources
+      - shared/testing/resource-testing-reference
       
       # Research methodology (comprehensive research approach)
       - shared/methodologies/research-methodology
@@ -81,6 +83,9 @@ operations:
       # Resource-specific validation gates
       - shared/core/resource-validation-gates
       
+      # Testing reference for resources
+      - shared/testing/resource-testing-reference
+      
       # Improver-specific sections
       - shared/improver-specific/progress-verification
       - shared/improver-specific/regression-detection
@@ -122,6 +127,9 @@ operations:
     additional_sections:
       # Scenario-specific validation gates
       - shared/core/scenario-validation-gates
+      
+      # Testing reference for scenarios
+      - shared/testing/scenario-testing-reference
       
       # Research methodology (comprehensive research approach)
       - shared/methodologies/research-methodology
@@ -165,6 +173,9 @@ operations:
     additional_sections:
       # Scenario-specific validation gates
       - shared/core/scenario-validation-gates
+      
+      # Testing reference for scenarios
+      - shared/testing/scenario-testing-reference
       
       # Improver-specific sections
       - shared/improver-specific/progress-verification

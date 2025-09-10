@@ -58,7 +58,7 @@ Create basic configuration files following the patterns from your template or re
 ### Step 5: Documentation
 Create minimal but clear documentation:
 - README.md with purpose and basic usage
-- PRD.md as the primary deliverable
+- PRD.md following the requirements in the 'prd-protocol' section
 - Basic API/CLI documentation if applicable
 
 Reference existing documentation patterns from similar resources/scenarios.
@@ -91,7 +91,7 @@ Reference existing documentation patterns from similar resources/scenarios.
 - Leave clear extension points for improvers
 
 ## When Scaffolding Is Complete
-After completing all scaffolding work (PRD + structure + basic implementation), follow the comprehensive completion protocol:
+After completing all scaffolding work (see 'prd-protocol' section for PRD requirements + structure + basic implementation), follow the comprehensive completion protocol:
 
 <!-- task-completion-protocol.md already included in base sections -->
 

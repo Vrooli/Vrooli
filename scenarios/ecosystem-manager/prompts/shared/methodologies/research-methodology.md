@@ -12,27 +12,38 @@
 
 ## Phase 1: Memory Search (50% of time)
 
-### Required Searches
+### Flexible Search Strategy
+Use the most appropriate method based on availability:
+
+#### Option A: Qdrant Search (If Available)
 ```bash
-# 1. Exact duplicates
-vrooli resource qdrant search "[exact name]"
-grep -r "[name]" /home/matthalloran8/Vrooli
+# Try with 10-second timeout
+timeout 10 vrooli resource qdrant search "[exact-name] [category]"
+timeout 10 vrooli resource qdrant search "[core-functionality]"
+timeout 10 vrooli resource qdrant search "[category] implementation"
+```
+**Note**: If Qdrant is slow or unavailable, skip to Option B
 
-# 2. Similar functionality
-vrooli resource qdrant search "[category] [function]"
+#### Option B: File Search (Always Available)
+```bash
+# 1. Exact match search
+rg -i "exact-name" /home/matthalloran8/Vrooli --type md
 
-# 3. Past failures
-vrooli resource qdrant search "[name] issue problem broken"
+# 2. Functional equivalent search
+rg -i "core-functionality|similar-feature" /home/matthalloran8/Vrooli/scenarios
 
-# 4. Best practices
-vrooli resource qdrant search "[category] pattern template"
+# 3. Component reuse search
+rg -i "component-name.*implementation" /home/matthalloran8/Vrooli --type go --type js
 
-# 5. Integration points
-vrooli resource qdrant search "[dependency] integration"
+# 4. Failure analysis search
+rg -i "(failed|error|issue).*category-name" /home/matthalloran8/Vrooli --type md
+
+# 5. Pattern mining search
+find /home/matthalloran8/Vrooli/scenarios -name "*template*" -o -name "*example*"
 ```
 
 ### Required Outputs
-- 5 Qdrant findings with insights
+- 5+ search findings with insights (Qdrant or file search)
 - 3+ reusable patterns identified
 - 3+ failure patterns to avoid
 - List of dependencies
@@ -91,17 +102,17 @@ Standards:
 
 ## Quick Research Commands
 ```bash
-# Full duplicate check
-vrooli resource qdrant search "[name]" && \
-grep -r "[name]" /home/matthalloran8/Vrooli && \
+# Full duplicate check (flexible approach)
+(timeout 10 vrooli resource qdrant search "[name]" 2>/dev/null || rg -i "[name]" /home/matthalloran8/Vrooli) && \
 find /home/matthalloran8/Vrooli -name "*[name]*"
 
-# Pattern mining
-vrooli resource qdrant search "template [category]" code
+# Pattern mining (try Qdrant first, fallback to file search)
+timeout 10 vrooli resource qdrant search "template [category]" code 2>/dev/null || \
 find /home/matthalloran8/Vrooli/*/templates/*
 
-# Failure check
-vrooli resource qdrant search "[name] broken issue" docs
+# Failure check (flexible)
+timeout 10 vrooli resource qdrant search "[name] broken issue" docs 2>/dev/null || \
+rg -i "(failed|error|issue).*[name]" /home/matthalloran8/Vrooli --type md
 ```
 
 ## Remember

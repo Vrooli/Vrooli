@@ -5,7 +5,7 @@
 
 ## Time Allocation
 - **40% Research** - Prevent duplicates, find patterns
-- **40% PRD** - Document complete vision
+- **40% PRD** - Document complete vision (see 'prd-protocol' section)
 - **20% Scaffold** - Minimal working structure
 
 ## Pre-Seeding Checklist
@@ -29,20 +29,12 @@ grep -r "[name]" /home/matthalloran8/Vrooli
 ```
 
 ### PRD Excellence
-```markdown
-Required sections:
-- Executive Summary (problem/solution)
-- P0 Requirements (5+ with test commands)
-- P1 Requirements (3+ nice-to-haves)
-- Technical Specifications
-- Success Metrics (measurable)
-- Revenue Model (how it makes money)
-```
+See the 'prd-protocol' section for comprehensive PRD requirements and structure.
 
 ### Minimal Scaffold
 ```
 /[name]/
-  ├── PRD.md           # Complete vision
+  ├── PRD.md           # Complete vision (per 'prd-protocol' section)
   ├── README.md        # Setup instructions
   ├── manage.sh        # Lifecycle commands
   ├── lib/            # For resources
@@ -77,7 +69,7 @@ vrooli resource qdrant search "[name]"  # Indexed
 ### DON'T ❌
 - Duplicate existing (research prevents)
 - Over-build (improvers enhance)
-- Under-document (PRD critical)
+- Under-document (see 'prd-protocol' section)
 - Break patterns (consistency matters)
 - Skip validation (must work)
 
@@ -85,13 +77,13 @@ vrooli resource qdrant search "[name]"  # Indexed
 ```bash
 # Good seed:
 scenarios/invoice-manager/
-  ├── PRD.md (2000+ words, complete vision)
+  ├── PRD.md (per 'prd-protocol' section requirements)
   ├── api/main.go (health endpoint only)
   └── tests/test.sh (verifies health)
 
 # Bad seed:
 scenarios/another-chat/
-  ├── PRD.md (200 words, vague)
+  ├── PRD.md (incomplete/vague)
   ├── Full implementation (10K lines)
   └── No tests
 ```

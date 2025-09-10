@@ -14,17 +14,11 @@ Verify your work actually functions:
 ### 2. Update Documentation
 Follow the `scripts/resources/contracts/v2.0/universal.yaml` guidelines for proper documentation structure:
 
-**For Resources:**
-- Update PRD.md with completed requirements using: `[x] Description ✅ YYYY-MM-DD`
-- Include test commands that prove functionality works
+**For Resources and Scenarios:**
+- Update PRD.md per 'prd-protocol' section requirements
 - Update README.md to reflect current capabilities
 - Document any new configuration or dependencies
-
-**For Scenarios:**
-- Update PRD.md progress checkboxes with completion dates
-- Document new features in README.md
-- Update any UI workflow documentation
-- Note any API changes or new endpoints
+- Note any API changes or new endpoints (scenarios)
 
 ### 3. Capture Learnings
 Document insights in your response that will help future agents:

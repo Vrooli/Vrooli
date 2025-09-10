@@ -6,36 +6,12 @@ Ensure scenarios meet requirements, provide business value, and function correct
 ## Five MANDATORY Gates (ALL must pass)
 
 ### 1. Functional ⚙️
-Validate scenario lifecycle using Makefile commands:
-```bash
-# From scenario directory
-make run          # Starts successfully via Vrooli lifecycle
-make status       # Shows running status
-make test         # All tests pass
-make stop         # Stops cleanly
-```
-
-**Alternative via Vrooli CLI:**
-```bash
-vrooli scenario run [name]       # Starts successfully
-vrooli scenario status [name]    # Shows running
-vrooli scenario stop [name]      # Stops cleanly
-```
+Validate scenario lifecycle.
+**See: 'scenario-testing-reference' section for all Makefile and CLI commands**
 
 ### 2. Integration 🔗
-Test scenario integrations and UI:
-```bash
-# API health check
-curl -sf http://localhost:[PORT]/api/health   # Returns 200 OK
-
-# UI screenshot validation (if UI exists)
-vrooli resource browserless screenshot http://localhost:[PORT]
-# Then in your response: Read screenshot.png
-# Verify UI loads correctly, no errors
-
-# Test resource dependencies
-make status       # Shows all required resources
-```
+Test scenario integrations, APIs, and UI.
+**See: 'scenario-testing-reference' section for API, UI, and integration testing**
 
 ### 3. Documentation 📚
 Validate documentation completeness:
@@ -45,46 +21,14 @@ Validate documentation completeness:
 - [ ] **UI workflows**: User journeys documented (if applicable)
 
 ### 4. Testing 🧪
-Run comprehensive test suite:
-```bash
-# Full test suite via Makefile
-make test         # All tests pass
-make test-api     # API tests pass (if applicable)
-make test-ui      # UI tests pass (if applicable)
-make test-integration  # Integration tests pass
+Run comprehensive test suite.
+**See: 'scenario-testing-reference' section for test commands**
 
-# Or individual test files
-./test/run-tests.sh       # If exists
-```
+### 5. Memory 🧠
+Update Qdrant knowledge base with scenario details.
 
 ## Scenario Structure Validation
-
-### Required Structure
-```bash
-# Check core directories exist
-ls -la scenarios/[name]/          # Root directory
-ls -la scenarios/[name]/api/      # API implementation (if applicable)
-ls -la scenarios/[name]/ui/       # UI implementation (if applicable)  
-ls -la scenarios/[name]/cli/      # CLI implementation (if applicable)
-ls -la scenarios/[name]/test/     # Test files
-
-# Required files
-ls scenarios/[name]/Makefile      # Standard commands
-ls scenarios/[name]/PRD.md        # Product requirements
-ls scenarios/[name]/README.md     # Documentation
-```
-
-### Makefile Commands
-Verify standard Makefile targets work:
-```bash
-make help         # Shows available commands
-make run          # Starts scenario
-make stop         # Stops scenario
-make test         # Runs tests
-make logs         # Shows logs
-make status       # Shows status
-make clean        # Cleans artifacts
-```
+**See: 'scenario-testing-reference' section for structure requirements and Makefile commands**
 
 ## Generator-Specific Gates
 
@@ -138,36 +82,7 @@ time curl -sf http://localhost:[PORT]/api/health
 - [ ] Test proves the improvement
 
 ## Scenario-Specific Validations
-
-### API Validation (if applicable)
-```bash
-# Test key endpoints
-curl -X GET http://localhost:[PORT]/api/health
-curl -X GET http://localhost:[PORT]/api/status
-curl -X GET http://localhost:[PORT]/api/[endpoint]
-
-# Check response times
-time curl -sf http://localhost:[PORT]/api/health  # <500ms
-```
-
-### UI Validation (if applicable)
-```bash
-# Take screenshot for visual validation
-vrooli resource browserless screenshot http://localhost:[PORT]
-vrooli resource browserless screenshot http://localhost:[PORT]/[page]
-
-# In your response, examine screenshots:
-# Read screenshot.png
-# Verify: No errors, UI renders correctly, features visible
-```
-
-### CLI Validation (if applicable)
-```bash
-# Test CLI commands
-./cli/[scenario-name] --help
-./cli/[scenario-name] [command] --help
-./cli/[scenario-name] [command] [args]
-```
+**See: 'scenario-testing-reference' section for API, UI, and CLI validation procedures**
 
 ## Execution Order
 1. **Functional** → Verify scenario runs
@@ -178,57 +93,11 @@ vrooli resource browserless screenshot http://localhost:[PORT]/[page]
 
 **FAIL = STOP** - Fix issues before proceeding
 
-## Quick Validation Commands
-```bash
-# Full scenario validation sequence
-make run && \
-sleep 10 && \
-curl -sf http://localhost:[PORT]/api/health && \
-make test && \
-make stop
-
-# Quick health check only
-make status
-curl -sf http://localhost:[PORT]/api/health
-
-# UI validation with screenshot
-vrooli resource browserless screenshot http://localhost:[PORT]
-```
-
-## Common Validation Failures
-
-### Port Conflicts
-```bash
-# Check if port is in use
-lsof -i :[PORT]
-# Update .env or config file with available port
-```
-
-### Missing Resources
-```bash
-# Check which resources are required
-make status | grep -i "resource"
-# Start required resources
-vrooli resource [name] manage start
-```
-
-### Build Failures
-```bash
-# Clean and rebuild
-make clean
-make build
-make run
-```
-
-### UI Not Loading
-```bash
-# Check if API is running first
-curl -sf http://localhost:[PORT]/api/health
-
-# Check UI build
-cd ui && npm install && npm run build
-# Or: make build-ui
-```
+## Quick Reference
+- **All test commands**: See 'scenario-testing-reference' section
+- **Common issues & solutions**: See 'scenario-testing-reference' section
+- **Performance requirements**: See 'scenario-testing-reference' section
+- **User journey testing**: See 'scenario-testing-reference' section
 
 ## Remember
 - Use Makefile commands for consistency

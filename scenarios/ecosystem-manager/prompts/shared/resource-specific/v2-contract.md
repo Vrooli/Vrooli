@@ -46,21 +46,7 @@
 5. **Graceful Shutdown** - Stop commands must handle cleanup
 
 ## Validation Commands
-
-```bash
-# Validate contract compliance
-/scripts/resources/tools/validate-universal-contract.sh <resource-name>
-
-# Test smoke tests (must be <30s)
-resource-<name> test smoke
-
-# Test all lifecycle hooks
-resource-<name> manage install
-resource-<name> manage start
-resource-<name> status
-resource-<name> manage stop
-resource-<name> manage uninstall
-```
+**See: 'resource-testing-reference' section for all validation and test commands**
 
 ## Common Compliance Issues
 
@@ -97,38 +83,7 @@ Health checks are the heartbeat of resources. They ensure services are alive, re
 - **Dependencies**: Include critical dependency checks only
 - **Startup Grace**: Allow services time to initialize before failing
 
-### Standard Health Check Commands
-```bash
-# System-wide health
-vrooli status                    # Overall system health
-vrooli status --verbose          # Detailed system status
-vrooli status --json             # JSON output for scripts
-
-# Resource health
-vrooli resource status           # All resources
-vrooli resource status <name>    # Specific resource  
-vrooli resource status --json    # JSON format
-
-# Required health endpoint
-timeout 5 curl -sf http://localhost:${PORT}/health
-```
-
-### Health Check Best Practices
-
-**DO:**
-✅ Keep checks fast (<1 second ideally)  
-✅ Check actual functionality, not just process existence  
-✅ Include dependency checks for critical services only  
-✅ Add appropriate timeouts to prevent hanging  
-✅ Return meaningful status in response body  
-✅ Implement graceful degradation for non-critical checks  
-
-**DON'T:**
-❌ Check everything - Focus on critical paths  
-❌ Block on slow checks - Use async where possible  
-❌ Ignore failures - Log and alert appropriately  
-❌ Return OK when degraded - Be honest about state  
-❌ Forget startup time - Allow services to initialize
+**See: 'resource-testing-reference' section for health check commands and best practices**
 
 ### ❌ Incomplete Command Structure
 ```bash

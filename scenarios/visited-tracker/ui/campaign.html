@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Dashboard - Visited Tracker</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent-primary: #238636;
+            --accent-secondary: #1f6feb;
+            --accent-warning: #d29922;
+            --accent-danger: #da3633;
+            --border-primary: #30363d;
+            --heat-0: #161b22;
+            --heat-1: #0e4429;
+            --heat-2: #006d32;
+            --heat-3: #26a641;
+            --heat-4: #39d353;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .back-btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .back-btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent-secondary);
+        }
+
+        .campaign-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .campaign-name {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .campaign-meta {
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .campaign-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            background: var(--accent-primary);
+            color: white;
+        }
+
+        .stats {
+            display: flex;
+            gap: 24px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent-secondary);
+        }
+
+        .btn-primary {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2ea043;
+        }
+
+        .btn-warning {
+            background: var(--accent-warning);
+            border-color: var(--accent-warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--accent-danger);
+            border-color: var(--accent-danger);
+            color: white;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            max-width: 500px;
+        }
+
+        .input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--accent-secondary);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            transition: background 0.2s;
+        }
+
+        .file-item:hover {
+            background: var(--bg-primary);
+        }
+
+        .file-path {
+            flex: 1;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-stats {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+
+        .visit-count {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        .staleness {
+            color: var(--accent-warning);
+        }
+
+        .context-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+        }
+
+        .context-security { background: #da36334d; color: #ff7b72; }
+        .context-performance { background: #1f6feb4d; color: #58a6ff; }
+        .context-bug { background: #d299224d; color: #d29922; }
+        .context-docs { background: #2386364d; color: #3fb950; }
+
+        .heatmap {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(20px, 1fr));
+            gap: 2px;
+            margin-top: 12px;
+        }
+
+        .heat-cell {
+            aspect-ratio: 1;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .heat-cell:hover {
+            transform: scale(1.2);
+        }
+
+        .heat-0 { background: var(--heat-0); }
+        .heat-1 { background: var(--heat-1); }
+        .heat-2 { background: var(--heat-2); }
+        .heat-3 { background: var(--heat-3); }
+        .heat-4 { background: var(--heat-4); }
+
+        .coverage-bar {
+            height: 20px;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+
+        .coverage-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            transition: width 0.5s ease;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .metric {
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+
+        .error {
+            background: var(--accent-danger);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+
+        .description-section {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .description-text {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .patterns-list {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .pattern-badge {
+            padding: 4px 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-primary);
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <a href="index.html" class="back-btn">
+                ← Back to Campaigns
+            </a>
+            <div class="campaign-info">
+                <div class="campaign-name">
+                    <span id="campaignName">Loading...</span>
+                    <span class="campaign-status" id="campaignStatus">active</span>
+                </div>
+                <div class="campaign-meta">
+                    <span>Created by: <strong id="campaignFrom">-</strong></span>
+                    <span id="campaignDate">-</span>
+                </div>
+            </div>
+        </div>
+        <div class="stats" id="globalStats">
+            <div class="stat-item">
+                <span class="stat-value" id="totalFiles">-</span>
+                <span>Total Files</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="coveragePercent">-</span>
+                <span>Coverage</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value" id="avgStaleness">-</span>
+                <span>Avg Staleness</span>
+            </div>
+            <button class="btn btn-danger" onclick="deleteCampaign()" style="margin-left: 16px;">
+                🗑️ Delete Campaign
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="errorContainer"></div>
+
+        <div id="descriptionSection" class="description-section" style="display: none;">
+            <div class="description-text" id="campaignDescription"></div>
+            <div class="patterns-list" id="patternsList"></div>
+        </div>
+
+        <div class="controls">
+            <div class="input-group">
+                <input type="text" class="input" id="filePattern" placeholder="Pattern relative to project root (e.g., scenarios/**/*.go)" value="**/*.js">
+                <button class="btn btn-primary" onclick="syncFiles()">
+                    Sync Files
+                </button>
+            </div>
+            <button class="btn" onclick="refreshData()">
+                🔄 Refresh
+            </button>
+            <button class="btn btn-warning" onclick="exportData()">
+                📥 Export
+            </button>
+        </div>
+
+        <div class="grid-container">
+            <div class="section">
+                <h3 class="section-title">
+                    📊 Least Visited Files
+                    <button class="btn" onclick="loadLeastVisited()" style="margin-left: auto;">Refresh</button>
+                </h3>
+                <div class="file-list" id="leastVisitedList">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h3 class="section-title">⚠️ Most Stale Files</h3>
+                <div class="file-list" id="mostStaleList">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" style="margin-top: 24px;">
+            <h3 class="section-title">📈 Coverage Overview</h3>
+            <div class="coverage-bar">
+                <div class="coverage-fill" id="coverageBar" style="width: 0%"></div>
+            </div>
+            <div class="metric-grid">
+                <div class="metric">
+                    <div class="metric-label">Visited Files</div>
+                    <div class="metric-value" id="visitedFiles">-</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Unvisited Files</div>
+                    <div class="metric-value" id="unvisitedFiles">-</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Average Visits</div>
+                    <div class="metric-value" id="avgVisits">-</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Critical Stale</div>
+                    <div class="metric-value" id="criticalStale">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" style="margin-top: 24px;">
+            <h3 class="section-title">🗂️ Quick Visit Recording</h3>
+            <div class="input-group" style="max-width: none;">
+                <input type="text" class="input" id="visitFiles" placeholder="Enter file paths (space-separated)">
+                <select class="input" id="visitContext" style="flex: 0 0 150px;">
+                    <option value="">No context</option>
+                    <option value="security">Security</option>
+                    <option value="performance">Performance</option>
+                    <option value="bug">Bug</option>
+                    <option value="docs">Documentation</option>
+                </select>
+                <button class="btn btn-primary" onclick="recordVisit()">
+                    Record Visit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let apiUrl = '';
+        let campaignId = '';
+        let campaignData = null;
+
+        // Get campaign ID from URL
+        function getCampaignId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        // Get API configuration
+        async function getConfig() {
+            try {
+                const response = await fetch('/config');
+                const config = await response.json();
+                apiUrl = config.apiUrl;
+                return config;
+            } catch (error) {
+                console.error('Failed to get config:', error);
+                // Fallback to guessing the port
+                const uiPort = window.location.port;
+                const apiPort = uiPort.replace('3', '1');
+                apiUrl = `http://localhost:${apiPort}`;
+            }
+        }
+
+        // Show error message
+        function showError(message) {
+            const container = document.getElementById('errorContainer');
+            container.innerHTML = `<div class="error">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // Format number
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '-';
+            return num.toLocaleString();
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        // Load campaign details
+        async function loadCampaignDetails() {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showError('Campaign not found');
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 2000);
+                        return;
+                    }
+                    throw new Error('Failed to load campaign');
+                }
+                
+                campaignData = await response.json();
+                
+                // Update UI with campaign info
+                document.getElementById('campaignName').textContent = campaignData.name;
+                document.getElementById('campaignFrom').textContent = campaignData.from_agent;
+                document.getElementById('campaignStatus').textContent = campaignData.status;
+                document.getElementById('campaignDate').textContent = formatDate(campaignData.created_at);
+                
+                // Update document title
+                document.title = `${campaignData.name} - Visited Tracker`;
+                
+                // Show description if available
+                if (campaignData.description) {
+                    document.getElementById('campaignDescription').textContent = campaignData.description;
+                    document.getElementById('descriptionSection').style.display = 'block';
+                }
+                
+                // Show patterns if available
+                if (campaignData.patterns && campaignData.patterns.length > 0) {
+                    const patternsList = document.getElementById('patternsList');
+                    patternsList.innerHTML = campaignData.patterns.map(p => 
+                        `<span class="pattern-badge">${p}</span>`
+                    ).join('');
+                    
+                    // Set first pattern as default in sync input
+                    document.getElementById('filePattern').value = campaignData.patterns[0] || '**/*.js';
+                }
+                
+                // Update global stats
+                document.getElementById('totalFiles').textContent = formatNumber(campaignData.total_files || 0);
+                document.getElementById('coveragePercent').textContent = `${Math.round(campaignData.coverage_percent || 0)}%`;
+                
+            } catch (error) {
+                console.error('Error loading campaign:', error);
+                showError('Failed to load campaign details');
+            }
+        }
+
+        // Load coverage statistics
+        async function loadCoverage() {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/coverage`);
+                if (!response.ok) throw new Error('Failed to load coverage');
+                
+                const data = await response.json();
+                
+                // Update global stats
+                document.getElementById('totalFiles').textContent = formatNumber(data.total_files);
+                document.getElementById('coveragePercent').textContent = `${Math.round(data.coverage_percentage || 0)}%`;
+                document.getElementById('avgStaleness').textContent = Math.round(data.average_staleness || 0);
+                
+                // Update coverage section
+                document.getElementById('visitedFiles').textContent = formatNumber(data.visited_files);
+                document.getElementById('unvisitedFiles').textContent = formatNumber(data.unvisited_files);
+                document.getElementById('avgVisits').textContent = Math.round(data.average_visits || 0);
+                
+                // Update coverage bar
+                const coverageBar = document.getElementById('coverageBar');
+                coverageBar.style.width = `${data.coverage_percentage || 0}%`;
+                
+            } catch (error) {
+                console.error('Error loading coverage:', error);
+                showError('Failed to load coverage statistics');
+            }
+        }
+
+        // Load least visited files
+        async function loadLeastVisited() {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/prioritize/least-visited?limit=20`);
+                if (!response.ok) throw new Error('Failed to load least visited');
+                
+                const data = await response.json();
+                const list = document.getElementById('leastVisitedList');
+                
+                if (!data.files || data.files.length === 0) {
+                    list.innerHTML = '<div class="loading">No files tracked yet</div>';
+                    return;
+                }
+                
+                list.innerHTML = data.files.map(file => `
+                    <div class="file-item">
+                        <span class="file-path" title="${file.absolute_path}">${file.file_path}</span>
+                        <div class="file-stats">
+                            <span class="visit-count">${file.visit_count} visits</span>
+                            ${file.staleness_score > 0 ? `<span class="staleness">Staleness: ${Math.round(file.staleness_score)}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading least visited:', error);
+                document.getElementById('leastVisitedList').innerHTML = '<div class="loading">Failed to load</div>';
+            }
+        }
+
+        // Load most stale files
+        async function loadMostStale() {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/prioritize/most-stale?limit=20`);
+                if (!response.ok) throw new Error('Failed to load most stale');
+                
+                const data = await response.json();
+                const list = document.getElementById('mostStaleList');
+                
+                // Update critical count
+                document.getElementById('criticalStale').textContent = data.critical_count || 0;
+                
+                if (!data.files || data.files.length === 0) {
+                    list.innerHTML = '<div class="loading">No stale files detected</div>';
+                    return;
+                }
+                
+                list.innerHTML = data.files.map(file => `
+                    <div class="file-item">
+                        <span class="file-path" title="${file.absolute_path}">${file.file_path}</span>
+                        <div class="file-stats">
+                            <span class="staleness">Score: ${Math.round(file.staleness_score)}</span>
+                            <span class="visit-count">${file.visit_count} visits</span>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading most stale:', error);
+                document.getElementById('mostStaleList').innerHTML = '<div class="loading">Failed to load</div>';
+            }
+        }
+
+        // Sync files
+        async function syncFiles() {
+            const pattern = document.getElementById('filePattern').value;
+            if (!pattern) {
+                showError('Please enter a file pattern');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/structure/sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        patterns: pattern.split(',').map(p => p.trim()),
+                        remove_deleted: false
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Sync failed');
+                
+                const data = await response.json();
+                showError(`✓ Synced: ${data.added} added, ${data.removed} removed, ${data.total} total`);
+                refreshData();
+                
+            } catch (error) {
+                console.error('Error syncing files:', error);
+                showError('Failed to sync files');
+            }
+        }
+
+        // Record visit
+        async function recordVisit() {
+            const files = document.getElementById('visitFiles').value;
+            const context = document.getElementById('visitContext').value;
+            
+            if (!files) {
+                showError('Please enter file paths');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/visit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        files: files.split(' ').filter(f => f),
+                        context: context || null,
+                        agent: 'web-ui'
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Visit recording failed');
+                
+                const data = await response.json();
+                showError(`✓ Recorded ${data.recorded} visits`);
+                document.getElementById('visitFiles').value = '';
+                refreshData();
+                
+            } catch (error) {
+                console.error('Error recording visit:', error);
+                showError('Failed to record visit');
+            }
+        }
+
+        // Export data
+        async function exportData() {
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/export?format=json`);
+                if (!response.ok) throw new Error('Export failed');
+                
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `campaign-${campaignData?.name || campaignId}-export-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                showError('Failed to export data');
+            }
+        }
+
+        // Delete campaign
+        async function deleteCampaign() {
+            if (!campaignData) {
+                showError('Campaign data not loaded');
+                return;
+            }
+            
+            const confirmed = confirm(
+                `Are you sure you want to delete the campaign "${campaignData.name}"?\n\n` +
+                `This will permanently delete:\n` +
+                `- All tracked files (${campaignData.total_files || 0} files)\n` +
+                `- All visit history\n` +
+                `- All related data\n\n` +
+                `This action cannot be undone.`
+            );
+            
+            if (!confirmed) return;
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Delete failed');
+                
+                // Show success message and redirect to dashboard
+                alert(`Campaign "${campaignData.name}" has been deleted successfully.`);
+                window.location.href = 'index.html';
+                
+            } catch (error) {
+                console.error('Error deleting campaign:', error);
+                showError('Failed to delete campaign');
+            }
+        }
+
+        // Refresh all data
+        async function refreshData() {
+            await loadCampaignDetails();
+            await loadCoverage();
+            await loadLeastVisited();
+            await loadMostStale();
+        }
+
+        // Initialize
+        async function init() {
+            campaignId = getCampaignId();
+            
+            if (!campaignId) {
+                showError('No campaign ID provided');
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 2000);
+                return;
+            }
+            
+            await getConfig();
+            await refreshData();
+            
+            // Auto-refresh every 30 seconds
+            setInterval(refreshData, 30000);
+        }
+
+        // Start when page loads
+        init();
+    </script>
+</body>
+</html>

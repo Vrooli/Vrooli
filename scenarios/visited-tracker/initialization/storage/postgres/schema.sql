@@ -1,8 +1,23 @@
 -- Visited Tracker Database Schema
 
--- Tracked files table: stores file metadata and visit statistics
+-- Campaigns table: isolated tracking contexts for different agents/tasks
+CREATE TABLE IF NOT EXISTS campaigns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    from_agent VARCHAR(255) NOT NULL DEFAULT 'manual', -- agent name or 'manual' for human-created
+    description TEXT,
+    patterns JSONB NOT NULL DEFAULT '[]', -- File patterns this campaign tracks
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    status VARCHAR(50) NOT NULL DEFAULT 'active', -- active/completed/archived
+    metadata JSONB NOT NULL DEFAULT '{}',
+    UNIQUE(name)
+);
+
+-- Tracked files table: stores file metadata and visit statistics per campaign
 CREATE TABLE IF NOT EXISTS tracked_files (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
     file_path VARCHAR(1000) NOT NULL, -- Relative path
     absolute_path VARCHAR(1000) NOT NULL, -- Full path
     visit_count INTEGER NOT NULL DEFAULT 0,
@@ -14,7 +29,7 @@ CREATE TABLE IF NOT EXISTS tracked_files (
     staleness_score DECIMAL(10, 4) NOT NULL DEFAULT 0, -- Calculated: (mods × time) / (visits + 1)
     deleted BOOLEAN NOT NULL DEFAULT FALSE, -- Soft delete for removed files
     metadata JSONB NOT NULL DEFAULT '{}',
-    UNIQUE(absolute_path)
+    UNIQUE(campaign_id, absolute_path)
 );
 
 -- Visits table: detailed visit history for each file
@@ -41,7 +56,14 @@ CREATE TABLE IF NOT EXISTS structure_snapshots (
 );
 
 -- Indexes for performance
+-- Campaign indexes
+CREATE INDEX IF NOT EXISTS idx_campaigns_name ON campaigns(name);
+CREATE INDEX IF NOT EXISTS idx_campaigns_from_agent ON campaigns(from_agent);
+CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_campaigns_created_at ON campaigns(created_at DESC);
+
 -- File tracking indexes
+CREATE INDEX IF NOT EXISTS idx_tracked_files_campaign_id ON tracked_files(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_tracked_files_path ON tracked_files(file_path);
 CREATE INDEX IF NOT EXISTS idx_tracked_files_visit_count ON tracked_files(visit_count);
 CREATE INDEX IF NOT EXISTS idx_tracked_files_staleness ON tracked_files(staleness_score DESC);
@@ -136,6 +158,7 @@ CREATE TRIGGER update_staleness_on_file_update
 
 -- Function to record a visit and update file statistics
 CREATE OR REPLACE FUNCTION record_visit(
+    p_campaign_id UUID,
     p_file_path VARCHAR,
     p_absolute_path VARCHAR,
     p_context VARCHAR DEFAULT NULL,
@@ -149,15 +172,15 @@ DECLARE
     v_file_id UUID;
     v_visit_id UUID;
 BEGIN
-    -- Get or create the tracked file
-    INSERT INTO tracked_files (file_path, absolute_path)
-    VALUES (p_file_path, p_absolute_path)
-    ON CONFLICT (absolute_path) DO NOTHING;
+    -- Get or create the tracked file for this campaign
+    INSERT INTO tracked_files (campaign_id, file_path, absolute_path)
+    VALUES (p_campaign_id, p_file_path, p_absolute_path)
+    ON CONFLICT (campaign_id, absolute_path) DO NOTHING;
     
     -- Get the file ID
     SELECT id INTO v_file_id
     FROM tracked_files
-    WHERE absolute_path = p_absolute_path;
+    WHERE campaign_id = p_campaign_id AND absolute_path = p_absolute_path;
     
     -- Update visit count and last visited time
     UPDATE tracked_files
@@ -175,8 +198,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get least visited files
+-- Function to get least visited files for a campaign
 CREATE OR REPLACE FUNCTION get_least_visited_files(
+    p_campaign_id UUID,
     p_limit INTEGER DEFAULT 10,
     p_context VARCHAR DEFAULT NULL,
     p_include_unvisited BOOLEAN DEFAULT TRUE
@@ -200,7 +224,8 @@ BEGIN
         tf.staleness_score
     FROM tracked_files tf
     WHERE 
-        tf.deleted = FALSE
+        tf.campaign_id = p_campaign_id
+        AND tf.deleted = FALSE
         AND (p_include_unvisited OR tf.visit_count > 0)
         AND (p_context IS NULL OR EXISTS (
             SELECT 1 FROM visits v 
@@ -211,8 +236,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get most stale files
+-- Function to get most stale files for a campaign
 CREATE OR REPLACE FUNCTION get_most_stale_files(
+    p_campaign_id UUID,
     p_limit INTEGER DEFAULT 10,
     p_threshold DECIMAL DEFAULT 0.0
 )
@@ -237,15 +263,17 @@ BEGIN
         tf.staleness_score
     FROM tracked_files tf
     WHERE 
-        tf.deleted = FALSE
+        tf.campaign_id = p_campaign_id
+        AND tf.deleted = FALSE
         AND tf.staleness_score >= p_threshold
     ORDER BY tf.staleness_score DESC
     LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get coverage statistics
+-- Function to get coverage statistics for a campaign
 CREATE OR REPLACE FUNCTION get_coverage_stats(
+    p_campaign_id UUID,
     p_patterns VARCHAR[] DEFAULT NULL
 )
 RETURNS TABLE (
@@ -283,7 +311,8 @@ BEGIN
             ROUND(AVG(visit_count)::DECIMAL, 2) as average_visits,
             ROUND(AVG(staleness_score)::DECIMAL, 2) as average_staleness
         FROM tracked_files
-        WHERE deleted = FALSE %s
+        WHERE campaign_id = ' || quote_literal(p_campaign_id) || '
+        AND deleted = FALSE %s
     ', pattern_clause);
 END;
 $$ LANGUAGE plpgsql;
