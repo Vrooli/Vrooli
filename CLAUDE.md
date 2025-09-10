@@ -12,8 +12,9 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 2. **Files**: Always prefer editing existing files over creating new ones
 4. **Dependencies**: Never install packages without explicit permission
 5. **Documentation**: Read `docs/` files at session start for context
-6. **Starting Scenarios**: 
-   - **ALWAYS use**: `vrooli scenario run <name>` to start scenarios
+6. **Managing Scenarios**: 
+   - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make run`, `make test`, `make logs`, `make stop`
+   - **Alternative**: `vrooli scenario run <name>` for direct CLI management
    - **NEVER use**: Direct execution like `./api/scenario-api` or `cd scenario && ./lib/develop.sh`
    - The lifecycle system ensures proper process naming, port allocation, and logging
    - Direct execution bypasses critical infrastructure and causes detection issues
@@ -74,11 +75,19 @@ vrooli develop
 # Run tests
 vrooli test help  # See available test commands
 
-# Start a specific scenario (ALWAYS use this method)
-vrooli scenario run <scenario-name>  # ✅ CORRECT - uses lifecycle management
-# NEVER: ./scenarios/name/api/binary  # ❌ WRONG - bypasses lifecycle
-# NEVER: nohup ./api/scenario-api &   # ❌ WRONG - no process tracking
-# NEVER: cd scenario && ./lib/develop.sh  # ❌ WRONG - old pattern
+# Manage scenarios (PREFERRED method)
+cd scenarios/<scenario-name> && make run     # ✅ BEST - comprehensive management
+cd scenarios/<scenario-name> && make test    # ✅ Run scenario tests
+cd scenarios/<scenario-name> && make logs    # ✅ View scenario logs
+cd scenarios/<scenario-name> && make stop    # ✅ Stop scenario
+
+# Alternative: Direct CLI management
+vrooli scenario run <scenario-name>          # ✅ ALTERNATIVE - CLI management
+
+# NEVER: Direct execution bypasses lifecycle
+# NEVER: ./scenarios/name/api/binary         # ❌ WRONG - bypasses lifecycle
+# NEVER: nohup ./api/scenario-api &          # ❌ WRONG - no process tracking
+# NEVER: cd scenario && ./lib/develop.sh     # ❌ WRONG - old pattern
 ```
 
 > **Note**: When writing tests, make sure you're writing them to test against the DESIRED/EXPECTED behavior, not the actual implementation. This is important for the test to be useful and not just a checkmark.
@@ -90,6 +99,9 @@ vrooli scenario run <scenario-name>  # ✅ CORRECT - uses lifecycle management
 - DON'T start scenarios with direct execution (`./api/scenario-api`, `nohup ./api/binary &`, etc.)
 - DON'T bypass the lifecycle system - it manages process naming, ports, and health checks
 - DON'T create `lib/` folders in scenarios - use v2.0 service.json lifecycle configuration instead
+
+## 🔍 Code Search: ast-grep Priority
+You run in an environment where ast-grep (sg) is available; whenever a search requires syntax-aware or structural matching, default to `ast-grep --lang <language> --pattern '<pattern>'` and avoid falling back to text-only tools like `grep` unless explicitly requested for plain-text search.
 
 ## 🎯 Task Management Commands
 These commands can be invoked by using the keywords listed for each:

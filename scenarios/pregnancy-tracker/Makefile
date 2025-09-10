@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev
+.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -88,6 +88,54 @@ build: ## Build the scenario (if applicable)
 	else \
 		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
 	fi
+
+# Code Quality Targets
+fmt: ## Format all code
+	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
+	@$(MAKE) fmt-go
+	@$(MAKE) fmt-ui
+
+fmt-go: ## Format Go code  
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd api && gofmt -w .; \
+		fi; \
+	fi
+
+fmt-ui: ## Format TypeScript/JavaScript code
+	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
+		if command -v prettier >/dev/null 2>&1; then \
+			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null || true; \
+		fi; \
+	fi
+
+lint: ## Lint all code
+	@echo "$(BLUE)🔍 Linting code...$(RESET)" 
+	@$(MAKE) lint-go
+	@$(MAKE) lint-ui
+
+lint-go: ## Lint Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run; \
+		fi; \
+	fi
+
+lint-ui: ## Lint TypeScript/JavaScript code
+	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
+		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
+			cd ui && npm run lint 2>/dev/null || true; \
+		fi; \
+	fi
+
+check: ## Format, lint, and test code (pre-commit workflow)
+	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"
+	@$(MAKE) fmt
+	@$(MAKE) lint
+	@$(MAKE) test
+	@echo "$(GREEN)✓ All checks passed!$(RESET)"
 
 # Shortcuts
 r: run

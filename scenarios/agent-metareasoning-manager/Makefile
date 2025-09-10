@@ -13,7 +13,7 @@
 #   make logs      - Show scenario logs
 #   make clean     - Clean build artifacts
 
-.PHONY: help run stop dev test test-verbose test-short test-integration coverage coverage-html logs logs-follow status clean build lint fmt deps benchmark profile check
+.PHONY: help run stop dev test test-verbose test-short test-integration coverage coverage-html logs logs-follow status clean build lint fmt deps benchmark profile check fmt-go fmt-ui lint-go lint-ui
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -133,19 +133,15 @@ coverage-html: coverage ## Open coverage report in browser
 		echo "Please open api/coverage.html manually"; \
 	fi
 
-lint: ## Run linters
-	@echo "$(BLUE)🔍 Running linters...$(RESET)"
-	@cd api && if command -v golangci-lint > /dev/null; then \
-		golangci-lint run ./...; \
-	else \
-		go vet ./...; \
-		go fmt ./... | grep -v "^$$" && echo "$(YELLOW)Files need formatting$(RESET)" && exit 1 || echo "$(GREEN)✓ All files formatted$(RESET)"; \
-	fi
+lint: ## Lint all code
+	@echo "$(BLUE)🔍 Linting code...$(RESET)" 
+	@$(MAKE) lint-go
+	@$(MAKE) lint-ui
 
-fmt: ## Format code
+fmt: ## Format all code
 	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
-	@cd api && go fmt ./...
-	@echo "$(GREEN)✓ Format complete$(RESET)"
+	@$(MAKE) fmt-go
+	@$(MAKE) fmt-ui
 
 deps: ## Install/update dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"
@@ -219,7 +215,11 @@ docs: ## Generate API documentation
 		echo "$(YELLOW)Please install godoc: go install golang.org/x/tools/cmd/godoc@latest$(RESET)"; \
 	fi
 
-check: lint test ## Run linters and tests
+check: ## Format, lint, and test code (pre-commit workflow)
+	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"
+	@$(MAKE) fmt
+	@$(MAKE) lint
+	@$(MAKE) test
 	@echo "$(GREEN)✓ All checks passed!$(RESET)"
 
 ci: deps lint test coverage ## Run CI pipeline
@@ -251,6 +251,40 @@ load-test: ## Run load tests (requires vegeta)
 		echo "GET http://localhost:$(API_PORT)/health" | vegeta attack -duration=30s -rate=100 | vegeta report; \
 	else \
 		echo "$(YELLOW)Please install vegeta: go install github.com/tsenart/vegeta@latest$(RESET)"; \
+	fi
+
+# ============================================================================
+# Code Quality Targets
+# ============================================================================
+
+fmt-go: ## Format Go code  
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd api && gofmt -w .; \
+		fi; \
+	fi
+
+fmt-ui: ## Format TypeScript/JavaScript code
+	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
+		if command -v prettier >/dev/null 2>&1; then \
+			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}" 2>/dev/null || true; \
+		fi; \
+	fi
+
+lint-go: ## Lint Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run; \
+		fi; \
+	fi
+
+lint-ui: ## Lint TypeScript/JavaScript code
+	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
+		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
+			cd ui && npm run lint 2>/dev/null || true; \
+		fi; \
 	fi
 
 # ============================================================================

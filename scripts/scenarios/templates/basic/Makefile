@@ -1,4 +1,4 @@
-# Scenario Makefile - Basic Template
+# Basic Scenario Template Makefile
 # 
 # This Makefile ensures scenarios are always run through the Vrooli lifecycle system.
 # NEVER run scenarios directly (./api/binary). ALWAYS use these commands.
@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build
+.PHONY: help run stop test logs status clean build dev fmt lint check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -24,10 +24,11 @@ GREEN := \033[1;32m
 YELLOW := \033[1;33m
 BLUE := \033[1;34m
 RED := \033[1;31m
+CYAN := \033[1;36m
 RESET := \033[0m
 
 help: ## Show this help message
-	@echo "$(BLUE)📱 $(SCENARIO_NAME) Scenario Commands$(RESET)"
+	@echo "$(BLUE)🧪 $(SCENARIO_NAME) Template Commands$(RESET)"
 	@echo ""
 	@echo "$(YELLOW)Usage:$(RESET)"
 	@echo "  make <command>"
@@ -36,16 +37,21 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-10s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-	@echo "$(RED)⚠️  IMPORTANT:$(RESET) Never run ./api/$(SCENARIO_NAME) directly!"
-	@echo "    Always use 'make run' or 'vrooli scenario run $(SCENARIO_NAME)'"
+	@echo "$(RED)⚠️  IMPORTANT:$(RESET) This is a TEMPLATE - copy to scenarios/your-name first!"
+	@echo "    Always use 'make run' or 'vrooli scenario run <name>' for actual scenarios"
 
 run: ## Start this scenario (uses Vrooli lifecycle)
 	@echo "$(BLUE)🚀 Starting $(SCENARIO_NAME) scenario...$(RESET)"
+	@echo "$(CYAN)Note: This is a template for integration testing$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME)
 
 stop: ## Stop this scenario
 	@echo "$(YELLOW)⏹️  Stopping $(SCENARIO_NAME) scenario...$(RESET)"
 	@vrooli scenario stop $(SCENARIO_NAME)
+
+dev: ## Start in development mode
+	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
+	@vrooli scenario run $(SCENARIO_NAME) --dev
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
@@ -65,17 +71,29 @@ status: ## Check if scenario is running
 
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
-	@rm -rf build/ dist/ *.log api/$(SCENARIO_NAME) api/$(SCENARIO_NAME)-api
+	@rm -rf build/ dist/ *.log data/ logs/
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
 build: ## Build the scenario (if applicable)
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
-	@if [ -f api/go.mod ]; then \
-		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go; \
-		echo "$(GREEN)✓ Built api/$(SCENARIO_NAME)-api$(RESET)"; \
-	elif [ -f ui/package.json ]; then \
-		cd ui && npm run build; \
-		echo "$(GREEN)✓ Built UI$(RESET)"; \
-	else \
-		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
-	fi
+	@echo "$(YELLOW)No build needed for basic template$(RESET)"
+
+fmt: ## Format code (placeholder for templates)
+	@echo "$(BLUE)🎨 No code formatting needed for basic template$(RESET)"
+
+lint: ## Lint code (placeholder for templates)
+	@echo "$(BLUE)🔍 No code linting needed for basic template$(RESET)"
+
+check: ## Run all quality checks (placeholder for templates)
+	@echo "$(BLUE)✅ Running basic template validation...$(RESET)"
+	@$(MAKE) test
+
+# Shortcuts
+r: run
+s: stop
+d: dev
+t: test
+l: logs
+c: clean
+b: build
+f: fmt

@@ -13,7 +13,7 @@
 #   make queue     - Show queue status
 #   make clean     - Clean build artifacts
 
-.PHONY: help run stop dev test test-api test-ui logs logs-follow status clean build queue queue-pending queue-progress validate
+.PHONY: help run stop dev test test-api test-ui logs logs-follow status clean build queue queue-pending queue-progress validate fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -143,13 +143,103 @@ validate: ## Validate scenario structure and prompts
 
 view-prompt: ## View assembled prompt sections
 	@echo "$(CYAN)📝 Viewing assembled prompt:$(RESET)"
-	@./view-prompt.sh
+	@echo "=== Ecosystem Manager Prompt Viewer ==="
+	@# Check if ecosystem-manager is running
+	@if ! pgrep -f ecosystem-manager-api > /dev/null; then \
+		echo "❌ Ecosystem Manager API is not running"; \
+		echo "Start it with: make run"; \
+		exit 1; \
+	fi; \
+	echo "✅ API is running"; \
+	echo ""; \
+	echo "📝 Fetching prompt preview..."; \
+	for port in 17369 17368 17367 17366 17365; do \
+		if curl -s --connect-timeout 1 "http://localhost:$$port/health" > /dev/null 2>&1; then \
+			curl -s "http://localhost:$$port/api/prompt-viewer?display=preview" | jq -r \
+				'if .error then "❌ Error: " + .error else ("📏 Size: " + (.prompt_size|tostring) + " chars (" + .prompt_size_kb + " KB)\n" + "📑 Sections: " + (.section_count|tostring) + "\n" + "🎯 Type/Operation: " + .task_type + "/" + .operation + "\n\n" + "=== PROMPT PREVIEW ===\n" + .prompt) end'; \
+			break; \
+		fi; \
+	done
 
 install-deps: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"
 	@cd api && go mod download
 	@cd ui && npm install
 	@echo "$(GREEN)✓ Dependencies installed$(RESET)"
+
+# Code Quality Targets
+fmt: ## Format all code
+	@echo "$(BLUE)🎨 Formatting code...$(RESET)"
+	@$(MAKE) fmt-go
+	@$(MAKE) fmt-ui
+	@echo "$(GREEN)✓ All code formatted$(RESET)"
+
+fmt-go: ## Format Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "$(CYAN)Formatting Go code...$(RESET)"; \
+		if command -v gofumpt >/dev/null 2>&1; then \
+			cd api && gofumpt -w .; \
+			echo "$(GREEN)✓ Go code formatted with gofumpt$(RESET)"; \
+		elif command -v gofmt >/dev/null 2>&1; then \
+			cd api && gofmt -w .; \
+			echo "$(GREEN)✓ Go code formatted with gofmt$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠️  No Go formatter found (gofumpt/gofmt)$(RESET)"; \
+		fi; \
+	else \
+		echo "$(YELLOW)No Go files found, skipping$(RESET)"; \
+	fi
+
+fmt-ui: ## Format TypeScript/JavaScript code
+	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
+		echo "$(CYAN)Formatting UI code...$(RESET)"; \
+		if command -v prettier >/dev/null 2>&1; then \
+			cd ui && prettier --write "**/*.{ts,tsx,js,jsx,json,css,md}"; \
+			echo "$(GREEN)✓ UI code formatted with prettier$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠️  Prettier not found$(RESET)"; \
+		fi; \
+	else \
+		echo "$(YELLOW)No UI files found, skipping$(RESET)"; \
+	fi
+
+lint: ## Lint all code
+	@echo "$(BLUE)🔍 Linting code...$(RESET)"
+	@$(MAKE) lint-go
+	@$(MAKE) lint-ui
+	@echo "$(GREEN)✓ All code linted$(RESET)"
+
+lint-go: ## Lint Go code
+	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
+		echo "$(CYAN)Linting Go code...$(RESET)"; \
+		if command -v golangci-lint >/dev/null 2>&1; then \
+			cd api && golangci-lint run; \
+			echo "$(GREEN)✓ Go code linted$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠️  golangci-lint not found$(RESET)"; \
+		fi; \
+	else \
+		echo "$(YELLOW)No Go files found, skipping$(RESET)"; \
+	fi
+
+lint-ui: ## Lint TypeScript/JavaScript code
+	@if [ -d ui ] && (find ui -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx") | head -1 | grep -q .; then \
+		echo "$(CYAN)Linting UI code...$(RESET)"; \
+		if [ -f ui/package.json ] && grep -q '"eslint"' ui/package.json; then \
+			cd ui && npm run lint 2>/dev/null || npx eslint . 2>/dev/null || echo "$(YELLOW)ESLint configuration needed$(RESET)"; \
+		else \
+			echo "$(YELLOW)⚠️  ESLint not configured$(RESET)"; \
+		fi; \
+	else \
+		echo "$(YELLOW)No UI files found, skipping$(RESET)"; \
+	fi
+
+check: ## Format, lint, and test code (pre-commit workflow)
+	@echo "$(BLUE)✅ Running full code quality check...$(RESET)"
+	@$(MAKE) fmt
+	@$(MAKE) lint
+	@$(MAKE) test
+	@echo "$(GREEN)✅ Code quality check complete$(RESET)"
 
 # Quick shortcuts
 r: run
@@ -160,3 +250,5 @@ l: logs
 q: queue
 c: clean
 b: build
+f: fmt
+lint-all: lint

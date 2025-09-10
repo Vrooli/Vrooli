@@ -1,0 +1,949 @@
+# Product Requirements Document (PRD)
+
+## 🎯 Capability Definition
+
+### Core Capability
+**What permanent capability does this scenario add to Vrooli?**
+Crypto-tools provides a comprehensive cryptographic operations platform that enables all Vrooli scenarios to implement enterprise-grade security without custom cryptographic implementations. It supports hashing, encryption/decryption, digital signatures, key management, certificate handling, and security auditing, making Vrooli a secure-by-default platform for sensitive business operations.
+
+### Intelligence Amplification
+**How does this capability make future agents smarter?**
+Crypto-tools amplifies agent intelligence by:
+- Providing automated security auditing that identifies cryptographic weaknesses before they become vulnerabilities
+- Enabling intelligent key rotation and lifecycle management that maintains security without manual intervention
+- Supporting compliance checking that automatically validates against FIPS, SOC2, and GDPR requirements
+- Offering vulnerability scanning that detects and prevents common cryptographic mistakes
+- Creating secure communication channels that allow agents to work with sensitive data safely
+- Providing best practice enforcement that guides agents toward secure implementations
+
+### Recursive Value
+**What new scenarios become possible after this exists?**
+1. **secure-document-processor**: Encrypted document handling with digital signatures and audit trails
+2. **secrets-manager**: Enterprise secret storage with key rotation and access control
+3. **blockchain-integration-platform**: Cryptocurrency operations, smart contracts, DeFi interactions  
+4. **secure-communication-hub**: End-to-end encrypted messaging and file sharing
+5. **compliance-automation-suite**: GDPR, HIPAA, SOX compliance validation and reporting
+6. **identity-management-system**: PKI infrastructure, certificate authority, identity verification
+7. **security-audit-platform**: Automated penetration testing, vulnerability assessment
+
+## 📊 Success Metrics
+
+### Functional Requirements
+- **Must Have (P0)**
+  - [ ] Hashing operations (SHA-256, SHA-512, MD5, bcrypt, PBKDF2, scrypt)
+  - [ ] Symmetric encryption (AES-256-GCM, ChaCha20-Poly1305, file encryption)
+  - [ ] Asymmetric encryption (RSA-4096, ECDSA P-256, Ed25519)
+  - [ ] Digital signatures with verification and timestamp validation
+  - [ ] Secure key generation with entropy analysis
+  - [ ] Base64, hex, and binary encoding/decoding operations
+  - [ ] RESTful API with comprehensive cryptographic endpoints
+  - [ ] CLI interface with full feature parity and secure key handling
+  
+- **Should Have (P1)**
+  - [ ] X.509 certificate creation, validation, and chain verification
+  - [ ] Automated security auditing with vulnerability detection
+  - [ ] Key lifecycle management with rotation policies
+  - [ ] Hardware Security Module (HSM) integration
+  - [ ] Compliance checking for FIPS 140-2, Common Criteria standards
+  - [ ] Password strength analysis and secure generation
+  - [ ] Cryptographic random number generation with quality assessment
+  - [ ] Multi-signature operations and threshold cryptography
+  
+- **Nice to Have (P2)**
+  - [ ] Blockchain operations (wallet creation, transaction signing, smart contracts)
+  - [ ] Zero-knowledge proofs for privacy-preserving verification
+  - [ ] Homomorphic encryption for computation on encrypted data
+  - [ ] Post-quantum cryptography algorithms (Kyber, Dilithium)
+  - [ ] Secure multi-party computation protocols
+  - [ ] Hardware-backed key storage integration
+  - [ ] Cryptographic protocol analysis and formal verification
+  - [ ] Side-channel attack resistance testing
+
+### Performance Criteria
+| Metric | Target | Measurement Method |
+|--------|--------|-------------------|
+| Hash Operations | > 1M operations/second | Benchmark testing |
+| Encryption Speed | > 100MB/s for AES-256 | Performance monitoring |
+| Key Generation | < 100ms for 4096-bit RSA | Latency measurement |
+| Certificate Validation | < 50ms per certificate | Chain validation testing |
+| Memory Safety | Zero buffer overflows | Static analysis |
+
+### Quality Gates
+- [ ] All P0 requirements implemented with comprehensive security testing
+- [ ] Integration tests pass with HSM, PostgreSQL, and audit logging
+- [ ] Security audit passed by certified cryptographic review
+- [ ] Documentation complete (API docs, CLI help, security guides)
+- [ ] Scenario can be invoked by other agents via secure API/CLI/SDK
+- [ ] At least 5 security-focused scenarios successfully integrated
+
+## 🏗️ Technical Architecture
+
+### Resource Dependencies
+```yaml
+required:
+  - resource_name: postgres
+    purpose: Store key metadata, certificates, audit logs, and security policies
+    integration_pattern: Encrypted metadata storage with audit trails
+    access_method: resource-postgres CLI commands with encrypted connections
+    
+  - resource_name: redis
+    purpose: Cache public keys, certificate chains, and session tokens
+    integration_pattern: High-speed cryptographic cache with TTL
+    access_method: resource-redis CLI commands with encrypted storage
+    
+  - resource_name: minio
+    purpose: Store encrypted files, key backups, and certificate archives
+    integration_pattern: Encrypted object storage with versioning
+    access_method: resource-minio CLI commands with client-side encryption
+    
+optional:
+  - resource_name: hsm
+    purpose: Hardware-backed key generation and cryptographic operations
+    fallback: Software-based cryptography with secure key storage
+    access_method: PKCS#11 interface or vendor-specific APIs
+    
+  - resource_name: vault
+    purpose: Enterprise secret management and key storage
+    fallback: Local encrypted key storage with PostgreSQL
+    access_method: resource-vault CLI commands
+    
+  - resource_name: audit-logger
+    purpose: Centralized security event logging and SIEM integration
+    fallback: Local audit logs with PostgreSQL storage
+    access_method: Syslog or REST API logging
+```
+
+### Resource Integration Standards
+```yaml
+integration_priorities:
+  1_shared_workflows:
+    - workflow: certificate-management.json
+      location: initialization/n8n/
+      purpose: Automated certificate lifecycle management
+    - workflow: key-rotation-policy.json
+      location: initialization/n8n/
+      purpose: Automated key rotation and policy enforcement
+  
+  2_resource_cli:
+    - command: resource-postgres execute
+      purpose: Store and query cryptographic metadata securely
+    - command: resource-minio upload/download
+      purpose: Secure encrypted file operations
+    - command: resource-redis cache
+      purpose: Cache cryptographic materials with expiration
+  
+  3_direct_api:
+    - justification: HSM operations require direct hardware access
+      endpoint: PKCS#11 API for hardware security modules
+    - justification: Blockchain operations need direct node connections
+      endpoint: Web3 API for blockchain interactions
+
+shared_workflow_criteria:
+  - Certificate renewal workflows that prevent expiration
+  - Key rotation policies that maintain security standards
+  - Compliance checking workflows for regulatory requirements
+  - All workflows maintain complete audit trails
+```
+
+### Data Models
+```yaml
+primary_entities:
+  - name: CryptographicKey
+    storage: postgres + hsm
+    schema: |
+      {
+        id: UUID
+        name: string
+        key_type: enum(symmetric, rsa, ecdsa, ed25519)
+        key_size: integer
+        usage: enum(encryption, signing, authentication, key_agreement)
+        status: enum(active, revoked, expired, compromised)
+        created_at: timestamp
+        expires_at: timestamp
+        last_used_at: timestamp
+        rotation_policy: jsonb
+        hsm_key_id: string
+        public_key: text
+        metadata: jsonb
+        audit_trail: jsonb
+      }
+    relationships: Has many CertificateRequests and SecurityEvents
+    
+  - name: Certificate
+    storage: postgres + minio
+    schema: |
+      {
+        id: UUID
+        subject: string
+        issuer: string
+        serial_number: string
+        certificate_pem: text
+        private_key_id: UUID
+        valid_from: timestamp
+        valid_until: timestamp
+        key_usage: text[]
+        extended_key_usage: text[]
+        subject_alt_names: text[]
+        certificate_chain: text[]
+        revocation_status: enum(valid, revoked, expired)
+        revocation_reason: string
+        revoked_at: timestamp
+        created_at: timestamp
+      }
+    relationships: Belongs to CryptographicKey, has CertificateValidations
+    
+  - name: SecurityEvent
+    storage: postgres
+    schema: |
+      {
+        id: UUID
+        event_type: enum(key_created, key_used, key_rotated, cert_issued, audit_failure)
+        severity: enum(info, warning, error, critical)
+        entity_id: UUID
+        entity_type: enum(key, certificate, user, system)
+        event_data: jsonb
+        source_ip: inet
+        user_agent: string
+        timestamp: timestamp
+        correlation_id: UUID
+        remediation_required: boolean
+        remediation_actions: jsonb
+      }
+    relationships: Can reference CryptographicKey or Certificate
+    
+  - name: CompliancePolicy
+    storage: postgres
+    schema: |
+      {
+        id: UUID
+        name: string
+        policy_type: enum(fips_140_2, common_criteria, gdpr, hipaa, sox)
+        requirements: jsonb
+        validation_rules: jsonb
+        is_active: boolean
+        effective_from: timestamp
+        effective_until: timestamp
+        created_by: string
+        approved_by: string
+        last_validation: timestamp
+        compliance_status: enum(compliant, non_compliant, pending)
+      }
+    relationships: References SecurityEvents for compliance validation
+```
+
+### API Contract
+```yaml
+endpoints:
+  - method: POST
+    path: /api/v1/crypto/hash
+    purpose: Generate cryptographic hashes
+    input_schema: |
+      {
+        data: string | {file: base64} | {url: string},
+        algorithm: "sha256|sha512|md5|sha1|blake2b",
+        options: {
+          iterations: integer,
+          salt: string,
+          output_format: "hex|base64|binary"
+        }
+      }
+    output_schema: |
+      {
+        hash: string,
+        algorithm: string,
+        salt: string,
+        iterations: integer,
+        execution_time_ms: number
+      }
+    sla:
+      response_time: 50ms
+      availability: 99.99%
+      
+  - method: POST
+    path: /api/v1/crypto/encrypt
+    purpose: Encrypt data with various algorithms
+    input_schema: |
+      {
+        data: string | {file: base64},
+        algorithm: "aes256|chacha20|rsa|ec",
+        key: string | {key_id: UUID},
+        options: {
+          mode: "gcm|cbc|cfb",
+          padding: "pkcs1|oaep",
+          output_format: "base64|hex|binary"
+        }
+      }
+    output_schema: |
+      {
+        encrypted_data: string,
+        algorithm: string,
+        key_id: UUID,
+        initialization_vector: string,
+        authentication_tag: string
+      }
+      
+  - method: POST
+    path: /api/v1/crypto/decrypt
+    purpose: Decrypt previously encrypted data
+    input_schema: |
+      {
+        encrypted_data: string,
+        algorithm: string,
+        key: string | {key_id: UUID},
+        initialization_vector: string,
+        authentication_tag: string,
+        options: {
+          output_format: "text|base64|binary"
+        }
+      }
+    output_schema: |
+      {
+        decrypted_data: string,
+        integrity_verified: boolean,
+        decryption_time_ms: number
+      }
+      
+  - method: POST
+    path: /api/v1/crypto/sign
+    purpose: Create digital signatures
+    input_schema: |
+      {
+        data: string | {file: base64} | {hash: string},
+        key_id: UUID,
+        algorithm: "rsa_pss|rsa_pkcs1|ecdsa|ed25519",
+        options: {
+          hash_algorithm: "sha256|sha512",
+          include_timestamp: boolean,
+          detached_signature: boolean
+        }
+      }
+    output_schema: |
+      {
+        signature: string,
+        algorithm: string,
+        key_id: UUID,
+        timestamp: string,
+        certificate_chain: array
+      }
+      
+  - method: POST
+    path: /api/v1/crypto/verify
+    purpose: Verify digital signatures
+    input_schema: |
+      {
+        data: string | {file: base64} | {hash: string},
+        signature: string,
+        public_key: string | {key_id: UUID},
+        algorithm: string,
+        options: {
+          verify_timestamp: boolean,
+          check_certificate_chain: boolean
+        }
+      }
+    output_schema: |
+      {
+        is_valid: boolean,
+        verification_details: {
+          signature_valid: boolean,
+          certificate_valid: boolean,
+          timestamp_valid: boolean,
+          trust_chain_valid: boolean
+        },
+        signer_info: object
+      }
+      
+  - method: POST
+    path: /api/v1/crypto/keys/generate
+    purpose: Generate cryptographic keys
+    input_schema: |
+      {
+        key_type: "rsa|ec|ed25519|symmetric",
+        key_size: integer,
+        usage: ["encryption", "signing", "key_agreement"],
+        metadata: {
+          name: string,
+          expiry_days: integer,
+          rotation_policy: object
+        },
+        storage: {
+          use_hsm: boolean,
+          backup_encrypted: boolean
+        }
+      }
+    output_schema: |
+      {
+        key_id: UUID,
+        public_key: string,
+        key_type: string,
+        key_size: integer,
+        fingerprint: string,
+        created_at: string
+      }
+```
+
+### Event Interface
+```yaml
+published_events:
+  - name: crypto.key.created
+    payload: {key_id: UUID, key_type: string, usage: array}
+    subscribers: [audit-logger, key-manager, compliance-checker]
+    
+  - name: crypto.key.used
+    payload: {key_id: UUID, operation: string, success: boolean, timestamp: string}
+    subscribers: [usage-monitor, security-analyzer, audit-logger]
+    
+  - name: crypto.certificate.issued
+    payload: {certificate_id: UUID, subject: string, issuer: string, valid_until: string}
+    subscribers: [certificate-manager, expiry-monitor, compliance-checker]
+    
+  - name: crypto.security.violation
+    payload: {violation_type: string, severity: string, entity_id: UUID, details: object}
+    subscribers: [incident-response, alert-manager, compliance-officer]
+    
+consumed_events:
+  - name: system.key_rotation_due
+    action: Automatically rotate keys according to policy
+    
+  - name: certificate.expiry_warning
+    action: Initiate certificate renewal process
+```
+
+## 🖥️ CLI Interface Contract
+
+### Command Structure
+```yaml
+# Primary CLI executable name and pattern
+cli_binary: crypto-tools
+install_script: cli/install.sh  # Required for PATH integration
+
+# Core commands that MUST be implemented:
+required_commands:
+  - name: status
+    description: Show operational status and resource health
+    flags: [--json, --verbose]
+    
+  - name: help
+    description: Display command help and usage
+    flags: [--all, --command <name>]
+    
+  - name: version
+    description: Show CLI and API version information
+    flags: [--json]
+
+custom_commands:
+  - name: hash
+    description: Generate cryptographic hashes
+    api_endpoint: /api/v1/crypto/hash
+    arguments:
+      - name: input
+        type: string
+        required: true
+        description: Input data, file path, or '-' for stdin
+    flags:
+      - name: --algorithm
+        description: Hash algorithm (sha256, sha512, md5, blake2b)
+      - name: --salt
+        description: Salt for hash function
+      - name: --iterations
+        description: Number of iterations for key derivation
+      - name: --output
+        description: Output format (hex, base64, binary)
+    
+  - name: encrypt
+    description: Encrypt data with various algorithms
+    api_endpoint: /api/v1/crypto/encrypt
+    arguments:
+      - name: input
+        type: string
+        required: true
+        description: Input data or file path
+    flags:
+      - name: --algorithm
+        description: Encryption algorithm (aes256, chacha20, rsa)
+      - name: --key
+        description: Encryption key or key ID
+      - name: --output
+        description: Output file path
+      - name: --armor
+        description: ASCII armor the output
+      
+  - name: decrypt
+    description: Decrypt previously encrypted data
+    api_endpoint: /api/v1/crypto/decrypt
+    arguments:
+      - name: input
+        type: string
+        required: true
+        description: Encrypted data or file path
+    flags:
+      - name: --key
+        description: Decryption key or key ID
+      - name: --output
+        description: Output file path
+      - name: --verify
+        description: Verify integrity and authenticity
+      
+  - name: sign
+    description: Create digital signatures
+    api_endpoint: /api/v1/crypto/sign
+    arguments:
+      - name: input
+        type: string
+        required: true
+        description: Data to sign or file path
+      - name: key_id
+        type: string
+        required: true
+        description: Signing key ID
+    flags:
+      - name: --algorithm
+        description: Signature algorithm (rsa_pss, ecdsa, ed25519)
+      - name: --detached
+        description: Create detached signature
+      - name: --timestamp
+        description: Include timestamp in signature
+      
+  - name: verify
+    description: Verify digital signatures
+    api_endpoint: /api/v1/crypto/verify
+    arguments:
+      - name: input
+        type: string
+        required: true
+        description: Signed data or file path
+      - name: signature
+        type: string
+        required: true
+        description: Signature file or data
+    flags:
+      - name: --public-key
+        description: Public key for verification
+      - name: --certificate
+        description: Certificate for verification
+      - name: --check-chain
+        description: Verify full certificate chain
+        
+  - name: keygen
+    description: Generate cryptographic keys
+    api_endpoint: /api/v1/crypto/keys/generate
+    arguments:
+      - name: key_type
+        type: string
+        required: true
+        description: Key type (rsa, ec, ed25519, symmetric)
+    flags:
+      - name: --size
+        description: Key size in bits
+      - name: --usage
+        description: Key usage (encryption, signing, key_agreement)
+      - name: --name
+        description: Key name for identification
+      - name: --expiry
+        description: Key expiry in days
+      - name: --hsm
+        description: Store key in HSM
+        
+  - name: cert
+    description: Certificate operations
+    subcommands:
+      - name: create
+        description: Create X.509 certificate
+      - name: verify
+        description: Verify certificate chain
+      - name: info
+        description: Display certificate information
+      - name: revoke
+        description: Revoke certificate
+      - name: renew
+        description: Renew certificate
+```
+
+### CLI-API Parity Requirements
+- **Coverage**: Every API endpoint MUST have a corresponding CLI command
+- **Naming**: CLI commands should use kebab-case versions of API endpoints
+- **Arguments**: CLI arguments must map directly to API parameters
+- **Output**: Support both human-readable and JSON output (--json flag)
+- **Authentication**: Inherit from API configuration or environment variables
+
+### Implementation Standards
+```yaml
+# CLI must be a thin wrapper pattern:
+implementation_requirements:
+  - architecture: Thin wrapper over lib/ functions
+  - language: [Go preferred for consistency with APIs]
+  - dependencies: Minimal - reuse API client libraries
+  - error_handling: Consistent exit codes (0=success, 1=error)
+  - configuration: 
+      - Read from ~/.vrooli/[scenario]/config.yaml
+      - Environment variables override config
+      - Command flags override everything
+  
+# Installation requirements:
+installation:
+  - install_script: Must create symlink in ~/.vrooli/bin/
+  - path_update: Must add ~/.vrooli/bin to PATH if not present
+  - permissions: Executable permissions (755) required
+  - documentation: Generated via --help must be comprehensive
+```
+
+## 🔄 Integration Requirements
+
+### Upstream Dependencies
+**What capabilities must exist before this can function?**
+- **PostgreSQL**: Secure metadata and audit log storage
+- **MinIO**: Encrypted file storage and key backup
+- **Redis**: Secure caching with encrypted storage
+
+### Downstream Enablement
+**What future capabilities does this unlock?**
+- **secure-document-processor**: Encrypted document workflows with digital signatures
+- **secrets-manager**: Enterprise secret storage with automatic rotation
+- **blockchain-integration-platform**: Cryptocurrency wallets and smart contract interactions
+- **secure-communication-hub**: End-to-end encrypted messaging and file sharing
+- **compliance-automation-suite**: Automated GDPR, HIPAA, SOX compliance validation
+- **identity-management-system**: PKI infrastructure and certificate authority services
+
+### Cross-Scenario Interactions
+```yaml
+provides_to:
+  - scenario: secrets-manager
+    capability: Key generation, encryption, and secure storage
+    interface: API/CLI
+    
+  - scenario: secure-document-processor
+    capability: Document signing and encryption
+    interface: API/Events
+    
+  - scenario: blockchain-integration-platform
+    capability: Wallet creation and transaction signing
+    interface: API/CLI
+    
+  - scenario: compliance-automation-suite
+    capability: Cryptographic compliance validation
+    interface: API/Workflows
+    
+consumes_from:
+  - scenario: audit-logger
+    capability: Security event logging and monitoring
+    fallback: Local audit logging only
+    
+  - scenario: network-tools
+    capability: Certificate validation via OCSP/CRL
+    fallback: Offline certificate validation only
+```
+
+## 🎨 Style and Branding Requirements
+
+### UI/UX Style Guidelines
+```yaml
+# Define the visual and experiential personality of this scenario
+style_profile:
+  category: [professional|creative|playful|technical|minimalist]
+  inspiration: [Reference existing scenario or external product]
+  
+  # Visual characteristics:
+  visual_style:
+    color_scheme: [dark|light|high-contrast|custom]
+    typography: [modern|retro|technical|playful]
+    layout: [dense|spacious|dashboard|single-page]
+    animations: [none|subtle|playful|extensive]
+  
+  # Personality traits:
+  personality:
+    tone: [serious|friendly|quirky|technical]
+    mood: [energetic|calm|focused|fun]
+    target_feeling: [What emotion users should feel]
+
+# Style examples from existing scenarios:
+style_references:
+  professional: 
+    - research-assistant: "Clean, professional, information-dense"
+    - product-manager: "Modern SaaS dashboard aesthetic"
+  creative:
+    - study-buddy: "Cute, lo-fi, cozy study space vibe"
+    - notes: "Minimalist, distraction-free writing"
+  playful:
+    - retro-game-launcher: "80s arcade cabinet aesthetic"
+    - picker-wheel: "Carnival game show energy"
+  technical:
+    - system-monitor: "Matrix-style green terminal aesthetic"
+    - agent-dashboard: "NASA mission control vibes"
+```
+
+### Target Audience Alignment
+- **Primary Users**: [Who will use this most]
+- **User Expectations**: [What style they expect based on use case]
+- **Accessibility**: [WCAG compliance level, special considerations]
+- **Responsive Design**: [Mobile, tablet, desktop priorities]
+
+### Brand Consistency Rules
+- **Scenario Identity**: Must feel unique and memorable
+- **Vrooli Integration**: Should feel part of the Vrooli ecosystem
+- **Professional vs Fun**: [Decision criteria based on business value]
+  - If business/enterprise tool → Professional design
+  - If consumer/creative tool → Unique personality encouraged
+  - If technical tool → Function over form, but still polished
+
+## 💰 Value Proposition
+
+### Business Value
+- **Primary Value**: [Core business problem solved]
+- **Revenue Potential**: $[X]K - $[Y]K per deployment
+- **Cost Savings**: [Time/resource savings quantified]
+- **Market Differentiator**: [What makes this unique]
+
+### Technical Value
+- **Reusability Score**: [How many other scenarios can leverage this]
+- **Complexity Reduction**: [What complex tasks become simple]
+- **Innovation Enablement**: [New possibilities this creates]
+
+## 🧬 Evolution Path
+
+### Version 1.0 (Current)
+- Core capability implementation
+- Basic resource integration
+- Essential API/CLI interface
+
+### Version 2.0 (Planned)
+- [Enhanced capability based on learnings]
+- [Additional resource integrations]
+- [Performance optimizations]
+
+### Long-term Vision
+- [How this capability evolves with the system]
+- [Ultimate potential when combined with future capabilities]
+
+## 🔄 Scenario Lifecycle Integration
+
+### Direct Scenario Deployment
+```yaml
+# Requirements for direct scenario execution:
+direct_execution:
+  supported: true
+  structure_compliance:
+    - service.json with complete metadata
+    - All required initialization files
+    - Deployment scripts (startup.sh, monitor.sh)
+    - Health check endpoints
+    
+  deployment_targets:
+    - local: Docker Compose based
+    - kubernetes: Helm chart generation
+    - cloud: AWS/GCP/Azure templates
+    
+  revenue_model:
+    - type: [subscription|one-time|usage-based]
+    - pricing_tiers: [Define if applicable]
+    - trial_period: [Days if applicable]
+```
+
+### Capability Discovery
+```yaml
+# How other scenarios/agents discover and use this capability:
+discovery:
+  registry_entry:
+    name: [scenario-name]
+    category: [research|automation|analysis|generation]
+    capabilities: [List of specific capabilities]
+    interfaces:
+      - api: [Base URL pattern]
+      - cli: [Command name]
+      - events: [Event namespace]
+      
+  metadata:
+    description: [One-line description for discovery]
+    keywords: [searchable terms]
+    dependencies: [required scenarios]
+    enhances: [scenarios this improves]
+```
+
+### Version Management
+```yaml
+# Compatibility and upgrade paths:
+versioning:
+  current: 1.0.0
+  minimum_compatible: 1.0.0  # Oldest version that works with current
+  
+  breaking_changes:
+    - version: [When breaking change occurred]
+      description: [What changed]
+      migration: [How to migrate]
+      
+  deprecations:
+    - feature: [Deprecated feature]
+      removal_version: [When it will be removed]
+      alternative: [What to use instead]
+```
+
+## 🚨 Risk Mitigation
+
+### Technical Risks
+| Risk | Probability | Impact | Mitigation |
+|------|------------|--------|------------|
+| [Resource unavailability] | Medium | High | Graceful degradation |
+| [Performance degradation] | Low | Medium | Caching, optimization |
+| [Data inconsistency] | Low | High | Transaction boundaries |
+
+### Operational Risks
+- **Drift Prevention**: PRD serves as single source of truth, validated by scenario-test.yaml
+- **Version Compatibility**: Semantic versioning with clear breaking change documentation
+- **Resource Conflicts**: Resource allocation managed through service.json priorities
+- **Style Drift**: UI components must pass style guide validation
+- **CLI Consistency**: Automated testing ensures CLI-API parity
+
+## ✅ Validation Criteria
+
+### Declarative Test Specification
+```yaml
+# REQUIRED: scenario-test.yaml in scenario root
+version: 1.0
+scenario: [scenario-name]
+
+# Structure validation - files and directories that MUST exist:
+structure:
+  required_files:
+    - .vrooli/service.json
+    - PRD.md
+    - api/main.go        # Or appropriate API entry point
+    - api/go.mod         # Or appropriate dependency file
+    - cli/[scenario-name]
+    - cli/install.sh
+    - initialization/storage/postgres/schema.sql  # If using postgres
+    - scenario-test.yaml
+    
+  required_dirs:
+    - api
+    - cli
+    - initialization
+    - initialization/automation  # If using n8n/windmill
+    - initialization/storage     # If using databases
+
+# Resource validation:
+resources:
+  required: [exact list of required resources]
+  optional: [list of optional resources]
+  health_timeout: 60  # Seconds to wait for resources to be healthy
+
+# Declarative tests:
+tests:
+  # Resource health checks:
+  - name: "[Resource] is accessible"
+    type: http
+    service: [resource_name]
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  # API endpoint tests:
+  - name: "API endpoint [name] responds correctly"
+    type: http
+    service: api
+    endpoint: /api/v1/[endpoint]
+    method: POST
+    body:
+      test: data
+    expect:
+      status: 201
+      body:
+        success: true
+        
+  # CLI command tests:
+  - name: "CLI command [name] executes"
+    type: exec
+    command: ./cli/[scenario-name] status --json
+    expect:
+      exit_code: 0
+      output_contains: ["healthy"]
+      
+  # Database tests:
+  - name: "Database schema is initialized"
+    type: sql
+    service: postgres
+    query: "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'"
+    expect:
+      rows: 
+        - count: [expected_table_count]
+        
+  # Workflow tests (if using n8n):
+  - name: "Research workflow is active"
+    type: n8n
+    workflow: research-orchestrator
+    expect:
+      active: true
+      node_count: [expected_nodes]
+```
+
+### Test Execution Gates
+```bash
+# All tests must pass via:
+./test.sh --scenario [scenario_name] --validation complete
+
+# Individual test categories:
+./test.sh --structure    # Verify file/directory structure
+./test.sh --resources    # Check resource health
+./test.sh --integration  # Run integration tests
+./test.sh --performance  # Validate performance targets
+```
+
+### Performance Validation
+- [ ] API response times meet SLA targets
+- [ ] Resource usage within defined limits
+- [ ] Throughput meets minimum requirements
+- [ ] No memory leaks detected over 24-hour test
+
+### Integration Validation
+- [ ] Discoverable via resource registry
+- [ ] All API endpoints documented and functional
+- [ ] All CLI commands executable with --help
+- [ ] Shared workflows properly registered
+- [ ] Events published/consumed correctly
+
+### Capability Verification
+- [ ] Solves the defined problem completely
+- [ ] Integrates with upstream dependencies
+- [ ] Enables downstream capabilities
+- [ ] Maintains data consistency
+- [ ] Style matches target audience expectations
+
+## 📝 Implementation Notes
+
+### Design Decisions
+**[Decision Point]**: [Chosen approach and rationale]
+- Alternative considered: [What else was evaluated]
+- Decision driver: [Why this approach won]
+- Trade-offs: [What was sacrificed for what benefit]
+
+### Known Limitations
+- **[Limitation]**: [Description and impact]
+  - Workaround: [How to work within this constraint]
+  - Future fix: [When/how this will be addressed]
+
+### Security Considerations
+- **Data Protection**: [How sensitive data is handled]
+- **Access Control**: [Who can use this capability]
+- **Audit Trail**: [What actions are logged]
+
+## 🔗 References
+
+### Documentation
+- README.md - User-facing overview
+- docs/api.md - API specification
+- docs/cli.md - CLI documentation
+- docs/architecture.md - Technical deep-dive
+
+### Related PRDs
+- [Link to dependent scenario PRDs]
+- [Link to enhanced scenario PRDs]
+
+### External Resources
+- [Relevant technical documentation]
+- [Industry standards referenced]
+- [Research papers/articles that informed design]
+
+---
+
+**Last Updated**: [Date]  
+**Status**: [Draft | In Review | Approved | Not Tested | Testing | Validated]  
+**Owner**: [AI Agent or Human maintainer]  
+**Review Cycle**: [How often this PRD is validated against implementation]

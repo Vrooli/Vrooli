@@ -81,6 +81,8 @@ source "${var_LIB_DEPS_DIR}/bats.sh"
 source "${var_LIB_DEPS_DIR}/shellcheck.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_DEPS_DIR}/lychee.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_DEPS_DIR}/ast-grep.sh"
 
 ################################################################################
 # Main Setup Logic
@@ -221,6 +223,7 @@ setup::generic_main() {
         bats::install
         shellcheck::install
         lychee::install
+        ast_grep::install
     fi
     
     # Step 6: Install Common Runtimes
@@ -245,6 +248,10 @@ setup::generic_main() {
     
     # Go (commonly needed)
     log::info "Installing Go..."
+    # Install Go dev tools in development environment
+    if [[ "$environment" == "development" ]]; then
+        export GO_INSTALL_DEV_TOOLS=true
+    fi
     go::ensure_installed || log::warning "Go installation failed (not critical)"
     
     # Helm (for Kubernetes deployments)

@@ -40,18 +40,18 @@ type Profile struct {
 
 // Contact represents a notification recipient
 type Contact struct {
-	ID           uuid.UUID              `json:"id" db:"id"`
-	ProfileID    uuid.UUID              `json:"profile_id" db:"profile_id"`
-	ExternalID   *string                `json:"external_id" db:"external_id"`
-	Identifier   string                 `json:"identifier" db:"identifier"`
-	FirstName    *string                `json:"first_name" db:"first_name"`
-	LastName     *string                `json:"last_name" db:"last_name"`
-	Timezone     string                 `json:"timezone" db:"timezone"`
-	Locale       string                 `json:"locale" db:"locale"`
-	Preferences  map[string]interface{} `json:"preferences" db:"preferences"`
-	Status       string                 `json:"status" db:"status"`
-	CreatedAt    time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at" db:"updated_at"`
+	ID          uuid.UUID              `json:"id" db:"id"`
+	ProfileID   uuid.UUID              `json:"profile_id" db:"profile_id"`
+	ExternalID  *string                `json:"external_id" db:"external_id"`
+	Identifier  string                 `json:"identifier" db:"identifier"`
+	FirstName   *string                `json:"first_name" db:"first_name"`
+	LastName    *string                `json:"last_name" db:"last_name"`
+	Timezone    string                 `json:"timezone" db:"timezone"`
+	Locale      string                 `json:"locale" db:"locale"`
+	Preferences map[string]interface{} `json:"preferences" db:"preferences"`
+	Status      string                 `json:"status" db:"status"`
+	CreatedAt   time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 // Template represents a notification template
@@ -85,23 +85,23 @@ type Notification struct {
 
 // NotificationRequest represents API request to send notification
 type NotificationRequest struct {
-	TemplateID        *string                `json:"template_id"`
-	ContactID         *string                `json:"contact_id"`
-	Recipients        []RecipientRequest     `json:"recipients"`
-	Subject           *string                `json:"subject"`
-	Content           map[string]interface{} `json:"content"`
-	Variables         map[string]interface{} `json:"variables"`
-	Channels          []string               `json:"channels"`
-	Priority          string                 `json:"priority"`
-	ScheduledAt       *time.Time             `json:"scheduled_at"`
-	ExternalID        *string                `json:"external_id"`
+	TemplateID  *string                `json:"template_id"`
+	ContactID   *string                `json:"contact_id"`
+	Recipients  []RecipientRequest     `json:"recipients"`
+	Subject     *string                `json:"subject"`
+	Content     map[string]interface{} `json:"content"`
+	Variables   map[string]interface{} `json:"variables"`
+	Channels    []string               `json:"channels"`
+	Priority    string                 `json:"priority"`
+	ScheduledAt *time.Time             `json:"scheduled_at"`
+	ExternalID  *string                `json:"external_id"`
 }
 
 // RecipientRequest represents a recipient in a notification request
 type RecipientRequest struct {
-	ContactID   string                 `json:"contact_id"`
-	Identifier  *string                `json:"identifier"`
-	Variables   map[string]interface{} `json:"variables"`
+	ContactID  string                 `json:"contact_id"`
+	Identifier *string                `json:"identifier"`
+	Variables  map[string]interface{} `json:"variables"`
 }
 
 // Server represents the HTTP server
@@ -125,7 +125,7 @@ func main() {
 
 	log.Printf("🔔 Notification Hub API starting on port %s", server.port)
 	log.Printf("📨 Notification processor initialized with %d workers", 5)
-	
+
 	// Start background notification processing
 	go server.startBackgroundProcessing()
 
@@ -154,11 +154,11 @@ func NewServer() (*Server, error) {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		postgresURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -168,57 +168,57 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to open database connection: %v", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return nil, fmt.Errorf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Initialize Redis
@@ -281,7 +281,7 @@ func (s *Server) setupRoutes() {
 	// Profile-scoped endpoints (require API key authentication)
 	api := s.router.Group("/api/v1/profiles/:profile_id")
 	api.Use(s.authenticateAPIKey())
-	
+
 	// Notification endpoints
 	api.POST("/notifications/send", s.sendNotification)
 	api.GET("/notifications", s.listNotifications)
@@ -314,7 +314,7 @@ func (s *Server) authenticateAPIKey() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		profileID := c.Param("profile_id")
 		apiKey := c.GetHeader("X-API-Key")
-		
+
 		if apiKey == "" {
 			apiKey = c.GetHeader("Authorization")
 			if strings.HasPrefix(apiKey, "Bearer ") {
@@ -335,7 +335,7 @@ func (s *Server) authenticateAPIKey() gin.HandlerFunc {
 			FROM profiles 
 			WHERE id = $1 AND api_key_hash = crypt($2, api_key_hash) AND status = 'active'
 		`
-		
+
 		err := s.db.QueryRow(query, profileID, apiKey).Scan(
 			&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
 			&profile.Settings, &profile.Plan, &profile.Status,
@@ -359,9 +359,9 @@ func (s *Server) authenticateAPIKey() gin.HandlerFunc {
 
 func (s *Server) healthCheck(c *gin.Context) {
 	c.JSON(200, gin.H{
-		"status": "healthy",
-		"service": "notification-hub-api",
-		"version": "1.0.0",
+		"status":    "healthy",
+		"service":   "notification-hub-api",
+		"version":   "1.0.0",
 		"timestamp": time.Now().Format(time.RFC3339),
 	})
 }
@@ -476,15 +476,15 @@ func (s *Server) createProfile(c *gin.Context) {
 	}
 
 	c.JSON(201, gin.H{
-		"id": profileID,
-		"name": req.Name,
-		"slug": req.Slug,
-		"api_key": apiKey, // Only returned on creation
+		"id":             profileID,
+		"name":           req.Name,
+		"slug":           req.Slug,
+		"api_key":        apiKey, // Only returned on creation
 		"api_key_prefix": apiKeyPrefix,
-		"plan": req.Plan,
-		"status": "active",
-		"created_at": createdAt,
-		"updated_at": updatedAt,
+		"plan":           req.Plan,
+		"status":         "active",
+		"created_at":     createdAt,
+		"updated_at":     updatedAt,
 	})
 }
 
@@ -494,7 +494,7 @@ func (s *Server) listProfiles(c *gin.Context) {
 		FROM profiles
 		ORDER BY created_at DESC
 	`
-	
+
 	rows, err := s.db.Query(query)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to fetch profiles"})
@@ -518,14 +518,14 @@ func (s *Server) listProfiles(c *gin.Context) {
 
 func (s *Server) getProfile(c *gin.Context) {
 	profileID := c.Param("id")
-	
+
 	var profile Profile
 	query := `
 		SELECT id, name, slug, api_key_prefix, settings, plan, status, created_at, updated_at
 		FROM profiles
 		WHERE id = $1
 	`
-	
+
 	err := s.db.QueryRow(query, profileID).Scan(
 		&profile.ID, &profile.Name, &profile.Slug, &profile.APIKeyPrefix,
 		&profile.Settings, &profile.Plan, &profile.Status,
@@ -542,7 +542,7 @@ func (s *Server) getProfile(c *gin.Context) {
 
 func (s *Server) updateProfile(c *gin.Context) {
 	profileID := c.Param("id")
-	
+
 	var req struct {
 		Name     *string                `json:"name"`
 		Settings map[string]interface{} `json:"settings"`
@@ -582,7 +582,7 @@ func (s *Server) updateProfile(c *gin.Context) {
 	}
 
 	query := fmt.Sprintf("UPDATE profiles SET %s WHERE id = $1", strings.Join(setParts, ", "))
-	
+
 	_, err := s.db.Exec(query, args...)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to update profile"})
@@ -596,7 +596,7 @@ func (s *Server) updateProfile(c *gin.Context) {
 // Notification Management
 func (s *Server) sendNotification(c *gin.Context) {
 	profile := c.MustGet("profile").(Profile)
-	
+
 	var req NotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request: " + err.Error()})
@@ -619,7 +619,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 	// Process each recipient
 	for _, recipient := range req.Recipients {
 		notificationID := uuid.New()
-		
+
 		// Create notification record
 		query := `
 			INSERT INTO notifications (
@@ -627,7 +627,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 				channels_requested, priority, scheduled_at, status, external_id
 			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', $11)
 		`
-		
+
 		scheduledAt := time.Now()
 		if req.ScheduledAt != nil {
 			scheduledAt = *req.ScheduledAt
@@ -668,7 +668,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 
 		notifications = append(notifications, notificationID)
 	}
-	
+
 	// Process notifications immediately if not scheduled for future
 	if req.ScheduledAt == nil || req.ScheduledAt.Before(time.Now().Add(1*time.Minute)) {
 		go s.processor.ProcessPendingNotifications()
@@ -676,7 +676,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 
 	c.JSON(201, gin.H{
 		"notifications": notifications,
-		"message": fmt.Sprintf("Created %d notifications", len(notifications)),
+		"message":       fmt.Sprintf("Created %d notifications", len(notifications)),
 	})
 }
 
@@ -684,7 +684,7 @@ func (s *Server) sendNotification(c *gin.Context) {
 func (s *Server) startBackgroundProcessing() {
 	ticker := time.NewTicker(10 * time.Second) // Process every 10 seconds
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ticker.C:
@@ -705,20 +705,19 @@ func (s *Server) generateAPIKey(slug string) (string, string, string, error) {
 	if _, err := rand.Read(bytes); err != nil {
 		return "", "", "", err
 	}
-	
+
 	// Create API key with prefix
 	prefix := slug[:min(len(slug), 4)] + "_"
 	apiKey := prefix + hex.EncodeToString(bytes)
-	
+
 	// Hash the API key
 	hash, err := bcrypt.GenerateFromPassword([]byte(apiKey), bcrypt.DefaultCost)
 	if err != nil {
 		return "", "", "", err
 	}
-	
+
 	return apiKey, string(hash), prefix, nil
 }
-
 
 func min(a, b int) int {
 	if a < b {

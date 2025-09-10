@@ -1,0 +1,707 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "parent": "vrooli",
+    "name": "math-tools",
+    "displayName": "Math Tools",
+    "description": "Mathematical computation and visualization tools",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "education",
+    "tags": [
+      "tools",
+      "utilities",
+      "developers"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/math-tools"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "range": "8090-8999",
+      "description": "Main API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999",
+      "description": "Web UI dashboard port"
+    }
+  },
+  "components": {
+    "api": {
+      "enabled": true,
+      "language": "go",
+      "path": "api",
+      "main": "main.go",
+      "description": "Go-based API server with REST endpoints"
+    },
+    "ui": {
+      "enabled": true,
+      "framework": "react",
+      "path": "ui",
+      "main": "index.html",
+      "description": "React-based web interface"
+    },
+    "cli": {
+      "enabled": true,
+      "language": "bash",
+      "path": "cli",
+      "command": "math-tools",
+      "description": "Command-line interface for scenario operations"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "purpose": "Store tool configurations and processing results",
+      "initialization": [
+        {
+          "file": "initialization/storage/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/storage/postgres/seed.sql",
+          "type": "seed"
+        }
+      ]
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": true,
+      "purpose": "Cache and event bus for real-time operations"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": false,
+      "required": false,
+      "purpose": "Object storage for files and artifacts"
+    },
+    "qdrant": {
+      "type": "qdrant",
+      "enabled": false,
+      "required": false,
+      "purpose": "Vector database for semantic search and AI features"
+    },
+    "windmill": {
+      "type": "windmill",
+      "enabled": true,
+      "required": true,
+      "purpose": "Workflow automation and business logic orchestration",
+      "initialization": [
+        {
+          "file": "initialization/automation/windmill/windmill-app.json",
+          "type": "app"
+        }
+      ]
+    },
+    "node-red": {
+      "type": "node-red",
+      "enabled": false,
+      "required": false,
+      "purpose": "Visual workflow automation (alternative to Windmill)"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": false,
+      "required": false,
+      "models": [
+        "AI_MODEL_PLACEHOLDER"
+      ],
+      "purpose": "Local AI inference for intelligent features"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": false,
+      "required": false,
+      "purpose": "AI-powered development assistance and code generation"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Application health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/",
+        "metrics": "/api/metrics"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Application",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/math-tools-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "math-tools"
+          },
+          {
+            "type": "dependencies",
+            "paths": [
+              "ui/package.json"
+            ]
+          },
+          {
+            "type": "resources",
+            "populated": true
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-directories",
+          "run": "mkdir -p data logs temp",
+          "description": "Create required directory structure"
+        },
+        {
+          "name": "generate-embeddings",
+          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
+          "description": "Generate code embeddings for AI assistance",
+          "condition": {
+            "resource_enabled": "qdrant"
+          }
+        },
+        {
+          "name": "add-data",
+          "run": "../../scripts/resources/populate/populate.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o math-tools-api ./cmd/server/main.go",
+          "description": "Build Go API server",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install --silent",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React UI for production",
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.build"
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Application initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: math-tools --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start application services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && env PORT=$API_PORT WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./math-tools-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/math-tools-api"
+          }
+        },
+        {
+          "name": "start-ui-dev",
+          "run": "cd ui && npm run dev -- --port $UI_PORT --host 0.0.0.0",
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.dev"
+          }
+        },
+        {
+          "name": "start-ui-prod",
+          "run": "cd ui && npx serve -s build -l $UI_PORT",
+          "description": "Start UI production server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/build/index.html",
+            "not": {
+              "json_path_exists": "ui/package.json:scripts.dev"
+            }
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  CLI: math-tools --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test application functionality",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build ./cmd/server/main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "test-go-unit",
+          "run": "cd api && go test ./... -v",
+          "description": "Run Go unit tests",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-ui-build",
+          "run": "cd ui && npm run build",
+          "description": "Test UI build process",
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.build"
+          }
+        },
+        {
+          "name": "test-ui-unit",
+          "run": "cd ui && npm test -- --watchAll=false",
+          "description": "Run UI unit tests",
+          "condition": {
+            "file_exists": "ui/package.json",
+            "json_path_exists": "ui/package.json:scripts.test"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats cli-tests.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/cli-tests.bats"
+          }
+        },
+        {
+          "name": "test-integration",
+          "run": "bash test.sh",
+          "description": "Run full integration tests",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop application services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'math-tools-api' || true; sleep 1; pkill -9 -f 'math-tools-api' 2>/dev/null || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'scenarios/math-tools.*vite' || true; pkill -f 'scenarios/math-tools.*serve' || true; sleep 1; pkill -9 -f 'scenarios/math-tools.*vite' 2>/dev/null || true; pkill -9 -f 'scenarios/math-tools.*serve' 2>/dev/null || true",
+          "description": "Stop UI server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Application services stopped'",
+          "description": "Confirm services stopped"
+        }
+      ]
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:{{ UI_PORT }}",
+      "api": "http://localhost:{{ API_PORT }}",
+      "health": "http://localhost:{{ API_PORT }}/health"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/storage/postgres/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/storage/postgres/seed.sql"
+            }
+          ]
+        },
+        {
+          "name": "workflow-deployment",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject",
+              "target": "automation.windmill",
+              "config": "initialization/automation/windmill/"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "load-app-config",
+              "type": "config",
+              "file": "initialization/configuration/app-config.json"
+            },
+            {
+              "name": "set-feature-flags",
+              "type": "config",
+              "file": "initialization/configuration/feature-flags.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "5m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "{{ urls.health }}",
+              "timeout": "30s",
+              "retries": 3
+            },
+            {
+              "name": "monitor-startup",
+              "type": "script",
+              "script": "./deployment/monitor.sh",
+              "background": true
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "{{ urls.health }}",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "workflows": {
+          "endpoint": "http://localhost:${RESOURCE_PORTS[windmill]}/api/version",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
+        },
+        "throughput": {
+          "rps": 100,
+          "concurrent": 10
+        },
+        "errorRate": {
+          "threshold": "1%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "delete-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.windmill"
+        },
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS {{ DATABASE_NAME }}"
+        },
+        {
+          "name": "clear-storage",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "30m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "windmill",
+        "url": "{{ urls.application }}"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 10,
+          "duration": "5m",
+          "rampUp": "30s"
+        }
+      }
+    }
+  },
+  "api": {
+    "base_url": "http://localhost:${API_PORT}/api",
+    "endpoints": [
+      {
+        "path": "/health",
+        "method": "GET",
+        "description": "Health check endpoint"
+      },
+      {
+        "path": "/api/status",
+        "method": "GET",
+        "description": "Application status and version information"
+      }
+    ]
+  },
+  "ui": {
+    "enabled": true,
+    "path": "/",
+    "description": "React-based web interface",
+    "features": [
+      "responsive-design",
+      "real-time-updates",
+      "dashboard-interface"
+    ]
+  },
+  "cli": {
+    "command": "math-tools",
+    "install_script": "./cli/install.sh",
+    "description": "Command-line interface for scenario operations"
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "VALUE_PROPOSITION_PLACEHOLDER",
+      "targetMarket": "developers",
+      "painPoints": [
+        "PAIN_POINT_1_PLACEHOLDER",
+        "PAIN_POINT_2_PLACEHOLDER",
+        "PAIN_POINT_3_PLACEHOLDER"
+      ],
+      "solution": "SOLUTION_DESCRIPTION_PLACEHOLDER",
+      "competitiveAdvantage": "COMPETITIVE_ADVANTAGE_PLACEHOLDER",
+      "revenuePotential": {
+        "initial": "$INITIAL_REVENUE_PLACEHOLDER",
+        "recurring": "$RECURRING_REVENUE_PLACEHOLDER",
+        "expansion": "$EXPANSION_REVENUE_PLACEHOLDER",
+        "totalEstimate": "$TOTAL_ESTIMATE_PLACEHOLDER"
+      },
+      "marketDemand": {
+        "level": "DEMAND_LEVEL_PLACEHOLDER",
+        "growth": "GROWTH_RATE_PLACEHOLDER",
+        "evidence": "MARKET_EVIDENCE_PLACEHOLDER"
+      },
+      "roi": {
+        "developmentCost": "$DEVELOPMENT_COST_PLACEHOLDER",
+        "timeToMarket": "TIME_TO_MARKET_PLACEHOLDER",
+        "breakEven": "BREAK_EVEN_TIMELINE_PLACEHOLDER"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "5m",
+        "responseTime": {
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
+        },
+        "throughput": {
+          "minimum": 50,
+          "target": 100,
+          "peak": 500
+        },
+        "availability": "99.9%",
+        "errorRate": "<1%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "0.5",
+          "target": "1.0",
+          "maximum": "2.0"
+        },
+        "memory": {
+          "minimum": "512Mi",
+          "target": "1Gi",
+          "maximum": "2Gi"
+        },
+        "storage": {
+          "database": "10Gi",
+          "files": "20Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "APPLICATION_NAME_PLACEHOLDER",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "COMPANY_NAME_PLACEHOLDER",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#PRIMARY_COLOR_PLACEHOLDER",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "math_tools",
+          "description": "Database name"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": true,
+          "provider": "AUTH_PROVIDER_PLACEHOLDER",
+          "sso": false
+        },
+        "notifications": {
+          "enabled": true,
+          "channels": [
+            "email",
+            "webhook"
+          ]
+        },
+        "analytics": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "payments": {
+          "enabled": false,
+          "provider": "PAYMENT_PROVIDER_PLACEHOLDER"
+        }
+      },
+      "integrations": [
+        {
+          "name": "INTEGRATION_NAME_PLACEHOLDER",
+          "type": "INTEGRATION_TYPE_PLACEHOLDER",
+          "required": false
+        }
+      ]
+    },
+    "aiGeneration": {
+      "enabled": true,
+      "placeholders": {
+        "business": [
+          "VALUE_PROPOSITION_PLACEHOLDER",
+          "developers",
+          "PAIN_POINT_*_PLACEHOLDER",
+          "SOLUTION_DESCRIPTION_PLACEHOLDER"
+        ],
+        "technical": [
+          "math-tools",
+          "math_tools",
+          "math-tools"
+        ],
+        "revenue": [
+          "*_REVENUE_PLACEHOLDER",
+          "TOTAL_ESTIMATE_PLACEHOLDER",
+          "DEVELOPMENT_COST_PLACEHOLDER"
+        ]
+      },
+      "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
+    }
+  }
+}

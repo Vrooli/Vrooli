@@ -31,9 +31,9 @@ const (
 	httpTimeout = 30 * time.Second
 
 	// Database limits
-	maxDBConnections  = 25
+	maxDBConnections   = 25
 	maxIdleConnections = 5
-	connMaxLifetime   = 5 * time.Minute
+	connMaxLifetime    = 5 * time.Minute
 )
 
 // Logger provides structured logging
@@ -79,35 +79,35 @@ func HTTPError(w http.ResponseWriter, message string, statusCode int, err error)
 
 // AppRegistry represents registered apps for personalization
 type AppRegistry struct {
-	ID                       uuid.UUID              `json:"id"`
-	AppName                  string                 `json:"app_name"`
-	AppPath                  string                 `json:"app_path"`
-	AppType                  string                 `json:"app_type"`
-	Framework                string                 `json:"framework"`
-	Version                  string                 `json:"version"`
-	PersonalizationPoints    map[string]interface{} `json:"personalization_points"`
+	ID                        uuid.UUID              `json:"id"`
+	AppName                   string                 `json:"app_name"`
+	AppPath                   string                 `json:"app_path"`
+	AppType                   string                 `json:"app_type"`
+	Framework                 string                 `json:"framework"`
+	Version                   string                 `json:"version"`
+	PersonalizationPoints     map[string]interface{} `json:"personalization_points"`
 	SupportedPersonalizations []string               `json:"supported_personalizations"`
-	LastAnalyzed             *time.Time             `json:"last_analyzed,omitempty"`
-	CreatedAt                time.Time              `json:"created_at"`
+	LastAnalyzed              *time.Time             `json:"last_analyzed,omitempty"`
+	CreatedAt                 time.Time              `json:"created_at"`
 }
 
 // Personalization represents a personalization record
 type Personalization struct {
-	ID                   uuid.UUID              `json:"id"`
-	AppID                uuid.UUID              `json:"app_id"`
-	PersonaID            *uuid.UUID             `json:"persona_id,omitempty"`
-	BrandID              *uuid.UUID             `json:"brand_id,omitempty"`
-	PersonalizationName  string                 `json:"personalization_name"`
-	Description          string                 `json:"description"`
-	DeploymentMode       string                 `json:"deployment_mode"`
-	Modifications        map[string]interface{} `json:"modifications"`
-	OriginalAppPath      string                 `json:"original_app_path"`
-	PersonalizedAppPath  string                 `json:"personalized_app_path"`
-	BackupPath           string                 `json:"backup_path"`
-	Status               string                 `json:"status"`
-	ValidationResults    map[string]interface{} `json:"validation_results,omitempty"`
-	CreatedAt            time.Time              `json:"created_at"`
-	AppliedAt            *time.Time             `json:"applied_at,omitempty"`
+	ID                  uuid.UUID              `json:"id"`
+	AppID               uuid.UUID              `json:"app_id"`
+	PersonaID           *uuid.UUID             `json:"persona_id,omitempty"`
+	BrandID             *uuid.UUID             `json:"brand_id,omitempty"`
+	PersonalizationName string                 `json:"personalization_name"`
+	Description         string                 `json:"description"`
+	DeploymentMode      string                 `json:"deployment_mode"`
+	Modifications       map[string]interface{} `json:"modifications"`
+	OriginalAppPath     string                 `json:"original_app_path"`
+	PersonalizedAppPath string                 `json:"personalized_app_path"`
+	BackupPath          string                 `json:"backup_path"`
+	Status              string                 `json:"status"`
+	ValidationResults   map[string]interface{} `json:"validation_results,omitempty"`
+	CreatedAt           time.Time              `json:"created_at"`
+	AppliedAt           *time.Time             `json:"applied_at,omitempty"`
 }
 
 // AppPersonalizerService handles app personalization operations
@@ -177,8 +177,8 @@ func (s *AppPersonalizerService) RegisterApp(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"app_id":     appID,
-		"message":    "App registered successfully",
+		"app_id":    appID,
+		"message":   "App registered successfully",
 		"timestamp": time.Now().UTC(),
 	})
 }
@@ -263,19 +263,19 @@ func (s *AppPersonalizerService) AnalyzeApp(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"app_id":               req.AppID,
+		"app_id":                 req.AppID,
 		"personalization_points": personalizationPoints,
-		"analyzed_at":          time.Now().UTC(),
+		"analyzed_at":            time.Now().UTC(),
 	})
 }
 
 // analyzeAppStructure performs static analysis of app structure
 func (s *AppPersonalizerService) analyzeAppStructure(appPath, framework string) map[string]interface{} {
 	points := map[string]interface{}{
-		"ui_theme":     []string{},
-		"content":      []string{},
-		"branding":     []string{},
-		"behavior":     []string{},
+		"ui_theme":      []string{},
+		"content":       []string{},
+		"branding":      []string{},
+		"behavior":      []string{},
 		"configuration": []string{},
 	}
 
@@ -364,13 +364,13 @@ func (s *AppPersonalizerService) analyzeGenericApp(appPath string, points map[st
 
 // PersonalizeRequest represents personalization request
 type PersonalizeRequest struct {
-	AppID              uuid.UUID              `json:"app_id"`
-	PersonaID          *uuid.UUID             `json:"persona_id,omitempty"`
-	BrandID            *uuid.UUID             `json:"brand_id,omitempty"`
+	AppID               uuid.UUID              `json:"app_id"`
+	PersonaID           *uuid.UUID             `json:"persona_id,omitempty"`
+	BrandID             *uuid.UUID             `json:"brand_id,omitempty"`
 	PersonalizationType string                 `json:"personalization_type"`
-	DeploymentMode     string                 `json:"deployment_mode"`
-	TwinAPIToken       string                 `json:"twin_api_token,omitempty"`
-	BrandAPIKey        string                 `json:"brand_api_key,omitempty"`
+	DeploymentMode      string                 `json:"deployment_mode"`
+	TwinAPIToken        string                 `json:"twin_api_token,omitempty"`
+	BrandAPIKey         string                 `json:"brand_api_key,omitempty"`
 	CustomModifications map[string]interface{} `json:"custom_modifications,omitempty"`
 }
 
@@ -409,11 +409,11 @@ func (s *AppPersonalizerService) PersonalizeApp(w http.ResponseWriter, r *http.R
 
 	// Prepare n8n workflow payload
 	workflowPayload := map[string]interface{}{
-		"app_id":              req.AppID,
-		"app_path":            appPath,
-		"personalization_id":  personalizationID,
+		"app_id":               req.AppID,
+		"app_path":             appPath,
+		"personalization_id":   personalizationID,
 		"personalization_type": req.PersonalizationType,
-		"deployment_mode":     req.DeploymentMode,
+		"deployment_mode":      req.DeploymentMode,
 	}
 
 	if req.PersonaID != nil {
@@ -443,9 +443,9 @@ func (s *AppPersonalizerService) PersonalizeApp(w http.ResponseWriter, r *http.R
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"personalization_id": personalizationID,
-		"status":            "pending",
-		"message":           "Personalization started",
-		"timestamp":         time.Now().UTC(),
+		"status":             "pending",
+		"message":            "Personalization started",
+		"timestamp":          time.Now().UTC(),
 	})
 }
 
@@ -583,7 +583,7 @@ func (s *AppPersonalizerService) runValidationTest(appPath, test string) map[str
 
 	cmd.Dir = appPath
 	output, err := cmd.CombinedOutput()
-	
+
 	result["output"] = string(output)
 	if err != nil {
 		result["error"] = err.Error()
@@ -620,7 +620,7 @@ func main() {
 
 	// Load configuration - REQUIRED environment variables, no defaults
 	logger := NewLogger()
-	
+
 	port := os.Getenv("API_PORT")
 	if port == "" {
 		logger.Error("❌ API_PORT environment variable is required", nil)
@@ -640,12 +640,12 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			logger.Error("❌ Missing database configuration. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB", nil)
 			os.Exit(1)
 		}
-		
+
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -667,48 +667,48 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	logger.Info("🔄 Attempting database connection with exponential backoff...")
 	logger.Info("📊 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt + 1))
+			logger.Info(fmt.Sprintf("✅ Database connected successfully on attempt %d", attempt+1))
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr))
+
+		logger.Warn(fmt.Sprintf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr))
 		logger.Info(fmt.Sprintf("⏳ Waiting %v before next attempt", actualDelay))
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			logger.Info("📈 Retry progress:")
-			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt + 1, maxRetries))
-			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay))
+			logger.Info(fmt.Sprintf("   - Attempts made: %d/%d", attempt+1, maxRetries))
+			logger.Info(fmt.Sprintf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay))
 			logger.Info(fmt.Sprintf("   - Current delay: %v (with jitter: %v)", delay, jitter))
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
 		os.Exit(1)
 	}
-	
+
 	logger.Info("🎉 Database connection pool established successfully!")
 
 	log.Println("Connected to database")

@@ -16,28 +16,28 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/lib/pq"
+	_ "github.com/lib/pq"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/russross/blackfriday/v2"
-	_ "github.com/lib/pq"
 )
 
 // Configuration
 type Config struct {
-	Port     int
-	DBHost   string
-	DBPort   int
-	DBUser   string
-	DBPass   string
-	DBName   string
-	
+	Port   int
+	DBHost string
+	DBPort int
+	DBUser string
+	DBPass string
+	DBName string
+
 	// External service endpoints
-	SessionAuthURL    string
+	SessionAuthURL     string
 	NotificationHubURL string
 }
 
 // Models
 type ScenarioConfig struct {
-	ID                    uuid.UUID              `json:"id" db:"id"`
+	ID                   uuid.UUID              `json:"id" db:"id"`
 	ScenarioName         string                 `json:"scenario_name" db:"scenario_name"`
 	AuthRequired         bool                   `json:"auth_required" db:"auth_required"`
 	AllowAnonymous       bool                   `json:"allow_anonymous" db:"allow_anonymous"`
@@ -45,8 +45,8 @@ type ScenarioConfig struct {
 	ModerationLevel      string                 `json:"moderation_level" db:"moderation_level"`
 	ThemeConfig          map[string]interface{} `json:"theme_config" db:"theme_config"`
 	NotificationSettings map[string]interface{} `json:"notification_settings" db:"notification_settings"`
-	CreatedAt           time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time              `json:"updated_at" db:"updated_at"`
+	CreatedAt            time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 type Comment struct {
@@ -65,10 +65,10 @@ type Comment struct {
 	ThreadPath   *string                `json:"thread_path" db:"thread_path"`
 	Depth        int                    `json:"depth" db:"depth"`
 	ReplyCount   int                    `json:"reply_count" db:"reply_count"`
-	
+
 	// Computed fields
-	RenderedContent string     `json:"rendered_content"`
-	Children        []Comment  `json:"children,omitempty"`
+	RenderedContent string    `json:"rendered_content"`
+	Children        []Comment `json:"children,omitempty"`
 }
 
 type CommentRequest struct {
@@ -117,11 +117,11 @@ type UserInfo struct {
 
 // Application
 type App struct {
-	config      *Config
-	db          *Database
-	sessionAuth *SessionAuthService
+	config        *Config
+	db            *Database
+	sessionAuth   *SessionAuthService
 	notifications *NotificationService
-	sanitizer   *bluemonday.Policy
+	sanitizer     *bluemonday.Policy
 }
 
 func main() {
@@ -136,13 +136,13 @@ func main() {
 
 	// Configuration
 	config := &Config{
-		Port:     getEnvInt("API_PORT", 8080),
-		DBHost:   getEnv("POSTGRES_HOST", "localhost"),
-		DBPort:   getEnvInt("POSTGRES_PORT", 5432),
-		DBUser:   getEnv("POSTGRES_USER", "postgres"),
-		DBPass:   getEnv("POSTGRES_PASSWORD", "postgres"),
-		DBName:   getEnv("POSTGRES_DB", "vrooli"),
-		SessionAuthURL:    getEnv("SESSION_AUTH_URL", "http://localhost:8001"),
+		Port:               getEnvInt("API_PORT", 8080),
+		DBHost:             getEnv("POSTGRES_HOST", "localhost"),
+		DBPort:             getEnvInt("POSTGRES_PORT", 5432),
+		DBUser:             getEnv("POSTGRES_USER", "postgres"),
+		DBPass:             getEnv("POSTGRES_PASSWORD", "postgres"),
+		DBName:             getEnv("POSTGRES_DB", "vrooli"),
+		SessionAuthURL:     getEnv("SESSION_AUTH_URL", "http://localhost:8001"),
 		NotificationHubURL: getEnv("NOTIFICATION_HUB_URL", "http://localhost:8002"),
 	}
 
@@ -192,7 +192,7 @@ func main() {
 	log.Printf("Comment System API starting on port %d", config.Port)
 	log.Printf("Health check: http://localhost:%d/health", config.Port)
 	log.Printf("API docs: http://localhost:%d/docs", config.Port)
-	
+
 	if err := router.Run(fmt.Sprintf(":%d", config.Port)); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
@@ -206,12 +206,12 @@ func (app *App) setupRouter() *gin.Engine {
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, X-Requested-With")
-		
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
 		}
-		
+
 		c.Next()
 	})
 
@@ -431,7 +431,7 @@ func (db *Database) GetScenarioConfig(scenarioName string) (*ScenarioConfig, err
 
 func (db *Database) CreateDefaultConfig(scenarioName string) (*ScenarioConfig, error) {
 	config := &ScenarioConfig{
-		ID:                    uuid.New(),
+		ID:                   uuid.New(),
 		ScenarioName:         scenarioName,
 		AuthRequired:         true,
 		AllowAnonymous:       false,
@@ -500,14 +500,14 @@ func (app *App) postgresHealthCheck(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "healthy",
+		"status":    "healthy",
 		"timestamp": time.Now(),
 	})
 }
 
 func (app *App) getComments(c *gin.Context) {
 	scenarioName := c.Param("scenario")
-	
+
 	// Parse query parameters
 	limitStr := c.DefaultQuery("limit", "50")
 	offsetStr := c.DefaultQuery("offset", "0")
@@ -546,7 +546,7 @@ func (app *App) getComments(c *gin.Context) {
 
 func (app *App) createComment(c *gin.Context) {
 	scenarioName := c.Param("scenario")
-	
+
 	var req CommentRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

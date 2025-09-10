@@ -60,20 +60,20 @@ func NewNotificationProcessor(db *sql.DB, redisClient *redis.Client) *Notificati
 		workers:     5,
 		jobs:        make(chan NotificationJob, 100),
 	}
-	
+
 	// Start worker pool
 	for i := 0; i < np.workers; i++ {
 		np.wg.Add(1)
 		go np.worker()
 	}
-	
+
 	return np
 }
 
 // worker processes notification jobs
 func (np *NotificationProcessor) worker() {
 	defer np.wg.Done()
-	
+
 	for job := range np.jobs {
 		np.processNotification(job)
 	}
@@ -99,19 +99,19 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 		  n.scheduled_at
 		LIMIT 100
 	`
-	
+
 	rows, err := np.db.Query(query)
 	if err != nil {
 		return fmt.Errorf("failed to query pending notifications: %w", err)
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var job NotificationJob
 		var channelsRequested []string
 		var contactPreferences map[string]interface{}
 		var firstName, lastName *string
-		
+
 		err := rows.Scan(
 			&job.NotificationID, &job.ProfileID, &job.ContactID,
 			&job.Subject, &job.Content, &job.Variables,
@@ -123,7 +123,7 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 			log.Printf("Failed to scan notification: %v", err)
 			continue
 		}
-		
+
 		if firstName != nil {
 			job.Contact.FirstName = firstName
 		}
@@ -131,15 +131,15 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 			job.Contact.LastName = lastName
 		}
 		job.Contact.Preferences = contactPreferences
-		
+
 		// Update status to processing
 		np.updateNotificationStatus(job.NotificationID, "processing")
-		
+
 		// Queue job for each channel
 		for _, channel := range channelsRequested {
 			channelJob := job
 			channelJob.Channel = channel
-			
+
 			select {
 			case np.jobs <- channelJob:
 			case <-time.After(5 * time.Second):
@@ -147,7 +147,7 @@ func (np *NotificationProcessor) ProcessPendingNotifications() error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -157,7 +157,7 @@ func (np *NotificationProcessor) processNotification(job NotificationJob) {
 	result.NotificationID = job.NotificationID
 	result.Channel = job.Channel
 	result.DeliveredAt = time.Now()
-	
+
 	// Check if contact has unsubscribed from this channel
 	if np.isUnsubscribed(job.ContactID, job.Channel) {
 		result.Success = false
@@ -165,7 +165,7 @@ func (np *NotificationProcessor) processNotification(job NotificationJob) {
 		np.recordDeliveryResult(result)
 		return
 	}
-	
+
 	// Process based on channel
 	switch job.Channel {
 	case "email":
@@ -180,10 +180,10 @@ func (np *NotificationProcessor) processNotification(job NotificationJob) {
 		result.Success = false
 		result.Error = fmt.Sprintf("Unsupported channel: %s", job.Channel)
 	}
-	
+
 	// Record delivery result
 	np.recordDeliveryResult(result)
-	
+
 	// Update notification status
 	if result.Success {
 		np.markChannelDelivered(job.NotificationID, job.Channel)
@@ -199,14 +199,14 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 		Channel:        "email",
 		DeliveredAt:    time.Now(),
 	}
-	
+
 	// Get SMTP configuration
 	smtpHost := os.Getenv("SMTP_HOST")
 	smtpPort := os.Getenv("SMTP_PORT")
 	smtpUser := os.Getenv("SMTP_USER")
 	smtpPass := os.Getenv("SMTP_PASSWORD")
 	fromEmail := os.Getenv("SMTP_FROM_EMAIL")
-	
+
 	if smtpHost == "" {
 		// For demo purposes, simulate email sending
 		log.Printf("Simulating email to %s: %s", job.Contact.Identifier, job.Subject)
@@ -218,7 +218,7 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 		}
 		return result
 	}
-	
+
 	// Build email content
 	htmlContent := ""
 	textContent := ""
@@ -228,28 +228,28 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 	if text, ok := job.Content["text"].(string); ok {
 		textContent = np.renderTemplate(text, job.Variables)
 	}
-	
+
 	// Create email message
 	message := fmt.Sprintf("From: %s\r\n", fromEmail)
 	message += fmt.Sprintf("To: %s\r\n", job.Contact.Identifier)
 	message += fmt.Sprintf("Subject: %s\r\n", job.Subject)
 	message += "MIME-Version: 1.0\r\n"
 	message += "Content-Type: multipart/alternative; boundary=\"boundary\"\r\n\r\n"
-	
+
 	if textContent != "" {
 		message += "--boundary\r\n"
 		message += "Content-Type: text/plain; charset=\"UTF-8\"\r\n\r\n"
 		message += textContent + "\r\n"
 	}
-	
+
 	if htmlContent != "" {
 		message += "--boundary\r\n"
 		message += "Content-Type: text/html; charset=\"UTF-8\"\r\n\r\n"
 		message += htmlContent + "\r\n"
 	}
-	
+
 	message += "--boundary--"
-	
+
 	// Send email
 	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
 	err := smtp.SendMail(
@@ -259,7 +259,7 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 		[]string{job.Contact.Identifier},
 		[]byte(message),
 	)
-	
+
 	if err != nil {
 		result.Success = false
 		result.Error = fmt.Sprintf("Failed to send email: %v", err)
@@ -270,7 +270,7 @@ func (np *NotificationProcessor) sendEmail(job NotificationJob) DeliveryResult {
 			"subject": job.Subject,
 		}
 	}
-	
+
 	return result
 }
 
@@ -281,10 +281,10 @@ func (np *NotificationProcessor) sendSMS(job NotificationJob) DeliveryResult {
 		Channel:        "sms",
 		DeliveredAt:    time.Now(),
 	}
-	
+
 	// Get SMS provider configuration
 	smsProvider := os.Getenv("SMS_PROVIDER") // twilio, nexmo, etc.
-	
+
 	if smsProvider == "" {
 		// Simulate SMS sending for demo
 		log.Printf("Simulating SMS to %s: %s", job.Contact.Identifier, job.Content["text"])
@@ -295,7 +295,7 @@ func (np *NotificationProcessor) sendSMS(job NotificationJob) DeliveryResult {
 		}
 		return result
 	}
-	
+
 	// Implement actual SMS sending based on provider
 	switch smsProvider {
 	case "twilio":
@@ -304,7 +304,7 @@ func (np *NotificationProcessor) sendSMS(job NotificationJob) DeliveryResult {
 		result.Success = false
 		result.Error = fmt.Sprintf("Unsupported SMS provider: %s", smsProvider)
 	}
-	
+
 	return result
 }
 
@@ -315,10 +315,10 @@ func (np *NotificationProcessor) sendPushNotification(job NotificationJob) Deliv
 		Channel:        "push",
 		DeliveredAt:    time.Now(),
 	}
-	
+
 	// Get push notification service configuration
 	pushService := os.Getenv("PUSH_SERVICE") // fcm, apns, etc.
-	
+
 	if pushService == "" {
 		// Simulate push notification for demo
 		log.Printf("Simulating push notification to device: %s", job.Contact.Identifier)
@@ -330,7 +330,7 @@ func (np *NotificationProcessor) sendPushNotification(job NotificationJob) Deliv
 		}
 		return result
 	}
-	
+
 	// Implement actual push notification based on service
 	switch pushService {
 	case "fcm":
@@ -339,7 +339,7 @@ func (np *NotificationProcessor) sendPushNotification(job NotificationJob) Deliv
 		result.Success = false
 		result.Error = fmt.Sprintf("Unsupported push service: %s", pushService)
 	}
-	
+
 	return result
 }
 
@@ -350,19 +350,19 @@ func (np *NotificationProcessor) sendWebhook(job NotificationJob) DeliveryResult
 		Channel:        "webhook",
 		DeliveredAt:    time.Now(),
 	}
-	
+
 	// Get webhook URL from contact preferences or profile settings
 	webhookURL := ""
 	if prefs, ok := job.Contact.Preferences["webhook_url"].(string); ok {
 		webhookURL = prefs
 	}
-	
+
 	if webhookURL == "" {
 		result.Success = false
 		result.Error = "No webhook URL configured"
 		return result
 	}
-	
+
 	// Prepare webhook payload
 	payload := map[string]interface{}{
 		"notification_id": job.NotificationID,
@@ -372,13 +372,13 @@ func (np *NotificationProcessor) sendWebhook(job NotificationJob) DeliveryResult
 		"variables":       job.Variables,
 		"timestamp":       time.Now().Unix(),
 	}
-	
+
 	jsonData, _ := json.Marshal(payload)
-	
+
 	// Send webhook
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
-	
+
 	if err != nil {
 		result.Success = false
 		result.Error = fmt.Sprintf("Failed to send webhook: %v", err)
@@ -393,7 +393,7 @@ func (np *NotificationProcessor) sendWebhook(job NotificationJob) DeliveryResult
 			"status_code": resp.StatusCode,
 		}
 	}
-	
+
 	return result
 }
 
@@ -405,11 +405,11 @@ func (np *NotificationProcessor) sendTwilioSMS(job NotificationJob) DeliveryResu
 		Channel:        "sms",
 		DeliveredAt:    time.Now(),
 	}
-	
+
 	// Twilio implementation would go here
 	result.Success = false
 	result.Error = "Twilio integration not implemented"
-	
+
 	return result
 }
 
@@ -419,11 +419,11 @@ func (np *NotificationProcessor) sendFCMNotification(job NotificationJob) Delive
 		Channel:        "push",
 		DeliveredAt:    time.Now(),
 	}
-	
+
 	// FCM implementation would go here
 	result.Success = false
 	result.Error = "FCM integration not implemented"
-	
+
 	return result
 }
 
@@ -473,7 +473,7 @@ func (np *NotificationProcessor) markChannelDelivered(notificationID uuid.UUID, 
 func (np *NotificationProcessor) markChannelFailed(notificationID uuid.UUID, channel string, error string) {
 	// Log failure and update status
 	log.Printf("Delivery failed for notification %s on channel %s: %s", notificationID, channel, error)
-	
+
 	query := `
 		UPDATE notifications 
 		SET channels_attempted = array_append(channels_attempted, $2),
@@ -496,11 +496,11 @@ func (np *NotificationProcessor) recordDeliveryResult(result DeliveryResult) {
 			delivered_at, metadata, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 	`
-	
+
 	metadataJSON, _ := json.Marshal(result.Metadata)
 	np.db.Exec(query, uuid.New(), result.NotificationID, result.Channel,
 		result.Success, result.Error, result.DeliveredAt, metadataJSON)
-	
+
 	// Also cache in Redis for quick access
 	if np.redisClient != nil {
 		key := fmt.Sprintf("delivery:%s:%s", result.NotificationID, result.Channel)

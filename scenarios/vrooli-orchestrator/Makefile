@@ -11,7 +11,7 @@
 #   make logs  - Show scenario logs
 #   make clean - Clean build artifacts
 
-.PHONY: help run stop test logs status clean build dev
+.PHONY: help run stop test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -89,7 +89,55 @@ build: ## Build the scenario (if applicable)
 		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
 	fi
 
-# Shortcuts
+# ============================================================================
+# CODE QUALITY TARGETS
+# ============================================================================
+
+fmt: fmt-go fmt-ui ## Format all code
+
+fmt-go: ## Format Go code
+	@echo "$(BLUE)🎨 Formatting Go code...$(RESET)"
+	@if [ -d api ] && [ -f api/go.mod ]; then \
+		cd api && find . -name '*.go' -exec gofumpt -w {} \; 2>/dev/null || find . -name '*.go' -exec go fmt {} \;; \
+		echo "$(GREEN)✓ Go code formatted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to format$(RESET)"; \
+	fi
+
+fmt-ui: ## Format UI code (TypeScript/JavaScript/CSS)
+	@echo "$(BLUE)🎨 Formatting UI code...$(RESET)"
+	@if [ -d ui ] && [ -f ui/package.json ]; then \
+		cd ui && (npm run format 2>/dev/null || npm run prettier 2>/dev/null || npx prettier --write "src/**/*.{ts,tsx,js,jsx,css,scss,json}" 2>/dev/null || echo "$(YELLOW)No formatter configured$(RESET)"); \
+	else \
+		echo "$(YELLOW)No UI code to format$(RESET)"; \
+	fi
+
+lint: lint-go lint-ui ## Run all linters
+
+lint-go: ## Lint Go code
+	@echo "$(BLUE)🔍 Linting Go code...$(RESET)"
+	@if [ -d api ] && [ -f api/go.mod ]; then \
+		cd api && (golangci-lint run ./... 2>/dev/null || (go vet ./... && go fmt ./...) ); \
+		echo "$(GREEN)✓ Go code linted$(RESET)"; \
+	else \
+		echo "$(YELLOW)No Go code to lint$(RESET)"; \
+	fi
+
+lint-ui: ## Lint UI code (TypeScript/JavaScript)
+	@echo "$(BLUE)🔍 Linting UI code...$(RESET)"
+	@if [ -d ui ] && [ -f ui/package.json ]; then \
+		cd ui && (npm run lint 2>/dev/null || npm run eslint 2>/dev/null || npx eslint "src/**/*.{ts,tsx,js,jsx}" 2>/dev/null || echo "$(YELLOW)No linter configured$(RESET)"); \
+	else \
+		echo "$(YELLOW)No UI code to lint$(RESET)"; \
+	fi
+
+check: lint test ## Run linters and tests
+	@echo "$(GREEN)✓ All quality checks passed!$(RESET)"
+
+# ============================================================================
+# SHORTCUTS
+# ============================================================================
+
 r: run
 s: stop
 d: dev

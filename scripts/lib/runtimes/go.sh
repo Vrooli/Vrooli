@@ -458,6 +458,18 @@ go::install_dev_tools() {
         fi
     fi
     
+    # Install gofumpt (stricter Go formatter)
+    if command -v gofumpt >/dev/null 2>&1; then
+        log::info "gofumpt is already installed"
+    else
+        log::info "Installing gofumpt..."
+        if go install mvdan.cc/gofumpt@latest 2>/dev/null; then
+            log::success "gofumpt installed successfully"
+        else
+            log::warning "Failed to install gofumpt"
+        fi
+    fi
+    
     # Install other useful Go tools
     local tools=(
         "golang.org/x/tools/cmd/goimports@latest"    # Better import formatting
