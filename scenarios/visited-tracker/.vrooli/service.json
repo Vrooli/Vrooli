@@ -31,27 +31,7 @@
       "range": "35000-39999"
     }
   },
-  "resources": {
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "purpose": "Persistent storage for visit tracking, staleness scores, and metadata",
-      "initialization": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": false,
-      "required": false,
-      "purpose": "Optional caching layer for improved prioritization performance",
-      "initialization": []
-    }
-  },
+  "resources": {},
   "lifecycle": {
     "version": "2.0.0",
     "health": {
@@ -88,16 +68,16 @@
             "command": "visited-tracker"
           },
           {
-            "type": "resources",
-            "populated": true
+            "type": "directory",
+            "path": "data/campaigns"
           }
         ]
       },
       "steps": [
         {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
+          "name": "create-data-dir",
+          "run": "mkdir -p data/campaigns",
+          "description": "Create data directory for JSON file storage"
         },
         {
           "name": "install-cli",

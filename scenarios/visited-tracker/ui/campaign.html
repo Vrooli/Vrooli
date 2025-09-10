@@ -252,6 +252,7 @@
             display: flex;
             gap: 12px;
             font-size: 12px;
+            align-items: center;
         }
 
         .visit-count {
@@ -261,6 +262,38 @@
 
         .staleness {
             color: var(--accent-warning);
+        }
+
+        .visit-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .visit-btn {
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--border-primary);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .visit-btn:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent-secondary);
+        }
+
+        .visit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .context-badge {
@@ -660,6 +693,10 @@
                         <div class="file-stats">
                             <span class="visit-count">${file.visit_count} visits</span>
                             ${file.staleness_score > 0 ? `<span class="staleness">Staleness: ${Math.round(file.staleness_score)}</span>` : ''}
+                            <div class="visit-controls">
+                                <button class="visit-btn" onclick="adjustVisitCount('${file.id}', 'decrement')" ${file.visit_count === 0 ? 'disabled' : ''}>-</button>
+                                <button class="visit-btn" onclick="adjustVisitCount('${file.id}', 'increment')">+</button>
+                            </div>
                         </div>
                     </div>
                 `).join('');
@@ -693,6 +730,10 @@
                         <div class="file-stats">
                             <span class="staleness">Score: ${Math.round(file.staleness_score)}</span>
                             <span class="visit-count">${file.visit_count} visits</span>
+                            <div class="visit-controls">
+                                <button class="visit-btn" onclick="adjustVisitCount('${file.id}', 'decrement')" ${file.visit_count === 0 ? 'disabled' : ''}>-</button>
+                                <button class="visit-btn" onclick="adjustVisitCount('${file.id}', 'increment')">+</button>
+                            </div>
                         </div>
                     </div>
                 `).join('');
@@ -819,6 +860,45 @@
             } catch (error) {
                 console.error('Error deleting campaign:', error);
                 showError('Failed to delete campaign');
+            }
+        }
+
+        // Adjust visit count for a file (increment or decrement)
+        async function adjustVisitCount(fileId, action) {
+            if (!fileId || !action) {
+                showError('Invalid parameters for visit count adjustment');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${apiUrl}/api/v1/campaigns/${campaignId}/adjust-visit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file_id: fileId,
+                        action: action
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to adjust visit count');
+                }
+                
+                const data = await response.json();
+                
+                // Show brief success feedback
+                const actionText = action === 'increment' ? 'incremented' : 'decremented';
+                showError(`✓ Visit count ${actionText} to ${data.visit_count}`);
+                
+                // Refresh the file lists to show updated counts
+                await loadLeastVisited();
+                await loadMostStale();
+                await loadCoverage();
+                
+            } catch (error) {
+                console.error(`Error ${action}ing visit count:`, error);
+                showError(`Failed to ${action} visit count: ${error.message}`);
             }
         }
 
