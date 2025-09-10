@@ -174,11 +174,53 @@ func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
 // MoveTask moves a task between queue states and updates timestamps
 // Uses atomic operations to prevent task loss
 func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
-	// Read the task
-	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
-	data, err := os.ReadFile(fromPath)
+	// CRITICAL FIX: Use GetTaskByID logic to find actual file
+	// Don't assume filename matches taskID exactly
+	var fromPath string
+	var data []byte
+	var err error
+	
+	// Strategy 1: Try exact filename match
+	fromPath = filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
+	data, err = os.ReadFile(fromPath)
 	if err != nil {
-		return fmt.Errorf("failed to read task from %s: %v", fromPath, err)
+		// Strategy 2: Use flexible file lookup like GetTaskByID does
+		found := false
+		taskIDPrefix := taskID
+		
+		// Handle timestamp mismatches (same pattern as GetTaskByID)
+		timestampPattern := regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
+		if matches := timestampPattern.FindStringSubmatch(taskID); len(matches) > 0 {
+			taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
+		}
+		
+		// Try to find file with the prefix
+		dirPath := filepath.Join(s.QueueDir, fromStatus)
+		entries, err := os.ReadDir(dirPath)
+		if err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					continue
+				}
+				filename := entry.Name()
+				if !strings.HasSuffix(filename, ".yaml") {
+					continue
+				}
+				nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
+				if nameWithoutExt == taskIDPrefix || nameWithoutExt == taskID {
+					fromPath = filepath.Join(dirPath, filename)
+					data, err = os.ReadFile(fromPath)
+					if err == nil {
+						found = true
+						break
+					}
+				}
+			}
+		}
+		
+		if !found {
+			return fmt.Errorf("failed to find task file for ID %s in %s status", taskID, fromStatus)
+		}
 	}
 
 	var task TaskItem

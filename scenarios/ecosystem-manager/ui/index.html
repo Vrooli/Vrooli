@@ -36,6 +36,14 @@
                             <i class="fas fa-play" id="processor-status-icon"></i>
                             <span id="processor-status">Active</span>
                         </div>
+                        <!-- Process Monitor Widget -->
+                        <div class="process-monitor" id="process-monitor" style="display: none;">
+                            <div class="process-info">
+                                <i class="fas fa-brain"></i>
+                                <span id="running-process-count">0</span> Claude
+                            </div>
+                            <div class="process-details" id="process-details"></div>
+                        </div>
                         <button class="btn-icon refresh-all-btn" onclick="ecosystemManager.refreshAll()" title="Refresh All">
                             <i class="fas fa-sync-alt"></i>
                         </button>
@@ -437,6 +445,36 @@
         <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
             <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Log Viewer Modal -->
+    <div id="log-viewer-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3 id="log-viewer-title">Task Execution Logs</h3>
+                <div class="log-controls">
+                    <button class="btn btn-secondary" id="log-auto-scroll-toggle" onclick="ecosystemManager.toggleLogAutoScroll()">
+                        <i class="fas fa-arrow-down"></i>
+                        Auto-scroll
+                    </button>
+                    <button class="btn btn-secondary" onclick="ecosystemManager.clearLogViewer()">
+                        <i class="fas fa-trash"></i>
+                        Clear
+                    </button>
+                </div>
+                <button class="modal-close" onclick="ecosystemManager.closeLogViewer()">&times;</button>
+            </div>
+            
+            <div class="log-viewer-content">
+                <div id="log-output" class="log-output">
+                    <div class="log-placeholder">
+                        <i class="fas fa-terminal"></i>
+                        <p>Waiting for task execution logs...</p>
+                        <p class="log-hint">Logs will appear here when the task starts executing with Claude Code</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 

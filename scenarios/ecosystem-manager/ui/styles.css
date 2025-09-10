@@ -688,6 +688,130 @@ body.dark-mode .btn-delete:hover {
     color: var(--dark-gray);
 }
 
+/* Log Viewer Modal */
+.log-viewer-content {
+    height: 70vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.log-output {
+    flex: 1;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.log-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #666;
+    text-align: center;
+}
+
+.log-placeholder i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #444;
+}
+
+.log-placeholder p {
+    margin: 0.5rem 0;
+}
+
+.log-hint {
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.log-entry {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0;
+}
+
+.log-entry.info {
+    color: #4a90e2;
+}
+
+.log-entry.warning {
+    color: #ffc107;
+}
+
+.log-entry.error {
+    color: #dc3545;
+}
+
+.log-entry.success {
+    color: #28a745;
+}
+
+.log-timestamp {
+    color: #888;
+    font-size: 0.8rem;
+    margin-right: 0.5rem;
+}
+
+.log-auto-scroll-enabled {
+    background: var(--success-color);
+    color: white;
+}
+
+/* Task Execution Status Enhancements */
+.task-execution-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(74, 144, 226, 0.1);
+    border: 1px solid rgba(74, 144, 226, 0.2);
+    border-radius: var(--border-radius);
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.task-execution-status.executing {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.2);
+    color: #856404;
+}
+
+.execution-timer {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.process-terminate-btn {
+    background: var(--error-color);
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.process-terminate-btn:hover {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
 /* Forms */
 form {
     padding: 1.5rem;
@@ -1285,7 +1409,7 @@ body.dark-mode .task-error .error-message {
     color: var(--white);
 }
 
-.queue-slots, .queue-timer, .queue-processor-status {
+.queue-slots, .queue-timer, .queue-processor-status, .process-monitor {
     display: flex;
     align-items: center;
     gap: 0.4rem;
@@ -1294,6 +1418,46 @@ body.dark-mode .task-error .error-message {
 
 .queue-slots i {
     color: var(--info-color);
+}
+
+/* Process Monitor Widget */
+.process-monitor {
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    animation: pulse 2s ease-in-out infinite alternate;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.process-monitor:hover {
+    background: rgba(255, 215, 0, 0.25);
+    transform: scale(1.05);
+}
+
+.process-monitor .process-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 500;
+}
+
+.process-monitor .process-details {
+    font-size: 0.75rem;
+    margin-top: 0.2rem;
+    opacity: 0.9;
+}
+
+@keyframes pulse {
+    from { 
+        background: rgba(255, 215, 0, 0.1);
+        border-color: rgba(255, 215, 0, 0.2);
+    }
+    to { 
+        background: rgba(255, 215, 0, 0.2);
+        border-color: rgba(255, 215, 0, 0.4);
+    }
 }
 
 .queue-timer i {

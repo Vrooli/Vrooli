@@ -69,6 +69,15 @@ class EcosystemManager {
             // Initialize queue status display
             this.initQueueStatus();
             
+            // Initialize process monitoring
+            this.initProcessMonitoring();
+            
+            // CRITICAL: Trigger immediate queue processing on page load
+            // Don't wait for the timer - check for tasks to process right now
+            setTimeout(() => {
+                this.triggerImmediateProcessing();
+            }, 1000); // Small delay to let initialization complete
+            
             console.log('✅ Ecosystem Manager UI initialized successfully');
         } catch (error) {
             console.error('❌ Failed to initialize UI:', error);
@@ -226,12 +235,7 @@ class EcosystemManager {
         };
         
         this.ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                this.handleWebSocketMessage(message);
-            } catch (error) {
-                console.error('Failed to parse WebSocket message:', error);
-            }
+            this.handleWebSocketMessage(event);
         };
         
         this.ws.onerror = (error) => {
@@ -253,46 +257,6 @@ class EcosystemManager {
         };
     }
     
-    handleWebSocketMessage(message) {
-        console.log('📨 WebSocket message:', message);
-        
-        switch (message.type) {
-            case 'connected':
-                console.log('Connected to server:', message.message);
-                break;
-                
-            case 'task_progress':
-                this.updateTaskProgress(message.data);
-                break;
-                
-            case 'task_started':
-                this.handleTaskStarted(message.data);
-                break;
-                
-            case 'task_completed':
-                this.handleTaskCompleted(message.data);
-                break;
-                
-            case 'task_failed':
-                this.handleTaskFailed(message.data);
-                break;
-                
-            case 'task_created':
-                this.handleTaskCreated(message.data);
-                break;
-                
-            case 'task_updated':
-                this.handleTaskUpdated(message.data);
-                break;
-                
-            case 'queue_status_changed':
-                this.handleQueueStatusChanged(message.data);
-                break;
-                
-            default:
-                console.log('Unknown message type:', message.type);
-        }
-    }
     
     updateTaskProgress(task) {
         // Update task in memory
@@ -1656,11 +1620,11 @@ class EcosystemManager {
         // Fetch and update queue status
         await this.fetchQueueProcessorStatus();
         
-        // Trigger queue processing to start claude-code if there are pending tasks
+        // Trigger IMMEDIATE queue processing to start claude-code if there are pending tasks
         try {
-            await this.triggerQueueProcessing();
+            await this.triggerImmediateProcessing();
         } catch (error) {
-            console.warn('Could not trigger queue processing:', error);
+            console.warn('Could not trigger immediate processing:', error);
             // Don't fail the entire refresh if trigger fails
         }
         
@@ -2239,6 +2203,713 @@ class EcosystemManager {
             }
         }
     }
+    
+    // ====== PROCESS MONITOR & LOG VIEWER FUNCTIONALITY ======
+    
+    runningProcesses = {};
+    logViewerOpen = false;
+    logAutoScroll = true;
+    activeTaskTimers = {};
+    
+    // Initialize process monitoring
+    async initProcessMonitoring() {
+        // Start periodic process monitoring
+        setInterval(() => {
+            this.fetchRunningProcesses();
+        }, 5000); // Check every 5 seconds
+        
+        // Initial load
+        this.fetchRunningProcesses();
+    }
+    
+    async fetchRunningProcesses() {
+        try {
+            const response = await fetch(`${this.apiBase}/processes/running`);
+            if (!response.ok) throw new Error('Failed to fetch processes');
+            
+            const data = await response.json();
+            this.runningProcesses = {};
+            
+            // Convert array to object for easier lookup
+            if (data.processes && Array.isArray(data.processes)) {
+                data.processes.forEach(process => {
+                    this.runningProcesses[process.task_id] = process;
+                });
+            }
+            
+            this.updateProcessMonitor();
+            this.updateExecutionTimers();
+            
+        } catch (error) {
+            console.warn('Failed to fetch running processes:', error);
+            // Clear process monitor if API fails
+            this.runningProcesses = {};
+            this.updateProcessMonitor();
+        }
+    }
+    
+    updateProcessMonitor() {
+        const processMonitor = document.getElementById('process-monitor');
+        const processCount = document.getElementById('running-process-count');
+        const processDetails = document.getElementById('process-details');
+        
+        const activeProcesses = Object.keys(this.runningProcesses);
+        const count = activeProcesses.length;
+        
+        if (count > 0) {
+            processMonitor.style.display = 'flex';
+            processCount.textContent = count;
+            
+            // Show details of active processes
+            const processInfo = activeProcesses.map(taskId => {
+                const process = this.runningProcesses[taskId];
+                const duration = this.formatDuration(process.start_time);
+                return `${taskId.slice(0, 20)}... (${duration})`;
+            }).join(', ');
+            
+            processDetails.textContent = processInfo;
+            processDetails.title = activeProcesses.map(taskId => {
+                const process = this.runningProcesses[taskId];
+                return `Task: ${taskId}\nPID: ${process.process_id}\nRuntime: ${process.duration}`;
+            }).join('\n\n');
+            
+        } else {
+            processMonitor.style.display = 'none';
+        }
+        
+        // Update task cards with execution status
+        this.updateTaskExecutionStatus();
+    }
+    
+    updateTaskExecutionStatus() {
+        // Update all in-progress task cards
+        Object.keys(this.runningProcesses).forEach(taskId => {
+            const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (taskCard) {
+                this.addExecutionStatusToCard(taskCard, taskId);
+            }
+        });
+        
+        // Remove execution status from cards no longer running
+        document.querySelectorAll('.task-execution-status').forEach(statusEl => {
+            const taskCard = statusEl.closest('.task-card');
+            const taskId = taskCard?.getAttribute('data-task-id');
+            if (taskId && !this.runningProcesses[taskId]) {
+                statusEl.remove();
+            }
+        });
+    }
+    
+    addExecutionStatusToCard(taskCard, taskId) {
+        // Don't add if already exists
+        if (taskCard.querySelector('.task-execution-status')) return;
+        
+        const process = this.runningProcesses[taskId];
+        if (!process) return;
+        
+        const statusEl = document.createElement('div');
+        statusEl.className = 'task-execution-status executing';
+        statusEl.innerHTML = `
+            <i class="fas fa-brain fa-spin"></i>
+            <span>Executing with Claude Code...</span>
+            <span class="execution-timer" id="timer-${taskId}">--:--</span>
+            <button class="process-terminate-btn" onclick="ecosystemManager.terminateProcess('${taskId}')" title="Terminate Process">
+                <i class="fas fa-stop"></i>
+            </button>
+        `;
+        
+        // Insert after task-meta
+        const taskMeta = taskCard.querySelector('.task-meta');
+        if (taskMeta) {
+            taskMeta.insertAdjacentElement('afterend', statusEl);
+        } else {
+            // Fallback: insert at end of card
+            taskCard.appendChild(statusEl);
+        }
+        
+        // Start timer for this task
+        this.startExecutionTimer(taskId, process.start_time);
+    }
+    
+    startExecutionTimer(taskId, startTime) {
+        if (this.activeTaskTimers[taskId]) {
+            clearInterval(this.activeTaskTimers[taskId]);
+        }
+        
+        this.activeTaskTimers[taskId] = setInterval(() => {
+            const timerEl = document.getElementById(`timer-${taskId}`);
+            if (timerEl && this.runningProcesses[taskId]) {
+                const duration = this.formatDuration(startTime);
+                timerEl.textContent = duration;
+            } else {
+                // Clean up timer if element or process no longer exists
+                clearInterval(this.activeTaskTimers[taskId]);
+                delete this.activeTaskTimers[taskId];
+            }
+        }, 1000);
+    }
+    
+    updateExecutionTimers() {
+        Object.keys(this.runningProcesses).forEach(taskId => {
+            const process = this.runningProcesses[taskId];
+            const timerEl = document.getElementById(`timer-${taskId}`);
+            if (timerEl) {
+                timerEl.textContent = this.formatDuration(process.start_time);
+            }
+        });
+    }
+    
+    formatDuration(startTime) {
+        const start = new Date(startTime);
+        const now = new Date();
+        const diffMs = now - start;
+        const diffSec = Math.floor(diffMs / 1000);
+        const minutes = Math.floor(diffSec / 60);
+        const seconds = diffSec % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    async terminateProcess(taskId) {
+        const confirmed = confirm(`Are you sure you want to terminate the Claude Code process for task "${taskId}"? This will stop the current execution.`);
+        if (!confirmed) return;
+        
+        try {
+            const response = await fetch(`${this.apiBase}/queue/processes/terminate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ task_id: taskId })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to terminate process: ${response.statusText}`);
+            }
+            
+            this.showToast('Process terminated successfully', 'success');
+            
+            // Immediately update UI
+            delete this.runningProcesses[taskId];
+            this.updateProcessMonitor();
+            
+            // Clear timer
+            if (this.activeTaskTimers[taskId]) {
+                clearInterval(this.activeTaskTimers[taskId]);
+                delete this.activeTaskTimers[taskId];
+            }
+            
+        } catch (error) {
+            console.error('Failed to terminate process:', error);
+            this.showToast(`Failed to terminate process: ${error.message}`, 'error');
+        }
+    }
+    
+    // ====== LOG VIEWER FUNCTIONALITY ======
+    
+    openLogViewer(taskId) {
+        const modal = document.getElementById('log-viewer-modal');
+        const title = document.getElementById('log-viewer-title');
+        
+        title.textContent = `Task Execution Logs - ${taskId}`;
+        modal.classList.add('show');
+        this.logViewerOpen = true;
+        this.currentLogTaskId = taskId;
+        
+        // Clear previous logs
+        this.clearLogViewer();
+        
+        // Start log streaming (if process is running)
+        if (this.runningProcesses[taskId]) {
+            this.startLogStreaming(taskId);
+        } else {
+            this.addLogEntry('info', 'Task is not currently executing. Logs will appear when execution starts.');
+        }
+    }
+    
+    closeLogViewer() {
+        const modal = document.getElementById('log-viewer-modal');
+        modal.classList.remove('show');
+        this.logViewerOpen = false;
+        this.currentLogTaskId = null;
+        
+        // Stop log streaming
+        if (this.logStreamInterval) {
+            clearInterval(this.logStreamInterval);
+            this.logStreamInterval = null;
+        }
+    }
+    
+    clearLogViewer() {
+        const logOutput = document.getElementById('log-output');
+        logOutput.innerHTML = `
+            <div class="log-placeholder">
+                <i class="fas fa-terminal"></i>
+                <p>Waiting for task execution logs...</p>
+                <p class="log-hint">Logs will appear here when the task starts executing with Claude Code</p>
+            </div>
+        `;
+    }
+    
+    toggleLogAutoScroll() {
+        this.logAutoScroll = !this.logAutoScroll;
+        const button = document.getElementById('log-auto-scroll-toggle');
+        if (this.logAutoScroll) {
+            button.classList.add('log-auto-scroll-enabled');
+            this.scrollLogToBottom();
+        } else {
+            button.classList.remove('log-auto-scroll-enabled');
+        }
+    }
+    
+    addLogEntry(type, message) {
+        const logOutput = document.getElementById('log-output');
+        
+        // Remove placeholder if it exists
+        const placeholder = logOutput.querySelector('.log-placeholder');
+        if (placeholder) {
+            placeholder.remove();
+        }
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry ${type}`;
+        logEntry.innerHTML = `
+            <span class="log-timestamp">[${timestamp}]</span>
+            <span class="log-message">${this.escapeHtml(message)}</span>
+        `;
+        
+        logOutput.appendChild(logEntry);
+        
+        // Auto-scroll if enabled
+        if (this.logAutoScroll) {
+            this.scrollLogToBottom();
+        }
+    }
+    
+    scrollLogToBottom() {
+        const logOutput = document.getElementById('log-output');
+        logOutput.scrollTop = logOutput.scrollHeight;
+    }
+    
+    startLogStreaming(taskId) {
+        // Mock log streaming - in real implementation, this would connect to actual logs
+        // For now, we'll simulate logs based on task phases
+        this.addLogEntry('info', `Starting execution for task: ${taskId}`);
+        this.addLogEntry('info', 'Assembled prompt and calling Claude Code...');
+        
+        // Simulate periodic log updates
+        this.logStreamInterval = setInterval(() => {
+            if (this.runningProcesses[taskId]) {
+                const messages = [
+                    'Claude Code is analyzing the task...',
+                    'Reading files and understanding context...',
+                    'Executing commands and making changes...',
+                    'Validating changes and running tests...',
+                ];
+                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                this.addLogEntry('info', randomMessage);
+            }
+        }, 10000); // Add a message every 10 seconds
+    }
+    
+    // ====== ENHANCED TASK DETAILS MODAL ======
+    
+    // Override the existing showTaskDetails to add log viewer button
+    async showTaskDetails(taskId) {
+        this.showLoading(true);
+        
+        try {
+            const response = await fetch(`${this.apiBase}/tasks/${taskId}`);
+            if (!response.ok) {
+                throw new Error(`Failed to load task: ${response.status} ${response.statusText}`);
+            }
+            
+            const task = await response.json();
+            console.log('Task details loaded:', task);
+            
+            const modal = document.getElementById('task-details-modal');
+            const titleElement = document.getElementById('task-details-title');
+            const contentElement = document.getElementById('task-details-content');
+            
+            titleElement.textContent = `Edit Task`;
+            
+            // Get category options based on task type
+            const categoryOptions = this.categoryOptions[task.type] || [];
+            
+            contentElement.innerHTML = `
+                <form id="edit-task-form">
+                    <div class="task-details-container">
+                        <!-- Basic Information -->
+                        <div class="form-group">
+                            <label for="edit-task-title">Title *</label>
+                            <input type="text" id="edit-task-title" name="title" value="${this.escapeHtml(task.title)}" required>
+                        </div>
+                        
+                        <!-- Task Status and Priority -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-task-status">Status</label>
+                                <select id="edit-task-status" name="status">
+                                    <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="review" ${task.status === 'review' ? 'selected' : ''}>Review</option>
+                                    <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
+                                    <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-task-priority">Priority</label>
+                                <select id="edit-task-priority" name="priority">
+                                    <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+                                    <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                                    <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+                                    <option value="critical" ${task.priority === 'critical' ? 'selected' : ''}>Critical</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Category and Effort -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-task-category">Category</label>
+                                <select id="edit-task-category" name="category">
+                                    <option value="">No Category</option>
+                                    ${categoryOptions.map(cat => 
+                                        `<option value="${cat.value}" ${task.category === cat.value ? 'selected' : ''}>${cat.label}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-task-effort">Effort Estimate</label>
+                                <select id="edit-task-effort" name="effort_estimate">
+                                    <option value="1h" ${task.effort_estimate === '1h' ? 'selected' : ''}>1 hour</option>
+                                    <option value="2h" ${task.effort_estimate === '2h' ? 'selected' : ''}>2 hours</option>
+                                    <option value="4h" ${task.effort_estimate === '4h' ? 'selected' : ''}>4 hours</option>
+                                    <option value="8h" ${task.effort_estimate === '8h' ? 'selected' : ''}>8 hours</option>
+                                    <option value="16h+" ${task.effort_estimate === '16h+' ? 'selected' : ''}>16+ hours</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Progress and Phase -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-task-progress">Progress (%)</label>
+                                <input type="range" id="edit-task-progress" name="progress_percentage" min="0" max="100" 
+                                       value="${task.progress_percentage || 0}" 
+                                       oninput="document.getElementById('progress-value').textContent = this.value + '%'">
+                                <span id="progress-value">${task.progress_percentage || 0}%</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-task-phase">Current Phase</label>
+                                <select id="edit-task-phase" name="current_phase">
+                                    <option value="">No Phase</option>
+                                    <option value="initialization" ${task.current_phase === 'initialization' ? 'selected' : ''}>Initialization</option>
+                                    <option value="research" ${task.current_phase === 'research' ? 'selected' : ''}>Research</option>
+                                    <option value="implementation" ${task.current_phase === 'implementation' ? 'selected' : ''}>Implementation</option>
+                                    <option value="testing" ${task.current_phase === 'testing' ? 'selected' : ''}>Testing</option>
+                                    <option value="documentation" ${task.current_phase === 'documentation' ? 'selected' : ''}>Documentation</option>
+                                    <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
+                                    <option value="prompt_assembled" ${task.current_phase === 'prompt_assembled' ? 'selected' : ''}>Prompt Assembled</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Impact and Urgency -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-task-impact">Impact Score (1-10)</label>
+                                <input type="range" id="edit-task-impact" name="impact_score" min="1" max="10" 
+                                       value="${task.impact_score || 5}" 
+                                       oninput="document.getElementById('impact-value').textContent = this.value">
+                                <span id="impact-value">${task.impact_score || 5}</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-task-urgency">Urgency</label>
+                                <select id="edit-task-urgency" name="urgency">
+                                    <option value="low" ${task.urgency === 'low' ? 'selected' : ''}>Low</option>
+                                    <option value="normal" ${task.urgency === 'normal' ? 'selected' : ''}>Normal</option>
+                                    <option value="high" ${task.urgency === 'high' ? 'selected' : ''}>High</option>
+                                    <option value="critical" ${task.urgency === 'critical' ? 'selected' : ''}>Critical</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Process Controls (show if task is running) -->
+                        ${this.runningProcesses[taskId] ? `
+                            <div class="task-execution-status executing">
+                                <i class="fas fa-brain fa-spin"></i>
+                                <span>Task is currently executing with Claude Code</span>
+                                <span class="execution-timer">${this.formatDuration(this.runningProcesses[taskId].start_time)}</span>
+                                <button type="button" class="btn btn-secondary" onclick="ecosystemManager.openLogViewer('${taskId}')">
+                                    <i class="fas fa-terminal"></i>
+                                    Follow Logs
+                                </button>
+                                <button type="button" class="process-terminate-btn" onclick="ecosystemManager.terminateProcess('${taskId}')">
+                                    <i class="fas fa-stop"></i>
+                                    Terminate
+                                </button>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Notes -->
+                        <div class="form-group">
+                            <label for="edit-task-notes">Notes</label>
+                            <textarea id="edit-task-notes" name="notes" rows="4" 
+                                      placeholder="Additional details, requirements, or context...">${this.escapeHtml(task.notes || '')}</textarea>
+                        </div>
+                        
+                        <!-- Task Results (only show for completed/failed tasks) -->
+                        ${task.results && (task.status === 'completed' || task.status === 'failed') ? `
+                            <div class="form-group">
+                                <label>Execution Results</label>
+                                <div class="execution-results ${task.results.success ? 'success' : 'error'}">
+                                    <div style="margin-bottom: 0.5rem;">
+                                        <strong>Status:</strong> 
+                                        <span class="${task.results.success ? 'status-success' : 'status-error'}">
+                                            ${task.results.success ? '✅ Success' : '❌ Failed'}
+                                        </span>
+                                        ${task.results.timeout_failure ? '<span style="color: #ff9800; margin-left: 8px;">⏰ TIMEOUT</span>' : ''}
+                                    </div>
+                                    
+                                    <!-- Timing Information -->
+                                    ${task.results.execution_time || task.results.timeout_allowed || task.results.prompt_size ? `
+                                        <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
+                                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                                                ${task.results.execution_time ? `<span><strong>⏱️ Runtime:</strong> ${task.results.execution_time}</span>` : ''}
+                                                ${task.results.timeout_allowed ? `<span><strong>⏰ Timeout:</strong> ${task.results.timeout_allowed}</span>` : ''}
+                                            </div>
+                                            ${task.results.prompt_size ? `<div style="font-size: 0.9em; margin-top: 4px;"><strong>📝 Prompt Size:</strong> ${task.results.prompt_size}</div>` : ''}
+                                            ${task.results.started_at ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px;">Started: ${new Date(task.results.started_at).toLocaleString()}</div>` : ''}
+                                        </div>
+                                    ` : ''}
+                                    ${task.results.error ? `
+                                        <div style="margin-bottom: 0.5rem;">
+                                            <strong>Error:</strong> 
+                                            <div class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px;">${this.formatErrorText(task.results.error)}</div>
+                                        </div>
+                                    ` : ''}
+                                    ${task.results.output ? `
+                                        <details style="margin-top: 0.5rem;">
+                                            <summary class="output-summary">
+                                                📋 View Claude Output (click to expand)
+                                            </summary>
+                                            <pre class="claude-output">${this.escapeHtml(task.results.output)}</pre>
+                                        </details>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        ` : ''}
+                        
+                        <!-- Metadata (read-only) -->
+                        <div class="form-group">
+                            <label>Task Information</label>
+                            <div style="background: var(--light-gray); padding: 0.8rem; border-radius: var(--border-radius); font-size: 0.9rem;">
+                                <div><strong>ID:</strong> ${task.id}</div>
+                                ${task.created_at ? `<div><strong>Created:</strong> ${new Date(task.created_at).toLocaleString()}</div>` : ''}
+                                ${task.started_at ? `<div><strong>Started:</strong> ${new Date(task.started_at).toLocaleString()}</div>` : ''}
+                                ${task.completed_at ? `<div><strong>Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : ''}
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeTaskDetailsModal()">
+                                <i class="fas fa-times"></i>
+                                Cancel
+                            </button>
+                            
+                            ${task.status === 'in-progress' && !this.runningProcesses[taskId] ? `
+                                <button type="button" class="btn btn-secondary" onclick="ecosystemManager.openLogViewer('${taskId}')">
+                                    <i class="fas fa-terminal"></i>
+                                    View Logs
+                                </button>
+                            ` : ''}
+                            
+                            <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')">
+                                <i class="fas fa-save"></i>
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            `;
+            
+            modal.classList.add('show');
+            
+        } catch (error) {
+            console.error('Failed to load task details:', error, error.stack);
+            this.showToast(`Failed to load task details: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+    
+    // ====== WEBSOCKET ENHANCEMENTS ======
+    
+    handleWebSocketMessage(event) {
+        try {
+            const message = JSON.parse(event.data);
+            console.log('WebSocket message:', message);
+            
+            switch (message.type) {
+                case 'task_progress':
+                    this.handleTaskProgressUpdate(message.data);
+                    break;
+                case 'task_completed':
+                    this.handleTaskCompleted(message.data);
+                    break;
+                case 'task_failed':
+                    this.handleTaskFailed(message.data);
+                    break;
+                case 'process_started':
+                    this.handleProcessStarted(message.data);
+                    break;
+                case 'process_terminated':
+                    this.handleProcessTerminated(message.data);
+                    break;
+                case 'log_entry':
+                    this.handleLogEntry(message.data);
+                    break;
+                default:
+                    console.log('Unknown WebSocket message type:', message.type);
+            }
+        } catch (error) {
+            console.error('Failed to parse WebSocket message:', error);
+        }
+    }
+    
+    handleTaskProgressUpdate(taskData) {
+        // Update task in memory
+        const status = taskData.status;
+        if (this.tasks[status]) {
+            const taskIndex = this.tasks[status].findIndex(t => t.id === taskData.id);
+            if (taskIndex !== -1) {
+                this.tasks[status][taskIndex] = taskData;
+            }
+        }
+        
+        // Update task card UI
+        this.updateTaskCard(taskData);
+    }
+    
+    handleTaskCompleted(taskData) {
+        this.handleTaskStatusChange(taskData, 'completed');
+        // Remove from running processes
+        delete this.runningProcesses[taskData.id];
+        this.updateProcessMonitor();
+    }
+    
+    handleTaskFailed(taskData) {
+        this.handleTaskStatusChange(taskData, 'failed');
+        // Remove from running processes
+        delete this.runningProcesses[taskData.id];
+        this.updateProcessMonitor();
+    }
+    
+    handleProcessStarted(data) {
+        const { task_id, process_id, start_time } = data;
+        this.runningProcesses[task_id] = {
+            task_id,
+            process_id,
+            start_time
+        };
+        this.updateProcessMonitor();
+        
+        // Add log entry if log viewer is open for this task
+        if (this.logViewerOpen && this.currentLogTaskId === task_id) {
+            this.addLogEntry('success', `Process started (PID: ${process_id})`);
+        }
+    }
+    
+    handleProcessTerminated(data) {
+        const { task_id } = data;
+        delete this.runningProcesses[task_id];
+        this.updateProcessMonitor();
+        
+        // Add log entry if log viewer is open for this task
+        if (this.logViewerOpen && this.currentLogTaskId === task_id) {
+            this.addLogEntry('warning', 'Process terminated');
+        }
+    }
+    
+    handleLogEntry(data) {
+        const { task_id, level, message } = data;
+        if (this.logViewerOpen && this.currentLogTaskId === task_id) {
+            this.addLogEntry(level, message);
+        }
+    }
+    
+    handleTaskStatusChange(taskData, newStatus) {
+        // Move task between status arrays
+        const oldStatus = this.findTaskStatus(taskData.id);
+        if (oldStatus && oldStatus !== newStatus) {
+            // Remove from old status
+            this.tasks[oldStatus] = this.tasks[oldStatus].filter(t => t.id !== taskData.id);
+            
+            // Add to new status
+            if (!this.tasks[newStatus]) {
+                this.tasks[newStatus] = [];
+            }
+            this.tasks[newStatus].push(taskData);
+            
+            // Re-render and update queue status
+            this.renderTasks();
+            this.updateQueueDisplay();
+        }
+    }
+    
+    findTaskStatus(taskId) {
+        for (const [status, tasks] of Object.entries(this.tasks)) {
+            if (tasks.some(t => t.id === taskId)) {
+                return status;
+            }
+        }
+        return null;
+    }
+    
+    // ====== IMMEDIATE PROCESSING FUNCTIONALITY ======
+    
+    async triggerImmediateProcessing() {
+        console.log('🚀 Triggering immediate queue processing...');
+        try {
+            // First, check if processor is active
+            const statusResponse = await fetch(`${this.apiBase}/queue/status`);
+            if (statusResponse.ok) {
+                const status = await statusResponse.json();
+                if (!status.processor_active) {
+                    console.log('⚠️ Processor not active, skipping immediate processing');
+                    return;
+                }
+                
+                console.log(`📊 Queue status: ${status.pending_count} pending, ${status.executing_count} executing, ${status.available_slots} slots available`);
+                
+                // If there are pending tasks and available slots, trigger processing
+                if (status.pending_count > 0 && status.available_slots > 0) {
+                    console.log('✅ Conditions met for immediate processing - triggering...');
+                    await this.triggerQueueProcessing();
+                    
+                    // Also refresh the UI to show any changes
+                    setTimeout(() => {
+                        this.loadAllTasks();
+                        this.fetchRunningProcesses();
+                    }, 2000);
+                } else {
+                    console.log('ℹ️ No processing needed:', {
+                        pending: status.pending_count,
+                        available: status.available_slots
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to trigger immediate processing:', error);
+            // Don't show error toast as this is background operation
+        }
+    }
 }
 
 // Initialize when DOM is loaded
@@ -2262,6 +2933,13 @@ window.closeSettingsModal = () => ecosystemManager?.closeSettingsModal();
 window.saveSettings = () => ecosystemManager?.saveSettingsFromForm();
 window.resetSettingsToDefault = () => ecosystemManager?.resetSettingsToDefault();
 window.updateSliderValue = (sliderId, valueId) => ecosystemManager?.updateSliderValue(sliderId, valueId);
+
+// Process monitoring and log viewer functions
+window.terminateProcess = (taskId) => ecosystemManager?.terminateProcess(taskId);
+window.openLogViewer = (taskId) => ecosystemManager?.openLogViewer(taskId);
+window.closeLogViewer = () => ecosystemManager?.closeLogViewer();
+window.toggleLogAutoScroll = () => ecosystemManager?.toggleLogAutoScroll();
+window.clearLogViewer = () => ecosystemManager?.clearLogViewer();
 
 // Legacy dark mode function (for backwards compatibility)
 window.toggleDarkMode = () => ecosystemManager?.toggleDarkMode();
