@@ -1,26 +1,44 @@
 #!/bin/bash
+################################################################################
+# Ecosystem Manager CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
 
-# Ecosystem Manager CLI
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-# API_BASE_URL must be provided by environment
-if [[ -z "$API_BASE_URL" ]]; then
-    echo "Error: API_BASE_URL environment variable is required but not set" >&2
-    exit 1
-fi
+# Configuration
+SCENARIO_NAME="ecosystem-manager"
 
-# Colors
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-# Helper functions
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the new ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}/api"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
 usage() {
     echo -e "${CYAN}Ecosystem Manager CLI${NC}"
     echo "Unified interface for managing resources and scenarios"
@@ -28,7 +46,8 @@ usage() {
     echo "Usage: ecosystem-manager [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
-    echo -e "  ${GREEN}add${NC}        Create new task (resource or scenario generation/improvement)"
+    echo -e "  ${GREEN}add${NC}        Create new generation task (resource or scenario)"
+    echo -e "  ${GREEN}improve${NC}    Create improvement task for existing resource/scenario"
     echo -e "  ${GREEN}list${NC}       List tasks with optional filters"
     echo -e "  ${GREEN}show${NC}       Show detailed task information"
     echo -e "  ${GREEN}status${NC}     Update task status and progress"
@@ -41,27 +60,17 @@ usage() {
     echo "  ecosystem-manager add resource matrix-synapse --category communication"
     echo "  ecosystem-manager improve scenario system-monitor --priority high"
     echo "  ecosystem-manager list --status pending --type resource"
-    echo "  ecosystem-manager show <task-id>"
-    echo "  ecosystem-manager status <task-id> --progress 50 --phase implementation"
+    echo "  ecosystem-manager status task-123 --progress 50 --phase implementation"
+    echo "  ecosystem-manager logs -f"
     echo ""
     echo "Options:"
-    echo "  --help, -h       Show help"
-    echo "  --json           Output in JSON format"
-    echo "  --verbose, -v    Verbose output"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
     echo ""
     echo "For more information: ecosystem-manager <command> --help"
 }
 
-# Check if API is available
-check_api() {
-    if ! curl -s "$API_BASE_URL/../health" > /dev/null 2>&1; then
-        echo -e "${RED}❌ Error: Ecosystem Manager API is not running${NC}" >&2
-        echo "   Start it with: vrooli scenario ecosystem-manager develop" >&2
-        exit 1
-    fi
-}
-
-# Format JSON output nicely
+# Format JSON output if jq is available
 format_json() {
     if command -v jq >/dev/null 2>&1; then
         jq .
@@ -69,6 +78,33 @@ format_json() {
         cat
     fi
 }
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL from orchestrator
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
+    
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
 
 # Add task command
 cmd_add() {
@@ -80,6 +116,7 @@ cmd_add() {
     local title=""
     local json_output=false
     
+    # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
             resource)
@@ -145,8 +182,8 @@ cmd_add() {
         return 1
     fi
     
-    # Create task JSON
-    local task_json=$(cat <<EOF
+    # Build request JSON
+    local request_body=$(cat <<EOF
 {
     "title": "${title:-Generate $name $type}",
     "type": "$type",
@@ -157,21 +194,19 @@ cmd_add() {
 EOF
 )
     
-    check_api
-    
     echo -e "${BLUE}📝 Creating $type generation task: $name${NC}"
     
-    local response=$(curl -s -X POST "$API_BASE_URL/tasks" \
-        -H "Content-Type: application/json" \
-        -d "$task_json")
+    local response
+    response=$(api_request "POST" "/tasks" "$request_body")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
     else
-        local task_id=$(echo "$response" | jq -r '.id' 2>/dev/null || echo "unknown")
+        local task_id
+        task_id=$(echo "$response" | jq -r '.id // "unknown"' 2>/dev/null)
         echo -e "${GREEN}✅ Task created: $task_id${NC}"
         echo "   View: ecosystem-manager show $task_id"
-        echo "   Monitor: http://localhost:30500"
+        echo "   Monitor: http://localhost:$(vrooli scenario port ecosystem-manager UI_PORT 2>/dev/null || echo '30500')"
     fi
 }
 
@@ -214,16 +249,16 @@ cmd_improve() {
                 shift
                 ;;
             --help|-h)
-                echo "Usage: ecosystem-manager improve [resource|scenario] <target> [OPTIONS]"
+                echo "Usage: ecosystem-manager improve [resource|scenario] <name> [OPTIONS]"
                 echo ""
                 echo "Options:"
                 echo "  --priority <pri>    Priority (low, medium, high, critical)"
-                echo "  --areas <areas>     Specific improvement areas"
+                echo "  --areas <areas>     Specific areas to improve"
                 echo "  --json              Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  ecosystem-manager improve resource ollama --priority high"
-                echo "  ecosystem-manager improve scenario system-monitor"
+                echo "  ecosystem-manager improve resource n8n --priority high"
+                echo "  ecosystem-manager improve scenario system-monitor --areas \"health-checks,ui\""
                 return 0
                 ;;
             *)
@@ -234,37 +269,37 @@ cmd_improve() {
     done
     
     if [[ -z "$type" || -z "$target" ]]; then
-        echo -e "${RED}❌ Error: Must specify type (resource|scenario) and target${NC}" >&2
+        echo -e "${RED}❌ Error: Must specify type (resource|scenario) and target name${NC}" >&2
+        echo "   Usage: ecosystem-manager improve [resource|scenario] <name>" >&2
         return 1
     fi
     
-    # Create improvement task JSON
-    local task_json=$(cat <<EOF
+    # Build request JSON for improvement task
+    local title="Improve $target $type"
+    [[ -n "$areas" ]] && title="$title: $areas"
+    
+    local request_body=$(cat <<EOF
 {
-    "title": "Improve $target $type",
-    "type": "$type", 
+    "title": "$title",
+    "type": "$type",
     "operation": "improver",
     "category": "improvement",
     "priority": "$priority",
-    "requirements": {
-        "target_${type}": "$target"
-    }
+    "notes": "${areas:-}"
 }
 EOF
 )
     
-    check_api
-    
     echo -e "${BLUE}🔧 Creating $type improvement task: $target${NC}"
     
-    local response=$(curl -s -X POST "$API_BASE_URL/tasks" \
-        -H "Content-Type: application/json" \
-        -d "$task_json")
+    local response
+    response=$(api_request "POST" "/tasks" "$request_body")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
     else
-        local task_id=$(echo "$response" | jq -r '.id' 2>/dev/null || echo "unknown")
+        local task_id
+        task_id=$(echo "$response" | jq -r '.id // "unknown"' 2>/dev/null)
         echo -e "${GREEN}✅ Improvement task created: $task_id${NC}"
         echo "   View: ecosystem-manager show $task_id"
     fi
@@ -272,33 +307,38 @@ EOF
 
 # List tasks command
 cmd_list() {
-    local status="pending"
+    local json_output=false
+    local query_params=""
+    local status=""
     local type=""
     local operation=""
     local category=""
-    local json_output=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
             --status)
                 status="$2"
+                query_params="${query_params:+$query_params&}status=$2"
                 shift 2
                 ;;
             --type)
                 type="$2"
+                query_params="${query_params:+$query_params&}type=$2"
                 shift 2
                 ;;
             --operation)
                 operation="$2"
+                query_params="${query_params:+$query_params&}operation=$2"
                 shift 2
                 ;;
             --category)
                 category="$2"
+                query_params="${query_params:+$query_params&}category=$2"
                 shift 2
-                ;;
-            --json)
-                json_output=true
-                shift
                 ;;
             --help|-h)
                 echo "Usage: ecosystem-manager list [OPTIONS]"
@@ -316,66 +356,59 @@ cmd_list() {
                 return 0
                 ;;
             *)
-                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
-                return 1
+                shift
                 ;;
         esac
     done
     
-    check_api
+    local endpoint="/tasks"
+    [[ -n "$query_params" ]] && endpoint="${endpoint}?${query_params}"
     
-    # Build query parameters
-    local query_params=""
-    [[ -n "$status" ]] && query_params+="status=$status&"
-    [[ -n "$type" ]] && query_params+="type=$type&"
-    [[ -n "$operation" ]] && query_params+="operation=$operation&"
-    [[ -n "$category" ]] && query_params+="category=$category&"
-    query_params=${query_params%&}  # Remove trailing &
-    
-    local url="$API_BASE_URL/tasks"
-    [[ -n "$query_params" ]] && url+="?$query_params"
-    
-    local response=$(curl -s "$url")
+    local response
+    response=$(api_request "GET" "$endpoint")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
     else
-        local count=$(echo "$response" | jq length 2>/dev/null || echo "0")
-        echo -e "${CYAN}📋 Tasks ($status): $count${NC}"
+        # Pretty print tasks with more detail
+        local count=$(echo "$response" | jq 'length' 2>/dev/null || echo "0")
+        echo -e "${CYAN}📋 Tasks${status:+ ($status)}: $count${NC}"
         echo ""
         
         if [[ $count -gt 0 ]]; then
+            # Show tasks in a formatted table
             echo "$response" | jq -r '.[] | "\(.id)|\(.type)|\(.operation)|\(.title)|\(.priority)|\(.progress_percentage)%"' 2>/dev/null | while IFS='|' read -r id type op title priority progress; do
                 local color="$NC"
-                case $priority in
-                    critical) color="$RED" ;;
-                    high) color="$YELLOW" ;;
-                    medium) color="$BLUE" ;;
-                    low) color="$NC" ;;
+                case "$priority" in
+                    critical) color="${RED}" ;;
+                    high) color="${YELLOW}" ;;
+                    medium) color="${BLUE}" ;;
+                    low) color="${NC}" ;;
                 esac
                 
-                local type_icon="📄"
-                [[ "$type" == "resource" ]] && type_icon="🔧"
-                [[ "$type" == "scenario" ]] && type_icon="🎯"
+                # Truncate long titles
+                if [[ ${#title} -gt 50 ]]; then
+                    title="${title:0:47}..."
+                fi
                 
-                local op_icon="➕"
-                [[ "$op" == "improver" ]] && op_icon="🔄"
-                
-                echo -e "  ${type_icon}${op_icon} ${color}$id${NC}"
-                echo -e "     $title"
-                echo -e "     Priority: $priority | Progress: $progress"
-                echo ""
+                printf "%s${color}%-25s${NC} %-8s %-10s %-50s %3s%%\n" "" "$id" "$type" "$op" "$title" "$progress"
             done
         else
-            echo "  No tasks found"
+            echo "No tasks found with the specified filters."
         fi
     fi
 }
 
-# Show task details
+# Show task command
 cmd_show() {
     local task_id="$1"
     local json_output=false
+    
+    if [[ -z "$task_id" ]]; then
+        echo -e "${RED}❌ Error: Task ID required${NC}" >&2
+        echo "Usage: ecosystem-manager show <task-id>" >&2
+        return 1
+    fi
     
     shift
     while [[ $# -gt 0 ]]; do
@@ -384,75 +417,77 @@ cmd_show() {
                 json_output=true
                 shift
                 ;;
-            --help|-h)
-                echo "Usage: ecosystem-manager show <task-id> [OPTIONS]"
-                echo ""
-                echo "Options:"
-                echo "  --json              Output in JSON format"
-                return 0
-                ;;
             *)
-                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
-                return 1
+                shift
                 ;;
         esac
     done
     
-    if [[ -z "$task_id" ]]; then
-        echo -e "${RED}❌ Error: Task ID required${NC}" >&2
-        echo "   Usage: ecosystem-manager show <task-id>" >&2
-        return 1
-    fi
-    
-    check_api
-    
-    local response=$(curl -s "$API_BASE_URL/tasks/$task_id")
-    
-    if echo "$response" | grep -q "not found" 2>/dev/null; then
-        echo -e "${RED}❌ Task not found: $task_id${NC}" >&2
-        return 1
-    fi
+    local response
+    response=$(api_request "GET" "/tasks/${task_id}")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
     else
-        local title=$(echo "$response" | jq -r '.title' 2>/dev/null)
-        local type=$(echo "$response" | jq -r '.type' 2>/dev/null)
-        local operation=$(echo "$response" | jq -r '.operation' 2>/dev/null)
-        local status=$(echo "$response" | jq -r '.status' 2>/dev/null)
-        local priority=$(echo "$response" | jq -r '.priority' 2>/dev/null)
-        local category=$(echo "$response" | jq -r '.category' 2>/dev/null)
-        local progress=$(echo "$response" | jq -r '.progress_percentage' 2>/dev/null)
-        local phase=$(echo "$response" | jq -r '.current_phase' 2>/dev/null)
-        
-        echo -e "${CYAN}📄 Task Details: $task_id${NC}"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo -e "Title:      $title"
-        echo -e "Type:       $type"
-        echo -e "Operation:  $operation"
-        echo -e "Status:     $status"
-        echo -e "Priority:   $priority"
-        echo -e "Category:   $category"
-        echo -e "Progress:   $progress%"
-        [[ "$phase" != "null" && -n "$phase" ]] && echo -e "Phase:      $phase"
-        echo ""
-        
-        # Show additional details if available
-        local created_at=$(echo "$response" | jq -r '.created_at' 2>/dev/null)
-        [[ "$created_at" != "null" ]] && echo -e "Created:    $created_at"
-        
-        local started_at=$(echo "$response" | jq -r '.started_at' 2>/dev/null)
-        [[ "$started_at" != "null" && "$started_at" != "" ]] && echo -e "Started:    $started_at"
+        # Pretty print task details
+        echo -e "${CYAN}📋 Task Details:${NC}"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
     fi
 }
 
-# Update task status
+# Queue status command
+cmd_queue() {
+    local response
+    response=$(api_request "GET" "/queue/status")
+    
+    echo -e "${CYAN}📊 Queue Status:${NC}"
+    echo "$response" | format_json
+}
+
+# Operations command
+cmd_operations() {
+    local response
+    response=$(api_request "GET" "/operations")
+    
+    echo -e "${CYAN}🔧 Available Operations:${NC}"
+    echo "$response" | format_json
+}
+
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url%/api}/health" 2>/dev/null)
+    
+    if echo "$response" | grep -q "ok\|healthy"; then
+        echo -e "${GREEN}✅ Ecosystem Manager is healthy${NC}"
+        echo "   API: ${api_url}"
+    else
+        echo -e "${RED}❌ Ecosystem Manager health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+################################################################################
+# Additional Commands
+################################################################################
+
+# Update task status command
 cmd_status() {
     local task_id="$1"
     local new_status=""
     local progress=""
     local phase=""
     local json_output=false
+    
+    if [[ -z "$task_id" ]]; then
+        echo -e "${RED}❌ Error: Task ID required${NC}" >&2
+        echo "Usage: ecosystem-manager status <task-id> [OPTIONS]" >&2
+        return 1
+    fi
     
     shift
     while [[ $# -gt 0 ]]; do
@@ -477,14 +512,14 @@ cmd_status() {
                 echo "Usage: ecosystem-manager status <task-id> [OPTIONS]"
                 echo ""
                 echo "Options:"
-                echo "  --status <status>       New status (pending, in-progress, completed, failed)"
-                echo "  --progress <percent>    Progress percentage (0-100)"
-                echo "  --phase <phase>         Current phase"
-                echo "  --json                  Output in JSON format"
+                echo "  --status <status>    New status (pending, in-progress, completed, failed)"
+                echo "  --progress <num>     Progress percentage (0-100)"
+                echo "  --phase <phase>      Current phase name"
+                echo "  --json               Output in JSON format"
                 echo ""
                 echo "Examples:"
-                echo "  ecosystem-manager status abc123 --status in-progress"
-                echo "  ecosystem-manager status abc123 --progress 75 --phase testing"
+                echo "  ecosystem-manager status task-123 --status in-progress --progress 50"
+                echo "  ecosystem-manager status task-123 --phase implementation"
                 return 0
                 ;;
             *)
@@ -493,157 +528,38 @@ cmd_status() {
                 ;;
         esac
     done
-    
-    if [[ -z "$task_id" ]]; then
-        echo -e "${RED}❌ Error: Task ID required${NC}" >&2
-        return 1
-    fi
     
     # Build update JSON
     local update_json="{"
-    [[ -n "$new_status" ]] && update_json+="\"status\":\"$new_status\","
-    [[ -n "$progress" ]] && update_json+="\"progress_percentage\":$progress,"
-    [[ -n "$phase" ]] && update_json+="\"current_phase\":\"$phase\","
-    update_json="${update_json%,}}"  # Remove trailing comma
+    local updates=""
+    [[ -n "$new_status" ]] && updates="${updates:+$updates,}\"status\":\"$new_status\""
+    [[ -n "$progress" ]] && updates="${updates:+$updates,}\"progress_percentage\":$progress"
+    [[ -n "$phase" ]] && updates="${updates:+$updates,}\"current_phase\":\"$phase\""
+    update_json="${update_json}${updates}}"
     
-    if [[ "$update_json" == "{}" ]]; then
-        echo -e "${RED}❌ Error: Must specify at least one update (status, progress, or phase)${NC}" >&2
+    if [[ "$updates" == "" ]]; then
+        echo -e "${YELLOW}⚠️  No updates specified${NC}"
+        echo "   Use --status, --progress, or --phase to update task"
         return 1
     fi
     
-    check_api
+    echo -e "${BLUE}📝 Updating task: $task_id${NC}"
     
-    local response=$(curl -s -X PUT "$API_BASE_URL/tasks/$task_id/status" \
-        -H "Content-Type: application/json" \
-        -d "$update_json")
+    local response
+    response=$(api_request "PUT" "/tasks/${task_id}/status" "$update_json")
     
     if [[ $json_output == true ]]; then
         echo "$response" | format_json
     else
-        echo -e "${GREEN}✅ Task status updated: $task_id${NC}"
-    fi
-}
-
-# Queue overview
-cmd_queue() {
-    local json_output=false
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --json)
-                json_output=true
-                shift
-                ;;
-            --help|-h)
-                echo "Usage: ecosystem-manager queue [OPTIONS]"
-                echo ""
-                echo "Shows overview of all queues"
-                echo ""
-                echo "Options:"
-                echo "  --json              Output in JSON format"
-                return 0
-                ;;
-            *)
-                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
-                return 1
-                ;;
-        esac
-    done
-    
-    check_api
-    
-    if [[ $json_output == true ]]; then
-        local queue_data="{"
-        for status in pending in-progress completed failed; do
-            local response=$(curl -s "$API_BASE_URL/tasks?status=$status")
-            local count=$(echo "$response" | jq length 2>/dev/null || echo "0")
-            queue_data+="\"$status\":$count,"
-        done
-        queue_data="${queue_data%,}}"
-        echo "$queue_data" | format_json
-    else
-        echo -e "${CYAN}📊 Queue Overview${NC}"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        for status in pending in-progress completed failed; do
-            local response=$(curl -s "$API_BASE_URL/tasks?status=$status")
-            local count=$(echo "$response" | jq length 2>/dev/null || echo "0")
-            
-            local color="$NC"
-            local icon="📄"
-            case $status in
-                pending) color="$YELLOW"; icon="⏳" ;;
-                in-progress) color="$BLUE"; icon="🔄" ;;
-                completed) color="$GREEN"; icon="✅" ;;
-                failed) color="$RED"; icon="❌" ;;
-            esac
-            
-            printf "${color}%s %-12s %3d${NC}\n" "$icon" "$status" "$count"
-        done
-        
-        echo ""
-        echo "Use 'ecosystem-manager list --status <status>' to see details"
-    fi
-}
-
-# Operations list
-cmd_operations() {
-    local json_output=false
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --json)
-                json_output=true
-                shift
-                ;;
-            --help|-h)
-                echo "Usage: ecosystem-manager operations [OPTIONS]"
-                echo ""
-                echo "Lists available operation types"
-                echo ""
-                echo "Options:"
-                echo "  --json              Output in JSON format"
-                return 0
-                ;;
-            *)
-                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
-                return 1
-                ;;
-        esac
-    done
-    
-    check_api
-    
-    local response=$(curl -s "$API_BASE_URL/operations")
-    
-    if [[ $json_output == true ]]; then
-        echo "$response" | format_json
-    else
-        echo -e "${CYAN}🔧 Available Operations${NC}"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        
-        echo "$response" | jq -r 'to_entries[] | "\(.key)|\(.value.type)|\(.value.target)|\(.value.description)"' 2>/dev/null | while IFS='|' read -r key type target description; do
-            local icon="🔧"
-            [[ "$type" == "improver" ]] && icon="🔄"
-            [[ "$target" == "scenarios" ]] && icon="${icon}🎯"
-            
-            echo -e "${GREEN}$icon $key${NC}"
-            echo -e "   $description"
-            echo ""
-        done
-    fi
-}
-
-# Health check
-cmd_health() {
-    if curl -s "$API_BASE_URL/../health" > /dev/null 2>&1; then
-        local response=$(curl -s "$API_BASE_URL/../health")
-        echo -e "${GREEN}✅ Ecosystem Manager is healthy${NC}"
-        echo "$response" | jq -r '"Service: " + .service + "\nVersion: " + .version + "\nUptime: " + (.timestamp|tostring)' 2>/dev/null || echo "$response"
-    else
-        echo -e "${RED}❌ Ecosystem Manager is not responding${NC}" >&2
-        echo "   Start it with: vrooli scenario ecosystem-manager develop" >&2
-        return 1
+        if echo "$response" | jq -e '.success' >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ Task updated successfully${NC}"
+            [[ -n "$new_status" ]] && echo "   Status: $new_status"
+            [[ -n "$progress" ]] && echo "   Progress: $progress%"
+            [[ -n "$phase" ]] && echo "   Phase: $phase"
+        else
+            echo -e "${RED}❌ Failed to update task${NC}"
+            echo "$response" | jq -r '.error // "Unknown error"' 2>/dev/null
+        fi
     fi
 }
 
@@ -677,68 +593,77 @@ cmd_logs() {
         esac
     done
     
-    local log_file="$PROJECT_DIR/logs/api.log"
+    # Get the log file path for the API process
+    local log_file="$HOME/.vrooli/logs/scenarios/ecosystem-manager/vrooli.develop.ecosystem-manager.start-api.log"
     
     if [[ ! -f "$log_file" ]]; then
-        echo -e "${RED}❌ Log file not found: $log_file${NC}" >&2
-        echo "   Make sure Ecosystem Manager is running" >&2
+        echo -e "${YELLOW}⚠️  Log file not found${NC}"
+        echo "   The ecosystem-manager may not be running"
+        echo "   Start it with: vrooli scenario run ecosystem-manager"
         return 1
     fi
     
-    if [[ $follow == true ]]; then
-        echo -e "${CYAN}📝 Following logs (Ctrl+C to stop)...${NC}"
-        tail -f "$log_file"
+    echo -e "${CYAN}📜 Ecosystem Manager Logs:${NC}"
+    echo ""
+    
+    if [[ "$follow" == true ]]; then
+        tail -f -n "$lines" "$log_file"
     else
-        echo -e "${CYAN}📝 Last $lines lines of logs:${NC}"
         tail -n "$lines" "$log_file"
     fi
 }
 
-# Main command dispatcher
-case "${1:-}" in
-    add)
-        shift
-        cmd_add "$@"
-        ;;
-    improve)
-        shift
-        cmd_improve "$@"
-        ;;
-    list)
-        shift
-        cmd_list "$@"
-        ;;
-    show)
-        shift
-        cmd_show "$@"
-        ;;
-    status)
-        shift
-        cmd_status "$@"
-        ;;
-    queue)
-        shift
-        cmd_queue "$@"
-        ;;
-    operations)
-        shift
-        cmd_operations "$@"
-        ;;
-    health)
-        shift
-        cmd_health "$@"
-        ;;
-    logs)
-        shift
-        cmd_logs "$@"
-        ;;
-    --help|-h|help|"")
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
         usage
-        ;;
-    *)
-        echo -e "${RED}❌ Unknown command: $1${NC}" >&2
-        echo "" >&2
-        usage >&2
-        exit 1
-        ;;
-esac
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        add)
+            cmd_add "$@"
+            ;;
+        improve)
+            cmd_improve "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        show)
+            cmd_show "$@"
+            ;;
+        status)
+            cmd_status "$@"
+            ;;
+        queue)
+            cmd_queue "$@"
+            ;;
+        operations)
+            cmd_operations "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        logs)
+            cmd_logs "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"
