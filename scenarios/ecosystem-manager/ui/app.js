@@ -265,6 +265,10 @@ class EcosystemManager {
                 this.updateTaskProgress(message.data);
                 break;
                 
+            case 'task_started':
+                this.handleTaskStarted(message.data);
+                break;
+                
             case 'task_completed':
                 this.handleTaskCompleted(message.data);
                 break;
@@ -275,6 +279,14 @@ class EcosystemManager {
                 
             case 'task_created':
                 this.handleTaskCreated(message.data);
+                break;
+                
+            case 'task_updated':
+                this.handleTaskUpdated(message.data);
+                break;
+                
+            case 'queue_status_changed':
+                this.handleQueueStatusChanged(message.data);
                 break;
                 
             default:
@@ -297,15 +309,21 @@ class EcosystemManager {
         this.showToast(`Task ${task.id} progress: ${task.progress_percentage}%`, 'info');
     }
     
+    handleTaskStarted(task) {
+        // Refresh to move task from pending to in-progress
+        this.loadAllTasks();
+        this.showToast(`Task started: ${task.title}`, 'info');
+    }
+    
     handleTaskCompleted(task) {
-        // Move task from in-progress to completed
-        this.moveTaskBetweenColumns(task, 'in-progress', 'completed');
+        // Refresh to move task to completed
+        this.loadAllTasks();
         this.showToast(`Task ${task.title} completed successfully!`, 'success');
     }
     
     handleTaskFailed(task) {
-        // Move task from in-progress to failed
-        this.moveTaskBetweenColumns(task, 'in-progress', 'failed');
+        // Refresh to move task to failed
+        this.loadAllTasks();
         
         // Show detailed error message
         const errorMsg = task.results?.error || 'Unknown error occurred';
@@ -314,13 +332,23 @@ class EcosystemManager {
     }
     
     handleTaskCreated(task) {
-        // Add new task to pending
-        if (!this.tasks.pending) {
-            this.tasks.pending = [];
-        }
-        this.tasks.pending.push(task);
-        this.renderTasks();
+        // Refresh to show new task
+        this.loadAllTasks();
         this.showToast(`New task created: ${task.title}`, 'info');
+    }
+    
+    handleTaskUpdated(task) {
+        // Refresh to show updated task in correct column
+        this.loadAllTasks();
+        this.showToast(`Task updated: ${task.title}`, 'info');
+    }
+    
+    handleQueueStatusChanged(status) {
+        // Update queue status display
+        this.queueStatus = status;
+        this.updateQueueDisplay();
+        // Refresh tasks in case status change affects them
+        this.loadAllTasks();
     }
     
     findTaskStatus(taskId) {
@@ -405,14 +433,18 @@ class EcosystemManager {
             this.handleCreateTask();
         });
         
-        // Type change in create form
-        document.getElementById('task-type').addEventListener('change', () => {
-            this.updateFormForType();
+        // Type change in create form (for radio buttons)
+        document.querySelectorAll('input[name="type"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.updateFormForType();
+            });
         });
         
-        // Operation change in create form  
-        document.getElementById('task-operation').addEventListener('change', () => {
-            this.updateFormForOperation();
+        // Operation change in create form (for radio buttons)
+        document.querySelectorAll('input[name="operation"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                this.updateFormForOperation();
+            });
         });
         
         // Close modals on background click
@@ -523,9 +555,14 @@ class EcosystemManager {
     handleDragEnd(e) {
         e.target.classList.remove('dragging');
         
-        // Restore click handler after drag
+        // Restore click handler after drag with proper binding
         const taskId = e.target.getAttribute('data-task-id');
-        e.target.onclick = () => this.showTaskDetails(taskId);
+        e.target.onclick = (event) => {
+            // Don't trigger if clicking on delete button
+            if (!event.target.closest('.btn-delete')) {
+                this.showTaskDetails(taskId);
+            }
+        };
         
         // Clean up drag indicators
         document.querySelectorAll('.kanban-column').forEach(col => {
@@ -657,8 +694,10 @@ class EcosystemManager {
                 }
             }
             
-            // Move task in local data
-            this.moveTaskBetweenColumns(updatedTask, sourceStatus, targetStatus);
+            // Refresh all tasks to ensure UI is in sync with backend
+            await this.loadAllTasks();
+            this.updateStats();
+            this.applyFilters();
             
             this.showToast(`Task moved to ${targetStatus.replace('-', ' ')}`, 'success');
             
@@ -1014,7 +1053,14 @@ class EcosystemManager {
         card.className = 'task-card';
         card.setAttribute('data-task-id', task.id);
         card.setAttribute('draggable', 'true');
-        card.onclick = () => this.showTaskDetails(task.id);
+        
+        // Set onclick with proper binding
+        card.onclick = (e) => {
+            // Don't trigger if clicking on delete button
+            if (!e.target.closest('.btn-delete')) {
+                this.showTaskDetails(task.id);
+            }
+        };
         
         // Add drag event listeners
         card.addEventListener('dragstart', (e) => this.handleDragStart(e, task));
@@ -1103,45 +1149,7 @@ class EcosystemManager {
         }
     }
     
-    updateFormForType() {
-        const type = document.getElementById('task-type').value;
-        const categorySelect = document.getElementById('task-category');
-        
-        // Clear existing options
-        categorySelect.innerHTML = '<option value="">Select category...</option>';
-        
-        if (type && this.categoryOptions[type]) {
-            this.categoryOptions[type].forEach(option => {
-                const optionElement = document.createElement('option');
-                optionElement.value = option.value;
-                optionElement.textContent = option.label;
-                categorySelect.appendChild(optionElement);
-            });
-        }
-        
-        // Update target options if improver is selected
-        const operation = document.getElementById('task-operation').value;
-        if (operation === 'improver' && type) {
-            this.updateTargetOptions(type);
-        }
-    }
-    
-    updateFormForOperation() {
-        const operation = document.getElementById('task-operation').value;
-        const type = document.getElementById('task-type').value;
-        const targetGroup = document.getElementById('target-group');
-        
-        if (operation === 'improver') {
-            targetGroup.style.display = 'block';
-            document.getElementById('task-target').required = true;
-            
-            // Populate target options with discovered resources/scenarios
-            this.updateTargetOptions(type);
-        } else {
-            targetGroup.style.display = 'none';
-            document.getElementById('task-target').required = false;
-        }
-    }
+    // Removed duplicate functions - see lines 1688 and 1698 for the actual implementations
     
     updateTargetOptions(type) {
         const targetSelect = document.getElementById('task-target');
@@ -1250,8 +1258,10 @@ class EcosystemManager {
             this.closeCreateTaskModal();
             form.reset();
             
-            // Refresh tasks
+            // Refresh all tasks to show the new task
             await this.loadAllTasks();
+            this.updateStats();
+            this.applyFilters();
             
         } catch (error) {
             console.error('Failed to create task:', error);
@@ -1265,10 +1275,17 @@ class EcosystemManager {
         this.showLoading(true);
         
         try {
+            console.log(`Fetching task details for: ${taskId}`);
             const response = await fetch(`${this.apiBase}/tasks/${taskId}`);
-            if (!response.ok) throw new Error('Failed to load task details');
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Failed to load task ${taskId}:`, response.status, errorText);
+                throw new Error(`Failed to load task details: ${response.status}`);
+            }
             
             const task = await response.json();
+            console.log('Task details loaded:', task);
             
             const modal = document.getElementById('task-details-modal');
             const titleElement = document.getElementById('task-details-title');
@@ -1472,8 +1489,8 @@ class EcosystemManager {
             modal.classList.add('show');
             
         } catch (error) {
-            console.error('Failed to load task details:', error);
-            this.showToast('Failed to load task details', 'error');
+            console.error('Failed to load task details:', error, error.stack);
+            this.showToast(`Failed to load task details: ${error.message}`, 'error');
         } finally {
             this.showLoading(false);
         }
@@ -1496,15 +1513,10 @@ class EcosystemManager {
                 throw new Error('Failed to delete task');
             }
             
-            // Remove task from local state
-            const taskStatus = this.findTaskStatus(taskId);
-            if (taskStatus && this.tasks[taskStatus]) {
-                this.tasks[taskStatus] = this.tasks[taskStatus].filter(t => t.id !== taskId);
-            }
-            
-            // Re-render the affected column
-            this.renderColumn(taskStatus);
+            // Refresh all tasks to ensure UI is in sync with backend
+            await this.loadAllTasks();
             this.updateStats();
+            this.applyFilters();
             
             this.showToast('Task deleted successfully', 'success');
         } catch (error) {
@@ -1554,15 +1566,13 @@ class EcosystemManager {
             const updatedTask = await response.json();
             console.log('Task updated successfully:', updatedTask);
             
-            // Update the task in local cache
-            this.tasks[taskId] = updatedTask;
-            
             // Close the modal
             this.closeTaskDetailsModal();
             
-            // Refresh the UI
-            this.renderAllTasks();
+            // Refresh all tasks to show the updated task in the correct column
+            await this.loadAllTasks();
             this.updateStats();
+            this.applyFilters();
             
             this.showToast('Task updated successfully!', 'success');
             
@@ -1686,8 +1696,8 @@ class EcosystemManager {
     }
     
     updateFormForType() {
-        const type = document.getElementById('task-type').value;
-        const operation = document.getElementById('task-operation').value;
+        const type = document.querySelector('input[name="type"]:checked')?.value || 'resource';
+        const operation = document.querySelector('input[name="operation"]:checked')?.value || 'generator';
         
         // Update target dropdown if needed
         if (operation === 'improver') {
@@ -1696,8 +1706,8 @@ class EcosystemManager {
     }
     
     updateFormForOperation() {
-        const operation = document.getElementById('task-operation').value;
-        const type = document.getElementById('task-type').value;
+        const operation = document.querySelector('input[name="operation"]:checked')?.value || 'generator';
+        const type = document.querySelector('input[name="type"]:checked')?.value || 'resource';
         const targetGroup = document.getElementById('target-group');
         
         if (operation === 'improver' && type) {
@@ -2258,4 +2268,6 @@ window.toggleDarkMode = () => ecosystemManager?.toggleDarkMode();
 
 document.addEventListener('DOMContentLoaded', () => {
     ecosystemManager = new EcosystemManager();
+    // Make it globally accessible for debugging
+    window.ecosystemManager = ecosystemManager;
 });

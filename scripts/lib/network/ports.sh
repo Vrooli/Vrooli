@@ -15,6 +15,10 @@ source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_EXIT_CODES_FILE}"
 
+# Source zombie detector for enhanced diagnostics
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/zombie-detector.sh" 2>/dev/null || true
+
 ports::preflight() {
     if ! system::is_command "lsof"; then
         flow::exit_with_error "Required command 'lsof' not found; please install 'lsof'" "$EXIT_DEPENDENCY_ERROR"
@@ -251,17 +255,46 @@ ports::allocate_scenario() {
         if [[ -n "$fixed_port" && "$fixed_port" != "null" ]]; then
             # Fixed port allocation
             if ! ports::is_port_available "$fixed_port" "$scenario_name"; then
-                # Check if there's a recent lock file for better error message
-                local lock_file="$SCENARIO_STATE_DIR/.port_${fixed_port}.lock"
-                if [[ -f "$lock_file" ]]; then
-                    local lock_info
-                    lock_info=$(cat "$lock_file" 2>/dev/null || echo "unknown")
-                    local lock_scenario="${lock_info%%:*}"
-                    errors+=("PORT CONFLICT: Fixed port $fixed_port for '$port_name' is locked by scenario '$lock_scenario'. Clean stale locks with: rm ~/.vrooli/state/scenarios/.port_${fixed_port}.lock")
+                # Enhanced diagnostics using zombie detector
+                if command -v zombie::diagnose_port_failure >/dev/null 2>&1; then
+                    # Provide comprehensive diagnostics
+                    zombie::diagnose_port_failure "$fixed_port" "$scenario_name"
+                    
+                    # Attempt to auto-clean stale locks
+                    if zombie::check_stale_port_lock "$fixed_port"; then
+                        echo "🔧 Attempting to auto-clean stale lock for port $fixed_port..." >&2
+                        if zombie::clean_stale_port_lock "$fixed_port"; then
+                            echo "✅ Successfully cleaned stale lock - retrying port allocation" >&2
+                            
+                            # Retry port allocation after cleaning
+                            if ports::is_port_available "$fixed_port" "$scenario_name"; then
+                                echo "🎉 Port $fixed_port is now available after cleanup!" >&2
+                                # Continue with normal allocation below
+                            else
+                                errors+=("FIXED PORT UNAVAILABLE: Port $fixed_port for '$port_name' is still unavailable after cleaning stale locks. See diagnostics above for details.")
+                                continue
+                            fi
+                        else
+                            errors+=("STALE LOCK CLEANUP FAILED: Unable to clean stale lock for port $fixed_port. Manual intervention required: rm ~/.vrooli/state/scenarios/.port_${fixed_port}.lock")
+                            continue
+                        fi
+                    else
+                        errors+=("FIXED PORT UNAVAILABLE: Port $fixed_port for '$port_name' is in use by active processes. See diagnostics above for details.")
+                        continue
+                    fi
                 else
-                    errors+=("PORT CONFLICT: Fixed port $fixed_port for '$port_name' is in use by another process")
+                    # Fallback to original error handling if zombie detector not available
+                    local lock_file="$SCENARIO_STATE_DIR/.port_${fixed_port}.lock"
+                    if [[ -f "$lock_file" ]]; then
+                        local lock_info
+                        lock_info=$(cat "$lock_file" 2>/dev/null || echo "unknown")
+                        local lock_scenario="${lock_info%%:*}"
+                        errors+=("PORT CONFLICT: Fixed port $fixed_port for '$port_name' is locked by scenario '$lock_scenario'. Clean stale locks with: rm ~/.vrooli/state/scenarios/.port_${fixed_port}.lock")
+                    else
+                        errors+=("PORT CONFLICT: Fixed port $fixed_port for '$port_name' is in use by another process")
+                    fi
+                    continue
                 fi
-                continue
             fi
             
             # Claim the port with lock file

@@ -697,6 +697,74 @@ form {
     margin-bottom: 1.5rem;
 }
 
+/* Toggle Button Groups */
+.toggle-group {
+    display: inline-flex;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+    padding: 3px;
+    gap: 0;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.toggle-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: calc(var(--border-radius) - 2px);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.toggle-btn:hover {
+    color: var(--text-color);
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.toggle-input:checked + .toggle-btn {
+    background: white;
+    color: var(--primary-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.toggle-input:focus-visible + .toggle-btn {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.toggle-btn i {
+    font-size: 0.875rem;
+}
+
+/* Dark mode toggle buttons */
+body.dark-mode .toggle-group {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .toggle-input:checked + .toggle-btn {
+    background: rgba(74, 144, 226, 0.2);
+    color: var(--primary-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;

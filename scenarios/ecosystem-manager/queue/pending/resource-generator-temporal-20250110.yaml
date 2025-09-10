@@ -1,0 +1,35 @@
+id: resource-generator-temporal-20250110-010300
+title: Temporal Workflow Orchestration
+type: resource
+operation: generator
+category: automation
+priority: high
+effort_estimate: 10h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:03:00Z"
+updated_at: "2025-01-10T01:03:00Z"
+tags: ["automation", "orchestration", "workflows"]
+notes: "- **What it does:** Durable execution platform for building highly reliable distributed applications. Provides state management, automatic retries, and exactly-once execution guarantees for complex, long-running workflows.
+- **Use when:** Scenarios require mission-critical workflows, multi-step processes with guaranteed completion, or coordination between multiple services. Superior to n8n for workflows requiring strong consistency.
+- **Technical requirements:**
+  - Temporal Server (self-hosted)
+  - PostgreSQL or Cassandra for persistence
+  - Elasticsearch for visibility (optional)
+  - SDK support (Go, Java, TypeScript, Python, PHP)
+  - Worker processes for workflow execution"
+results: {}

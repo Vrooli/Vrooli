@@ -45,8 +45,9 @@ http::request() {
         fi
     fi
     
-    # Add timeout
-    curl_args+=("--max-time" "30")
+    # Add timeout (reduced for health checks to prevent hanging)
+    local timeout="${HTTP_TIMEOUT:-5}"
+    curl_args+=("--max-time" "$timeout")
     
     # Make the request
     local response

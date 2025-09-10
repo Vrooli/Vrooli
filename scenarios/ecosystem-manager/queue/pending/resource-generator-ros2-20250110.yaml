@@ -1,0 +1,35 @@
+id: resource-generator-ros2-20250110-011100
+title: ROS2 Robotics Operating System
+type: resource
+operation: generator
+category: robotics
+priority: low
+effort_estimate: 12h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:11:00Z"
+updated_at: "2025-01-10T01:11:00Z"
+tags: ["robotics", "iot", "sensors"]
+notes: "- **What it does:** Robot Operating System 2 - middleware for robotics applications enabling robot control, sensor integration, navigation, and distributed computing across robot components.
+- **Use when:** Building robotics scenarios, IoT device orchestration, sensor data processing pipelines, or simulation of physical systems. Enables hardware abstraction and modular robot software.
+- **Technical requirements:**
+  - DDS-based communication (Fast-DDS or CycloneDX)
+  - Supports simulation mode with Gazebo
+  - Python and C++ client libraries
+  - Real-time capable with proper kernel configuration
+  - ROS2 domain isolation for multi-robot setups"
+results: {}

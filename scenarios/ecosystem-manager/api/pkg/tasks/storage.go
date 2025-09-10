@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -186,6 +188,7 @@ func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
 func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 	statuses := []string{"pending", "in-progress", "review", "completed", "failed"}
 	
+	// Strategy 1: Try exact filename match
 	for _, status := range statuses {
 		filePath := filepath.Join(s.QueueDir, status, fmt.Sprintf("%s.yaml", taskID))
 		if _, err := os.Stat(filePath); err == nil {
@@ -200,6 +203,92 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 			}
 			
 			return &task, status, nil
+		}
+	}
+	
+	// Strategy 2: Try to find a file where the filename (without .yaml) starts with the taskID
+	// This handles cases where the ID has extra suffix but filename doesn't
+	// First, try removing the last timestamp segment from the taskID
+	taskIDPrefix := taskID
+	if lastDash := strings.LastIndex(taskID, "-"); lastDash > 0 {
+		// Check if the part after the last dash looks like a timestamp (6 digits)
+		suffix := taskID[lastDash+1:]
+		if len(suffix) == 6 {
+			if _, err := strconv.Atoi(suffix); err == nil {
+				taskIDPrefix = taskID[:lastDash]
+			}
+		}
+	}
+	
+	// Try to find file with the prefix
+	for _, status := range statuses {
+		dirPath := filepath.Join(s.QueueDir, status)
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			continue
+		}
+		
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			
+			filename := entry.Name()
+			if !strings.HasSuffix(filename, ".yaml") {
+				continue
+			}
+			
+			// Remove .yaml extension
+			nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
+			
+			// Check if this file matches our taskID or taskIDPrefix
+			if nameWithoutExt == taskIDPrefix || nameWithoutExt == taskID {
+				filePath := filepath.Join(dirPath, filename)
+				data, err := os.ReadFile(filePath)
+				if err != nil {
+					continue
+				}
+				
+				var task TaskItem
+				if err := yaml.Unmarshal(data, &task); err != nil {
+					continue
+				}
+				
+				// Verify the ID matches what we're looking for
+				if task.ID == taskID {
+					return &task, status, nil
+				}
+			}
+		}
+	}
+	
+	// Strategy 3: As a last resort, scan all files and match by internal ID
+	for _, status := range statuses {
+		dirPath := filepath.Join(s.QueueDir, status)
+		entries, err := os.ReadDir(dirPath)
+		if err != nil {
+			continue
+		}
+		
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+				continue
+			}
+			
+			filePath := filepath.Join(dirPath, entry.Name())
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				continue
+			}
+			
+			var task TaskItem
+			if err := yaml.Unmarshal(data, &task); err != nil {
+				continue
+			}
+			
+			if task.ID == taskID {
+				return &task, status, nil
+			}
 		}
 	}
 	

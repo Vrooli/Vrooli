@@ -1,0 +1,35 @@
+id: resource-generator-airbyte-20250110-010100
+title: Airbyte Data Integration Platform
+type: resource
+operation: generator
+category: data
+priority: high
+effort_estimate: 8h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:01:00Z"
+updated_at: "2025-01-10T01:01:00Z"
+tags: ["data", "etl", "integration"]
+notes: "- **What it does:** Leading open-source ELT data integration platform with 600+ pre-built connectors for APIs, databases, and data warehouses. Enables automated data pipelines from diverse sources to analytical destinations.
+- **Use when:** Scenarios need to consolidate data from multiple sources, perform ETL/ELT operations, or maintain synchronized data warehouses. Essential for analytics, reporting, and ML scenarios.
+- **Technical requirements:**
+  - Docker-based deployment
+  - PostgreSQL for metadata storage
+  - Temporal for workflow orchestration
+  - No-code Connector Builder for custom sources
+  - CDK for advanced integrations"
+results: {}

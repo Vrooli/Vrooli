@@ -209,19 +209,29 @@
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="task-type">Type *</label>
-                        <select id="task-type" name="type" required onchange="updateFormForType()">
-                            <option value="resource" selected>Resource</option>
-                            <option value="scenario">Scenario</option>
-                        </select>
+                        <label>Type *</label>
+                        <div class="toggle-group" role="radiogroup" aria-label="Task type">
+                            <input type="radio" id="type-resource" name="type" value="resource" checked onchange="updateFormForType()" class="toggle-input">
+                            <label for="type-resource" class="toggle-btn">Resource</label>
+                            <input type="radio" id="type-scenario" name="type" value="scenario" onchange="updateFormForType()" class="toggle-input">
+                            <label for="type-scenario" class="toggle-btn">Scenario</label>
+                        </div>
                     </div>
                     
                     <div class="form-group">
-                        <label for="task-operation">Operation *</label>
-                        <select id="task-operation" name="operation" required onchange="updateFormForOperation()">
-                            <option value="generator" selected>Generator (Create New)</option>
-                            <option value="improver">Improver (Enhance Existing)</option>
-                        </select>
+                        <label>Operation *</label>
+                        <div class="toggle-group" role="radiogroup" aria-label="Task operation">
+                            <input type="radio" id="op-generator" name="operation" value="generator" checked onchange="updateFormForOperation()" class="toggle-input">
+                            <label for="op-generator" class="toggle-btn">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Create New</span>
+                            </label>
+                            <input type="radio" id="op-improver" name="operation" value="improver" onchange="updateFormForOperation()" class="toggle-input">
+                            <label for="op-improver" class="toggle-btn">
+                                <i class="fas fa-sparkles"></i>
+                                <span>Enhance</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 

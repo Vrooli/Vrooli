@@ -21,6 +21,22 @@ scenario::run() {
     local phase="${1:-develop}"
     shift || true
     
+    # Check for --clean-stale flag
+    local clean_stale=false
+    local -a remaining_args=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --clean-stale)
+                clean_stale=true
+                shift
+                ;;
+            *)
+                remaining_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
     # For develop phase, check if already running and healthy
     if [[ "$phase" == "develop" ]]; then
         # Source lifecycle.sh to get the idempotency functions
@@ -52,6 +68,26 @@ scenario::run() {
         fi
     fi
     
+    # Run stale lock cleanup if requested
+    if [[ "$clean_stale" == "true" ]]; then
+        log::info "🧹 Cleaning stale locks before starting scenario..."
+        
+        # Source clean commands for lock cleanup functionality
+        if [[ -f "${var_ROOT_DIR}/cli/commands/clean-commands.sh" ]]; then
+            # Source the clean functions
+            source "${var_ROOT_DIR}/cli/commands/clean-commands.sh"
+            
+            # Run the lock cleanup (not dry-run)
+            clean::stale_locks 2>&1 | while IFS= read -r line; do
+                log::info "  $line"
+            done
+            
+            log::success "✅ Stale lock cleanup completed"
+        else
+            log::warning "⚠️  Clean commands not found - skipping stale lock cleanup"
+        fi
+    fi
+    
     # Set up logging for the scenario lifecycle execution
     local lifecycle_log="${HOME}/.vrooli/logs/${scenario_name}.log"
     mkdir -p "$(dirname "$lifecycle_log")"
@@ -64,7 +100,7 @@ scenario::run() {
     
     # Use tee to show output on console AND write to log file
     # This preserves real-time output while capturing for later review
-    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "$@" 2>&1 | tee -a "$lifecycle_log"
+    "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" 2>&1 | tee -a "$lifecycle_log"
     
     # Preserve the exit code from the pipeline
     return "${PIPESTATUS[0]}"
