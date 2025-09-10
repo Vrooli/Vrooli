@@ -1,53 +1,82 @@
 #!/bin/bash
-# CLI_NAME_PLACEHOLDER - Command-line interface for SCENARIO_NAME_PLACEHOLDER
-# This is a thin wrapper around the API, following the agent-metareasoning-manager pattern
+################################################################################
+# Data Tools CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
 
-set -euo pipefail
+set -e
 
 # Configuration
-readonly CLI_NAME="CLI_NAME_PLACEHOLDER"
-readonly CLI_VERSION="1.0.0"
-readonly CONFIG_DIR="$HOME/.${CLI_NAME}"
-readonly CONFIG_FILE="$CONFIG_DIR/config.json"
-readonly DEFAULT_API_BASE="http://localhost:API_PORT_PLACEHOLDER"
-readonly DEFAULT_TOKEN="CLI_TOKEN_PLACEHOLDER"
+SCENARIO_NAME="data-tools"
 
 # Colors for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
 
-# Initialize configuration
-init_config() {
-    if [[ ! -d "$CONFIG_DIR" ]]; then
-        mkdir -p "$CONFIG_DIR"
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the new ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
     fi
     
-    if [[ ! -f "$CONFIG_FILE" ]]; then
-        cat > "$CONFIG_FILE" <<EOF
-{
-    "api_base": "$DEFAULT_API_BASE",
-    "api_token": "$DEFAULT_TOKEN",
-    "output_format": "table",
-    "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-}
-EOF
-        echo -e "${GREEN}✓${NC} Configuration initialized at $CONFIG_FILE"
-    fi
+    echo "http://localhost:${api_port}"
 }
 
-# Load configuration
-load_config() {
-    if [[ -f "$CONFIG_FILE" ]]; then
-        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
-        API_TOKEN=$(jq -r '.api_token // "'$DEFAULT_TOKEN'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_TOKEN")
-        OUTPUT_FORMAT=$(jq -r '.output_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Data Tools CLI${NC}"
+    echo "Comprehensive data processing and analysis toolkit"
+    echo ""
+    echo "Usage: data-tools [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}health${NC}      Check service health"
+    echo -e "  ${GREEN}list${NC}        List resources"
+    echo -e "  ${GREEN}get${NC}         Get specific resource"
+    echo -e "  ${GREEN}create${NC}      Create new resource"
+    echo -e "  ${GREEN}update${NC}      Update resource"
+    echo -e "  ${GREEN}delete${NC}      Delete resource"
+    echo -e "  ${GREEN}execute${NC}     Execute workflow"
+    echo -e "  ${GREEN}executions${NC}  List workflow executions"
+    echo -e "  ${GREEN}status${NC}      Show execution status"
+    echo -e "  ${GREEN}docs${NC}        Show API documentation"
+    echo ""
+    echo "Examples:"
+    echo "  data-tools health"
+    echo "  data-tools list"
+    echo "  data-tools create name \"My Dataset\" description \"Test dataset\""
+    echo "  data-tools execute workflow_id \"data-process-1\""
+    echo "  data-tools executions"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: data-tools <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
     else
-        API_BASE="$DEFAULT_API_BASE"
-        API_TOKEN="$DEFAULT_TOKEN"
-        OUTPUT_FORMAT="table"
+        cat
     fi
 }
 
@@ -56,348 +85,636 @@ api_request() {
     local method="$1"
     local endpoint="$2"
     local data="${3:-}"
+    local api_url
     
-    local url="${API_BASE}${endpoint}"
-    local curl_opts=(-s -X "$method" -H "Authorization: Bearer $API_TOKEN")
+    # Get the current API URL from orchestrator
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
+    fi
     
     if [[ -n "$data" ]]; then
-        curl_opts+=(-H "Content-Type: application/json" -d "$data")
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
     fi
     
-    response=$(curl "${curl_opts[@]}" "$url" 2>/dev/null)
-    exit_code=$?
-    
-    if [[ $exit_code -ne 0 ]]; then
-        echo -e "${RED}✗${NC} Failed to connect to API at $url" >&2
-        return 1
-    fi
-    
-    echo "$response"
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
 }
 
-# Format output
-format_output() {
-    local data="$1"
-    local format="${2:-$OUTPUT_FORMAT}"
-    
-    case "$format" in
-        json)
-            echo "$data" | jq '.' 2>/dev/null || echo "$data"
-            ;;
-        table)
-            # Convert JSON to simple table format
-            echo "$data" | jq -r '
-                if type == "array" then
-                    .[] | [.id, .name, .status // .description // ""] | @tsv
-                elif type == "object" then
-                    to_entries | .[] | [.key, .value] | @tsv
-                else
-                    .
-                end
-            ' 2>/dev/null || echo "$data"
-            ;;
-        raw)
-            echo "$data"
-            ;;
-        *)
-            echo "$data"
-            ;;
-    esac
-}
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
 
-# Command: health
+# Health check command
 cmd_health() {
-    echo -e "${BLUE}Checking system health...${NC}"
+    local json_output=false
     
-    response=$(api_request GET "/health")
-    if [[ $? -eq 0 ]]; then
-        status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
-        
-        if [[ "$status" == "healthy" ]]; then
-            echo -e "${GREEN}✓${NC} System is healthy"
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools health [OPTIONS]"
+                echo ""
+                echo "Check service health and connectivity"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools health"
+                echo "  data-tools health --json"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health" 2>/dev/null)
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | jq -e '.status' | grep -q "healthy"; then
+            echo -e "${GREEN}✅ Data Tools is healthy${NC}"
+            echo "   API: ${api_url}"
         else
-            echo -e "${YELLOW}⚠${NC} System status: $status"
+            echo -e "${RED}❌ Data Tools health check failed${NC}"
+            echo "   Response: $response"
+            return 1
         fi
-        
-        echo "$response" | jq -r '
-            "  API: \(.service // "Unknown")",
-            "  Version: \(.version // "Unknown")",
-            "  Database: \(.database // "Unknown")"
-        ' 2>/dev/null
-    else
-        echo -e "${RED}✗${NC} API is not responding"
-        return 1
     fi
 }
 
-# Command: list resources
+# List resources command
 cmd_list() {
-    local resource="${1:-resources}"
+    local json_output=false
     
-    echo -e "${BLUE}Listing ${resource}...${NC}"
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools list [OPTIONS]"
+                echo ""
+                echo "List all resources"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools list"
+                echo "  data-tools list --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    response=$(api_request GET "/api/v1/${resource}")
-    if [[ $? -eq 0 ]]; then
-        count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
-        echo -e "${GREEN}✓${NC} Found $count ${resource}"
-        echo
-        format_output "$response"
+    local response
+    response=$(api_request "GET" "/api/v1/resources")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo -e "${RED}✗${NC} Failed to list ${resource}"
-        return 1
+        # Pretty print resources
+        local count=$(echo "$response" | jq -r '.data | length' 2>/dev/null || echo "0")
+        echo -e "${CYAN}📋 Resources: $count${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.data[]? | [.id[0:8], .name, .description] | @tsv' 2>/dev/null | \
+            while IFS=$'\t' read -r id name desc; do
+                printf "%-10s %-20s %s\n" "$id" "$name" "$desc"
+            done
+        else
+            echo "No resources found."
+        fi
     fi
 }
 
-# Command: get resource
+# Get resource command
 cmd_get() {
-    local resource="${1:-resources}"
-    local id="$2"
+    local resource_id="$1"
+    local json_output=false
     
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
+    if [[ -z "$resource_id" ]]; then
+        echo -e "${RED}❌ Error: Resource ID required${NC}" >&2
+        echo "Usage: data-tools get <resource_id>" >&2
         return 1
     fi
     
-    echo -e "${BLUE}Getting ${resource} ${id}...${NC}"
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools get <resource_id> [OPTIONS]"
+                echo ""
+                echo "Get specific resource details"
+                echo ""
+                echo "Arguments:"
+                echo "  resource_id    ID of the resource to retrieve"
+                echo ""
+                echo "Options:"
+                echo "  --json         Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools get abc12345"
+                echo "  data-tools get abc12345 --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    response=$(api_request GET "/api/v1/${resource}/${id}")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Retrieved ${resource}"
-        echo
-        format_output "$response"
+    local response
+    response=$(api_request "GET" "/api/v1/resources/${resource_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo -e "${RED}✗${NC} Failed to get ${resource}"
-        return 1
+        echo -e "${CYAN}📄 Resource Details:${NC}"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
     fi
 }
 
-# Command: create resource
+# Create resource command
 cmd_create() {
-    local resource="${1:-resources}"
-    shift
+    local name=""
+    local description=""
+    local config=""
+    local json_output=false
     
-    # Build JSON from remaining arguments
-    local json_data="{}"
     while [[ $# -gt 0 ]]; do
-        key="$1"
-        value="${2:-}"
-        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
-        shift 2 || break
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --config)
+                config="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools create [OPTIONS]"
+                echo ""
+                echo "Create a new resource"
+                echo ""
+                echo "Options:"
+                echo "  --name <name>              Resource name (required)"
+                echo "  --description <desc>       Resource description"
+                echo "  --config <json>            Resource configuration as JSON"
+                echo "  --json                     Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools create --name \"My Dataset\" --description \"Test data\""
+                echo "  data-tools create --name \"API Config\" --config '{\"type\":\"api\"}'"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
     done
     
-    echo -e "${BLUE}Creating ${resource}...${NC}"
-    
-    response=$(api_request POST "/api/v1/${resource}" "$json_data")
-    if [[ $? -eq 0 ]]; then
-        id=$(echo "$response" | jq -r '.data.id // .id // ""' 2>/dev/null)
-        echo -e "${GREEN}✓${NC} Created ${resource} ${id}"
-        echo
-        format_output "$response"
-    else
-        echo -e "${RED}✗${NC} Failed to create ${resource}"
+    if [[ -z "$name" ]]; then
+        echo -e "${RED}❌ Error: Resource name is required${NC}" >&2
         return 1
+    fi
+    
+    local request_body
+    if [[ -n "$config" ]]; then
+        request_body=$(jq -n \
+            --arg name "$name" \
+            --arg description "$description" \
+            --argjson config "$config" \
+            '{name: $name, description: $description, config: $config}')
+    else
+        request_body=$(jq -n \
+            --arg name "$name" \
+            --arg description "$description" \
+            '{name: $name, description: $description}')
+    fi
+    
+    echo -e "${BLUE}📝 Creating resource: $name${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/resources" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local resource_id
+        resource_id=$(echo "$response" | jq -r '.data.id // "unknown"' 2>/dev/null)
+        echo -e "${GREEN}✅ Resource created: $resource_id${NC}"
     fi
 }
 
-# Command: update resource
+# Update resource command
 cmd_update() {
-    local resource="${1:-resources}"
-    local id="$2"
-    shift 2
+    local resource_id="$1"
+    local name=""
+    local description=""
+    local config=""
+    local json_output=false
     
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
+    if [[ -z "$resource_id" ]]; then
+        echo -e "${RED}❌ Error: Resource ID required${NC}" >&2
+        echo "Usage: data-tools update <resource_id> [OPTIONS]" >&2
         return 1
     fi
     
-    # Build JSON from remaining arguments
-    local json_data="{}"
+    shift
     while [[ $# -gt 0 ]]; do
-        key="$1"
-        value="${2:-}"
-        json_data=$(echo "$json_data" | jq --arg k "$key" --arg v "$value" '. + {($k): $v}')
-        shift 2 || break
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --config)
+                config="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools update <resource_id> [OPTIONS]"
+                echo ""
+                echo "Update an existing resource"
+                echo ""
+                echo "Arguments:"
+                echo "  resource_id    ID of the resource to update"
+                echo ""
+                echo "Options:"
+                echo "  --name <name>              New resource name"
+                echo "  --description <desc>       New resource description"
+                echo "  --config <json>            New resource configuration as JSON"
+                echo "  --json                     Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools update abc123 --name \"Updated Dataset\""
+                echo "  data-tools update abc123 --description \"Updated description\""
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
     done
     
-    echo -e "${BLUE}Updating ${resource} ${id}...${NC}"
+    # Build request body with only provided fields
+    local request_body="{}"
+    [[ -n "$name" ]] && request_body=$(echo "$request_body" | jq --arg name "$name" '. + {name: $name}')
+    [[ -n "$description" ]] && request_body=$(echo "$request_body" | jq --arg desc "$description" '. + {description: $desc}')
+    [[ -n "$config" ]] && request_body=$(echo "$request_body" | jq --argjson config "$config" '. + {config: $config}')
     
-    response=$(api_request PUT "/api/v1/${resource}/${id}" "$json_data")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Updated ${resource} ${id}"
-        echo
-        format_output "$response"
+    echo -e "${BLUE}📝 Updating resource: $resource_id${NC}"
+    
+    local response
+    response=$(api_request "PUT" "/api/v1/resources/${resource_id}" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo -e "${RED}✗${NC} Failed to update ${resource}"
-        return 1
+        echo -e "${GREEN}✅ Resource updated: $resource_id${NC}"
     fi
 }
 
-# Command: delete resource
+# Delete resource command
 cmd_delete() {
-    local resource="${1:-resources}"
-    local id="$2"
+    local resource_id="$1"
+    local json_output=false
+    local confirm=false
     
-    if [[ -z "$id" ]]; then
-        echo -e "${RED}✗${NC} ID is required" >&2
+    if [[ -z "$resource_id" ]]; then
+        echo -e "${RED}❌ Error: Resource ID required${NC}" >&2
+        echo "Usage: data-tools delete <resource_id> [OPTIONS]" >&2
         return 1
     fi
     
-    echo -e "${BLUE}Deleting ${resource} ${id}...${NC}"
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --confirm)
+                confirm=true
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools delete <resource_id> [OPTIONS]"
+                echo ""
+                echo "Delete a resource"
+                echo ""
+                echo "Arguments:"
+                echo "  resource_id    ID of the resource to delete"
+                echo ""
+                echo "Options:"
+                echo "  --confirm      Skip confirmation prompt"
+                echo "  --json         Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools delete abc123"
+                echo "  data-tools delete abc123 --confirm"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    response=$(api_request DELETE "/api/v1/${resource}/${id}")
-    if [[ $? -eq 0 ]]; then
-        echo -e "${GREEN}✓${NC} Deleted ${resource} ${id}"
+    if [[ "$confirm" != true ]]; then
+        echo -e "${YELLOW}⚠️  Are you sure you want to delete resource $resource_id? (y/N)${NC}"
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            echo "Cancelled."
+            return 0
+        fi
+    fi
+    
+    echo -e "${BLUE}🗑️  Deleting resource: $resource_id${NC}"
+    
+    local response
+    response=$(api_request "DELETE" "/api/v1/resources/${resource_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo -e "${RED}✗${NC} Failed to delete ${resource}"
-        return 1
+        echo -e "${GREEN}✅ Resource deleted: $resource_id${NC}"
     fi
 }
 
-# Command: execute workflow
+# Execute workflow command
 cmd_execute() {
-    local workflow_id="${1:-}"
-    shift
+    local workflow_id="$1"
+    local input=""
+    local json_output=false
     
     if [[ -z "$workflow_id" ]]; then
-        echo -e "${RED}✗${NC} Workflow ID is required" >&2
+        echo -e "${RED}❌ Error: Workflow ID required${NC}" >&2
+        echo "Usage: data-tools execute <workflow_id> [OPTIONS]" >&2
         return 1
     fi
     
-    # Build input data from remaining arguments
-    local input_data="{\"workflow_id\": \"$workflow_id\""
-    if [[ $# -gt 0 ]]; then
-        local user_input="$*"
-        input_data="${input_data}, \"input\": \"$user_input\""
-    fi
-    input_data="${input_data}}"
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --input)
+                input="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools execute <workflow_id> [OPTIONS]"
+                echo ""
+                echo "Execute a workflow"
+                echo ""
+                echo "Arguments:"
+                echo "  workflow_id    ID of the workflow to execute"
+                echo ""
+                echo "Options:"
+                echo "  --input <json>     Input data as JSON"
+                echo "  --json             Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools execute workflow-123"
+                echo "  data-tools execute workflow-123 --input '{\"data\":\"value\"}'"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    echo -e "${BLUE}Executing workflow ${workflow_id}...${NC}"
-    
-    response=$(api_request POST "/api/v1/execute" "$input_data")
-    if [[ $? -eq 0 ]]; then
-        execution_id=$(echo "$response" | jq -r '.data.execution_id // .execution_id // ""' 2>/dev/null)
-        echo -e "${GREEN}✓${NC} Started execution ${execution_id}"
-        echo
-        format_output "$response"
+    local request_body
+    if [[ -n "$input" ]]; then
+        request_body=$(jq -n \
+            --arg workflow_id "$workflow_id" \
+            --argjson input "$input" \
+            '{workflow_id: $workflow_id, input: $input}')
     else
-        echo -e "${RED}✗${NC} Failed to execute workflow"
+        request_body=$(jq -n \
+            --arg workflow_id "$workflow_id" \
+            '{workflow_id: $workflow_id}')
+    fi
+    
+    echo -e "${BLUE}🚀 Executing workflow: $workflow_id${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/execute" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local execution_id
+        execution_id=$(echo "$response" | jq -r '.data.execution_id // "unknown"' 2>/dev/null)
+        echo -e "${GREEN}✅ Execution started: $execution_id${NC}"
+        echo "   Check status with: data-tools status $execution_id"
+    fi
+}
+
+# List executions command
+cmd_executions() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools executions [OPTIONS]"
+                echo ""
+                echo "List workflow executions"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools executions"
+                echo "  data-tools executions --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_request "GET" "/api/v1/executions")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq -r '.data | length' 2>/dev/null || echo "0")
+        echo -e "${CYAN}🔄 Executions: $count${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.data[]? | [.id[0:8], .workflow_id, .status, .started_at] | @tsv' 2>/dev/null | \
+            while IFS=$'\t' read -r id workflow_id status started_at; do
+                printf "%-10s %-15s %-10s %s\n" "$id" "$workflow_id" "$status" "$started_at"
+            done
+        else
+            echo "No executions found."
+        fi
+    fi
+}
+
+# Show execution status command
+cmd_status() {
+    local execution_id="$1"
+    local json_output=false
+    
+    if [[ -z "$execution_id" ]]; then
+        echo -e "${RED}❌ Error: Execution ID required${NC}" >&2
+        echo "Usage: data-tools status <execution_id>" >&2
         return 1
     fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools status <execution_id> [OPTIONS]"
+                echo ""
+                echo "Show execution status and details"
+                echo ""
+                echo "Arguments:"
+                echo "  execution_id    ID of the execution to check"
+                echo ""
+                echo "Options:"
+                echo "  --json          Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools status abc12345"
+                echo "  data-tools status abc12345 --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local response
+    response=$(api_request "GET" "/api/v1/executions/${execution_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${CYAN}📊 Execution Status:${NC}"
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
+    fi
 }
 
-# Command: configure
-cmd_configure() {
-    local key="${1:-}"
-    local value="${2:-}"
+# Show API docs command
+cmd_docs() {
+    local json_output=false
     
-    if [[ -z "$key" ]]; then
-        echo "Current configuration:"
-        cat "$CONFIG_FILE" | jq '.' 2>/dev/null || cat "$CONFIG_FILE"
-        return 0
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: data-tools docs [OPTIONS]"
+                echo ""
+                echo "Show API documentation"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  data-tools docs"
+                echo "  data-tools docs --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/docs" 2>/dev/null)
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${CYAN}📚 API Documentation:${NC}"
+        echo "   API Endpoint: $api_url"
+        echo ""
+        echo "$response" | format_json
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
     fi
     
-    case "$key" in
-        api|api_base)
-            jq --arg v "$value" '.api_base = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} API base set to: $value"
-            ;;
-        token|api_token)
-            jq --arg v "$value" '.api_token = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} API token updated"
-            ;;
-        format|output_format)
-            jq --arg v "$value" '.output_format = $v' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-            echo -e "${GREEN}✓${NC} Output format set to: $value"
-            ;;
-        *)
-            echo -e "${RED}✗${NC} Unknown configuration key: $key"
-            echo "Valid keys: api_base, api_token, output_format"
-            return 1
-            ;;
-    esac
-}
-
-# Command: version
-cmd_version() {
-    echo "$CLI_NAME version $CLI_VERSION"
-    echo "API endpoint: $API_BASE"
-}
-
-# Command: help
-cmd_help() {
-    cat <<EOF
-$CLI_NAME - Command-line interface for SCENARIO_NAME_PLACEHOLDER
-
-Usage: $CLI_NAME <command> [options]
-
-Commands:
-    health              Check system health
-    list [resource]     List resources
-    get <resource> <id> Get specific resource
-    create <resource> [key value...]  Create new resource
-    update <resource> <id> [key value...]  Update resource
-    delete <resource> <id>  Delete resource
-    execute <workflow_id> [input...]  Execute workflow
-    configure [key] [value]  View or update configuration
-    version             Show version information
-    help                Show this help message
-
-Configuration:
-    The CLI stores its configuration in: $CONFIG_FILE
-    
-    Configure API endpoint:
-        $CLI_NAME configure api_base http://localhost:8090
-    
-    Configure API token:
-        $CLI_NAME configure api_token your-token-here
-    
-    Configure output format (json|table|raw):
-        $CLI_NAME configure output_format json
-
-Examples:
-    # Check health
-    $CLI_NAME health
-    
-    # List all resources
-    $CLI_NAME list resources
-    
-    # Get specific resource
-    $CLI_NAME get resources abc123
-    
-    # Create new resource
-    $CLI_NAME create resources name "My Resource" description "A test resource"
-    
-    # Execute workflow
-    $CLI_NAME execute workflow-1 "Process this data"
-    
-    # Update configuration
-    $CLI_NAME configure api_base http://api.example.com:8090
-
-Environment Variables:
-    ${CLI_NAME^^}_API_BASE    Override API base URL
-    ${CLI_NAME^^}_API_TOKEN   Override API token
-    ${CLI_NAME^^}_FORMAT      Override output format
-
-For more information, visit: https://github.com/Vrooli/Vrooli
-EOF
-}
-
-# Main entry point
-main() {
-    # Initialize configuration on first run
-    init_config
-    
-    # Load configuration
-    load_config
-    
-    # Override with environment variables if set
-    API_BASE="${CLI_NAME^^}_API_BASE:-$API_BASE}"
-    API_TOKEN="${CLI_NAME^^}_API_TOKEN:-$API_TOKEN}"
-    OUTPUT_FORMAT="${CLI_NAME^^}_FORMAT:-$OUTPUT_FORMAT}"
-    
-    # Parse command
-    local command="${1:-help}"
-    shift || true
+    shift
     
     case "$command" in
         health)
@@ -406,7 +723,7 @@ main() {
         list|ls)
             cmd_list "$@"
             ;;
-        get)
+        get|show)
             cmd_get "$@"
             ;;
         create|add)
@@ -415,28 +732,31 @@ main() {
         update|edit)
             cmd_update "$@"
             ;;
-        delete|rm|remove)
+        delete|remove|rm)
             cmd_delete "$@"
             ;;
         execute|exec|run)
             cmd_execute "$@"
             ;;
-        configure|config)
-            cmd_configure "$@"
+        executions)
+            cmd_executions "$@"
             ;;
-        version|--version|-v)
-            cmd_version
+        status)
+            cmd_status "$@"
             ;;
-        help|--help|-h)
-            cmd_help
+        docs)
+            cmd_docs "$@"
+            ;;
+        --help|-h|help)
+            usage
             ;;
         *)
-            echo -e "${RED}✗${NC} Unknown command: $command"
-            echo "Run '$CLI_NAME help' for usage information"
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
             exit 1
             ;;
     esac
 }
 
-# Run main function with all arguments
+# Run main function
 main "$@"

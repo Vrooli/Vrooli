@@ -1,255 +1,1064 @@
 #!/bin/bash
+################################################################################
+# Bookmark Intelligence Hub CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
 
-# Bookmark Intelligence Hub CLI
-# This is a placeholder implementation until the Go CLI is built
+set -e
 
-CLI_NAME="bookmark-intelligence-hub"
-API_BASE_URL="${API_BASE_URL:-http://localhost:15200}"
+# Configuration
+SCENARIO_NAME="bookmark-intelligence-hub"
 
-# Function to make API calls
-api_call() {
-    local method="$1"
-    local endpoint="$2"
-    local data="$3"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
     
-    if [ -n "$data" ]; then
-        curl -s -X "$method" \
-             -H "Content-Type: application/json" \
-             -d "$data" \
-             "$API_BASE_URL$endpoint"
-    else
-        curl -s -X "$method" \
-             -H "Content-Type: application/json" \
-             "$API_BASE_URL$endpoint"
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
     fi
+    
+    echo "http://localhost:${api_port}"
 }
 
-# Function to display help
-show_help() {
-    echo "Bookmark Intelligence Hub CLI v1.0.0"
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Bookmark Intelligence Hub CLI${NC}"
+    echo "Intelligent bookmark management with AI categorization and automation"
     echo ""
-    echo "Usage: $CLI_NAME <command> [options]"
+    echo "Usage: bookmark-intelligence-hub [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
-    echo "  status                 Show operational status and health"
-    echo "  profile list           List all profiles"
-    echo "  profile create <name>  Create a new profile"
-    echo "  sync                   Sync bookmarks for all platforms"
-    echo "  sync <platform>        Sync bookmarks for specific platform"
-    echo "  categories             List categories"
-    echo "  actions                List pending actions"
-    echo "  actions approve <id>   Approve a specific action"
-    echo "  actions reject <id>    Reject a specific action"
-    echo "  platforms              List all platforms"
-    echo "  version                Show version information"
-    echo "  help                   Show this help message"
-    echo ""
-    echo "Options:"
-    echo "  --json                 Output in JSON format"
-    echo "  --verbose              Verbose output"
-    echo ""
-    echo "Environment Variables:"
-    echo "  API_BASE_URL          API base URL (default: http://localhost:15200)"
-    echo "  BOOKMARK_API_TOKEN    API authentication token"
+    echo -e "  ${GREEN}profiles${NC}      Manage user profiles and settings"
+    echo -e "  ${GREEN}bookmarks${NC}     Process, query, and sync bookmarks"
+    echo -e "  ${GREEN}categories${NC}    Manage bookmark categories"
+    echo -e "  ${GREEN}actions${NC}       Manage pending automation actions"
+    echo -e "  ${GREEN}platforms${NC}     Manage platform integrations"
+    echo -e "  ${GREEN}analytics${NC}     View processing metrics and insights"
+    echo -e "  ${GREEN}sync${NC}          Synchronize bookmarks from platforms"
+    echo -e "  ${GREEN}health${NC}        Check service health and status"
     echo ""
     echo "Examples:"
-    echo "  $CLI_NAME status"
-    echo "  $CLI_NAME profile list --json"
-    echo "  $CLI_NAME sync reddit"
-    echo "  $CLI_NAME actions approve action-123"
+    echo "  bookmark-intelligence-hub profiles list"
+    echo "  bookmark-intelligence-hub bookmarks query --category Programming"
+    echo "  bookmark-intelligence-hub sync reddit"
+    echo "  bookmark-intelligence-hub actions approve action-123"
+    echo "  bookmark-intelligence-hub analytics metrics"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo "  --verbose        Show detailed output"
+    echo ""
+    echo "For more information: bookmark-intelligence-hub <command> --help"
 }
 
-# Function to show version
-show_version() {
-    echo "Bookmark Intelligence Hub CLI v1.0.0"
-    echo "API Base URL: $API_BASE_URL"
-}
-
-# Function to check status
-check_status() {
-    local format="human"
-    if [ "$1" = "--json" ]; then
-        format="json"
-    fi
-    
-    echo "Checking Bookmark Intelligence Hub status..."
-    response=$(api_call "GET" "/health")
-    
-    if [ $? -eq 0 ]; then
-        if [ "$format" = "json" ]; then
-            echo "$response" | jq '.'
-        else
-            echo "✅ API is healthy"
-            echo "Database: $(echo "$response" | jq -r '.database // "unknown"')"
-            echo "Version: $(echo "$response" | jq -r '.version // "unknown"')"
-        fi
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
     else
-        echo "❌ API is not responding"
-        exit 1
+        cat
     fi
 }
 
-# Function to list profiles
-list_profiles() {
-    local format="human"
-    if [ "$1" = "--json" ]; then
-        format="json"
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
     fi
     
-    response=$(api_call "GET" "/api/v1/profiles")
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
     
-    if [ $? -eq 0 ]; then
-        if [ "$format" = "json" ]; then
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Profiles command
+cmd_profiles() {
+    local subcommand="${1:-list}"
+    shift 2>/dev/null || true
+    
+    case "$subcommand" in
+        list)
+            cmd_profiles_list "$@"
+            ;;
+        create)
+            cmd_profiles_create "$@"
+            ;;
+        view)
+            cmd_profiles_view "$@"
+            ;;
+        stats)
+            cmd_profiles_stats "$@"
+            ;;
+        --help|-h)
+            echo "Usage: bookmark-intelligence-hub profiles [COMMAND] [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  list              List all profiles"
+            echo "  create <name>     Create a new profile"
+            echo "  view <id>         View specific profile details"
+            echo "  stats <id>        View profile statistics"
+            echo ""
+            echo "For more information: bookmark-intelligence-hub profiles <command> --help"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown profiles command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_profiles_list() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub profiles list [OPTIONS]"
+                echo ""
+                echo "List all user profiles"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}👤 Fetching profiles...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/profiles")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count profiles:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "- \(.name) (ID: \(.id))"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No profiles found${NC}"
+        fi
+    fi
+}
+
+cmd_profiles_create() {
+    echo -e "${YELLOW}⚠️  Profile creation not yet implemented${NC}"
+    echo "   This feature will be available in a future update"
+}
+
+cmd_profiles_view() {
+    local profile_id="$1"
+    local json_output=false
+    
+    if [[ -z "$profile_id" || "$profile_id" == "--help" || "$profile_id" == "-h" ]]; then
+        echo "Usage: bookmark-intelligence-hub profiles view <profile-id> [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  --json    Output in JSON format"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}👤 Fetching profile details...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/profiles/${profile_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Profile Details:${NC}"
+        echo "$response" | format_json
+    fi
+}
+
+cmd_profiles_stats() {
+    local profile_id="$1"
+    local json_output=false
+    
+    if [[ -z "$profile_id" || "$profile_id" == "--help" || "$profile_id" == "-h" ]]; then
+        echo "Usage: bookmark-intelligence-hub profiles stats <profile-id> [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  --json    Output in JSON format"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📊 Fetching profile statistics...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/profiles/${profile_id}/stats")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Profile Statistics:${NC}"
+        echo ""
+        
+        if echo "$response" | jq -e . >/dev/null 2>&1; then
+            echo "$response" | jq -r '
+                "📚 Total Bookmarks: \(.total_bookmarks)",
+                "📁 Categories: \(.categories_count)",
+                "⚡ Pending Actions: \(.pending_actions)",
+                "🎯 Accuracy Rate: \(.accuracy_rate)%"
+            ' 2>/dev/null
+        else
             echo "$response"
-        else
-            echo "Profiles:"
-            echo "$response" | jq -r '.[] | "- \(.name) (ID: \(.id))"'
         fi
-    else
-        echo "❌ Failed to fetch profiles"
-        exit 1
     fi
 }
 
-# Function to sync bookmarks
-sync_bookmarks() {
-    local platform="$1"
-    local endpoint="/api/v1/bookmarks/sync"
+# Bookmarks command
+cmd_bookmarks() {
+    local subcommand="${1:-query}"
+    shift 2>/dev/null || true
     
-    if [ -n "$platform" ]; then
-        endpoint="/api/v1/platforms/$platform/sync"
-        echo "Syncing bookmarks for $platform..."
+    case "$subcommand" in
+        process)
+            cmd_bookmarks_process "$@"
+            ;;
+        query)
+            cmd_bookmarks_query "$@"
+            ;;
+        sync)
+            cmd_bookmarks_sync "$@"
+            ;;
+        --help|-h)
+            echo "Usage: bookmark-intelligence-hub bookmarks [COMMAND] [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  process       Process new bookmarks with AI"
+            echo "  query         Query existing bookmarks"
+            echo "  sync          Synchronize bookmarks from all platforms"
+            echo ""
+            echo "For more information: bookmark-intelligence-hub bookmarks <command> --help"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown bookmarks command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_bookmarks_process() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub bookmarks process [OPTIONS]"
+                echo ""
+                echo "Process new bookmarks with AI categorization and analysis"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🤖 Processing bookmarks with AI...${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/bookmarks/process" "{}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo "Syncing bookmarks for all platforms..."
-    fi
-    
-    response=$(api_call "POST" "$endpoint" '{}')
-    
-    if [ $? -eq 0 ]; then
-        echo "✅ Sync completed"
-        echo "Processed: $(echo "$response" | jq -r '.processed_count // 0') bookmarks"
-    else
-        echo "❌ Sync failed"
-        exit 1
+        if echo "$response" | grep -q "success"; then
+            echo -e "${GREEN}✅ Bookmark processing completed${NC}"
+            local processed=$(echo "$response" | jq -r '.processed_count // 0' 2>/dev/null)
+            echo "   Processed: $processed bookmarks"
+        else
+            echo -e "${RED}❌ Processing failed${NC}"
+            echo "$response"
+        fi
     fi
 }
 
-# Function to list categories
-list_categories() {
-    response=$(api_call "GET" "/api/v1/categories")
+cmd_bookmarks_query() {
+    local category=""
+    local platform=""
+    local json_output=false
     
-    if [ $? -eq 0 ]; then
-        echo "Categories:"
-        echo "$response" | jq -r '.[] | "- \(.name): \(.count) bookmarks"'
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --category)
+                category="$2"
+                shift 2
+                ;;
+            --platform)
+                platform="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub bookmarks query [OPTIONS]"
+                echo ""
+                echo "Query and search your bookmarks"
+                echo ""
+                echo "Options:"
+                echo "  --category <cat>    Filter by category"
+                echo "  --platform <plat>   Filter by platform"
+                echo "  --json              Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bookmark-intelligence-hub bookmarks query --category Programming"
+                echo "  bookmark-intelligence-hub bookmarks query --platform reddit"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local endpoint="/api/v1/bookmarks/query"
+    local query_params=""
+    
+    [[ -n "$category" ]] && query_params="${query_params:+$query_params&}category=$category"
+    [[ -n "$platform" ]] && query_params="${query_params:+$query_params&}platform=$platform"
+    [[ -n "$query_params" ]] && endpoint="${endpoint}?${query_params}"
+    
+    echo -e "${BLUE}🔍 Querying bookmarks...${NC}"
+    
+    local response
+    response=$(api_request "GET" "$endpoint")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo "❌ Failed to fetch categories"
-        exit 1
+        local total=$(echo "$response" | jq -r '.total_count // 0' 2>/dev/null)
+        echo -e "${GREEN}✅ Found $total bookmarks:${NC}"
+        echo ""
+        
+        if [[ $total -gt 0 ]]; then
+            echo "$response" | jq -r '.bookmarks[]? | "📚 \(.title) (\(.platform)) - \(.category)"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No bookmarks found matching your criteria${NC}"
+        fi
     fi
 }
 
-# Function to list actions
-list_actions() {
-    response=$(api_call "GET" "/api/v1/actions")
+cmd_bookmarks_sync() {
+    local json_output=false
     
-    if [ $? -eq 0 ]; then
-        echo "Pending Actions:"
-        echo "$response" | jq -r '.[] | "- \(.title) (ID: \(.id))"'
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub bookmarks sync [OPTIONS]"
+                echo ""
+                echo "Synchronize bookmarks from all connected platforms"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🔄 Syncing bookmarks from all platforms...${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/bookmarks/sync" "{}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo "❌ Failed to fetch actions"
-        exit 1
+        if echo "$response" | grep -q "success"; then
+            echo -e "${GREEN}✅ Sync completed${NC}"
+            local processed=$(echo "$response" | jq -r '.processed_count // 0' 2>/dev/null)
+            echo "   Processed: $processed bookmarks"
+        else
+            echo -e "${RED}❌ Sync failed${NC}"
+            echo "$response"
+        fi
     fi
 }
 
-# Function to approve action
-approve_action() {
+# Categories command
+cmd_categories() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub categories [OPTIONS]"
+                echo ""
+                echo "List all bookmark categories with counts"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📁 Fetching categories...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/categories")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count categories:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "📁 \(.name): \(.count) bookmarks"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No categories found${NC}"
+        fi
+    fi
+}
+
+# Actions command
+cmd_actions() {
+    local subcommand="${1:-list}"
+    shift 2>/dev/null || true
+    
+    case "$subcommand" in
+        list)
+            cmd_actions_list "$@"
+            ;;
+        approve)
+            cmd_actions_approve "$@"
+            ;;
+        reject)
+            cmd_actions_reject "$@"
+            ;;
+        --help|-h)
+            echo "Usage: bookmark-intelligence-hub actions [COMMAND] [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  list              List pending actions"
+            echo "  approve <id>      Approve a specific action"
+            echo "  reject <id>       Reject a specific action"
+            echo ""
+            echo "For more information: bookmark-intelligence-hub actions <command> --help"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown actions command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_actions_list() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub actions list [OPTIONS]"
+                echo ""
+                echo "List all pending automation actions"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}⚡ Fetching pending actions...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/actions")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count pending actions:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "⚡ \(.title) (ID: \(.id))"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No pending actions${NC}"
+        fi
+    fi
+}
+
+cmd_actions_approve() {
     local action_id="$1"
+    local json_output=false
     
-    if [ -z "$action_id" ]; then
-        echo "❌ Action ID is required"
-        exit 1
+    if [[ -z "$action_id" || "$action_id" == "--help" || "$action_id" == "-h" ]]; then
+        echo "Usage: bookmark-intelligence-hub actions approve <action-id> [OPTIONS]"
+        echo ""
+        echo "Approve a specific automation action"
+        echo ""
+        echo "Options:"
+        echo "  --json    Output in JSON format"
+        return 0
     fi
     
-    response=$(api_call "POST" "/api/v1/actions/approve" "{\"action_ids\": [\"$action_id\"]}")
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    if [ $? -eq 0 ]; then
-        echo "✅ Action $action_id approved"
+    local request_body=$(jq -n \
+        --arg action_id "$action_id" \
+        '{action_ids: [$action_id]}')
+    
+    echo -e "${BLUE}✅ Approving action: $action_id${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/actions/approve" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo "❌ Failed to approve action"
-        exit 1
+        if echo "$response" | grep -q "success"; then
+            echo -e "${GREEN}✅ Action approved successfully${NC}"
+            local approved=$(echo "$response" | jq -r '.approved_count // 1' 2>/dev/null)
+            echo "   Actions approved: $approved"
+        else
+            echo -e "${RED}❌ Failed to approve action${NC}"
+            echo "$response"
+        fi
     fi
 }
 
-# Function to list platforms
-list_platforms() {
-    response=$(api_call "GET" "/api/v1/platforms")
+cmd_actions_reject() {
+    local action_id="$1"
+    local json_output=false
     
-    if [ $? -eq 0 ]; then
-        echo "Platforms:"
-        echo "$response" | jq -r '.[] | "- \(.display_name) (\(.name)): \(if .supported then "✅" else "❌" end)"'
+    if [[ -z "$action_id" || "$action_id" == "--help" || "$action_id" == "-h" ]]; then
+        echo "Usage: bookmark-intelligence-hub actions reject <action-id> [OPTIONS]"
+        echo ""
+        echo "Reject a specific automation action"
+        echo ""
+        echo "Options:"
+        echo "  --json    Output in JSON format"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    local request_body=$(jq -n \
+        --arg action_id "$action_id" \
+        '{action_ids: [$action_id]}')
+    
+    echo -e "${BLUE}❌ Rejecting action: $action_id${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/actions/reject" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo "❌ Failed to fetch platforms"
-        exit 1
+        if echo "$response" | grep -q "success"; then
+            echo -e "${GREEN}✅ Action rejected successfully${NC}"
+            local rejected=$(echo "$response" | jq -r '.rejected_count // 1' 2>/dev/null)
+            echo "   Actions rejected: $rejected"
+        else
+            echo -e "${RED}❌ Failed to reject action${NC}"
+            echo "$response"
+        fi
     fi
 }
 
-# Main command processing
-case "$1" in
-    "status")
-        check_status "$2"
-        ;;
-    "profile")
-        case "$2" in
-            "list")
-                list_profiles "$3"
+# Platforms command
+cmd_platforms() {
+    local subcommand="${1:-list}"
+    shift 2>/dev/null || true
+    
+    case "$subcommand" in
+        list)
+            cmd_platforms_list "$@"
+            ;;
+        status)
+            cmd_platforms_status "$@"
+            ;;
+        --help|-h)
+            echo "Usage: bookmark-intelligence-hub platforms [COMMAND] [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  list      List all supported platforms"
+            echo "  status    Show platform connection status"
+            echo ""
+            echo "For more information: bookmark-intelligence-hub platforms <command> --help"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown platforms command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_platforms_list() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
                 ;;
-            "create")
-                echo "❌ Profile creation not yet implemented"
-                exit 1
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub platforms list [OPTIONS]"
+                echo ""
+                echo "List all supported platforms and their capabilities"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
                 ;;
             *)
-                echo "❌ Unknown profile command: $2"
-                echo "Available: list, create"
-                exit 1
+                shift
                 ;;
         esac
-        ;;
-    "sync")
-        sync_bookmarks "$2"
-        ;;
-    "categories")
-        list_categories
-        ;;
-    "actions")
-        case "$2" in
-            "")
-                list_actions
+    done
+    
+    echo -e "${BLUE}🌐 Fetching supported platforms...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/platforms")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count supported platforms:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "🌐 \(.display_name) (\(.name)): \(if .supported then "✅ Supported" else "❌ Not Available" end)"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No platforms found${NC}"
+        fi
+    fi
+}
+
+cmd_platforms_status() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
                 ;;
-            "approve")
-                approve_action "$3"
-                ;;
-            "reject")
-                echo "❌ Action rejection not yet implemented"
-                exit 1
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub platforms status [OPTIONS]"
+                echo ""
+                echo "Show connection status for all platforms"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
                 ;;
             *)
-                echo "❌ Unknown action command: $2"
-                echo "Available: list (default), approve, reject"
-                exit 1
+                shift
                 ;;
         esac
-        ;;
-    "platforms")
-        list_platforms
-        ;;
-    "version"|"--version")
-        show_version
-        ;;
-    "help"|"--help"|"")
-        show_help
-        ;;
-    *)
-        echo "❌ Unknown command: $1"
-        echo "Run '$CLI_NAME help' for available commands"
-        exit 1
-        ;;
-esac
+    done
+    
+    echo -e "${BLUE}🔌 Checking platform connection status...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/platforms/status")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Platform Status ($count platforms):${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "🔌 \(.name): \(if .connected then "✅ Connected" else "❌ Disconnected" end)"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No platform status available${NC}"
+        fi
+    fi
+}
+
+# Analytics command
+cmd_analytics() {
+    local subcommand="${1:-metrics}"
+    shift 2>/dev/null || true
+    
+    case "$subcommand" in
+        metrics)
+            cmd_analytics_metrics "$@"
+            ;;
+        --help|-h)
+            echo "Usage: bookmark-intelligence-hub analytics [COMMAND] [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  metrics    Show processing metrics and insights"
+            echo ""
+            echo "For more information: bookmark-intelligence-hub analytics <command> --help"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown analytics command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_analytics_metrics() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub analytics metrics [OPTIONS]"
+                echo ""
+                echo "Show comprehensive processing metrics and insights"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📈 Fetching analytics metrics...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/analytics/metrics")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Analytics Metrics:${NC}"
+        echo ""
+        
+        if echo "$response" | jq -e . >/dev/null 2>&1; then
+            echo "$response" | jq -r '
+                "📚 Total Bookmarks: \(.total_bookmarks)",
+                "🎯 Processing Accuracy: \(.processing_accuracy)%",
+                "⚡ Actions Executed: \(.actions_executed)",
+                "",
+                "📊 Platform Breakdown:"
+            ' 2>/dev/null
+            
+            echo "$response" | jq -r '.platform_breakdown | to_entries[] | "   \(.key): \(.value) bookmarks"' 2>/dev/null
+        else
+            echo "$response"
+        fi
+    fi
+}
+
+# Sync command (standalone for backward compatibility)
+cmd_sync() {
+    local platform=""
+    local json_output=false
+    
+    # Parse positional argument for platform
+    if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
+        platform="$1"
+        shift
+    fi
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub sync [platform] [OPTIONS]"
+                echo ""
+                echo "Synchronize bookmarks from all platforms or a specific one"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  bookmark-intelligence-hub sync"
+                echo "  bookmark-intelligence-hub sync reddit"
+                echo "  bookmark-intelligence-hub sync twitter"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -n "$platform" ]]; then
+        echo -e "${BLUE}🔄 Syncing bookmarks from $platform...${NC}"
+        local endpoint="/api/v1/platforms/${platform}/sync"
+    else
+        echo -e "${BLUE}🔄 Syncing bookmarks from all platforms...${NC}"
+        local endpoint="/api/v1/bookmarks/sync"
+    fi
+    
+    local response
+    response=$(api_request "POST" "$endpoint" "{}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success"; then
+            echo -e "${GREEN}✅ Sync completed${NC}"
+            local processed=$(echo "$response" | jq -r '.processed_count // 0' 2>/dev/null)
+            echo "   Processed: $processed bookmarks"
+            [[ -n "$platform" ]] && echo "   Platform: $platform"
+        else
+            echo -e "${RED}❌ Sync failed${NC}"
+            echo "$response"
+        fi
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local json_output=false
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: bookmark-intelligence-hub health [OPTIONS]"
+                echo ""
+                echo "Check the health status of all services"
+                echo ""
+                echo "Options:"
+                echo "  --json       Output in JSON format"
+                echo "  --verbose    Show detailed health information"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🏥 Checking service health...${NC}"
+    
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health" 2>/dev/null)
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "healthy"; then
+            echo -e "${GREEN}✅ Bookmark Intelligence Hub is healthy${NC}"
+            echo "   API: ${api_url}"
+            
+            if [[ "$verbose" == true ]]; then
+                echo "   Version: $(echo "$response" | jq -r '.version' 2>/dev/null)"
+                echo "   Database: $(echo "$response" | jq -r '.database' 2>/dev/null)"
+                echo "   Huginn: $(echo "$response" | jq -r '.huginn' 2>/dev/null)"
+            fi
+        else
+            echo -e "${RED}❌ Health check failed${NC}"
+            echo "   Response: $response"
+            return 1
+        fi
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
+        profiles)
+            cmd_profiles "$@"
+            ;;
+        bookmarks)
+            cmd_bookmarks "$@"
+            ;;
+        categories)
+            cmd_categories "$@"
+            ;;
+        actions)
+            cmd_actions "$@"
+            ;;
+        platforms)
+            cmd_platforms "$@"
+            ;;
+        analytics)
+            cmd_analytics "$@"
+            ;;
+        sync)
+            cmd_sync "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        --version|-v|version)
+            echo "Bookmark Intelligence Hub CLI v2.0.0 (thin wrapper)"
+            ;;
+            
+        # Legacy commands for backward compatibility
+        profile)
+            echo -e "${YELLOW}⚠️  'profile' is deprecated. Use 'profiles' instead${NC}"
+            cmd_profiles "$@"
+            ;;
+        status)
+            echo -e "${YELLOW}⚠️  'status' is deprecated. Use 'health' instead${NC}"
+            cmd_health "$@"
+            ;;
+            
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

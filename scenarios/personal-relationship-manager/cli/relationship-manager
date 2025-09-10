@@ -1,95 +1,283 @@
 #!/bin/bash
-
-# Personal Relationship Manager CLI
-# Manages contacts, reminders, and gift suggestions
+################################################################################
+# Personal Relationship Manager CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
 
 set -e
 
-API_URL="${API_URL:-http://localhost:39001}"
-SCRIPT_NAME="relationship-manager"
+# Configuration
+SCENARIO_NAME="personal-relationship-manager"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-show_help() {
-    cat << EOF
-Personal Relationship Manager CLI
-
-Usage: $SCRIPT_NAME <command> [options]
-
-Commands:
-    list                    List all contacts
-    add <name>             Add a new contact
-    view <id>              View contact details
-    update <id>            Update contact information
-    delete <id>            Delete a contact
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
     
-    interactions <id>      View interaction history
-    add-interaction <id>   Log a new interaction
-    
-    gifts <id>             View gift ideas and history
-    suggest-gift <id>      Get AI gift suggestions
-    
-    reminders              View upcoming reminders
-    birthdays              Check upcoming birthdays
-    insights <id>          Get relationship insights
-    
-    help                   Show this help message
-
-Examples:
-    $SCRIPT_NAME list
-    $SCRIPT_NAME add "John Doe"
-    $SCRIPT_NAME view 1
-    $SCRIPT_NAME birthdays
-    $SCRIPT_NAME suggest-gift 1
-
-EOF
-}
-
-list_contacts() {
-    echo -e "${BLUE}Fetching contacts...${NC}"
-    response=$(curl -s "${API_URL}/api/contacts")
-    
-    if [ -z "$response" ] || [ "$response" = "[]" ]; then
-        echo -e "${YELLOW}No contacts found${NC}"
-        return
-    fi
-    
-    echo -e "${GREEN}Your Contacts:${NC}"
-    echo "$response" | jq -r '.[] | "\(.id). \(.name) (\(.relationship_type // "friend")) - \(.email // "no email")"'
-}
-
-add_contact() {
-    local name="$1"
-    if [ -z "$name" ]; then
-        echo -e "${RED}Error: Contact name required${NC}"
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
         exit 1
     fi
     
-    echo -e "${BLUE}Adding contact: $name${NC}"
-    
-    # Prompt for additional details
-    read -p "Nickname (optional): " nickname
-    read -p "Relationship type (friend/family/colleague): " rel_type
-    read -p "Birthday (YYYY-MM-DD, optional): " birthday
-    read -p "Email (optional): " email
-    read -p "Phone (optional): " phone
-    read -p "Notes (optional): " notes
-    read -p "Interests (comma-separated, optional): " interests
-    
-    # Convert interests to JSON array
-    if [ -n "$interests" ]; then
-        interests_json=$(echo "$interests" | jq -R 'split(",")')
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Personal Relationship Manager CLI${NC}"
+    echo "Manages contacts, reminders, interactions, and gift suggestions"
+    echo ""
+    echo "Usage: relationship-manager [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}contacts${NC}       Manage contacts"
+    echo -e "  ${GREEN}interactions${NC}   Manage interaction history"
+    echo -e "  ${GREEN}gifts${NC}          Manage gifts and suggestions"
+    echo -e "  ${GREEN}reminders${NC}      View and manage reminders"
+    echo -e "  ${GREEN}birthdays${NC}      Check upcoming birthdays"
+    echo -e "  ${GREEN}insights${NC}       Get relationship insights"
+    echo -e "  ${GREEN}health${NC}         Check service health"
+    echo ""
+    echo "Examples:"
+    echo "  relationship-manager contacts list"
+    echo "  relationship-manager contacts add --name \"John Doe\" --type friend"
+    echo "  relationship-manager interactions add 1 --type call --description \"Caught up\""
+    echo "  relationship-manager gifts suggest 1 --occasion birthday --budget \"50-100\""
+    echo "  relationship-manager birthdays --days 30"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo ""
+    echo "For more information: relationship-manager <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
     else
-        interests_json="[]"
+        cat
+    fi
+}
+
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
+    
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
     fi
     
-    # Create JSON payload
-    json_data=$(jq -n \
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
+    fi
+    
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
+}
+
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Contacts command
+cmd_contacts() {
+    local subcommand="${1:-list}"
+    shift 2>/dev/null || true
+    
+    case "$subcommand" in
+        list)
+            cmd_contacts_list "$@"
+            ;;
+        add)
+            cmd_contacts_add "$@"
+            ;;
+        view)
+            cmd_contacts_view "$@"
+            ;;
+        update)
+            cmd_contacts_update "$@"
+            ;;
+        delete)
+            cmd_contacts_delete "$@"
+            ;;
+        --help|-h)
+            echo "Usage: relationship-manager contacts [COMMAND] [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  list                List all contacts"
+            echo "  add                 Add a new contact"
+            echo "  view <id>           View contact details"
+            echo "  update <id>         Update contact information"
+            echo "  delete <id>         Delete a contact"
+            echo ""
+            echo "For more information: relationship-manager contacts <command> --help"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown contacts command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_contacts_list() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: relationship-manager contacts list [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📋 Fetching contacts...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/contacts")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count contacts:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "\(.id). \(.name) (\(.relationship_type // "friend")) - \(.email // "no email")"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No contacts found${NC}"
+        fi
+    fi
+}
+
+cmd_contacts_add() {
+    local name=""
+    local nickname=""
+    local rel_type=""
+    local birthday=""
+    local email=""
+    local phone=""
+    local notes=""
+    local interests=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --nickname)
+                nickname="$2"
+                shift 2
+                ;;
+            --type)
+                rel_type="$2"
+                shift 2
+                ;;
+            --birthday)
+                birthday="$2"
+                shift 2
+                ;;
+            --email)
+                email="$2"
+                shift 2
+                ;;
+            --phone)
+                phone="$2"
+                shift 2
+                ;;
+            --notes)
+                notes="$2"
+                shift 2
+                ;;
+            --interests)
+                interests="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: relationship-manager contacts add [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --name <name>           Contact name (required)"
+                echo "  --nickname <nickname>   Nickname"
+                echo "  --type <type>          Relationship type (friend/family/colleague)"
+                echo "  --birthday <date>       Birthday (YYYY-MM-DD)"
+                echo "  --email <email>         Email address"
+                echo "  --phone <phone>         Phone number"
+                echo "  --notes <notes>         Notes"
+                echo "  --interests <list>      Comma-separated interests"
+                echo "  --json                  Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Interactive mode if name not provided
+    if [[ -z "$name" ]]; then
+        read -p "Contact name (required): " name
+        [[ -z "$name" ]] && { echo -e "${RED}❌ Name is required${NC}" >&2; return 1; }
+        
+        read -p "Nickname (optional): " nickname
+        read -p "Relationship type (friend/family/colleague): " rel_type
+        read -p "Birthday (YYYY-MM-DD, optional): " birthday
+        read -p "Email (optional): " email
+        read -p "Phone (optional): " phone
+        read -p "Notes (optional): " notes
+        read -p "Interests (comma-separated, optional): " interests
+    fi
+    
+    # Convert interests to JSON array
+    local interests_json="[]"
+    if [[ -n "$interests" ]]; then
+        interests_json=$(echo "$interests" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    # Build request JSON
+    local request_body=$(jq -n \
         --arg name "$name" \
         --arg nickname "$nickname" \
         --arg rel_type "$rel_type" \
@@ -109,88 +297,255 @@ add_contact() {
             interests: $interests
         }')
     
-    response=$(curl -s -X POST "${API_URL}/api/contacts" \
-        -H "Content-Type: application/json" \
-        -d "$json_data")
+    echo -e "${BLUE}➕ Adding contact: $name${NC}"
     
-    if [ -n "$response" ]; then
-        echo -e "${GREEN}Contact added successfully!${NC}"
-        echo "$response" | jq '.'
+    local response
+    response=$(api_request "POST" "/api/contacts" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        echo -e "${RED}Failed to add contact${NC}"
+        local contact_id
+        contact_id=$(echo "$response" | jq -r '.id // "unknown"' 2>/dev/null)
+        echo -e "${GREEN}✅ Contact added successfully: $contact_id${NC}"
+        echo "   View: relationship-manager contacts view $contact_id"
     fi
 }
 
-view_contact() {
-    local id="$1"
-    if [ -z "$id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
-    fi
-    
-    echo -e "${BLUE}Fetching contact details...${NC}"
-    response=$(curl -s "${API_URL}/api/contacts/${id}")
-    
-    if [ -z "$response" ]; then
-        echo -e "${RED}Contact not found${NC}"
-        return
-    fi
-    
-    echo -e "${GREEN}Contact Details:${NC}"
-    echo "$response" | jq '.'
-}
-
-delete_contact() {
-    local id="$1"
-    if [ -z "$id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
-    fi
-    
-    read -p "Are you sure you want to delete contact $id? (y/n): " confirm
-    if [ "$confirm" != "y" ]; then
-        echo "Cancelled"
-        return
-    fi
-    
-    curl -s -X DELETE "${API_URL}/api/contacts/${id}"
-    echo -e "${GREEN}Contact deleted${NC}"
-}
-
-view_interactions() {
-    local id="$1"
-    if [ -z "$id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
-    fi
-    
-    echo -e "${BLUE}Fetching interaction history...${NC}"
-    response=$(curl -s "${API_URL}/api/contacts/${id}/interactions")
-    
-    if [ -z "$response" ] || [ "$response" = "[]" ]; then
-        echo -e "${YELLOW}No interactions found${NC}"
-        return
-    fi
-    
-    echo -e "${GREEN}Interaction History:${NC}"
-    echo "$response" | jq -r '.[] | "\(.interaction_date): \(.interaction_type) - \(.description)"'
-}
-
-add_interaction() {
+cmd_contacts_view() {
     local contact_id="$1"
-    if [ -z "$contact_id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
+    local json_output=false
+    
+    if [[ -z "$contact_id" || "$contact_id" == "--help" || "$contact_id" == "-h" ]]; then
+        echo "Usage: relationship-manager contacts view <id> [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  --json    Output in JSON format"
+        return 0
     fi
     
-    echo -e "${BLUE}Adding interaction for contact $contact_id${NC}"
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
     
-    read -p "Type (call/text/email/in-person/gift): " type
-    read -p "Date (YYYY-MM-DD): " date
-    read -p "Description: " description
-    read -p "Sentiment (positive/neutral/negative): " sentiment
+    echo -e "${BLUE}👤 Fetching contact details...${NC}"
     
-    json_data=$(jq -n \
+    local response
+    response=$(api_request "GET" "/api/contacts/${contact_id}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Contact Details:${NC}"
+        echo "$response" | format_json
+    fi
+}
+
+cmd_contacts_update() {
+    local contact_id="$1"
+    
+    if [[ -z "$contact_id" || "$contact_id" == "--help" || "$contact_id" == "-h" ]]; then
+        echo "Usage: relationship-manager contacts update <id>"
+        echo ""
+        echo "Note: Interactive update mode - you'll be prompted for new values"
+        return 0
+    fi
+    
+    echo -e "${YELLOW}⚠️  Update functionality not yet implemented in thin wrapper${NC}"
+    echo "   This requires interactive field editing which will be added in a future version"
+    echo "   For now, please use the web interface or API directly"
+}
+
+cmd_contacts_delete() {
+    local contact_id="$1"
+    local confirm=""
+    
+    if [[ -z "$contact_id" || "$contact_id" == "--help" || "$contact_id" == "-h" ]]; then
+        echo "Usage: relationship-manager contacts delete <id> [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  --yes    Skip confirmation prompt"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --yes)
+                confirm="y"
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ "$confirm" != "y" ]]; then
+        read -p "Are you sure you want to delete contact $contact_id? (y/n): " confirm
+        [[ "$confirm" != "y" ]] && { echo "Cancelled"; return 0; }
+    fi
+    
+    echo -e "${BLUE}🗑️  Deleting contact $contact_id...${NC}"
+    
+    api_request "DELETE" "/api/contacts/${contact_id}"
+    echo -e "${GREEN}✅ Contact deleted${NC}"
+}
+
+# Interactions command
+cmd_interactions() {
+    local subcommand="${1:-list}"
+    local contact_id="${2:-}"
+    
+    if [[ -z "$contact_id" && "$subcommand" != "--help" && "$subcommand" != "-h" ]]; then
+        echo -e "${RED}❌ Error: Contact ID required${NC}" >&2
+        echo "   Usage: relationship-manager interactions <command> <contact-id>" >&2
+        return 1
+    fi
+    
+    shift 2 2>/dev/null || true
+    
+    case "$subcommand" in
+        list)
+            cmd_interactions_list "$contact_id" "$@"
+            ;;
+        add)
+            cmd_interactions_add "$contact_id" "$@"
+            ;;
+        --help|-h)
+            echo "Usage: relationship-manager interactions [COMMAND] <contact-id> [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  list <id>     List interactions for contact"
+            echo "  add <id>      Add new interaction"
+            echo ""
+            echo "Examples:"
+            echo "  relationship-manager interactions list 1"
+            echo "  relationship-manager interactions add 1 --type call --description \"Caught up\""
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown interactions command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_interactions_list() {
+    local contact_id="$1"
+    local json_output=false
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}💬 Fetching interaction history...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/contacts/${contact_id}/interactions")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count interactions:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "\(.interaction_date): \(.interaction_type) - \(.description)"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No interactions found${NC}"
+        fi
+    fi
+}
+
+cmd_interactions_add() {
+    local contact_id="$1"
+    local type=""
+    local date=""
+    local description=""
+    local sentiment=""
+    local json_output=false
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --date)
+                date="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --sentiment)
+                sentiment="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: relationship-manager interactions add <contact-id> [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --type <type>           Interaction type (call/text/email/in-person/gift)"
+                echo "  --date <date>           Date (YYYY-MM-DD, defaults to today)"
+                echo "  --description <desc>    Description"
+                echo "  --sentiment <sent>      Sentiment (positive/neutral/negative)"
+                echo "  --json                  Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Interactive mode if not provided
+    if [[ -z "$type" ]]; then
+        read -p "Type (call/text/email/in-person/gift): " type
+        [[ -z "$type" ]] && { echo -e "${RED}❌ Type is required${NC}" >&2; return 1; }
+    fi
+    
+    if [[ -z "$date" ]]; then
+        read -p "Date (YYYY-MM-DD, press enter for today): " date
+        [[ -z "$date" ]] && date=$(date +%Y-%m-%d)
+    fi
+    
+    if [[ -z "$description" ]]; then
+        read -p "Description: " description
+        [[ -z "$description" ]] && { echo -e "${RED}❌ Description is required${NC}" >&2; return 1; }
+    fi
+    
+    if [[ -z "$sentiment" ]]; then
+        read -p "Sentiment (positive/neutral/negative): " sentiment
+    fi
+    
+    # Build request JSON
+    local request_body=$(jq -n \
         --arg contact_id "$contact_id" \
         --arg type "$type" \
         --arg date "$date" \
@@ -204,148 +559,367 @@ add_interaction() {
             sentiment: $sentiment
         }')
     
-    response=$(curl -s -X POST "${API_URL}/api/interactions" \
-        -H "Content-Type: application/json" \
-        -d "$json_data")
+    echo -e "${BLUE}💬 Adding interaction for contact $contact_id...${NC}"
     
-    echo -e "${GREEN}Interaction logged!${NC}"
+    local response
+    response=$(api_request "POST" "/api/interactions" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Interaction logged successfully!${NC}"
+    fi
 }
 
-view_gifts() {
-    local id="$1"
-    if [ -z "$id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
+# Gifts command
+cmd_gifts() {
+    local subcommand="${1:-list}"
+    local contact_id="${2:-}"
+    
+    if [[ -z "$contact_id" && "$subcommand" != "--help" && "$subcommand" != "-h" ]]; then
+        echo -e "${RED}❌ Error: Contact ID required${NC}" >&2
+        echo "   Usage: relationship-manager gifts <command> <contact-id>" >&2
+        return 1
     fi
     
-    echo -e "${BLUE}Fetching gift ideas and history...${NC}"
-    response=$(curl -s "${API_URL}/api/contacts/${id}/gifts")
+    shift 2 2>/dev/null || true
     
-    if [ -z "$response" ] || [ "$response" = "[]" ]; then
-        echo -e "${YELLOW}No gifts found${NC}"
-        return
+    case "$subcommand" in
+        list)
+            cmd_gifts_list "$contact_id" "$@"
+            ;;
+        suggest)
+            cmd_gifts_suggest "$contact_id" "$@"
+            ;;
+        --help|-h)
+            echo "Usage: relationship-manager gifts [COMMAND] <contact-id> [OPTIONS]"
+            echo ""
+            echo "Commands:"
+            echo "  list <id>       List gifts for contact"
+            echo "  suggest <id>    Get AI gift suggestions"
+            echo ""
+            echo "Examples:"
+            echo "  relationship-manager gifts list 1"
+            echo "  relationship-manager gifts suggest 1 --occasion birthday --budget \"50-100\""
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown gifts command: $subcommand${NC}" >&2
+            return 1
+            ;;
+    esac
+}
+
+cmd_gifts_list() {
+    local contact_id="$1"
+    local json_output=false
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🎁 Fetching gift ideas and history...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/contacts/${contact_id}/gifts")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count gifts:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "\(.status): \(.gift_name) - $\(.price) (\(.occasion))"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No gifts found${NC}"
+        fi
+    fi
+}
+
+cmd_gifts_suggest() {
+    local contact_id="$1"
+    local occasion="birthday"
+    local budget="50-100"
+    local json_output=false
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --occasion)
+                occasion="$2"
+                shift 2
+                ;;
+            --budget)
+                budget="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: relationship-manager gifts suggest <contact-id> [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --occasion <occasion>   Occasion (birthday/christmas/anniversary/etc)"
+                echo "  --budget <range>        Budget range (e.g., \"50-100\")"
+                echo "  --json                  Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Build request JSON
+    local request_body=$(jq -n \
+        --arg occasion "$occasion" \
+        --arg budget "$budget" \
+        '{
+            occasion: $occasion,
+            budget: $budget
+        }')
+    
+    echo -e "${BLUE}🤖 Getting AI gift suggestions for contact $contact_id...${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/contacts/${contact_id}/gifts/suggest" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Gift suggestions generated:${NC}"
+        echo "$response" | format_json
+    fi
+}
+
+# Reminders command
+cmd_reminders() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: relationship-manager reminders [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}⏰ Fetching upcoming reminders...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/reminders")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count upcoming reminders:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | jq -r '.[] | "\(.reminder_date): \(.contact_name) - \(.message)"' 2>/dev/null
+        else
+            echo -e "${YELLOW}No upcoming reminders${NC}"
+        fi
+    fi
+}
+
+# Birthdays command
+cmd_birthdays() {
+    local days_ahead=7
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --days)
+                days_ahead="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: relationship-manager birthdays [OPTIONS]"
+                echo ""
+                echo "Options:"
+                echo "  --days <num>    Days ahead to check (default: 7)"
+                echo "  --json          Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🎂 Checking upcoming birthdays (${days_ahead} days ahead)...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/birthdays?days_ahead=${days_ahead}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        local count=$(echo "$response" | jq '. | length' 2>/dev/null || echo "0")
+        echo -e "${GREEN}✅ Found $count upcoming birthdays:${NC}"
+        echo ""
+        
+        if [[ $count -gt 0 ]]; then
+            echo "$response" | format_json
+        else
+            echo -e "${YELLOW}No upcoming birthdays${NC}"
+        fi
+    fi
+}
+
+# Insights command
+cmd_insights() {
+    local contact_id="$1"
+    local json_output=false
+    
+    if [[ -z "$contact_id" || "$contact_id" == "--help" || "$contact_id" == "-h" ]]; then
+        echo "Usage: relationship-manager insights <contact-id> [OPTIONS]"
+        echo ""
+        echo "Options:"
+        echo "  --json    Output in JSON format"
+        return 0
     fi
     
-    echo -e "${GREEN}Gift Ideas & History:${NC}"
-    echo "$response" | jq -r '.[] | "\(.status): \(.gift_name) - $\(.price) (\(.occasion))"'
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🔍 Analyzing relationship with contact $contact_id...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/contacts/${contact_id}/insights")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Relationship Insights:${NC}"
+        echo "$response" | format_json
+    fi
 }
 
-suggest_gift() {
-    local id="$1"
-    if [ -z "$id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
+# Health check command
+cmd_health() {
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health" 2>/dev/null)
+    
+    if echo "$response" | grep -q "healthy"; then
+        echo -e "${GREEN}✅ Personal Relationship Manager is healthy${NC}"
+        echo "   API: ${api_url}"
+    else
+        echo -e "${RED}❌ Personal Relationship Manager health check failed${NC}"
+        echo "   Response: $response"
+        return 1
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
     fi
     
-    echo -e "${BLUE}Getting gift suggestions for contact $id...${NC}"
+    shift
     
-    # Get contact details first
-    contact=$(curl -s "${API_URL}/api/contacts/${id}")
-    name=$(echo "$contact" | jq -r '.name')
-    interests=$(echo "$contact" | jq -r '.interests | join(", ")')
-    
-    # Trigger gift suggestion workflow
-    response=$(curl -s -X POST "http://localhost:5678/webhook/gift-suggester" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"contact_id\": $id,
-            \"name\": \"$name\",
-            \"interests\": \"$interests\",
-            \"occasion\": \"birthday\",
-            \"budget\": \"50-100\"
-        }")
-    
-    echo -e "${GREEN}Gift suggestions generated!${NC}"
-    echo "Check the gifts list to see new ideas"
+    case "$command" in
+        contacts)
+            cmd_contacts "$@"
+            ;;
+        interactions)
+            cmd_interactions "$@"
+            ;;
+        gifts)
+            cmd_gifts "$@"
+            ;;
+        reminders)
+            cmd_reminders "$@"
+            ;;
+        birthdays)
+            cmd_birthdays "$@"
+            ;;
+        insights)
+            cmd_insights "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        --version|-v|version)
+            echo "Personal Relationship Manager CLI v2.0.0 (thin wrapper)"
+            ;;
+        
+        # Legacy commands for backward compatibility
+        list)
+            echo -e "${YELLOW}⚠️  'list' is deprecated. Use 'contacts list' instead${NC}"
+            cmd_contacts_list "$@"
+            ;;
+        add)
+            echo -e "${YELLOW}⚠️  'add' is deprecated. Use 'contacts add' instead${NC}"
+            cmd_contacts_add "$@"
+            ;;
+        view)
+            echo -e "${YELLOW}⚠️  'view' is deprecated. Use 'contacts view' instead${NC}"
+            cmd_contacts_view "$@"
+            ;;
+        delete)
+            echo -e "${YELLOW}⚠️  'delete' is deprecated. Use 'contacts delete' instead${NC}"
+            cmd_contacts_delete "$@"
+            ;;
+            
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
+            exit 1
+            ;;
+    esac
 }
 
-view_reminders() {
-    echo -e "${BLUE}Fetching upcoming reminders...${NC}"
-    response=$(curl -s "${API_URL}/api/reminders")
-    
-    if [ -z "$response" ] || [ "$response" = "[]" ]; then
-        echo -e "${YELLOW}No upcoming reminders${NC}"
-        return
-    fi
-    
-    echo -e "${GREEN}Upcoming Reminders:${NC}"
-    echo "$response" | jq -r '.[] | "\(.reminder_date): \(.contact_name) - \(.message)"'
-}
-
-check_birthdays() {
-    echo -e "${BLUE}Checking upcoming birthdays...${NC}"
-    
-    # Trigger birthday reminder workflow
-    response=$(curl -s -X POST "http://localhost:5678/webhook/birthday-reminder" \
-        -H "Content-Type: application/json" \
-        -d '{"days_ahead": 30}')
-    
-    echo -e "${GREEN}Birthday check complete!${NC}"
-    echo "View reminders to see upcoming birthdays"
-}
-
-get_insights() {
-    local id="$1"
-    if [ -z "$id" ]; then
-        echo -e "${RED}Error: Contact ID required${NC}"
-        exit 1
-    fi
-    
-    echo -e "${BLUE}Analyzing relationship with contact $id...${NC}"
-    
-    # Trigger insights workflow
-    response=$(curl -s -X POST "http://localhost:5678/webhook/relationship-insights" \
-        -H "Content-Type: application/json" \
-        -d "{\"contact_id\": $id}")
-    
-    echo -e "${GREEN}Relationship Insights:${NC}"
-    echo "$response" | jq '.'
-}
-
-# Main command handling
-case "$1" in
-    list)
-        list_contacts
-        ;;
-    add)
-        add_contact "$2"
-        ;;
-    view)
-        view_contact "$2"
-        ;;
-    update)
-        echo "Update functionality coming soon"
-        ;;
-    delete)
-        delete_contact "$2"
-        ;;
-    interactions)
-        view_interactions "$2"
-        ;;
-    add-interaction)
-        add_interaction "$2"
-        ;;
-    gifts)
-        view_gifts "$2"
-        ;;
-    suggest-gift)
-        suggest_gift "$2"
-        ;;
-    reminders)
-        view_reminders
-        ;;
-    birthdays)
-        check_birthdays
-        ;;
-    insights)
-        get_insights "$2"
-        ;;
-    help|--help|-h)
-        show_help
-        ;;
-    *)
-        echo -e "${RED}Unknown command: $1${NC}"
-        show_help
-        exit 1
-        ;;
-esac
+# Run main function
+main "$@"

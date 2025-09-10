@@ -248,6 +248,16 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	// Read output from stdout and stderr
 	output, err := io.ReadAll(stdoutPipe)
 	if err != nil {
+		// Ensure process is terminated on read error
+		log.Printf("Failed to read stdout for task %s, terminating process: %v", task.ID, err)
+		if cancel != nil {
+			cancel() // Signal context cancellation
+		}
+		// Give process time to exit gracefully, then force kill if needed
+		time.Sleep(100 * time.Millisecond)
+		if cmd.Process != nil && cmd.ProcessState == nil {
+			cmd.Process.Kill()
+		}
 		return &tasks.ClaudeCodeResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to read output: %v", err),

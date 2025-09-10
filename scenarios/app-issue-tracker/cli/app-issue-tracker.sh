@@ -1,755 +1,1014 @@
-#!/usr/bin/env bash
-# App Issue Tracker CLI v2 - File-Based Issue Management
-# Supports both API mode and direct file operations
+#!/bin/bash
+################################################################################
+# App Issue Tracker CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
 
-set -euo pipefail
-
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-SCRIPT_DIR="${APP_ROOT}/scenarios/app-issue-tracker/cli"
-ISSUES_DIR="${APP_ROOT}/scenarios/app-issue-tracker/issues"
+set -e
 
 # Configuration
-API_URL="${ISSUE_TRACKER_API_URL:-http://localhost:8090/api}"
-API_TOKEN="${ISSUE_TRACKER_API_TOKEN:-}"
-CONFIG_FILE="${HOME}/.config/vrooli/app-issue-tracker-config.json"
-MODE="${APP_ISSUE_TRACKER_MODE:-auto}"  # auto|api|file
+SCENARIO_NAME="app-issue-tracker"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-CYAN='\033[1;36m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Helper functions
-log_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}✗${NC} $1"
-}
-
-# Determine operation mode
-detect_mode() {
-    if [[ "$MODE" == "file" ]]; then
-        echo "file"
-        return
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
     fi
     
-    if [[ "$MODE" == "api" ]]; then
-        echo "api"
-        return
-    fi
-    
-    # Auto-detect: try API first, fallback to file
-    if curl -s "$API_URL/../health" >/dev/null 2>&1; then
-        echo "api"
+    echo "http://localhost:${api_port}"
+}
+
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}🐛 App Issue Tracker CLI${NC}"
+    echo "File-based issue management with AI investigation and automated fixes"
+    echo ""
+    echo "Usage: app-issue-tracker [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}create${NC}       Create a new issue with detailed context"
+    echo -e "  ${GREEN}list${NC}         List issues with powerful filtering options"
+    echo -e "  ${GREEN}show${NC}         Show comprehensive issue details"
+    echo -e "  ${GREEN}investigate${NC}  Trigger AI-powered issue investigation"
+    echo -e "  ${GREEN}search${NC}       Search issues by text or semantic content"
+    echo -e "  ${GREEN}fix${NC}          Generate and apply automated fixes"
+    echo -e "  ${GREEN}agents${NC}       Manage AI investigation agents"
+    echo -e "  ${GREEN}apps${NC}         View app-specific issue statistics"
+    echo -e "  ${GREEN}stats${NC}        View comprehensive issue analytics"
+    echo -e "  ${GREEN}health${NC}       Check service health and storage status"
+    echo ""
+    echo "Examples:"
+    echo "  app-issue-tracker create --title \"Auth timeout bug\" --type bug --priority critical"
+    echo "  app-issue-tracker list --status open --priority high"
+    echo "  app-issue-tracker investigate issue-abc123 --agent deep-investigator"
+    echo "  app-issue-tracker search \"authentication timeout\""
+    echo "  app-issue-tracker fix issue-abc123 --auto-apply"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo "  --mode           Force operation mode (api|file|auto)"
+    echo ""
+    echo "For more information: app-issue-tracker <command> --help"
+}
+
+# Format JSON output if jq is available
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq .
     else
-        echo "file"
+        cat
     fi
 }
 
-show_help() {
-    cat << EOF
-${CYAN}🐛 App Issue Tracker CLI v2${NC}
-${CYAN}File-Based Issue Management${NC}
-
-Usage: app-issue-tracker <command> [options]
-
-Commands:
-  ${GREEN}create${NC}       Create a new issue
-  ${GREEN}list${NC}         List issues with filters  
-  ${GREEN}show${NC}         Show full details of an issue
-  ${GREEN}move${NC}         Move issue between status folders
-  ${GREEN}investigate${NC}  Trigger AI investigation for an issue
-  ${GREEN}search${NC}       Search issues by text or semantically
-  ${GREEN}priority${NC}     Change issue priority
-  ${GREEN}stats${NC}        Show statistics and metrics
-  ${GREEN}config${NC}       Configure CLI settings
-  ${GREEN}files${NC}        Direct file management commands
-
-Options:
-  -h, --help   Show this help message
-  --mode       Force mode: auto|api|file (default: auto)
-
-Examples:
-  # Create a new issue
-  app-issue-tracker create --title "Auth timeout bug" --type bug --priority critical
-
-  # List open critical issues
-  app-issue-tracker list --status open --priority critical
-
-  # Show full issue details
-  app-issue-tracker show 001-auth-timeout-bug.yaml
-
-  # Move issue to investigation
-  app-issue-tracker move 001-auth-timeout-bug.yaml investigating
-
-  # Start investigation
-  app-issue-tracker investigate issue-abc123 --agent deep-investigator
-
-  # Search for issues
-  app-issue-tracker search "authentication timeout"
-
-  # Change priority
-  app-issue-tracker priority 500-minor-bug.yaml critical
-
-  # Direct file operations
-  app-issue-tracker files status           # Show file counts
-  app-issue-tracker files add              # Interactive add
-  app-issue-tracker files archive 30       # Archive old issues
-
-Mode Selection:
-  API Mode:    Uses HTTP API (requires API server running)
-  File Mode:   Direct file operations (works offline)
-  Auto Mode:   Tries API first, falls back to file operations
-
-EOF
-}
-
-# Load configuration
-load_config() {
-    if [ -f "$CONFIG_FILE" ]; then
-        API_TOKEN=$(jq -r '.api_token // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
-        API_URL=$(jq -r '.api_url // empty' "$CONFIG_FILE" 2>/dev/null || echo "$API_URL")
-        MODE=$(jq -r '.mode // "auto"' "$CONFIG_FILE" 2>/dev/null || echo "auto")
-    fi
-}
-
-# Save configuration  
-save_config() {
-    local token=$1
-    local url=$2
-    local mode=$3
-    
-    mkdir -p "${CONFIG_FILE%/*}"
-    cat > "$CONFIG_FILE" << EOF
-{
-  "api_token": "$token",
-  "api_url": "$url",
-  "mode": "$mode"
-}
-EOF
-    log_success "Configuration saved to $CONFIG_FILE"
-}
-
-# API request helper
+# Make API request
 api_request() {
-    local method=$1
-    local endpoint=$2
-    local data=${3:-}
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
     
-    local auth_header=""
-    if [ -n "$API_TOKEN" ]; then
-        auth_header="-H \"X-API-Token: $API_TOKEN\""
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
     fi
     
-    local response
-    if [ -n "$data" ]; then
-        response=$(curl -s -X "$method" \
-            "$API_URL/$endpoint" \
-            -H "Content-Type: application/json" \
-            $auth_header \
-            -d "$data")
-    else
-        response=$(curl -s -X "$method" \
-            "$API_URL/$endpoint" \
-            -H "Content-Type: application/json" \
-            $auth_header)
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
     fi
     
-    echo "$response"
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
 }
 
-# File operations for direct mode
+# Detect mode (always use API for thin wrapper)
+detect_mode() {
+    echo "api"
+}
 
-file_create_issue() {
-    local title="" description="" type="bug" priority="medium"
-    local error_message="" stack_trace="" tags=""
-    local reporter_name="" reporter_email=""
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Create issue command
+cmd_create() {
+    local title=""
+    local description=""
+    local type="bug"
+    local priority="medium"
+    local app_id=""
+    local error_message=""
+    local stack_trace=""
+    local tags=""
+    local reporter_name=""
+    local reporter_email=""
+    local environment=""
+    local json_output=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --title) title="$2"; shift 2 ;;
-            --description) description="$2"; shift 2 ;;
-            --type) type="$2"; shift 2 ;;
-            --priority) priority="$2"; shift 2 ;;
-            --error) error_message="$2"; shift 2 ;;
-            --stack) stack_trace="$2"; shift 2 ;;
-            --tags) tags="$2"; shift 2 ;;
-            --reporter-name) reporter_name="$2"; shift 2 ;;
-            --reporter-email) reporter_email="$2"; shift 2 ;;
-            *) shift ;;
+            --title)
+                title="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --app-id)
+                app_id="$2"
+                shift 2
+                ;;
+            --error)
+                error_message="$2"
+                shift 2
+                ;;
+            --stack)
+                stack_trace="$2"
+                shift 2
+                ;;
+            --tags)
+                tags="$2"
+                shift 2
+                ;;
+            --reporter-name)
+                reporter_name="$2"
+                shift 2
+                ;;
+            --reporter-email)
+                reporter_email="$2"
+                shift 2
+                ;;
+            --environment)
+                environment="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker create [OPTIONS]"
+                echo ""
+                echo "Create a new issue with comprehensive details"
+                echo ""
+                echo "Options:"
+                echo "  --title <title>             Issue title (required)"
+                echo "  --description <desc>        Detailed description"
+                echo "  --type <type>              Issue type (bug/feature/performance/security)"
+                echo "  --priority <priority>       Priority (critical/high/medium/low)"
+                echo "  --app-id <id>              Application identifier"
+                echo "  --error <message>          Error message that occurred"
+                echo "  --stack <trace>            Stack trace information"
+                echo "  --tags <list>              Comma-separated tags"
+                echo "  --reporter-name <name>     Reporter's name"
+                echo "  --reporter-email <email>   Reporter's email"
+                echo "  --environment <env>        Environment details (JSON)"
+                echo "  --json                     Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  app-issue-tracker create --title \"Database timeout\" --type bug --priority high"
+                echo "  app-issue-tracker create --title \"Add SSO\" --type feature --app-id auth-service"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
         esac
     done
     
+    # Interactive mode if title not provided
     if [[ -z "$title" ]]; then
-        log_error "Title is required"
-        exit 1
+        read -p "Issue title (required): " title
+        [[ -z "$title" ]] && { echo -e "${RED}❌ Title is required${NC}" >&2; return 1; }
+        
+        read -p "Description: " description
+        read -p "Type [bug/feature/performance/security]: " type_input
+        [[ -n "$type_input" ]] && type="$type_input"
+        
+        read -p "Priority [critical/high/medium/low]: " priority_input
+        [[ -n "$priority_input" ]] && priority="$priority_input"
+        
+        read -p "App ID (optional): " app_id
+        read -p "Error message (optional): " error_message
+        read -p "Tags (comma-separated, optional): " tags
+        read -p "Reporter name (optional): " reporter_name
+        read -p "Reporter email (optional): " reporter_email
     fi
     
-    # Generate priority number and filename
-    local priority_num
-    case "$priority" in
-        critical) priority_num=001 ;;
-        high) priority_num=100 ;;
-        medium) priority_num=200 ;;
-        low) priority_num=500 ;;
-        *) priority_num=200 ;;
-    esac
-    
-    # Create safe filename
-    local safe_title=$(echo "$title" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g')
-    local filename="${priority_num}-${safe_title}.yaml"
-    local filepath="$ISSUES_DIR/open/$filename"
-    
-    # Check if file exists, find next available number
-    local counter=$priority_num
-    while [[ -f "$filepath" ]]; do
-        ((counter++))
-        filename=$(printf "%03d-%s.yaml" "$counter" "$safe_title")
-        filepath="$ISSUES_DIR/open/$filename"
-    done
-    
-    # Generate issue ID
-    local issue_id="issue-$(date +%Y%m%d-%H%M%S)-$(echo "$safe_title" | head -c 10)"
-    
-    # Select template
-    local template_file="$ISSUES_DIR/templates/bug-template.yaml"
-    case "$type" in
-        feature) template_file="$ISSUES_DIR/templates/feature-template.yaml" ;;
-        performance) template_file="$ISSUES_DIR/templates/performance-template.yaml" ;;
-    esac
-    
-    if [[ ! -f "$template_file" ]]; then
-        log_error "Template not found: $template_file"
-        exit 1
-    fi
-    
-    # Create issue from template
-    cp "$template_file" "$filepath"
-    
-    # Update with actual values
-    local timestamp=$(date -Iseconds)
-    sed -i "s/unique-.*-id/$issue_id/g" "$filepath"
-    sed -i "s/title: \".*\"/title: \"$title\"/g" "$filepath" 
-    sed -i "s/description: \".*\"/description: \"${description:-$title}\"/g" "$filepath"
-    sed -i "s/priority: .*/priority: $priority/g" "$filepath"
-    sed -i "s/type: .*/type: $type/g" "$filepath"
-    sed -i "s/YYYY-MM-DDTHH:MM:SSZ/$timestamp/g" "$filepath"
-    
-    # Update reporter info
-    [[ -n "$reporter_name" ]] && sed -i "s/Reporter Name/$reporter_name/g" "$filepath"
-    [[ -n "$reporter_email" ]] && sed -i "s/reporter@domain.com/$reporter_email/g" "$filepath"
-    
-    # Add error context
-    if [[ -n "$error_message" ]]; then
-        sed -i "s/error_message: \".*\"/error_message: \"$error_message\"/g" "$filepath"
-    fi
-    
-    # Add tags
-    if [[ -n "$tags" ]]; then
-        local tag_array=$(echo "$tags" | tr ',' '\n' | sed 's/^/    - "/' | sed 's/$/"/')
-        sed -i "/tags:/,/labels:/{/tags:/!{/labels:/!d;};/tags:/a\\$tag_array" "$filepath"
-    fi
-    
-    log_success "Issue created: $filename"
-    echo "Location: $filepath"
-    echo "ID: $issue_id"
-}
-
-file_list_issues() {
-    local status="${1:-open}"
-    
-    if [[ ! -d "$ISSUES_DIR/$status" ]]; then
-        log_error "Invalid status folder: $status"
-        exit 1
-    fi
-    
-    echo -e "${CYAN}📋 Issues in $status:${NC}"
-    echo
-    
-    local count=0
-    for file in "$ISSUES_DIR/$status"/*.yaml; do
-        if [[ -f "$file" ]]; then
-            local filename=$(basename "$file")
-            local title=$(grep "^title:" "$file" | sed 's/title: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
-            local priority=$(grep "^priority:" "$file" | sed 's/priority: *//')
-            local type=$(grep "^type:" "$file" | sed 's/type: *//')
-            local app_id=$(grep "^app_id:" "$file" | sed 's/app_id: *"\?\(.*\)"\?/\1/' | sed 's/"$//')
-            local created=$(grep "created_at:" "$file" | sed 's/.*created_at: *"\?\(.*\)"\?/\1/' | sed 's/"$//' | head -1)
-            
-            # Color by priority
-            case "$priority" in
-                critical) priority_color="${RED}" ;;
-                high) priority_color="${YELLOW}" ;;
-                medium) priority_color="${BLUE}" ;;
-                *) priority_color="${GREEN}" ;;
-            esac
-            
-            # Type icon
-            case "$type" in
-                bug) type_icon="🐛" ;;
-                feature) type_icon="✨" ;;
-                performance) type_icon="⚡" ;;
-                security) type_icon="🔒" ;;
-                *) type_icon="📝" ;;
-            esac
-            
-            echo -e "${priority_color}●${NC} $filename"
-            echo -e "  $type_icon ${title}"
-            echo -e "  App: ${app_id} | Priority: ${priority_color}${priority}${NC} | Created: ${created}"
-            echo
-            ((count++))
-        fi
-    done
-    
-    if [[ $count -eq 0 ]]; then
-        log_info "No issues found in $status/"
-    else
-        log_info "Found $count issues in $status"
-    fi
-}
-
-# Unified create command (tries API first, falls back to file)
-create_issue() {
-    local mode=$(detect_mode)
-    
-    if [[ "$mode" == "api" ]]; then
-        create_issue_api "$@"
-    else
-        log_warning "API not available, using file mode"
-        file_create_issue "$@"
-    fi
-}
-
-create_issue_api() {
-    local title="" description="" type="bug" priority="medium"
-    local error_message="" stack_trace="" tags=""
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --title) title="$2"; shift 2 ;;
-            --description) description="$2"; shift 2 ;;
-            --type) type="$2"; shift 2 ;;
-            --priority) priority="$2"; shift 2 ;;
-            --error) error_message="$2"; shift 2 ;;
-            --stack) stack_trace="$2"; shift 2 ;;
-            --tags) tags="$2"; shift 2 ;;
-            *) shift ;;
-        esac
-    done
-    
-    if [ -z "$title" ]; then
-        log_error "Title is required"
-        echo "Usage: app-issue-tracker create --title \"Issue title\" [options]"
-        exit 1
-    fi
-    
+    # Default description to title if empty
     [[ -z "$description" ]] && description="$title"
     
-    # Build JSON payload
-    local json_data
-    json_data=$(jq -n \
+    # Parse environment JSON if provided
+    local env_obj="{}"
+    if [[ -n "$environment" ]]; then
+        # Try to parse as JSON, otherwise create simple object
+        if echo "$environment" | jq empty 2>/dev/null; then
+            env_obj="$environment"
+        else
+            env_obj="{\"description\": \"$environment\"}"
+        fi
+    fi
+    
+    # Parse tags into array
+    local tags_array="[]"
+    if [[ -n "$tags" ]]; then
+        tags_array=$(echo "$tags" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";"")) | map(select(. != ""))')
+    fi
+    
+    # Build request JSON
+    local request_body=$(jq -n \
         --arg title "$title" \
-        --arg desc "$description" \
+        --arg description "$description" \
         --arg type "$type" \
         --arg priority "$priority" \
-        --arg error "$error_message" \
-        --arg stack "$stack_trace" \
-        --arg tags "$tags" \
+        --arg app_id "$app_id" \
+        --arg error_message "$error_message" \
+        --arg stack_trace "$stack_trace" \
+        --arg reporter_name "$reporter_name" \
+        --arg reporter_email "$reporter_email" \
+        --argjson tags "$tags_array" \
+        --argjson environment "$env_obj" \
         '{
             title: $title,
-            description: $desc,
+            description: $description,
             type: $type,
             priority: $priority,
-            error_message: $error,
-            stack_trace: $stack,
-            tags: ($tags | split(",") | map(select(. != "")))
+            app_id: $app_id,
+            error_message: $error_message,
+            stack_trace: $stack_trace,
+            tags: $tags,
+            reporter_name: $reporter_name,
+            reporter_email: $reporter_email,
+            environment: $environment
         }')
     
-    log_info "Creating issue via API..."
-    local response=$(api_request "POST" "issues" "$json_data")
+    echo -e "${BLUE}📝 Creating issue...${NC}"
     
-    if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-        local issue_id=$(echo "$response" | jq -r '.data.issue_id')
-        local filename=$(echo "$response" | jq -r '.data.filename')
-        log_success "Issue created successfully"
-        echo "Issue ID: $issue_id"
-        echo "File: $filename"
+    local response
+    response=$(api_request "POST" "/api/issues" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        log_error "Failed to create issue via API"
-        echo "$response" | jq -r '.message // "Unknown error"'
-        log_warning "Falling back to file mode..."
-        file_create_issue "$@"
+        if echo "$response" | grep -q "success.*true"; then
+            echo -e "${GREEN}✅ Issue created successfully${NC}"
+            local issue_id
+            local filename
+            issue_id=$(echo "$response" | jq -r '.data.issue_id // "unknown"' 2>/dev/null)
+            filename=$(echo "$response" | jq -r '.data.filename // "unknown"' 2>/dev/null)
+            echo "   Issue ID: $issue_id"
+            echo "   Filename: $filename"
+            echo "   Title: $title"
+            echo "   Priority: $priority"
+        else
+            echo -e "${RED}❌ Failed to create issue${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
     fi
 }
 
-# Unified list command
-list_issues() {
-    local mode=$(detect_mode)
-    
-    if [[ "$mode" == "api" ]]; then
-        list_issues_api "$@"
-    else
-        file_list_issues "$@"
-    fi
-}
-
-list_issues_api() {
-    local status="" priority="" type="" limit="20"
+# List issues command
+cmd_list() {
+    local status=""
+    local priority=""
+    local type=""
+    local limit="20"
+    local json_output=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --status) status="$2"; shift 2 ;;
-            --priority) priority="$2"; shift 2 ;;
-            --type) type="$2"; shift 2 ;;
-            --limit) limit="$2"; shift 2 ;;
-            *) shift ;;
+            --status)
+                status="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker list [OPTIONS]"
+                echo ""
+                echo "List issues with powerful filtering capabilities"
+                echo ""
+                echo "Options:"
+                echo "  --status <status>     Filter by status (open/investigating/in-progress/fixed/closed/failed)"
+                echo "  --priority <priority> Filter by priority (critical/high/medium/low)"
+                echo "  --type <type>         Filter by type (bug/feature/performance/security)"
+                echo "  --limit <num>         Maximum number of results (default: 20)"
+                echo "  --json                Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  app-issue-tracker list --status open --priority critical"
+                echo "  app-issue-tracker list --type bug --limit 10"
+                echo "  app-issue-tracker list --json | jq '.data.issues[] | .title'"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
         esac
     done
     
-    # Build query parameters
+    local endpoint="/api/issues"
     local query_params=""
-    [ -n "$status" ] && query_params="${query_params}&status=$status"
-    [ -n "$priority" ] && query_params="${query_params}&priority=$priority"
-    [ -n "$type" ] && query_params="${query_params}&type=$type"
-    query_params="${query_params}&limit=$limit"
-    query_params="${query_params#&}"
     
-    log_info "Fetching issues via API..."
-    local response=$(api_request "GET" "issues?$query_params")
+    [[ -n "$status" ]] && query_params="${query_params:+$query_params&}status=$status"
+    [[ -n "$priority" ]] && query_params="${query_params:+$query_params&}priority=$priority"
+    [[ -n "$type" ]] && query_params="${query_params:+$query_params&}type=$type"
+    query_params="${query_params:+$query_params&}limit=$limit"
+    [[ -n "$query_params" ]] && endpoint="${endpoint}?${query_params}"
     
-    if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-        local count=$(echo "$response" | jq -r '.data.count')
-        log_success "Found $count issues"
-        echo ""
-        
-        echo "$response" | jq -r '.data.issues[] | 
-            "[\(.priority | ascii_upcase)] \(.title)\n  Status: \(.status) | Type: \(.type) | App: \(.app_id)\n  ID: \(.id)\n"'
+    echo -e "${BLUE}📋 Fetching issues...${NC}"
+    
+    local response
+    response=$(api_request "GET" "$endpoint")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
     else
-        log_error "API request failed, trying file mode..."
-        file_list_issues "$status"
-    fi
-}
-
-# Show issue details (file mode only for now)
-show_issue() {
-    local filename="$1"
-    if [[ -z "$filename" ]]; then
-        log_error "Filename required"
-        echo "Usage: app-issue-tracker show <filename>"
-        exit 1
-    fi
-    
-    # Find file in any folder
-    local found="" file_path=""
-    for folder in open investigating in-progress fixed closed failed; do
-        local test_path="$ISSUES_DIR/$folder/$filename"
-        if [[ -f "$test_path" ]]; then
-            found="$folder"
-            file_path="$test_path"
-            break
-        fi
-    done
-    
-    if [[ -z "$found" ]]; then
-        log_error "Issue file not found: $filename"
-        exit 1
-    fi
-    
-    echo -e "${CYAN}📄 Issue Details: $filename (Status: $found)${NC}"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
-    # Pretty print YAML
-    if command -v bat &> /dev/null; then
-        bat "$file_path" --style=header,grid --language=yaml
-    elif command -v pygmentize &> /dev/null; then
-        pygmentize -l yaml "$file_path"
-    else
-        cat "$file_path"
-    fi
-}
-
-# Move issue between folders
-move_issue() {
-    local filename="$1"
-    local to_folder="$2"
-    
-    if [[ -z "$filename" || -z "$to_folder" ]]; then
-        log_error "Filename and destination folder required"
-        echo "Usage: app-issue-tracker move <filename> <to-folder>"
-        exit 1
-    fi
-    
-    # Use direct file management
-    "$ISSUES_DIR/manage.sh" move "$filename" "$to_folder"
-}
-
-# Change issue priority  
-change_priority() {
-    local filename="$1"
-    local new_priority="$2"
-    
-    if [[ -z "$filename" || -z "$new_priority" ]]; then
-        log_error "Filename and new priority required"
-        echo "Usage: app-issue-tracker priority <filename> <critical|high|medium|low>"
-        exit 1
-    fi
-    
-    # Use direct file management
-    "$ISSUES_DIR/manage.sh" priority "$filename" "$new_priority"
-}
-
-# Search issues
-search_issues() {
-    local query="$*"
-    local mode=$(detect_mode)
-    
-    if [[ -z "$query" ]]; then
-        log_error "Search query required"
-        exit 1
-    fi
-    
-    if [[ "$mode" == "api" ]]; then
-        log_info "Searching via API..."
-        local encoded_query=$(echo "$query" | jq -sRr @uri)
-        local response=$(api_request "GET" "issues/search?q=$encoded_query")
-        
-        if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-            local count=$(echo "$response" | jq -r '.data.count')
-            log_success "Found $count matching issues"
+        if echo "$response" | grep -q "success.*true"; then
+            local count=$(echo "$response" | jq -r '.data.count // 0' 2>/dev/null)
+            echo -e "${GREEN}✅ Found $count issues:${NC}"
             echo ""
-            echo "$response" | jq -r '.data.results[] | 
-                "[\(.priority | ascii_upcase)] \(.title)\n  Status: \(.status) | Type: \(.type) | App: \(.app_id)\n  ID: \(.id)\n"'
-        else
-            log_warning "API search failed, trying file search..."
-            "$ISSUES_DIR/manage.sh" search "$query"
-        fi
-    else
-        log_info "Searching files..."
-        "$ISSUES_DIR/manage.sh" search "$query"
-    fi
-}
-
-# Trigger investigation
-investigate_issue() {
-    local issue_id="$1"
-    shift
-    local mode=$(detect_mode)
-    
-    if [[ -z "$issue_id" ]]; then
-        log_error "Issue ID or filename required"
-        echo "Usage: app-issue-tracker investigate <issue-id> [--agent AGENT-ID]"
-        exit 1
-    fi
-    
-    # If it looks like a filename, try to extract issue ID
-    if [[ "$issue_id" =~ \.yaml$ ]]; then
-        # Find file and extract ID
-        local found_file=""
-        for folder in open investigating in-progress; do
-            local test_path="$ISSUES_DIR/$folder/$issue_id"
-            if [[ -f "$test_path" ]]; then
-                found_file="$test_path"
-                break
-            fi
-        done
-        
-        if [[ -n "$found_file" ]]; then
-            local extracted_id=$(grep "^id:" "$found_file" | sed 's/id: *//')
-            log_info "Extracted issue ID: $extracted_id"
-            issue_id="$extracted_id"
             
-            # Move file to investigating folder if not already there
-            if [[ "$folder" == "open" ]]; then
-                log_info "Moving issue to investigating folder..."
-                move_issue "$(basename "$found_file")" investigating
+            if [[ $count -gt 0 ]]; then
+                echo "$response" | jq -r '.data.issues[]? | 
+                    "[\(if .priority == "critical" then "🔥" elif .priority == "high" then "⚠️" elif .priority == "medium" then "📌" else "📝" end)] \(.title)",
+                    "  Status: \(.status) | Type: \(if .type == "bug" then "🐛" elif .type == "feature" then "✨" elif .type == "performance" then "⚡" else .type end) | App: \(.app_id)",
+                    "  ID: \(.id)",
+                    ""' 2>/dev/null
+            else
+                echo -e "${YELLOW}No issues found matching your criteria${NC}"
+                [[ -n "$status" || -n "$priority" || -n "$type" ]] && echo "   Try removing some filters"
             fi
         else
-            log_error "Issue file not found: $issue_id"
-            exit 1
-        fi
-    fi
-    
-    if [[ "$mode" == "api" ]]; then
-        local agent_id="" priority="normal"
-        
-        while [[ $# -gt 0 ]]; do
-            case $1 in
-                --agent) agent_id="$2"; shift 2 ;;
-                --priority) priority="$2"; shift 2 ;;
-                *) shift ;;
-            esac
-        done
-        
-        local json_data=$(jq -n \
-            --arg id "$issue_id" \
-            --arg agent "$agent_id" \
-            --arg priority "$priority" \
-            '{
-                issue_id: $id,
-                agent_id: (if $agent == "" then "deep-investigator" else $agent end),
-                priority: $priority
-            }')
-        
-        log_info "Triggering investigation via API..."
-        local response=$(api_request "POST" "investigate" "$json_data")
-        
-        if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-            log_success "Investigation started"
-            echo "$response" | jq -r '.data | "Run ID: \(.run_id)\nInvestigation ID: \(.investigation_id)"'
-        else
-            log_error "Investigation failed"
-            echo "$response" | jq -r '.message // "Unknown error"'
-        fi
-    else
-        log_info "Using Claude Code investigation script directly..."
-        local script_path="${APP_ROOT}/scenarios/app-issue-tracker/scripts/claude-investigator.sh"
-        if [[ -f "$script_path" ]]; then
-            "$script_path" investigate "$issue_id" "deep-investigator" "$(pwd)" "Investigate this issue thoroughly"
-        else
-            log_error "Claude investigator script not found at: $script_path"
+            echo -e "${RED}❌ Failed to fetch issues${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
         fi
     fi
 }
 
-# File management commands
-file_commands() {
-    local subcommand="${1:-status}"
-    shift || true
+# Show issue details
+cmd_show() {
+    local issue_id="$1"
+    local json_output=false
     
-    case "$subcommand" in
-        status)
-            "$ISSUES_DIR/manage.sh" status
-            ;;
-        add)
-            "$ISSUES_DIR/manage.sh" add
-            ;;
-        archive)
-            "$ISSUES_DIR/manage.sh" archive "$@"
-            ;;
-        *)
-            echo "File commands: status, add, archive"
-            echo "For full file management, use: $ISSUES_DIR/manage.sh"
-            ;;
-    esac
-}
-
-# Show statistics
-show_stats() {
-    local mode=$(detect_mode)
-    
-    if [[ "$mode" == "api" ]]; then
-        log_info "Fetching statistics via API..."
-        local response=$(api_request "GET" "stats")
-        
-        if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-            echo -e "${CYAN}📊 Issue Tracker Statistics${NC}"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "$response" | jq -r '.data.stats | 
-                "Total Issues: \(.total_issues)\n" +
-                "Open Issues: \(.open_issues)\n" +
-                "In Progress: \(.in_progress)\n" +
-                "Fixed Today: \(.fixed_today)\n"'
-        else
-            log_warning "API stats failed, using file counts..."
-            "$ISSUES_DIR/manage.sh" status
-        fi
-    else
-        "$ISSUES_DIR/manage.sh" status
+    if [[ -z "$issue_id" || "$issue_id" == "--help" || "$issue_id" == "-h" ]]; then
+        echo "Usage: app-issue-tracker show <issue-id> [OPTIONS]"
+        echo ""
+        echo "Show comprehensive details for a specific issue"
+        echo ""
+        echo "Arguments:"
+        echo "  issue-id    Issue ID or filename to display"
+        echo ""
+        echo "Options:"
+        echo "  --json      Output in JSON format"
+        echo ""
+        echo "Examples:"
+        echo "  app-issue-tracker show issue-abc123"
+        echo "  app-issue-tracker show 001-auth-timeout-bug.yaml"
+        return 0
     fi
-}
-
-# Configure CLI
-configure() {
-    local token="" url="" mode="auto"
     
+    shift
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --token) token="$2"; shift 2 ;;
-            --url) url="$2"; shift 2 ;;
-            --mode) mode="$2"; shift 2 ;;
-            *) shift ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
         esac
     done
     
-    [[ -z "$url" ]] && url="$API_URL"
-    
-    save_config "$token" "$url" "$mode"
-    echo "Mode: $mode"
-    echo "API URL: $url"
+    echo -e "${BLUE}📄 Fetching issue details...${NC}"
+    echo -e "${YELLOW}⚠️  Note: Direct issue viewing not yet implemented in API mode${NC}"
+    echo "   This feature requires either:"
+    echo "   1. An API endpoint to get issue by ID"
+    echo "   2. File-based access to YAML files"
+    echo ""
+    echo "   For now, use: app-issue-tracker list --json | jq '.data.issues[] | select(.id == \"$issue_id\")'"
 }
 
-# Main command router
-main() {
-    load_config
+# Search issues command
+cmd_search() {
+    local query=""
+    local limit="10"
+    local json_output=false
     
-    # Check for mode override
-    if [[ "${1:-}" == "--mode" ]]; then
-        MODE="$2"
-        shift 2
+    # Parse positional argument for query
+    if [[ $# -gt 0 && ! "$1" =~ ^-- ]]; then
+        query="$1"
+        shift
     fi
     
-    case "${1:-}" in
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --limit)
+                limit="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker search <query> [OPTIONS]"
+                echo ""
+                echo "Search through issues using text matching"
+                echo ""
+                echo "Arguments:"
+                echo "  query       Search terms to find in issues"
+                echo ""
+                echo "Options:"
+                echo "  --limit <num>    Maximum number of results (default: 10)"
+                echo "  --json           Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  app-issue-tracker search \"authentication timeout\""
+                echo "  app-issue-tracker search \"database error\" --limit 5"
+                echo "  app-issue-tracker search \"critical bug\" --json"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Interactive mode if query not provided
+    if [[ -z "$query" ]]; then
+        read -p "Enter search query: " query
+        [[ -z "$query" ]] && { echo -e "${RED}❌ Search query is required${NC}" >&2; return 1; }
+    fi
+    
+    local encoded_query
+    encoded_query=$(echo "$query" | sed 's/ /%20/g' | sed 's/&/%26/g')
+    
+    echo -e "${BLUE}🔍 Searching for: $query${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/issues/search?q=$encoded_query&limit=$limit")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            local count=$(echo "$response" | jq -r '.data.count // 0' 2>/dev/null)
+            echo -e "${GREEN}✅ Found $count matching issues:${NC}"
+            echo ""
+            
+            if [[ $count -gt 0 ]]; then
+                echo "$response" | jq -r '.data.results[]? | 
+                    "[\(if .priority == "critical" then "🔥" elif .priority == "high" then "⚠️" elif .priority == "medium" then "📌" else "📝" end)] \(.title)",
+                    "  Status: \(.status) | Type: \(.type) | App: \(.app_id)",
+                    "  ID: \(.id)",
+                    ""' 2>/dev/null
+            else
+                echo -e "${YELLOW}No issues found matching \"$query\"${NC}"
+                echo "   Try using different search terms"
+            fi
+        else
+            echo -e "${RED}❌ Search failed${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Investigate issue command
+cmd_investigate() {
+    local issue_id="$1"
+    local agent_id=""
+    local priority="normal"
+    local json_output=false
+    
+    if [[ -z "$issue_id" || "$issue_id" == "--help" || "$issue_id" == "-h" ]]; then
+        echo "Usage: app-issue-tracker investigate <issue-id> [OPTIONS]"
+        echo ""
+        echo "Trigger AI-powered investigation of an issue"
+        echo ""
+        echo "Arguments:"
+        echo "  issue-id    Issue ID to investigate"
+        echo ""
+        echo "Options:"
+        echo "  --agent <id>        Agent to use (default: deep-investigator)"
+        echo "  --priority <level>  Investigation priority (normal/high/urgent)"
+        echo "  --json              Output in JSON format"
+        echo ""
+        echo "Examples:"
+        echo "  app-issue-tracker investigate issue-abc123"
+        echo "  app-issue-tracker investigate issue-def456 --agent auto-fixer --priority high"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --agent)
+                agent_id="$2"
+                shift 2
+                ;;
+            --priority)
+                priority="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Default agent if not specified
+    [[ -z "$agent_id" ]] && agent_id="deep-investigator"
+    
+    # Build request JSON
+    local request_body=$(jq -n \
+        --arg issue_id "$issue_id" \
+        --arg agent_id "$agent_id" \
+        --arg priority "$priority" \
+        '{
+            issue_id: $issue_id,
+            agent_id: $agent_id,
+            priority: $priority
+        }')
+    
+    echo -e "${BLUE}🔍 Starting AI investigation...${NC}"
+    echo "   Issue ID: $issue_id"
+    echo "   Agent: $agent_id"
+    echo "   Priority: $priority"
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/api/investigate" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            echo -e "${GREEN}✅ Investigation started successfully${NC}"
+            local run_id
+            local investigation_id
+            run_id=$(echo "$response" | jq -r '.data.run_id // "unknown"' 2>/dev/null)
+            investigation_id=$(echo "$response" | jq -r '.data.investigation_id // "unknown"' 2>/dev/null)
+            echo "   Run ID: $run_id"
+            echo "   Investigation ID: $investigation_id"
+            echo "   Status: $(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)"
+            echo ""
+            echo "   The investigation is running in the background."
+            echo "   Check the issue status with: app-issue-tracker list --status investigating"
+        else
+            echo -e "${RED}❌ Failed to start investigation${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Generate fix command
+cmd_fix() {
+    local issue_id="$1"
+    local auto_apply=false
+    local backup_enabled=true
+    local json_output=false
+    
+    if [[ -z "$issue_id" || "$issue_id" == "--help" || "$issue_id" == "-h" ]]; then
+        echo "Usage: app-issue-tracker fix <issue-id> [OPTIONS]"
+        echo ""
+        echo "Generate and optionally apply automated fixes"
+        echo ""
+        echo "Arguments:"
+        echo "  issue-id    Issue ID to generate fix for"
+        echo ""
+        echo "Options:"
+        echo "  --auto-apply        Automatically apply the generated fix"
+        echo "  --no-backup         Skip backup creation before applying fix"
+        echo "  --json              Output in JSON format"
+        echo ""
+        echo "Examples:"
+        echo "  app-issue-tracker fix issue-abc123"
+        echo "  app-issue-tracker fix issue-def456 --auto-apply"
+        echo "  app-issue-tracker fix issue-ghi789 --auto-apply --no-backup"
+        echo ""
+        echo "Note: Issue must be investigated before fixes can be generated"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --auto-apply)
+                auto_apply=true
+                shift
+                ;;
+            --no-backup)
+                backup_enabled=false
+                shift
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Build request JSON
+    local request_body=$(jq -n \
+        --arg issue_id "$issue_id" \
+        --argjson auto_apply "$auto_apply" \
+        --argjson backup_enabled "$backup_enabled" \
+        '{
+            issue_id: $issue_id,
+            auto_apply: $auto_apply,
+            backup_enabled: $backup_enabled
+        }')
+    
+    echo -e "${BLUE}🔧 Generating fix...${NC}"
+    echo "   Issue ID: $issue_id"
+    echo "   Auto-apply: $([ "$auto_apply" == "true" ] && echo "Yes" || echo "No")"
+    echo "   Backup enabled: $([ "$backup_enabled" == "true" ] && echo "Yes" || echo "No")"
+    echo ""
+    
+    local response
+    response=$(api_request "POST" "/api/generate-fix" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            echo -e "${GREEN}✅ Fix generation started successfully${NC}"
+            local run_id
+            local fix_id
+            run_id=$(echo "$response" | jq -r '.data.run_id // "unknown"' 2>/dev/null)
+            fix_id=$(echo "$response" | jq -r '.data.fix_id // "unknown"' 2>/dev/null)
+            echo "   Run ID: $run_id"
+            echo "   Fix ID: $fix_id"
+            echo "   Status: $(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)"
+            echo ""
+            echo "   The fix generation is running in the background."
+            echo "   Check the issue status with: app-issue-tracker list --status in-progress"
+        else
+            echo -e "${RED}❌ Failed to generate fix${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Agents command
+cmd_agents() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker agents [OPTIONS]"
+                echo ""
+                echo "List available AI investigation agents and their capabilities"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🤖 Fetching available agents...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/agents")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            local count=$(echo "$response" | jq -r '.data.count // 0' 2>/dev/null)
+            echo -e "${GREEN}✅ Found $count agents:${NC}"
+            echo ""
+            
+            if [[ $count -gt 0 ]]; then
+                echo "$response" | jq -r '.data.agents[]? | 
+                    "🤖 \(.display_name) (\(.id))",
+                    "   \(.description)",
+                    "   Capabilities: \(.capabilities | join(", "))",
+                    "   Success Rate: \(.success_rate)% (\(.successful_runs)/\(.total_runs) runs)",
+                    "   Status: \(if .is_active then "✅ Active" else "❌ Inactive" end)",
+                    ""' 2>/dev/null
+            else
+                echo -e "${YELLOW}No agents found${NC}"
+            fi
+        else
+            echo -e "${RED}❌ Failed to fetch agents${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Apps command  
+cmd_apps() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker apps [OPTIONS]"
+                echo ""
+                echo "View app-specific issue statistics and health metrics"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📱 Fetching app statistics...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/apps")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            local count=$(echo "$response" | jq -r '.data.count // 0' 2>/dev/null)
+            echo -e "${GREEN}✅ Found $count apps with issues:${NC}"
+            echo ""
+            
+            if [[ $count -gt 0 ]]; then
+                echo "$response" | jq -r '.data.apps[]? | 
+                    "📱 \(.display_name) (\(.id))",
+                    "   Type: \(.type) | Status: \(.status)",
+                    "   Total Issues: \(.total_issues) | Open: \(.open_issues)",
+                    ""' 2>/dev/null
+            else
+                echo -e "${YELLOW}No apps with issues found${NC}"
+            fi
+        else
+            echo -e "${RED}❌ Failed to fetch app statistics${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Stats command
+cmd_stats() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker stats [OPTIONS]"
+                echo ""
+                echo "View comprehensive issue analytics and metrics"
+                echo ""
+                echo "Options:"
+                echo "  --json    Output in JSON format"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📊 Fetching issue statistics...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/stats")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            echo -e "${GREEN}✅ Issue Tracker Statistics:${NC}"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            
+            if echo "$response" | jq -e '.data.stats' >/dev/null 2>&1; then
+                echo "$response" | jq -r '.data.stats | 
+                    "📚 Total Issues: \(.total_issues)",
+                    "🟢 Open Issues: \(.open_issues)",
+                    "🔄 In Progress: \(.in_progress)",
+                    "✅ Fixed Today: \(.fixed_today)",
+                    "⏱️  Avg Resolution: \(.avg_resolution_hours) hours",
+                    ""' 2>/dev/null
+                
+                # Show top apps if available
+                if echo "$response" | jq -e '.data.stats.top_apps' >/dev/null 2>&1; then
+                    echo "🏆 Top Apps by Issues:"
+                    echo "$response" | jq -r '.data.stats.top_apps[]? | "   \(.app_name): \(.issue_count) issues"' 2>/dev/null
+                fi
+            else
+                echo "$response" | format_json
+            fi
+        else
+            echo -e "${RED}❌ Failed to fetch statistics${NC}"
+            echo "$response" | jq -r '.message // "Unknown error"' 2>/dev/null
+        fi
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local json_output=false
+    local verbose=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --verbose)
+                verbose=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: app-issue-tracker health [OPTIONS]"
+                echo ""
+                echo "Check service health and storage status"
+                echo ""
+                echo "Options:"
+                echo "  --json       Output in JSON format"
+                echo "  --verbose    Show detailed health information"
+                return 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🏥 Checking service health...${NC}"
+    
+    local api_url
+    api_url=$(get_api_url)
+    
+    local response
+    response=$(curl -s "${api_url}/health" 2>/dev/null)
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        if echo "$response" | grep -q "success.*true"; then
+            echo -e "${GREEN}✅ App Issue Tracker is healthy${NC}"
+            echo "   API: ${api_url}"
+            
+            if [[ "$verbose" == true ]]; then
+                echo "   Version: $(echo "$response" | jq -r '.data.version // "unknown"' 2>/dev/null)"
+                echo "   Storage: $(echo "$response" | jq -r '.data.storage // "unknown"' 2>/dev/null)"
+                echo "   Issues Directory: $(echo "$response" | jq -r '.data.issues_dir // "unknown"' 2>/dev/null)"
+                echo "   Mode: API (thin wrapper)"
+            fi
+        else
+            echo -e "${RED}❌ Health check failed${NC}"
+            echo "   Response: $response"
+            return 1
+        fi
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
         create)
-            shift
-            create_issue "$@"
+            cmd_create "$@"
             ;;
         list)
-            shift
-            list_issues "$@"
+            cmd_list "$@"
             ;;
         show)
-            shift
-            show_issue "$@"
-            ;;
-        move)
-            shift
-            move_issue "$@"
-            ;;
-        priority)
-            shift
-            change_priority "$@"
+            cmd_show "$@"
             ;;
         search)
-            shift
-            search_issues "$@"
+            cmd_search "$@"
             ;;
         investigate)
-            shift
-            investigate_issue "$@"
+            cmd_investigate "$@"
+            ;;
+        fix)
+            cmd_fix "$@"
+            ;;
+        agents)
+            cmd_agents "$@"
+            ;;
+        apps)
+            cmd_apps "$@"
             ;;
         stats)
-            show_stats
+            cmd_stats "$@"
+            ;;
+        health)
+            cmd_health "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        --version|-v|version)
+            echo "App Issue Tracker CLI v2.0.0 (thin wrapper)"
+            ;;
+            
+        # Legacy commands for backward compatibility
+        move)
+            echo -e "${YELLOW}⚠️  'move' command not implemented in thin wrapper mode${NC}"
+            echo "   Issues are automatically moved by the API during investigation/fix processes"
+            ;;
+        priority)
+            echo -e "${YELLOW}⚠️  'priority' command not implemented in thin wrapper mode${NC}"
+            echo "   Priority changes will be supported in a future API update"
             ;;
         files)
-            shift
-            file_commands "$@"
+            echo -e "${YELLOW}⚠️  'files' command not available in API mode${NC}"
+            echo "   File operations are handled transparently by the API"
             ;;
         config)
-            shift
-            configure "$@"
+            echo -e "${YELLOW}⚠️  'config' command not needed in thin wrapper mode${NC}"
+            echo "   Configuration is managed by the scenario service"
             ;;
-        -h|--help|help)
-            show_help
-            ;;
-        "")
-            show_help
-            ;;
+            
         *)
-            log_error "Unknown command: $1"
-            echo "Run 'app-issue-tracker --help' for usage information"
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
             exit 1
             ;;
     esac
@@ -757,24 +1016,19 @@ main() {
 
 # Check dependencies
 if ! command -v jq &> /dev/null; then
-    log_error "jq is required but not installed"
-    echo "Install with: apt-get install jq (or your package manager)"
+    echo -e "${RED}❌ Error: jq is required but not installed${NC}" >&2
+    echo "Install with: apt-get install jq (or your package manager)" >&2
     exit 1
 fi
 
 if ! command -v curl &> /dev/null; then
-    log_error "curl is required but not installed"
-    echo "Install with: apt-get install curl"
+    echo -e "${RED}❌ Error: curl is required but not installed${NC}" >&2
+    echo "Install with: apt-get install curl" >&2
     exit 1
 fi
 
-# Show current mode
-current_mode=$(detect_mode)
-if [[ "$current_mode" == "file" ]]; then
-    echo -e "${YELLOW}📁 Running in file mode (API not available)${NC}" >&2
-else
-    echo -e "${GREEN}🌐 Running in API mode${NC}" >&2
-fi
+# Show current mode (always API for thin wrapper)
+echo -e "${GREEN}🌐 Running in API mode (thin wrapper)${NC}" >&2
 
 # Run main function
 main "$@"
