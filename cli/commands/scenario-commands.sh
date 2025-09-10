@@ -844,6 +844,61 @@ main() {
                 fi
             fi
             ;;
+        port)
+            # Ultra-fast command to get a specific port for a scenario
+            # Reads directly from process JSON files, no HTTP calls
+            local scenario_name="${1:-}"
+            local port_name="${2:-}"
+            
+            if [[ -z "$scenario_name" ]] || [[ -z "$port_name" ]]; then
+                log::error "Scenario name and port name required"
+                echo "Usage: vrooli scenario port <scenario-name> <port-name>"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli scenario port ecosystem-manager API_PORT"
+                echo "  vrooli scenario port ecosystem-manager UI_PORT"
+                return 1
+            fi
+            
+            # Map port names to process step names
+            # This is a convention: API_PORT -> start-api, UI_PORT -> start-ui
+            local step_name=""
+            case "$port_name" in
+                API_PORT)
+                    step_name="start-api"
+                    ;;
+                UI_PORT)
+                    step_name="start-ui"
+                    ;;
+                *)
+                    # For other port names, try lowercase without _PORT suffix
+                    # e.g., WORKER_PORT -> start-worker
+                    local base_name="${port_name%_PORT}"
+                    step_name="start-${base_name,,}"
+                    ;;
+            esac
+            
+            # Direct file read - extremely fast
+            local process_file="$HOME/.vrooli/processes/scenarios/${scenario_name}/${step_name}.json"
+            
+            if [[ ! -f "$process_file" ]]; then
+                # Process not running or doesn't exist
+                return 1
+            fi
+            
+            # Extract port directly from JSON file (single jq call, very fast)
+            local port_value
+            port_value=$(jq -r '.port // empty' "$process_file" 2>/dev/null)
+            
+            if [[ -n "$port_value" ]] && [[ "$port_value" != "null" ]]; then
+                # Just output the port number, nothing else (for easy scripting)
+                echo "$port_value"
+                return 0
+            else
+                # Port not found in process file
+                return 1
+            fi
+            ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)
             log::error "Unknown scenario command: $subcommand"

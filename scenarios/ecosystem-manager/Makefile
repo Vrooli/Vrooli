@@ -153,13 +153,13 @@ view-prompt: ## View assembled prompt sections
 	echo "✅ API is running"; \
 	echo ""; \
 	echo "📝 Fetching prompt preview..."; \
-	for port in 17369 17368 17367 17366 17365; do \
-		if curl -s --connect-timeout 1 "http://localhost:$$port/health" > /dev/null 2>&1; then \
-			curl -s "http://localhost:$$port/api/prompt-viewer?display=preview" | jq -r \
-				'if .error then "❌ Error: " + .error else ("📏 Size: " + (.prompt_size|tostring) + " chars (" + .prompt_size_kb + " KB)\n" + "📑 Sections: " + (.section_count|tostring) + "\n" + "🎯 Type/Operation: " + .task_type + "/" + .operation + "\n\n" + "=== PROMPT PREVIEW ===\n" + .prompt) end'; \
-			break; \
-		fi; \
-	done
+	API_PORT=$$(vrooli scenario port ecosystem-manager API_PORT); \
+	if [ -z "$$API_PORT" ]; then \
+		echo "❌ Failed to get API port from vrooli CLI"; \
+		exit 1; \
+	fi; \
+	curl -s "http://localhost:$$API_PORT/api/prompt-viewer?display=preview" | jq -r \
+		'if .error then "❌ Error: " + .error else ("📏 Size: " + (.prompt_size|tostring) + " chars (" + .prompt_size_kb + " KB)\n" + "📑 Sections: " + (.section_count|tostring) + "\n" + "🎯 Type/Operation: " + .task_type + "/" + .operation + "\n\n" + "=== PROMPT PREVIEW ===\n" + .prompt) end'
 
 install-deps: ## Install dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"

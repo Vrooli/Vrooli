@@ -549,13 +549,10 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		response["prompt"] = prompt
 		response["display"] = "full"
 	case "first", "preview":
-		if promptSize > 3000 {
-			response["prompt"] = prompt[:3000] + "\n\n... [TRUNCATED - " + fmt.Sprintf("%d", promptSize) + " total chars] ..."
-		} else {
-			response["prompt"] = prompt
-		}
+		// Show full prompt for preview - no truncation
+		response["prompt"] = prompt
 		response["display"] = "preview"
-		response["truncated"] = promptSize > 3000
+		response["truncated"] = false
 	case "size", "stats":
 		response["display"] = "size"
 		// Don't include prompt content, just metadata

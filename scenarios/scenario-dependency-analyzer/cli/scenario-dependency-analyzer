@@ -1,416 +1,600 @@
 #!/bin/bash
+################################################################################
+# Scenario Dependency Analyzer CLI - Thin Wrapper Version
+# 
+# A lightweight CLI that delegates all logic to the scenario's API.
+# Port discovery uses ultra-fast file-based lookup.
+################################################################################
 
-# Scenario Dependency Analyzer CLI
-# Provides command-line interface for dependency analysis and graph generation
-
-set -euo pipefail
+set -e
 
 # Configuration
-API_PORT="${DEPENDENCY_ANALYZER_API_PORT:-20400}"
-API_BASE_URL="http://localhost:${API_PORT}"
-CLI_VERSION="1.0.0"
+SCENARIO_NAME="scenario-dependency-analyzer"
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Utility functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1" >&2
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
-}
-
-# Check if API is available
-check_api_health() {
-    if curl -sf "$API_BASE_URL/health" >/dev/null 2>&1; then
-        return 0
-    else
-        return 1
+################################################################################
+# Port Discovery - Ultra-fast file-based lookup
+################################################################################
+get_api_url() {
+    # Use the ultra-fast port command
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
     fi
+    
+    echo "http://localhost:${api_port}"
 }
 
-# Format JSON output for human readability
+################################################################################
+# Helper Functions
+################################################################################
+usage() {
+    echo -e "${CYAN}Scenario Dependency Analyzer CLI${NC}"
+    echo "Analyze and visualize dependencies between scenarios and resources"
+    echo ""
+    echo "Usage: scenario-dependency-analyzer [COMMAND] [OPTIONS]"
+    echo ""
+    echo "Commands:"
+    echo -e "  ${GREEN}analyze${NC}    Analyze dependencies for a scenario"
+    echo -e "  ${GREEN}graph${NC}      Generate dependency graph visualization"
+    echo -e "  ${GREEN}propose${NC}    Analyze dependencies for a proposed scenario"
+    echo -e "  ${GREEN}list${NC}       List dependencies for a scenario"
+    echo -e "  ${GREEN}health${NC}     Check service health and analysis capabilities"
+    echo -e "  ${GREEN}status${NC}     Show analysis system status"
+    echo ""
+    echo "Examples:"
+    echo "  scenario-dependency-analyzer analyze ecosystem-manager"
+    echo "  scenario-dependency-analyzer graph --type hierarchical --format dot"
+    echo "  scenario-dependency-analyzer propose --name 'ai-chatbot' --requirements 'nlp,database'"
+    echo "  scenario-dependency-analyzer list ecosystem-manager --type resources"
+    echo ""
+    echo "Options:"
+    echo "  --help, -h       Show help for any command"
+    echo "  --json           Output in JSON format (most commands)"
+    echo "  --verbose        Show detailed output"
+    echo ""
+    echo "For more information: scenario-dependency-analyzer <command> --help"
+}
+
+# Format JSON output if jq is available
 format_json() {
     if command -v jq >/dev/null 2>&1; then
-        jq '.' 
+        jq .
     else
         cat
     fi
 }
 
-# Format table output
-format_table() {
-    local data="$1"
-    local format="${2:-table}"
+# Make API request
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    local api_url
     
-    if [[ "$format" == "json" ]]; then
-        echo "$data" | format_json
-        return
+    # Get the current API URL
+    api_url=$(get_api_url)
+    
+    local curl_args=(-s)
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_args+=(-X "$method")
     fi
     
-    # Simple table formatting using jq if available
-    if command -v jq >/dev/null 2>&1; then
-        echo "$data" | jq -r '
-            if type == "array" then
-                .[] | [.scenario_name // .dependency_name, .dependency_type // .type, .required // true, .purpose // .description] | @tsv
-            elif type == "object" and has("resources") then
-                .resources[]? | [.scenario_name, .dependency_type, .dependency_name, .required, .purpose] | @tsv
-            else
-                . | to_entries | .[] | [.key, .value] | @tsv
-            end' | column -t -s $'\t' 2>/dev/null || echo "$data"
-    else
-        echo "$data"
+    if [[ -n "$data" ]]; then
+        curl_args+=(-H "Content-Type: application/json" -d "$data")
     fi
-}
-
-# Main command functions
-cmd_help() {
-    cat << 'EOF'
-Scenario Dependency Analyzer CLI v1.0.0
-
-USAGE:
-    scenario-dependency-analyzer <COMMAND> [OPTIONS]
-
-COMMANDS:
-    analyze <scenario>     Analyze dependencies for a specific scenario or 'all'
-    graph <type>          Generate dependency graph (resources|scenarios|combined)
-    optimize <scenario>    Get optimization recommendations (future)
-    propose <description>  Analyze dependencies for proposed scenario
-    status                Show system status and health
-    help                  Show this help message
-    version               Show version information
-
-GLOBAL OPTIONS:
-    --json                Output in JSON format
-    --verbose             Enable verbose output
-    --output <format>     Output format (table|json|graph)
-    --filter <pattern>    Filter results by pattern
-
-EXAMPLES:
-    # Analyze a specific scenario
-    scenario-dependency-analyzer analyze chart-generator
-
-    # Analyze all scenarios
-    scenario-dependency-analyzer analyze all --output json
-
-    # Generate combined dependency graph
-    scenario-dependency-analyzer graph combined --output json
-
-    # Generate graph and save to file
-    scenario-dependency-analyzer graph resources --format png --output-file deps.png
-
-    # Analyze proposed scenario
-    scenario-dependency-analyzer propose "AI-powered task scheduler with PostgreSQL"
-
-    # Check system status
-    scenario-dependency-analyzer status --json
-
-For more information, visit: https://github.com/Vrooli/Vrooli
-EOF
-}
-
-cmd_version() {
-    echo "scenario-dependency-analyzer v${CLI_VERSION}"
-    if [[ "${1:-}" == "--json" ]]; then
-        echo "{\"version\": \"$CLI_VERSION\", \"api_url\": \"$API_BASE_URL\"}"
-    fi
-}
-
-cmd_status() {
-    local output_format="${1:-table}"
     
-    log_info "Checking system status..."
-    
-    if check_api_health; then
-        health_response=$(curl -s "$API_BASE_URL/health" 2>/dev/null || echo '{"status": "unknown"}')
-        
-        if [[ "$output_format" == "json" ]]; then
-            echo "$health_response" | format_json
-        else
-            log_success "API is healthy"
-            echo "$health_response" | format_table
-        fi
-    else
-        if [[ "$output_format" == "json" ]]; then
-            echo '{"status": "unhealthy", "error": "API not reachable"}'
-        else
-            log_error "API is not reachable at $API_BASE_URL"
-            log_info "Make sure the scenario is running with: vrooli scenario run scenario-dependency-analyzer"
-        fi
-        exit 1
-    fi
+    curl "${curl_args[@]}" "${api_url}${endpoint}"
 }
 
+################################################################################
+# Command Implementations - All delegated to API
+################################################################################
+
+# Analyze scenario command
 cmd_analyze() {
-    local scenario="${1:-}"
-    local output_format="${2:-table}"
-    local include_transitive="${3:-false}"
-    
-    if [[ -z "$scenario" ]]; then
-        log_error "Scenario name is required"
-        echo "Usage: scenario-dependency-analyzer analyze <scenario> [--output format]"
-        exit 1
-    fi
-    
-    if ! check_api_health; then
-        log_error "API not available. Make sure scenario is running."
-        exit 1
-    fi
-    
-    log_info "Analyzing dependencies for scenario: $scenario"
-    
-    local url="$API_BASE_URL/api/v1/analyze/$scenario"
-    if [[ "$include_transitive" == "true" ]]; then
-        url="${url}?include_transitive=true"
-    fi
-    
-    response=$(curl -sf "$url" 2>/dev/null)
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to analyze scenario: $scenario"
-        exit 1
-    fi
-    
-    if [[ "$output_format" == "json" ]]; then
-        echo "$response" | format_json
-    else
-        log_success "Analysis completed"
-        echo
-        echo -e "${CYAN}Dependencies for $scenario:${NC}"
-        echo "$response" | format_table
-    fi
-}
-
-cmd_graph() {
-    local graph_type="${1:-combined}"
-    local output_format="${2:-json}"
-    local output_file="${3:-}"
-    local filter_pattern="${4:-}"
-    
-    if ! check_api_health; then
-        log_error "API not available. Make sure scenario is running."
-        exit 1
-    fi
-    
-    if [[ ! "$graph_type" =~ ^(resources|scenarios|combined)$ ]]; then
-        log_error "Invalid graph type: $graph_type. Must be one of: resources, scenarios, combined"
-        exit 1
-    fi
-    
-    log_info "Generating $graph_type dependency graph..."
-    
-    local url="$API_BASE_URL/api/v1/graph/$graph_type"
-    if [[ -n "$filter_pattern" ]]; then
-        url="${url}?filter=$filter_pattern"
-    fi
-    
-    response=$(curl -sf "$url" 2>/dev/null)
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to generate dependency graph"
-        exit 1
-    fi
-    
-    if [[ -n "$output_file" ]]; then
-        echo "$response" > "$output_file"
-        log_success "Graph saved to: $output_file"
-    else
-        if [[ "$output_format" == "json" ]]; then
-            echo "$response" | format_json
-        else
-            log_success "Graph generated"
-            # Extract summary info for table format
-            echo "$response" | jq -r '.metadata | to_entries[] | "\(.key): \(.value)"' 2>/dev/null || echo "$response"
-        fi
-    fi
-}
-
-cmd_optimize() {
-    local scenario="${1:-all}"
-    local optimization_type="${2:-all}"
-    local apply_safe="${3:-false}"
-    
-    log_warning "Optimization feature is not yet implemented"
-    log_info "This feature will provide recommendations for:"
-    echo "  - Resource optimization (e.g., ollama → openrouter for lightweight deployments)"
-    echo "  - Dependency reduction opportunities"  
-    echo "  - Shared workflow adoption suggestions"
-    echo "  - Performance improvements"
-    
-    if [[ "$scenario" == "all" ]]; then
-        echo
-        echo "Would analyze optimization opportunities for all scenarios."
-    else
-        echo
-        echo "Would analyze optimization opportunities for: $scenario"
-    fi
-}
-
-cmd_propose() {
-    local description="${1:-}"
-    local similar_count="${2:-5}"
-    local resources_only="${3:-false}"
-    
-    if [[ -z "$description" ]]; then
-        log_error "Scenario description is required"
-        echo "Usage: scenario-dependency-analyzer propose \"<description>\" [--similar N] [--resources-only]"
-        exit 1
-    fi
-    
-    if ! check_api_health; then
-        log_error "API not available. Make sure scenario is running."
-        exit 1
-    fi
-    
-    log_info "Analyzing proposed scenario dependencies..."
-    
-    # Create JSON payload
-    payload=$(cat <<EOF
-{
-    "name": "proposed-scenario",
-    "description": "$description",
-    "requirements": []
-}
-EOF
-)
-    
-    response=$(curl -sf -X POST "$API_BASE_URL/api/v1/analyze/proposed" \
-        -H "Content-Type: application/json" \
-        -d "$payload" 2>/dev/null)
-    
-    if [[ $? -ne 0 ]]; then
-        log_error "Failed to analyze proposed scenario"
-        exit 1
-    fi
-    
-    log_success "Analysis completed"
-    echo
-    echo -e "${CYAN}Predicted dependencies:${NC}"
-    echo "$response" | format_json
-}
-
-# Parse command line arguments
-parse_args() {
-    local command=""
-    local args=()
-    local output_format="table"
-    local verbose=false
-    local filter=""
-    local output_file=""
+    local scenario=""
     local include_transitive=false
+    local json_output=false
+    local verbose=false
     
+    # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --transitive)
+                include_transitive=true
+                shift
+                ;;
             --json)
-                output_format="json"
+                json_output=true
                 shift
                 ;;
             --verbose)
                 verbose=true
                 shift
                 ;;
-            --output)
-                output_format="$2"
-                shift 2
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer analyze <scenario> [OPTIONS]"
+                echo ""
+                echo "Analyze dependencies for a scenario"
+                echo ""
+                echo "Options:"
+                echo "  --transitive      Include transitive dependencies"
+                echo "  --json            Output in JSON format"
+                echo "  --verbose         Show detailed analysis"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer analyze ecosystem-manager"
+                echo "  scenario-dependency-analyzer analyze api-manager --transitive"
+                return 0
                 ;;
-            --filter)
-                filter="$2"
-                shift 2
-                ;;
-            --output-file)
-                output_file="$2"
-                shift 2
-                ;;
-            --include-transitive)
-                include_transitive=true
-                shift
-                ;;
-            --similar)
-                similar_count="$2"
-                shift 2
-                ;;
-            --resources-only)
-                resources_only=true
-                shift
-                ;;
-            --format)
-                # For graph command
-                output_format="$2"
-                shift 2
-                ;;
-            -h|--help|help)
-                cmd_help
-                exit 0
-                ;;
-            -v|--version|version)
-                cmd_version "$output_format"
-                exit 0
-                ;;
-            analyze|graph|optimize|propose|status)
-                command="$1"
-                shift
+            -*)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
                 ;;
             *)
-                args+=("$1")
+                if [[ -z "$scenario" ]]; then
+                    scenario="$1"
+                fi
                 shift
                 ;;
         esac
     done
     
-    if [[ -z "$command" ]]; then
-        echo "Error: No command specified"
-        echo
-        cmd_help
-        exit 1
+    if [[ -z "$scenario" ]]; then
+        echo -e "${RED}❌ Error: Scenario name required${NC}" >&2
+        echo "   Usage: scenario-dependency-analyzer analyze <scenario>" >&2
+        return 1
     fi
     
-    # Execute the command
-    case $command in
+    echo -e "${BLUE}🔍 Analyzing dependencies for: $scenario${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/analyze/${scenario}?include_transitive=${include_transitive}")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print analysis results
+        local resources=$(echo "$response" | jq -r '.resources | length' 2>/dev/null || echo "0")
+        local scenarios=$(echo "$response" | jq -r '.scenarios | length' 2>/dev/null || echo "0")
+        local workflows=$(echo "$response" | jq -r '.shared_workflows | length' 2>/dev/null || echo "0")
+        
+        echo -e "${GREEN}✅ Analysis complete${NC}"
+        echo ""
+        echo -e "${CYAN}📊 Dependency Summary:${NC}"
+        echo "   Resources: $resources"
+        echo "   Scenarios: $scenarios"
+        echo "   Shared Workflows: $workflows"
+        
+        if [[ "$verbose" == true ]]; then
+            echo ""
+            echo -e "${CYAN}Resources:${NC}"
+            echo "$response" | jq -r '.resources[]? | "  - \(.dependency_name) (\(.dependency_type))"' 2>/dev/null
+            
+            echo ""
+            echo -e "${CYAN}Dependent Scenarios:${NC}"
+            echo "$response" | jq -r '.scenarios[]? | "  - \(.dependency_name)"' 2>/dev/null
+        fi
+    fi
+}
+
+# Generate graph command
+cmd_graph() {
+    local graph_type="hierarchical"
+    local format="json"
+    local output_file=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                graph_type="$2"
+                shift 2
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            --output|-o)
+                output_file="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer graph [OPTIONS]"
+                echo ""
+                echo "Generate dependency graph visualization"
+                echo ""
+                echo "Options:"
+                echo "  --type <type>      Graph type (hierarchical, network, circular)"
+                echo "  --format <fmt>     Output format (json, dot, mermaid)"
+                echo "  --output <file>    Save output to file"
+                echo "  --json             Force JSON output"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer graph --type hierarchical"
+                echo "  scenario-dependency-analyzer graph --format dot --output deps.dot"
+                echo "  scenario-dependency-analyzer graph --type network --format mermaid"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📊 Generating ${graph_type} dependency graph...${NC}"
+    
+    local response
+    response=$(api_request "GET" "/api/v1/graph/${graph_type}")
+    
+    # Handle different output formats
+    case "$format" in
+        dot)
+            # Convert JSON graph to DOT format
+            local dot_output=$(echo "$response" | jq -r '
+                "digraph Dependencies {",
+                "  rankdir=LR;",
+                "  node [shape=box];",
+                (.nodes[]? | "  \(.id) [label=\"\(.label)\"];"),
+                (.edges[]? | "  \(.source) -> \(.target) [label=\"\(.label)\"];"),
+                "}"
+            ' 2>/dev/null | tr '\n' '\n')
+            
+            if [[ -n "$output_file" ]]; then
+                echo "$dot_output" > "$output_file"
+                echo -e "${GREEN}✅ Graph saved to: $output_file${NC}"
+                echo "   Visualize with: dot -Tpng $output_file -o graph.png"
+            else
+                echo "$dot_output"
+            fi
+            ;;
+            
+        mermaid)
+            # Convert JSON graph to Mermaid format
+            local mermaid_output=$(echo "$response" | jq -r '
+                "graph TD",
+                (.edges[]? | "  \(.source)[\(.source)] --> \(.target)[\(.target)]")
+            ' 2>/dev/null | tr '\n' '\n')
+            
+            if [[ -n "$output_file" ]]; then
+                echo "$mermaid_output" > "$output_file"
+                echo -e "${GREEN}✅ Graph saved to: $output_file${NC}"
+            else
+                echo "$mermaid_output"
+            fi
+            ;;
+            
+        json|*)
+            if [[ -n "$output_file" ]]; then
+                echo "$response" | format_json > "$output_file"
+                echo -e "${GREEN}✅ Graph saved to: $output_file${NC}"
+            else
+                echo "$response" | format_json
+            fi
+            ;;
+    esac
+}
+
+# Propose scenario command
+cmd_propose() {
+    local name=""
+    local description=""
+    local requirements=""
+    local similar=""
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --description)
+                description="$2"
+                shift 2
+                ;;
+            --requirements)
+                requirements="$2"
+                shift 2
+                ;;
+            --similar)
+                similar="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: scenario-dependency-analyzer propose [OPTIONS]"
+                echo ""
+                echo "Analyze dependencies for a proposed scenario"
+                echo ""
+                echo "Options:"
+                echo "  --name <name>              Proposed scenario name"
+                echo "  --description <desc>       Scenario description"
+                echo "  --requirements <list>      Comma-separated requirements"
+                echo "  --similar <scenarios>      Similar existing scenarios"
+                echo "  --json                     Output in JSON format"
+                echo ""
+                echo "Examples:"
+                echo "  scenario-dependency-analyzer propose --name 'ai-chatbot' \\"
+                echo "    --requirements 'nlp,database,api' --description 'AI-powered chat'"
+                return 0
+                ;;
+            *)
+                echo -e "${RED}❌ Unknown option: $1${NC}" >&2
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" || -z "$requirements" ]]; then
+        echo -e "${RED}❌ Error: --name and --requirements are required${NC}" >&2
+        return 1
+    fi
+    
+    # Build request JSON
+    local req_array=$(echo "$requirements" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    local sim_array="[]"
+    if [[ -n "$similar" ]]; then
+        sim_array=$(echo "$similar" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$";""))')
+    fi
+    
+    local request_body=$(jq -n \
+        --arg name "$name" \
+        --arg desc "${description:-}" \
+        --argjson reqs "$req_array" \
+        --argjson sims "$sim_array" \
+        '{
+            name: $name,
+            description: $desc,
+            requirements: $reqs,
+            similar_scenarios: $sims
+        }')
+    
+    echo -e "${BLUE}🔮 Analyzing proposed scenario: $name${NC}"
+    
+    local response
+    response=$(api_request "POST" "/api/v1/analyze/proposed" "$request_body")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${GREEN}✅ Analysis complete${NC}"
+        echo ""
+        echo -e "${CYAN}📋 Recommended Dependencies:${NC}"
+        echo "$response" | jq -r '
+            if .recommended_resources then
+                "Resources:",
+                (.recommended_resources[]? | "  - \(.)")
+            else empty end,
+            if .recommended_scenarios then
+                "\nRelated Scenarios:",
+                (.recommended_scenarios[]? | "  - \(.)")
+            else empty end
+        ' 2>/dev/null || echo "$response" | format_json
+    fi
+}
+
+# List dependencies command
+cmd_list() {
+    local scenario="$1"
+    local dep_type=""
+    local json_output=false
+    
+    if [[ -z "$scenario" || "$scenario" == "--help" || "$scenario" == "-h" ]]; then
+        echo "Usage: scenario-dependency-analyzer list <scenario> [OPTIONS]"
+        echo ""
+        echo "List dependencies for a scenario"
+        echo ""
+        echo "Options:"
+        echo "  --type <type>    Filter by type (resources, scenarios, workflows)"
+        echo "  --json           Output in JSON format"
+        echo ""
+        echo "Examples:"
+        echo "  scenario-dependency-analyzer list ecosystem-manager"
+        echo "  scenario-dependency-analyzer list api-manager --type resources"
+        return 0
+    fi
+    
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --type)
+                dep_type="$2"
+                shift 2
+                ;;
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}📋 Fetching dependencies for: $scenario${NC}"
+    
+    local endpoint="/api/v1/scenarios/${scenario}/dependencies"
+    [[ -n "$dep_type" ]] && endpoint="${endpoint}?type=${dep_type}"
+    
+    local response
+    response=$(api_request "GET" "$endpoint")
+    
+    if [[ $json_output == true ]]; then
+        echo "$response" | format_json
+    else
+        # Pretty print dependencies
+        echo -e "${GREEN}✅ Dependencies for $scenario:${NC}"
+        echo ""
+        
+        # Parse and display by type
+        echo "$response" | jq -r '
+            group_by(.dependency_type) | 
+            .[] | 
+            "\(.[]?.dependency_type // "Unknown"):",
+            (.[] | "  - \(.dependency_name)\(if .required then " (required)" else "" end)")
+        ' 2>/dev/null || echo "$response" | format_json
+    fi
+}
+
+# Health check command
+cmd_health() {
+    local json_output=false
+    local detailed=false
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --json)
+                json_output=true
+                shift
+                ;;
+            --detailed)
+                detailed=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo -e "${BLUE}🏥 Checking health...${NC}"
+    
+    # Basic health check
+    local api_url
+    api_url=$(get_api_url)
+    
+    local health_response
+    health_response=$(curl -s "${api_url}/health")
+    
+    if [[ "$detailed" == true ]]; then
+        # Also check analysis health
+        local analysis_response
+        analysis_response=$(curl -s "${api_url}/api/v1/health/analysis")
+        
+        if [[ $json_output == true ]]; then
+            echo "{\"basic\": $health_response, \"analysis\": $analysis_response}" | format_json
+        else
+            echo -e "${GREEN}✅ Service Health:${NC}"
+            echo "$health_response" | jq -r '"  Status: \(.status)"' 2>/dev/null
+            echo ""
+            echo -e "${CYAN}📊 Analysis Capabilities:${NC}"
+            echo "$analysis_response" | jq -r '
+                "  Scenarios Found: \(.scenarios_found)",
+                "  Resources Available: \(.resources_available)",
+                "  Database: \(.database_status)"
+            ' 2>/dev/null || echo "  Unable to retrieve analysis status"
+        fi
+    else
+        if echo "$health_response" | grep -q "ok\|healthy"; then
+            echo -e "${GREEN}✅ Scenario Dependency Analyzer is healthy${NC}"
+            echo "   API: ${api_url}"
+        else
+            echo -e "${RED}❌ Health check failed${NC}"
+            echo "   Response: $health_response"
+            return 1
+        fi
+    fi
+}
+
+# Status command (system overview)
+cmd_status() {
+    echo -e "${CYAN}📊 Scenario Dependency Analyzer Status${NC}"
+    echo ""
+    
+    # Get API URL and check if running
+    local api_url
+    if api_url=$(get_api_url 2>/dev/null); then
+        echo -e "${GREEN}✅ Service: Running${NC}"
+        echo "   API: $api_url"
+        
+        # Get analysis health for more details
+        local analysis_response
+        analysis_response=$(curl -s "${api_url}/api/v1/health/analysis" 2>/dev/null)
+        
+        if [[ -n "$analysis_response" ]]; then
+            echo ""
+            echo -e "${CYAN}Analysis System:${NC}"
+            echo "$analysis_response" | jq -r '
+                "  Scenarios: \(.scenarios_found // 0)",
+                "  Resources: \(.resources_available // 0)",
+                "  Database: \(.database_status // "unknown")",
+                "  Last Analysis: \(.last_analysis // "never")"
+            ' 2>/dev/null || echo "  Status information unavailable"
+        fi
+    else
+        echo -e "${RED}❌ Service: Not Running${NC}"
+        echo "   Start with: vrooli scenario run scenario-dependency-analyzer"
+    fi
+}
+
+################################################################################
+# Main Command Router
+################################################################################
+main() {
+    local command="${1:-}"
+    
+    if [[ -z "$command" ]]; then
+        usage
+        exit 0
+    fi
+    
+    shift
+    
+    case "$command" in
         analyze)
-            cmd_analyze "${args[0]:-}" "$output_format" "$include_transitive"
+            cmd_analyze "$@"
             ;;
         graph)
-            cmd_graph "${args[0]:-combined}" "$output_format" "$output_file" "$filter"
-            ;;
-        optimize)
-            cmd_optimize "${args[0]:-all}" "${args[1]:-all}" "${args[2]:-false}"
+            cmd_graph "$@"
             ;;
         propose)
-            cmd_propose "${args[0]:-}" "$similar_count" "$resources_only"
+            cmd_propose "$@"
+            ;;
+        list)
+            cmd_list "$@"
+            ;;
+        health)
+            cmd_health "$@"
             ;;
         status)
-            cmd_status "$output_format"
+            cmd_status "$@"
+            ;;
+        --help|-h|help)
+            usage
+            ;;
+        --version|-v|version)
+            echo "Scenario Dependency Analyzer CLI v2.0.0 (thin wrapper)"
             ;;
         *)
-            echo "Error: Unknown command: $command"
-            cmd_help
+            echo -e "${RED}❌ Unknown command: $command${NC}" >&2
+            usage
             exit 1
             ;;
     esac
 }
 
-# Main execution
-main() {
-    if [[ $# -eq 0 ]]; then
-        cmd_help
-        exit 0
-    fi
-    
-    parse_args "$@"
-}
-
+# Run main function
 main "$@"
