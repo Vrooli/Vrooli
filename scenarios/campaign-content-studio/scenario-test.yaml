@@ -7,7 +7,7 @@ structure:
     - .vrooli/service.json
     - api/main.go
     - api/go.mod
-    - cli/campaign-content-studio-cli.sh
+    - cli/campaign-content-studio.sh
     - cli/install.sh
     - cli/campaign-content-studio.bats
     - initialization/storage/schema.sql
