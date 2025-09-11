@@ -45,7 +45,13 @@ func discoverScenarios(orchestrator *Orchestrator, logger *log.Logger) {
 			continue
 		}
 
-		tags, ok := service["tags"].([]interface{})
+		// Extract the service object first
+		serviceData, ok := service["service"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		tags, ok := serviceData["tags"].([]interface{})
 		if !ok {
 			continue
 		}
@@ -68,16 +74,25 @@ func discoverScenarios(orchestrator *Orchestrator, logger *log.Logger) {
 		scenario := &MaintenanceScenario{
 			ID:          entry.Name(),
 			Name:        entry.Name(),
-			DisplayName: getStringField(service, "displayName", entry.Name()),
-			Description: getStringField(service, "description", ""),
+			DisplayName: getStringField(serviceData, "displayName", entry.Name()),
+			Description: getStringField(serviceData, "description", ""),
 			IsActive:    false,
 			Tags:        stringTags,
 		}
 
+		// Ports are at the root level, not in service object
 		if ports, ok := service["ports"].(map[string]interface{}); ok {
-			if apiPort, ok := ports["api"].(float64); ok {
-				scenario.Port = int(apiPort)
-				scenario.Endpoint = fmt.Sprintf("http://localhost:%d", int(apiPort))
+			// Look for the api port configuration
+			if apiPortConfig, ok := ports["api"].(map[string]interface{}); ok {
+				// Check for static port first, then range
+				if apiPort, ok := apiPortConfig["port"].(float64); ok {
+					scenario.Port = int(apiPort)
+					scenario.Endpoint = fmt.Sprintf("http://localhost:%d", int(apiPort))
+				} else if rangeStr, ok := apiPortConfig["range"].(string); ok {
+					// For now, we'll skip dynamic ports since we need the actual allocated port
+					// The scenario would need to be running and we'd need to query its actual port
+					logger.Printf("Scenario %s uses dynamic port range: %s", entry.Name(), rangeStr)
+				}
 			}
 		}
 

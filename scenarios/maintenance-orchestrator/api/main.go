@@ -86,6 +86,12 @@ func main() {
 	v1.HandleFunc("/presets/{id}/apply", handleApplyPreset(orchestrator)).Methods("POST")
 	v1.HandleFunc("/status", handleGetStatus(orchestrator, startTime)).Methods("GET")
 	v1.HandleFunc("/stop-all", handleStopAll(orchestrator)).Methods("POST")
+	v1.HandleFunc("/scenario-statuses", handleGetScenarioStatuses()).Methods("GET")
+	v1.HandleFunc("/all-scenarios", handleListAllScenarios()).Methods("GET")
+	v1.HandleFunc("/scenarios/{name}/add-tag", handleAddMaintenanceTag()).Methods("POST")
+	v1.HandleFunc("/scenarios/{name}/remove-tag", handleRemoveMaintenanceTag()).Methods("POST")
+	v1.HandleFunc("/scenarios/{name}/preset-assignments", handleGetScenarioPresetAssignments(orchestrator)).Methods("GET")
+	v1.HandleFunc("/scenarios/{name}/preset-assignments", handleUpdateScenarioPresetAssignments(orchestrator)).Methods("POST")
 
 	// Options handlers for CORS
 	v1.HandleFunc("/scenarios", optionsHandler).Methods("OPTIONS")
@@ -95,6 +101,11 @@ func main() {
 	v1.HandleFunc("/presets/{id}/apply", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/status", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/stop-all", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/scenario-statuses", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/all-scenarios", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/scenarios/{name}/add-tag", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/scenarios/{name}/remove-tag", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/scenarios/{name}/preset-assignments", optionsHandler).Methods("OPTIONS")
 
 	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
 	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)

@@ -511,6 +511,301 @@
         .modal-btn.primary:hover {
             opacity: 0.9;
         }
+
+        /* Control Bar Styles */
+        .control-bar {
+            background: rgba(10, 14, 39, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 20px 40px;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.1);
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .search-container {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            pointer-events: none;
+        }
+
+        .sort-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sort-label {
+            font-size: 13px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sort-select {
+            padding: 10px 15px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .sort-select:focus {
+            outline: none;
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .sort-select:hover {
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .refresh-btn.refreshing {
+            animation: spin 1s linear infinite;
+        }
+
+        .add-scenario-btn {
+            padding: 10px 20px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .add-scenario-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .available-scenarios-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .available-scenario-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .available-scenario-item.enabled {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .available-scenario-item.disabled {
+            opacity: 0.6;
+            background: rgba(20, 25, 50, 0.3);
+        }
+
+        .available-scenario-item:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .scenario-info {
+            flex: 1;
+        }
+
+        .scenario-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 8px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .toggle-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+        }
+
+        .bookmark-btn:hover {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .checkmark {
+            color: #10b981;
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+
+        .available-scenario-name {
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 5px;
+        }
+
+        .available-scenario-desc {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .remove-btn {
+            padding: 5px 10px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .remove-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+            border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        /* Status chips */
+        .status-chip {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 10px;
+            border: 1px solid transparent;
+        }
+
+        .status-chip.running {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .status-chip.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .status-chip.stopped {
+            background: rgba(100, 116, 139, 0.2);
+            color: #64748b;
+            border-color: rgba(100, 116, 139, 0.3);
+        }
+
+        /* Preset assignment styles */
+        .preset-list {
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .preset-item:hover {
+            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .preset-checkbox {
+            margin-right: 12px;
+            width: 16px;
+            height: 16px;
+            accent-color: #10b981;
+        }
+
+        .preset-info {
+            flex: 1;
+        }
+
+        .preset-name {
+            font-weight: 600;
+            color: #e0e6ed;
+            margin-bottom: 4px;
+        }
+
+        .preset-description {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+
     </style>
 </head>
 <body>
@@ -543,6 +838,30 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Control Bar -->
+    <div class="control-bar">
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="searchInput" placeholder="Search scenarios..." />
+        </div>
+        <div class="sort-container">
+            <span class="sort-label">Sort:</span>
+            <select class="sort-select" id="sortSelect">
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="status-active">Active First</option>
+                <option value="status-inactive">Inactive First</option>
+                <option value="health-running">Running First</option>
+            </select>
+        </div>
+        <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
+            🔄 Refresh
+        </button>
+        <button class="add-scenario-btn" onclick="openManageScenarioModal()">
+            ⚙️ Manage
+        </button>
     </div>
 
     <div class="main-container">
@@ -588,6 +907,70 @@
         </div>
     </div>
 
+    <!-- Manage Scenarios Modal -->
+    <div id="manageScenarioModal" class="logs-modal">
+        <div class="logs-content">
+            <div class="logs-header">
+                <div class="logs-title">⚙️ Manage Maintenance Scenarios</div>
+                <div class="logs-header-buttons">
+                    <button class="modal-btn" onclick="closeManageScenarioModal()">✕</button>
+                </div>
+            </div>
+            <div class="scenario-selector">
+                <div class="search-container" style="margin-bottom: 20px;">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" id="modalSearchInput" placeholder="Search scenarios..." onkeyup="filterModalScenarios()" />
+                </div>
+                <div id="availableScenariosList" class="available-scenarios-list">
+                    <!-- Available scenarios will be listed here -->
+                </div>
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn" onclick="closeManageScenarioModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="logs-modal">
+        <div class="logs-content" style="max-width: 500px;">
+            <div class="logs-header">
+                <div class="logs-title" id="confirmTitle">⚠️ Confirm Action</div>
+            </div>
+            <div style="padding: 20px; color: #e0e6ed;" id="confirmMessage">
+                Are you sure you want to proceed?
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn" onclick="cancelConfirm()">Cancel</button>
+                <button class="modal-btn primary" id="confirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preset Assignment Modal -->
+    <div id="presetAssignmentModal" class="logs-modal">
+        <div class="logs-content" style="max-width: 600px;">
+            <div class="logs-header">
+                <div class="logs-title" id="presetAssignmentTitle">🔖 Assign to Presets</div>
+                <div class="logs-header-buttons">
+                    <button class="modal-btn" onclick="closePresetAssignmentModal()">✕</button>
+                </div>
+            </div>
+            <div class="preset-assignment-content">
+                <div style="padding: 20px; color: #e0e6ed; border-bottom: 1px solid rgba(16, 185, 129, 0.1);">
+                    Select which presets should include <span id="assignmentScenarioName" style="color: #10b981; font-weight: bold;"></span>:
+                </div>
+                <div class="preset-list" id="presetList">
+                    <!-- Preset checkboxes will be loaded here -->
+                </div>
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn" onclick="closePresetAssignmentModal()">Cancel</button>
+                <button class="modal-btn primary" onclick="savePresetAssignments()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let API_BASE = '';
         let apiUrl = '';
@@ -596,6 +979,10 @@
         let connectionStatus = 'disconnected';
         let logs = [];
         let pollInterval = null;
+        let searchTerm = '';
+        let sortOrder = 'name-asc';
+        let scenarioStatuses = {};
+        let isPolling = false;
 
         // Logging functions
         function addLog(message, level = 'info') {
@@ -753,6 +1140,35 @@
             }
         }
 
+        // Fetch scenario statuses from vrooli CLI
+        async function fetchScenarioStatuses() {
+            try {
+                const response = await fetch(`${API_BASE}/scenario-statuses`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                scenarioStatuses = data.statuses || {};
+                
+                // Update scenarios with health status
+                Object.keys(scenarios).forEach(id => {
+                    if (scenarioStatuses[id]) {
+                        scenarios[id].health = scenarioStatuses[id].status;
+                        scenarios[id].processCount = scenarioStatuses[id].processCount;
+                    } else {
+                        scenarios[id].health = 'stopped';
+                        scenarios[id].processCount = 0;
+                    }
+                });
+                
+                renderScenarios();
+            } catch (error) {
+                addLog(`Error fetching scenario statuses: ${error.message}`, 'warn');
+            }
+        }
+
         async function fetchPresets() {
             try {
                 addLog('Fetching presets...', 'info');
@@ -793,13 +1209,76 @@
             }
         }
 
+        function getStatusChip(health, processCount) {
+            switch(health) {
+                case 'running':
+                    return `<span class="status-chip running">🟢 Running (${processCount})</span>`;
+                case 'error':
+                    return `<span class="status-chip error">🔴 Error</span>`;
+                default:
+                    return `<span class="status-chip stopped">⚫ Stopped</span>`;
+            }
+        }
+
+        function filterAndSortScenarios() {
+            let filtered = Object.values(scenarios);
+            
+            // Apply search filter
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                filtered = filtered.filter(s => 
+                    s.name.toLowerCase().includes(term) ||
+                    (s.displayName && s.displayName.toLowerCase().includes(term)) ||
+                    (s.description && s.description.toLowerCase().includes(term)) ||
+                    s.tags.some(tag => tag.toLowerCase().includes(term))
+                );
+            }
+            
+            // Apply sorting
+            filtered.sort((a, b) => {
+                switch(sortOrder) {
+                    case 'name-asc':
+                        return (a.displayName || a.name).localeCompare(b.displayName || b.name);
+                    case 'name-desc':
+                        return (b.displayName || b.name).localeCompare(a.displayName || a.name);
+                    case 'status-active':
+                        return (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0);
+                    case 'status-inactive':
+                        return (a.isActive ? 1 : 0) - (b.isActive ? 1 : 0);
+                    case 'health-running':
+                        const healthOrder = { running: 0, error: 1, stopped: 2 };
+                        return (healthOrder[a.health] || 2) - (healthOrder[b.health] || 2);
+                    default:
+                        return 0;
+                }
+            });
+            
+            return filtered;
+        }
+
         function renderScenarios() {
             const grid = document.getElementById('scenarios-grid');
-            grid.innerHTML = Object.values(scenarios).map(scenario => `
+            const filtered = filterAndSortScenarios();
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #64748b;">
+                        ${searchTerm ? 'No scenarios match your search' : 'No maintenance scenarios found'}
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(scenario => {
+                const statusChip = getStatusChip(scenario.health || 'stopped', scenario.processCount || 0);
+                return `
                 <div class="scenario-card ${scenario.isActive ? 'active' : ''}">
                     <div class="scenario-header">
                         <div>
-                            <div class="scenario-name">${scenario.displayName || scenario.name}</div>
+                            <div class="scenario-name">
+                                ${scenario.displayName || scenario.name}
+                                ${statusChip}
+                            </div>
                             <div class="scenario-tags">
                                 ${scenario.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
                             </div>
@@ -813,7 +1292,8 @@
                     </div>
                     ${scenario.description ? `<div style="color: #64748b; font-size: 12px; margin-top: 10px;">${scenario.description}</div>` : ''}
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function renderPresets() {
@@ -929,6 +1409,258 @@
             }
         }
 
+        // Sequential polling mechanism
+        async function pollData() {
+            if (isPolling) return; // Prevent concurrent polling
+            
+            isPolling = true;
+            try {
+                await Promise.all([
+                    fetchScenarios(),
+                    fetchScenarioStatuses(),
+                    fetchStatus()
+                ]);
+            } catch (error) {
+                addLog(`Polling error: ${error.message}`, 'warn');
+            } finally {
+                isPolling = false;
+            }
+        }
+
+        function startPolling() {
+            // Use setTimeout for sequential polling
+            const poll = async () => {
+                await pollData();
+                pollInterval = setTimeout(poll, 5000); // Wait 5 seconds after completion
+            };
+            poll();
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearTimeout(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        // Manual refresh
+        async function manualRefresh() {
+            const btn = document.getElementById('refreshBtn');
+            btn.classList.add('refreshing');
+            
+            stopPolling();
+            await pollData();
+            startPolling();
+            
+            setTimeout(() => {
+                btn.classList.remove('refreshing');
+            }, 1000);
+        }
+
+        // Search and sort handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('searchInput');
+            const sortSelect = document.getElementById('sortSelect');
+            
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value;
+                renderScenarios();
+            });
+            
+            sortSelect.addEventListener('change', (e) => {
+                sortOrder = e.target.value;
+                renderScenarios();
+            });
+        });
+
+        // Add scenario modal functions
+        let allScenarios = [];
+        let confirmCallback = null;
+
+        async function openManageScenarioModal() {
+            document.getElementById('manageScenarioModal').style.display = 'flex';
+            document.getElementById('modalSearchInput').value = '';
+            await loadAllScenarios();
+        }
+
+        function closeManageScenarioModal() {
+            document.getElementById('manageScenarioModal').style.display = 'none';
+        }
+
+        async function loadAllScenarios() {
+            try {
+                const response = await fetch(`${API_BASE}/all-scenarios`);
+                const data = await response.json();
+                allScenarios = data.scenarios || [];
+                renderAvailableScenarios();
+            } catch (error) {
+                addLog(`Error loading scenarios: ${error.message}`, 'error');
+            }
+        }
+
+        function renderAvailableScenarios() {
+            const searchTerm = document.getElementById('modalSearchInput').value.toLowerCase();
+            const container = document.getElementById('availableScenariosList');
+            
+            const filtered = allScenarios.filter(s => {
+                const nameMatch = (s.name || '').toLowerCase().includes(searchTerm);
+                const displayNameMatch = (s.displayName || '').toLowerCase().includes(searchTerm);
+                const descMatch = (s.description || '').toLowerCase().includes(searchTerm);
+                return nameMatch || displayNameMatch || descMatch;
+            });
+
+            container.innerHTML = filtered.map(scenario => {
+                const hasMaintenance = scenario.tags && scenario.tags.includes('maintenance');
+                const className = hasMaintenance ? 'available-scenario-item enabled' : 'available-scenario-item disabled';
+                const onclick = `onclick="toggleMaintenanceTag('${scenario.name}', '${scenario.displayName || scenario.name}', ${hasMaintenance})"`;
+                
+                return `
+                    <div class="${className}" ${onclick}>
+                        <div class="scenario-info">
+                            <div class="available-scenario-name">
+                                ${hasMaintenance ? '<span class="checkmark">✓</span>' : ''}
+                                ${scenario.displayName || scenario.name}
+                            </div>
+                            <div class="available-scenario-desc">${scenario.description || 'No description available'}</div>
+                        </div>
+                        <div class="scenario-actions">
+                            <button class="action-btn toggle-btn" onclick="event.stopPropagation(); toggleMaintenanceTag('${scenario.name}', '${scenario.displayName || scenario.name}', ${hasMaintenance})" title="${hasMaintenance ? 'Remove from maintenance' : 'Add to maintenance'}">
+                                ${hasMaintenance ? '❌' : '➕'}
+                            </button>
+                            <button class="action-btn bookmark-btn" onclick="event.stopPropagation(); openPresetAssignmentModal('${scenario.name}', '${scenario.displayName || scenario.name}')" title="Assign to presets">
+                                🔖
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterModalScenarios() {
+            renderAvailableScenarios();
+        }
+
+        async function toggleMaintenanceTag(scenarioName, displayName, currentlyHasMaintenance) {
+            try {
+                const endpoint = currentlyHasMaintenance ? 'remove-tag' : 'add-tag';
+                const action = currentlyHasMaintenance ? 'Removed' : 'Added';
+                
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioName}/${endpoint}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`${action} maintenance tag ${currentlyHasMaintenance ? 'from' : 'to'} ${displayName || scenarioName}`, 'success');
+                    // Refresh both the modal and main scenarios list
+                    await loadAllScenarios();
+                    await fetchScenarios();
+                } else {
+                    addLog(`Failed to ${currentlyHasMaintenance ? 'remove' : 'add'} maintenance tag ${currentlyHasMaintenance ? 'from' : 'to'} ${displayName || scenarioName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error toggling maintenance tag: ${error.message}`, 'error');
+            }
+        }
+
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').style.display = 'none';
+            confirmCallback = null;
+        }
+
+        function cancelConfirm() {
+            closeConfirmModal();
+        }
+
+        // Preset assignment functionality
+        let currentAssignmentScenario = null;
+        let currentPresetAssignments = {};
+
+        async function openPresetAssignmentModal(scenarioName, displayName) {
+            currentAssignmentScenario = scenarioName;
+            document.getElementById('assignmentScenarioName').textContent = displayName || scenarioName;
+            document.getElementById('presetAssignmentModal').style.display = 'flex';
+            await loadPresetAssignments(scenarioName);
+        }
+
+        function closePresetAssignmentModal() {
+            document.getElementById('presetAssignmentModal').style.display = 'none';
+            currentAssignmentScenario = null;
+            currentPresetAssignments = {};
+        }
+
+        async function loadPresetAssignments(scenarioName) {
+            try {
+                // Get current preset assignments for this scenario
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioName}/preset-assignments`);
+                const data = await response.json();
+                currentPresetAssignments = data.assignments || {};
+                
+                renderPresetAssignments();
+            } catch (error) {
+                addLog(`Error loading preset assignments: ${error.message}`, 'error');
+                // Fallback to empty assignments
+                currentPresetAssignments = {};
+                renderPresetAssignments();
+            }
+        }
+
+        function renderPresetAssignments() {
+            const container = document.getElementById('presetList');
+            
+            container.innerHTML = Object.values(presets).map(preset => {
+                const isAssigned = currentPresetAssignments[preset.id] || false;
+                
+                return `
+                    <div class="preset-item">
+                        <input type="checkbox" 
+                               class="preset-checkbox" 
+                               id="preset-${preset.id}" 
+                               ${isAssigned ? 'checked' : ''}
+                               onchange="updatePresetAssignment('${preset.id}', this.checked)">
+                        <div class="preset-info">
+                            <div class="preset-name">${preset.name}</div>
+                            <div class="preset-description">${preset.description}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updatePresetAssignment(presetId, isAssigned) {
+            currentPresetAssignments[presetId] = isAssigned;
+        }
+
+        async function savePresetAssignments() {
+            if (!currentAssignmentScenario) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/scenarios/${currentAssignmentScenario}/preset-assignments`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        assignments: currentPresetAssignments
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Updated preset assignments for ${currentAssignmentScenario}`, 'success');
+                    closePresetAssignmentModal();
+                    // Refresh presets to reflect changes
+                    await fetchPresets();
+                } else {
+                    addLog(`Failed to update preset assignments: ${data.message || 'Unknown error'}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error saving preset assignments: ${error.message}`, 'error');
+            }
+        }
+
         // Initialize the dashboard
         async function init() {
             addLog('Initializing Maintenance Orchestrator Dashboard', 'info');
@@ -943,13 +1675,11 @@
                 // Load initial data
                 await fetchScenarios();
                 await fetchPresets();
+                await fetchScenarioStatuses();
                 await fetchStatus();
                 
-                // Start polling for updates
-                pollInterval = setInterval(() => {
-                    fetchScenarios();
-                    fetchStatus();
-                }, 5000);
+                // Start sequential polling
+                startPolling();
                 
                 addLog('Dashboard initialized successfully', 'success');
             } else {
@@ -961,6 +1691,9 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeLogsModal();
+                closeManageScenarioModal();
+                closeConfirmModal();
+                closePresetAssignmentModal();
             }
         });
 
@@ -970,12 +1703,28 @@
                 closeLogsModal();
             }
         });
+        
+        document.getElementById('manageScenarioModal').addEventListener('click', (e) => {
+            if (e.target.id === 'manageScenarioModal') {
+                closeManageScenarioModal();
+            }
+        });
+        
+        document.getElementById('confirmModal').addEventListener('click', (e) => {
+            if (e.target.id === 'confirmModal') {
+                closeConfirmModal();
+            }
+        });
+        
+        document.getElementById('presetAssignmentModal').addEventListener('click', (e) => {
+            if (e.target.id === 'presetAssignmentModal') {
+                closePresetAssignmentModal();
+            }
+        });
 
         // Clean up on page unload
         window.addEventListener('beforeunload', () => {
-            if (pollInterval) {
-                clearInterval(pollInterval);
-            }
+            stopPolling();
         });
 
         // Start the application
