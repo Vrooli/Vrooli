@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tools - Meeting Scheduler</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⏰ Time Tools</h1>
+            <nav>
+                <a href="index.html">Dashboard</a>
+                <a href="converter.html">Timezone Converter</a>
+                <a href="calculator.html">Duration Calculator</a>
+                <a href="scheduler.html" class="active">Meeting Scheduler</a>
+                <a href="events.html">Events</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="page-content">
+                <h2>📅 Meeting Scheduler</h2>
+                
+                <div class="scheduler-container">
+                    <!-- Schedule Optimization Form -->
+                    <div class="scheduler-section">
+                        <h3>Find Optimal Meeting Time</h3>
+                        <form id="scheduler-form">
+                            <div class="form-group">
+                                <label for="participants">Participants (comma-separated)</label>
+                                <input type="text" id="participants" class="form-control" 
+                                       placeholder="alice@company.com, bob@company.com, charlie@company.com" required>
+                                <small class="form-help">Enter participant names or emails separated by commas</small>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="duration-minutes">Duration (minutes)</label>
+                                    <input type="number" id="duration-minutes" class="form-control" 
+                                           value="60" min="15" max="480" step="15" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="timezone">Timezone</label>
+                                    <select id="timezone" class="form-control">
+                                        <option value="UTC">UTC</option>
+                                        <option value="America/New_York">Eastern Time</option>
+                                        <option value="America/Chicago">Central Time</option>
+                                        <option value="America/Denver">Mountain Time</option>
+                                        <option value="America/Los_Angeles">Pacific Time</option>
+                                        <option value="Europe/London">London</option>
+                                        <option value="Europe/Paris">Paris</option>
+                                        <option value="Asia/Tokyo">Tokyo</option>
+                                        <option value="Asia/Shanghai">Shanghai</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="earliest-date">Earliest Date</label>
+                                    <input type="date" id="earliest-date" class="form-control" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="latest-date">Latest Date</label>
+                                    <input type="date" id="latest-date" class="form-control" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-options">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="business-hours-only" checked>
+                                    <span class="checkbox-custom"></span>
+                                    Business hours only (9 AM - 5 PM)
+                                </label>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">Find Optimal Times</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Results -->
+                    <div id="optimal-times-result" class="result-section" style="display: none;">
+                        <h3>Optimal Meeting Times</h3>
+                        <div id="optimal-slots" class="slots-container">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Conflict Detection -->
+                    <div class="scheduler-section">
+                        <h3>Check for Conflicts</h3>
+                        <form id="conflict-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="conflict-start-time">Start Time</label>
+                                    <input type="datetime-local" id="conflict-start-time" class="form-control" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="conflict-end-time">End Time</label>
+                                    <input type="datetime-local" id="conflict-end-time" class="form-control" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="organizer-id">Organizer ID</label>
+                                <input type="text" id="organizer-id" class="form-control" 
+                                       placeholder="organizer@company.com" required>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-secondary">Check Conflicts</button>
+                        </form>
+                    </div>
+                    
+                    <!-- Conflict Results -->
+                    <div id="conflict-result" class="result-section" style="display: none;">
+                        <h3>Conflict Detection Results</h3>
+                        <div id="conflict-details" class="conflicts-container">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Time Tools v1.0.0 | <span id="api-status">Checking API...</span></p>
+        </footer>
+    </div>
+
+    <script>
+        // Dynamic API discovery
+        let API_BASE = null;
+
+        async function discoverApiPort() {
+            if (window.TIME_TOOLS_API_URL) {
+                return window.TIME_TOOLS_API_URL;
+            }
+            
+            const portRanges = [
+                { start: 8000, end: 8100 },
+                { start: 3000, end: 3100 },
+                { start: 5000, end: 5100 }
+            ];
+            
+            for (const range of portRanges) {
+                for (let port = range.start; port <= range.end; port++) {
+                    try {
+                        const url = `http://localhost:${port}`;
+                        const response = await fetch(`${url}/api/v1/health`, {
+                            method: 'GET',
+                            signal: AbortSignal.timeout(500)
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.service === 'time-tools') {
+                                return url;
+                            }
+                        }
+                    } catch (e) {
+                        // Port not available, continue
+                    }
+                }
+            }
+            
+            throw new Error('Time-tools API not found. Please ensure it is running.');
+        }
+
+        // Initialize scheduler
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Discover API first
+            try {
+                API_BASE = await discoverApiPort();
+                document.getElementById('api-status').textContent = 'API Connected';
+                document.getElementById('api-status').className = 'online';
+            } catch (error) {
+                document.getElementById('api-status').textContent = 'API Not Found';
+                document.getElementById('api-status').className = 'offline';
+                document.body.insertAdjacentHTML('afterbegin', 
+                    '<div style="background: #ff6b6b; color: white; padding: 10px; text-align: center;">' +
+                    'Time-tools API not found. Please ensure it is running.' +
+                    '</div>'
+                );
+                return;
+            }
+
+            setupSchedulerForm();
+            setupConflictForm();
+            
+            // Set default dates (today and next week)
+            const today = new Date();
+            const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+            
+            document.getElementById('earliest-date').value = formatDate(today);
+            document.getElementById('latest-date').value = formatDate(nextWeek);
+            
+            // Set default conflict check time (current time and 1 hour later)
+            const now = new Date();
+            const later = new Date(now.getTime() + 60 * 60 * 1000);
+            
+            document.getElementById('conflict-start-time').value = formatDateTimeLocal(now);
+            document.getElementById('conflict-end-time').value = formatDateTimeLocal(later);
+        });
+
+        function setupSchedulerForm() {
+            const form = document.getElementById('scheduler-form');
+            if (!form) return;
+            
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const participants = document.getElementById('participants').value.split(',').map(p => p.trim());
+                const durationMinutes = parseInt(document.getElementById('duration-minutes').value);
+                const timezone = document.getElementById('timezone').value;
+                const earliestDate = document.getElementById('earliest-date').value;
+                const latestDate = document.getElementById('latest-date').value;
+                const businessHoursOnly = document.getElementById('business-hours-only').checked;
+                
+                if (participants.length === 0 || participants[0] === '') {
+                    alert('Please enter at least one participant');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE}/api/v1/schedule/optimal`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            participants: participants,
+                            duration_minutes: durationMinutes,
+                            timezone: timezone,
+                            earliest_date: earliestDate,
+                            latest_date: latestDate,
+                            business_hours_only: businessHoursOnly
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        displayOptimalTimes(data);
+                    } else {
+                        const error = await response.json();
+                        alert(`Scheduling failed: ${error.error}`);
+                    }
+                } catch (error) {
+                    alert('Failed to connect to API');
+                    console.error(error);
+                }
+            });
+        }
+
+        function setupConflictForm() {
+            const form = document.getElementById('conflict-form');
+            if (!form) return;
+            
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const startTime = document.getElementById('conflict-start-time').value;
+                const endTime = document.getElementById('conflict-end-time').value;
+                const organizerId = document.getElementById('organizer-id').value;
+                
+                if (!startTime || !endTime || !organizerId) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                
+                const startISO = new Date(startTime).toISOString();
+                const endISO = new Date(endTime).toISOString();
+                
+                try {
+                    const response = await fetch(`${API_BASE}/api/v1/schedule/conflicts`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            start_time: startISO,
+                            end_time: endISO,
+                            organizer_id: organizerId
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        displayConflictResults(data);
+                    } else {
+                        const error = await response.json();
+                        alert(`Conflict check failed: ${error.error}`);
+                    }
+                } catch (error) {
+                    alert('Failed to connect to API');
+                    console.error(error);
+                }
+            });
+        }
+
+        function displayOptimalTimes(data) {
+            const resultContainer = document.getElementById('optimal-times-result');
+            const slotsContainer = document.getElementById('optimal-slots');
+            
+            if (!resultContainer || !slotsContainer) return;
+            
+            resultContainer.style.display = 'block';
+            
+            if (!data.optimal_slots || data.optimal_slots.length === 0) {
+                slotsContainer.innerHTML = '<div class="no-results">No optimal times found in the specified date range.</div>';
+                return;
+            }
+            
+            const slotsHTML = data.optimal_slots.map(slot => {
+                const startTime = new Date(slot.start_time);
+                const endTime = new Date(slot.end_time);
+                const score = Math.round(slot.score * 100);
+                
+                return `
+                    <div class="time-slot">
+                        <div class="slot-header">
+                            <span class="slot-time">
+                                ${startTime.toLocaleDateString()} 
+                                ${startTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
+                                ${endTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                            <span class="slot-score">Score: ${score}%</span>
+                        </div>
+                        <div class="slot-details">
+                            <span class="participants-free">${slot.participants_free.length}/${data.request.participants.length} participants available</span>
+                            ${slot.conflict_count > 0 ? `<span class="conflicts">${slot.conflict_count} conflicts</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            slotsContainer.innerHTML = slotsHTML;
+        }
+
+        function displayConflictResults(data) {
+            const resultContainer = document.getElementById('conflict-result');
+            const detailsContainer = document.getElementById('conflict-details');
+            
+            if (!resultContainer || !detailsContainer) return;
+            
+            resultContainer.style.display = 'block';
+            
+            if (!data.has_conflicts) {
+                detailsContainer.innerHTML = `
+                    <div class="no-conflicts">
+                        ✅ No conflicts detected! The time slot is available for scheduling.
+                    </div>
+                `;
+                return;
+            }
+            
+            const conflictsHTML = `
+                <div class="conflict-summary">
+                    ⚠️ ${data.conflict_count} conflict(s) detected
+                </div>
+                <div class="conflicts-list">
+                    ${data.conflicts.map(conflict => `
+                        <div class="conflict-item ${conflict.severity}">
+                            <div class="conflict-title">${conflict.event_title}</div>
+                            <div class="conflict-details">
+                                <span class="conflict-type">${conflict.conflict_type.replace('_', ' ')}</span>
+                                <span class="conflict-overlap">${conflict.overlap_minutes} minutes overlap</span>
+                                <span class="conflict-severity">Severity: ${conflict.severity}</span>
+                            </div>
+                            <div class="conflict-time">
+                                ${new Date(conflict.start_time).toLocaleString()} - 
+                                ${new Date(conflict.end_time).toLocaleString()}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            detailsContainer.innerHTML = conflictsHTML;
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+    </script>
+</body>
+</html>

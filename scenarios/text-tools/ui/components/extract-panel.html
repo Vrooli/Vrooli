@@ -1,0 +1,71 @@
+<div class="tool-panel" id="extract-panel">
+    <div class="tool-header">
+        <h2>Text Extraction</h2>
+        <div class="tool-options">
+            <select id="extract-format">
+                <option value="auto">Auto-detect</option>
+                <option value="pdf">PDF Document</option>
+                <option value="html">HTML</option>
+                <option value="docx">Word Document</option>
+                <option value="image">Image (OCR)</option>
+            </select>
+            <label class="checkbox">
+                <input type="checkbox" id="extract-ocr">
+                <span>Enable OCR</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="extract-preserve-formatting">
+                <span>Preserve Formatting</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="extract-metadata">
+                <span>Extract Metadata</span>
+            </label>
+        </div>
+    </div>
+    <div class="extract-container">
+        <div class="source-section">
+            <div class="section-header">
+                <h3>Document Source</h3>
+            </div>
+            <div class="source-options">
+                <div class="source-tabs">
+                    <button class="source-tab active" data-source="file">File Upload</button>
+                    <button class="source-tab" data-source="url">URL</button>
+                </div>
+                <div class="source-content">
+                    <div class="source-panel active" data-source="file">
+                        <label class="file-drop-zone" for="extract-file-input">
+                            <input type="file" id="extract-file-input" accept=".pdf,.docx,.html,.txt,.png,.jpg,.jpeg,.gif">
+                            <span class="drop-text">Click to select file or drag and drop</span>
+                        </label>
+                    </div>
+                    <div class="source-panel" data-source="url">
+                        <input type="url" id="extract-url" placeholder="Enter URL to extract from..." class="url-input">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="action-section">
+            <button class="btn-primary" id="extract-btn">Extract Text</button>
+            <div class="progress-indicator" id="extract-progress"></div>
+        </div>
+        <div class="output-section">
+            <div class="section-header">
+                <h3>Extracted Text</h3>
+                <div class="section-actions">
+                    <button class="btn-small" onclick="copyToClipboard('extract-output')">Copy</button>
+                    <button class="btn-small" onclick="downloadText('extract-output', 'extracted.txt')">Download</button>
+                </div>
+            </div>
+            <textarea id="extract-output" class="code-editor" readonly placeholder="Extracted text will appear here..."></textarea>
+        </div>
+    </div>
+    <div class="metadata-section" id="extract-metadata-section">
+        <div class="section-header">
+            <h3>Document Metadata</h3>
+        </div>
+        <div class="metadata-content" id="extract-metadata-content"></div>
+    </div>
+    <div class="results-container" id="extract-results"></div>
+</div>

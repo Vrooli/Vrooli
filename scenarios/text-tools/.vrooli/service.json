@@ -24,12 +24,12 @@
   },
   "ports": {
     "api": {
-      "env_var": "TEXT_TOOLS_PORT",
+      "env_var": "API_PORT",
       "description": "Text Tools API port",
       "range": "14000-14999"
     },
     "ui": {
-      "env_var": "TEXT_TOOLS_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "Text Tools UI port",
       "range": "24000-24999"
     }
@@ -85,22 +85,6 @@
       "enabled": true,
       "required": false,
       "purpose": "Vector storage for semantic search and similarity matching"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": false,
-      "purpose": "Workflow automation for complex text processing pipelines",
-      "initialization": [
-        {
-          "file": "initialization/n8n/text-processing-pipeline.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/document-extraction.json",
-          "type": "workflow"
-        }
-      ]
     }
   },
   "lifecycle": {
@@ -115,7 +99,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${TEXT_TOOLS_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -123,7 +107,7 @@
         {
           "name": "ui_endpoint",
           "type": "http",
-          "target": "http://localhost:${TEXT_TOOLS_UI_PORT}/health",
+          "target": "http://localhost:${UI_PORT}/health",
           "critical": false,
           "timeout": 5000,
           "interval": 30000
@@ -161,7 +145,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod init text-tools && go mod tidy && go build -o text-tools-api .",
+          "run": "cd api && go mod tidy && go build -o text-tools-api .",
           "description": "Build Go API binary"
         },
         {
@@ -186,7 +170,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Text Tools initialized\\n  UI: http://localhost:${TEXT_TOOLS_UI_PORT}\\n  API: http://localhost:${TEXT_TOOLS_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
+          "run": "echo '🚀 Text Tools initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nCore endpoints:\\n  POST /api/v1/text/diff\\n  POST /api/v1/text/search\\n  POST /api/v1/text/transform\\n  POST /api/v1/text/extract\\n  POST /api/v1/text/analyze'",
           "description": "Display service access URLs"
         }
       ]
@@ -214,7 +198,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${TEXT_TOOLS_UI_PORT}\\n  API: http://localhost:${TEXT_TOOLS_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
+          "run": "echo '🚀 Text Tools running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: text-tools --help\\n\\nTry:\\n  text-tools diff file1.txt file2.txt\\n  text-tools search \"pattern\" *.txt\\n  text-tools extract document.pdf\\n  text-tools analyze --summary input.txt'",
           "description": "Display running service URLs and examples"
         }
       ]
@@ -229,12 +213,12 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:${TEXT_TOOLS_PORT}/health || exit 1",
+          "run": "curl -sf http://localhost:${API_PORT}/health || exit 1",
           "description": "Test API health endpoint"
         },
         {
           "name": "test-diff-endpoint",
-          "run": "curl -sf -X POST http://localhost:${TEXT_TOOLS_PORT}/api/v1/text/diff -H 'Content-Type: application/json' -d '{\"text1\":\"hello\",\"text2\":\"world\"}' || exit 1",
+          "run": "curl -sf -X POST http://localhost:${API_PORT}/api/v1/text/diff -H 'Content-Type: application/json' -d '{\"text1\":\"hello\",\"text2\":\"world\"}' || exit 1",
           "description": "Test diff endpoint"
         },
         {

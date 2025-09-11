@@ -1,0 +1,54 @@
+<div class="tool-panel active" id="diff-panel">
+    <div class="tool-header">
+        <h2>Text Comparison</h2>
+        <div class="tool-options">
+            <select id="diff-type">
+                <option value="line">Line by Line</option>
+                <option value="word">Word by Word</option>
+                <option value="character">Character</option>
+                <option value="semantic">Semantic</option>
+            </select>
+            <label class="checkbox">
+                <input type="checkbox" id="diff-ignore-whitespace">
+                <span>Ignore Whitespace</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="diff-ignore-case">
+                <span>Ignore Case</span>
+            </label>
+        </div>
+    </div>
+    <div class="diff-container">
+        <div class="diff-pane">
+            <div class="pane-header">
+                <span>Original Text</span>
+                <div class="pane-actions">
+                    <button class="btn-small" onclick="document.getElementById('diff-text1').value=''">Clear</button>
+                    <label class="btn-small">
+                        <input type="file" hidden id="diff-file1" accept=".txt,.md,.json,.xml,.html">
+                        Load File
+                    </label>
+                </div>
+            </div>
+            <textarea id="diff-text1" class="code-editor" placeholder="Enter or paste original text here..."></textarea>
+        </div>
+        <div class="diff-pane">
+            <div class="pane-header">
+                <span>Modified Text</span>
+                <div class="pane-actions">
+                    <button class="btn-small" onclick="document.getElementById('diff-text2').value=''">Clear</button>
+                    <label class="btn-small">
+                        <input type="file" hidden id="diff-file2" accept=".txt,.md,.json,.xml,.html">
+                        Load File
+                    </label>
+                </div>
+            </div>
+            <textarea id="diff-text2" class="code-editor" placeholder="Enter or paste modified text here..."></textarea>
+        </div>
+    </div>
+    <div class="action-bar">
+        <button class="btn-primary" id="diff-compare-btn">Compare</button>
+        <span class="similarity-score" id="diff-similarity"></span>
+    </div>
+    <div class="results-container" id="diff-results"></div>
+</div>

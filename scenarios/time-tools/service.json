@@ -3,42 +3,44 @@
   "version": "1.0.0",
   "service": {
     "parent": "vrooli",
-    "name": "SCENARIO_ID_PLACEHOLDER",
-    "displayName": "SCENARIO_NAME_PLACEHOLDER",
-    "description": "SCENARIO_DESCRIPTION_PLACEHOLDER",
-    "version": "SCENARIO_VERSION_PLACEHOLDER",
+    "name": "time-tools",
+    "displayName": "Time Tools",
+    "description": "Comprehensive temporal operations and scheduling platform for timezone conversions, duration calculations, and intelligent scheduling",
+    "version": "1.0.0",
     "type": "business-application",
-    "category": "CATEGORY_PLACEHOLDER",
+    "category": "productivity",
     "tags": [
-      "INDUSTRY_TAG_PLACEHOLDER",
-      "SOLUTION_TYPE_PLACEHOLDER",
-      "TARGET_MARKET_PLACEHOLDER"
+      "temporal-operations",
+      "scheduling",
+      "timezone-management",
+      "calendar-integration",
+      "productivity"
     ],
     "maintainers": [
       {
-        "name": "MAINTAINER_NAME_PLACEHOLDER",
-        "email": "MAINTAINER_EMAIL_PLACEHOLDER",
-        "url": "MAINTAINER_URL_PLACEHOLDER"
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://vrooli.com"
       }
     ],
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/SCENARIO_ID_PLACEHOLDER"
+      "directory": "/scenarios/time-tools"
     },
-    "license": "LICENSE_TYPE_PLACEHOLDER",
+    "license": "MIT",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "./README.md",
     "support": {
-      "email": "SUPPORT_EMAIL_PLACEHOLDER",
+      "email": "support@vrooli.com",
       "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "CHAT_URL_PLACEHOLDER"
+      "chat": "https://discord.gg/vrooli"
     }
   },
   "ports": {
     "api": {
-      "env_var": "API_PORT",
-      "range": "8090-8999",
+      "env_var": "TIME_TOOLS_PORT",
+      "range": "dynamic",
       "description": "Main API port"
     }
   },
@@ -47,7 +49,7 @@
       "type": "postgres",
       "enabled": true,
       "required": true,
-      "purpose": "PRIMARY_DATABASE_PURPOSE_PLACEHOLDER",
+      "purpose": "Store calendar events, schedules, timezone data, and temporal analytics",
       "initialization": [
         {
           "file": "initialization/storage/postgres/schema.sql",
@@ -76,58 +78,13 @@
       "enabled": false,
       "required": false,
       "purpose": "Vector database for semantic search"
-    },
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/n8n/main-workflow.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "windmill": {
-      "type": "windmill",
-      "enabled": true,
-      "required": false,
-      "initialization": [
-        {
-          "file": "initialization/automation/windmill/windmill-app.json",
-          "type": "app"
-        }
-      ]
-    },
-    "node-red": {
-      "type": "node-red",
-      "enabled": false,
-      "required": false
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": false,
-      "required": false,
-      "models": [
-        "AI_MODEL_PLACEHOLDER"
-      ]
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Scenario",
+      "description": "Initialize time-tools scenario",
       "steps": [
-        {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
         {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
@@ -138,7 +95,7 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o api-server ./cmd/server",
+          "run": "cd api && go mod download && go build -o time-tools-api",
           "description": "Build Go API server",
           "condition": {
             "file_exists": "api/go.mod"
@@ -146,8 +103,8 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${API_PORT}\\n  CLI: CLI_NAME_PLACEHOLDER --help'",
-          "description": "Display service access URLs"
+          "run": "echo '🚀 Time Tools initialized\\n  API: http://localhost:${TIME_TOOLS_PORT}\\n  CLI: time-tools --help'",
+          "description": "Display service URLs"
         }
       ]
     },
@@ -156,16 +113,16 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && env PORT=$API_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./api-server &",
+          "run": "cd api && PORT=${TIME_TOOLS_PORT} ./time-tools-api &",
           "description": "Start Go API server in background",
           "background": true,
           "condition": {
-            "file_exists": "api/api-server"
+            "file_exists": "api/time-tools-api"
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$API_PORT\\n  CLI: CLI_NAME_PLACEHOLDER --help'",
+          "run": "echo '🚀 Time Tools running:\\n  API: http://localhost:${TIME_TOOLS_PORT}\\n  CLI: time-tools --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -175,7 +132,7 @@
       "steps": [
         {
           "name": "test-go-build",
-          "run": "cd api && go build -o test-build ./cmd/server && rm test-build",
+          "run": "cd api && go build -o test-build && rm test-build",
           "description": "Test Go compilation",
           "condition": {
             "file_exists": "api/go.mod"
@@ -183,7 +140,7 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
+          "run": "curl -sf http://localhost:${TIME_TOOLS_PORT}/api/v1/health",
           "description": "Test API health endpoint"
         },
         {
@@ -214,8 +171,8 @@
       "steps": [
         {
           "name": "stop-api-server",
-          "run": "pkill -f 'api-server' || true",
-          "description": "Stop Go API server processes"
+          "run": "pkill -f 'time-tools-api' || true",
+          "description": "Stop time-tools API server"
         },
         {
           "name": "confirm-stop",
@@ -225,199 +182,33 @@
       ]
     }
   },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "http://localhost:{{ APP_PORT }}",
-      "admin": "http://localhost:{{ ADMIN_PORT }}",
-      "api": "http://localhost:{{ API_PORT }}",
-      "health": "http://localhost:{{ API_PORT }}/health"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "workflow-deployment",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "deploy-n8n-workflows",
-              "type": "resource-inject",
-              "target": "automation.n8n",
-              "config": "initialization/workflows/n8n/"
-            },
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/ui/"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": [
-            {
-              "name": "load-app-config",
-              "type": "config",
-              "file": "initialization/configuration/app-config.json"
-            },
-            {
-              "name": "set-feature-flags",
-              "type": "config",
-              "file": "initialization/configuration/feature-flags.json"
-            }
-          ]
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "{{ urls.health }}",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "{{ urls.health }}",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "workflows": {
-          "endpoint": "http://localhost:5678/api/v1/info",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "rps": 100,
-          "concurrent": 10
-        },
-        "errorRate": {
-          "threshold": "1%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "delete-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.n8n"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS {{ DATABASE_NAME }}"
-        },
-        {
-          "name": "clear-storage",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "30m",
-      "script": "./test.sh",
-      "ui": {
-        "required": true,
-        "type": "windmill",
-        "url": "{{ urls.application }}"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 10,
-          "duration": "5m",
-          "rampUp": "30s"
-        }
-      }
-    }
-  },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "VALUE_PROPOSITION_PLACEHOLDER",
-      "targetMarket": "TARGET_MARKET_PLACEHOLDER",
+      "valueProposition": "Enterprise-grade temporal operations platform that eliminates timezone errors, optimizes scheduling, and provides intelligent time management across global operations",
+      "targetMarket": "Global enterprises, scheduling platforms, productivity tools, and any business requiring sophisticated time management",
       "painPoints": [
-        "PAIN_POINT_1_PLACEHOLDER",
-        "PAIN_POINT_2_PLACEHOLDER",
-        "PAIN_POINT_3_PLACEHOLDER"
+        "Manual timezone conversion errors leading to missed meetings",
+        "Complex scheduling conflicts with multiple participants",
+        "Lack of business hours and holiday awareness in scheduling"
       ],
-      "solution": "SOLUTION_DESCRIPTION_PLACEHOLDER",
-      "competitiveAdvantage": "COMPETITIVE_ADVANTAGE_PLACEHOLDER",
+      "solution": "Comprehensive temporal API with timezone intelligence, conflict detection, optimal scheduling algorithms, and business time calculations",
+      "competitiveAdvantage": "Only platform combining timezone conversion, scheduling optimization, and business time calculations with AI-powered conflict resolution",
       "revenuePotential": {
-        "initial": "$INITIAL_REVENUE_PLACEHOLDER",
-        "recurring": "$RECURRING_REVENUE_PLACEHOLDER",
-        "expansion": "$EXPANSION_REVENUE_PLACEHOLDER",
-        "totalEstimate": "$TOTAL_ESTIMATE_PLACEHOLDER"
+        "initial": "$10,000",
+        "recurring": "$2,000/month",
+        "expansion": "$20,000",
+        "totalEstimate": "$40,000"
       },
       "marketDemand": {
-        "level": "DEMAND_LEVEL_PLACEHOLDER",
-        "growth": "GROWTH_RATE_PLACEHOLDER",
-        "evidence": "MARKET_EVIDENCE_PLACEHOLDER"
+        "level": "High",
+        "growth": "35% YoY",
+        "evidence": "Growing demand for global scheduling solutions and timezone management tools"
       },
       "roi": {
-        "developmentCost": "$DEVELOPMENT_COST_PLACEHOLDER",
-        "timeToMarket": "TIME_TO_MARKET_PLACEHOLDER",
-        "breakEven": "BREAK_EVEN_TIMELINE_PLACEHOLDER"
+        "developmentCost": "$5,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
       }
     },
     "performance": {
@@ -457,44 +248,41 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "APPLICATION_NAME_PLACEHOLDER",
+          "default": "Time Tools",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
           "type": "string",
-          "default": "COMPANY_NAME_PLACEHOLDER",
+          "default": "Vrooli",
           "description": "Customer company name"
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#PRIMARY_COLOR_PLACEHOLDER",
+          "default": "#4F46E5",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "DATABASE_NAME_PLACEHOLDER",
+          "default": "time_tools_db",
           "description": "Database name"
         },
         "APP_PORT": {
           "type": "number",
-          "default": 3000,
-          "description": "Application port"
+          "description": "Application port (dynamically assigned)"
         },
         "ADMIN_PORT": {
           "type": "number",
-          "default": 3001,
-          "description": "Admin dashboard port"
+          "description": "Admin dashboard port (dynamically assigned)"
         },
         "API_PORT": {
           "type": "number",
-          "default": 5329,
-          "description": "API server port"
+          "description": "API server port (dynamically assigned)"
         }
       },
       "features": {
         "authentication": {
           "enabled": true,
-          "provider": "AUTH_PROVIDER_PLACEHOLDER",
+          "provider": "jwt",
           "sso": false
         },
         "notifications": {
@@ -510,13 +298,13 @@
         },
         "payments": {
           "enabled": false,
-          "provider": "PAYMENT_PROVIDER_PLACEHOLDER"
+          "provider": "stripe"
         }
       },
       "integrations": [
         {
-          "name": "INTEGRATION_NAME_PLACEHOLDER",
-          "type": "INTEGRATION_TYPE_PLACEHOLDER",
+          "name": "Google Calendar",
+          "type": "calendar",
           "required": false
         }
       ]

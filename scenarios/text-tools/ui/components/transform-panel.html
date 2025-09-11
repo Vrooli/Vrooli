@@ -1,0 +1,57 @@
+<div class="tool-panel" id="transform-panel">
+    <div class="tool-header">
+        <h2>Text Transformation</h2>
+        <div class="tool-options">
+            <label class="checkbox">
+                <input type="checkbox" id="transform-upper">
+                <span>Uppercase</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="transform-lower">
+                <span>Lowercase</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="transform-title">
+                <span>Title Case</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="transform-sanitize">
+                <span>Sanitize HTML</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="transform-base64">
+                <span>Base64 Encode</span>
+            </label>
+        </div>
+    </div>
+    <div class="transform-container">
+        <div class="input-section">
+            <div class="section-header">
+                <h3>Input Text</h3>
+                <div class="section-actions">
+                    <button class="btn-small" onclick="document.getElementById('transform-input').value=''">Clear</button>
+                    <label class="btn-small">
+                        <input type="file" hidden id="transform-file" accept=".txt,.md,.json,.xml,.html">
+                        Load File
+                    </label>
+                </div>
+            </div>
+            <textarea id="transform-input" class="code-editor" placeholder="Enter text to transform..."></textarea>
+        </div>
+        <div class="action-section">
+            <button class="btn-primary" id="transform-btn">Transform Text</button>
+            <div class="transformation-chain" id="transformation-chain"></div>
+        </div>
+        <div class="output-section">
+            <div class="section-header">
+                <h3>Transformed Text</h3>
+                <div class="section-actions">
+                    <button class="btn-small" onclick="copyToClipboard('transform-output')">Copy</button>
+                    <button class="btn-small" onclick="downloadText('transform-output', 'transformed.txt')">Download</button>
+                </div>
+            </div>
+            <textarea id="transform-output" class="code-editor" readonly placeholder="Transformed text will appear here..."></textarea>
+        </div>
+    </div>
+    <div class="results-container" id="transform-results"></div>
+</div>

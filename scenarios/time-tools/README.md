@@ -1,441 +1,217 @@
-# {{ scenario.name }} - Full Scenario Template with API & CLI
+# Time Tools - Comprehensive Temporal Operations Platform
 
-> **Enterprise-grade scenario template with Go API server, CLI tool, and complete deployment orchestration**
+> **Enterprise-grade temporal operations and scheduling platform for timezone conversions, duration calculations, and intelligent scheduling**
 
-<!-- 
-🔄 TEMPLATE ENHANCED WITH API & CLI PATTERNS:
-This template now includes the successful patterns from agent-metareasoning-manager:
-- Go API server for coordination
-- Bash CLI tool for command-line access
-- Database-driven architecture
-- Complete lifecycle management
+## 🎯 Overview
 
-DUAL TEMPLATING APPROACH:
-- For deployment orchestration: Uses Jinja2 syntax {{ variable.name }}
-- For AI generation: Use PLACEHOLDER_NAME patterns (see AI guidance comments)
-- AI agents should replace both placeholder types during generation
--->
+Time Tools provides a comprehensive temporal operations platform that enables all Vrooli scenarios to perform timezone conversions, duration calculations, date arithmetic, scheduling optimization, and time-based analysis without implementing custom temporal logic.
 
-## 🆕 **What's New in This Template**
+## ✨ Features
 
-This template includes the **modern scenario architecture** based on agent-metareasoning-manager pattern:
+### Core Capabilities
+- **Timezone Conversion** - Convert between any global timezones with DST handling
+- **Duration Calculations** - Calculate time between dates with business hours support
+- **Scheduling Optimization** - Find optimal meeting times across multiple participants
+- **Conflict Detection** - Identify and resolve scheduling conflicts automatically
+- **Business Time** - Handle working hours, holidays, and business day calculations
+- **Event Management** - Create, manage, and track calendar events
 
-- ✅ **Go API Server** - RESTful API with database integration
-- ✅ **CLI Tool** - Command-line interface for all operations
-- ✅ **`service.json`** - Unified configuration with lifecycle management
-- ✅ **PostgreSQL Integration** - Database-driven architecture
-- ✅ **Complete Testing** - API, CLI, and integration tests
-- ✅ **One-command deployment** via scenario lifecycle phases
+### Advanced Features
+- Multi-timezone display for global teams
+- Recurring event patterns with complex rules
+- Time analytics and usage insights
+- Holiday and special date management
+- Calendar integration support
 
-## 🎯 **Business Overview**
+## 🚀 Quick Start
 
-### **Value Proposition**
-{{ business.value_proposition }}
-<!-- AI: Replace with VALUE_PROPOSITION_PLACEHOLDER - include specific metrics/outcomes -->
+### Prerequisites
+- Vrooli CLI installed
+- PostgreSQL and Redis resources available
+- Go 1.21+ (for development)
 
-### **Target Markets**
-{% for market in business.target_markets %}
-- {{ market }}
-{% endfor %}
-<!-- AI: Replace with PRIMARY_MARKET_PLACEHOLDER, SECONDARY_MARKET_PLACEHOLDER -->
+### Installation
 
-### **Pain Points Addressed**
-{% for pain_point in business.pain_points %}
-- {{ pain_point }}
-{% endfor %}
-<!-- AI: Replace with PAIN_POINT_1_PLACEHOLDER, PAIN_POINT_2_PLACEHOLDER -->
-
-### **Revenue Potential**
-- **Range**: ${{ business.revenue_potential.min | number_format }} - ${{ business.revenue_potential.max | number_format }}
-- **Market Demand**: {{ business.market_demand }}
-- **Pricing Model**: {{ business.revenue_potential.pricing_model }}
-<!-- AI: Adjust min/max based on scenario complexity and business value -->
-
-## 🏗️ **Architecture**
-
-### **System Components**
-```
-┌─────────────────┐     ┌─────────────────┐
-│      CLI        │────▶│   Go API Server │
-│  (CLI_NAME)     │     │   (Port: 8090+) │
-└─────────────────┘     └─────────────────┘
-                                │
-                ┌───────────────┼───────────────┐
-                ▼               ▼               ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Frontend UI   │     │   Workflows     │     │  AI Processing  │
-│   (Windmill)    │     │   (n8n/etc)     │     │   (Ollama/etc)  │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                │                           │
-                                ▼                           ▼
-                        ┌─────────────────┐     ┌─────────────────┐
-                        │   Database      │     │   Storage       │
-                        │  (PostgreSQL)   │     │  (MinIO/etc)    │
-                        └─────────────────┘     └─────────────────┘
-```
-
-### **Required Resources**
-- **PostgreSQL**: Primary database for all application data
-- **n8n**: Workflow automation and orchestration
-- **Windmill**: UI applications and dashboards
-<!-- AI: Add additional required resources based on scenario needs -->
-
-### **Optional Resources**
-- **Ollama**: Local AI model inference
-- **Qdrant**: Vector database for semantic search
-- **MinIO**: Object storage for files
-<!-- AI: Add optional resources that enhance functionality -->
-
-## 🚀 **Quick Start**
-
-### **1. Setup and Build**
 ```bash
-# Navigate to scenario directory
-cd {{ scenario.id }}
+# Start the scenario
+vrooli scenario run time-tools
 
-# Run setup lifecycle (builds API, installs CLI)
-../../manage.sh setup --target native-linux
+# Install CLI (if not auto-installed)
+cd scenarios/time-tools/cli
+./install.sh
 
-# This automatically:
-# - Builds Go API server
-# - Installs CLI globally
-# - Initializes database
-# - Imports workflows
+# Verify installation
+time-tools help
 ```
 
-### **2. Start Development Environment**
-```bash
-# Start all services
-../../manage.sh develop --target native-linux
+## 📚 Usage
 
-# Services will be available at:
-# - API Server: http://localhost:${API_PORT}
-# - API Docs: http://localhost:${API_PORT}/docs
-# - Windmill UI: http://localhost:5681
-# - n8n Workflows: http://localhost:5678
+### CLI Commands
+
+```bash
+# Convert timezone
+time-tools convert '2024-01-15T10:00:00Z' UTC 'America/New_York'
+
+# Calculate duration
+time-tools duration '2024-01-15T09:00:00Z' '2024-01-15T17:00:00Z' --business-hours-only
+
+# Find optimal meeting time
+time-tools schedule --participants alice,bob,charlie --duration 60 --earliest 2024-01-15
+
+# Detect scheduling conflicts
+time-tools conflicts '2024-01-15T14:00:00Z' '2024-01-15T15:00:00Z' --organizer alice
+
+# Show current time in timezone
+time-tools now 'Asia/Tokyo'
+
+# Format time in various styles
+time-tools format '2024-01-15T10:00:00Z' human --timezone 'America/Los_Angeles'
 ```
 
-### **3. Use the CLI**
-```bash
-# After setup, CLI is available globally
-CLI_NAME_PLACEHOLDER health                          # Check system health
-CLI_NAME_PLACEHOLDER list resources                  # List all resources
-CLI_NAME_PLACEHOLDER get resources <id>              # Get specific resource
-CLI_NAME_PLACEHOLDER create resources name "Test"    # Create resource
-CLI_NAME_PLACEHOLDER execute workflow-1 "Input data" # Execute workflow
-```
+### API Endpoints
 
-### **4. Access API Directly**
 ```bash
+# Get the dynamic API port
+API_PORT=$(vrooli scenario port time-tools TIME_TOOLS_PORT)
+API_BASE="http://localhost:${API_PORT}"
+
 # Health check
-curl http://localhost:${API_PORT}/health
+curl $API_BASE/api/v1/health
 
-# List resources (with authentication)
-curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${API_PORT}/api/v1/resources
+# Timezone conversion
+curl -X POST $API_BASE/api/v1/time/convert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "time": "2024-01-15T10:00:00Z",
+    "from_timezone": "UTC",
+    "to_timezone": "America/New_York"
+  }'
 
-# Create resource
-curl -X POST \
-     -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     -H "Content-Type: application/json" \
-     -d '{"name": "Test", "description": "Example"}' \
-     http://localhost:${API_PORT}/api/v1/resources
+# Duration calculation
+curl -X POST $API_BASE/api/v1/time/duration \
+  -H "Content-Type: application/json" \
+  -d '{
+    "start_time": "2024-01-15T09:00:00Z",
+    "end_time": "2024-01-15T17:00:00Z",
+    "business_hours_only": true
+  }'
+
+# Optimal scheduling
+curl -X POST $API_BASE/api/v1/schedule/optimal \
+  -H "Content-Type: application/json" \
+  -d '{
+    "participants": ["alice", "bob"],
+    "duration_minutes": 60,
+    "earliest_date": "2024-01-15",
+    "latest_date": "2024-01-22"
+  }'
 ```
 
-## 📁 **File Structure**
+## 🏗️ Architecture
 
-### **Core Files**
-```
-{{ scenario.id }}/
-├── .vrooli/
-│   └── service.json           # Unified configuration and lifecycle
-├── api/                       # Go API server
-│   ├── cmd/server/main.go     # API entry point
-│   ├── go.mod                 # Go dependencies
-│   └── go.sum                 # Dependency checksums
-├── cli/                       # Command-line interface
-│   ├── cli.sh                 # CLI implementation
-│   ├── install.sh             # CLI installer
-│   └── cli-tests.bats         # CLI tests
-├── README.md                  # This documentation
-├── scenario-test.yaml         # Scenario validation tests
-└── test.sh                    # Integration tests
-```
+### Components
+- **API Server** - Go-based REST API with PostgreSQL integration
+- **CLI Tool** - Lightweight wrapper around API endpoints
+- **Web UI** - Modular dashboard for visual time management
+- **Database** - PostgreSQL with temporal data models
 
-### **Initialization Data**
-```
-initialization/
-├── automation/
-│   ├── n8n/                   # n8n workflow definitions
-│   │   └── main-workflow.json # Primary workflow
-│   └── windmill/              # Windmill apps
-│       └── windmill-app.json  # UI application
-├── configuration/
-│   ├── app-config.json        # Runtime settings
-│   ├── resource-urls.json     # Service endpoints
-│   └── feature-flags.json     # Feature toggles
-└── storage/
-    ├── postgres/              # PostgreSQL database
-    │   ├── schema.sql         # Database structure
-    │   └── seed.sql           # Initial data
-    ├── qdrant/                # Vector database (optional)
-    │   └── collections.json   # Collection definitions
-    └── minio/                 # Object storage (optional)
-        └── buckets.json       # Bucket configuration
-```
+### Data Models
+- `scheduled_events` - Calendar events and appointments
+- `timezone_definitions` - Timezone data with DST rules
+- `recurrence_patterns` - Complex recurring event patterns
+- `business_hours` - Working hours configuration
+- `holidays` - Holiday and special date definitions
+- `time_analytics` - Usage metrics and insights
 
-### **Deployment Scripts**
-```
-deployment/
-├── startup.sh                 # Application initialization
-└── monitor.sh                 # Health monitoring
-```
-
-## 🔧 **API & CLI Development**
-
-### **API Server**
-The Go API server provides RESTful endpoints for all scenario operations:
-
-```go
-// api/cmd/server/main.go
-// Key endpoints:
-// GET    /health              - Health check
-// GET    /docs                - API documentation
-// GET    /api/v1/resources    - List resources
-// POST   /api/v1/resources    - Create resource
-// GET    /api/v1/resources/:id - Get resource
-// PUT    /api/v1/resources/:id - Update resource
-// DELETE /api/v1/resources/:id - Delete resource
-// POST   /api/v1/execute      - Execute workflow
-```
-
-### **CLI Tool**
-The CLI provides command-line access to all API functionality:
+## 🧪 Testing
 
 ```bash
-# Basic commands
-CLI_NAME_PLACEHOLDER health              # Check system health
-CLI_NAME_PLACEHOLDER list resources      # List all resources
-CLI_NAME_PLACEHOLDER get resources <id>  # Get specific resource
-CLI_NAME_PLACEHOLDER create resources name "Example" description "Test"
-CLI_NAME_PLACEHOLDER execute workflow-1 "Process this data"
+# Run all tests
+vrooli scenario test time-tools
 
-# Configuration
-CLI_NAME_PLACEHOLDER configure api_base http://localhost:8090
-CLI_NAME_PLACEHOLDER configure api_token your-token-here
-CLI_NAME_PLACEHOLDER configure output_format json
-```
-
-### **Authentication**
-The API uses Bearer token authentication:
-```bash
-curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${API_PORT}/api/v1/resources
-```
-
-## 🔧 **Customization Guide**
-
-### **Business Configuration**
-Edit `.vrooli/service.json` metadata section:
-```json
-"metadata": {
-  "businessModel": {
-    "valueProposition": "Your unique value proposition",
-    "targetMarket": "Your primary market",
-    "revenuePotential": {
-      "initial": "$15000",
-      "recurring": "$5000",
-      "totalEstimate": "$30000"
-    }
-  }
-}
-```
-
-### **API Customization**
-Edit `api/cmd/server/main.go`:
-- Add new endpoints for your business logic
-- Customize database queries
-- Implement workflow triggers
-- Add validation and business rules
-
-### **CLI Customization**
-Edit `cli/cli.sh`:
-- Add scenario-specific commands
-- Customize output formatting
-- Add shortcuts and aliases
-- Implement batch operations
-
-### **Database Schema**
-Edit `initialization/storage/postgres/schema.sql`:
-- Add business-specific tables
-- Configure indexes and constraints
-- Set up views and functions
-- Define relationships
-
-### **Workflow Logic**
-Edit `initialization/automation/n8n/main-workflow.json`:
-- Add business logic nodes
-- Configure API integrations
-- Set up data processing steps
-- Define triggers and schedules
-
-## 🧪 **Testing & Validation**
-
-### **Lifecycle Testing**
-```bash
-# Run test lifecycle phase
-../../manage.sh test --target native-linux
-
-# This executes:
-# - Go compilation test
-# - API health checks
-# - API endpoint tests
-# - CLI command tests
-# - Integration tests
-```
-
-### **Manual Testing**
-```bash
 # Test API endpoints
-curl http://localhost:${API_PORT}/health
-curl -H "Authorization: Bearer API_TOKEN_PLACEHOLDER" \
-     http://localhost:${API_PORT}/api/v1/resources
+API_PORT=$(vrooli scenario port time-tools TIME_TOOLS_PORT)
+curl http://localhost:${API_PORT}/api/v1/health
 
 # Test CLI commands
-CLI_NAME_PLACEHOLDER health
-CLI_NAME_PLACEHOLDER list resources
-CLI_NAME_PLACEHOLDER create resources name "Test"
-
-# Run integration tests
-./test.sh
+time-tools status
 ```
 
-### **Expected Results**
-- ✅ All resources healthy
-- ✅ API server running
-- ✅ CLI commands working
-- ✅ Database initialized
-- ✅ Workflows deployed and active
-- ✅ UI accessible
-- ✅ End-to-end functionality working
+## 📊 Business Value
 
-## 📊 **Performance Expectations**
+### Target Markets
+- Global enterprises requiring cross-timezone coordination
+- Scheduling platforms and calendar applications
+- Productivity tools and project management systems
+- Remote teams and distributed organizations
 
-### **Response Times**
-- **API Calls**: < 100ms (p50), < 500ms (p95)
-- **Workflow Execution**: < 30s typical
-- **UI Load Time**: < 2 seconds
-- **CLI Commands**: < 1 second
+### Revenue Potential
+- **Initial**: $10,000 - Setup and customization
+- **Recurring**: $2,000/month - SaaS subscriptions
+- **Expansion**: $20,000 - Enterprise features
+- **Total Estimate**: $40,000
 
-### **Throughput**
-- **Concurrent Users**: 10-100
-- **Requests/Second**: 50-500
-- **Database Connections**: 5-20 pool size
+### Key Differentiators
+- Comprehensive temporal operations in one platform
+- AI-powered scheduling optimization
+- Business time intelligence
+- Seamless timezone handling with DST support
 
-### **Resource Usage**
-- **API Server**: ~50MB RAM, minimal CPU
-- **Database**: ~100MB initial size
-- **Workflows**: Depends on complexity
+## 🔧 Development
 
-## 🔒 **Security & Compliance**
+### Building from Source
 
-### **Built-in Security**
-- Bearer token authentication
-- Database access controls
-- API rate limiting
-- Input validation
-- SQL injection prevention
-- Audit logging
-
-### **Production Checklist**
-- [ ] Change default API tokens
-- [ ] Configure SSL certificates
-- [ ] Set up database backups
-- [ ] Enable monitoring alerts
-- [ ] Review access permissions
-- [ ] Configure firewall rules
-
-## 💰 **Business Impact**
-
-### **Revenue Model**
-This scenario template targets projects in the **$10K-$50K** range with proven market demand.
-
-### **Success Criteria**
-- Implementation in hours instead of weeks
-- Professional quality from day one
-- Ready for production deployment
-- Scalable architecture
-
-### **ROI Metrics**
-- **Development Speed**: 10x faster than traditional development
-- **Resource Efficiency**: Deploy only required services
-- **Professional Quality**: Enterprise-ready features included
-- **Maintenance**: Self-documenting with clear structure
-
-## 🛟 **Support & Resources**
-
-### **Documentation**
-- **[Agent Metareasoning Manager](../../agent-metareasoning-manager/)**: Reference implementation
-- **[Scenarios README](../README.md)**: Main scenarios documentation
-- **[Resource Guide](../../../resources/README.md)**: Available resources
-
-### **Troubleshooting**
 ```bash
-# Check service health
-../../manage.sh test --target native-linux
+# Build API server
+cd api
+go build -o time-tools-api
 
-# View logs
-docker logs <container-name>
-
-# Verify ports
-lsof -i :${API_PORT}
-
-# Database connection
-psql -h localhost -p 5433 -U postgres
+# Run with custom port
+PORT=8080 ./time-tools-api
 ```
 
-### **Common Issues**
-| Issue | Solution |
-|-------|----------|
-| API won't start | Check port conflicts, verify Go build |
-| CLI not found | Re-run setup phase: `../../manage.sh setup` |
-| Database errors | Check PostgreSQL is running, verify schema |
-| Workflow failures | Check n8n UI for error details |
+### Database Schema
 
-## 🎯 **Next Steps**
+The platform uses PostgreSQL with timezone-aware timestamps and advanced temporal functions. See `initialization/storage/postgres/schema.sql` for full schema.
 
-### **For Development**
-1. Copy this template: `cp -r templates/full/ scenarios/your-scenario/`
-2. Update `.vrooli/service.json` with your scenario details
-3. Customize API endpoints in `api/cmd/server/main.go`
-4. Update CLI commands in `cli/cli.sh`
-5. Adapt database schema and seed data
-6. Build and test: `../../manage.sh setup && ../../manage.sh develop`
-7. Run tests: `../../manage.sh test`
-8. Deploy: `../../manage.sh deploy`
+## 📝 Configuration
 
-### **For Production**
-1. Review and update security configuration
-2. Set up monitoring and alerts
-3. Configure backup procedures
-4. Plan scaling strategy
-5. Document API for external consumers
-6. Train users on CLI and UI
+Configuration is managed through `service.json` and environment variables:
 
-### **For AI Generation**
-This template is optimized for AI agents to generate complete scenarios. **Key placeholders to replace:**
+- `API_PORT` - API server port (default: 7500-7599)
+- `POSTGRES_HOST` - PostgreSQL host
+- `POSTGRES_PORT` - PostgreSQL port
+- `POSTGRES_DB` - Database name
+- `REDIS_HOST` - Redis host for caching
 
-- `SCENARIO_NAME_PLACEHOLDER` - The scenario's display name
-- `SCENARIO_ID_PLACEHOLDER` - The scenario's ID (lowercase, hyphenated)
-- `CLI_NAME_PLACEHOLDER` - The CLI command name
-- `API_PORT_PLACEHOLDER` - The API server port (8090-8999 range)
-- `API_TOKEN_PLACEHOLDER` - Default API authentication token
-- `API_MODULE_NAME_PLACEHOLDER` - Go module name for API
-- `VALUE_PROPOSITION_PLACEHOLDER` - Business value proposition
-- `PRIMARY_MARKET_PLACEHOLDER` - Primary target market
-- `PAIN_POINT_*_PLACEHOLDER` - Pain points addressed
-- All other `*_PLACEHOLDER` values throughout the template
+## 🤝 Contributing
+
+This scenario follows Vrooli contribution guidelines. Key areas for enhancement:
+
+1. Additional timezone intelligence
+2. Calendar platform integrations
+3. Advanced scheduling algorithms
+4. Mobile app support
+5. Real-time collaboration features
+
+## 📄 License
+
+MIT License - See LICENSE file for details
+
+## 🔗 Related Scenarios
+
+- `calendar-integration-hub` - Multi-platform calendar sync
+- `meeting-coordinator` - AI-powered meeting scheduling
+- `deadline-management-system` - Project timeline tracking
+- `workflow-scheduler` - Time-based automation
+
+## 💡 Support
+
+For issues or questions:
+- Create an issue in the Vrooli repository
+- Contact support@vrooli.com
+- Join our Discord community
 
 ---
 
-**🎉 This enhanced template provides a complete foundation for building professional scenarios with API servers, CLI tools, and full deployment orchestration - following the proven patterns from agent-metareasoning-manager!**
+**Time Tools** - Making time management intelligent and effortless.

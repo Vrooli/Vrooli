@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time Tools - Timezone Converter</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⏰ Time Tools</h1>
+            <nav>
+                <a href="index.html">Dashboard</a>
+                <a href="converter.html" class="active">Timezone Converter</a>
+                <a href="calculator.html">Duration Calculator</a>
+                <a href="scheduler.html">Meeting Scheduler</a>
+                <a href="events.html">Events</a>
+            </nav>
+        </header>
+
+        <main>
+            <div class="page-content">
+                <h2>🔄 Timezone Converter</h2>
+                
+                <div class="converter-container">
+                    <form id="converter-form">
+                        <div class="form-group">
+                            <label for="input-time">Date & Time</label>
+                            <input type="datetime-local" id="input-time" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="from-timezone">From Timezone</label>
+                                <select id="from-timezone" class="form-control" required>
+                                    <option value="">Select timezone...</option>
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">Eastern Time (New York)</option>
+                                    <option value="America/Chicago">Central Time (Chicago)</option>
+                                    <option value="America/Denver">Mountain Time (Denver)</option>
+                                    <option value="America/Los_Angeles">Pacific Time (Los Angeles)</option>
+                                    <option value="Europe/London">London</option>
+                                    <option value="Europe/Paris">Paris</option>
+                                    <option value="Europe/Berlin">Berlin</option>
+                                    <option value="Asia/Tokyo">Tokyo</option>
+                                    <option value="Asia/Shanghai">Shanghai</option>
+                                    <option value="Asia/Singapore">Singapore</option>
+                                    <option value="Asia/Dubai">Dubai</option>
+                                    <option value="Australia/Sydney">Sydney</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="to-timezone">To Timezone</label>
+                                <select id="to-timezone" class="form-control" required>
+                                    <option value="">Select timezone...</option>
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">Eastern Time (New York)</option>
+                                    <option value="America/Chicago">Central Time (Chicago)</option>
+                                    <option value="America/Denver">Mountain Time (Denver)</option>
+                                    <option value="America/Los_Angeles">Pacific Time (Los Angeles)</option>
+                                    <option value="Europe/London">London</option>
+                                    <option value="Europe/Paris">Paris</option>
+                                    <option value="Europe/Berlin">Berlin</option>
+                                    <option value="Asia/Tokyo">Tokyo</option>
+                                    <option value="Asia/Shanghai">Shanghai</option>
+                                    <option value="Asia/Singapore">Singapore</option>
+                                    <option value="Asia/Dubai">Dubai</option>
+                                    <option value="Australia/Sydney">Sydney</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Convert Time</button>
+                    </form>
+                    
+                    <div id="conversion-result" class="result-container" style="display: none;">
+                        <h3>Conversion Result</h3>
+                        <div class="result-grid">
+                            <div class="result-item">
+                                <label>Original Time</label>
+                                <div id="original-time" class="result-value">--</div>
+                            </div>
+                            <div class="result-item">
+                                <label>Converted Time</label>
+                                <div id="converted-time" class="result-value">--</div>
+                            </div>
+                            <div class="result-item">
+                                <label>Time Difference</label>
+                                <div id="time-difference" class="result-value">--</div>
+                            </div>
+                            <div class="result-item">
+                                <label>DST Status</label>
+                                <div id="dst-status" class="result-value">--</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Batch Conversion -->
+                    <div class="batch-conversion">
+                        <h3>Multi-Timezone Display</h3>
+                        <div id="multi-timezone-display" class="timezone-grid">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Time Tools v1.0.0 | <span id="api-status">Checking API...</span></p>
+        </footer>
+    </div>
+
+    <script src="converter.js"></script>
+</body>
+</html>

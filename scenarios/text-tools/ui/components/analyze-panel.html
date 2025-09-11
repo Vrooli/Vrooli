@@ -1,0 +1,88 @@
+<div class="tool-panel" id="analyze-panel">
+    <div class="tool-header">
+        <h2>Text Analysis</h2>
+        <div class="tool-options">
+            <label class="checkbox">
+                <input type="checkbox" id="analyze-entities" checked>
+                <span>Extract Entities</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="analyze-sentiment" checked>
+                <span>Sentiment Analysis</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="analyze-keywords" checked>
+                <span>Keywords</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="analyze-language" checked>
+                <span>Language Detection</span>
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="analyze-summary">
+                <span>Text Summary</span>
+            </label>
+        </div>
+    </div>
+    <div class="analyze-container">
+        <div class="input-section">
+            <div class="section-header">
+                <h3>Text to Analyze</h3>
+                <div class="section-actions">
+                    <button class="btn-small" onclick="document.getElementById('analyze-input').value=''">Clear</button>
+                    <label class="btn-small">
+                        <input type="file" hidden id="analyze-file" accept=".txt,.md,.json,.html">
+                        Load File
+                    </label>
+                </div>
+            </div>
+            <textarea id="analyze-input" class="code-editor" placeholder="Enter text to analyze..."></textarea>
+        </div>
+        <div class="options-section">
+            <div class="analysis-options">
+                <div class="option-group">
+                    <label for="summary-length">Summary Length (words):</label>
+                    <input type="number" id="summary-length" value="50" min="10" max="500">
+                </div>
+                <div class="option-group">
+                    <label class="checkbox">
+                        <input type="checkbox" id="analyze-use-ai">
+                        <span>Use AI Analysis (requires Ollama)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="action-section">
+            <button class="btn-primary" id="analyze-btn">Analyze Text</button>
+            <div class="analysis-progress" id="analysis-progress"></div>
+        </div>
+    </div>
+    <div class="results-section" id="analyze-results">
+        <div class="results-grid">
+            <div class="result-card" id="entities-card">
+                <h4>Named Entities</h4>
+                <div class="entities-list" id="entities-list"></div>
+            </div>
+            <div class="result-card" id="sentiment-card">
+                <h4>Sentiment Analysis</h4>
+                <div class="sentiment-result" id="sentiment-result"></div>
+            </div>
+            <div class="result-card" id="keywords-card">
+                <h4>Keywords</h4>
+                <div class="keywords-cloud" id="keywords-cloud"></div>
+            </div>
+            <div class="result-card" id="language-card">
+                <h4>Language Detection</h4>
+                <div class="language-result" id="language-result"></div>
+            </div>
+            <div class="result-card" id="summary-card">
+                <h4>Text Summary</h4>
+                <div class="summary-result" id="summary-result"></div>
+            </div>
+            <div class="result-card" id="statistics-card">
+                <h4>Text Statistics</h4>
+                <div class="statistics-result" id="statistics-result"></div>
+            </div>
+        </div>
+    </div>
+</div>

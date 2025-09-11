@@ -6,8 +6,15 @@
 set -euo pipefail
 
 # Configuration
-API_HOST="${TEXT_TOOLS_HOST:-localhost}"
-API_PORT="${TEXT_TOOLS_PORT:-14000}"
+API_HOST="${API_HOST:-localhost}"
+API_PORT="${API_PORT}"
+
+if [ -z "$API_PORT" ]; then
+    echo -e "${RED}Error: API_PORT environment variable is required${NC}" >&2
+    echo "Start the service with: vrooli scenario run text-tools" >&2
+    exit 1
+fi
+
 API_URL="http://${API_HOST}:${API_PORT}/api/v1/text"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

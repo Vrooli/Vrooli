@@ -1,4 +1,4 @@
-module API_MODULE_NAME_PLACEHOLDER
+module github.com/vrooli/vrooli/scenarios/time-tools/api
 
 go 1.21
 

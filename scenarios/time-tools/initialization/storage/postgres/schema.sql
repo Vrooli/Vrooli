@@ -1,202 +1,323 @@
--- SCENARIO_NAME_PLACEHOLDER Database Schema
--- Core database structure for API and application data
+-- Time Tools Database Schema
+-- Comprehensive temporal operations and scheduling platform
 
--- Resources table: Main entity management
-CREATE TABLE IF NOT EXISTS resources (
+-- Enable necessary extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "btree_gist";  -- For temporal exclusion constraints
+
+-- Timezone definitions table
+CREATE TABLE IF NOT EXISTS timezone_definitions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    type VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'active',
-    config JSONB DEFAULT '{}',
+    timezone_name VARCHAR(100) UNIQUE NOT NULL,  -- e.g., 'America/New_York'
+    utc_offset_minutes INTEGER NOT NULL,         -- Current offset in minutes
+    dst_offset_minutes INTEGER,                  -- DST offset if applicable
+    abbreviation VARCHAR(10),                    -- e.g., 'EST', 'PST'
+    has_dst BOOLEAN DEFAULT false,
+    dst_start_rule JSONB,                        -- DST transition rules
+    dst_end_rule JSONB,
+    country_code VARCHAR(2),
+    region VARCHAR(100),
     metadata JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Scheduled events table
+CREATE TABLE IF NOT EXISTS scheduled_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
     
-    -- Relationships
-    parent_id UUID REFERENCES resources(id) ON DELETE SET NULL,
-    owner_id VARCHAR(255),
+    -- Temporal information
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_minutes INTEGER GENERATED ALWAYS AS (EXTRACT(EPOCH FROM (end_time - start_time))/60) STORED,
+    timezone VARCHAR(100) NOT NULL,
+    all_day BOOLEAN DEFAULT false,
+    
+    -- Event metadata
+    event_type VARCHAR(50),  -- meeting, appointment, deadline, reminder
+    status VARCHAR(50) DEFAULT 'scheduled',  -- scheduled, in_progress, completed, cancelled
+    priority VARCHAR(20) DEFAULT 'normal',   -- low, normal, high, urgent
+    
+    -- Participants and resources
+    organizer_id VARCHAR(255),
+    participants JSONB DEFAULT '[]',  -- Array of participant objects
+    resources JSONB DEFAULT '[]',      -- Required resources (rooms, equipment)
+    
+    -- Location
+    location VARCHAR(255),
+    location_type VARCHAR(50),  -- physical, virtual, hybrid
+    virtual_meeting_url TEXT,
+    
+    -- Recurrence
+    recurrence_pattern_id UUID,
+    is_recurring BOOLEAN DEFAULT false,
+    recurrence_exception_dates DATE[],
+    original_start_time TIMESTAMP WITH TIME ZONE,  -- For recurring event instances
+    
+    -- Notifications
+    reminder_minutes INTEGER[],  -- Array of reminder times before event
+    notification_sent BOOLEAN DEFAULT false,
+    
+    -- Integration
+    external_id VARCHAR(255),
+    external_source VARCHAR(50),  -- google, outlook, etc.
+    sync_status VARCHAR(50),
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Metadata
+    tags TEXT[],
+    custom_fields JSONB DEFAULT '{}',
+    color VARCHAR(7),  -- Hex color for UI
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP WITH TIME ZONE,
     
-    -- Constraints
-    CONSTRAINT unique_name_per_type UNIQUE(name, type)
+    -- Ensure no overlapping events for the same organizer (optional constraint)
+    CONSTRAINT no_overlap CHECK (start_time < end_time)
 );
 
--- Workflows table: Workflow definitions
-CREATE TABLE IF NOT EXISTS workflows (
+-- Recurrence patterns table
+CREATE TABLE IF NOT EXISTS recurrence_patterns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    platform VARCHAR(50) NOT NULL CHECK (platform IN ('n8n', 'windmill', 'node-red')),
+    pattern_type VARCHAR(50) NOT NULL,  -- daily, weekly, monthly, yearly, custom
     
-    -- Workflow configuration
-    definition JSONB NOT NULL,
-    input_schema JSONB,
-    output_schema JSONB,
-    config JSONB DEFAULT '{}',
+    -- Frequency settings
+    interval_value INTEGER DEFAULT 1,   -- Every N days/weeks/months
+    days_of_week INTEGER[],             -- 0=Sunday, 6=Saturday
+    days_of_month INTEGER[],            -- 1-31
+    months_of_year INTEGER[],           -- 1-12
+    week_of_month INTEGER,              -- 1-5 (5=last)
+    
+    -- Advanced patterns
+    custom_pattern JSONB,               -- For complex patterns
+    
+    -- Boundaries
+    start_date DATE NOT NULL,
+    end_date DATE,
+    max_occurrences INTEGER,
+    
+    -- Timezone handling
+    timezone VARCHAR(100) NOT NULL,
+    adjust_for_dst BOOLEAN DEFAULT true,
     
     -- Metadata
-    version INTEGER DEFAULT 1,
+    description TEXT,
     is_active BOOLEAN DEFAULT true,
-    tags TEXT[],
-    
-    -- Statistics
-    execution_count INTEGER DEFAULT 0,
-    success_count INTEGER DEFAULT 0,
-    failure_count INTEGER DEFAULT 0,
-    avg_duration_ms INTEGER,
-    
-    -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Executions table: Workflow execution history
-CREATE TABLE IF NOT EXISTS executions (
+-- Business hours table
+CREATE TABLE IF NOT EXISTS business_hours (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
+    entity_id VARCHAR(255),             -- Organization/user ID
+    entity_type VARCHAR(50),            -- organization, user, resource
     
-    -- Execution details
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    input_data JSONB,
-    output_data JSONB,
-    error_message TEXT,
+    -- Weekly schedule
+    day_of_week INTEGER NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    is_working_day BOOLEAN DEFAULT true,
     
-    -- Performance metrics
-    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    duration_ms INTEGER,
+    -- Timezone
+    timezone VARCHAR(100) NOT NULL,
     
-    -- Resource usage
-    resource_usage JSONB DEFAULT '{}',
+    -- Breaks
+    break_start TIME,
+    break_end TIME,
     
-    -- Context
-    triggered_by VARCHAR(255),
-    correlation_id UUID,
+    -- Metadata
+    effective_from DATE,
+    effective_until DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(entity_id, entity_type, day_of_week, effective_from)
+);
+
+-- Holidays and special dates table
+CREATE TABLE IF NOT EXISTS holidays (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    date DATE NOT NULL,
+    
+    -- Holiday type and scope
+    holiday_type VARCHAR(50),           -- public, bank, religious, company
+    country_code VARCHAR(2),
+    region VARCHAR(100),
+    is_federal BOOLEAN DEFAULT false,
+    
+    -- Business impact
+    offices_closed BOOLEAN DEFAULT true,
+    banks_closed BOOLEAN DEFAULT false,
+    schools_closed BOOLEAN DEFAULT false,
+    
+    -- Recurrence
+    is_recurring BOOLEAN DEFAULT false,
+    recurrence_rule JSONB,              -- For annual holidays
+    
+    -- Observance rules
+    observed_date DATE,                 -- Actual observed date if different
+    observance_rule VARCHAR(50),        -- nearest_weekday, next_monday, etc.
+    
+    -- Metadata
+    description TEXT,
+    traditions TEXT,
+    year INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    UNIQUE(name, date, country_code)
+);
+
+-- Time analytics table
+CREATE TABLE IF NOT EXISTS time_analytics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entity_id VARCHAR(255),
+    entity_type VARCHAR(50),            -- user, team, organization
+    
+    -- Period
+    period_start TIMESTAMP WITH TIME ZONE NOT NULL,
+    period_end TIMESTAMP WITH TIME ZONE NOT NULL,
+    period_type VARCHAR(20),            -- day, week, month, quarter, year
+    
+    -- Meeting metrics
+    total_meetings INTEGER DEFAULT 0,
+    total_meeting_minutes INTEGER DEFAULT 0,
+    average_meeting_duration INTEGER,
+    longest_meeting_duration INTEGER,
+    shortest_meeting_duration INTEGER,
+    
+    -- Scheduling metrics
+    meetings_scheduled INTEGER DEFAULT 0,
+    meetings_cancelled INTEGER DEFAULT 0,
+    meetings_rescheduled INTEGER DEFAULT 0,
+    no_show_count INTEGER DEFAULT 0,
+    
+    -- Time distribution
+    morning_meetings INTEGER DEFAULT 0,  -- Before noon
+    afternoon_meetings INTEGER DEFAULT 0, -- Noon to 5pm
+    evening_meetings INTEGER DEFAULT 0,   -- After 5pm
+    weekend_meetings INTEGER DEFAULT 0,
+    
+    -- Efficiency metrics
+    back_to_back_meetings INTEGER DEFAULT 0,
+    buffer_time_minutes INTEGER DEFAULT 0,
+    focus_time_minutes INTEGER DEFAULT 0,
+    
+    -- Participation
+    unique_participants INTEGER DEFAULT 0,
+    average_participants NUMERIC(5,2),
+    
+    -- Timezone metrics
+    cross_timezone_meetings INTEGER DEFAULT 0,
+    unique_timezones INTEGER DEFAULT 0,
+    
+    -- Metadata
+    calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     metadata JSONB DEFAULT '{}'
 );
 
--- Events table: Application event log
-CREATE TABLE IF NOT EXISTS events (
+-- Scheduling conflicts table
+CREATE TABLE IF NOT EXISTS scheduling_conflicts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type VARCHAR(100) NOT NULL,
-    event_name VARCHAR(255) NOT NULL,
+    event1_id UUID REFERENCES scheduled_events(id) ON DELETE CASCADE,
+    event2_id UUID REFERENCES scheduled_events(id) ON DELETE CASCADE,
     
-    -- Event data
-    payload JSONB,
-    source VARCHAR(100),
-    target VARCHAR(100),
+    -- Conflict details
+    conflict_type VARCHAR(50),          -- time_overlap, resource, participant
+    severity VARCHAR(20),               -- low, medium, high, critical
+    overlap_minutes INTEGER,
     
-    -- Context
-    resource_id UUID REFERENCES resources(id) ON DELETE CASCADE,
-    execution_id UUID REFERENCES executions(id) ON DELETE CASCADE,
-    user_id VARCHAR(255),
-    session_id VARCHAR(255),
+    -- Resolution
+    resolution_status VARCHAR(50) DEFAULT 'unresolved',
+    resolution_action TEXT,
+    resolved_by VARCHAR(255),
+    resolved_at TIMESTAMP WITH TIME ZONE,
     
     -- Metadata
-    severity VARCHAR(20) DEFAULT 'info',
-    tags TEXT[],
+    detected_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    notification_sent BOOLEAN DEFAULT false,
     
-    -- Timestamp
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    UNIQUE(event1_id, event2_id)
 );
 
--- Configuration table: Application settings
-CREATE TABLE IF NOT EXISTS configuration (
+-- Available time slots (for scheduling optimization)
+CREATE TABLE IF NOT EXISTS available_slots (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    key VARCHAR(255) UNIQUE NOT NULL,
-    value JSONB NOT NULL,
+    entity_id VARCHAR(255),
+    entity_type VARCHAR(50),
     
-    -- Configuration metadata
-    category VARCHAR(100),
-    description TEXT,
-    is_secret BOOLEAN DEFAULT false,
-    is_active BOOLEAN DEFAULT true,
+    -- Slot information
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    duration_minutes INTEGER,
+    timezone VARCHAR(100) NOT NULL,
     
-    -- Validation
-    schema JSONB,
-    default_value JSONB,
+    -- Availability type
+    availability_type VARCHAR(50),      -- free, busy, tentative
+    can_schedule BOOLEAN DEFAULT true,
+    preferred_slot BOOLEAN DEFAULT false,
     
-    -- Timestamps
+    -- Metadata
+    source VARCHAR(50),                 -- manual, calendar_sync, business_hours
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Metrics table: Performance and usage metrics
-CREATE TABLE IF NOT EXISTS metrics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    metric_name VARCHAR(255) NOT NULL,
-    metric_type VARCHAR(50) NOT NULL,
-    
-    -- Metric data
-    value NUMERIC NOT NULL,
-    unit VARCHAR(50),
-    
-    -- Context
-    resource_type VARCHAR(100),
-    resource_id VARCHAR(255),
-    
-    -- Dimensions for grouping
-    dimensions JSONB DEFAULT '{}',
-    
-    -- Timestamp
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Sessions table: User session management
-CREATE TABLE IF NOT EXISTS sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_token VARCHAR(255) UNIQUE NOT NULL,
-    user_id VARCHAR(255),
-    
-    -- Session data
-    data JSONB DEFAULT '{}',
-    ip_address INET,
-    user_agent TEXT,
-    
-    -- Status
-    is_active BOOLEAN DEFAULT true,
-    
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Duration calculations log
+CREATE TABLE IF NOT EXISTS duration_calculations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    calculation_type VARCHAR(50),       -- business_days, working_hours, elapsed
+    
+    -- Input parameters
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    timezone VARCHAR(100),
+    exclude_weekends BOOLEAN DEFAULT false,
+    exclude_holidays BOOLEAN DEFAULT false,
+    business_hours_id UUID,
+    
+    -- Results
+    total_minutes INTEGER,
+    business_minutes INTEGER,
+    calendar_days INTEGER,
+    business_days INTEGER,
+    
+    -- Metadata
+    requested_by VARCHAR(255),
+    calculation_time_ms INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for performance
-CREATE INDEX idx_resources_type ON resources(type) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_status ON resources(status) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_owner ON resources(owner_id) WHERE deleted_at IS NULL;
-CREATE INDEX idx_resources_created ON resources(created_at DESC);
+CREATE INDEX idx_scheduled_events_start ON scheduled_events(start_time) WHERE deleted_at IS NULL;
+CREATE INDEX idx_scheduled_events_end ON scheduled_events(end_time) WHERE deleted_at IS NULL;
+CREATE INDEX idx_scheduled_events_organizer ON scheduled_events(organizer_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_scheduled_events_status ON scheduled_events(status);
+CREATE INDEX idx_scheduled_events_recurring ON scheduled_events(recurrence_pattern_id) WHERE is_recurring = true;
+CREATE INDEX idx_scheduled_events_external ON scheduled_events(external_id, external_source);
+CREATE INDEX idx_scheduled_events_timezone ON scheduled_events(timezone);
+CREATE INDEX idx_scheduled_events_daterange ON scheduled_events USING gist(tstzrange(start_time, end_time));
 
-CREATE INDEX idx_workflows_platform ON workflows(platform) WHERE is_active = true;
-CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
-CREATE INDEX idx_workflows_active ON workflows(is_active);
+CREATE INDEX idx_business_hours_entity ON business_hours(entity_id, entity_type);
+CREATE INDEX idx_business_hours_day ON business_hours(day_of_week);
 
-CREATE INDEX idx_executions_workflow ON executions(workflow_id);
-CREATE INDEX idx_executions_status ON executions(status);
-CREATE INDEX idx_executions_started ON executions(started_at DESC);
-CREATE INDEX idx_executions_correlation ON executions(correlation_id);
+CREATE INDEX idx_holidays_date ON holidays(date);
+CREATE INDEX idx_holidays_country ON holidays(country_code);
+CREATE INDEX idx_holidays_year ON holidays(year);
 
-CREATE INDEX idx_events_type ON events(event_type);
-CREATE INDEX idx_events_resource ON events(resource_id);
-CREATE INDEX idx_events_execution ON events(execution_id);
-CREATE INDEX idx_events_created ON events(created_at DESC);
-CREATE INDEX idx_events_tags ON events USING GIN(tags);
+CREATE INDEX idx_time_analytics_entity ON time_analytics(entity_id, entity_type);
+CREATE INDEX idx_time_analytics_period ON time_analytics(period_start, period_end);
 
-CREATE INDEX idx_configuration_category ON configuration(category) WHERE is_active = true;
-CREATE INDEX idx_configuration_key ON configuration(key) WHERE is_active = true;
+CREATE INDEX idx_conflicts_unresolved ON scheduling_conflicts(resolution_status) WHERE resolution_status = 'unresolved';
 
-CREATE INDEX idx_metrics_name ON metrics(metric_name);
-CREATE INDEX idx_metrics_timestamp ON metrics(timestamp DESC);
-CREATE INDEX idx_metrics_resource ON metrics(resource_type, resource_id);
-
-CREATE INDEX idx_sessions_token ON sessions(session_token) WHERE is_active = true;
-CREATE INDEX idx_sessions_user ON sessions(user_id) WHERE is_active = true;
-CREATE INDEX idx_sessions_activity ON sessions(last_activity DESC) WHERE is_active = true;
+CREATE INDEX idx_available_slots_entity ON available_slots(entity_id, entity_type);
+CREATE INDEX idx_available_slots_time ON available_slots(start_time, end_time);
+CREATE INDEX idx_available_slots_can_schedule ON available_slots(can_schedule) WHERE can_schedule = true;
 
 -- Update triggers for timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -207,80 +328,151 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_resources_updated_at BEFORE UPDATE ON resources
+CREATE TRIGGER update_scheduled_events_updated_at BEFORE UPDATE ON scheduled_events
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
+CREATE TRIGGER update_timezone_definitions_updated_at BEFORE UPDATE ON timezone_definitions
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_configuration_updated_at BEFORE UPDATE ON configuration
+CREATE TRIGGER update_recurrence_patterns_updated_at BEFORE UPDATE ON recurrence_patterns
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Function to update workflow statistics after execution
-CREATE OR REPLACE FUNCTION update_workflow_stats()
+-- Function to detect scheduling conflicts
+CREATE OR REPLACE FUNCTION detect_scheduling_conflicts()
 RETURNS TRIGGER AS $$
 BEGIN
-    IF NEW.status IN ('success', 'failed') AND NEW.workflow_id IS NOT NULL THEN
-        UPDATE workflows SET
-            execution_count = execution_count + 1,
-            success_count = success_count + CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
-            failure_count = failure_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
-            avg_duration_ms = CASE
-                WHEN execution_count = 0 THEN NEW.duration_ms
-                ELSE ((avg_duration_ms * execution_count + COALESCE(NEW.duration_ms, 0)) / (execution_count + 1))::INTEGER
-            END,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = NEW.workflow_id;
-    END IF;
+    -- Check for time overlaps with existing events for the same organizer
+    INSERT INTO scheduling_conflicts (event1_id, event2_id, conflict_type, severity, overlap_minutes)
+    SELECT 
+        NEW.id,
+        e.id,
+        'time_overlap',
+        CASE 
+            WHEN NEW.priority = 'urgent' OR e.priority = 'urgent' THEN 'critical'
+            WHEN NEW.priority = 'high' OR e.priority = 'high' THEN 'high'
+            ELSE 'medium'
+        END,
+        EXTRACT(EPOCH FROM (
+            LEAST(NEW.end_time, e.end_time) - GREATEST(NEW.start_time, e.start_time)
+        ))/60
+    FROM scheduled_events e
+    WHERE e.id != NEW.id
+      AND e.organizer_id = NEW.organizer_id
+      AND e.deleted_at IS NULL
+      AND e.status != 'cancelled'
+      AND (e.start_time, e.end_time) OVERLAPS (NEW.start_time, NEW.end_time)
+    ON CONFLICT (event1_id, event2_id) DO NOTHING;
+    
     RETURN NEW;
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_workflow_stats_on_execution
-    AFTER INSERT OR UPDATE OF status ON executions
+CREATE TRIGGER detect_conflicts_on_event_insert
+    AFTER INSERT ON scheduled_events
     FOR EACH ROW
-    WHEN (NEW.status IN ('success', 'failed'))
-    EXECUTE FUNCTION update_workflow_stats();
+    EXECUTE FUNCTION detect_scheduling_conflicts();
 
--- Useful views for monitoring
-CREATE OR REPLACE VIEW workflow_performance AS
-SELECT 
-    w.name,
-    w.platform,
-    w.execution_count,
-    w.success_count,
-    w.failure_count,
-    CASE WHEN w.execution_count > 0 
-         THEN (w.success_count::FLOAT / w.execution_count * 100)::NUMERIC(5,2)
-         ELSE 0 
-    END as success_rate,
-    w.avg_duration_ms,
-    w.is_active
-FROM workflows w
-ORDER BY w.execution_count DESC;
+-- Function to calculate business hours between two timestamps
+CREATE OR REPLACE FUNCTION calculate_business_hours(
+    start_ts TIMESTAMP WITH TIME ZONE,
+    end_ts TIMESTAMP WITH TIME ZONE,
+    tz VARCHAR(100),
+    entity_id_param VARCHAR(255)
+) RETURNS INTEGER AS $$
+DECLARE
+    total_minutes INTEGER := 0;
+    current_date DATE;
+    day_start TIME;
+    day_end TIME;
+    current_start TIMESTAMP WITH TIME ZONE;
+    current_end TIMESTAMP WITH TIME ZONE;
+BEGIN
+    current_date := DATE(start_ts AT TIME ZONE tz);
+    
+    WHILE current_date <= DATE(end_ts AT TIME ZONE tz) LOOP
+        -- Get business hours for this day
+        SELECT start_time, end_time INTO day_start, day_end
+        FROM business_hours
+        WHERE entity_id = entity_id_param
+          AND day_of_week = EXTRACT(DOW FROM current_date)
+          AND is_working_day = true
+          AND (effective_from IS NULL OR effective_from <= current_date)
+          AND (effective_until IS NULL OR effective_until >= current_date)
+        ORDER BY effective_from DESC
+        LIMIT 1;
+        
+        IF day_start IS NOT NULL THEN
+            -- Calculate the portion of this day that falls within our range
+            current_start := GREATEST(
+                start_ts,
+                (current_date || ' ' || day_start)::TIMESTAMP AT TIME ZONE tz
+            );
+            current_end := LEAST(
+                end_ts,
+                (current_date || ' ' || day_end)::TIMESTAMP AT TIME ZONE tz
+            );
+            
+            IF current_start < current_end THEN
+                total_minutes := total_minutes + EXTRACT(EPOCH FROM (current_end - current_start))/60;
+            END IF;
+        END IF;
+        
+        current_date := current_date + INTERVAL '1 day';
+    END LOOP;
+    
+    RETURN total_minutes;
+END;
+$$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE VIEW recent_executions AS
+-- Useful views for time management
+CREATE OR REPLACE VIEW upcoming_events AS
 SELECT 
-    e.id,
-    w.name as workflow_name,
-    e.status,
-    e.started_at,
-    e.completed_at,
-    e.duration_ms,
-    e.error_message
-FROM executions e
-JOIN workflows w ON e.workflow_id = w.id
-ORDER BY e.started_at DESC
+    se.id,
+    se.title,
+    se.start_time,
+    se.end_time,
+    se.duration_minutes,
+    se.timezone,
+    se.event_type,
+    se.status,
+    se.location,
+    se.organizer_id,
+    array_length(se.participants, 1) as participant_count
+FROM scheduled_events se
+WHERE se.start_time > CURRENT_TIMESTAMP
+  AND se.deleted_at IS NULL
+  AND se.status != 'cancelled'
+ORDER BY se.start_time
 LIMIT 100;
 
-CREATE OR REPLACE VIEW resource_summary AS
+CREATE OR REPLACE VIEW daily_schedule AS
 SELECT 
-    type,
-    status,
-    COUNT(*) as count,
-    MAX(created_at) as latest_created,
-    MAX(updated_at) as latest_updated
-FROM resources
-WHERE deleted_at IS NULL
-GROUP BY type, status
-ORDER BY type, status;
+    se.id,
+    se.title,
+    se.start_time::TIME as start_time,
+    se.end_time::TIME as end_time,
+    se.duration_minutes,
+    se.event_type,
+    se.location,
+    se.priority
+FROM scheduled_events se
+WHERE DATE(se.start_time) = CURRENT_DATE
+  AND se.deleted_at IS NULL
+  AND se.status != 'cancelled'
+ORDER BY se.start_time;
+
+CREATE OR REPLACE VIEW conflict_summary AS
+SELECT 
+    sc.id,
+    e1.title as event1_title,
+    e2.title as event2_title,
+    sc.conflict_type,
+    sc.severity,
+    sc.overlap_minutes,
+    sc.resolution_status,
+    sc.detected_at
+FROM scheduling_conflicts sc
+JOIN scheduled_events e1 ON sc.event1_id = e1.id
+JOIN scheduled_events e2 ON sc.event2_id = e2.id
+WHERE sc.resolution_status = 'unresolved'
+ORDER BY sc.severity DESC, sc.detected_at DESC;
