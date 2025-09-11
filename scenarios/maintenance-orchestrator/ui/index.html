@@ -144,10 +144,39 @@
 
         .main-container {
             display: flex;
-            gap: 30px;
-            padding: 30px 40px;
-            max-width: 1600px;
+            gap: 32px;
+            padding: 32px 40px;
+            max-width: 1800px;
             margin: 0 auto;
+            transition: gap 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .main-container:has(.presets-section.collapsed) {
+            gap: 24px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-container {
+                flex-direction: column;
+                gap: 24px;
+                padding: 24px 20px;
+            }
+            
+            .presets-section {
+                width: 100%;
+                max-width: none;
+            }
+            
+            .presets-section.collapsed {
+                width: 100%;
+                height: 70px;
+                padding: 20px 25px;
+            }
+            
+            
+            .main-container:has(.presets-section.collapsed) {
+                gap: 16px;
+            }
         }
 
         .presets-section {
@@ -157,7 +186,35 @@
             padding: 25px;
             border: 1px solid rgba(16, 185, 129, 0.1);
             width: 300px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            position: relative;
         }
+        
+        .presets-section.collapsed {
+            width: 56px;
+            padding: 20px 12px;
+            border-color: rgba(16, 185, 129, 0.05);
+            background: rgba(10, 14, 39, 0.4);
+        }
+        
+        .presets-section.collapsed .presets-content {
+            opacity: 0;
+            transform: translateX(-30px);
+            pointer-events: none;
+            visibility: hidden;
+        }
+        
+        .presets-section.collapsed .section-title-text {
+            display: none;
+        }
+        
+        .presets-section.collapsed .section-title {
+            margin-bottom: 0;
+            justify-content: center;
+            padding: 0;
+        }
+        
 
         .section-title {
             font-size: 14px;
@@ -166,6 +223,62 @@
             margin-bottom: 20px;
             text-transform: uppercase;
             letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .presets-content {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .section-toggle-btn {
+            background: rgba(20, 25, 50, 0.8);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            position: relative;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+        
+        .section-toggle-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+        
+        .presets-section.collapsed .section-toggle-btn {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        
+        .presets-section.collapsed .section-toggle-btn:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.6);
+        }
+        
+        .section-title-text {
+            transition: opacity 0.3s ease;
+        }
+        
+        .presets-section.collapsed .section-toggle-btn {
+            margin: 0 auto;
+            position: relative;
+            z-index: 20;
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
         }
 
         .preset-btn {
@@ -179,12 +292,42 @@
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
+            position: relative;
         }
 
         .preset-btn:hover {
             background: rgba(16, 185, 129, 0.1);
             border-color: rgba(16, 185, 129, 0.5);
             transform: translateX(5px);
+        }
+
+        .preset-btn.preview {
+            border: 2px solid #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            transform: translateX(5px);
+        }
+
+        .preset-btn.preview:hover {
+            border-color: #2563eb;
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .preset-action-icon {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 10;
+            padding: 0;
+            line-height: 1;
+            transition: transform 0.2s ease;
+        }
+
+        .preset-action-icon:hover {
+            transform: scale(1.2);
         }
 
         .preset-description {
@@ -196,63 +339,144 @@
         .scenarios-section {
             flex: 1;
             background: rgba(10, 14, 39, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
+            backdrop-filter: blur(12px);
+            border-radius: 18px;
+            padding: 28px;
             border: 1px solid rgba(16, 185, 129, 0.1);
+            min-height: 600px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .main-container:has(.presets-section.collapsed) .scenarios-section {
+            border-color: rgba(16, 185, 129, 0.2);
+            background: rgba(10, 14, 39, 0.75);
         }
 
         .scenarios-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+            min-height: 400px;
+            padding: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .scenarios-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+        }
+        
+        @media (min-width: 1400px) {
+            .scenarios-grid {
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                gap: 30px;
+            }
         }
 
         .scenario-card {
             background: rgba(20, 25, 50, 0.6);
             border: 1px solid rgba(16, 185, 129, 0.1);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.3s ease;
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .scenario-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.3), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         .scenario-card.active {
-            border-color: rgba(16, 185, 129, 0.5);
-            background: rgba(16, 185, 129, 0.05);
+            border-color: rgba(16, 185, 129, 0.6);
+            background: rgba(16, 185, 129, 0.08);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.15);
+        }
+        
+        .scenario-card.active::before {
+            opacity: 1;
+            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.8), transparent);
         }
 
         .scenario-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(16, 185, 129, 0.25);
+            border-color: rgba(16, 185, 129, 0.4);
+            background: rgba(20, 25, 50, 0.8);
+        }
+        
+        .scenario-card:hover::before {
+            opacity: 1;
+        }
+
+        .scenario-card.preview {
+            border: 2px solid #3b82f6;
+            background: rgba(59, 130, 246, 0.12);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.35);
+        }
+        
+        .scenario-card.preview::before {
+            opacity: 1;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.8), transparent);
         }
 
         .scenario-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
+            flex: 1;
         }
 
         .scenario-name {
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 600;
             color: #e0e6ed;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
         }
 
         .scenario-tags {
             display: flex;
-            gap: 5px;
+            gap: 6px;
             flex-wrap: wrap;
+            margin-bottom: 12px;
         }
 
         .tag {
-            font-size: 10px;
-            padding: 2px 8px;
+            font-size: 11px;
+            padding: 4px 10px;
             background: rgba(59, 130, 246, 0.2);
             border: 1px solid rgba(59, 130, 246, 0.3);
-            border-radius: 12px;
+            border-radius: 16px;
             color: #93bbfc;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+        
+        .tag:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: scale(1.05);
         }
 
         .toggle-switch {
@@ -300,36 +524,6 @@
             transform: translateX(24px);
         }
 
-        .activity-section {
-            width: 350px;
-            background: rgba(10, 14, 39, 0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            border: 1px solid rgba(16, 185, 129, 0.1);
-        }
-
-        .activity-log {
-            max-height: 500px;
-            overflow-y: auto;
-        }
-
-        .activity-entry {
-            padding: 12px;
-            margin-bottom: 10px;
-            background: rgba(20, 25, 50, 0.6);
-            border-left: 3px solid rgba(16, 185, 129, 0.5);
-            border-radius: 8px;
-            font-size: 13px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .activity-time {
-            font-size: 11px;
-            color: #64748b;
-        }
 
         .loading-spinner {
             width: 50px;
@@ -865,9 +1059,16 @@
     </div>
 
     <div class="main-container">
-        <div class="presets-section">
-            <div class="section-title">Quick Presets</div>
-            <div id="presets-container"></div>
+        <div class="presets-section" id="presetsSection">
+            <div class="section-title">
+                <span class="section-title-text">Quick Presets</span>
+                <button class="section-toggle-btn" onclick="togglePresets()" title="Toggle presets panel" id="presetsToggleBtn">
+                    ◀
+                </button>
+            </div>
+            <div class="presets-content" id="presetsContent">
+                <div id="presets-container"></div>
+            </div>
         </div>
 
         <div class="scenarios-section">
@@ -877,10 +1078,6 @@
             </div>
         </div>
 
-        <div class="activity-section">
-            <div class="section-title">Activity Log</div>
-            <div id="activity-log" class="activity-log"></div>
-        </div>
     </div>
 
     <button class="emergency-stop" onclick="emergencyStop()">
@@ -983,6 +1180,9 @@
         let sortOrder = 'name-asc';
         let scenarioStatuses = {};
         let isPolling = false;
+        let previewedPreset = null;
+        let previewedScenarios = new Set();
+        let presetsVisible = true;
 
         // Logging functions
         function addLog(message, level = 'info') {
@@ -1200,9 +1400,6 @@
                 }
                 
                 const data = await response.json();
-                if (data.recentActivity) {
-                    renderActivityLog(data.recentActivity);
-                }
                 updateConnectionStatus('connected');
             } catch (error) {
                 addLog(`Error fetching status: ${error.message}`, 'warn');
@@ -1236,6 +1433,14 @@
             
             // Apply sorting
             filtered.sort((a, b) => {
+                // Prioritize previewed scenarios first
+                const aIsPreview = previewedScenarios.has(a.id);
+                const bIsPreview = previewedScenarios.has(b.id);
+                
+                if (aIsPreview && !bIsPreview) return -1;
+                if (!aIsPreview && bIsPreview) return 1;
+                
+                // Then apply normal sorting
                 switch(sortOrder) {
                     case 'name-asc':
                         return (a.displayName || a.name).localeCompare(b.displayName || b.name);
@@ -1271,8 +1476,11 @@
             
             grid.innerHTML = filtered.map(scenario => {
                 const statusChip = getStatusChip(scenario.health || 'stopped', scenario.processCount || 0);
+                const isPreview = previewedScenarios.has(scenario.id);
+                const previewClass = isPreview ? ' preview' : '';
+                
                 return `
-                <div class="scenario-card ${scenario.isActive ? 'active' : ''}">
+                <div class="scenario-card ${scenario.isActive ? 'active' : ''}${previewClass}">
                     <div class="scenario-header">
                         <div>
                             <div class="scenario-name">
@@ -1298,38 +1506,31 @@
 
         function renderPresets() {
             const container = document.getElementById('presets-container');
-            container.innerHTML = Object.values(presets).map(preset => `
-                <button class="preset-btn" onclick="applyPreset('${preset.id}')">
-                    <div>${preset.name}</div>
-                    <div class="preset-description">${preset.description}</div>
-                </button>
-            `).join('');
+            container.innerHTML = Object.values(presets).map(preset => {
+                const isPreview = previewedPreset === preset.id;
+                const previewClass = isPreview ? ' preview' : '';
+                
+                let actionIcon = '';
+                if (isPreview) {
+                    // Check if this preset is currently active
+                    const isActive = isPresetActive(preset.id);
+                    if (isActive) {
+                        actionIcon = `<span class="preset-action-icon deactivate" onclick="event.stopPropagation(); deactivatePreset('${preset.id}')" title="Deactivate preset">⏹️</span>`;
+                    } else {
+                        actionIcon = `<span class="preset-action-icon activate" onclick="event.stopPropagation(); activatePreset('${preset.id}')" title="Activate preset">▶️</span>`;
+                    }
+                }
+                
+                return `
+                    <button class="preset-btn${previewClass}" onclick="previewPreset('${preset.id}')">
+                        ${actionIcon}
+                        <div>${preset.name}</div>
+                        <div class="preset-description">${preset.description}</div>
+                    </button>
+                `;
+            }).join('');
         }
 
-        function renderActivityLog(activities) {
-            const log = document.getElementById('activity-log');
-            log.innerHTML = activities.reverse().map(activity => `
-                <div class="activity-entry">
-                    <div>${getActivityDescription(activity)}</div>
-                    <div class="activity-time">${new Date(activity.timestamp).toLocaleTimeString()}</div>
-                </div>
-            `).join('');
-        }
-
-        function getActivityDescription(activity) {
-            switch(activity.action) {
-                case 'activate':
-                    return `✅ Activated ${activity.scenario}`;
-                case 'deactivate':
-                    return `⏸️ Deactivated ${activity.scenario}`;
-                case 'apply-preset':
-                    return `🎯 Applied preset: ${activity.preset}`;
-                case 'stop-all':
-                    return `🛑 Emergency stop executed`;
-                default:
-                    return activity.action;
-            }
-        }
 
         function updateStats() {
             const active = Object.values(scenarios).filter(s => s.isActive).length;
@@ -1355,12 +1556,120 @@
                     scenarios[id].isActive = activate;
                     addLog(`${activate ? 'Activated' : 'Deactivated'} ${scenarioName}`, 'success');
                     updateStats();
-                    fetchStatus();
                 } else {
                     addLog(`Failed to ${activate ? 'activate' : 'deactivate'} ${scenarioName}`, 'error');
                 }
             } catch (error) {
                 addLog(`Error toggling scenario: ${error.message}`, 'error');
+            }
+        }
+
+        function previewPreset(presetId) {
+            if (previewedPreset === presetId) {
+                // Clicking the same preset again clears preview
+                clearPreview();
+                return;
+            }
+            
+            previewedPreset = presetId;
+            previewedScenarios.clear();
+            
+            // Calculate which scenarios would be affected by this preset
+            const preset = presets[presetId];
+            if (preset) {
+                if (preset.pattern === '*') {
+                    // All scenarios
+                    Object.keys(scenarios).forEach(id => previewedScenarios.add(id));
+                } else if (preset.tags && preset.tags.length > 0) {
+                    // Scenarios with matching tags
+                    Object.values(scenarios).forEach(scenario => {
+                        if (scenario.tags && scenario.tags.some(tag => preset.tags.includes(tag))) {
+                            previewedScenarios.add(scenario.id);
+                        }
+                    });
+                } else if (preset.states) {
+                    // Explicitly configured scenarios
+                    Object.keys(preset.states).forEach(id => {
+                        if (scenarios[id]) previewedScenarios.add(id);
+                    });
+                }
+            }
+            
+            addLog(`Previewing preset: ${preset?.name || 'Unknown'} (${previewedScenarios.size} scenarios)`, 'info');
+            renderPresets();
+            renderScenarios();
+        }
+        
+        function clearPreview() {
+            previewedPreset = null;
+            previewedScenarios.clear();
+            renderPresets();
+            renderScenarios();
+        }
+        
+        function isPresetActive(presetId) {
+            const preset = presets[presetId];
+            if (!preset) return false;
+            
+            // Check if all scenarios that would be affected by this preset are currently active
+            const affectedScenarios = [];
+            if (preset.pattern === '*') {
+                affectedScenarios.push(...Object.keys(scenarios));
+            } else if (preset.tags && preset.tags.length > 0) {
+                Object.values(scenarios).forEach(scenario => {
+                    if (scenario.tags && scenario.tags.some(tag => preset.tags.includes(tag))) {
+                        affectedScenarios.push(scenario.id);
+                    }
+                });
+            } else if (preset.states) {
+                affectedScenarios.push(...Object.keys(preset.states));
+            }
+            
+            return affectedScenarios.length > 0 && affectedScenarios.every(id => scenarios[id]?.isActive);
+        }
+        
+        async function activatePreset(presetId) {
+            const presetName = presets[presetId]?.name || presetId;
+            
+            try {
+                addLog(`Activating preset: ${presetName}`, 'info');
+                const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✅ Activated preset: ${presetName}`, 'success');
+                    clearPreview();
+                    fetchScenarios();
+                } else {
+                    addLog(`Failed to activate preset: ${presetName}`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error activating preset: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deactivatePreset(presetId) {
+            // For now, deactivating a preset means stopping all scenarios
+            // In the future, this could be more sophisticated
+            if (!confirm('Deactivate all scenarios?')) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/stop-all`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`✅ Deactivated preset`, 'success');
+                    clearPreview();
+                    fetchScenarios();
+                } else {
+                    addLog(`Failed to deactivate preset`, 'error');
+                }
+            } catch (error) {
+                addLog(`Error deactivating preset: ${error.message}`, 'error');
             }
         }
 
@@ -1378,7 +1687,6 @@
                 if (data.success) {
                     addLog(`Applied preset: ${presetName} (${data.activated?.length || 0} activated, ${data.deactivated?.length || 0} deactivated)`, 'success');
                     fetchScenarios();
-                    fetchStatus();
                 } else {
                     addLog(`Failed to apply preset: ${presetName}`, 'error');
                 }
@@ -1400,7 +1708,6 @@
                 if (data.success) {
                     addLog(`Emergency stop executed: ${data.deactivated?.length || 0} scenarios deactivated`, 'success');
                     fetchScenarios();
-                    fetchStatus();
                 } else {
                     addLog('Emergency stop failed', 'error');
                 }
@@ -1417,8 +1724,7 @@
             try {
                 await Promise.all([
                     fetchScenarios(),
-                    fetchScenarioStatuses(),
-                    fetchStatus()
+                    fetchScenarioStatuses()
                 ]);
             } catch (error) {
                 addLog(`Polling error: ${error.message}`, 'warn');
@@ -1471,6 +1777,9 @@
                 sortOrder = e.target.value;
                 renderScenarios();
             });
+            
+            // Load presets visibility preference
+            loadPresetsVisibility();
         });
 
         // Add scenario modal functions
@@ -1676,7 +1985,6 @@
                 await fetchScenarios();
                 await fetchPresets();
                 await fetchScenarioStatuses();
-                await fetchStatus();
                 
                 // Start sequential polling
                 startPolling();
@@ -1719,6 +2027,66 @@
         document.getElementById('presetAssignmentModal').addEventListener('click', (e) => {
             if (e.target.id === 'presetAssignmentModal') {
                 closePresetAssignmentModal();
+            }
+        });
+
+        // Preset panel toggle functionality
+        function togglePresets() {
+            presetsVisible = !presetsVisible;
+            const presetsSection = document.getElementById('presetsSection');
+            const toggleBtn = document.getElementById('presetsToggleBtn');
+            
+            if (presetsVisible) {
+                presetsSection.classList.remove('collapsed');
+                toggleBtn.innerHTML = '\u25c0'; // Left arrow
+                toggleBtn.title = 'Hide presets panel';
+                addLog('Presets panel shown', 'info');
+            } else {
+                presetsSection.classList.add('collapsed');
+                toggleBtn.innerHTML = '\u25b6'; // Right arrow
+                toggleBtn.title = 'Show presets panel';
+                addLog('Presets panel hidden', 'info');
+                // Clear any active preview when hiding
+                if (previewedPreset) {
+                    clearPreview();
+                }
+            }
+            
+            // Save preference to localStorage
+            try {
+                localStorage.setItem('maintenance-orchestrator-presets-visible', presetsVisible.toString());
+            } catch (e) {
+                // Ignore localStorage errors
+            }
+        }
+        
+        // Load presets visibility preference
+        function loadPresetsVisibility() {
+            try {
+                const saved = localStorage.getItem('maintenance-orchestrator-presets-visible');
+                if (saved !== null) {
+                    presetsVisible = saved === 'true';
+                    
+                    // Apply the saved state without animation initially
+                    const presetsSection = document.getElementById('presetsSection');
+                    const toggleBtn = document.getElementById('presetsToggleBtn');
+                    
+                    if (!presetsVisible) {
+                        presetsSection.classList.add('collapsed');
+                        toggleBtn.innerHTML = '\u25b6';
+                        toggleBtn.title = 'Show presets panel';
+                    }
+                }
+            } catch (e) {
+                // Ignore localStorage errors
+            }
+        }
+
+        // Clear preview when clicking outside presets
+        document.addEventListener('click', (e) => {
+            // Check if click is outside of preset buttons and presets are visible
+            if (!e.target.closest('.preset-btn') && previewedPreset && presetsVisible) {
+                clearPreview();
             }
         });
 

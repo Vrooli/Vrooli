@@ -12,33 +12,21 @@ Vrooli is a **self-improving AI platform** that orchestrates local resources to 
 
 ## Core Architecture
 
-### Resources (Building Blocks)
-Resources are the fundamental services that provide capabilities:
+### Resources
+Resources are the fundamental services (external) that provide capabilities:
 - **AI/ML**: claude-code, ollama, comfyui, whisper
 - **Storage**: postgres, redis, minio, qdrant, questdb
 - **Development**: judge0, browserless, vault
 - **Monitoring**: Various monitoring and security tools
+- And many more!
 
-### Scenarios (Applications)
-Scenarios are complete business applications built using resources:
-- Each scenario solves a specific business problem
-- Scenarios can leverage any combination of resources
+### Scenarios
+Scenarios are complete applications built using resources and other scenarios:
+- Scenarios can be toolsets, microservices, dashboards, applications, games - you name it
+- Scenarios can leverage any combination of resources and scenarios
 - They include API, CLI, and UI components
-- Scenarios generate revenue through real-world usage
-
-### Memory System (Qdrant)
-The Qdrant vector database serves as Vrooli's long-term memory:
-- **Every solution, pattern, and failure is remembered**
-- **All agents can search and learn from past work**
-- **Knowledge compounds over time**
-- **No work is ever repeated**
 
 ## Development Philosophy
-
-### AI-First Development
-- AI agents (primarily Claude Code) do the actual development
-- Humans provide high-level guidance and requirements
-- The system learns from every iteration
 
 ### PRD-Driven Approach
 - Every scenario/resource has a Product Requirements Document (PRD)

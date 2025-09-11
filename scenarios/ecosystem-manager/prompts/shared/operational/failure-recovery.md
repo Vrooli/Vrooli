@@ -3,9 +3,7 @@
 ## Purpose
 Document failures clearly and know when to stop making changes. Failures teach us - capture the lessons.
 
-## Failure Classification
-
-### Severity Levels
+## Severity Levels
 
 **Level 1: Trivial (Continue)**
 - Cosmetic issues
@@ -79,15 +77,7 @@ Include this failure documentation format in your response:
 - [How to prevent similar issues]
 ```
 
-## When to Complete the Task
-
-If you reach a point where:
-- Multiple fix attempts have failed
-- System is in worse state than before
-- You're unsure what changes are safe
-- Severity is Level 4 or 5
-
-**Then refer to the Task Completion Protocol section** for instructions on how to properly finish and document your work.
+Refer to the Task Completion Protocol section for instructions on how to properly finish and document your work.
 
 ## Key Principles
 

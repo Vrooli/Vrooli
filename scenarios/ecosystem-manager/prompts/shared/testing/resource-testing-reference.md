@@ -83,83 +83,12 @@ vrooli resource [name] content remove  # Can delete
 
 ## Test Requirements
 
-### Performance Requirements
-- **Smoke tests**: Must complete in <30s
-- **Integration tests**: Must complete in <120s  
-- **Unit tests**: Must complete in <60s
-- **Full suite**: Must complete in <600s (10 minutes)
-- **Health checks**: Must respond in <5s (timeout enforced)
-- **Shutdown**: Must complete in <30s
-
-### Exit Code Standards
-- `0` = Success
-- `1` = Error/Failure
-- `2` = Not applicable/Skipped
-
-## Generator Testing Requirements
-
-### Uniqueness Validation
-```bash
-# Verify no duplicate exists
-grep -r "[resource-name]" /home/matthalloran8/Vrooli/resources/
-# Must show <20% functional overlap
-```
-
 ### Minimal Functionality Test
 ```bash
 # One P0 requirement must work
 vrooli resource [name] manage start --wait
 curl -sf http://localhost:${PORT}/health  # Must respond
 vrooli resource [name] test smoke          # Must pass
-```
-
-## Improver Testing Requirements  
-
-### No-Regression Testing
-```bash
-# All previous tests must still pass
-vrooli resource [name] test all
-
-# Performance must not degrade
-time vrooli resource [name] test smoke  # Compare with baseline
-```
-
-### Progress Validation
-```bash
-# Test specific improved features
-# Document test command for each PRD requirement advanced
-# Example:
-vrooli resource [name] test integration --filter [feature]
-```
-
-## Common Issues & Solutions
-
-### Port Conflicts
-```bash
-netstat -tlnp | grep [PORT]            # Check port usage
-# Update config/defaults.sh with available port
-```
-
-### Missing Dependencies
-```bash
-vrooli resource [name] info --json | jq .dependencies
-vrooli resource [name] manage install  # Install missing
-```
-
-### Health Check Timeouts
-```bash
-# For slow-starting resources
-vrooli resource [name] manage start --wait --timeout 120
-```
-
-### Test Failures
-```bash
-# Run with verbose output
-vrooli resource [name] test smoke --verbose
-vrooli resource [name] test all --debug
-
-# Check logs
-vrooli resource [name] logs --tail 50
 ```
 
 ## Testing Best Practices
@@ -199,6 +128,5 @@ vrooli resource [name] logs --tail 50
 2. **Integration** → Check dependencies
 3. **Documentation** → Validate accuracy
 4. **Testing** → Run full suite
-5. **Memory** → Update Qdrant
 
 **Remember**: FAIL = STOP. Fix issues before proceeding.

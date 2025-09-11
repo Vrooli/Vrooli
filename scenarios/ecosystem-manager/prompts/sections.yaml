@@ -18,7 +18,6 @@ base_sections:
   - shared/methodologies/implementation-methodology
   
   # Operational procedures (shared across all operations)
-  - shared/operational/queue-processing
   - shared/operational/failure-recovery
   - shared/operational/collision-avoidance
   - shared/operational/task-completion-protocol

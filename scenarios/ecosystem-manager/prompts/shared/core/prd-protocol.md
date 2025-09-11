@@ -20,58 +20,6 @@
 **Validation**: Test → Keep/Uncheck/Note partial → Update history
 **Progress Format**: `Date: X% → Y% (Change description)`
 
-## PRD Template Examples
-
-### Resource PRD Example
-```markdown
-# [Resource Name] PRD
-
-## Executive Summary
-**What**: PostgreSQL database resource with v2.0 compliance
-**Why**: Central data storage for all scenarios  
-**Who**: All data-driven scenarios
-**Value**: Enables $100K+ in scenario value
-**Priority**: P0 - Core infrastructure
-
-## P0 Requirements (Must Have)
-- [ ] v2.0 contract compliance with all lifecycle hooks
-- [ ] Health check with 5-second timeout
-- [ ] Automatic database initialization
-- [ ] Connection pooling configuration
-- [ ] Backup and restore commands
-
-## Technical Specifications
-- **Port**: 25432 (from resource registry)
-- **Dependencies**: None (base resource)
-- **CLI Commands**: manage, test, content, status
-- **Performance**: <100ms connection time
-```
-
-### Scenario PRD Example
-```markdown
-# [Scenario Name] PRD
-
-## Executive Summary
-**What**: Invoice generator with template management
-**Why**: Automates $50K worth of manual invoicing
-**Who**: Small businesses and freelancers
-**Value**: $50K revenue from 100 customers
-**Priority**: P0 - Revenue generating
-
-## P0 Requirements (Must Have)
-- [ ] Create invoices from templates
-- [ ] PDF and email generation
-- [ ] Customer database integration
-- [ ] Payment tracking
-- [ ] Multi-currency support
-
-## Technical Specifications
-- **Resources**: postgres, redis, browserless
-- **API**: REST with 10 endpoints
-- **Database**: 5 tables, 20 fields total
-- **Performance**: <2s invoice generation
-```
-
 ## Common Mistakes
 **Generators**: Vague requirements, missing criteria, no revenue justification, <5 P0s
 **Improvers**: Trusting recent checkmarks are accurate, not updating %, adding unplanned features
@@ -95,10 +43,6 @@ Use notes, not checkmarks:
 ```markdown
 - [ ] User authentication (PARTIAL: login works, logout broken)
 ```
-
-## Time Allocation for PRDs
-
-See sections.yaml for standardized time allocations.
 
 ## PRD Success Metrics
 
