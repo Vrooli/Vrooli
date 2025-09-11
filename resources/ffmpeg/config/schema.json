@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FFmpeg Resource Configuration",
+  "description": "Configuration schema for FFmpeg media processing resource",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "FFmpeg version requirement",
+      "pattern": "^[0-9]+\\.[0-9]+",
+      "default": "6.0"
+    },
+    "processing": {
+      "type": "object",
+      "description": "Media processing configuration",
+      "properties": {
+        "max_concurrent_jobs": {
+          "type": "integer",
+          "description": "Maximum concurrent processing jobs",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 2
+        },
+        "default_quality": {
+          "type": "string",
+          "description": "Default output quality preset",
+          "enum": ["low", "medium", "high", "lossless"],
+          "default": "high"
+        },
+        "enable_gpu": {
+          "type": "boolean",
+          "description": "Enable GPU acceleration if available",
+          "default": true
+        },
+        "temp_directory": {
+          "type": "string",
+          "description": "Directory for temporary processing files",
+          "default": "/tmp/ffmpeg"
+        }
+      }
+    },
+    "codecs": {
+      "type": "object",
+      "description": "Codec preferences",
+      "properties": {
+        "video": {
+          "type": "object",
+          "properties": {
+            "preferred": {
+              "type": "string",
+              "enum": ["h264", "h265", "vp9", "av1"],
+              "default": "h264"
+            },
+            "fallback": {
+              "type": "string",
+              "enum": ["h264", "h265", "vp9", "mpeg4"],
+              "default": "mpeg4"
+            }
+          }
+        },
+        "audio": {
+          "type": "object",
+          "properties": {
+            "preferred": {
+              "type": "string",
+              "enum": ["aac", "mp3", "opus", "flac"],
+              "default": "aac"
+            },
+            "fallback": {
+              "type": "string",
+              "enum": ["mp3", "aac", "vorbis"],
+              "default": "mp3"
+            }
+          }
+        }
+      }
+    },
+    "presets": {
+      "type": "object",
+      "description": "Conversion presets",
+      "properties": {
+        "web_video": {
+          "type": "object",
+          "description": "Web-optimized video settings",
+          "properties": {
+            "format": {"type": "string", "default": "mp4"},
+            "video_codec": {"type": "string", "default": "libx264"},
+            "audio_codec": {"type": "string", "default": "aac"},
+            "bitrate": {"type": "string", "default": "2M"}
+          }
+        },
+        "podcast_audio": {
+          "type": "object",
+          "description": "Podcast audio settings",
+          "properties": {
+            "format": {"type": "string", "default": "mp3"},
+            "audio_codec": {"type": "string", "default": "libmp3lame"},
+            "bitrate": {"type": "string", "default": "128k"},
+            "sample_rate": {"type": "integer", "default": 44100}
+          }
+        },
+        "thumbnail": {
+          "type": "object",
+          "description": "Video thumbnail extraction",
+          "properties": {
+            "format": {"type": "string", "default": "jpg"},
+            "size": {"type": "string", "default": "320x240"},
+            "quality": {"type": "integer", "default": 2}
+          }
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "description": "Resource limits",
+      "properties": {
+        "max_file_size_mb": {
+          "type": "integer",
+          "description": "Maximum input file size in MB",
+          "minimum": 1,
+          "maximum": 10000,
+          "default": 5000
+        },
+        "max_duration_seconds": {
+          "type": "integer",
+          "description": "Maximum processing duration per file",
+          "minimum": 60,
+          "maximum": 7200,
+          "default": 3600
+        },
+        "cpu_threads": {
+          "type": "integer",
+          "description": "Number of CPU threads to use (0=auto)",
+          "minimum": 0,
+          "maximum": 32,
+          "default": 0
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "description": "Monitoring and logging",
+      "properties": {
+        "log_level": {
+          "type": "string",
+          "enum": ["quiet", "error", "warning", "info", "verbose", "debug"],
+          "default": "info"
+        },
+        "enable_progress": {
+          "type": "boolean",
+          "description": "Show progress during conversion",
+          "default": true
+        },
+        "save_logs": {
+          "type": "boolean",
+          "description": "Save processing logs to file",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

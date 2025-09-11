@@ -30,7 +30,7 @@ solutions = solve(eq, x)
 print(f"Solutions: {solutions}")
 EOF
 
-if resource-sagemath content add --file "$test_script" --name "integration_test.sage" > /dev/null 2>&1; then
+if "${APP_ROOT}/resources/sagemath/cli.sh" content add --file "$test_script" --name "integration_test.sage" > /dev/null 2>&1; then
     echo "✓"
 else
     echo "✗"
@@ -44,7 +44,9 @@ rm -f "$test_script"
 echo -n "Testing content list... "
 # Small delay to ensure file system sync
 sleep 0.5
-if resource-sagemath content list 2>&1 | grep -q "integration_test.sage"; then
+# Need to use full path to CLI or ensure PATH is correct
+# Strip ANSI codes and search for the file
+if "${APP_ROOT}/resources/sagemath/cli.sh" content list 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -q "integration_test\.sage"; then
     echo "✓"
 else
     echo "✗"
@@ -103,7 +105,7 @@ fi
 
 # Test 7: Content management - Remove
 echo -n "Testing content remove... "
-if resource-sagemath content remove --name "integration_test.sage" > /dev/null 2>&1; then
+if "${APP_ROOT}/resources/sagemath/cli.sh" content remove --name "integration_test.sage" > /dev/null 2>&1; then
     echo "✓"
 else
     echo "✗"
@@ -113,8 +115,8 @@ fi
 
 # Test 8: Jupyter notebook API
 echo -n "Testing Jupyter API... "
-api_response=$(curl -sf "http://localhost:${SAGEMATH_PORT_JUPYTER}/api/status" 2>/dev/null || echo "{}")
-if [[ "$api_response" == *"started"* ]]; then
+api_response=$(timeout 5 curl -sf "http://localhost:${SAGEMATH_PORT_JUPYTER}/api" 2>/dev/null || echo "{}")
+if [[ "$api_response" == *"version"* ]]; then
     echo "✓"
 else
     echo "✗"

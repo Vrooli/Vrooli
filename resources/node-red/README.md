@@ -21,17 +21,20 @@ Node-RED is a low-code visual programming tool for wiring together hardware devi
 
 ### Installation
 ```bash
-# Standard installation
-./manage.sh --action install
+# v2.0 Contract Compliant Installation
+resource-node-red manage install
 
-# With host system access (recommended for advanced flows)
-./manage.sh --action install --build-image yes
+# Start Node-RED
+resource-node-red manage start --wait
 
-# Force reinstall if already exists
-./manage.sh --action install --force yes
+# Apply performance optimizations
+resource-node-red optimize
+
+# Setup IoT integration (optional)
+resource-node-red iot-setup
 
 # Check status
-./manage.sh --action status
+resource-node-red status
 ```
 
 ### First Access
@@ -114,11 +117,44 @@ docker exec node-red-vrooli npm install node-red-contrib-influxdb
 
 ## 🔗 Documentation
 
+- **[IoT Integration Guide](docs/IOT-INTEGRATION.md)** - Complete IoT device integration patterns
 - **[Integration Examples & Commands](docs/EXAMPLES.md)** - Detailed usage examples and management commands
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Solutions for common issues and problems
 - **[Node-RED Official Documentation](https://nodered.org/docs/)** - Complete Node-RED reference
 - **[Node-RED Flows Library](https://flows.nodered.org/)** - Community flow repository
 - **[Node-RED Cookbook](https://cookbook.nodered.org/)** - Practical recipes and patterns
+
+## ⚡ Performance Features
+
+- **Message Batching**: Automatic batching for high-throughput flows
+- **Flow Caching**: LRU cache for frequently accessed flows  
+- **Memory Optimization**: Configurable Node.js heap size
+- **Context Storage**: In-memory or persistent storage options
+- **Performance Monitoring**: Built-in metrics and monitoring
+
+## 🌐 IoT Integration
+
+- **MQTT**: Full broker and client support with QoS levels
+- **CoAP**: RESTful protocol for constrained devices
+- **Modbus**: Industrial automation protocol support
+- **OPC-UA**: Industrial interoperability standard
+- **Device Discovery**: Automatic IoT device detection
+- **Protocol Translation**: Convert between IoT protocols
+
+## 📊 Testing
+
+```bash
+# Run all tests
+resource-node-red test all
+
+# Individual test phases
+resource-node-red test smoke       # Quick health check (<30s)
+resource-node-red test integration  # Full functionality (<120s)
+resource-node-red test unit        # Library functions (<60s)
+
+# Performance monitoring
+resource-node-red monitor
+```
 
 ---
 

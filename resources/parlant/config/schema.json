@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Parlant Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 11458
+    },
+    "host": {
+      "type": "string",
+      "description": "API server host",
+      "default": "127.0.0.1"
+    },
+    "workers": {
+      "type": "integer",
+      "description": "Number of worker processes",
+      "minimum": 1,
+      "maximum": 16,
+      "default": 4
+    },
+    "max_agents": {
+      "type": "integer",
+      "description": "Maximum number of concurrent agents",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 50
+    },
+    "session_timeout": {
+      "type": "integer",
+      "description": "Session timeout in seconds",
+      "minimum": 60,
+      "maximum": 86400,
+      "default": 3600
+    },
+    "use_postgres": {
+      "type": "boolean",
+      "description": "Enable PostgreSQL for persistence",
+      "default": false
+    },
+    "postgres": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "default": 25432
+        },
+        "database": {
+          "type": "string",
+          "default": "parlant"
+        },
+        "user": {
+          "type": "string",
+          "default": "parlant"
+        },
+        "password": {
+          "type": "string",
+          "default": "parlant123"
+        }
+      }
+    },
+    "use_redis": {
+      "type": "boolean",
+      "description": "Enable Redis for session state",
+      "default": false
+    },
+    "redis": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "default": 6379
+        }
+      }
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Enable debug mode",
+      "default": false
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API authentication key",
+      "default": ""
+    }
+  },
+  "required": ["port", "host"]
+}

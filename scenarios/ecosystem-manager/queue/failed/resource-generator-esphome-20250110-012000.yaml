@@ -1,0 +1,39 @@
+id: resource-generator-esphome-20250110-012000
+title: ESPHome IoT Firmware Framework
+type: resource
+operation: generator
+category: iot
+priority: low
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-11T01:40:52-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:20:00Z"
+updated_at: "2025-09-11T01:40:52-04:00"
+tags:
+    - iot
+    - firmware
+    - esp32
+notes: '- **What it does:** Firmware framework for ESP32/ESP8266 microcontrollers using YAML configuration. Creates custom IoT devices with Home Assistant integration, OTA updates, and extensive sensor support. - **Use when:** Scenarios need custom IoT sensors, actuators, or edge computing devices. Perfect for creating bespoke automation hardware integrated with existing smart home infrastructure. - **Technical requirements:** - ESP32/ESP8266 development environment - YAML configuration management - Home Assistant integration - OTA update infrastructure - Sensor/actuator library ecosystem'
+results:
+    error: Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS.
+    execution_time: 11m32s
+    failed_at: "2025-09-11T01:40:52-04:00"
+    prompt_size: 31753 chars (31.01 KB)
+    started_at: "2025-09-11T01:29:20-04:00"
+    success: false
+    timeout_allowed: 30m0s
+    timeout_failure: false

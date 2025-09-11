@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OPENROUTER_CLI_DIR}/config/defaults.sh"
 
 # Source OpenRouter libraries
-for lib in core status install configure content; do
+for lib in core status install configure content test info; do
     lib_file="${OPENROUTER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -55,7 +55,11 @@ CLI_COMMAND_HANDLERS["manage::start"]="openrouter::service::noop_start"
 CLI_COMMAND_HANDLERS["manage::stop"]="openrouter::service::noop_stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="openrouter::service::noop_restart"
 
-CLI_COMMAND_HANDLERS["test::smoke"]="openrouter::test_connection"
+# Test handlers - delegate to test library
+CLI_COMMAND_HANDLERS["test::smoke"]="openrouter::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="openrouter::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="openrouter::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="openrouter::test::all"
 
 # Content handlers
 CLI_COMMAND_HANDLERS["content::add"]="openrouter::content::add"
@@ -67,6 +71,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="openrouter::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
+cli::register_command "info" "Show structured resource information" "openrouter::info"
 cli::register_command "status" "Show detailed resource status" "openrouter::status"
 
 # OpenRouter is API service - no logs to show

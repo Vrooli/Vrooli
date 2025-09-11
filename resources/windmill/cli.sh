@@ -32,7 +32,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${WINDMILL_CLI_DIR}/config/defaults.sh"
 
 # Source Windmill libraries
-for lib in state common database docker status install apps api workers content; do
+for lib in state common database docker status install apps api workers content test multi-language; do
     lib_file="${WINDMILL_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -51,7 +51,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="windmill::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="windmill::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="windmill::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="windmill::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="windmill::quick_status"
+CLI_COMMAND_HANDLERS["test::smoke"]="windmill::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="windmill::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="windmill::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="windmill::test::all"
 
 # Content handlers - for Windmill's business functionality (apps, workflows)
 CLI_COMMAND_HANDLERS["content::add"]="windmill::content::add"
@@ -68,6 +71,11 @@ cli::register_subcommand "content" "restore" "Restore from backup" "windmill::re
 
 # Add worker management as content operations
 cli::register_subcommand "content" "scale-workers" "Scale worker containers" "windmill::scale_workers" "modifies-system"
+
+# Add enhanced multi-language script execution
+cli::register_subcommand "content" "run-script" "Execute script in any supported language" "windmill::execute_script" "modifies-system"
+cli::register_subcommand "content" "run-batch" "Execute multiple scripts" "windmill::execute_batch" "modifies-system"
+cli::register_subcommand "content" "languages" "Show supported programming languages" "windmill::show_supported_languages"
 
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS

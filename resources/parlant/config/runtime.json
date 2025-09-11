@@ -1,0 +1,48 @@
+{
+  "resource_name": "parlant",
+  "display_name": "Parlant LLM Agent Framework",
+  "description": "Production-ready Python SDK for controlled multi-agent development with behavioral guidelines",
+  "category": "ai",
+  "subcategory": "agent-framework",
+  "version": "1.0.0",
+  "startup_order": 550,
+  "dependencies": [],
+  "optional_dependencies": ["postgres", "redis"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "15-30s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "ports": {
+    "api": 11458
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "timeout": 5,
+    "interval": 30,
+    "retries": 3
+  },
+  "resource_requirements": {
+    "min_memory_mb": 512,
+    "recommended_memory_mb": 1024,
+    "min_disk_mb": 500,
+    "cpu_cores": 2
+  },
+  "capabilities": [
+    "behavioral-guidelines",
+    "journey-definitions",
+    "tool-registration",
+    "context-management",
+    "multi-agent",
+    "audit-logging",
+    "self-critique"
+  ],
+  "supported_models": [
+    "claude",
+    "gpt-4",
+    "ollama"
+  ],
+  "api_style": "rest",
+  "websocket_support": true,
+  "documentation_url": "https://www.parlant.io/docs"
+}

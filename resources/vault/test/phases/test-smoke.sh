@@ -57,13 +57,13 @@ vault::test::smoke() {
         overall_status=1
     fi
     
-    # Test 3: API health endpoint
-    log::info "3/5 Testing API health endpoint..."
-    if curl -sf "${VAULT_BASE_URL}/v1/sys/health" >/dev/null 2>&1; then
+    # Test 3: API health endpoint with timeout per v2.0 contract
+    log::info "3/7 Testing API health endpoint..."
+    if timeout 5 curl -sf "${VAULT_BASE_URL}/v1/sys/health" >/dev/null 2>&1; then
         log::success "✓ Health endpoint responding"
         if [[ "$verbose" == "true" ]]; then
             local health_response
-            health_response=$(curl -sf "${VAULT_BASE_URL}/v1/sys/health" 2>/dev/null | jq -c '{initialized, sealed, version}' 2>/dev/null || echo "N/A")
+            health_response=$(timeout 5 curl -sf "${VAULT_BASE_URL}/v1/sys/health" 2>/dev/null | jq -c '{initialized, sealed, version}' 2>/dev/null || echo "N/A")
             log::info "  Response: $health_response"
         fi
     else
@@ -72,7 +72,7 @@ vault::test::smoke() {
     fi
     
     # Test 4: Port accessibility
-    log::info "4/5 Testing port accessibility..."
+    log::info "4/7 Testing port accessibility..."
     if nc -z localhost "${VAULT_PORT}" 2>/dev/null; then
         log::success "✓ Port ${VAULT_PORT} is accessible"
     else
@@ -81,7 +81,7 @@ vault::test::smoke() {
     fi
     
     # Test 5: Basic Vault status
-    log::info "5/5 Testing Vault status..."
+    log::info "5/7 Testing Vault status..."
     local vault_status
     vault_status=$(vault::get_status)
     case "$vault_status" in
@@ -109,10 +109,39 @@ vault::test::smoke() {
             ;;
     esac
     
+    # Test 6: Security operations - Encryption status
+    log::info "6/7 Testing encryption status..."
+    if timeout 5 curl -sf "${VAULT_BASE_URL}/v1/sys/health" 2>/dev/null | jq -e '.initialized == true' >/dev/null 2>&1; then
+        log::success "✓ Encryption is active and initialized"
+    else
+        log::warn "⚠ Encryption status could not be verified"
+        if [[ "$VAULT_MODE" == "prod" ]]; then
+            overall_status=1
+        fi
+    fi
+    
+    # Test 7: Security operations - Seal status for production
+    log::info "7/7 Testing seal status..."
+    local seal_response
+    seal_response=$(timeout 5 curl -sf "${VAULT_BASE_URL}/v1/sys/seal-status" 2>/dev/null)
+    if [[ -n "$seal_response" ]]; then
+        local sealed
+        sealed=$(echo "$seal_response" | jq -r '.sealed' 2>/dev/null)
+        if [[ "$sealed" == "false" ]]; then
+            log::success "✓ Vault is unsealed and operational"
+        elif [[ "$sealed" == "true" ]]; then
+            log::warn "⚠ Vault is sealed (normal for production after restart)"
+        else
+            log::warn "⚠ Could not determine seal status"
+        fi
+    else
+        log::warn "⚠ Seal status endpoint not responding"
+    fi
+    
     echo ""
     if [[ $overall_status -eq 0 ]]; then
         log::success "🎉 Vault resource smoke test PASSED"
-        echo "Vault service is healthy and ready for secret management"
+        echo "Vault service is healthy and ready for secure secret management"
     else
         log::error "💥 Vault resource smoke test FAILED"
         echo "Vault service has issues that need to be resolved"

@@ -74,6 +74,9 @@ CLI_COMMAND_HANDLERS["manage::start"]="qdrant::docker::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="qdrant::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="qdrant::docker::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="qdrant::check_basic_health"
+CLI_COMMAND_HANDLERS["test::integration"]="qdrant::test_integration"
+CLI_COMMAND_HANDLERS["test::unit"]="qdrant::test_unit"
+CLI_COMMAND_HANDLERS["test::all"]="qdrant::test_all"
 
 # Content handlers - Qdrant's business functionality
 CLI_COMMAND_HANDLERS["content::add"]="qdrant::content::add"

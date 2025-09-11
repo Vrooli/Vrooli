@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SAGEMATH_CLI_DIR}/config/defaults.sh"
 
 # Source SageMath libraries
-for lib in common docker install status content test; do
+for lib in common docker install status content test health mathematics; do
     lib_file="${SAGEMATH_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -69,6 +69,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="sagemath::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed SageMath status" "sagemath::status"
 cli::register_command "logs" "Show SageMath container logs" "sagemath::docker::logs"
+cli::register_command "health" "Check SageMath health status" "sagemath::health::check"
 
 # ==============================================================================
 # SAGEMATH-SPECIFIC CONTENT COMMANDS
@@ -79,6 +80,21 @@ cli::register_subcommand "content" "notebook" "Open Jupyter notebook interface" 
 
 # SageMath-specific test commands
 cli::register_subcommand "test" "performance" "Run performance benchmarks" "sagemath::test::performance"
+
+# ==============================================================================
+# MATHEMATICAL OPERATIONS AS DIRECT COMMANDS
+# ==============================================================================
+# Register mathematical operations as direct commands
+cli::register_command "solve" "Solve equations" "sagemath::math::solve"
+cli::register_command "differentiate" "Differentiate expressions" "sagemath::math::differentiate"
+cli::register_command "integrate" "Integrate expressions" "sagemath::math::integrate"
+cli::register_command "matrix" "Matrix operations" "sagemath::math::matrix"
+cli::register_command "prime" "Prime number operations" "sagemath::math::prime"
+cli::register_command "stats" "Statistical operations" "sagemath::math::stats"
+cli::register_command "polynomial" "Polynomial operations" "sagemath::math::polynomial"
+cli::register_command "complex" "Complex number operations" "sagemath::math::complex"
+cli::register_command "limit" "Calculate limits" "sagemath::math::limit"
+cli::register_command "series" "Series expansions" "sagemath::math::series"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

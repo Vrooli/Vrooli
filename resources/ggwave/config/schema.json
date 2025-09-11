@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GGWave Configuration Schema",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": ["auto", "normal", "fast", "dt", "ultrasonic"],
+      "default": "auto",
+      "description": "Transmission mode for audio encoding"
+    },
+    "sample_rate": {
+      "type": "integer",
+      "minimum": 8000,
+      "maximum": 96000,
+      "default": 48000,
+      "description": "Audio sample rate in Hz"
+    },
+    "volume": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.8,
+      "description": "Output volume level"
+    },
+    "error_correction": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable Reed-Solomon error correction"
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info",
+      "description": "Logging verbosity level"
+    },
+    "max_sessions": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "default": 10,
+      "description": "Maximum concurrent transmission sessions"
+    },
+    "session_timeout": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 3600,
+      "default": 300,
+      "description": "Session timeout in seconds"
+    },
+    "buffer_size": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 16384,
+      "default": 4096,
+      "description": "Audio buffer size in bytes"
+    },
+    "audio_device": {
+      "type": "string",
+      "default": "default",
+      "description": "Audio device identifier"
+    },
+    "test_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable test mode with mock audio"
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

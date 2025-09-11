@@ -1,0 +1,36 @@
+{
+  "startup_order": 100,
+  "dependencies": [],
+  "startup_timeout": 30,
+  "startup_time_estimate": "5-15s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "security",
+  "description": "Modern VPN networking with WireGuard protocol",
+  "health_check": {
+    "type": "exec",
+    "command": "docker exec vrooli-wireguard wg show",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_limits": {
+    "memory": "100Mi",
+    "cpu": "0.5"
+  },
+  "network_requirements": {
+    "ports": [
+      {
+        "port": 51820,
+        "protocol": "udp",
+        "description": "WireGuard VPN tunnel"
+      }
+    ],
+    "capabilities": ["NET_ADMIN", "SYS_MODULE"]
+  },
+  "security": {
+    "encryption": "ChaCha20-Poly1305",
+    "key_exchange": "Curve25519",
+    "authentication": "public_key"
+  }
+}

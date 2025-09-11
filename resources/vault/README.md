@@ -1,6 +1,8 @@
-# HashiCorp Vault - Secret Management Service
+# HashiCorp Vault - Enhanced Security Resource
 
-A secure, API-driven secret management solution that provides encrypted storage, dynamic secrets, data encryption, and more. This implementation provides both development and production modes with seamless integration into the Vrooli resource ecosystem.
+> **v2.0 Contract Compliant** | **Security-First Design** | **Audit-Ready**
+
+A secure, API-driven secret management solution that provides encrypted storage, dynamic secrets, data encryption, and comprehensive security monitoring. This enhanced implementation includes advanced health checks, audit logging, and standardized CLI operations for seamless integration into the Vrooli resource ecosystem.
 
 ## 🎯 **Use Cases**
 
@@ -28,27 +30,73 @@ A secure, API-driven secret management solution that provides encrypted storage,
 - Agent-S2 website authentication
 - Automated CI/CD pipeline secrets
 
+## 🔑 **Resource Secrets Management (New!)**
+
+Vault now provides centralized secrets management for all Vrooli resources through a standardized `secrets.yaml` configuration system.
+
+### **Quick Setup for Resource Secrets**
+```bash
+# Scan all resources for secrets requirements
+vrooli resource vault secrets scan
+
+# Check secrets status for a specific resource
+vrooli resource vault secrets check openrouter
+
+# Initialize secrets for a resource (interactive)
+vrooli resource vault secrets init openrouter
+
+# Create secrets.yaml template for your resource
+vrooli resource vault secrets create-template my-resource
+
+# Export secrets as environment variables
+vrooli resource vault secrets export openrouter > openrouter-env.sh
+source openrouter-env.sh
+```
+
+### **How It Works**
+1. Resources define their secrets in `config/secrets.yaml`
+2. Vault manages these secrets centrally
+3. Resources load secrets at runtime from Vault or environment
+4. Full audit trail and access control
+
+See [SECRETS-STANDARD.md](docs/SECRETS-STANDARD.md) for complete documentation.
+
 ## 🚀 **Quick Start**
 
 ### **Development Setup**
 ```bash
 # Initialize Vault in development mode (auto-unsealed, in-memory storage)
-./cli.sh content init-dev
+vrooli resource vault content init-dev
 
-# Store a secret (positional arguments)
-./cli.sh content add "environments/dev/database-url" "postgresql://user:pass@localhost/db"
+# Store a secret (v2.0 compliant)
+vrooli resource vault content add --name environments/dev/api-key --data '{"key":"sk-123456"}'
 
-# Store a secret (named arguments)
-./cli.sh content add --path "environments/dev/database-url" --value "postgresql://user:pass@localhost/db"
+# Store from file
+vrooli resource vault content add --name config/app --file config.json
 
-# Retrieve a secret (positional)
-./cli.sh content get "environments/dev/database-url"
+# Retrieve a secret
+vrooli resource vault content get --name environments/dev/api-key
 
-# Retrieve a secret (named arguments)
-./cli.sh content get --path "environments/dev/database-url"
+# List all secrets
+vrooli resource vault content list
 
-# List secrets in a path
-./cli.sh content list "environments/dev"
+# Remove a secret
+vrooli resource vault content remove --name environments/dev/api-key
+```
+
+### **Security Features**
+```bash
+# Enable audit logging
+vrooli resource vault audit enable
+
+# Run security health check
+vrooli resource vault security-health
+
+# Monitor security events
+vrooli resource vault security-monitor
+
+# Create access policy
+vrooli resource vault access create-policy readonly policies/readonly.hcl
 ```
 
 ### **Production Setup**

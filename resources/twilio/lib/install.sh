@@ -7,6 +7,7 @@ TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
+source "$TWILIO_LIB_DIR/core.sh"
 
 # Install Twilio CLI
 install_twilio() {
@@ -59,9 +60,38 @@ install_twilio() {
 setup_config() {
     twilio::ensure_dirs
     
-    # Create sample credentials file if it doesn't exist
-    if [[ ! -f "$TWILIO_CREDENTIALS_FILE" ]]; then
-        cat > "$TWILIO_CREDENTIALS_FILE" << 'EOF'
+    # Check if Vault is available for secrets management
+    if command -v resource-vault &>/dev/null && resource-vault status &>/dev/null; then
+        log::info "🔐 Vault detected - checking for Twilio secrets..."
+        
+        # Check if secrets are already configured in Vault
+        if resource-vault secrets check twilio &>/dev/null; then
+            log::success "Twilio secrets found in Vault"
+            # Load secrets from Vault
+            twilio::core::load_secrets
+        else
+            log::warn "Twilio secrets not configured in Vault"
+            log::info "Run 'resource-vault secrets init twilio' to configure securely"
+            
+            # Prompt user to configure via Vault
+            read -p "Would you like to configure Twilio credentials now? (y/N) " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                if resource-vault secrets init twilio; then
+                    log::success "Twilio secrets configured in Vault"
+                    twilio::core::load_secrets
+                else
+                    log::error "Failed to configure secrets in Vault"
+                fi
+            fi
+        fi
+    else
+        # Vault not available, use file-based config
+        log::warn "⚠️  Vault not available - using file-based configuration (less secure)"
+        
+        # Create sample credentials file if it doesn't exist
+        if [[ ! -f "$TWILIO_CREDENTIALS_FILE" ]]; then
+            cat > "$TWILIO_CREDENTIALS_FILE" << 'EOF'
 {
   "account_sid": "",
   "auth_token": "",
@@ -70,9 +100,11 @@ setup_config() {
   "status_callback_url": ""
 }
 EOF
-        chmod 600 "$TWILIO_CREDENTIALS_FILE"
-        log::info "Created credentials template at $TWILIO_CREDENTIALS_FILE"
-        log::warn "Please add your Twilio credentials to this file"
+            chmod 600 "$TWILIO_CREDENTIALS_FILE"
+            log::info "Created credentials template at $TWILIO_CREDENTIALS_FILE"
+            log::warn "Please add your Twilio credentials to this file"
+            log::info "For better security, install Vault resource and use 'resource-vault secrets init twilio'"
+        fi
     fi
     
     # Create sample phone numbers file

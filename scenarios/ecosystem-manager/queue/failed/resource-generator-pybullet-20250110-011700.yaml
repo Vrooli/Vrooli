@@ -1,0 +1,39 @@
+id: resource-generator-pybullet-20250110-011700
+title: PyBullet Physics Simulation
+type: resource
+operation: generator
+category: simulation
+priority: low
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-11T02:49:21-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T01:17:00Z"
+updated_at: "2025-09-11T02:49:21-04:00"
+tags:
+    - physics
+    - simulation
+    - robotics
+notes: '- **What it does:** Python-based physics simulation engine for robotics, reinforcement learning, and multi-physics simulations. Provides forward/inverse dynamics, collision detection, and VR/rendering capabilities. - **Use when:** Scenarios need physics-based simulation, robotics testing, game physics, or reinforcement learning environments. Essential for validating robotic behaviors before real-world deployment. - **Technical requirements:** - Python 3.7+ with NumPy/SciPy stack - OpenGL for visualization - URDF/SDF model loading support - Integration with ML frameworks (TensorFlow, PyTorch) - Real-time and headless execution modes'
+results:
+    error: "Claude Code execution failed (exit code 1): [HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 1800 claude --print --max-turns 72 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 31684 chars)\n\nClaude AI usage limit reached|1757581200\n"
+    execution_time: 1s
+    failed_at: "2025-09-11T02:49:21-04:00"
+    prompt_size: 31810 chars (31.06 KB)
+    started_at: "2025-09-11T02:49:20-04:00"
+    success: false
+    timeout_allowed: 30m0s
+    timeout_failure: true

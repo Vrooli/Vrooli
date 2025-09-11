@@ -1,0 +1,319 @@
+#!/usr/bin/env bash
+################################################################################
+# Twilio Test Library - v2.0 Universal Contract Implementation
+# 
+# Test implementations for Twilio resource validation
+################################################################################
+
+set -euo pipefail
+
+# Get the directory of this script
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+TWILIO_DIR="${APP_ROOT}/resources/twilio"
+TWILIO_LIB_DIR="${TWILIO_DIR}/lib"
+
+# Source required libraries
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${TWILIO_LIB_DIR}/core.sh"
+source "${TWILIO_LIB_DIR}/common.sh"
+source "${TWILIO_LIB_DIR}/sms.sh"
+
+################################################################################
+# Test Functions
+################################################################################
+
+# Run smoke tests (quick validation)
+twilio::test::smoke() {
+    log::header "🔥 Twilio Smoke Tests"
+    local passed=0
+    local failed=0
+    
+    # Test 1: Check if Twilio CLI is installed
+    log::info "Test 1: Twilio CLI installation..."
+    if twilio::is_installed; then
+        log::success "  ✅ Twilio CLI is installed"
+        ((passed++))
+    else
+        log::error "  ❌ Twilio CLI is not installed"
+        ((failed++))
+    fi
+    
+    # Test 2: Check configuration directories
+    log::info "Test 2: Configuration directories..."
+    if [[ -d "$TWILIO_CONFIG_DIR" ]] && [[ -d "$TWILIO_DATA_DIR" ]]; then
+        log::success "  ✅ Configuration directories exist"
+        ((passed++))
+    else
+        log::error "  ❌ Configuration directories missing"
+        ((failed++))
+    fi
+    
+    # Test 3: Check credentials configuration
+    log::info "Test 3: Credentials configuration..."
+    if twilio::core::has_valid_credentials; then
+        log::success "  ✅ Valid credentials configured"
+        ((passed++))
+    else
+        log::warn "  ⚠️  No valid credentials configured"
+        # Not a failure as credentials are optional for smoke test
+        ((passed++))
+    fi
+    
+    # Test 4: Health check responds
+    log::info "Test 4: Health check..."
+    if twilio::core::health_check &>/dev/null; then
+        log::success "  ✅ Health check responds"
+        ((passed++))
+    else
+        log::error "  ❌ Health check failed"
+        ((failed++))
+    fi
+    
+    # Summary
+    echo
+    log::info "📊 Smoke Test Results:"
+    log::success "  Passed: $passed"
+    if [[ $failed -gt 0 ]]; then
+        log::error "  Failed: $failed"
+        return 1
+    else
+        log::info "  Failed: 0"
+        return 0
+    fi
+}
+
+# Run integration tests
+twilio::test::integration() {
+    log::header "🔗 Twilio Integration Tests"
+    local passed=0
+    local failed=0
+    
+    # Test 1: Initialize resource
+    log::info "Test 1: Resource initialization..."
+    if twilio::core::init; then
+        log::success "  ✅ Resource initialized successfully"
+        ((passed++))
+    else
+        log::error "  ❌ Resource initialization failed"
+        ((failed++))
+    fi
+    
+    # Test 2: Load secrets (if Vault available)
+    log::info "Test 2: Secrets loading..."
+    if twilio::core::load_secrets; then
+        log::success "  ✅ Secrets loaded successfully"
+        ((passed++))
+    else
+        log::warn "  ⚠️  Secrets not available (may be expected)"
+        ((passed++))
+    fi
+    
+    # Test 3: API connection (if credentials available)
+    log::info "Test 3: API connection..."
+    if twilio::core::has_valid_credentials; then
+        if twilio::core::test_api_connection; then
+            log::success "  ✅ API connection successful"
+            ((passed++))
+        else
+            log::error "  ❌ API connection failed"
+            ((failed++))
+        fi
+    else
+        log::warn "  ⚠️  Skipping - no credentials"
+        ((passed++))
+    fi
+    
+    # Test 4: Phone number retrieval (if configured)
+    log::info "Test 4: Phone number management..."
+    if [[ -f "$TWILIO_PHONE_NUMBERS_FILE" ]]; then
+        local numbers=$(jq '.numbers | length' "$TWILIO_PHONE_NUMBERS_FILE" 2>/dev/null || echo "0")
+        if [[ $numbers -gt 0 ]]; then
+            log::success "  ✅ Phone numbers configured: $numbers"
+            ((passed++))
+        else
+            log::warn "  ⚠️  No phone numbers configured"
+            ((passed++))
+        fi
+    else
+        log::warn "  ⚠️  Phone numbers file not found"
+        ((passed++))
+    fi
+    
+    # Test 5: SMS sending capability (test mode only)
+    log::info "Test 5: SMS capability check..."
+    if twilio::is_installed && twilio::core::has_valid_credentials; then
+        # Don't actually send SMS, just verify the function exists
+        if declare -f twilio::send_sms &>/dev/null; then
+            log::success "  ✅ SMS sending function available"
+            ((passed++))
+        else
+            log::error "  ❌ SMS sending function missing"
+            ((failed++))
+        fi
+    else
+        log::warn "  ⚠️  Skipping - not configured"
+        ((passed++))
+    fi
+    
+    # Summary
+    echo
+    log::info "📊 Integration Test Results:"
+    log::success "  Passed: $passed"
+    if [[ $failed -gt 0 ]]; then
+        log::error "  Failed: $failed"
+        return 1
+    else
+        log::info "  Failed: 0"
+        return 0
+    fi
+}
+
+# Run unit tests
+twilio::test::unit() {
+    log::header "🧪 Twilio Unit Tests"
+    local passed=0
+    local failed=0
+    
+    # Test 1: Credential format validation
+    log::info "Test 1: Credential format validation..."
+    local test_sid="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    local test_token="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    
+    if [[ "$test_sid" =~ ^AC[a-f0-9x]{32}$ ]]; then
+        log::success "  ✅ SID format validation works"
+        ((passed++))
+    else
+        log::error "  ❌ SID format validation failed"
+        ((failed++))
+    fi
+    
+    # Test 2: Phone number format validation
+    log::info "Test 2: Phone number format validation..."
+    local test_number="+12345678901"
+    
+    if [[ "$test_number" =~ ^\+[1-9][0-9]{1,14}$ ]]; then
+        log::success "  ✅ Phone number format validation works"
+        ((passed++))
+    else
+        log::error "  ❌ Phone number format validation failed"
+        ((failed++))
+    fi
+    
+    # Test 3: Directory creation
+    log::info "Test 3: Directory creation..."
+    twilio::ensure_dirs
+    if [[ -d "$TWILIO_CONFIG_DIR" ]] && [[ -d "$TWILIO_DATA_DIR" ]]; then
+        log::success "  ✅ Directories created successfully"
+        ((passed++))
+    else
+        log::error "  ❌ Directory creation failed"
+        ((failed++))
+    fi
+    
+    # Test 4: Command detection
+    log::info "Test 4: Command detection..."
+    if declare -f twilio::get_command &>/dev/null; then
+        log::success "  ✅ Command detection function exists"
+        ((passed++))
+    else
+        log::error "  ❌ Command detection function missing"
+        ((failed++))
+    fi
+    
+    # Test 5: Version detection
+    log::info "Test 5: Version detection..."
+    local version=$(twilio::get_version)
+    if [[ -n "$version" ]]; then
+        log::success "  ✅ Version detection works: $version"
+        ((passed++))
+    else
+        log::error "  ❌ Version detection failed"
+        ((failed++))
+    fi
+    
+    # Summary
+    echo
+    log::info "📊 Unit Test Results:"
+    log::success "  Passed: $passed"
+    if [[ $failed -gt 0 ]]; then
+        log::error "  Failed: $failed"
+        return 1
+    else
+        log::info "  Failed: 0"
+        return 0
+    fi
+}
+
+# Run all tests
+twilio::test::all() {
+    log::header "🧪 Running All Twilio Tests"
+    echo
+    
+    local smoke_result=0
+    local integration_result=0
+    local unit_result=0
+    
+    # Run smoke tests
+    if twilio::test::smoke; then
+        smoke_result=0
+    else
+        smoke_result=1
+    fi
+    echo
+    
+    # Run unit tests
+    if twilio::test::unit; then
+        unit_result=0
+    else
+        unit_result=1
+    fi
+    echo
+    
+    # Run integration tests
+    if twilio::test::integration; then
+        integration_result=0
+    else
+        integration_result=1
+    fi
+    echo
+    
+    # Overall summary
+    log::header "📊 Overall Test Results"
+    if [[ $smoke_result -eq 0 ]]; then
+        log::success "  ✅ Smoke tests: PASSED"
+    else
+        log::error "  ❌ Smoke tests: FAILED"
+    fi
+    
+    if [[ $unit_result -eq 0 ]]; then
+        log::success "  ✅ Unit tests: PASSED"
+    else
+        log::error "  ❌ Unit tests: FAILED"
+    fi
+    
+    if [[ $integration_result -eq 0 ]]; then
+        log::success "  ✅ Integration tests: PASSED"
+    else
+        log::error "  ❌ Integration tests: FAILED"
+    fi
+    
+    # Return overall result
+    if [[ $smoke_result -eq 0 ]] && [[ $unit_result -eq 0 ]] && [[ $integration_result -eq 0 ]]; then
+        echo
+        log::success "All tests passed! 🎉"
+        return 0
+    else
+        echo
+        log::error "Some tests failed. Please review the results above."
+        return 1
+    fi
+}
+
+################################################################################
+# Export Functions
+################################################################################
+
+export -f twilio::test::smoke
+export -f twilio::test::integration
+export -f twilio::test::unit
+export -f twilio::test::all

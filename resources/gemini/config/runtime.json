@@ -1,8 +1,25 @@
 {
-  "startup_order": 540,
-  "startup_timeout": 15,
-  "startup_time_estimate": "3-8s",
+  "resource_name": "gemini",
+  "category": "ai",
+  "description": "Google Gemini AI API integration",
+  "version": "2.0",
+  "startup_order": 100,
+  "startup_timeout": 10,
+  "startup_time_estimate": "1-2s",
   "dependencies": [],
-  "recovery_attempts": 2,
-  "priority": "medium"
+  "optional_dependencies": ["vault", "redis"],
+  "recovery_attempts": 3,
+  "recovery_delay": 5,
+  "priority": "medium",
+  "health_check": {
+    "method": "api_connectivity",
+    "timeout": 5,
+    "interval": 60
+  },
+  "capabilities": [
+    "text-generation",
+    "multimodal",
+    "function-calling",
+    "long-context"
+  ]
 }

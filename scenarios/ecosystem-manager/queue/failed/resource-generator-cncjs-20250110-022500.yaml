@@ -1,0 +1,40 @@
+id: resource-generator-cncjs-20250110-022500
+title: CNCjs Web-Based CNC Controller
+type: resource
+operation: generator
+category: hardware
+priority: low
+effort_estimate: 6h
+urgency: ""
+impact_score: 0
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: failed
+progress_percentage: 25
+current_phase: failed
+started_at: ""
+completed_at: "2025-09-11T01:29:14-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-01-10T02:25:00Z"
+updated_at: "2025-09-11T01:29:14-04:00"
+tags:
+    - cnc
+    - manufacturing
+    - g-code
+    - hardware
+notes: '- **What it does:** Web-based interface for CNC milling controllers supporting Grbl, Marlin, Smoothieware, and TinyG. Features real-time G-code visualization, macro automation system, and remote access controls for managing CNC machines through any web browser. - **Use when:** Scenarios need CNC machine control, automated manufacturing workflows, PCB milling, or 3D carving operations. Perfect for makerspaces, prototyping labs, and small-scale production environments. - **Technical requirements:** - Node.js 14+ runtime environment - Serial port access for controller communication - WebGL for 3D G-code visualization - JSON-based configuration (.cncrc) - Raspberry Pi or PC deployment options'
+results:
+    error: Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS.
+    execution_time: 12m55s
+    failed_at: "2025-09-11T01:29:14-04:00"
+    prompt_size: 31866 chars (31.12 KB)
+    started_at: "2025-09-11T01:16:20-04:00"
+    success: false
+    timeout_allowed: 30m0s
+    timeout_failure: false

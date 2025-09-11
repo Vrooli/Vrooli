@@ -449,6 +449,7 @@ execute_build() {
     local parallel_opt=""
     local metrics_opt=""
     local satellite_opt=""
+    local no_cache_opt=""
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -479,6 +480,14 @@ execute_build() {
             --satellite)
                 satellite_opt="--sat=${EARTHLY_SATELLITE_NAME}"
                 shift
+                ;;
+            --no-cache)
+                no_cache_opt="--no-cache"
+                shift
+                ;;
+            --dry-run)
+                log_info "Dry run mode - would execute: earthly ${target}"
+                return 0
                 ;;
             *)
                 shift
@@ -528,7 +537,7 @@ execute_build() {
     local start_time=$(date +%s)
     
     # Run with optimized settings
-    if earthly ${platform} ${cache_opt} ${parallel_opt} ${metrics_opt} ${satellite_opt} \
+    if earthly ${platform} ${cache_opt} ${no_cache_opt} ${parallel_opt} ${metrics_opt} ${satellite_opt} \
             --config "${EARTHLY_CONFIG_DIR}/config.yml" \
             --buildkit-cache-size-mb "${EARTHLY_CACHE_SIZE_MB}" \
             --conversion-parallelism "${EARTHLY_PARALLEL_LIMIT}" \
@@ -602,8 +611,66 @@ EOF
             export EARTHLY_CACHE_SIZE_MB=20480  # 20GB
             export EARTHLY_USE_INLINE_CACHE=true
             export EARTHLY_CACHE_INLINE_SIZE_MB=500
+            export EARTHLY_MAX_PARALLEL_STEPS=30
+            export EARTHLY_BUILDKIT_MAX_PARALLELISM=$(nproc)
+            
+            # Create optimized config with advanced settings
+            cat > "${EARTHLY_CONFIG_DIR}/config.yml" << EOF
+global:
+  disable_analytics: true
+  disable_log_upload: true
+  cache_size_mb: 20480
+  conversion_parallelism: $(nproc)
+  buildkit_additional_args: [
+    "--oci-worker-gc",
+    "--oci-worker-gc-keepstorage", "10000",
+    "--oci-max-parallelism", "$(nproc)"
+  ]
+  
+buildkit:
+  max_parallelism: $(nproc)
+  cache_inline_size_mb: 500
+  buildkit_max_parallelism: $(nproc)
+  local_registry_host: "tcp://127.0.0.1:8371"
+  ip_tables: "auto"
+  additional_config: |
+    [worker.oci]
+      max-parallelism = $(nproc)
+    [worker.containerd]
+      max-parallelism = $(nproc)
+  
+git:
+  global:
+    url_instead_of: ""
+    ssh_command: "ssh -o StrictHostKeyChecking=no"
+
+output:
+  color: "auto"
+  show_images: true
+  
+cache:
+  mode: "max"
+  import_parallelism: $(nproc)
+  export_parallelism: $(nproc)
+EOF
+            log_info "Cache optimized for CI/CD performance (20GB cache, $(nproc) parallel workers)"
+            ;;
+        --optimize-development)
+            log_info "Optimizing for local development..."
+            export EARTHLY_CACHE_SIZE_MB=10240  # 10GB
+            export EARTHLY_USE_INLINE_CACHE=true
+            export EARTHLY_CACHE_INLINE_SIZE_MB=200
+            export EARTHLY_MAX_PARALLEL_STEPS=10
             create_default_config
-            log_info "Cache optimized for CI/CD performance"
+            log_info "Cache optimized for development (10GB cache, balanced performance)"
+            ;;
+        --list)
+            log_info "Current configuration:"
+            if [[ -f "${EARTHLY_CONFIG_DIR}/config.yml" ]]; then
+                cat "${EARTHLY_CONFIG_DIR}/config.yml"
+            else
+                log_warn "No configuration file found"
+            fi
             ;;
         *)
             log_info "Creating default configuration..."
@@ -778,4 +845,101 @@ show_credentials() {
     else
         echo "No configuration file found"
     fi
+}
+
+# Run performance benchmark
+run_benchmark() {
+    log_info "Running performance benchmark..."
+    
+    # Create benchmark Earthfile
+    local benchmark_file="${EARTHLY_HOME}/benchmark.earth"
+    cat > "${benchmark_file}" << 'EOF'
+VERSION 0.8
+FROM alpine:3.18
+
+benchmark-serial:
+    RUN echo "Task 1" && sleep 1
+    RUN echo "Task 2" && sleep 1
+    RUN echo "Task 3" && sleep 1
+    RUN echo "Serial complete"
+
+benchmark-parallel:
+    BUILD +worker1
+    BUILD +worker2
+    BUILD +worker3
+    RUN echo "Parallel complete"
+
+worker1:
+    RUN echo "Worker 1" && sleep 1
+
+worker2:
+    RUN echo "Worker 2" && sleep 1
+
+worker3:
+    RUN echo "Worker 3" && sleep 1
+
+benchmark-cache:
+    RUN apk add --no-cache curl jq git
+    RUN echo "Cache test $(date)" > test.txt
+    SAVE ARTIFACT test.txt
+
+all:
+    BUILD +benchmark-serial
+    BUILD +benchmark-parallel
+    BUILD +benchmark-cache
+EOF
+    
+    # Run benchmarks
+    log_info "Testing serial execution..."
+    local serial_start=$(date +%s)
+    earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
+            -f "${benchmark_file}" +benchmark-serial &>/dev/null
+    local serial_end=$(date +%s)
+    local serial_time=$((serial_end - serial_start))
+    
+    log_info "Testing parallel execution..."
+    local parallel_start=$(date +%s)
+    earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
+            -f "${benchmark_file}" +benchmark-parallel &>/dev/null
+    local parallel_end=$(date +%s)
+    local parallel_time=$((parallel_end - parallel_start))
+    
+    log_info "Testing cache performance..."
+    # First build (cold cache)
+    earthly prune -a &>/dev/null
+    local cold_start=$(date +%s)
+    earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
+            -f "${benchmark_file}" +benchmark-cache &>/dev/null
+    local cold_end=$(date +%s)
+    local cold_time=$((cold_end - cold_start))
+    
+    # Second build (warm cache)
+    local warm_start=$(date +%s)
+    earthly --config "${EARTHLY_CONFIG_DIR}/config.yml" \
+            -f "${benchmark_file}" +benchmark-cache &>/dev/null
+    local warm_end=$(date +%s)
+    local warm_time=$((warm_end - warm_start))
+    
+    # Calculate metrics
+    local speedup=$(echo "scale=2; $serial_time / $parallel_time" | bc 2>/dev/null || echo "N/A")
+    local cache_improvement=$(echo "scale=2; ($cold_time - $warm_time) * 100 / $cold_time" | bc 2>/dev/null || echo "N/A")
+    
+    echo ""
+    echo "🏁 Performance Benchmark Results"
+    echo "================================="
+    echo "Serial Execution: ${serial_time}s"
+    echo "Parallel Execution: ${parallel_time}s"
+    echo "Parallel Speedup: ${speedup}x"
+    echo ""
+    echo "Cold Cache Build: ${cold_time}s"
+    echo "Warm Cache Build: ${warm_time}s"
+    echo "Cache Improvement: ${cache_improvement}%"
+    echo ""
+    echo "Configuration:"
+    echo "- Parallel Limit: ${EARTHLY_PARALLEL_LIMIT}"
+    echo "- Cache Size: ${EARTHLY_CACHE_SIZE_MB}MB"
+    echo "- Inline Cache: ${EARTHLY_USE_INLINE_CACHE}"
+    
+    # Store benchmark results
+    echo "$(date +%Y-%m-%d_%H:%M:%S),${serial_time},${parallel_time},${speedup},${cold_time},${warm_time},${cache_improvement}" >> "${EARTHLY_LOGS_DIR}/benchmarks.csv"
 }

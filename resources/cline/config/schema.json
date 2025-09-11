@@ -1,0 +1,155 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cline Resource Configuration Schema",
+  "description": "Configuration schema for the Cline AI coding assistant resource",
+  "type": "object",
+  "properties": {
+    "provider": {
+      "type": "string",
+      "enum": ["ollama", "openrouter", "anthropic", "openai", "google"],
+      "default": "ollama",
+      "description": "AI provider to use for inference"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model identifier for the selected provider",
+      "examples": [
+        "llama3.2:3b",
+        "anthropic/claude-3.5-sonnet",
+        "gpt-4-turbo",
+        "gemini-pro"
+      ]
+    },
+    "temperature": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.7,
+      "description": "Sampling temperature for model responses"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 32000,
+      "default": 4096,
+      "description": "Maximum tokens in model response"
+    },
+    "api_key": {
+      "type": "string",
+      "description": "API key for the provider (fetched from Vault)",
+      "writeOnly": true
+    },
+    "endpoint": {
+      "type": "string",
+      "format": "uri",
+      "description": "Custom API endpoint URL",
+      "examples": [
+        "http://localhost:11434",
+        "https://api.openrouter.ai/api/v1",
+        "https://api.anthropic.com/v1"
+      ]
+    },
+    "auto_approve": {
+      "type": "boolean",
+      "default": false,
+      "description": "Automatically approve AI suggestions (use with caution)"
+    },
+    "experimental_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable experimental features"
+    },
+    "timeout": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 600,
+      "default": 300,
+      "description": "Request timeout in seconds"
+    },
+    "retry_count": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 3,
+      "description": "Number of retries on failure"
+    },
+    "ollama": {
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "default": "http://localhost:11434",
+          "description": "Ollama server URL"
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of available Ollama models"
+        }
+      }
+    },
+    "openrouter": {
+      "type": "object",
+      "properties": {
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "default": "https://openrouter.ai/api/v1",
+          "description": "OpenRouter API URL"
+        },
+        "site_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Your site URL for OpenRouter"
+        },
+        "site_name": {
+          "type": "string",
+          "description": "Your site name for OpenRouter"
+        }
+      }
+    },
+    "usage_limits": {
+      "type": "object",
+      "properties": {
+        "daily_token_limit": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Daily token usage limit"
+        },
+        "monthly_cost_limit": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Monthly cost limit in USD"
+        }
+      }
+    },
+    "workspace": {
+      "type": "object",
+      "properties": {
+        "context_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files to include in context"
+        },
+        "ignore_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Patterns to ignore when scanning workspace"
+        },
+        "custom_instructions": {
+          "type": "string",
+          "description": "Custom instructions for the AI assistant"
+        }
+      }
+    }
+  },
+  "required": ["provider"],
+  "additionalProperties": false
+}

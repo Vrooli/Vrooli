@@ -1,6 +1,86 @@
 #!/bin/bash
 # Blender test functions
 
+# Test physics simulation capability
+blender::test::physics() {
+    echo "[INFO] Testing Blender physics simulation..."
+    
+    # Check if rigid body example exists
+    local physics_script="${APP_ROOT}/resources/blender/examples/physics_rigid_body.py"
+    if [[ ! -f "$physics_script" ]]; then
+        echo "[ERROR] Physics example script not found"
+        return 1
+    fi
+    
+    # Run physics simulation
+    echo "[INFO] Running rigid body physics simulation..."
+    if blender::run_script "$physics_script"; then
+        # Check if output was generated
+        if [[ -f "/tmp/blender_physics_simulation.mp4" ]]; then
+            echo "[SUCCESS] Physics simulation completed"
+            echo "[INFO] Output: /tmp/blender_physics_simulation.mp4"
+            
+            # Check physics data export
+            if [[ -f "/tmp/blender_physics_data.json" ]]; then
+                echo "[SUCCESS] Physics data exported"
+                return 0
+            else
+                echo "[WARNING] Physics data export missing"
+                return 0  # Still pass if simulation ran
+            fi
+        else
+            echo "[ERROR] Physics simulation output not generated"
+            return 1
+        fi
+    else
+        echo "[ERROR] Physics simulation failed"
+        return 1
+    fi
+}
+
+# Validate physics accuracy
+blender::test::validation() {
+    echo "[INFO] Running physics validation suite..."
+    
+    # Check if validation script exists
+    local validation_script="${APP_ROOT}/resources/blender/examples/physics_validation.py"
+    if [[ ! -f "$validation_script" ]]; then
+        echo "[ERROR] Physics validation script not found"
+        return 1
+    fi
+    
+    # Run validation
+    echo "[INFO] Testing physics accuracy against analytical solutions..."
+    if blender::run_script "$validation_script"; then
+        # Check validation results
+        if [[ -f "/tmp/blender_physics_validation.json" ]]; then
+            # Parse results
+            local accuracy=$(python3 -c "
+import json
+with open('/tmp/blender_physics_validation.json') as f:
+    data = json.load(f)
+    print(data.get('summary', {}).get('accuracy_percent', 0))
+" 2>/dev/null || echo "0")
+            
+            echo "[INFO] Physics accuracy: ${accuracy}%"
+            
+            if (( $(echo "$accuracy >= 95" | bc -l) )); then
+                echo "[SUCCESS] Physics validation passed (≥95% accuracy)"
+                return 0
+            else
+                echo "[WARNING] Physics accuracy below target (${accuracy}% < 95%)"
+                return 1
+            fi
+        else
+            echo "[ERROR] Validation results not generated"
+            return 1
+        fi
+    else
+        echo "[ERROR] Physics validation failed"
+        return 1
+    fi
+}
+
 # Test the Blender installation and functionality
 blender::test() {
     local format="${1:-text}"

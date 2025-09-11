@@ -17,18 +17,36 @@ source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 openrouter::init() {
     local verbose="${1:-false}"
     
-    # Try to load API key from Vault first
-    # Check if Vault is running via docker
+    # Try to load API key following the secrets standard
+    # Path as defined in secrets.yaml: secret/resources/openrouter/api/main
+    
+    # Try Vault first (standard path)
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
         local vault_key
-        vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/openrouter 2>/dev/null" || true)
-        if [[ -n "$vault_key" && "$vault_key" != "No value found at secret/vrooli/openrouter" ]]; then
+        # Try standard path first
+        vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=value secret/resources/openrouter/api/main 2>/dev/null" || true)
+        
+        # Fallback to legacy path if not found
+        if [[ -z "$vault_key" || "$vault_key" == "No value found"* ]]; then
+            vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/openrouter 2>/dev/null" || true)
+        fi
+        
+        if [[ -n "$vault_key" && "$vault_key" != "No value found"* ]]; then
             export OPENROUTER_API_KEY="$vault_key"
             [[ "$verbose" == "true" ]] && log::info "OpenRouter API key loaded from Vault"
         fi
-    elif command -v vault >/dev/null 2>&1; then
+    elif command -v resource-vault >/dev/null 2>&1; then
+        # Use vault resource if available
         local vault_key
-        vault_key=$(vault kv get -field=api_key secret/vrooli/openrouter 2>/dev/null || true)
+        vault_key=$(resource-vault secrets get openrouter api/main 2>/dev/null || true)
+        if [[ -n "$vault_key" ]]; then
+            export OPENROUTER_API_KEY="$vault_key"
+            [[ "$verbose" == "true" ]] && log::info "OpenRouter API key loaded via resource-vault"
+        fi
+    elif command -v vault >/dev/null 2>&1; then
+        # Direct vault CLI
+        local vault_key
+        vault_key=$(vault kv get -field=value secret/resources/openrouter/api/main 2>/dev/null || true)
         if [[ -n "$vault_key" ]]; then
             export OPENROUTER_API_KEY="$vault_key"
             [[ "$verbose" == "true" ]] && log::info "OpenRouter API key loaded from Vault"
@@ -52,11 +70,12 @@ openrouter::init() {
     if [[ -z "$OPENROUTER_API_KEY" ]]; then
         # Try to load from .env file
         if [[ -f "${var_ROOT_DIR}/.env" ]]; then
+            # shellcheck disable=SC1091
             source "${var_ROOT_DIR}/.env"
         fi
         
         if [[ -z "$OPENROUTER_API_KEY" ]]; then
-            log::warn "OpenRouter API key not found. Please set OPENROUTER_API_KEY or store in Vault"
+            [[ "$verbose" == "true" ]] && log::warn "OpenRouter API key not found. Please set OPENROUTER_API_KEY or store in Vault"
             return 1
         fi
     fi

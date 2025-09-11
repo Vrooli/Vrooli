@@ -39,6 +39,7 @@ show_help() {
 
 🔧 OTHER COMMANDS:
     credentials          Show Earthly configuration
+    benchmark            Run performance benchmarks
     
 ⚙️  OPTIONS:
     --dry-run            Show what would be done without making changes
@@ -93,6 +94,9 @@ main() {
             ;;
         credentials)
             show_credentials "$@"
+            ;;
+        benchmark)
+            run_benchmark "$@"
             ;;
         *)
             echo "[ERROR] Unknown command: ${command}"

@@ -101,7 +101,16 @@ cline::get_endpoint() {
             echo "https://openrouter.ai/api/v1"
             ;;
         ollama)
-            echo "http://localhost:11434/v1"
+            echo "${CLINE_OLLAMA_BASE_URL:-http://localhost:11434}"
+            ;;
+        anthropic)
+            echo "https://api.anthropic.com/v1"
+            ;;
+        openai)
+            echo "https://api.openai.com/v1"
+            ;;
+        google)
+            echo "https://generativelanguage.googleapis.com/v1"
             ;;
         *)
             echo ""
@@ -109,20 +118,18 @@ cline::get_endpoint() {
     esac
 }
 
-# Check if Cline is installed (extension installed)
-cline::is_installed() {
-    cline::is_extension_installed
-}
-
 # Get Cline version
 cline::get_version() {
-    if cline::check_vscode; then
-        code --list-extensions --show-versions 2>/dev/null | \
-            grep "^${CLINE_EXTENSION_ID}" | \
-            cut -d@ -f2 || echo "unknown"
+    if cline::is_extension_installed; then
+        code --list-extensions --show-versions 2>/dev/null | grep "${CLINE_EXTENSION_ID}" | cut -d'@' -f2
     else
         echo "not installed"
     fi
+}
+
+# Check if Cline is installed (alias for extension check)
+cline::is_installed() {
+    cline::is_extension_installed
 }
 
 # Check if Cline is configured

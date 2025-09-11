@@ -33,7 +33,7 @@ source "${NODE_RED_CLI_DIR}/config/defaults.sh"
 node_red::export_config 2>/dev/null || true
 
 # Source Node-RED libraries
-for lib in core docker health recovery; do
+for lib in core docker health recovery test performance iot-integration; do
     lib_file="${NODE_RED_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -52,7 +52,12 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="node_red::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="node_red::docker::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="node_red::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="node_red::docker::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="node_red::health"
+
+# Test handlers - v2.0 compliant
+CLI_COMMAND_HANDLERS["test::smoke"]="node_red::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="node_red::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="node_red::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="node_red::test::all"
 
 # Content handlers for flow management functionality
 CLI_COMMAND_HANDLERS["content::add"]="node_red::import_flows"
@@ -78,6 +83,14 @@ cli::register_subcommand "content" "restore" "Restore flow backup" "node_red::re
 cli::register_subcommand "content" "list-backups" "List available backups" "node_red::list_backups"
 cli::register_subcommand "content" "enable" "Enable specific flow" "node_red::enable_flow" "modifies-system"
 cli::register_subcommand "content" "disable" "Disable specific flow" "node_red::disable_flow" "modifies-system"
+
+# Performance optimization commands
+cli::register_command "optimize" "Apply performance optimizations" "node_red::apply_all_optimizations" "modifies-system"
+cli::register_command "monitor" "Monitor performance metrics" "node_red::monitor_performance"
+
+# IoT integration commands
+cli::register_command "iot-setup" "Setup IoT integration" "node_red::setup_iot_integration" "modifies-system"
+cli::register_command "iot-nodes" "Install IoT nodes" "node_red::install_iot_nodes" "modifies-system"
 
 # Simple credentials implementation for Node-RED
 node_red::cli_credentials() {

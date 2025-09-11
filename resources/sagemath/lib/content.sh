@@ -242,8 +242,10 @@ sagemath::content::execute() {
         local script_name=$(basename "$script_file")
         local internal_path="/home/sage/scripts/$script_name"
         
-        # Ensure script is in the container
-        cp "$script_file" "$SAGEMATH_SCRIPTS_DIR/"
+        # Only copy if it's not already in the scripts directory
+        if [[ "$script_file" != "$SAGEMATH_SCRIPTS_DIR/$script_name" ]]; then
+            cp "$script_file" "$SAGEMATH_SCRIPTS_DIR/"
+        fi
         
         # Execute script
         local output_file="$SAGEMATH_OUTPUTS_DIR/${script_name%.*}_$(date +%Y%m%d_%H%M%S).out"

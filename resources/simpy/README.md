@@ -1,53 +1,80 @@
 # SimPy - Discrete Event Simulation
 
-SimPy is a discrete event simulation framework for modeling complex systems, workflows, and processes. It's perfect for scenario planning, optimization, and understanding system dynamics.
+SimPy is a powerful discrete-event simulation framework for modeling complex systems, physics simulations, and process optimization. It provides essential capabilities for scenario planning, resource allocation, and predictive analytics across Vrooli's ecosystem.
 
 ## Quick Start
 
 ```bash
 # Install SimPy
-vrooli resource simpy install
+vrooli resource simpy manage install
+
+# Start the service
+vrooli resource simpy manage start --wait
 
 # Check status
 vrooli resource simpy status
 
-# Run example simulation
-vrooli resource simpy run examples/bank_queue.py
+# Run tests
+vrooli resource simpy test all
+
+# Execute example simulations
+vrooli resource simpy content execute basic_queue
+vrooli resource simpy content execute physics_rigid_body
+vrooli resource simpy content execute process_optimization
 
 # List available examples
-vrooli resource simpy list-examples
-
-# Run resource pool simulation to analyze bottlenecks
-resource-simpy run examples/resource_pool.py
+vrooli resource simpy content list
 
 # Use the API to run custom simulations
 curl -X POST http://localhost:9510/simulate \
   -H "Content-Type: application/json" \
-  -d '{"name": "bank_queue", "parameters": {"customers": 20}}'
+  -d '{"code": "import simpy; print(simpy.__version__)"}'
 ```
 
 ## Architecture
 
-SimPy runs as a lightweight Python service that:
-- Provides discrete event simulation capabilities
-- Models complex workflows and resource allocation
-- Supports process interactions and queuing systems
-- Enables what-if scenario analysis
+SimPy runs as a Python-based REST API service that:
+- **Discrete-Event Simulation**: Models complex workflows and resource allocation
+- **Physics Modeling**: Simulates rigid body dynamics, collisions, and physical constraints
+- **Process Optimization**: Multi-objective optimization with bottleneck analysis
+- **Supply Chain Modeling**: Multi-echelon networks with inventory management
+- **Real-time Monitoring**: Track simulation progress and metrics
 
-## Use Cases
+## Core Capabilities
 
-- **Workflow Optimization**: Model and optimize automation workflows
-- **Resource Planning**: Simulate resource utilization and bottlenecks
-- **Scenario Analysis**: Test different configurations before deployment
-- **Queue Management**: Model and optimize queuing systems
-- **Performance Prediction**: Predict system behavior under various loads
+### Physics Simulations
+- Rigid body dynamics with collision detection
+- Gravity and force simulation
+- Momentum conservation
+- Energy tracking and validation
+- Configurable material properties
+
+### Process Optimization
+- Multi-objective scheduling algorithms
+- Resource pool management
+- Bottleneck identification
+- Cost optimization
+- Parallel task execution
+
+### Supply Chain Networks
+- Multi-echelon modeling
+- Inventory policy optimization
+- Demand forecasting integration
+- Service level tracking
+- Bullwhip effect analysis
 
 ## Available Examples
 
-- **bank_queue.py**: Simulates customer service at a bank with multiple tellers
-- **machine_shop.py**: Models a production system with machines and maintenance
-- **resource_pool.py**: Models shared resource allocation (agents, servers, GPUs) with bottleneck analysis
-- **basic_queue.py**: Simple queuing system demonstration
+### Basic Simulations
+- **basic_queue.py**: Simple M/M/1 queue system with metrics
+- **bank_queue.py**: Multi-server queuing with customer service
+- **machine_shop.py**: Production system with maintenance scheduling
+- **resource_pool.py**: Shared resource allocation and bottleneck analysis
+
+### Advanced Simulations
+- **physics_rigid_body.py**: Rigid body physics with collisions and gravity
+- **process_optimization.py**: Complex workflow optimization with resource constraints
+- **supply_chain_network.py**: Multi-echelon supply chain with inventory management
 
 ## API Endpoints
 
@@ -63,12 +90,24 @@ SimPy runs as a lightweight Python service that:
 
 ## Testing
 
-Integration tests are available in the `test/` directory:
+SimPy includes comprehensive v2.0 contract-compliant tests:
 
 ```bash
-# Run integration tests
-bats resources/simpy/test/integration.bats
+# Run all tests
+vrooli resource simpy test all
+
+# Run specific test phases
+vrooli resource simpy test smoke      # Quick health check (<30s)
+vrooli resource simpy test integration # End-to-end testing (<120s)
+vrooli resource simpy test unit        # Unit tests (<60s)
 ```
+
+Test coverage includes:
+- Health endpoint validation
+- Simulation execution
+- Content management
+- API error handling
+- Resource lifecycle
 
 ## Integration with Vrooli
 

@@ -37,9 +37,9 @@ vault::put_secret() {
             esac
         done
     else
-        # Traditional positional arguments
-        path="$1"
-        value="$2"
+        # Traditional positional arguments - check if arguments exist
+        path="${1:-}"
+        value="${2:-}"
         key="${3:-value}"
     fi
     
@@ -115,8 +115,8 @@ vault::get_secret() {
             esac
         done
     else
-        # Traditional positional arguments
-        path="$1"
+        # Traditional positional arguments - check if arguments exist
+        path="${1:-}"
         key="${2:-value}"
         format="${3:-raw}"
     fi
@@ -190,15 +190,14 @@ vault::list_secrets() {
             esac
         done
     else
-        # Traditional positional arguments
-        path="$1"
+        # Traditional positional arguments - check if arguments exist
+        path="${1:-}"
         format="${2:-list}"
     fi
     
+    # Default to root path if not specified (for v2.0 content list compatibility)
     if [[ -z "$path" ]]; then
-        log::error "Usage: vault::list_secrets <path> [format]"
-        log::error "   or: vault::list_secrets --path <path> [--format <format>]"
-        return 1
+        path="/"
     fi
     
     if ! vault::is_healthy || vault::is_sealed; then
@@ -262,8 +261,8 @@ vault::delete_secret() {
             esac
         done
     else
-        # Traditional positional arguments
-        path="$1"
+        # Traditional positional arguments - check if arguments exist
+        path="${1:-}"
     fi
     
     if [[ -z "$path" ]]; then
@@ -316,7 +315,7 @@ vault::secret_exists() {
 #   $1 - secret path
 #######################################
 vault::get_secret_metadata() {
-    local path="$1"
+    local path="${1:-}"
     
     if [[ -z "$path" ]]; then
         log::error "Usage: vault::get_secret_metadata <path>"

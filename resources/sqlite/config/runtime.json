@@ -1,0 +1,22 @@
+{
+  "startup_order": 100,
+  "startup_timeout": 5,
+  "startup_time_estimate": "1-2s",
+  "dependencies": [],
+  "recovery_attempts": 3,
+  "priority": "high",
+  "description": "Lightweight serverless SQL database engine",
+  "category": "storage",
+  "features": [
+    "Zero-configuration",
+    "Serverless",
+    "ACID transactions",
+    "SQL92 compliant",
+    "File-based storage"
+  ],
+  "resource_requirements": {
+    "memory": "50MB",
+    "disk": "Variable (database size)",
+    "cpu": "Minimal"
+  }
+}

@@ -13,21 +13,33 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 
-# Initialize Gemini
+# Initialize Gemini with proper Vault integration
 gemini::init() {
     local verbose="${1:-false}"
     
-    # Try to load API key from Vault first
+    # Try to load API key from Vault first (per secrets.yaml specification)
     if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
         local vault_key
-        vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/gemini 2>/dev/null" || true)
-        if [[ -n "$vault_key" && "$vault_key" != "No value found at secret/vrooli/gemini" ]]; then
+        # Use the path defined in secrets.yaml
+        vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=gemini_api_key secret/resources/gemini/api/key 2>/dev/null" || true)
+        if [[ -z "$vault_key" || "$vault_key" == "No value found"* ]]; then
+            # Try legacy path for backwards compatibility
+            vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/gemini 2>/dev/null" || true)
+        fi
+        
+        if [[ -n "$vault_key" && "$vault_key" != "No value found"* ]]; then
             export GEMINI_API_KEY="$vault_key"
             [[ "$verbose" == "true" ]] && log::info "Gemini API key loaded from Vault"
         fi
     elif command -v vault >/dev/null 2>&1; then
         local vault_key
-        vault_key=$(vault kv get -field=api_key secret/vrooli/gemini 2>/dev/null || true)
+        # Use the path defined in secrets.yaml
+        vault_key=$(vault kv get -field=gemini_api_key secret/resources/gemini/api/key 2>/dev/null || true)
+        if [[ -z "$vault_key" ]]; then
+            # Try legacy path
+            vault_key=$(vault kv get -field=api_key secret/vrooli/gemini 2>/dev/null || true)
+        fi
+        
         if [[ -n "$vault_key" ]]; then
             export GEMINI_API_KEY="$vault_key"
             [[ "$verbose" == "true" ]] && log::info "Gemini API key loaded from Vault"
@@ -60,6 +72,18 @@ gemini::init() {
             [[ "$verbose" == "true" ]] && log::warn "Gemini API key not found. Using placeholder"
             return 0
         fi
+    fi
+    
+    # Load optional configuration from Vault if available
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
+        local model=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=default_model secret/resources/gemini/config/model 2>/dev/null" || true)
+        [[ -n "$model" && "$model" != "No value found"* ]] && export GEMINI_DEFAULT_MODEL="$model"
+        
+        local rpm=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=rate_limit_rpm secret/resources/gemini/config/rate_limit_rpm 2>/dev/null" || true)
+        [[ -n "$rpm" && "$rpm" != "No value found"* ]] && export GEMINI_RATE_LIMIT_RPM="$rpm"
+        
+        local tpm=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=rate_limit_tpm secret/resources/gemini/config/rate_limit_tpm 2>/dev/null" || true)
+        [[ -n "$tpm" && "$tpm" != "No value found"* ]] && export GEMINI_RATE_LIMIT_TPM="$tpm"
     fi
     
     return 0

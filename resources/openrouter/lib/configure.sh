@@ -80,9 +80,13 @@ openrouter::configure() {
                 return 1
             fi
             
-            # Store in Vault
-            if docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv put secret/vrooli/openrouter api_key='$api_key'" >/dev/null 2>&1; then
-                log::success "API key stored in Vault successfully"
+            # Store in Vault using standard path from secrets.yaml
+            # Path: secret/resources/openrouter/api/main
+            if docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv put secret/resources/openrouter/api/main value='$api_key'" >/dev/null 2>&1; then
+                log::success "API key stored in Vault successfully (standard path)"
+                
+                # Also store in legacy path for backward compatibility
+                docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv put secret/vrooli/openrouter api_key='$api_key'" >/dev/null 2>&1 || true
                 
                 # Test the connection
                 export OPENROUTER_API_KEY="$api_key"

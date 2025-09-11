@@ -17,10 +17,10 @@ export CODEX_INJECTED_DIR="${CODEX_BASE_DIR}/injected"
 export CODEX_SCRIPTS_DIR="${HOME}/.codex/scripts"
 export CODEX_OUTPUT_DIR="${HOME}/.codex/outputs"
 
-# API configuration
+# API configuration (Updated for modern GPT models - Codex deprecated March 2023)
 export CODEX_API_ENDPOINT="${CODEX_API_ENDPOINT:-https://api.openai.com/v1}"
-export CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-code-davinci-002}"
-export CODEX_DEFAULT_TEMPERATURE="${CODEX_DEFAULT_TEMPERATURE:-0.0}"
+export CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-3.5-turbo}"
+export CODEX_DEFAULT_TEMPERATURE="${CODEX_DEFAULT_TEMPERATURE:-0.2}"
 export CODEX_DEFAULT_MAX_TOKENS="${CODEX_DEFAULT_MAX_TOKENS:-2048}"
 
 # Runtime configuration

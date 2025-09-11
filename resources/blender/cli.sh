@@ -79,6 +79,8 @@ cli::register_subcommand "content" "export-all" "Export all output files" "blend
 # ==============================================================================
 # Additional test phases for Blender functionality
 cli::register_subcommand "test" "render" "Test rendering capability" "blender::test"
+cli::register_subcommand "test" "physics" "Test physics simulation" "blender::test::physics"
+cli::register_subcommand "test" "validation" "Validate physics accuracy" "blender::test::validation"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

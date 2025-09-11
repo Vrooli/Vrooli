@@ -50,10 +50,27 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="gemini::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="gemini::docker::start_noop"  
 CLI_COMMAND_HANDLERS["manage::stop"]="gemini::docker::stop_noop"
 CLI_COMMAND_HANDLERS["manage::restart"]="gemini::docker::restart_noop"
-CLI_COMMAND_HANDLERS["test::smoke"]="gemini::test::smoke"
-CLI_COMMAND_HANDLERS["test::integration"]="gemini::test::integration"
-CLI_COMMAND_HANDLERS["test::unit"]="gemini::test::unit"
-CLI_COMMAND_HANDLERS["test::all"]="gemini::test::all"
+CLI_COMMAND_HANDLERS["test::smoke"]="gemini::test::smoke_wrapper"
+CLI_COMMAND_HANDLERS["test::integration"]="gemini::test::integration_wrapper"
+CLI_COMMAND_HANDLERS["test::unit"]="gemini::test::unit_wrapper"
+CLI_COMMAND_HANDLERS["test::all"]="gemini::test::all_wrapper"
+
+# Test wrapper functions to delegate to test runner
+gemini::test::smoke_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" smoke
+}
+
+gemini::test::integration_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" integration
+}
+
+gemini::test::unit_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" unit
+}
+
+gemini::test::all_wrapper() {
+    exec "${GEMINI_CLI_DIR}/test/run-tests.sh" all
+}
 
 # Content handlers - required but can use framework defaults if not applicable
 CLI_COMMAND_HANDLERS["content::add"]="gemini::content::add"

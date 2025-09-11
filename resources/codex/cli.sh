@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${CODEX_CLI_DIR}/config/defaults.sh"
 
 # Source Codex libraries
-for lib in common status install docker test content inject; do
+for lib in common core status install docker test content inject; do
     lib_file="${CODEX_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090

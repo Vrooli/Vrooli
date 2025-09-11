@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WireGuard Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "UDP port for WireGuard connections",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 51820
+    },
+    "network": {
+      "type": "string",
+      "description": "Internal VPN network CIDR",
+      "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/[0-9]{1,2}$",
+      "default": "10.13.13.0/24"
+    },
+    "container_name": {
+      "type": "string",
+      "description": "Docker container name",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$",
+      "default": "vrooli-wireguard"
+    },
+    "image": {
+      "type": "string",
+      "description": "Docker image for WireGuard",
+      "default": "lscr.io/linuxserver/wireguard:latest"
+    },
+    "peers_max": {
+      "type": "integer",
+      "description": "Maximum number of peers",
+      "minimum": 1,
+      "maximum": 1000,
+      "default": 100
+    },
+    "keepalive": {
+      "type": "integer",
+      "description": "Keepalive interval in seconds",
+      "minimum": 0,
+      "maximum": 3600,
+      "default": 25
+    },
+    "allowed_ips": {
+      "type": "string",
+      "description": "Allowed IP ranges for peers",
+      "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/[0-9]{1,2}$",
+      "default": "0.0.0.0/0"
+    },
+    "dns": {
+      "type": "string",
+      "description": "DNS servers for VPN clients (comma-separated)",
+      "pattern": "^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}(,[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})*$",
+      "default": "1.1.1.1,8.8.8.8"
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging verbosity level",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info"
+    }
+  },
+  "required": ["port", "network", "container_name"],
+  "additionalProperties": false
+}

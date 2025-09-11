@@ -262,13 +262,63 @@ cline::content::execute() {
             log::info "4. Select your provider and model"
             log::info "5. Start coding with AI assistance!"
             ;;
+        prompt)
+            # Send a prompt directly to the AI provider from terminal
+            local prompt="$*"
+            if [[ -z "$prompt" ]]; then
+                log::error "Please provide a prompt"
+                return 1
+            fi
+            
+            local provider=$(cline::get_provider)
+            log::info "Sending prompt to $provider..."
+            
+            # For now, echo the prompt - in future this would integrate with the API
+            log::info "Prompt: $prompt"
+            log::info "Note: Direct API integration coming soon. Use VS Code for now."
+            ;;
+        provider)
+            # Switch or show provider
+            local new_provider="${1:-}"
+            if [[ -n "$new_provider" ]]; then
+                cline::config_provider "$new_provider"
+            else
+                log::info "Current provider: $(cline::get_provider)"
+                log::info "Available: ollama, openrouter, anthropic, openai, google"
+            fi
+            ;;
+        models)
+            # List available models for the current provider
+            local provider=$(cline::get_provider)
+            log::info "Models for $provider:"
+            
+            case "$provider" in
+                ollama)
+                    if timeout 5 curl -sf http://localhost:11434/api/tags 2>/dev/null | jq -r '.models[].name' 2>/dev/null; then
+                        :
+                    else
+                        log::warn "Cannot fetch Ollama models (is Ollama running?)"
+                    fi
+                    ;;
+                openrouter)
+                    log::info "Popular OpenRouter models:"
+                    log::info "  - anthropic/claude-3.5-sonnet"
+                    log::info "  - openai/gpt-4-turbo"
+                    log::info "  - meta-llama/llama-3.1-70b"
+                    log::info "  - google/gemini-pro-1.5"
+                    ;;
+                *)
+                    log::info "Model listing not implemented for $provider"
+                    ;;
+            esac
+            ;;
         status)
             # Show detailed status for execution context
             cline::status
             ;;
         *)
             log::error "Unknown execute action: $action"
-            log::info "Available actions: open, configure, chat, status"
+            log::info "Available actions: open, configure, chat, prompt, provider, models, status"
             return 1
             ;;
     esac

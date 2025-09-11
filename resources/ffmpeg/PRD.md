@@ -1,0 +1,112 @@
+# FFmpeg Resource PRD
+
+## Executive Summary
+**What**: Universal media processing framework with powerful transcoding, extraction, and analysis capabilities
+**Why**: Enable AI agents to process, convert, and analyze any media format for content generation and media workflows
+**Who**: AI agents building media applications, content creators, and automated media pipelines
+**Value**: $15K - Eliminates need for expensive media processing services and enables unlimited media manipulation
+**Priority**: High - Core capability for media-focused scenarios
+
+## P0 Requirements (Must Have)
+- [x] **Health Check**: CLI tool installed and responds to version check
+- [x] **Lifecycle Management**: Install/start/stop/uninstall commands work
+- [x] **Basic Transcoding**: Convert between common formats (mp4, avi, mp3, wav)
+- [x] **Media Information**: Extract metadata and codec info from files
+- [x] **v2.0 Contract Compliance**: All required files and structure per universal.yaml
+
+## P1 Requirements (Should Have)
+- [ ] **Batch Processing**: Process multiple files with queue management
+- [ ] **GPU Acceleration**: Use hardware encoding when available
+- [ ] **Stream Processing**: Handle live streams and real-time conversion
+- [ ] **Preset Library**: Common conversion presets for typical use cases
+
+## P2 Requirements (Nice to Have)
+- [ ] **Web Interface**: Simple UI for media processing tasks
+- [ ] **Integration APIs**: RESTful endpoints for remote processing
+- [ ] **Performance Monitoring**: Track conversion speed and resource usage
+
+## Technical Specifications
+
+### Architecture
+- **Type**: CLI tool wrapper with scripted automation
+- **Dependencies**: System ffmpeg package
+- **Storage**: Local filesystem for input/output
+- **Configuration**: JSON-based presets and settings
+
+### Supported Operations
+- **Transcoding**: Format conversion with quality settings
+- **Extraction**: Audio from video, frames from video
+- **Analysis**: Media info, codec detection, quality metrics
+- **Manipulation**: Trimming, concatenation, filtering
+
+### API Endpoints (Future)
+```
+POST /api/transcode - Convert media format
+POST /api/extract - Extract audio/video/frames
+GET /api/info/{file} - Get media information
+POST /api/batch - Queue batch operations
+```
+
+## Success Metrics
+
+### Completion Targets
+- P0: 100% complete (5/5 requirements)
+- P1: 0% complete (0/4 requirements)
+- P2: 0% complete (0/3 requirements)
+- Overall: 42% complete
+
+### Quality Metrics
+- First-time setup success rate: >90%
+- Conversion accuracy: 100% (lossless where applicable)
+- Performance: Process 1080p video at >1x realtime
+- Test coverage: All major codecs and formats
+
+### Performance Benchmarks
+- Startup time: <3 seconds
+- 1080p→720p transcode: <30s for 1min video
+- Audio extraction: <5s for typical song
+- Media info query: <1s response
+
+## Implementation History
+
+### 2025-09-11 Initial Assessment
+- Verified core functionality works (transcoding, info, extraction)
+- Tests passing (smoke, integration, unit)
+- Missing v2.0 compliance files (PRD, README, schema.json, test phases)
+- Need to create formal test structure per universal.yaml
+
+### 2025-09-11 v2.0 Contract Compliance Improvements
+- ✅ Created PRD.md with comprehensive requirements and progress tracking
+- ✅ Added config/schema.json with full configuration schema
+- ✅ Created test/run-tests.sh main test runner
+- ✅ Added test/phases/ directory with smoke, unit, and integration tests
+- ✅ Fixed smoke test failures (codec detection now functional)
+- ✅ Created comprehensive README.md documentation
+- ✅ Verified content management commands work properly
+- Progress: 33% → 42% (All P0 requirements complete)
+
+## Next Steps
+1. Create missing v2.0 contract files
+2. Implement batch processing capability
+3. Add GPU acceleration detection
+4. Create preset library for common conversions
+5. Document all capabilities in README
+
+## Revenue Justification
+FFmpeg resource enables:
+- **Media Processing SaaS**: $5K/month potential from automated conversions
+- **Content Generation**: Support for AI-generated media worth $3K/month
+- **Stream Processing**: Live streaming capabilities worth $4K/month
+- **Batch Operations**: Enterprise media processing worth $3K/month
+Total justified value: $15K/month recurring revenue potential
+
+## Dependencies on Other Resources
+- **minio**: For media file storage (optional)
+- **postgres**: For job queue management (future)
+- **redis**: For processing status cache (future)
+
+## Security Considerations
+- [ ] Input validation for media files
+- [ ] Resource limits for processing
+- [ ] Sandboxed execution environment
+- [ ] No execution of embedded scripts

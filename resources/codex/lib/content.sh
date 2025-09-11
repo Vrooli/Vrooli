@@ -8,6 +8,8 @@ CODEX_CONTENT_DIR="${APP_ROOT}/resources/codex/lib"
 # Source required utilities
 # shellcheck disable=SC1091
 source "${CODEX_CONTENT_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${CODEX_CONTENT_DIR}/core.sh" 2>/dev/null || true
 
 #######################################
 # Add content (Python script) to Codex
@@ -33,32 +35,37 @@ codex::content::add() {
     fi
     
     # Create directories if needed
-    mkdir -p "${CODEX_SCRIPTS_DIR}" "${CODEX_INJECTED_DIR}"
+    mkdir -p "${CODEX_SCRIPTS_DIR}" "${CODEX_INJECTED_DIR}" "${CODEX_OUTPUT_DIR}"
     
     # Determine target name
     local basename
     basename=$(basename "${file_path}")
     if [[ -n "${name}" ]]; then
-        # Use provided name but keep .py extension
+        # Use provided name but keep extension
         basename="${name}"
-        if [[ ! "${basename}" =~ \.py$ ]]; then
-            basename="${basename}.py"
+        # Add appropriate extension if missing
+        if [[ ! "${basename}" =~ \.(py|js|go|sh|sql|java|cpp|c|rs)$ ]]; then
+            # Try to detect from original file
+            local ext="${file_path##*.}"
+            if [[ -n "$ext" ]]; then
+                basename="${basename}.${ext}"
+            fi
         fi
     fi
     
     local target="${CODEX_SCRIPTS_DIR}/${basename}"
     
-    log::info "Adding script: ${basename}"
+    log::info "Adding content: ${basename}"
     
     # Copy to scripts directory
     if cp "${file_path}" "${target}"; then
         # Also copy to injected directory for tracking
         cp "${file_path}" "${CODEX_INJECTED_DIR}/${basename}"
         
-        log::success "Script added successfully: ${basename}"
-        log::info "Script location: ${target}"
+        log::success "Content added successfully: ${basename}"
+        log::info "Content location: ${target}"
     else
-        log::error "Failed to add script"
+        log::error "Failed to add content"
         return 1
     fi
     
@@ -236,32 +243,41 @@ codex::content::remove() {
 #   0 on success, 1 on failure
 #######################################
 codex::content::execute() {
-    local name="${1:-}"
+    local input="${1:-}"
+    local operation="${2:-generate}"
     
-    if [[ -z "${name}" ]]; then
-        log::error "No script name specified"
-        echo "Usage: content execute <script_name>"
+    if [[ -z "${input}" ]]; then
+        log::error "No input specified"
+        echo "Usage: content execute <prompt_or_file> [operation]"
+        echo "Operations: generate, review, test, explain, complete"
         return 1
     fi
     
-    # Add .py extension if not present
-    if [[ ! "${name}" =~ \.py$ ]]; then
-        name="${name}.py"
-    fi
-    
-    local script_path="${CODEX_SCRIPTS_DIR}/${name}"
-    
-    if [[ ! -f "${script_path}" ]]; then
-        log::error "Script not found: ${name}"
-        return 1
-    fi
-    
-    # Use the existing run function from inject.sh
-    if type -t codex::run &>/dev/null; then
-        codex::run "${name}"
+    # Check if input is a file or a prompt
+    if [[ -f "${input}" ]]; then
+        # It's a file - process it
+        if type -t codex::process_script &>/dev/null; then
+            codex::process_script "${input}" "${operation}"
+        else
+            log::error "Core functions not available. Is core.sh loaded?"
+            return 1
+        fi
+    elif [[ -f "${CODEX_SCRIPTS_DIR}/${input}" ]]; then
+        # Check in scripts directory
+        if type -t codex::process_script &>/dev/null; then
+            codex::process_script "${CODEX_SCRIPTS_DIR}/${input}" "${operation}"
+        else
+            log::error "Core functions not available. Is core.sh loaded?"
+            return 1
+        fi
     else
-        log::error "Execute function not available"
-        return 1
+        # It's a direct prompt - generate code
+        if type -t codex::generate_code &>/dev/null; then
+            codex::generate_code "${input}"
+        else
+            log::error "Core functions not available. Is core.sh loaded?"
+            return 1
+        fi
     fi
 }
 

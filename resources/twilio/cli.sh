@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${TWILIO_CLI_DIR}/config/defaults.sh"
 
 # Source Twilio libraries
-for lib in common config docker inject install logs numbers sms start status stop; do
+for lib in common core config inject install lifecycle logs numbers sms start status stop test; do
     lib_file="${TWILIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -50,7 +50,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="twilio::install::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="twilio::docker::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="twilio::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="twilio::docker::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="twilio::status::new"
+CLI_COMMAND_HANDLERS["test::smoke"]="twilio::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="twilio::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="twilio::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="twilio::test::all"
 
 # Override content handlers for Twilio-specific messaging functionality
 CLI_COMMAND_HANDLERS["content::add"]="twilio::inject"
