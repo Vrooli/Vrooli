@@ -52,6 +52,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Security Services (81xx range)
     ["owasp-zap"]="8180"       # OWASP ZAP security scanner API
+    ["wireguard"]="51820"      # WireGuard VPN (UDP port)
     
     # Infrastructure Services (80xx range)
     ["restic"]="8085"          # Encrypted backup and recovery service

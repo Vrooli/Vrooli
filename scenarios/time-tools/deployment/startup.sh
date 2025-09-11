@@ -324,7 +324,11 @@ main() {
     fi
     
     if [[ "$REQUIRED_RESOURCES" =~ "postgres" ]]; then
-        log_info "  🗄️  Database: postgresql://postgres:postgres@localhost:5433/${SCENARIO_ID//-/_}"
+        local db_user="${POSTGRES_USER:-postgres}"
+        local db_port="${POSTGRES_PORT:-5433}"
+        local db_host="${POSTGRES_HOST:-localhost}"
+        local db_name="${POSTGRES_DB:-${SCENARIO_ID//-/_}}"
+        log_info "  🗄️  Database: postgresql://${db_user}:***@${db_host}:${db_port}/${db_name}"
     fi
     
     log_info "  📊 Scenario Test: $SCENARIO_DIR/test.sh"

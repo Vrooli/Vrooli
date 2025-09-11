@@ -1,0 +1,156 @@
+/* Diff Panel Styles */
+.diff-container {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  height: 400px;
+}
+
+.diff-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.pane-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.diff-pane textarea {
+  flex: 1;
+  border-radius: 0 0 4px 4px;
+  border-top: none;
+}
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.similarity-score {
+  font-size: 0.875rem;
+  color: var(--text-accent);
+  font-weight: 500;
+}
+
+.results-container {
+  flex: 1;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 1rem;
+  overflow-y: auto;
+  margin-top: 1rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.results-empty {
+  color: var(--text-secondary);
+  text-align: center;
+  font-style: italic;
+  padding: 2rem;
+}
+
+.diff-line {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.25rem 0;
+  border-left: 3px solid transparent;
+  margin: 0.125rem 0;
+}
+
+.diff-line.added {
+  background-color: rgba(40, 167, 69, 0.1);
+  border-left-color: var(--success-color);
+}
+
+.diff-line.removed {
+  background-color: rgba(220, 53, 69, 0.1);
+  border-left-color: var(--danger-color);
+}
+
+.diff-line.modified {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left-color: var(--warning-color);
+}
+
+.line-number {
+  min-width: 3rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding-right: 0.5rem;
+  text-align: right;
+}
+
+.line-content {
+  flex: 1;
+  white-space: pre;
+  color: var(--text-primary);
+}
+
+.diff-stats {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.diff-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-added {
+  color: var(--success-color);
+}
+
+.stat-removed {
+  color: var(--danger-color);
+}
+
+.stat-modified {
+  color: var(--warning-color);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+/* Loading State */
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-top: 2px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

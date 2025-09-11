@@ -12,7 +12,7 @@ if (!PORT) {
 
 // Middleware
 app.use(cors());
-app.use(express.static('.'));
+app.use(express.static(path.join(__dirname, '../ui-react/dist')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -21,7 +21,7 @@ app.get('/health', (req, res) => {
 
 // Serve index.html for all routes
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, '../ui-react/dist/index.html'));
 });
 
 // Start server

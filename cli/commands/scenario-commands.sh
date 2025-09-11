@@ -22,12 +22,15 @@ SUBCOMMANDS:
     start <name> [options]  Start a scenario
     start <name1> <name2>...Start multiple scenarios
     start-all               Start all available scenarios
+    restart <name> [options] Restart a scenario (stop then start)
     stop <name>             Stop a running scenario
     stop-all                Stop all running scenarios
     test <name>             Test a scenario
     list [--json]           List available scenarios
     logs <name> [options]   View logs for a scenario
     status [name] [--json]  Show scenario status
+    open <name> [options]   Open scenario in browser
+    port <name> <port>      Get port number for scenario
 
 OPTIONS FOR START:
     --clean-stale           Clean stale port locks before starting
@@ -43,6 +46,7 @@ EXAMPLES:
     vrooli scenario start make-it-vegan --clean-stale # Start with stale lock cleanup
     vrooli scenario start picker-wheel invoice-generator # Start multiple scenarios
     vrooli scenario start-all                   # Start all scenarios
+    vrooli scenario restart ecosystem-manager    # Restart a scenario
     vrooli scenario stop swarm-manager           # Stop a specific scenario
     vrooli scenario stop-all                     # Stop all scenarios
     vrooli scenario test system-monitor          # Test a scenario
@@ -52,6 +56,9 @@ EXAMPLES:
     vrooli scenario logs system-monitor --follow # Follow lifecycle log
     vrooli scenario status                       # Show all scenarios
     vrooli scenario status swarm-manager --json  # Show specific scenario in JSON
+    vrooli scenario open app-monitor             # Open scenario in browser
+    vrooli scenario open app-monitor --print-url # Print URL instead of opening
+    vrooli scenario port app-monitor UI_PORT     # Get UI port number
 EOF
 }
 
@@ -146,6 +153,27 @@ main() {
                 log::error "Failed to start scenarios: $error_msg"
                 return 1
             fi
+            ;;
+        restart)
+            # Restart scenario - simply stop then start
+            local scenario_name="${1:-}"
+            [[ -z "$scenario_name" ]] && { 
+                log::error "Scenario name required"
+                log::info "Usage: vrooli scenario restart <name>"
+                return 1
+            }
+            shift
+            
+            log::info "Restarting scenario: $scenario_name"
+            
+            # Stop if running (ignore errors - scenario might not be running)
+            "$0" stop "$scenario_name" 2>/dev/null || true
+            
+            # Brief pause
+            sleep 1
+            
+            # Start with any additional options passed through
+            "$0" start "$scenario_name" "$@"
             ;;
         stop)
             local scenario_name="${1:-}"
@@ -898,6 +926,143 @@ main() {
                 # Port not found in process file
                 return 1
             fi
+            ;;
+        open)
+            # Open scenario in browser if it has a UI
+            local scenario_name="${1:-}"
+            local port_name="UI_PORT"
+            local print_url=false
+            
+            # Parse options
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --port)
+                        port_name="${2:-}"
+                        if [[ -z "$port_name" ]]; then
+                            log::error "--port requires a port name"
+                            return 1
+                        fi
+                        shift 2
+                        ;;
+                    --print-url)
+                        print_url=true
+                        shift
+                        ;;
+                    *)
+                        if [[ -z "$scenario_name" ]]; then
+                            scenario_name="$1"
+                        fi
+                        shift
+                        ;;
+                esac
+            done
+            
+            if [[ -z "$scenario_name" ]]; then
+                log::error "Scenario name required"
+                echo "Usage: vrooli scenario open <scenario-name> [options]"
+                echo ""
+                echo "Options:"
+                echo "  --port <name>    Open specific port (default: UI_PORT)"
+                echo "  --print-url      Print URL instead of opening browser"
+                echo ""
+                echo "Examples:"
+                echo "  vrooli scenario open app-monitor"
+                echo "  vrooli scenario open app-monitor --port API_PORT"
+                echo "  vrooli scenario open app-monitor --print-url"
+                return 1
+            fi
+            
+            # Use the existing port command logic to get the port
+            local port_value
+            local port_result=0
+            
+            # Inline port logic instead of recursive call
+            # Map port names to process step names
+            local step_name=""
+            case "$port_name" in
+                API_PORT)
+                    step_name="start-api"
+                    ;;
+                UI_PORT)
+                    step_name="start-ui"
+                    ;;
+                *)
+                    # For other port names, try lowercase without _PORT suffix
+                    local base_name="${port_name%_PORT}"
+                    step_name="start-${base_name,,}"
+                    ;;
+            esac
+            
+            # Direct file read - extremely fast
+            local process_file="$HOME/.vrooli/processes/scenarios/${scenario_name}/${step_name}.json"
+            
+            if [[ ! -f "$process_file" ]]; then
+                # Process not running or doesn't exist
+                port_result=1
+            else
+                # Extract port directly from JSON file
+                port_value=$(jq -r '.port // empty' "$process_file" 2>/dev/null)
+                
+                if [[ -z "$port_value" ]] || [[ "$port_value" == "null" ]]; then
+                    # Port not found in process file
+                    port_result=1
+                fi
+            fi
+            
+            if [[ $port_result -ne 0 ]] || [[ -z "$port_value" ]]; then
+                case "$port_name" in
+                    UI_PORT)
+                        log::error "No UI port found for scenario '$scenario_name'"
+                        log::info "This scenario may not have a web interface, or it's not running"
+                        ;;
+                    API_PORT)
+                        log::error "No API port found for scenario '$scenario_name'"
+                        ;;
+                    *)
+                        log::error "No port '$port_name' found for scenario '$scenario_name'"
+                        ;;
+                esac
+                log::info "Start the scenario first: vrooli scenario start $scenario_name"
+                return 1
+            fi
+            
+            local url="http://localhost:$port_value"
+            
+            if [[ "$print_url" == "true" ]]; then
+                echo "$url"
+                return 0
+            fi
+            
+            log::info "Opening $scenario_name at $url"
+            
+            # Detect platform and open browser
+            case "$(uname -s)" in
+                Linux*)
+                    if command -v xdg-open >/dev/null 2>&1; then
+                        xdg-open "$url" >/dev/null 2>&1 &
+                    elif command -v firefox >/dev/null 2>&1; then
+                        firefox "$url" >/dev/null 2>&1 &
+                    elif command -v google-chrome >/dev/null 2>&1; then
+                        google-chrome "$url" >/dev/null 2>&1 &
+                    elif command -v chromium >/dev/null 2>&1; then
+                        chromium "$url" >/dev/null 2>&1 &
+                    else
+                        log::warn "No browser found. Please open manually: $url"
+                        return 1
+                    fi
+                    ;;
+                Darwin*)
+                    open "$url"
+                    ;;
+                CYGWIN*|MINGW32*|MSYS*|MINGW*)
+                    start "$url"
+                    ;;
+                *)
+                    log::warn "Unknown platform. Please open manually: $url"
+                    echo "$url"
+                    return 1
+                    ;;
+            esac
             ;;
         # Removed: convert, convert-all, validate, enable, disable
         *)

@@ -1,45 +1,28 @@
 // Time Tools Timezone Converter JavaScript
 
-// Configuration - Dynamic API discovery
+// Configuration - Standards-compliant API discovery
 let API_BASE = null;
 
-// Discover API port dynamically
-async function discoverApiPort() {
-    // Check if API URL is provided via environment
-    if (window.TIME_TOOLS_API_URL) {
-        return window.TIME_TOOLS_API_URL;
-    }
-    
-    // Try common port ranges for dynamic allocation
-    const portRanges = [
-        // Common dynamic port range
-        { start: 8000, end: 8100 },
-        { start: 3000, end: 3100 },
-        { start: 5000, end: 5100 }
-    ];
-    
-    for (const range of portRanges) {
-        for (let port = range.start; port <= range.end; port++) {
-            try {
-                const url = `http://localhost:${port}`;
-                const response = await fetch(`${url}/api/v1/health`, {
-                    method: 'GET',
-                    signal: AbortSignal.timeout(500) // 500ms timeout
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.service === 'time-tools') {
-                        return url;
-                    }
-                }
-            } catch (e) {
-                // Port not available, continue
-            }
+// Initialize API discovery
+async function initializeAPI() {
+    try {
+        // Use the shared API discovery module
+        if (window.timeToolsAPI) {
+            API_BASE = await window.timeToolsAPI.discoverAPI();
+            console.log('Time Tools API discovered at:', API_BASE);
+        } else {
+            throw new Error('API discovery module not loaded');
         }
+    } catch (error) {
+        console.error('Failed to discover Time Tools API:', error);
+        API_BASE = null;
+        // Show error to user
+        document.body.insertAdjacentHTML('afterbegin', 
+            '<div style="background: #ff6b6b; color: white; padding: 10px; text-align: center;">' +
+            'Time-tools API not found. Please ensure the scenario is running: vrooli scenario run time-tools' +
+            '</div>'
+        );
     }
-    
-    throw new Error('Time-tools API not found. Please ensure it is running.');
 }
 
 // Popular timezones for multi-display
@@ -54,19 +37,8 @@ const POPULAR_TIMEZONES = [
 
 // Initialize converter
 document.addEventListener('DOMContentLoaded', async function() {
-    // Discover API first
-    try {
-        API_BASE = await discoverApiPort();
-    } catch (error) {
-        console.error('Failed to discover API:', error);
-        // Show error to user
-        document.body.insertAdjacentHTML('afterbegin', 
-            '<div style="background: #ff6b6b; color: white; padding: 10px; text-align: center;">' +
-            'Time-tools API not found. Please ensure it is running.' +
-            '</div>'
-        );
-        return;
-    }
+    // Initialize API discovery first
+    await initializeAPI();
     
     setupConverterForm();
     setupMultiTimezoneDisplay();

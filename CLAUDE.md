@@ -100,8 +100,11 @@ vrooli scenario run <scenario-name>          # ✅ ALTERNATIVE - CLI management
 - DON'T bypass the lifecycle system - it manages process naming, ports, and health checks
 - DON'T create `lib/` folders in scenarios - use v2.0 service.json lifecycle configuration instead
 
-## 🔍 Code Search: ast-grep Priority
-You run in an environment where ast-grep (sg) is available; whenever a search requires syntax-aware or structural matching, default to `ast-grep --lang <language> --pattern '<pattern>'` and avoid falling back to text-only tools like `grep` unless explicitly requested for plain-text search.
+## 🔍 Available Tools
+- **ast-grep (sg)**: For syntax-aware code search - default to `ast-grep --lang <language> --pattern '<pattern>'` over `grep` for structural matching
+- **jq/yq**: For JSON/YAML processing - use these for analyzing service.json, package.json, n8n workflows, and YAML configs instead of manual parsing
+- **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
+- **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
 
 ## 🎯 Task Management Commands
 These commands can be invoked by using the keywords listed for each:
