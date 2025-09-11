@@ -50,7 +50,7 @@
     "ui": {
       "enabled": true,
       "framework": "react",
-      "path": "ui-react",
+      "path": "ui",
       "main": "src/App.tsx",
       "build_tool": "vite"
     },
@@ -220,12 +220,12 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui-react && npm install",
+          "run": "cd ui && npm install",
           "description": "Install React UI dependencies"
         },
         {
           "name": "build-ui",
-          "run": "cd ui-react && npm run build",
+          "run": "cd ui && npm run build",
           "description": "Build React UI for production"
         }
       ]
@@ -241,7 +241,7 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui-react && npm run start",
+          "run": "cd ui && npm run start",
           "description": "Start React UI dev server",
           "background": true
         },

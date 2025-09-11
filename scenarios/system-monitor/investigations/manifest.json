@@ -75,6 +75,24 @@
       "execution_time_estimate": "30-45s",
       "safety_level": "safe"
     },
+    "zombie-process-detector": {
+      "name": "Zombie Process Detector",
+      "description": "Detects and analyzes zombie (defunct) processes to identify parent process issues",
+      "file": "active/zombie-process-detector.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "zombie_processes_found",
+        "process_cleanup_issues",
+        "high_process_count"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "15-30s",
+      "safety_level": "safe"
+    },
     "disk-io-analyzer": {
       "name": "Disk I/O Analyzer",
       "description": "Analyzes disk usage patterns, I/O performance, and identifies storage bottlenecks",

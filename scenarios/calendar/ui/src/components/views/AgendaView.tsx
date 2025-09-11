@@ -1,6 +1,6 @@
-import { format, isSameDay, isToday } from 'date-fns'
+import { format, isToday } from 'date-fns'
 import { useCalendarStore } from '@/stores/calendarStore'
-import { Clock, MapPin, Users, FileText } from 'lucide-react'
+import { Clock, MapPin, FileText } from 'lucide-react'
 import type { Event } from '@/types'
 
 export function AgendaView() {

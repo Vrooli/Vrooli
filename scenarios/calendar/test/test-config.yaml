@@ -93,8 +93,8 @@ api_tests:
     expected_fields: ["success", "event"]
     payload:
       title: "Test Event"
-      start_time: "2024-03-15T10:00:00Z"
-      end_time: "2024-03-15T11:00:00Z"
+      start_time: "DYNAMIC:+1d:10:00"  # Tomorrow at 10:00 AM
+      end_time: "DYNAMIC:+1d:11:00"    # Tomorrow at 11:00 AM  
       event_type: "meeting"
       
   schedule_chat:

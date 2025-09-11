@@ -19,6 +19,11 @@ interface CalendarState {
   currentDate: Date
   filters: CalendarFilters
 
+  // UI State
+  sidebarCollapsed: boolean
+  setSidebarCollapsed: (collapsed: boolean) => void
+  toggleSidebar: () => void
+
   // Actions
   setEvents: (events: Event[]) => void
   addEvent: (event: Event) => void
@@ -51,12 +56,17 @@ export const useCalendarStore = create<CalendarState>()(
       selectedEvent: null,
       isLoading: false,
       error: null,
-      viewType: 'week',
+      viewType: 'month',
       currentDate: new Date(),
       filters: {},
+      sidebarCollapsed: false,
 
       // User actions
       setUser: (user) => set({ user }),
+
+      // UI State actions
+      setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
       // Event actions
       setEvents: (events) => set({ events }),

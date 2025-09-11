@@ -12,6 +12,14 @@ class EcosystemManager {
         this.ws = null;
         this.wsReconnectInterval = null;
         
+        // Target data caching and polling
+        this.targetCacheState = {
+            resources: { loading: false, lastUpdate: null, error: null },
+            scenarios: { loading: false, lastUpdate: null, error: null }
+        };
+        this.targetPollingInterval = null;
+        this.targetPollingIntervalMs = 30000; // Poll every 30 seconds
+        
         // Queue status tracking - will be updated from settings
         this.queueStatus = {
             maxConcurrent: 1,
@@ -51,11 +59,19 @@ class EcosystemManager {
                 this.loadAllTasks()  // Load tasks immediately
             ]);
             
-            // Load discovered resources and scenarios in background
-            // This doesn't block initial UI rendering
-            this.loadDiscoveryData().catch(error => {
-                console.warn('Failed to load discovery data (non-critical):', error);
-            });
+            // Load discovered resources and scenarios immediately and set up polling
+            try {
+                await this.loadDiscoveryData();
+                console.log('✅ Initial discovery data loaded');
+                
+                // Start target data polling for fresh information
+                this.startTargetPolling();
+                console.log('✅ Target polling started');
+            } catch (error) {
+                console.error('❌ Failed to load initial discovery data:', error);
+                // Continue anyway - polling will retry
+                this.startTargetPolling();
+            }
             
             // Connect to WebSocket for real-time updates
             this.connectWebSocket();
@@ -65,6 +81,9 @@ class EcosystemManager {
             
             // Set up event listeners
             this.setupEventListeners();
+            
+            // Set up cleanup handlers
+            this.setupCleanupHandlers();
             
             // Initialize queue status display
             this.initQueueStatus();
@@ -158,33 +177,127 @@ class EcosystemManager {
     
     async loadDiscoveryData() {
         try {
+            await this.pollTargets();
+        } catch (error) {
+            console.error('Failed to load discovery data:', error);
+            this.resources = [];
+            this.scenarios = [];
+            this.targetCacheState.resources.error = error.message;
+            this.targetCacheState.scenarios.error = error.message;
+        }
+    }
+    
+    startTargetPolling() {
+        // Clear any existing interval
+        if (this.targetPollingInterval) {
+            clearInterval(this.targetPollingInterval);
+        }
+        
+        // Start with normal polling interval - keep it simple and reliable
+        this.targetPollingInterval = setInterval(() => {
+            this.pollTargets().catch(error => {
+                console.warn('Target polling failed (will retry):', error);
+            });
+        }, this.targetPollingIntervalMs);
+        
+        console.log(`🔄 Started target polling every ${this.targetPollingIntervalMs/1000}s`);
+    }
+    
+    stopTargetPolling() {
+        if (this.targetPollingInterval) {
+            clearInterval(this.targetPollingInterval);
+            this.targetPollingInterval = null;
+            console.log('🛑 Stopped target polling');
+        }
+    }
+    
+    async pollTargets() {
+        // Skip if either type is already loading
+        if (this.targetCacheState.resources.loading || this.targetCacheState.scenarios.loading) {
+            console.log('⏭️ Skipping target poll - previous request still in progress');
+            return;
+        }
+        
+        // Set loading states
+        this.targetCacheState.resources.loading = true;
+        this.targetCacheState.scenarios.loading = true;
+        
+        try {
             // Load resources and scenarios in parallel
             const [resourcesResponse, scenariosResponse] = await Promise.all([
                 fetch(`${this.apiBase}/resources`),
                 fetch(`${this.apiBase}/scenarios`)
             ]);
             
+            // Process resources
             if (resourcesResponse.ok) {
-                this.resources = await resourcesResponse.json();
-                console.log(`🔧 Discovered ${this.resources.length} resources:`, this.resources.map(r => r.name));
+                const newResources = await resourcesResponse.json();
+                this.resources = newResources;
+                this.targetCacheState.resources.error = null;
+                this.targetCacheState.resources.lastUpdate = Date.now();
+                console.log(`🔧 Updated ${this.resources.length} resources in cache:`, this.resources.map(r => r.name));
             } else {
                 console.warn('Failed to load resources:', resourcesResponse.statusText);
-                this.resources = [];
+                this.targetCacheState.resources.error = `HTTP ${resourcesResponse.status}`;
             }
             
+            // Process scenarios
             if (scenariosResponse.ok) {
-                this.scenarios = await scenariosResponse.json();
-                console.log(`📋 Discovered ${this.scenarios.length} scenarios:`, this.scenarios.map(s => s.name));
+                const newScenarios = await scenariosResponse.json();
+                this.scenarios = newScenarios;
+                this.targetCacheState.scenarios.error = null;
+                this.targetCacheState.scenarios.lastUpdate = Date.now();
+                console.log(`📋 Updated ${this.scenarios.length} scenarios in cache:`, this.scenarios.map(s => s.name));
             } else {
                 console.warn('Failed to load scenarios:', scenariosResponse.statusText);
-                this.scenarios = [];
+                this.targetCacheState.scenarios.error = `HTTP ${scenariosResponse.status}`;
             }
+            
         } catch (error) {
-            console.error('Failed to load discovery data:', error);
-            // Don't throw - this isn't critical for basic functionality
-            this.resources = [];
-            this.scenarios = [];
+            console.error('Failed to poll target data:', error);
+            this.targetCacheState.resources.error = error.message;
+            this.targetCacheState.scenarios.error = error.message;
+        } finally {
+            // Clear loading states
+            this.targetCacheState.resources.loading = false;
+            this.targetCacheState.scenarios.loading = false;
         }
+    }
+    
+    setupCleanupHandlers() {
+        // Stop polling when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            this.stopTargetPolling();
+        });
+        
+        // Stop polling on page visibility change (when tab becomes hidden)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('📱 Page hidden - stopping target polling');
+                this.stopTargetPolling();
+            } else {
+                console.log('📱 Page visible - resuming target polling');
+                this.startTargetPolling();
+                // Immediately poll for fresh data when page becomes visible again
+                this.pollTargets().catch(error => {
+                    console.warn('Failed to refresh targets on page visibility:', error);
+                });
+            }
+        });
+        
+        // Handle network connectivity changes
+        window.addEventListener('online', () => {
+            console.log('🌐 Network online - resuming target polling');
+            this.startTargetPolling();
+            this.pollTargets().catch(error => {
+                console.warn('Failed to refresh targets on network reconnect:', error);
+            });
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('📴 Network offline - stopping target polling');
+            this.stopTargetPolling();
+        });
     }
     
     async loadAllTasks() {
@@ -1129,35 +1242,108 @@ class EcosystemManager {
         }
         
         const select = document.getElementById('task-target');
-        select.innerHTML = '<option value="">Select target to improve...</option>';
         
-        let targets = [];
-        if (type === 'resource') {
-            targets = this.resources;
-        } else if (type === 'scenario') {
-            targets = this.scenarios;
-        }
-        
-        targets.forEach(target => {
-            const option = document.createElement('option');
-            option.value = target.name;
-            option.textContent = `${target.name} (${target.category || 'uncategorized'})`;
-            if (target.prd_completion_percentage !== undefined) {
-                option.textContent += ` - ${target.prd_completion_percentage}% complete`;
+        try {
+            // Use cached data immediately - no loading state!
+            let targets = [];
+            if (type === 'resource') {
+                targets = [...this.resources];
+            } else if (type === 'scenario') {
+                targets = [...this.scenarios];
             }
-            if (!target.healthy) {
-                option.textContent += ' ⚠️';
-                option.style.color = '#f39c12';
+            
+            // Sort targets alphabetically by name
+            targets.sort((a, b) => a.name.localeCompare(b.name));
+            
+            // Clear options and add base option
+            select.innerHTML = '<option value="">Select target to improve...</option>';
+            
+            // Add cache status information in the base option if data is stale or has errors
+            const cacheState = this.targetCacheState[type + 's']; // 'resources' or 'scenarios'
+            if (cacheState) {
+                const now = Date.now();
+                const dataAge = cacheState.lastUpdate ? Math.floor((now - cacheState.lastUpdate) / 1000) : null;
+                
+                if (cacheState.error) {
+                    select.options[0].textContent = `Select target (data error: ${cacheState.error})...`;
+                    select.options[0].style.color = '#dc3545';
+                } else if (cacheState.loading) {
+                    select.options[0].textContent = 'Select target (updating data)...';
+                    select.options[0].style.color = '#ffc107';
+                } else if (dataAge && dataAge > 60) {
+                    select.options[0].textContent = `Select target (data ${dataAge}s old)...`;
+                    select.options[0].style.color = '#6c757d';
+                }
             }
-            select.appendChild(option);
-        });
-        
-        if (targets.length === 0) {
-            const option = document.createElement('option');
-            option.value = '';
-            option.textContent = `No ${type}s discovered`;
-            option.disabled = true;
-            select.appendChild(option);
+            
+            targets.forEach(target => {
+                const option = document.createElement('option');
+                option.value = target.name;
+                
+                // Build option text with enhanced status information
+                let optionText = target.name;
+                
+                // Add category if available
+                if (target.category) {
+                    optionText += ` (${target.category})`;
+                }
+                
+                // Add completion percentage for scenarios
+                if (type === 'scenario' && target.prd_completion_percentage !== undefined) {
+                    optionText += ` - ${target.prd_completion_percentage}% complete`;
+                }
+                
+                // Add health status
+                if (target.healthy === true) {
+                    optionText += ' ✓';
+                    option.style.color = '#28a745'; // Green for healthy
+                } else if (target.healthy === false) {
+                    optionText += ' ✗ [UNHEALTHY]';
+                    option.style.color = '#dc3545'; // Red for unhealthy
+                } else {
+                    optionText += ' ? [UNKNOWN]';
+                    option.style.color = '#ffc107'; // Yellow for unknown
+                }
+                
+                // Add running status for resources
+                if (type === 'resource' && target.port) {
+                    optionText += ` :${target.port}`;
+                }
+                
+                option.textContent = optionText;
+                select.appendChild(option);
+            });
+            
+            // If no targets found, show a helpful message
+            if (targets.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                
+                // Check if we've never loaded data before
+                const cacheState = this.targetCacheState[type + 's'];
+                const hasNeverLoaded = !cacheState || (!cacheState.lastUpdate && !cacheState.error);
+                
+                if (hasNeverLoaded) {
+                    option.textContent = `Loading ${type}s... please wait`;
+                    option.style.color = '#ffc107';
+                } else if (cacheState && cacheState.error) {
+                    option.textContent = `Failed to load ${type}s - check connection`;
+                    option.style.color = '#dc3545';
+                } else {
+                    option.textContent = `No ${type}s found - they may need to be created first`;
+                    option.style.color = '#6c757d';
+                }
+                
+                option.disabled = true;
+                option.style.fontStyle = 'italic';
+                select.appendChild(option);
+            }
+            
+            console.log(`📋 Updated ${type} selector with ${targets.length} cached targets`);
+            
+        } catch (error) {
+            console.error(`Failed to populate ${type} targets:`, error);
+            select.innerHTML = `<option value="">Error populating ${type}s - please try again</option>`;
         }
     }
     
@@ -1699,6 +1885,15 @@ class EcosystemManager {
         // Load all tasks with timeout
         await this.loadAllTasks();
         
+        // Refresh target data (resources and scenarios)
+        try {
+            await this.pollTargets();
+            console.log('🎯 Refreshed target data as part of full refresh');
+        } catch (error) {
+            console.warn('Could not refresh target data:', error);
+            // Don't fail the entire refresh if target refresh fails
+        }
+        
         // Fetch and update queue status
         await this.fetchQueueProcessorStatus();
         
@@ -1862,6 +2057,9 @@ class EcosystemManager {
         // Apply theme
         this.applyTheme(this.settings.theme);
         
+        // Apply condensed mode setting
+        this.applyCondensedMode(this.settings.condensed_mode);
+        
         // Set up media query listener for auto theme
         if (window.matchMedia) {
             const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
@@ -1873,6 +2071,7 @@ class EcosystemManager {
         const defaultSettings = {
             // Display settings
             theme: 'light',
+            condensed_mode: false,
             
             // Queue processor settings
             slots: 1,
@@ -1946,6 +2145,9 @@ class EcosystemManager {
                     if (settings.theme) {
                         this.applyTheme(settings.theme);
                     }
+                    if (settings.condensed_mode !== undefined) {
+                        this.applyCondensedMode(settings.condensed_mode);
+                    }
                     
                     console.log('Settings saved to backend successfully');
                     return true;
@@ -1964,6 +2166,9 @@ class EcosystemManager {
                 
                 if (settings.theme) {
                     this.applyTheme(settings.theme);
+                }
+                if (settings.condensed_mode !== undefined) {
+                    this.applyCondensedMode(settings.condensed_mode);
                 }
                 
                 console.log('Settings saved to localStorage as fallback');
@@ -2021,6 +2226,15 @@ class EcosystemManager {
         }
     }
     
+    applyCondensedMode(condensed) {
+        const body = document.body;
+        if (condensed) {
+            body.classList.add('condensed-mode');
+        } else {
+            body.classList.remove('condensed-mode');
+        }
+    }
+    
     openSettingsModal() {
         const modal = document.getElementById('settings-modal');
         
@@ -2038,6 +2252,7 @@ class EcosystemManager {
     populateSettingsForm() {
         // Display settings
         document.getElementById('settings-theme').value = this.settings.theme;
+        document.getElementById('settings-condensed-mode').checked = this.settings.condensed_mode;
         
         // Queue processor settings
         document.getElementById('settings-slots').value = this.settings.slots;
@@ -2061,6 +2276,7 @@ class EcosystemManager {
         const newSettings = {
             // Display settings
             theme: formData.get('theme'),
+            condensed_mode: formData.get('condensed_mode') === 'on',
             
             // Queue processor settings
             slots: parseInt(formData.get('slots')),
@@ -2127,6 +2343,7 @@ class EcosystemManager {
                     // Update UI
                     this.populateSettingsForm();
                     this.applyTheme(this.settings.theme);
+                    this.applyCondensedMode(this.settings.condensed_mode);
                     
                     this.showToast('Settings reset to defaults', 'info');
                     console.log('Settings reset via backend API');
@@ -2142,6 +2359,7 @@ class EcosystemManager {
             // Fallback to local reset
             const defaultSettings = {
                 theme: 'light',
+                condensed_mode: false,
                 slots: 1,
                 refresh_interval: 30,
                 active: false,

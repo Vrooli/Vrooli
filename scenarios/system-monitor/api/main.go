@@ -368,6 +368,168 @@ type ReportRequest struct {
 	Type string `json:"type"`
 }
 
+// loadTriggerConfig loads trigger configuration from JSON file
+func loadTriggerConfig() error {
+	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			homeDir = "/home/matthalloran8"
+		}
+		configPath = filepath.Join(homeDir, "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	}
+	
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	
+	var config struct {
+		Triggers []struct {
+			ID          string  `json:"id"`
+			Name        string  `json:"name"`
+			Description string  `json:"description"`
+			Icon        string  `json:"icon"`
+			Enabled     bool    `json:"enabled"`
+			AutoFix     bool    `json:"auto_fix"`
+			Threshold   float64 `json:"threshold"`
+			Unit        string  `json:"unit"`
+			Condition   string  `json:"condition"`
+		} `json:"triggers"`
+	}
+	
+	if err := json.Unmarshal(data, &config); err != nil {
+		return err
+	}
+	
+	// Update triggers map
+	triggersMutex.Lock()
+	defer triggersMutex.Unlock()
+	
+	for _, t := range config.Triggers {
+		triggers[t.ID] = &TriggerConfig{
+			ID:          t.ID,
+			Name:        t.Name,
+			Description: t.Description,
+			Icon:        t.Icon,
+			Enabled:     t.Enabled,
+			AutoFix:     t.AutoFix,
+			Threshold:   t.Threshold,
+			Unit:        t.Unit,
+			Condition:   t.Condition,
+		}
+	}
+	
+	return nil
+}
+
+// saveTriggerConfig saves trigger configuration to JSON file
+func saveTriggerConfig() error {
+	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			homeDir = "/home/matthalloran8"
+		}
+		configPath = filepath.Join(homeDir, "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	}
+	
+	// Copy trigger data while holding the lock
+	triggersCopy := make(map[string]*TriggerConfig)
+	triggersMutex.Lock()
+	for id, trigger := range triggers {
+		triggersCopy[id] = &TriggerConfig{
+			ID:          trigger.ID,
+			Name:        trigger.Name,
+			Description: trigger.Description,
+			Icon:        trigger.Icon,
+			Enabled:     trigger.Enabled,
+			AutoFix:     trigger.AutoFix,
+			Threshold:   trigger.Threshold,
+			Unit:        trigger.Unit,
+			Condition:   trigger.Condition,
+		}
+	}
+	triggersMutex.Unlock()
+	
+	// Now do file I/O without holding the lock
+	// Read existing config to preserve extra fields
+	existingData, err := os.ReadFile(configPath)
+	var existingConfig map[string]interface{}
+	if err == nil {
+		json.Unmarshal(existingData, &existingConfig)
+	} else {
+		existingConfig = make(map[string]interface{})
+	}
+	
+	// Build triggers array
+	var triggerList []map[string]interface{}
+	
+	// First, preserve any existing triggers with their extra fields
+	if existingTriggers, ok := existingConfig["triggers"].([]interface{}); ok {
+		for _, et := range existingTriggers {
+			if triggerMap, ok := et.(map[string]interface{}); ok {
+				if id, ok := triggerMap["id"].(string); ok {
+					// Check if we have an updated version
+					if updatedTrigger, exists := triggersCopy[id]; exists {
+						// Update core fields while preserving extras
+						triggerMap["enabled"] = updatedTrigger.Enabled
+						triggerMap["auto_fix"] = updatedTrigger.AutoFix
+						triggerMap["threshold"] = updatedTrigger.Threshold
+						triggerMap["name"] = updatedTrigger.Name
+						triggerMap["description"] = updatedTrigger.Description
+						triggerMap["icon"] = updatedTrigger.Icon
+						triggerMap["unit"] = updatedTrigger.Unit
+						triggerMap["condition"] = updatedTrigger.Condition
+					}
+					triggerList = append(triggerList, triggerMap)
+				}
+			}
+		}
+	}
+	
+	// Add any new triggers that weren't in the file
+	for id, trigger := range triggersCopy {
+		found := false
+		for _, t := range triggerList {
+			if t["id"] == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			triggerList = append(triggerList, map[string]interface{}{
+				"id":          trigger.ID,
+				"name":        trigger.Name,
+				"description": trigger.Description,
+				"icon":        trigger.Icon,
+				"enabled":     trigger.Enabled,
+				"auto_fix":    trigger.AutoFix,
+				"threshold":   trigger.Threshold,
+				"unit":        trigger.Unit,
+				"condition":   trigger.Condition,
+			})
+		}
+	}
+	
+	// Update the config
+	existingConfig["triggers"] = triggerList
+	
+	// Update metadata
+	if metadata, ok := existingConfig["metadata"].(map[string]interface{}); ok {
+		metadata["last_modified"] = time.Now().Format(time.RFC3339)
+	}
+	
+	// Marshal with indentation
+	data, err := json.MarshalIndent(existingConfig, "", "    ")
+	if err != nil {
+		return err
+	}
+	
+	// Write to file
+	return os.WriteFile(configPath, data, 0644)
+}
+
 func main() {
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
@@ -436,6 +598,11 @@ func main() {
 
 	// Initialize MonitoringProcessor
 	monitoringProcessor = NewMonitoringProcessor(db)
+	
+	// Load trigger configuration from file
+	if err := loadTriggerConfig(); err != nil {
+		log.Printf("Failed to load trigger config, using defaults: %v", err)
+	}
 
 	r := mux.NewRouter()
 
@@ -451,6 +618,7 @@ func main() {
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
+	r.HandleFunc("/api/investigations/agent/spawn", spawnAgentHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/cooldown", getCooldownStatusHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/cooldown/reset", resetCooldownHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/cooldown/period", updateCooldownPeriodHandler).Methods("PUT")
@@ -482,6 +650,9 @@ func main() {
 	// Error logs endpoint for system output
 	r.HandleFunc("/api/errors", getErrorsHandler).Methods("GET")
 	r.HandleFunc("/api/errors/mark-read", markErrorsReadHandler).Methods("POST")
+
+	// Process management endpoints
+	r.HandleFunc("/api/processes/{pid}/kill", killProcessHandler).Methods("POST")
 
 	// Enable CORS
 	r.Use(corsMiddleware)
@@ -1311,6 +1482,12 @@ func getSystemFileDescriptors() (int, int) {
 	return used, max
 }
 
+func spawnAgentHandler(w http.ResponseWriter, r *http.Request) {
+	// This is the endpoint the UI calls when spawning an agent
+	// It's essentially the same as triggerInvestigationHandler
+	triggerInvestigationHandler(w, r)
+}
+
 func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse request body for auto_fix parameter and optional note
 	var reqBody struct {
@@ -1454,11 +1631,11 @@ func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
+	// Update trigger with lock
 	triggersMutex.Lock()
-	defer triggersMutex.Unlock()
-	
 	trigger, exists := triggers[triggerID]
 	if !exists {
+		triggersMutex.Unlock()
 		http.Error(w, "Trigger not found", http.StatusNotFound)
 		return
 	}
@@ -1472,8 +1649,13 @@ func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Threshold != nil {
 		trigger.Threshold = *req.Threshold
 	}
+	triggersMutex.Unlock()  // Release lock before file I/O
 	
-	// TODO: Save to configuration file if needed
+	// Save to configuration file (without holding lock)
+	if err := saveTriggerConfig(); err != nil {
+		log.Printf("Failed to save trigger config: %v", err)
+		// Continue anyway - in-memory update succeeded
+	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
@@ -2086,6 +2268,56 @@ func markErrorsReadHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode mark-read response: %v", err)
 	}
+}
+
+// killProcessHandler handles process termination requests
+func killProcessHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	pidStr := vars["pid"]
+	
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error": "Invalid PID format",
+		})
+		return
+	}
+	
+	// Kill the process with SIGKILL
+	cmd := exec.Command("kill", "-9", strconv.Itoa(pid))
+	if err := cmd.Run(); err != nil {
+		// Check if process exists
+		checkCmd := exec.Command("kill", "-0", strconv.Itoa(pid))
+		if checkErr := checkCmd.Run(); checkErr != nil {
+			// Process doesn't exist
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error": "Process not found",
+			})
+			return
+		}
+		
+		// Process exists but couldn't be killed (permission issue)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"error": "Permission denied. Try running with elevated privileges.",
+		})
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": fmt.Sprintf("Process %d terminated successfully", pid),
+	})  
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request) {

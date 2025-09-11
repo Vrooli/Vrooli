@@ -1,7 +1,20 @@
 // Authentication UI JavaScript
-const API_URL = window.location.hostname === 'localhost' 
-    ? 'http://localhost:3250' 
-    : window.location.origin.replace(':3251', ':3250');
+// API URL configuration - fetched from server config
+let API_URL = '';
+
+// Fetch API configuration from server
+async function fetchConfig() {
+    try {
+        const response = await fetch('/config');
+        const config = await response.json();
+        API_URL = config.apiUrl;
+        return config;
+    } catch (error) {
+        console.error('Failed to fetch config, using default:', error);
+        // Fallback to default if config endpoint fails
+        API_URL = `${window.location.protocol}//${window.location.hostname}:15000`;
+    }
+}
 
 // Get URL parameters
 const urlParams = new URLSearchParams(window.location.search);
@@ -342,7 +355,11 @@ async function checkAuth() {
 }
 
 // Check auth on page load
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Fetch config first
+    await fetchConfig();
+    
+    // Then check auth
     checkAuth();
     
     // Focus first input
@@ -354,7 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export for use in other scenarios
 window.VrooliAuth = {
-    API_URL,
+    getApiUrl: () => API_URL,
     getToken: () => sessionStorage.getItem('auth_token') || localStorage.getItem('auth_token'),
     getUser: () => {
         const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');

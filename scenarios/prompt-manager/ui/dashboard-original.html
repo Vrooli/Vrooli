@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Manager Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useMemo } = React;
+
+        // API configuration
+        let API_URL = '';
+        
+        // Fetch configuration on load
+        fetch('/api/config')
+            .then(res => res.json())
+            .then(config => {
+                API_URL = config.apiUrl;
+                console.log('API configured:', API_URL);
+            })
+            .catch(err => {
+                console.error('Failed to fetch config:', err);
+                // Fallback to environment variable port
+                const port = window.location.port || '15000';
+                API_URL = `http://localhost:${port}`;
+            });
+
+        // API utilities
+        const api = {
+            get: async (endpoint) => {
+                const response = await fetch(`${API_URL}${endpoint}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            },
+            post: async (endpoint, data) => {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            },
+            put: async (endpoint, data) => {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.json();
+            },
+            delete: async (endpoint) => {
+                const response = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.status === 204 ? {} : response.json();
+            }
+        };
+
+        // Campaign Tree Component
+        function CampaignTree({ campaigns, selectedCampaign, onSelectCampaign, onCreateCampaign }) {
+            const [isCreating, setIsCreating] = useState(false);
+            const [newCampaignName, setNewCampaignName] = useState('');
+
+            const handleCreate = async () => {
+                if (!newCampaignName.trim()) return;
+                
+                try {
+                    const campaign = await api.post('/api/v1/campaigns', {
+                        name: newCampaignName,
+                        description: '',
+                        color: '#6366f1',
+                        icon: 'folder'
+                    });
+                    onCreateCampaign(campaign);
+                    setNewCampaignName('');
+                    setIsCreating(false);
+                } catch (error) {
+                    console.error('Failed to create campaign:', error);
+                }
+            };
+
+            return (
+                <div className="bg-white rounded-lg shadow p-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">Campaigns</h3>
+                        <button
+                            onClick={() => setIsCreating(true)}
+                            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        >
+                            + New
+                        </button>
+                    </div>
+                    
+                    {isCreating && (
+                        <div className="mb-4 p-3 bg-gray-50 rounded">
+                            <input
+                                type="text"
+                                value={newCampaignName}
+                                onChange={(e) => setNewCampaignName(e.target.value)}
+                                placeholder="Campaign name..."
+                                className="w-full px-3 py-2 border rounded mb-2"
+                                autoFocus
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleCreate}
+                                    className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                                >
+                                    Create
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsCreating(false);
+                                        setNewCampaignName('');
+                                    }}
+                                    className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-2">
+                        {campaigns.map(campaign => (
+                            <div
+                                key={campaign.id}
+                                onClick={() => onSelectCampaign(campaign)}
+                                className={`p-3 rounded cursor-pointer transition-colors ${
+                                    selectedCampaign?.id === campaign.id
+                                        ? 'bg-blue-100 border-blue-500 border'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                }`}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="font-medium">{campaign.name}</div>
+                                        <div className="text-sm text-gray-500">
+                                            {campaign.prompt_count || 0} prompts
+                                        </div>
+                                    </div>
+                                    {campaign.is_favorite && (
+                                        <span className="text-yellow-500">⭐</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Prompt List Component
+        function PromptList({ prompts, selectedPrompt, onSelectPrompt, onCreatePrompt, campaignId }) {
+            const [isCreating, setIsCreating] = useState(false);
+            const [newPrompt, setNewPrompt] = useState({ title: '', content: '' });
+
+            const handleCreate = async () => {
+                if (!newPrompt.title.trim() || !newPrompt.content.trim()) return;
+                
+                try {
+                    const prompt = await api.post('/api/v1/prompts', {
+                        campaign_id: campaignId,
+                        title: newPrompt.title,
+                        content: newPrompt.content,
+                        variables: []
+                    });
+                    onCreatePrompt(prompt);
+                    setNewPrompt({ title: '', content: '' });
+                    setIsCreating(false);
+                } catch (error) {
+                    console.error('Failed to create prompt:', error);
+                }
+            };
+
+            return (
+                <div className="bg-white rounded-lg shadow p-4">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">Prompts</h3>
+                        {campaignId && (
+                            <button
+                                onClick={() => setIsCreating(true)}
+                                className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                            >
+                                + Add Prompt
+                            </button>
+                        )}
+                    </div>
+
+                    {isCreating && (
+                        <div className="mb-4 p-3 bg-gray-50 rounded">
+                            <input
+                                type="text"
+                                value={newPrompt.title}
+                                onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })}
+                                placeholder="Prompt title..."
+                                className="w-full px-3 py-2 border rounded mb-2"
+                                autoFocus
+                            />
+                            <textarea
+                                value={newPrompt.content}
+                                onChange={(e) => setNewPrompt({ ...newPrompt, content: e.target.value })}
+                                placeholder="Prompt content..."
+                                className="w-full px-3 py-2 border rounded mb-2 h-32"
+                            />
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleCreate}
+                                    className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                                >
+                                    Create
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsCreating(false);
+                                        setNewPrompt({ title: '', content: '' });
+                                    }}
+                                    className="bg-gray-300 px-3 py-1 rounded hover:bg-gray-400"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {prompts.map(prompt => (
+                            <div
+                                key={prompt.id}
+                                onClick={() => onSelectPrompt(prompt)}
+                                className={`p-3 rounded cursor-pointer transition-colors ${
+                                    selectedPrompt?.id === prompt.id
+                                        ? 'bg-blue-100 border-blue-500 border'
+                                        : 'bg-gray-50 hover:bg-gray-100'
+                                }`}
+                            >
+                                <div className="font-medium">{prompt.title}</div>
+                                <div className="text-sm text-gray-500 truncate">
+                                    {prompt.content}
+                                </div>
+                                <div className="flex items-center gap-4 mt-1">
+                                    <span className="text-xs text-gray-400">
+                                        Used {prompt.usage_count || 0} times
+                                    </span>
+                                    {prompt.is_favorite && (
+                                        <span className="text-yellow-500 text-xs">⭐</span>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        // Prompt Editor Component
+        function PromptEditor({ prompt, onSave, onDelete }) {
+            const [editedPrompt, setEditedPrompt] = useState(prompt || {});
+            const [isSaving, setIsSaving] = useState(false);
+
+            useEffect(() => {
+                setEditedPrompt(prompt || {});
+            }, [prompt]);
+
+            const handleSave = async () => {
+                if (!editedPrompt.id) return;
+                
+                setIsSaving(true);
+                try {
+                    const updated = await api.put(`/api/v1/prompts/${editedPrompt.id}`, {
+                        title: editedPrompt.title,
+                        content: editedPrompt.content,
+                        description: editedPrompt.description,
+                        is_favorite: editedPrompt.is_favorite
+                    });
+                    onSave(updated);
+                } catch (error) {
+                    console.error('Failed to save prompt:', error);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            const handleDelete = async () => {
+                if (!editedPrompt.id || !confirm('Delete this prompt?')) return;
+                
+                try {
+                    await api.delete(`/api/v1/prompts/${editedPrompt.id}`);
+                    onDelete(editedPrompt.id);
+                } catch (error) {
+                    console.error('Failed to delete prompt:', error);
+                }
+            };
+
+            const handleTest = async () => {
+                if (!editedPrompt.id) return;
+                
+                try {
+                    const result = await api.post(`/api/v1/prompts/${editedPrompt.id}/test`, {
+                        model: 'llama3.2',
+                        variables: {}
+                    });
+                    alert(`Test Result:\n\n${result.response || 'No response'}`);
+                } catch (error) {
+                    console.error('Failed to test prompt:', error);
+                    alert('Testing is not available (Ollama may not be configured)');
+                }
+            };
+
+            if (!prompt) {
+                return (
+                    <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                        Select a prompt to edit
+                    </div>
+                );
+            }
+
+            return (
+                <div className="bg-white rounded-lg shadow p-4">
+                    <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-lg font-semibold">Edit Prompt</h3>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleTest}
+                                className="bg-purple-500 text-white px-3 py-1 rounded hover:bg-purple-600"
+                            >
+                                Test
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving}
+                                className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 disabled:opacity-50"
+                            >
+                                {isSaving ? 'Saving...' : 'Save'}
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Title</label>
+                            <input
+                                type="text"
+                                value={editedPrompt.title || ''}
+                                onChange={(e) => setEditedPrompt({ ...editedPrompt, title: e.target.value })}
+                                className="w-full px-3 py-2 border rounded"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Content</label>
+                            <textarea
+                                value={editedPrompt.content || ''}
+                                onChange={(e) => setEditedPrompt({ ...editedPrompt, content: e.target.value })}
+                                className="w-full px-3 py-2 border rounded h-64 font-mono text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Description</label>
+                            <textarea
+                                value={editedPrompt.description || ''}
+                                onChange={(e) => setEditedPrompt({ ...editedPrompt, description: e.target.value })}
+                                className="w-full px-3 py-2 border rounded h-20"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    checked={editedPrompt.is_favorite || false}
+                                    onChange={(e) => setEditedPrompt({ ...editedPrompt, is_favorite: e.target.checked })}
+                                />
+                                <span>Favorite</span>
+                            </label>
+                        </div>
+
+                        <div className="pt-4 border-t text-sm text-gray-500">
+                            <div>Created: {new Date(editedPrompt.created_at).toLocaleString()}</div>
+                            <div>Updated: {new Date(editedPrompt.updated_at).toLocaleString()}</div>
+                            <div>Usage Count: {editedPrompt.usage_count || 0}</div>
+                            {editedPrompt.word_count && (
+                                <div>Word Count: {editedPrompt.word_count}</div>
+                            )}
+                            {editedPrompt.estimated_tokens && (
+                                <div>Estimated Tokens: {editedPrompt.estimated_tokens}</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Main App Component
+        function App() {
+            const [campaigns, setCampaigns] = useState([]);
+            const [prompts, setPrompts] = useState([]);
+            const [selectedCampaign, setSelectedCampaign] = useState(null);
+            const [selectedPrompt, setSelectedPrompt] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [searchQuery, setSearchQuery] = useState('');
+
+            // Load campaigns
+            useEffect(() => {
+                const loadCampaigns = async () => {
+                    try {
+                        const data = await api.get('/api/v1/campaigns');
+                        setCampaigns(data);
+                    } catch (error) {
+                        console.error('Failed to load campaigns:', error);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                // Wait for API_URL to be set
+                setTimeout(loadCampaigns, 500);
+            }, []);
+
+            // Load prompts when campaign changes
+            useEffect(() => {
+                if (!selectedCampaign) {
+                    setPrompts([]);
+                    return;
+                }
+
+                const loadPrompts = async () => {
+                    try {
+                        const data = await api.get(`/api/v1/campaigns/${selectedCampaign.id}/prompts`);
+                        setPrompts(data);
+                    } catch (error) {
+                        console.error('Failed to load prompts:', error);
+                    }
+                };
+
+                loadPrompts();
+            }, [selectedCampaign]);
+
+            const handleSearch = async () => {
+                if (!searchQuery.trim()) return;
+                
+                try {
+                    const results = await api.get(`/api/v1/search/prompts?q=${encodeURIComponent(searchQuery)}`);
+                    setPrompts(results);
+                    setSelectedCampaign(null);
+                } catch (error) {
+                    console.error('Search failed:', error);
+                }
+            };
+
+            const handleCreateCampaign = (campaign) => {
+                setCampaigns([...campaigns, campaign]);
+                setSelectedCampaign(campaign);
+            };
+
+            const handleCreatePrompt = (prompt) => {
+                setPrompts([...prompts, prompt]);
+                setSelectedPrompt(prompt);
+            };
+
+            const handleSavePrompt = (updatedPrompt) => {
+                setPrompts(prompts.map(p => p.id === updatedPrompt.id ? updatedPrompt : p));
+                setSelectedPrompt(updatedPrompt);
+            };
+
+            const handleDeletePrompt = (promptId) => {
+                setPrompts(prompts.filter(p => p.id !== promptId));
+                setSelectedPrompt(null);
+            };
+
+            if (loading) {
+                return (
+                    <div className="flex items-center justify-center h-screen">
+                        <div className="spinner"></div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-gray-50">
+                    {/* Header */}
+                    <header className="bg-white shadow-sm border-b">
+                        <div className="max-w-7xl mx-auto px-4 py-4">
+                            <div className="flex items-center justify-between">
+                                <h1 className="text-2xl font-bold text-gray-900">
+                                    📝 Prompt Manager
+                                </h1>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                        placeholder="Search prompts..."
+                                        className="px-3 py-2 border rounded-lg w-64"
+                                    />
+                                    <button
+                                        onClick={handleSearch}
+                                        className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+                                    >
+                                        Search
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="max-w-7xl mx-auto px-4 py-6">
+                        <div className="grid grid-cols-12 gap-6">
+                            {/* Campaign Tree */}
+                            <div className="col-span-3">
+                                <CampaignTree
+                                    campaigns={campaigns}
+                                    selectedCampaign={selectedCampaign}
+                                    onSelectCampaign={setSelectedCampaign}
+                                    onCreateCampaign={handleCreateCampaign}
+                                />
+                            </div>
+
+                            {/* Prompt List */}
+                            <div className="col-span-4">
+                                <PromptList
+                                    prompts={prompts}
+                                    selectedPrompt={selectedPrompt}
+                                    onSelectPrompt={setSelectedPrompt}
+                                    onCreatePrompt={handleCreatePrompt}
+                                    campaignId={selectedCampaign?.id}
+                                />
+                            </div>
+
+                            {/* Prompt Editor */}
+                            <div className="col-span-5">
+                                <PromptEditor
+                                    prompt={selectedPrompt}
+                                    onSave={handleSavePrompt}
+                                    onDelete={handleDeletePrompt}
+                                />
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

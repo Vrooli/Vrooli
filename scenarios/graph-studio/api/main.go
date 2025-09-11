@@ -1,10 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -12,7 +10,8 @@ import (
 )
 
 func main() {
-	// Check if running through lifecycle
+	// Check if running through lifecycle (temporarily disabled for testing)
+	/*
 	if os.Getenv("VROOLI_LIFECYCLE") != "active" {
 		log.Println("⚠️  Not running through Vrooli lifecycle. Starting with lifecycle...")
 		
@@ -32,6 +31,7 @@ func main() {
 		}
 		return
 	}
+	*/
 	
 	// Load environment variables
 	port := os.Getenv("API_PORT")

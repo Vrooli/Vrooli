@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-API_URL="${AUTH_API_URL:-http://localhost:3250}"
+SCENARIO_NAME="scenario-authenticator"
 AUTH_TOKEN="${AUTH_TOKEN:-}"
 OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
 
@@ -16,6 +16,53 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Port Discovery - Dynamic port lookup
+get_api_url() {
+    # Use vrooli scenario port command for dynamic port lookup
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" AUTH_API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        # Try fallback to API_PORT
+        api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    fi
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+get_ui_url() {
+    # Get UI port for integration code generation
+    local ui_port
+    ui_port=$(vrooli scenario port "${SCENARIO_NAME}" AUTH_UI_PORT 2>/dev/null)
+    
+    if [[ -z "$ui_port" ]]; then
+        # Try fallback to UI_PORT
+        ui_port=$(vrooli scenario port "${SCENARIO_NAME}" UI_PORT 2>/dev/null)
+    fi
+    
+    if [[ -z "$ui_port" ]]; then
+        echo ""
+        return 1
+    fi
+    
+    echo "http://localhost:${ui_port}"
+}
+
+# Initialize API URL on first use
+API_URL=""
+get_api_url_cached() {
+    if [[ -z "$API_URL" ]]; then
+        API_URL=$(get_api_url)
+    fi
+    echo "$API_URL"
+}
 
 # Helper functions
 print_error() {
@@ -40,6 +87,7 @@ api_request() {
     local endpoint="$2"
     local data="$3"
     local auth_header=""
+    local api_url=$(get_api_url_cached)
     
     if [ -n "$AUTH_TOKEN" ]; then
         auth_header="-H \"Authorization: Bearer $AUTH_TOKEN\""
@@ -50,12 +98,12 @@ api_request() {
              -H "Content-Type: application/json" \
              $auth_header \
              -d "$data" \
-             "${API_URL}${endpoint}"
+             "${api_url}${endpoint}"
     else
         curl -s -X "$method" \
              -H "Content-Type: application/json" \
              $auth_header \
-             "${API_URL}${endpoint}"
+             "${api_url}${endpoint}"
     fi
 }
 
@@ -83,7 +131,7 @@ cmd_status() {
         
         if [ "$verbose" == "--verbose" ]; then
             echo ""
-            echo "API URL: $API_URL"
+            echo "API URL: $(get_api_url_cached)"
             echo "Configuration:"
             echo "  - JWT tokens expire in 1 hour"
             echo "  - Refresh tokens expire in 7 days"
@@ -241,15 +289,19 @@ cmd_protect() {
     if [ -z "$scenario" ]; then
         print_error "Scenario name is required"
         echo "Usage: $0 protect <scenario> [type]"
-        echo "Types: api, ui, workflow"
+        echo "Types: api, ui"
         exit 1
     fi
     
     print_info "Generating integration code for $scenario..."
     
+    # Get dynamic URLs
+    local api_url=$(get_api_url_cached)
+    local ui_url=$(get_ui_url)
+    
     case "$type" in
         api)
-            cat << 'EOF'
+            cat << EOF
 // Add to your API handler
 const validateAuth = async (req, res, next) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
@@ -258,8 +310,12 @@ const validateAuth = async (req, res, next) => {
     }
     
     try {
-        const response = await fetch('http://localhost:3250/api/v1/auth/validate', {
-            headers: { 'Authorization': `Bearer ${token}` }
+        // Get auth API port dynamically
+        const authApiPort = process.env.AUTH_API_PORT || process.env.API_PORT;
+        const authApiUrl = \`http://localhost:\${authApiPort}\`;
+        
+        const response = await fetch(\`\${authApiUrl}/api/v1/auth/validate\`, {
+            headers: { 'Authorization': \`Bearer \${token}\` }
         });
         
         const validation = await response.json();
@@ -283,25 +339,32 @@ EOF
             ;;
             
         ui)
-            cat << 'EOF'
+            cat << EOF
 // Add to your UI initialization
 async function checkAuth() {
     const token = localStorage.getItem('auth_token');
     if (!token) {
-        window.location.href = 'http://localhost:3251/login?redirect=' + 
+        // Get auth UI port dynamically from environment or configuration
+        const authUiPort = window.AUTH_UI_PORT || '${ui_url##*:}';
+        window.location.href = \`http://localhost:\${authUiPort}/login?redirect=\` + 
                               encodeURIComponent(window.location.href);
         return false;
     }
     
     try {
-        const response = await fetch('http://localhost:3250/api/v1/auth/validate', {
-            headers: { 'Authorization': `Bearer ${token}` }
+        // Get auth API port dynamically from environment or configuration
+        const authApiPort = window.AUTH_API_PORT || '${api_url##*:}';
+        const authApiUrl = \`http://localhost:\${authApiPort}\`;
+        
+        const response = await fetch(\`\${authApiUrl}/api/v1/auth/validate\`, {
+            headers: { 'Authorization': \`Bearer \${token}\` }
         });
         
         const validation = await response.json();
         if (!validation.valid) {
             localStorage.removeItem('auth_token');
-            window.location.href = 'http://localhost:3251/login?redirect=' + 
+            const authUiPort = window.AUTH_UI_PORT || '${ui_url##*:}';
+            window.location.href = \`http://localhost:\${authUiPort}/login?redirect=\` + 
                                   encodeURIComponent(window.location.href);
             return false;
         }
@@ -319,30 +382,9 @@ document.addEventListener('DOMContentLoaded', checkAuth);
 EOF
             ;;
             
-        workflow)
-            cat << 'EOF'
-Use the shared n8n workflow: initialization/n8n/auth-validator.json
-
-1. Import the workflow into your scenario
-2. Set webhook URL to your endpoint
-3. Configure to call auth validation
-4. Check response.valid before proceeding
-
-Example webhook node configuration:
-{
-  "webhookUrl": "/your-endpoint",
-  "responseMode": "onReceived",
-  "responseData": "allEntries",
-  "options": {
-    "validateAuth": true
-  }
-}
-EOF
-            ;;
-            
         *)
             print_error "Unknown integration type: $type"
-            echo "Valid types: api, ui, workflow"
+            echo "Valid types: api, ui"
             exit 1
             ;;
     esac
@@ -362,7 +404,8 @@ cmd_version() {
 
 cmd_help() {
     cat << EOF
-Scenario Authenticator CLI - Universal authentication service for Vrooli
+Scenario Authenticator CLI v1.0.0
+Universal authentication service for Vrooli
 
 Usage: $0 <command> [arguments]
 
@@ -383,10 +426,9 @@ Commands:
     session list [user_id]                  List active sessions
     session revoke <session_id>             Revoke specific session
     
-    protect <scenario> [type]               Generate integration code
+    protect <scenario> [type]               Generate integration code (api|ui)
     
 Environment Variables:
-    AUTH_API_URL    API endpoint (default: http://localhost:3250)
     AUTH_TOKEN      Bearer token for authenticated requests
     OUTPUT_FORMAT   Output format: text or json (default: text)
 

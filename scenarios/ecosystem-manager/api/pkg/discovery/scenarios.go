@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/ecosystem-manager/api/pkg/tasks"
@@ -15,13 +16,19 @@ import (
 func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 	var scenarios []tasks.ScenarioInfo
 
-	// Use vrooli command to get scenarios list
-	cmd := exec.Command("vrooli", "scenario", "list", "--json")
+	// Use vrooli command to get scenarios list with verbose output
+	cmd := exec.Command("vrooli", "scenario", "list", "--json", "--verbose")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Warning: Failed to run 'vrooli scenario list --json': %v", err)
-		// Return empty list instead of error to prevent UI issues
-		return scenarios, nil
+		log.Printf("Warning: Failed to run 'vrooli scenario list --json --verbose': %v", err)
+		// Try without verbose flag as fallback
+		cmd = exec.Command("vrooli", "scenario", "list", "--json")
+		output, err = cmd.Output()
+		if err != nil {
+			log.Printf("Warning: Fallback failed too: %v", err)
+			// Return empty list instead of error to prevent UI issues
+			return scenarios, nil
+		}
 	}
 
 	// Parse the JSON output - vrooli returns an object with "scenarios" field
@@ -52,6 +59,11 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 			scenarios = append(scenarios, scenario)
 		}
 	}
+
+	// Sort scenarios alphabetically by name
+	sort.Slice(scenarios, func(i, j int) bool {
+		return scenarios[i].Name < scenarios[j].Name
+	})
 
 	log.Printf("Discovered %d scenarios via vrooli command", len(scenarios))
 	return scenarios, nil

@@ -224,15 +224,12 @@ CREATE VIEW user_permissions AS
     FROM users u
     WHERE u.deleted_at IS NULL;
 
--- Grant permissions for application user (will be created by setup)
--- This will be executed when the application connects
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'scenario_authenticator') THEN
-        CREATE USER scenario_authenticator WITH PASSWORD 'auth_secure_password_changeme';
-    END IF;
-END
-$$;
+-- Grant permissions for application user
+-- NOTE: The application user should be created by the resource management system
+-- with proper credentials from environment variables. The application connects
+-- using POSTGRES_USER and POSTGRES_PASSWORD environment variables.
+-- If you need to manually create the user, run:
+-- CREATE USER scenario_authenticator WITH PASSWORD 'your-secure-password';
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO scenario_authenticator;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO scenario_authenticator;

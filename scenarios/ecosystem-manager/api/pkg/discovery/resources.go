@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"os/exec"
+	"sort"
 
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
@@ -12,13 +13,19 @@ import (
 func DiscoverResources() ([]tasks.ResourceInfo, error) {
 	var resources []tasks.ResourceInfo
 
-	// Use vrooli command to get resources list
-	cmd := exec.Command("vrooli", "resource", "list", "--json")
+	// Use vrooli command to get resources list with verbose output
+	cmd := exec.Command("vrooli", "resource", "list", "--json", "--verbose")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Warning: Failed to run 'vrooli resource list --json': %v", err)
-		// Return empty list instead of error to prevent UI issues
-		return resources, nil
+		log.Printf("Warning: Failed to run 'vrooli resource list --json --verbose': %v", err)
+		// Try without verbose flag as fallback
+		cmd = exec.Command("vrooli", "resource", "list", "--json")
+		output, err = cmd.Output()
+		if err != nil {
+			log.Printf("Warning: Fallback failed too: %v", err)
+			// Return empty list instead of error to prevent UI issues
+			return resources, nil
+		}
 	}
 
 	// Parse the JSON output
@@ -45,6 +52,11 @@ func DiscoverResources() ([]tasks.ResourceInfo, error) {
 			resources = append(resources, resource)
 		}
 	}
+
+	// Sort resources alphabetically by name
+	sort.Slice(resources, func(i, j int) bool {
+		return resources[i].Name < resources[j].Name
+	})
 
 	log.Printf("Discovered %d resources via vrooli command", len(resources))
 	return resources, nil

@@ -1,79 +1,79 @@
 {
-    "version": "1.0.0",
     "cooldown": {
-        "period_seconds": 300,
-        "description": "Minimum time between automatic investigations to prevent spam"
+        "description": "Minimum time between automatic investigations to prevent spam",
+        "period_seconds": 300
+    },
+    "metadata": {
+        "config_version": "1.0.0",
+        "created_at": "2025-09-11T00:00:00Z",
+        "last_modified": "2025-09-11T17:03:51-04:00"
     },
     "triggers": [
         {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when CPU usage exceeds threshold for sustained period",
+            "enabled": true,
+            "icon": "cpu",
             "id": "high_cpu",
             "name": "High CPU Usage",
-            "description": "Triggers when CPU usage exceeds threshold for sustained period",
-            "icon": "cpu",
-            "enabled": true,
-            "auto_fix": false,
-            "threshold": 85,
-            "unit": "%",
-            "condition": "above",
+            "priority": "high",
             "sustained_duration_seconds": 60,
-            "priority": "high"
+            "threshold": 75,
+            "unit": "%"
         },
         {
+            "auto_fix": true,
+            "condition": "below",
+            "description": "Triggers when available memory falls below threshold",
+            "enabled": true,
+            "icon": "database",
             "id": "memory_pressure",
             "name": "Memory Pressure",
-            "description": "Triggers when available memory falls below threshold",
-            "icon": "database",
-            "enabled": true,
-            "auto_fix": true,
-            "threshold": 10,
-            "unit": "%",
-            "condition": "below",
+            "priority": "critical",
             "sustained_duration_seconds": 30,
-            "priority": "critical"
+            "threshold": 10,
+            "unit": "%"
         },
         {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when disk usage exceeds threshold",
+            "enabled": true,
+            "icon": "hard-drive",
             "id": "disk_space",
             "name": "Low Disk Space",
-            "description": "Triggers when disk usage exceeds threshold",
-            "icon": "hard-drive",
-            "enabled": true,
-            "auto_fix": true,
-            "threshold": 90,
-            "unit": "%",
-            "condition": "above",
+            "priority": "high",
             "sustained_duration_seconds": 120,
-            "priority": "high"
+            "threshold": 90,
+            "unit": "%"
         },
         {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when active connections exceed normal levels",
+            "enabled": true,
+            "icon": "network",
             "id": "network_connections",
             "name": "Excessive Network Connections",
-            "description": "Triggers when active connections exceed normal levels",
-            "icon": "network",
-            "enabled": false,
-            "auto_fix": false,
-            "threshold": 1000,
-            "unit": " connections",
-            "condition": "above",
+            "priority": "medium",
             "sustained_duration_seconds": 30,
-            "priority": "medium"
+            "threshold": 2000,
+            "unit": " connections"
         },
         {
+            "auto_fix": true,
+            "condition": "above",
+            "description": "Triggers when zombie or high-resource processes detected",
+            "enabled": true,
+            "icon": "zap",
             "id": "process_anomaly",
             "name": "Process Anomaly",
-            "description": "Triggers when zombie or high-resource processes detected",
-            "icon": "zap",
-            "enabled": true,
-            "auto_fix": false,
-            "threshold": 5,
-            "unit": " processes",
-            "condition": "above",
+            "priority": "high",
             "sustained_duration_seconds": 10,
-            "priority": "high"
+            "threshold": 25,
+            "unit": " processes"
         }
     ],
-    "metadata": {
-        "created_at": "2025-09-11T00:00:00Z",
-        "last_modified": "2025-09-11T00:00:00Z",
-        "config_version": "1.0.0"
-    }
+    "version": "1.0.0"
 }

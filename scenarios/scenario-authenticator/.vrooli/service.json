@@ -269,7 +269,7 @@
       }
     ],
     "example_integration": {
-      "api": "const isValid = await fetch('http://localhost:3252/api/v1/auth/validate', { headers: { 'Authorization': `Bearer ${token}` } });",
+      "api": "const isValid = await fetch(`http://localhost:${process.env.AUTH_API_PORT}/api/v1/auth/validate`, { headers: { 'Authorization': `Bearer ${token}` } });",
       "cli": "scenario-authenticator token validate $TOKEN"
     }
   }

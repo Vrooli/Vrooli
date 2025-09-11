@@ -7,7 +7,9 @@ class CalendarApp {
         this.currentView = 'week';
         this.events = [];
         // Get API URL from environment or derive from current origin
-        this.apiBaseUrl = window.CALENDAR_API_URL || window.location.origin.replace(':35001', ':15001');
+        this.apiBaseUrl = window.CALENDAR_API_URL || (() => {
+            throw new Error('CALENDAR_API_URL must be configured');
+        })();
         this.authToken = localStorage.getItem('calendar_auth_token');
         
         this.init();

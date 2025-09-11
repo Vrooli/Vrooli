@@ -422,8 +422,8 @@ func (s *InvestigationService) getTCPConnections() int {
 
 // initializeDefaultTriggers sets up default trigger configurations
 func (s *InvestigationService) initializeDefaultTriggers() {
-	s.triggers["high-cpu"] = &models.TriggerConfig{
-		ID:          "high-cpu",
+	s.triggers["high_cpu"] = &models.TriggerConfig{
+		ID:          "high_cpu",
 		Name:        "High CPU Usage",
 		Description: "Triggers when CPU usage exceeds threshold",
 		Icon:        "cpu",
@@ -434,51 +434,51 @@ func (s *InvestigationService) initializeDefaultTriggers() {
 		Condition:   "above",
 	}
 	
-	s.triggers["high-memory"] = &models.TriggerConfig{
-		ID:          "high-memory",
-		Name:        "High Memory Usage",
-		Description: "Triggers when memory usage exceeds threshold",
+	s.triggers["memory_pressure"] = &models.TriggerConfig{
+		ID:          "memory_pressure",
+		Name:        "Memory Pressure",
+		Description: "Triggers when available memory falls below threshold",
 		Icon:        "database",
 		Enabled:     true,
-		AutoFix:     false,
+		AutoFix:     true,
+		Threshold:   10.0,
+		Unit:        "%",
+		Condition:   "below",
+	}
+	
+	s.triggers["disk_space"] = &models.TriggerConfig{
+		ID:          "disk_space",
+		Name:        "Low Disk Space",
+		Description: "Triggers when disk usage exceeds threshold",
+		Icon:        "hard-drive",
+		Enabled:     true,
+		AutoFix:     true,
 		Threshold:   90.0,
 		Unit:        "%",
 		Condition:   "above",
 	}
 	
-	s.triggers["disk-space"] = &models.TriggerConfig{
-		ID:          "disk-space",
-		Name:        "Low Disk Space",
-		Description: "Triggers when available disk space falls below threshold",
-		Icon:        "hard-drive",
-		Enabled:     false,
-		AutoFix:     true,
-		Threshold:   10.0,
-		Unit:        "GB",
-		Condition:   "below",
-	}
-	
-	s.triggers["network-connections"] = &models.TriggerConfig{
-		ID:          "network-connections",
+	s.triggers["network_connections"] = &models.TriggerConfig{
+		ID:          "network_connections",
 		Name:        "Excessive Network Connections",
-		Description: "Triggers when TCP connections exceed threshold",
+		Description: "Triggers when active connections exceed normal levels",
 		Icon:        "network",
-		Enabled:     true,
+		Enabled:     false,
 		AutoFix:     false,
 		Threshold:   1000.0,
-		Unit:        "connections",
+		Unit:        " connections",
 		Condition:   "above",
 	}
 	
-	s.triggers["process-count"] = &models.TriggerConfig{
-		ID:          "process-count",
-		Name:        "Process Count Anomaly",
-		Description: "Triggers when process count exceeds normal range",
+	s.triggers["process_anomaly"] = &models.TriggerConfig{
+		ID:          "process_anomaly",
+		Name:        "Process Anomaly",
+		Description: "Triggers when zombie or high-resource processes detected",
 		Icon:        "zap",
-		Enabled:     false,
+		Enabled:     true,
 		AutoFix:     false,
-		Threshold:   500.0,
-		Unit:        "processes",
+		Threshold:   5.0,
+		Unit:        " processes",
 		Condition:   "above",
 	}
 }
@@ -636,33 +636,70 @@ func (s *InvestigationService) saveTriggersToConfig() error {
 		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
 	}
 	
-	// Prepare config structure
-	var triggers []map[string]interface{}
-	for _, t := range s.triggers {
-		triggers = append(triggers, map[string]interface{}{
-			"id":          t.ID,
-			"name":        t.Name,
-			"description": t.Description,
-			"icon":        t.Icon,
-			"enabled":     t.Enabled,
-			"auto_fix":    t.AutoFix,
-			"threshold":   t.Threshold,
-			"unit":        t.Unit,
-			"condition":   t.Condition,
-		})
+	// Read existing configuration to preserve extra fields
+	existingData, err := ioutil.ReadFile(configPath)
+	var existingConfig map[string]interface{}
+	if err == nil {
+		json.Unmarshal(existingData, &existingConfig)
+	} else {
+		existingConfig = make(map[string]interface{})
 	}
 	
-	config := map[string]interface{}{
-		"version": "1.0.0",
-		"cooldown": map[string]interface{}{
-			"period_seconds": int(s.cooldownPeriod.Seconds()),
-			"description":    "Minimum time between automatic investigations to prevent spam",
-		},
-		"triggers": triggers,
-		"metadata": map[string]interface{}{
+	// Get existing triggers as a map for easier lookup
+	existingTriggers := make(map[string]map[string]interface{})
+	if triggers, ok := existingConfig["triggers"].([]interface{}); ok {
+		for _, t := range triggers {
+			if trigger, ok := t.(map[string]interface{}); ok {
+				if id, ok := trigger["id"].(string); ok {
+					existingTriggers[id] = trigger
+				}
+			}
+		}
+	}
+	
+	// Update triggers with current values while preserving extra fields
+	var triggers []map[string]interface{}
+	for _, t := range s.triggers {
+		trigger := make(map[string]interface{})
+		
+		// Start with existing trigger data if it exists
+		if existing, ok := existingTriggers[t.ID]; ok {
+			for k, v := range existing {
+				trigger[k] = v
+			}
+		}
+		
+		// Update with current values
+		trigger["id"] = t.ID
+		trigger["name"] = t.Name
+		trigger["description"] = t.Description
+		trigger["icon"] = t.Icon
+		trigger["enabled"] = t.Enabled
+		trigger["auto_fix"] = t.AutoFix
+		trigger["threshold"] = t.Threshold
+		trigger["unit"] = t.Unit
+		trigger["condition"] = t.Condition
+		
+		triggers = append(triggers, trigger)
+	}
+	
+	// Build final config preserving other top-level fields
+	config := existingConfig
+	config["version"] = "1.0.0"
+	config["cooldown"] = map[string]interface{}{
+		"period_seconds": int(s.cooldownPeriod.Seconds()),
+		"description":    "Minimum time between automatic investigations to prevent spam",
+	}
+	config["triggers"] = triggers
+	
+	// Update metadata
+	if metadata, ok := config["metadata"].(map[string]interface{}); ok {
+		metadata["last_modified"] = time.Now().Format(time.RFC3339)
+	} else {
+		config["metadata"] = map[string]interface{}{
 			"last_modified": time.Now().Format(time.RFC3339),
 			"config_version": "1.0.0",
-		},
+		}
 	}
 	
 	data, err := json.MarshalIndent(config, "", "    ")

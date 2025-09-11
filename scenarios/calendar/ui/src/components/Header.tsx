@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import { useCalendarStore } from '@/stores/calendarStore'
-import { ChevronLeft, ChevronRight, Calendar, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Menu } from 'lucide-react'
 
 export function Header() {
   const { 
@@ -8,7 +8,8 @@ export function Header() {
     viewType, 
     navigateDate, 
     setViewType,
-    selectEvent 
+    selectEvent,
+    toggleSidebar
   } = useCalendarStore()
 
   const handleCreateEvent = () => {
@@ -55,6 +56,15 @@ export function Header() {
   return (
     <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-center space-x-4">
+        {/* Sidebar Toggle */}
+        <button
+          onClick={toggleSidebar}
+          className="btn-ghost p-2"
+          aria-label="Toggle sidebar"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+
         {/* Navigation Controls */}
         <div className="flex items-center space-x-1">
           <button

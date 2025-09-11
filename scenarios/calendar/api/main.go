@@ -37,6 +37,8 @@ type Config struct {
 var db *sql.DB
 var calendarProcessor *CalendarProcessor
 var nlpProcessor *NLPProcessor
+var vectorSearchManager *VectorSearchManager
+var errorHandler *ErrorHandler
 
 // Models
 type Event struct {
@@ -621,26 +623,63 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func createEventHandler(w http.ResponseWriter, r *http.Request) {
 	var req CreateEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		errorHandler.HandleError(w, r, BadRequestError("Invalid JSON in request body", map[string]string{"parse_error": err.Error()}))
+		return
+	}
+
+	// Validate request
+	var validationErrors ValidationErrors
+	if ve := ValidateRequired("title", req.Title); ve != nil {
+		validationErrors = append(validationErrors, *ve)
+	}
+	if ve := ValidateRequired("start_time", req.StartTime); ve != nil {
+		validationErrors = append(validationErrors, *ve)
+	}
+	if ve := ValidateRequired("end_time", req.EndTime); ve != nil {
+		validationErrors = append(validationErrors, *ve)
+	}
+	if ve := ValidateStringLength("title", req.Title, 1, 255); ve != nil {
+		validationErrors = append(validationErrors, *ve)
+	}
+	
+	if len(validationErrors) > 0 {
+		errorHandler.HandleError(w, r, validationErrors)
 		return
 	}
 
 	userID := r.Header.Get("X-User-ID")
 	if userID == "" {
-		http.Error(w, "User ID not found", http.StatusUnauthorized)
+		errorHandler.HandleError(w, r, UnauthorizedError("User authentication required"))
 		return
 	}
 
 	// Parse timestamps
 	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
-		http.Error(w, "Invalid start_time format: "+err.Error(), http.StatusBadRequest)
+		errorHandler.HandleError(w, r, BadRequestError("Invalid start_time format", map[string]string{
+			"expected_format": "RFC3339 (2006-01-02T15:04:05Z07:00)",
+			"provided_value": req.StartTime,
+			"parse_error": err.Error(),
+		}))
 		return
 	}
 
 	endTime, err := time.Parse(time.RFC3339, req.EndTime)
 	if err != nil {
-		http.Error(w, "Invalid end_time format: "+err.Error(), http.StatusBadRequest)
+		errorHandler.HandleError(w, r, BadRequestError("Invalid end_time format", map[string]string{
+			"expected_format": "RFC3339 (2006-01-02T15:04:05Z07:00)",
+			"provided_value": req.EndTime,
+			"parse_error": err.Error(),
+		}))
+		return
+	}
+
+	// Validate time logic
+	if endTime.Before(startTime) || endTime.Equal(startTime) {
+		errorHandler.HandleError(w, r, BadRequestError("End time must be after start time", map[string]string{
+			"start_time": req.StartTime,
+			"end_time": req.EndTime,
+		}))
 		return
 	}
 
@@ -661,8 +700,7 @@ func createEventHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err = db.Exec(query, eventID, userID, req.Title, req.Description, startTime, endTime, timezone, req.Location, req.EventType, metadataJSON, automationJSON)
 	if err != nil {
-		log.Printf("Error creating event: %v", err)
-		http.Error(w, "Failed to create event", http.StatusInternalServerError)
+		errorHandler.HandleError(w, r, DatabaseError("event creation", err))
 		return
 	}
 
@@ -685,6 +723,28 @@ func createEventHandler(w http.ResponseWriter, r *http.Request) {
 			reminderCount++
 		}
 	}
+
+	// Create vector embedding for AI-powered search
+	createdEvent := Event{
+		ID:          eventID,
+		UserID:      userID,
+		Title:       req.Title,
+		Description: req.Description,
+		StartTime:   startTime,
+		EndTime:     endTime,
+		Timezone:    timezone,
+		Location:    req.Location,
+		EventType:   req.EventType,
+		Metadata:    req.Metadata,
+	}
+	
+	// Generate embedding asynchronously to avoid blocking response
+	go func() {
+		ctx := context.Background()
+		if err := vectorSearchManager.CreateEmbeddingForEvent(ctx, createdEvent); err != nil {
+			log.Printf("Warning: Failed to create embedding for event %s: %v", eventID, err)
+		}
+	}()
 
 	// Return success response
 	response := map[string]interface{}{
@@ -743,36 +803,49 @@ func listEventsHandler(w http.ResponseWriter, r *http.Request) {
 		args = append(args, eventType)
 	}
 
-	if search != "" {
-		argCount++
-		query += fmt.Sprintf(" AND (title ILIKE $%d OR description ILIKE $%d)", argCount, argCount)
-		args = append(args, "%"+search+"%")
-	}
-
-	query += " ORDER BY start_time ASC LIMIT 100"
-
-	// Execute query
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		log.Printf("Error querying events: %v", err)
-		http.Error(w, "Failed to query events", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
 	var events []Event
-	for rows.Next() {
-		var event Event
-		err := rows.Scan(
-			&event.ID, &event.UserID, &event.Title, &event.Description,
-			&event.StartTime, &event.EndTime, &event.Timezone, &event.Location,
-			&event.EventType, &event.Status, &event.CreatedAt, &event.UpdatedAt,
-		)
+
+	if search != "" {
+		// Use semantic search powered by Qdrant
+		ctx := r.Context()
+		semanticEvents, err := vectorSearchManager.SearchEventsBySemantic(ctx, search, userID, 100)
 		if err != nil {
-			log.Printf("Error scanning event: %v", err)
-			continue
+			log.Printf("Error performing semantic search: %v", err)
+			// Fallback to basic search
+			argCount++
+			query += fmt.Sprintf(" AND (title ILIKE $%d OR description ILIKE $%d)", argCount, argCount)
+			args = append(args, "%"+search+"%")
+		} else {
+			// Filter semantic results by other criteria (date, type)
+			events = filterEventsByCriteria(semanticEvents, startDate, endDate, eventType)
 		}
-		events = append(events, event)
+	}
+
+	if len(events) == 0 && search == "" {
+		// Regular query without search
+		query += " ORDER BY start_time ASC LIMIT 100"
+
+		rows, err := db.Query(query, args...)
+		if err != nil {
+			log.Printf("Error querying events: %v", err)
+			http.Error(w, "Failed to query events", http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var event Event
+			err := rows.Scan(
+				&event.ID, &event.UserID, &event.Title, &event.Description,
+				&event.StartTime, &event.EndTime, &event.Timezone, &event.Location,
+				&event.EventType, &event.Status, &event.CreatedAt, &event.UpdatedAt,
+			)
+			if err != nil {
+				log.Printf("Error scanning event: %v", err)
+				continue
+			}
+			events = append(events, event)
+		}
 	}
 
 	response := map[string]interface{}{
@@ -1020,6 +1093,14 @@ func deleteEventHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Warning: Failed to cancel reminders for event %s: %v", eventID, err)
 	}
 
+	// Clean up vector embedding asynchronously
+	go func() {
+		ctx := context.Background()
+		if err := vectorSearchManager.DeleteEmbeddingForEvent(ctx, eventID); err != nil {
+			log.Printf("Warning: Failed to delete embedding for event %s: %v", eventID, err)
+		}
+	}()
+
 	response := map[string]interface{}{
 		"success": true,
 		"message": "Event deleted successfully",
@@ -1215,6 +1296,39 @@ func getEventIDs(events []Event) []string {
 	return ids
 }
 
+// filterEventsByCriteria filters events based on date range and event type
+func filterEventsByCriteria(events []Event, startDate, endDate, eventType string) []Event {
+	var filtered []Event
+	
+	for _, event := range events {
+		// Apply date filter
+		if startDate != "" {
+			if startTime, err := time.Parse(time.RFC3339, startDate); err == nil {
+				if event.StartTime.Before(startTime) {
+					continue
+				}
+			}
+		}
+		
+		if endDate != "" {
+			if endTime, err := time.Parse(time.RFC3339, endDate); err == nil {
+				if event.StartTime.After(endTime) {
+					continue
+				}
+			}
+		}
+		
+		// Apply event type filter
+		if eventType != "" && event.EventType != eventType {
+			continue
+		}
+		
+		filtered = append(filtered, event)
+	}
+	
+	return filtered
+}
+
 // processRemindersHandler manually triggers reminder processing
 func processRemindersHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -1264,6 +1378,13 @@ func main() {
 	// Initialize NLP processor (will use fallback if Ollama unavailable)
 	nlpProcessor = NewNLPProcessor(config.OllamaURL, db, config)
 	
+	// Initialize vector search manager for Qdrant integration
+	vectorSearchManager = NewVectorSearchManager(db, config.QdrantURL)
+	
+	// Initialize error handler (include stack traces in development)
+	includeStackTrace := os.Getenv("GO_ENV") != "production"
+	errorHandler = NewErrorHandler(includeStackTrace, true)
+	
 	// Start reminder processor in background
 	ctx := context.Background()
 	calendarProcessor.StartReminderProcessor(ctx)
@@ -1300,15 +1421,16 @@ func main() {
 		AllowCredentials: true,
 	})
 
-	// Setup logging middleware
-	loggedRouter := handlers.LoggingHandler(os.Stdout, corsHandler.Handler(router))
+	// Setup middleware chain: Recovery -> Logging -> CORS
+	recoveryMiddleware := RecoveryMiddleware(errorHandler)
+	middlewareChain := recoveryMiddleware(handlers.LoggingHandler(os.Stdout, corsHandler.Handler(router)))
 
 	// Start server
 	address := ":" + config.Port
 	log.Printf("Calendar API server starting on port %s", config.Port)
 	log.Printf("Health check: http://localhost:%s/health", config.Port)
 	
-	if err := http.ListenAndServe(address, loggedRouter); err != nil {
+	if err := http.ListenAndServe(address, middlewareChain); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

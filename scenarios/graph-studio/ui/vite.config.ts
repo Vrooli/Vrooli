@@ -1,34 +1,35 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// Validate required environment variables
-const requiredEnvVars = ['VITE_API_URL', 'VITE_WS_URL']
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+// Get ports from environment variables
+const UI_PORT = parseInt(process.env.UI_PORT);
+const API_PORT = parseInt(process.env.API_PORT);
 
-if (missingVars.length > 0) {
-  throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`)
-}
+const API_BASE_URL = `http://localhost:${API_PORT}`;
+const WS_BASE_URL = `ws://localhost:${API_PORT}`;
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: parseInt(process.env.UI_PORT || '9101'),
+    port: UI_PORT,
     host: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL,
+        target: API_BASE_URL,
         changeOrigin: true,
+        secure: false,
+      },
+      '/health': {
+        target: API_BASE_URL,
+        changeOrigin: true,
+        secure: false,
       },
       '/ws': {
-        target: process.env.VITE_WS_URL,
+        target: WS_BASE_URL,
         ws: true,
         changeOrigin: true,
-      },
-    },
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-  },
-})
+        secure: false,
+      }
+    }
+  }
+});

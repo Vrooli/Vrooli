@@ -64,11 +64,17 @@ fi
 
 # Test 2: Create Event
 echo "Testing: Create Event"
+
+# Generate dynamic dates (tomorrow at 10:00 and 11:00 UTC)
+tomorrow=$(date -u -d "tomorrow" +%Y-%m-%d)
+start_time="${tomorrow}T10:00:00Z"
+end_time="${tomorrow}T11:00:00Z"
+
 create_data='{
     "title": "Test Meeting",
     "description": "Integration test meeting",
-    "start_time": "2024-12-20T10:00:00Z",
-    "end_time": "2024-12-20T11:00:00Z",
+    "start_time": "'$start_time'",
+    "end_time": "'$end_time'",
     "location": "Conference Room A",
     "event_type": "meeting",
     "reminders": [

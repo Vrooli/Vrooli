@@ -185,8 +185,7 @@
           },
           "env": {
             "UI_PORT": "${UI_PORT}",
-            "VITE_API_URL": "http://localhost:${API_PORT}",
-            "VITE_WS_URL": "ws://localhost:${API_PORT}",
+            "API_PORT": "${API_PORT}",
             "VITE_APP_NAME": "Graph Studio",
             "VITE_ENABLE_AI": "${resource.ollama.enabled}"
           }

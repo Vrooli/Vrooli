@@ -1,17 +1,12 @@
 import axios, { AxiosInstance } from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL
-
 class ApiClient {
   private client: AxiosInstance
   
   constructor() {
-    if (!API_BASE_URL) {
-      throw new Error('VITE_API_URL environment variable is required but not set')
-    }
-    
+    // Use relative URLs - the vite proxy will handle routing to the correct backend
     this.client = axios.create({
-      baseURL: API_BASE_URL,
+      baseURL: '', // Empty base URL means use relative paths
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',

@@ -99,19 +99,7 @@ const validateAuth = async (req, res, next) => {
 router.use('/api/protected', validateAuth);
 ```
 
-**Option 2: n8n Workflow Integration**
-
-```json
-// Use the shared auth-validator.json workflow
-{
-  "webhook": "/your-endpoint",
-  "workflow": "auth-validator",
-  "on_success": "continue_to_business_logic",
-  "on_failure": "return_401"
-}
-```
-
-**Option 3: Go API Integration**
+**Option 2: Go API Integration**
 
 ```go
 func authMiddleware(next http.Handler) http.Handler {
@@ -194,7 +182,6 @@ await VrooliAuth.logout();
 # Generate integration code
 scenario-authenticator protect my-scenario api
 scenario-authenticator protect my-scenario ui
-scenario-authenticator protect my-scenario workflow
 
 # Manage users
 scenario-authenticator user list --role admin
@@ -249,21 +236,14 @@ scenario-authenticator status --verbose
 | `/api/v1/sessions` | GET | List active sessions |
 | `/api/v1/sessions/{id}` | DELETE | Revoke session |
 
-## 🔄 Workflows Available
+## 🔄 API Endpoints Available
 
-### Shared n8n Workflows
+All authentication workflows are implemented as direct API endpoints:
 
-1. **auth-validator.json**: Token validation middleware for any scenario
-2. **password-reset.json**: Complete password reset flow with email
-3. **token-refresh.json**: Automatic token refresh handling
-4. **user-onboarding.json**: New user onboarding automation
-
-### Using Shared Workflows
-
-```bash
-# Import into your scenario's n8n instance
-# The workflows are automatically available after running setup
-```
+1. **Token Validation**: `/api/v1/auth/validate` - Validate JWT tokens for any scenario
+2. **Password Reset**: `/api/v1/auth/reset-password` - Complete password reset flow with email  
+3. **Token Refresh**: `/api/v1/auth/refresh` - Automatic token refresh handling
+4. **User Registration**: `/api/v1/auth/register` - New user account creation
 
 ## 🧪 Testing
 

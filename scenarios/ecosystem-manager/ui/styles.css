@@ -1304,6 +1304,75 @@ button:focus,
     animation: dragPulse 1s infinite;
 }
 
+/* Condensed Mode Styles */
+.condensed-mode .task-card {
+    padding: 0.6rem;
+    margin-bottom: 0.6rem;
+}
+
+.condensed-mode .task-card .task-header {
+    margin-bottom: 0.4rem;
+}
+
+/* Hide the icon entirely in condensed mode */
+.condensed-mode .task-card .task-icon {
+    display: none;
+}
+
+.condensed-mode .task-card .task-title {
+    font-size: 0.85rem;
+    margin-bottom: 0.2rem;
+    line-height: 1.2;
+}
+
+.condensed-mode .task-card .task-meta {
+    margin-bottom: 0.4rem;
+    font-size: 0.7rem;
+    gap: 0.5rem;
+}
+
+.condensed-mode .task-card .task-tags {
+    margin-bottom: 0.4rem;
+    gap: 0.2rem;
+}
+
+.condensed-mode .task-card .task-tag {
+    padding: 0.1rem 0.4rem;
+    font-size: 0.7rem;
+}
+
+.condensed-mode .task-card .task-phase-chip {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    margin-top: 0.3rem;
+}
+
+.condensed-mode .task-card .task-error {
+    padding: 0.3rem;
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+}
+
+.condensed-mode .task-card .task-execution-status {
+    padding: 0.3rem;
+    margin-top: 0.3rem;
+    font-size: 0.75rem;
+}
+
+/* Hide task ID in condensed mode */
+.condensed-mode .task-card .task-id {
+    display: none;
+}
+
+/* Hide some elements in condensed mode to save space */
+.condensed-mode .task-card .task-meta span:nth-child(n+3) {
+    display: none;
+}
+
+.condensed-mode .task-card .task-tags .task-tag:nth-child(n+3) {
+    display: none;
+}
+
 /* Touch drag support - prevent text selection and improve touch handling */
 .task-card {
     -webkit-touch-callout: none;

@@ -3,19 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 
-// Configuration
-const PORT = process.env.AUTH_UI_PORT || 3251;
-
-
-// Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'scenario-authenticator',
-        port: PORT,
-        timestamp: new Date().toISOString()
-    });
-});
+// Configuration - PORT is required from environment
+const PORT = process.env.AUTH_UI_PORT || process.env.UI_PORT;
+if (!PORT) {
+    console.error('❌ AUTH_UI_PORT or UI_PORT environment variable is required');
+    process.exit(1);
+}
 
 // MIME types
 const mimeTypes = {
@@ -28,6 +21,9 @@ const mimeTypes = {
     '.gif': 'image/gif',
     '.ico': 'image/x-icon'
 };
+
+// Get API port from environment
+const API_PORT = process.env.AUTH_API_PORT || process.env.API_PORT || '15000';
 
 // Simple HTTP server
 const server = http.createServer((req, res) => {
@@ -42,6 +38,16 @@ const server = http.createServer((req, res) => {
     if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
+        return;
+    }
+    
+    // Config endpoint to provide API URL to client
+    if (pathname === '/config') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+            apiUrl: `http://localhost:${API_PORT}`,
+            version: '1.0.0'
+        }));
         return;
     }
     

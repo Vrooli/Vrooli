@@ -1,6 +1,12 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const app = express();
 
 // Port configuration - REQUIRED, no defaults
@@ -18,7 +24,6 @@ if (!API_PORT) {
 
 const SCENARIO_NAME = process.env.SCENARIO_NAME || 'prompt-manager';
 
-
 // Enable CORS for API communication
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
@@ -26,15 +31,16 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static files
-app.use(express.static(__dirname));
+// Serve static files from dist directory
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
         port: PORT,
-        scenario: SCENARIO_NAME
+        scenario: SCENARIO_NAME,
+        mode: 'production'
     });
 });
 
@@ -47,29 +53,34 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// Fallback routing for SPAs
+// Catch all handler: send back React's index.html file for client-side routing
 app.get('*', (req, res) => {
-    const dashboardFile = path.join(__dirname, 'dashboard.html');
-    const indexFile = path.join(__dirname, 'index.html');
-    
-    if (fs.existsSync(dashboardFile)) {
-        res.sendFile(dashboardFile);
-    } else if (fs.existsSync(indexFile)) {
+    const indexFile = path.join(__dirname, 'dist', 'index.html');
+    if (fs.existsSync(indexFile)) {
         res.sendFile(indexFile);
     } else {
-        res.status(404).json({ error: 'No UI files found' });
+        res.status(404).json({ error: 'Build not found. Please run npm run build first.' });
     }
 });
 
 const server = app.listen(PORT, () => {
-    console.log(`✅ UI server running on http://localhost:${PORT}`);
+    console.log(`✅ Prompt Manager UI server running on http://localhost:${PORT}`);
     console.log(`📡 API endpoint: http://localhost:${API_PORT}`);
     console.log(`🏷️  Scenario: ${SCENARIO_NAME}`);
+    console.log(`🎨 Serving modern React UI from /dist/`);
+    console.log(`🚀 Production mode with Vite build`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
     server.close(() => {
         console.log('UI server stopped');
+    });
+});
+
+process.on('SIGINT', () => {
+    server.close(() => {
+        console.log('UI server stopped');
+        process.exit(0);
     });
 });
