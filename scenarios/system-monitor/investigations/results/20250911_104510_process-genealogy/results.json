@@ -1,0 +1,73 @@
+{
+  "investigation": "process-genealogy",
+  "timestamp": "2025-09-11T10:45:10-04:00",
+  "process_families": [],
+  "suspicious_patterns": [
+    {
+      "pattern": "excessive_workers",
+      "count": 233
+    }
+  ],
+  "top_spawners": [
+    {
+      "ppid": 2283,
+      "child_count": 202
+    },
+    {
+      "ppid": 1,
+      "child_count": 52
+    },
+    {
+      "ppid": 1591062,
+      "child_count": 50
+    },
+    {
+      "ppid": 1591189,
+      "child_count": 49
+    },
+    {
+      "ppid": 651651,
+      "child_count": 23
+    },
+    {
+      "ppid": 3441,
+      "child_count": 16
+    },
+    {
+      "ppid": 3379058,
+      "child_count": 15
+    },
+    {
+      "ppid": 2316042,
+      "child_count": 11
+    },
+    {
+      "ppid": 1744685,
+      "child_count": 8
+    },
+    {
+      "ppid": 3841648,
+      "child_count": 7
+    },
+    {
+      "ppid": 2360227,
+      "child_count": 7
+    },
+    {
+      "ppid": 96477,
+      "child_count": 6
+    },
+    {
+      "ppid": 2316020,
+      "child_count": 6
+    },
+    {
+      "ppid": 12392,
+      "child_count": 6
+    }
+  ],
+  "recommendations": [
+    "Found 1 suspicious process patterns - review and potentially limit process spawning",
+    "Excessive worker processes (233) - check container memory limits and worker configuration"
+  ]
+}

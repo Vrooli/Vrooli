@@ -77,7 +77,7 @@ export const ReportsPanel = () => {
         marginBottom: 'var(--spacing-md)'
       }}>
         <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
-          GENERATED REPORTS
+          PLAYBACK REPORTS
         </h2>
         
         <div className="report-controls" style={{

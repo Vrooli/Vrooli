@@ -1229,6 +1229,14 @@ func getSystemFileDescriptors() (int, int) {
 }
 
 func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse request body for auto_fix parameter
+	var reqBody struct {
+		AutoFix bool `json:"auto_fix"`
+	}
+	if r.Body != nil {
+		json.NewDecoder(r.Body).Decode(&reqBody)
+	}
+
 	// Generate new investigation ID
 	investigationID := "inv_" + strconv.FormatInt(time.Now().Unix(), 10)
 
@@ -1244,6 +1252,13 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 		Steps:     []InvestigationStep{},
 	}
 
+	// Store auto_fix mode in investigation details
+	investigation.Details["auto_fix"] = reqBody.AutoFix
+	investigation.Details["operation_mode"] = "auto-fix"
+	if !reqBody.AutoFix {
+		investigation.Details["operation_mode"] = "report-only"
+	}
+
 	// Store investigation
 	investigationsMutex.Lock()
 	investigations[investigationID] = investigation
@@ -1252,7 +1267,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Start investigation in background
 	go func() {
-		runClaudeInvestigation(investigationID)
+		runClaudeInvestigation(investigationID, reqBody.AutoFix)
 	}()
 
 	// Return immediate response with API info
@@ -1265,7 +1280,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func runClaudeInvestigation(investigationID string) {
+func runClaudeInvestigation(investigationID string, autoFix bool) {
 	// Update status to in_progress
 	updateInvestigationField(investigationID, "Status", "in_progress")
 	updateInvestigationField(investigationID, "Progress", 10)
@@ -1280,8 +1295,14 @@ func runClaudeInvestigation(investigationID string) {
 	var findings string
 	var details map[string]interface{}
 	
+	// Determine operation mode
+	operationMode := "report-only"
+	if autoFix {
+		operationMode = "auto-fix"
+	}
+	
 	// Load investigation prompt with system context and script capabilities
-	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
+	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID, operationMode)
 	if err != nil {
 		log.Printf("Failed to load prompt template: %v", err)
 		// Enhanced fallback prompt with investigation scripts context
@@ -1289,6 +1310,7 @@ func runClaudeInvestigation(investigationID string) {
 
 ## Investigation Context
 - **Investigation ID**: %s
+- **Operation Mode**: %s
 - **Trigger**: Manual investigation request
 - **Timestamp**: %s
 - **API Base URL**: http://localhost:8080
@@ -1319,7 +1341,7 @@ Check for existing investigation scripts that may help:
 5. **Tool Enhancement**: Improve existing investigation scripts or create new ones
 
 Please begin your systematic investigation now, utilizing the investigation scripts framework to build lasting diagnostic capabilities.`,
-			investigationID, timestamp, cpuUsage, memoryUsage, tcpConnections)
+			investigationID, operationMode, timestamp, cpuUsage, memoryUsage, tcpConnections)
 	}
 
 	// Try Claude Code investigation with proper timeout and settings
@@ -1535,7 +1557,7 @@ System metrics are %s. %s`,
 	investigationsMutex.Unlock()
 }
 
-func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string) (string, error) {
+func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string, operationMode string) (string, error) {
 	// Get VROOLI_ROOT with proper fallback
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
@@ -1580,6 +1602,30 @@ func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpCon
 	prompt = strings.ReplaceAll(prompt, "{{TIMESTAMP}}", timestamp)
 	prompt = strings.ReplaceAll(prompt, "{{INVESTIGATION_ID}}", investigationID)
 	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
+	prompt = strings.ReplaceAll(prompt, "{{OPERATION_MODE}}", operationMode)
+	
+	// Process conditional sections based on operation mode
+	if operationMode == "auto-fix" {
+		// Remove report-only sections and their markers
+		reportOnlyStart := strings.Index(prompt, "{{#IF_REPORT_ONLY}}")
+		reportOnlyEnd := strings.Index(prompt, "{{/IF_REPORT_ONLY}}")
+		if reportOnlyStart != -1 && reportOnlyEnd != -1 {
+			prompt = prompt[:reportOnlyStart] + prompt[reportOnlyEnd+len("{{/IF_REPORT_ONLY}}"):]
+		}
+		// Remove auto-fix markers but keep content
+		prompt = strings.ReplaceAll(prompt, "{{#IF_AUTO_FIX}}", "")
+		prompt = strings.ReplaceAll(prompt, "{{/IF_AUTO_FIX}}", "")
+	} else {
+		// Remove auto-fix sections and their markers
+		autoFixStart := strings.Index(prompt, "{{#IF_AUTO_FIX}}")
+		autoFixEnd := strings.Index(prompt, "{{/IF_AUTO_FIX}}")
+		if autoFixStart != -1 && autoFixEnd != -1 {
+			prompt = prompt[:autoFixStart] + prompt[autoFixEnd+len("{{/IF_AUTO_FIX}}"):]
+		}
+		// Remove report-only markers but keep content
+		prompt = strings.ReplaceAll(prompt, "{{#IF_REPORT_ONLY}}", "")
+		prompt = strings.ReplaceAll(prompt, "{{/IF_REPORT_ONLY}}", "")
+	}
 
 	return prompt, nil
 }

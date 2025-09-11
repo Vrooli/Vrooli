@@ -1,0 +1,75 @@
+{
+  "investigation": "disk-io-analyzer",
+  "timestamp": "2025-09-11T10:47:37-04:00",
+  "disk_usage": [
+    {
+      "filesystem": "tmpfs",
+      "size": "6.2G",
+      "used": "4.1M",
+      "available": "6.2G",
+      "use_percent": 1,
+      "mount": "/run"
+    },
+    {
+      "filesystem": "/dev/nvme0n1p2",
+      "size": "1.8T",
+      "used": "444G",
+      "available": "1.3T",
+      "use_percent": 26,
+      "mount": "/"
+    },
+    {
+      "filesystem": "tmpfs",
+      "size": "31G",
+      "used": "246M",
+      "available": "31G",
+      "use_percent": 1,
+      "mount": "/dev/shm"
+    },
+    {
+      "filesystem": "tmpfs",
+      "size": "5.0M",
+      "used": "16K",
+      "available": "5.0M",
+      "use_percent": 1,
+      "mount": "/run/lock"
+    },
+    {
+      "filesystem": "efivarfs",
+      "size": "128K",
+      "used": "70K",
+      "available": "54K",
+      "use_percent": 57,
+      "mount": "/sys/firmware/efi/efivars"
+    },
+    {
+      "filesystem": "/dev/nvme0n1p1",
+      "size": "1.1G",
+      "used": "6.2M",
+      "available": "1.1G",
+      "use_percent": 1,
+      "mount": "/boot/efi"
+    },
+    {
+      "filesystem": "tmpfs",
+      "size": "6.2G",
+      "used": "224K",
+      "available": "6.2G",
+      "use_percent": 1,
+      "mount": "/run/user/1000"
+    },
+    {
+      "filesystem": "/dev/sda1",
+      "size": "30G",
+      "used": "7.1G",
+      "available": "23G",
+      "use_percent": 25,
+      "mount": "/media/matthalloran8/SAMDATA"
+    }
+  ],
+  "large_files": [],
+  "growing_files": [],
+  "io_stats": {},
+  "suspicious_patterns": [],
+  "recommendations": []
+}

@@ -4,8 +4,7 @@ import { MetricsGrid } from './components/metrics/MetricsGrid';
 import { ProcessMonitor } from './components/monitoring/ProcessMonitor';
 import { InfrastructureMonitor } from './components/monitoring/InfrastructureMonitor';
 import { AlertPanel } from './components/common/AlertPanel';
-import { InvestigationsPanel } from './components/investigations/InvestigationsPanel';
-import { InvestigationScriptsPanel } from './components/investigations/InvestigationScriptsPanel';
+import { InvestigationsSection } from './components/investigations/InvestigationsSection';
 import { ReportsPanel } from './components/reports/ReportsPanel';
 import { Terminal } from './components/common/Terminal';
 import { ModalsContainer } from './components/modals/ModalsContainer';
@@ -264,17 +263,33 @@ echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
             <AlertPanel alerts={dashboardState.alerts} />
           </section>
 
-          {/* Recent Investigations */}
+          {/* Investigations Section */}
           <section className="mb-lg">
-            <InvestigationsPanel investigations={investigations} />
+            <InvestigationsSection 
+              investigations={investigations}
+              onOpenScriptEditor={openScriptEditor}
+              onSpawnAgent={async (autoFix: boolean) => {
+                try {
+                  const response = await fetch('/api/investigations/trigger', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ auto_fix: autoFix })
+                  });
+                  
+                  if (response.ok) {
+                    console.log('Investigation triggered with auto-fix:', autoFix);
+                    // TODO: Show success message or refresh investigations
+                  }
+                } catch (error) {
+                  console.error('Failed to trigger investigation:', error);
+                }
+              }}
+            />
           </section>
 
-          {/* Investigation Scripts */}
-          <section className="mb-lg">
-            <InvestigationScriptsPanel onOpenScriptEditor={openScriptEditor} />
-          </section>
-
-          {/* Generated Reports */}
+          {/* Playback Reports */}
           <section className="mb-lg">
             <ReportsPanel />
           </section>

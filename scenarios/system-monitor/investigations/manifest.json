@@ -56,6 +56,42 @@
       "version": "1.0", 
       "execution_time_estimate": "45-90s",
       "safety_level": "safe"
+    },
+    "network-anomaly-detector": {
+      "name": "Network Anomaly Detector",
+      "description": "Detects suspicious network connections, unusual ports, and potential security issues",
+      "file": "active/network-anomaly-detector.sh",
+      "category": "network",
+      "triggers": [
+        "unusual_connections",
+        "high_tcp_count",
+        "suspicious_ports"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30-45s",
+      "safety_level": "safe"
+    },
+    "disk-io-analyzer": {
+      "name": "Disk I/O Analyzer",
+      "description": "Analyzes disk usage patterns, I/O performance, and identifies storage bottlenecks",
+      "file": "active/disk-io-analyzer.sh",
+      "category": "storage",
+      "triggers": [
+        "high_disk_usage",
+        "io_wait",
+        "disk_errors"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30-60s",
+      "safety_level": "safe"
     }
   },
   "categories": {

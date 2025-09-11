@@ -4,11 +4,23 @@ import type { InvestigationScript } from '../../types';
 
 interface InvestigationScriptsPanelProps {
   onOpenScriptEditor: (script?: InvestigationScript, content?: string, mode?: 'create' | 'edit' | 'view') => void;
+  embedded?: boolean;
+  searchFilter?: string;
 }
 
-export const InvestigationScriptsPanel = ({ onOpenScriptEditor }: InvestigationScriptsPanelProps) => {
+export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false, searchFilter = '' }: InvestigationScriptsPanelProps) => {
   const [scripts, setScripts] = useState<InvestigationScript[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Filter scripts based on search
+  const filteredScripts = scripts.filter(script => {
+    if (!searchFilter) return true;
+    const searchLower = searchFilter.toLowerCase();
+    return script.name.toLowerCase().includes(searchLower) ||
+           script.description.toLowerCase().includes(searchLower) ||
+           script.category.toLowerCase().includes(searchLower) ||
+           script.id.toLowerCase().includes(searchLower);
+  });
 
   const loadScripts = async () => {
     setLoading(true);
@@ -144,6 +156,114 @@ echo "Investigation complete."`;
     onOpenScriptEditor(script, content, 'view');
   };
 
+  // If embedded, render without header
+  if (embedded) {
+    return (
+      <div className="investigation-scripts-list">
+        {loading ? (
+          <div className="loading" style={{
+            textAlign: 'center',
+            color: 'var(--color-text-dim)',
+            padding: 'var(--spacing-lg)',
+            fontSize: 'var(--font-size-lg)'
+          }}>
+            LOADING SCRIPTS...
+          </div>
+        ) : scripts.length === 0 ? (
+          <div style={{
+            textAlign: 'center',
+            color: 'var(--color-text-dim)',
+            padding: 'var(--spacing-lg)',
+            fontSize: 'var(--font-size-lg)'
+          }}>
+            NO SCRIPTS AVAILABLE
+          </div>
+        ) : (
+          <div className="grid grid-2" style={{ gap: 'var(--spacing-md)' }}>
+            {filteredScripts.map(script => (
+              <div 
+                key={script.id} 
+                className="script-item card" 
+                onClick={() => openScript(script)}
+                style={{
+                  padding: 'var(--spacing-md)',
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)'
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: 'var(--spacing-sm)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+                    <FileText size={16} style={{ color: 'var(--color-accent)' }} />
+                    <h4 style={{ 
+                      margin: 0, 
+                      color: 'var(--color-text-bright)',
+                      fontSize: 'var(--font-size-md)'
+                    }}>
+                      {script.name}
+                    </h4>
+                  </div>
+                  
+                  <span style={{
+                    padding: 'var(--spacing-xs)',
+                    background: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
+                    color: 'var(--color-background)',
+                    borderRadius: 'var(--border-radius-sm)',
+                    fontSize: 'var(--font-size-xs)',
+                    fontWeight: 'bold'
+                  }}>
+                    {script.enabled ? 'ENABLED' : 'DISABLED'}
+                  </span>
+                </div>
+                
+                <p style={{
+                  margin: '0 0 var(--spacing-sm) 0',
+                  color: 'var(--color-text)',
+                  fontSize: 'var(--font-size-sm)',
+                  lineHeight: 1.4
+                }}>
+                  {script.description}
+                </p>
+                
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  fontSize: 'var(--font-size-xs)',
+                  color: 'var(--color-text-dim)'
+                }}>
+                  <span>Category: {script.category}</span>
+                  <span>By: {script.author}</span>
+                </div>
+                
+                <div style={{ marginTop: 'var(--spacing-sm)' }}>
+                  <button 
+                    className="btn btn-action" 
+                    style={{ 
+                      fontSize: 'var(--font-size-sm)',
+                      padding: 'var(--spacing-xs) var(--spacing-sm)'
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openScript(script);
+                    }}
+                  >
+                    ▶️ VIEW & RUN
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <section className="investigation-scripts-panel card">
       <div className="panel-header" style={{
@@ -198,7 +318,7 @@ echo "Investigation complete."`;
           </div>
         ) : (
           <div className="grid grid-2" style={{ gap: 'var(--spacing-md)' }}>
-            {scripts.map(script => (
+            {filteredScripts.map(script => (
               <div 
                 key={script.id} 
                 className="script-item card" 
