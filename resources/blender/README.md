@@ -45,7 +45,10 @@ vrooli resource blender content list
 - **Rigid Body Dynamics**: Simulate falling objects, collisions, pendulums
 - **Soft Body Physics**: Deformable objects, jelly-like materials
 - **Cloth Simulation**: Realistic fabric dynamics
-- **Fluid Dynamics**: Liquid and gas simulations
+- **Fluid Dynamics**: Liquid and gas simulations (NEW)
+  - Liquid simulation with viscosity and surface tension
+  - Gas/smoke simulation with buoyancy and vorticity
+  - Fire simulation with fuel combustion
 - **Accuracy Validation**: >95% accuracy vs analytical solutions
 
 ### 2. Computational Physics Workflows
@@ -144,6 +147,8 @@ The resource uses Docker to run Blender in headless mode with Python API access.
 - **Physics engine with >95% accuracy**
 - **Optimized physics performance: 1000+ rigid bodies @ 30fps**
 - **Soft body and cloth simulation support**
+- **Fluid dynamics: liquid and gas simulations**
+- **Fire and smoke with volumetric rendering**
 - **Headless operation for CI/CD pipelines**
 - Headless rendering via background mode
 - REST API wrapper for remote execution

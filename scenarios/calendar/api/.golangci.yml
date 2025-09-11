@@ -1,0 +1,239 @@
+# golangci-lint configuration for Calendar API
+# Documentation: https://golangci-lint.run/usage/configuration/
+
+# General settings
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  build-tags: []
+  skip-dirs: 
+    - vendor/
+    - .git/
+    - bin/
+    - dist/
+  skip-files: []
+  modules-download-mode: readonly
+  allow-parallel-runners: true
+
+# Output settings
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+  uniq-by-line: true
+  sort-results: true
+
+# Linters configuration
+linters:
+  # Disable all linters by default, then explicitly enable the ones we want
+  disable-all: true
+  enable:
+    # Essential linters (always run)
+    - errcheck        # Check for unchecked errors
+    - gosimple        # Suggest code simplifications
+    - govet           # Standard Go vet
+    - ineffassign     # Detect ineffectual assignments
+    - staticcheck     # Advanced static analysis
+    - typecheck       # Type checking
+    - unused          # Find unused code
+
+    # Code quality linters
+    - gocyclo         # Cyclomatic complexity
+    - gofmt           # Format checking
+    - goimports       # Import formatting
+    - gosec           # Security issues
+    - misspell        # Spelling mistakes
+    - unparam         # Unused function parameters
+    - unconvert       # Unnecessary type conversions
+    - goconst         # Repeated strings that could be constants
+    - gocritic        # Comprehensive Go code analysis
+    - revive          # Replacement for golint
+
+    # Performance linters
+    - prealloc        # Find slice declarations with non-zero initial length
+
+    # Style linters
+    - gci             # Control import order
+    - godox           # Find FIXME, TODO, etc.
+    - whitespace      # Detect leading/trailing whitespace
+
+    # Error handling
+    - errname         # Check error naming conventions
+    - errorlint       # Error wrapping checks
+
+    # Naming conventions  
+    - stylecheck      # Style checking (replacement for golint)
+
+# Linters-specific settings
+linters-settings:
+  # govet settings
+  govet:
+    check-shadowing: true
+    enable-all: true
+    disable:
+      - fieldalignment  # Too strict for this project
+
+  # revive settings (replacement for golint)
+  revive:
+    severity: warning
+    confidence: 0.8
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-naming
+      - name: error-return
+      - name: error-strings
+      - name: exported
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unused-parameter
+      - name: unreachable-code
+      - name: redefines-builtin-id
+
+  # gosec settings (security)
+  gosec:
+    severity: medium
+    confidence: medium
+    excludes:
+      - G104  # Audit errors not checked (too noisy for HTTP responses)
+    config:
+      G306: "0644"  # Allow reasonable file permissions
+
+  # gocyclo settings (complexity)
+  gocyclo:
+    min-complexity: 15  # Reasonable complexity threshold
+
+  # goconst settings
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+    numbers: false
+
+  # misspell settings
+  misspell:
+    locale: US
+
+  # goimports settings
+  goimports:
+    local-prefixes: ""  # Add local prefixes if needed
+
+  # gci settings (import organization)
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/your-org/)  # Adjust as needed
+    skip-generated: true
+
+  # errcheck settings
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+    exclude-functions:
+      - (*os.File).Close
+      - (*sql.Rows).Close
+      - (*sql.Stmt).Close
+      - (*http.Response.Body).Close
+
+  # unused settings
+  unused:
+    check-exported: false  # Don't require all exported items to be used
+
+  # staticcheck settings
+  staticcheck:
+    checks: ["all"]
+
+  # gocritic settings
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport     # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+    settings:
+      captLocal:
+        paramsOnly: true
+      rangeValCopy:
+        sizeThreshold: 32
+
+# Issues settings
+issues:
+  # List of regexps for excluding particular linters from running on files that match
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - goconst
+
+    # Exclude known linters from partially hard-to-fix issues
+    - path: main\.go
+      linters:
+        - gocyclo  # Main function can be complex
+
+    # Exclude gosec from test files (security is less critical in tests)
+    - path: _test\.go
+      text: "G404:"  # Weak random number generator
+
+    # Disable certain rules for specific cases
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+
+    # Allow TODO/FIXME in development
+    - text: "Line contains TODO/FIXME/BUG/HACK"
+      linters:
+        - godox
+
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-use-default: false
+  exclude:
+    # Default excludes we want to keep
+    - 'Error return value of .((os\.)?std(out|err)\..*|.*Close|.*Flush|os\.Remove(All)?|.*print.*|os\.(Un)?Setenv). is not checked'
+    
+  # Maximum issues count per one linter. Set to 0 to disable
+  max-issues-per-linter: 0
+  
+  # Maximum count of issues with the same text. Set to 0 to disable
+  max-same-issues: 0
+
+  # Show only new issues created after git revision
+  # new: false
+
+  # Fix found issues (if it's supported by the linter)
+  fix: false
+
+# Severity settings for rules
+severity:
+  default-severity: error
+  case-sensitive: false
+  rules:
+    - linters:
+        - revive
+        - stylecheck
+      severity: warning
+    - linters:
+        - gosec
+      severity: error

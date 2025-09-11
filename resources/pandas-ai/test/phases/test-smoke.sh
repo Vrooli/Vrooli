@@ -3,7 +3,8 @@ set -euo pipefail
 
 # Smoke tests for Pandas-AI - Quick health validation (<30s)
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+SCRIPT_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCRIPT_DIR}/../../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 PANDAS_AI_PORT="${PANDAS_AI_PORT:-8095}"

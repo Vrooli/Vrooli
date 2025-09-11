@@ -64,6 +64,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="twilio::send_sms"
 
 # Add Twilio-specific content subcommands not in the standard framework
 cli::register_subcommand "content" "send-sms" "Send SMS message" "twilio::send_sms"
+cli::register_subcommand "content" "send-bulk" "Send bulk SMS to multiple recipients" "twilio::send_bulk_sms"
+cli::register_subcommand "content" "send-from-file" "Send SMS from CSV file" "twilio::send_sms_from_file"
 cli::register_subcommand "content" "numbers" "List phone numbers" "twilio::list_numbers"
 
 # Additional information commands

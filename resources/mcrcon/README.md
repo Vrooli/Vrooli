@@ -1,0 +1,159 @@
+# mcrcon - Minecraft Remote Console Resource
+
+A Minecraft Remote Console (RCON) client resource for Vrooli, enabling programmatic command execution, server management, and player interaction automation.
+
+## Overview
+
+mcrcon provides a command-line interface and library for connecting to Minecraft servers via the RCON protocol. This enables automation of server administration tasks, player management, and integration with other Vrooli resources.
+
+## Features
+
+- **RCON Protocol Support**: Full implementation of Minecraft's remote console protocol
+- **Multi-Server Management**: Connect to and manage multiple Minecraft servers
+- **Command Execution**: Execute any Minecraft server command programmatically
+- **Health Monitoring**: Built-in health check endpoint for service monitoring
+- **v2.0 Contract Compliant**: Follows Vrooli's universal resource contract
+
+## Quick Start
+
+### Installation
+
+```bash
+# Install mcrcon and its dependencies
+vrooli resource mcrcon manage install
+
+# Start the health monitoring service
+vrooli resource mcrcon manage start --wait
+
+# Verify installation
+vrooli resource mcrcon status
+```
+
+### Configuration
+
+Set your Minecraft server's RCON credentials:
+
+```bash
+export MCRCON_HOST="localhost"
+export MCRCON_PORT="25575"
+export MCRCON_PASSWORD="your_rcon_password"
+```
+
+### Basic Usage
+
+```bash
+# Execute a Minecraft command
+vrooli resource mcrcon content execute "list"
+
+# Say something in the game
+vrooli resource mcrcon content execute "say Hello from Vrooli!"
+
+# Give a player items
+vrooli resource mcrcon content execute "give PlayerName minecraft:diamond 64"
+
+# Teleport a player
+vrooli resource mcrcon content execute "tp PlayerName 0 100 0"
+```
+
+### Server Management
+
+```bash
+# List configured servers
+vrooli resource mcrcon content list
+
+# Add a new server configuration
+vrooli resource mcrcon content add "survival" "mc.example.com" "25575" "password" "Survival Server"
+
+# Remove a server
+vrooli resource mcrcon content remove "survival"
+```
+
+## Testing
+
+```bash
+# Quick health check (<30s)
+vrooli resource mcrcon test smoke
+
+# Full test suite
+vrooli resource mcrcon test all
+```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `help` | Show comprehensive help |
+| `info` | Display runtime configuration |
+| `manage install` | Install mcrcon binary |
+| `manage start` | Start health service |
+| `manage stop` | Stop health service |
+| `test smoke` | Quick validation tests |
+| `test all` | Run complete test suite |
+| `content execute` | Execute RCON command |
+| `content list` | List configured servers |
+| `status` | Show resource status |
+| `credentials` | Display connection info |
+
+## Configuration Files
+
+- `config/defaults.sh` - Default environment variables
+- `config/runtime.json` - Runtime configuration and dependencies
+- `config/schema.json` - Configuration schema definition
+- `~/.mcrcon/servers.json` - Server configurations (created at runtime)
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MCRCON_HOST` | localhost | Minecraft server hostname |
+| `MCRCON_PORT` | 25575 | RCON port |
+| `MCRCON_PASSWORD` | (none) | RCON password |
+| `MCRCON_TIMEOUT` | 30 | Command timeout in seconds |
+| `MCRCON_RETRY_ATTEMPTS` | 3 | Retry attempts for failed commands |
+| `MCRCON_DATA_DIR` | ~/.mcrcon | Data directory location |
+| `MCRCON_HEALTH_PORT` | 8025 | Health check service port |
+
+## Requirements
+
+- **Minecraft Server**: Must have RCON enabled in server.properties
+- **Network Access**: Connectivity to Minecraft server's RCON port
+- **Dependencies**: wget, tar, python3, jq, curl
+
+## Minecraft Server Setup
+
+Enable RCON in your Minecraft server's `server.properties`:
+
+```properties
+enable-rcon=true
+rcon.port=25575
+rcon.password=your_secure_password
+```
+
+## Security Notes
+
+- Store RCON passwords securely using environment variables
+- Never commit passwords to version control
+- Use strong, unique passwords for each server
+- Consider network security when exposing RCON ports
+
+## Troubleshooting
+
+### Connection Issues
+- Verify RCON is enabled on the Minecraft server
+- Check firewall rules for port 25575
+- Ensure RCON password is correctly set
+
+### Command Failures
+- Check server console for error messages
+- Verify command syntax matches Minecraft version
+- Ensure sufficient permissions for commands
+
+## External References
+
+- [RCON Protocol Specification](https://wiki.vg/RCON)
+- [Minecraft Commands Reference](https://minecraft.wiki/w/Commands)
+- [Original mcrcon Implementation](https://github.com/Tiiffi/mcrcon)
+
+## License
+
+This resource integrates the mcrcon binary, which is licensed under the zlib License.

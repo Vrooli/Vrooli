@@ -1229,9 +1229,10 @@ func getSystemFileDescriptors() (int, int) {
 }
 
 func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse request body for auto_fix parameter
+	// Parse request body for auto_fix parameter and optional note
 	var reqBody struct {
-		AutoFix bool `json:"auto_fix"`
+		AutoFix bool   `json:"auto_fix"`
+		Note    string `json:"note,omitempty"`
 	}
 	if r.Body != nil {
 		json.NewDecoder(r.Body).Decode(&reqBody)
@@ -1258,6 +1259,11 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	if !reqBody.AutoFix {
 		investigation.Details["operation_mode"] = "report-only"
 	}
+	
+	// Store optional user note if provided
+	if reqBody.Note != "" {
+		investigation.Details["user_note"] = reqBody.Note
+	}
 
 	// Store investigation
 	investigationsMutex.Lock()
@@ -1267,7 +1273,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Start investigation in background
 	go func() {
-		runClaudeInvestigation(investigationID, reqBody.AutoFix)
+		runClaudeInvestigation(investigationID, reqBody.AutoFix, reqBody.Note)
 	}()
 
 	// Return immediate response with API info
@@ -1280,7 +1286,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func runClaudeInvestigation(investigationID string, autoFix bool) {
+func runClaudeInvestigation(investigationID string, autoFix bool, userNote string) {
 	// Update status to in_progress
 	updateInvestigationField(investigationID, "Status", "in_progress")
 	updateInvestigationField(investigationID, "Progress", 10)
@@ -1302,10 +1308,18 @@ func runClaudeInvestigation(investigationID string, autoFix bool) {
 	}
 	
 	// Load investigation prompt with system context and script capabilities
-	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID, operationMode)
+	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID, operationMode, userNote)
 	if err != nil {
 		log.Printf("Failed to load prompt template: %v", err)
 		// Enhanced fallback prompt with investigation scripts context
+		userNoteSection := ""
+		if userNote != "" {
+			userNoteSection = fmt.Sprintf(`
+
+## User Instructions
+**Note from user**: %s`, userNote)
+		}
+
 		prompt = fmt.Sprintf(`# System Anomaly Investigation
 
 ## Investigation Context
@@ -1313,7 +1327,7 @@ func runClaudeInvestigation(investigationID string, autoFix bool) {
 - **Operation Mode**: %s
 - **Trigger**: Manual investigation request
 - **Timestamp**: %s
-- **API Base URL**: http://localhost:8080
+- **API Base URL**: http://localhost:8080%s
 
 ## Current System Metrics
 - **CPU Usage**: %.2f%%
@@ -1341,7 +1355,7 @@ Check for existing investigation scripts that may help:
 5. **Tool Enhancement**: Improve existing investigation scripts or create new ones
 
 Please begin your systematic investigation now, utilizing the investigation scripts framework to build lasting diagnostic capabilities.`,
-			investigationID, operationMode, timestamp, cpuUsage, memoryUsage, tcpConnections)
+			investigationID, operationMode, timestamp, userNoteSection, cpuUsage, memoryUsage, tcpConnections)
 	}
 
 	// Try Claude Code investigation with proper timeout and settings
@@ -1557,7 +1571,7 @@ System metrics are %s. %s`,
 	investigationsMutex.Unlock()
 }
 
-func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string, operationMode string) (string, error) {
+func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpConnections int, timestamp string, investigationID string, operationMode string, userNote string) (string, error) {
 	// Get VROOLI_ROOT with proper fallback
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
@@ -1603,6 +1617,13 @@ func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpCon
 	prompt = strings.ReplaceAll(prompt, "{{INVESTIGATION_ID}}", investigationID)
 	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
 	prompt = strings.ReplaceAll(prompt, "{{OPERATION_MODE}}", operationMode)
+	
+	// Add user note if provided
+	if userNote != "" {
+		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", userNote)
+	} else {
+		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", "No specific instructions provided.")
+	}
 	
 	// Process conditional sections based on operation mode
 	if operationMode == "auto-fix" {

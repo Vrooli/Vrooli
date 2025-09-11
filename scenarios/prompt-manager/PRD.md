@@ -73,38 +73,34 @@ required:
 optional:
   - resource_name: qdrant
     purpose: Vector database for semantic search capabilities
-    integration_pattern: HTTP API calls
+    integration_pattern: Direct HTTP API calls from Go backend
     fallback: Falls back to PostgreSQL full-text search
-    access_method: HTTP API from Go backend
+    access_method: HTTP REST API
     
   - resource_name: ollama
     purpose: Local LLM for prompt testing and enhancement
-    integration_pattern: Shared workflow via n8n
+    integration_pattern: Direct HTTP API integration
     fallback: Feature disabled if unavailable
-    access_method: Via shared ollama.json workflow
+    access_method: Direct HTTP calls to Ollama API from Go backend
 ```
 
 ### Resource Integration Standards
 ```yaml
-integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Prompt testing and enhancement
-    - workflow: structured-data-extractor.json
-      location: initialization/n8n/
-      purpose: Extract patterns and entities from prompts
-    - workflow: embedding-generator.json
-      location: initialization/n8n/
-      purpose: Generate embeddings for semantic search
-  
-  2_resource_cli:
-    - command: resource-postgres query
-      purpose: Database operations when needed from workflows
-  
-  3_direct_api:
-    - justification: Go backend needs direct DB access for performance
-      endpoint: PostgreSQL connection via pq driver
+integration_approach:
+  direct_api:
+    - resource: postgres
+      method: Direct database connection via pq driver
+      purpose: Primary data storage with high performance
+    
+    - resource: qdrant
+      method: HTTP REST API calls
+      purpose: Vector storage and semantic search
+      implementation: Built-in Go HTTP client
+    
+    - resource: ollama
+      method: HTTP REST API calls  
+      purpose: LLM inference for prompt testing and enhancement
+      implementation: Built-in Go HTTP client with streaming support
 ```
 
 ### Data Models
@@ -174,24 +170,24 @@ endpoints:
     GET /health: Service health check
 ```
 
-### Workflow Integration
+### API-Integrated Features
 ```yaml
-n8n_workflows:
+built_in_capabilities:
   - name: prompt-analyzer
     purpose: Analyze prompt structure and extract patterns
-    uses_shared: [structured-data-extractor.json]
+    implementation: Go-based pattern extraction and analysis
     
   - name: prompt-enhancer
     purpose: Suggest improvements to prompts
-    uses_shared: [ollama.json]
+    implementation: Direct Ollama API integration for enhancement suggestions
     
   - name: prompt-tester
     purpose: Test prompts against different models
-    uses_shared: [ollama.json]
+    implementation: Streaming Ollama API calls with response metrics
     
-  - name: campaign-manager
-    purpose: Automate campaign operations
-    uses_shared: []
+  - name: semantic-search
+    purpose: Find similar prompts using vector similarity
+    implementation: Qdrant vector search with fallback to PostgreSQL FTS
 ```
 
 ## 🎨 User Experience
@@ -209,7 +205,7 @@ prompt-manager search "generator" --limit 5
 prompt-manager use prompt_123 | resource-ollama generate
 
 # API workflow
-curl -X POST http://localhost:8085/api/search/prompts \
+curl -X POST http://localhost:${API_PORT}/api/v1/search/prompts \
   -d '{"query": "error handling", "limit": 10}'
 ```
 
@@ -257,9 +253,9 @@ curl -X POST http://localhost:8085/api/search/prompts \
 
 ### Current Status
 - Core functionality implemented and working
-- Using shared workflows for LLM operations
+- Direct API integrations for all LLM operations
 - CLI and API fully functional
-- Web UI provides basic management features
+- Web UI provides comprehensive management features
 
 ### Known Limitations
 - No authentication/authorization yet

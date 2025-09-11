@@ -53,6 +53,9 @@ CLI_COMMAND_HANDLERS["manage::start"]="blender::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="blender::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="blender::docker::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="blender::health_check"
+CLI_COMMAND_HANDLERS["test::integration"]="blender::test"
+CLI_COMMAND_HANDLERS["test::unit"]="blender::test"
+CLI_COMMAND_HANDLERS["test::all"]="blender::run_tests"
 
 # Content handlers - Blender-specific 3D creation and script management functionality
 CLI_COMMAND_HANDLERS["content::add"]="blender::inject"

@@ -12,6 +12,8 @@ source "${GEMINI_RESOURCE_DIR}/config/defaults.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
+source "${GEMINI_RESOURCE_DIR}/lib/cache.sh"
+source "${GEMINI_RESOURCE_DIR}/lib/tokens.sh"
 
 # Initialize Gemini with proper Vault integration
 gemini::init() {
@@ -141,11 +143,13 @@ gemini::list_models() {
         sed 's|^models/||' || return 1
 }
 
-# Generate content
+# Generate content with caching support
 gemini::generate() {
     local prompt="$1"
     local model="${2:-$GEMINI_DEFAULT_MODEL}"
     local timeout="${3:-$GEMINI_TIMEOUT}"
+    local temperature="${4:-0.7}"
+    local use_cache="${5:-${GEMINI_CACHE_ENABLED:-true}}"
     
     if [[ -z "$GEMINI_API_KEY" ]] || [[ "$GEMINI_API_KEY" == "placeholder-gemini-key" ]]; then
         gemini::init || return 1
@@ -156,10 +160,29 @@ gemini::generate() {
         return 1
     fi
     
+    # Check cache first if enabled
+    local cache_key
+    if [[ "$use_cache" == "true" ]]; then
+        cache_key=$(gemini::cache::generate_key "$prompt" "$model" "$temperature")
+        local cached_response
+        cached_response=$(gemini::cache::get "$cache_key" 2>/dev/null)
+        if [[ -n "$cached_response" ]]; then
+            log::debug "Cache hit for prompt"
+            echo "$cached_response"
+            return 0
+        fi
+        log::debug "Cache miss for prompt"
+    fi
+    
     local response
     response=$(timeout "$timeout" curl -s -X POST \
         -H "Content-Type: application/json" \
-        -d "{\"contents\": [{\"parts\": [{\"text\": \"$prompt\"}]}]}" \
+        -d "{
+            \"contents\": [{\"parts\": [{\"text\": \"$prompt\"}]}],
+            \"generationConfig\": {
+                \"temperature\": $temperature
+            }
+        }" \
         "${GEMINI_API_BASE}/models/${model}:generateContent?key=${GEMINI_API_KEY}" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
@@ -168,10 +191,26 @@ gemini::generate() {
     fi
     
     # Extract text from response
-    echo "$response" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null || {
+    local result
+    result=$(echo "$response" | jq -r '.candidates[0].content.parts[0].text' 2>/dev/null)
+    if [[ -z "$result" || "$result" == "null" ]]; then
         echo "Error: Failed to parse response"
         return 1
-    }
+    fi
+    
+    # Cache the result if caching is enabled
+    if [[ "$use_cache" == "true" && -n "$cache_key" ]]; then
+        gemini::cache::set "$cache_key" "$result" "$GEMINI_CACHE_TTL" 2>/dev/null || true
+        log::debug "Response cached"
+    fi
+    
+    # Log token usage if tracking is enabled
+    if [[ "$GEMINI_TOKEN_TRACKING_ENABLED" == "true" ]]; then
+        gemini::tokens::log_usage "$prompt" "$result" "$model" 2>/dev/null || true
+    fi
+    
+    echo "$result"
+    return 0
 }
 
 # Export functions

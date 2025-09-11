@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search } from 'lucide-react';
 import type { ProcessMonitorData } from '../../types';
 
 interface ProcessMonitorProps {
@@ -21,8 +21,9 @@ export const ProcessMonitor = ({ data, isExpanded, onToggle }: ProcessMonitorPro
           marginBottom: isExpanded ? 'var(--spacing-md)' : 0
         }}
       >
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
-          🔍 PROCESS MONITOR
+        <h2 style={{ margin: 0, color: 'var(--color-text-bright)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+          <Search size={20} />
+          PROCESS MONITOR
         </h2>
         <span className="expand-arrow" style={{ color: 'var(--color-accent)' }}>
           {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}

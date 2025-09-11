@@ -42,26 +42,26 @@
       "purpose": "Primary data storage for campaigns, prompts, tags, and metadata",
       "initialization": [
         {
-          "file": "initialization/postgres/schema.sql",
+          "file": "initialization/storage/postgres/schema.sql",
           "type": "schema"
         },
         {
-          "file": "initialization/postgres/seed.sql",
+          "file": "initialization/storage/postgres/seed.sql",
           "type": "seed"
         }
       ]
     },
     "qdrant": {
       "type": "qdrant",
-      "enabled": true,
+      "enabled": false,
       "required": false,
-      "purpose": "Vector database for semantic search of prompts"
+      "purpose": "Optional: Vector database for semantic search of prompts (falls back to PostgreSQL full-text search)"
     },
     "ollama": {
       "type": "ollama",
       "enabled": false,
       "required": false,
-      "purpose": "Local LLM for prompt testing and enhancement suggestions",
+      "purpose": "Optional: Local LLM for prompt testing and enhancement suggestions",
       "models": [
         "nomic-embed-text",
         "llama3.2"
@@ -143,7 +143,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Prompt Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: prompt-manager --help'",
+          "run": "echo 'Prompt Manager initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -168,7 +168,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: prompt-manager --help'",
+          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT}/api/v1 - CLI: prompt-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -191,8 +191,8 @@
         },
         {
           "name": "test-campaigns-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/campaigns",
-          "description": "Test API campaigns endpoint"
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/campaigns",
+          "description": "Test API v1 campaigns endpoint"
         },
         {
           "name": "test-cli-status",

@@ -86,6 +86,29 @@ resource-twilio content send-sms "+1234567890" "Your message here"
 resource-twilio content send-sms "+1234567890" "Your message" "+0987654321"
 ```
 
+### Bulk SMS Messaging
+
+Send messages to multiple recipients efficiently:
+
+```bash
+# Send to multiple recipients
+resource-twilio content send-bulk "Your message" "+1234567890" "+0987654321" "+5555555555"
+
+# Send from CSV file (phone_number,message format)
+resource-twilio content send-from-file /path/to/recipients.csv
+
+# CSV file format:
+# phone_number,message
+# +1234567890,Hello John!
+# +0987654321,Hello Jane!
+```
+
+**Features:**
+- Automatic rate limiting (100ms between messages)
+- Progress tracking with success/failure counts
+- Test mode for safe testing without sending real messages
+- CSV batch processing for large recipient lists
+
 ### Phone Number Management
 
 List and configure Twilio phone numbers:

@@ -81,7 +81,9 @@ calendar schedule chat "find time for a 2-hour project review this week"
 ### API Integration
 ```javascript
 // Create event from another scenario
-const response = await fetch('http://localhost:15001/api/v1/events', {
+// Note: API_PORT is dynamically assigned by Vrooli (range: 15000-19999)
+const API_PORT = process.env.API_PORT || '<check-vrooli-status>';
+const response = await fetch(`http://localhost:${API_PORT}/api/v1/events`, {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${userToken}`,
@@ -92,7 +94,7 @@ const response = await fetch('http://localhost:15001/api/v1/events', {
     start_time: '2024-01-20T14:00:00Z',
     end_time: '2024-01-20T15:00:00Z',
     automation: {
-      trigger_url: 'http://localhost:3400/api/v1/milestone/complete',
+      trigger_url: `http://localhost:${PROJECT_API_PORT}/api/v1/milestone/complete`,
       payload: { project_id: 'proj_123' }
     }
   })

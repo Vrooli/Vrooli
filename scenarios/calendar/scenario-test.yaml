@@ -25,13 +25,12 @@ structure:
     - cli
     - initialization
     - initialization/postgres
-    - initialization/n8n
     - ui
 
 # Resource validation
 resources:
   required: [postgres, qdrant, scenario-authenticator, notification-hub]
-  optional: [ollama, n8n]
+  optional: [ollama]
   health_timeout: 90
 
 # Declarative tests
@@ -47,21 +46,21 @@ tests:
       
   - name: "Qdrant vector database is accessible"
     type: http
-    url: "http://localhost:6333/collections/calendar_events"
+    url: "${QDRANT_URL}/collections/calendar_events"
     method: GET
     expect:
       status: 200
       
   - name: "scenario-authenticator service is running"
     type: http
-    url: "http://localhost:3250/health"
+    url: "${AUTH_SERVICE_URL}/health"
     method: GET
     expect:
       status: 200
       
   - name: "notification-hub service is running"
     type: http
-    url: "http://localhost:28100/health"
+    url: "${NOTIFICATION_SERVICE_URL}/health"
     method: GET
     expect:
       status: 200

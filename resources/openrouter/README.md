@@ -52,12 +52,26 @@ vrooli resource openrouter test-model "anthropic/claude-3-opus"
    - Vault (recommended): `vault kv put secret/openrouter api_key="sk-or-..."`
    - Direct config: `vrooli resource openrouter configure --api-key "sk-or-..."`
 
-### Model Selection
-OpenRouter supports automatic model selection based on your requirements:
-- **Speed**: Route to fastest available model
-- **Cost**: Route to cheapest model that meets quality threshold
-- **Quality**: Route to best model within budget
-- **Capability**: Route to models with specific features (vision, coding, etc.)
+### Model Selection (Enhanced 2025-09-11)
+OpenRouter now supports intelligent automatic model selection and fallback chains:
+
+#### Automatic Selection Strategies
+- **Auto**: Intelligently selects based on task type (code, creative, analysis, etc.)
+- **Cheapest**: Finds the most cost-effective model for your requirements
+- **Fastest**: Routes to models with lowest latency
+- **Quality**: Selects highest capability models within budget
+
+#### Fallback Chains
+The resource now automatically handles model failures with configurable fallback chains:
+```bash
+# Test with automatic fallback
+vrooli resource openrouter test-model "primary-model" --fallback "backup1,backup2"
+
+# List models by category
+vrooli resource openrouter list-models --category code  # coding models
+vrooli resource openrouter list-models --category cheap # budget models
+vrooli resource openrouter list-models --category fast  # low-latency models
+```
 
 ## Integration Examples
 

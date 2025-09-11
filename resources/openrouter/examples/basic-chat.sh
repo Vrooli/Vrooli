@@ -23,7 +23,7 @@ fi
 echo "Example 1: Simple chat completion"
 echo "---------------------------------"
 
-response=$(curl -s -X POST \
+response=$(timeout 30 curl -s -X POST \
     -H "Authorization: Bearer $OPENROUTER_API_KEY" \
     -H "Content-Type: application/json" \
     -d '{
@@ -53,7 +53,7 @@ echo ""
 echo "Example 2: Multi-turn conversation"
 echo "----------------------------------"
 
-conversation_response=$(curl -s -X POST \
+conversation_response=$(timeout 30 curl -s -X POST \
     -H "Authorization: Bearer $OPENROUTER_API_KEY" \
     -H "Content-Type: application/json" \
     -d '{

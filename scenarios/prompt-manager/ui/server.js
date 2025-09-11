@@ -2,8 +2,21 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+
+// Port configuration - REQUIRED, no defaults
+const PORT = process.env.UI_PORT;
+if (!PORT) {
+    console.error('❌ UI_PORT environment variable is required');
+    process.exit(1);
+}
+
 const API_PORT = process.env.API_PORT;
+if (!API_PORT) {
+    console.error('❌ API_PORT environment variable is required');
+    process.exit(1);
+}
+
+const SCENARIO_NAME = process.env.SCENARIO_NAME || 'prompt-manager';
 
 
 // Enable CORS for API communication
@@ -21,7 +34,7 @@ app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
         port: PORT,
-        scenario: 'unknown'
+        scenario: SCENARIO_NAME
     });
 });
 
@@ -51,7 +64,7 @@ app.get('*', (req, res) => {
 const server = app.listen(PORT, () => {
     console.log(`✅ UI server running on http://localhost:${PORT}`);
     console.log(`📡 API endpoint: http://localhost:${API_PORT}`);
-    console.log(`🏷️  Scenario: ${'unknown'}`);
+    console.log(`🏷️  Scenario: ${SCENARIO_NAME}`);
 });
 
 // Graceful shutdown

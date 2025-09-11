@@ -99,12 +99,27 @@ gemini::test::unit() {
     fi
 }
 
+# Cache tests - validate Redis integration and caching functionality
+gemini::test::cache() {
+    log::info "Running Gemini cache tests..."
+    
+    # Run the cache test script
+    local test_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    if [[ -x "${test_dir}/test/phases/test-cache.sh" ]]; then
+        "${test_dir}/test/phases/test-cache.sh"
+        return $?
+    else
+        log::error "Cache test script not found or not executable"
+        return 1
+    fi
+}
+
 # Run all resource tests
 gemini::test::all() {
     log::info "Running all Gemini resource tests..."
     
     local tests_passed=0
-    local total_tests=3
+    local total_tests=4
     
     if gemini::test::unit; then
         ((tests_passed++))
@@ -115,6 +130,10 @@ gemini::test::all() {
     fi
     
     if gemini::test::integration; then
+        ((tests_passed++))
+    fi
+    
+    if gemini::test::cache; then
         ((tests_passed++))
     fi
     
@@ -131,4 +150,5 @@ gemini::test::all() {
 export -f gemini::test::smoke
 export -f gemini::test::integration
 export -f gemini::test::unit
+export -f gemini::test::cache
 export -f gemini::test::all

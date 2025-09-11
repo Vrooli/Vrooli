@@ -11,6 +11,8 @@ The Gemini resource provides access to Google's multimodal AI models through the
 - Text generation with Gemini Pro
 - Vision capabilities with Gemini Pro Vision
 - Credential management via Vault
+- Response caching with Redis integration
+- Token usage tracking and cost estimation
 - Integration with automation platforms (n8n, Huginn, etc.)
 - JSON and text output formats
 
@@ -60,6 +62,27 @@ resource-gemini generate "Explain quantum computing"
 resource-gemini generate "What is in this image?" gemini-pro-vision
 ```
 
+### Cache Management
+```bash
+# View cache statistics
+resource-gemini cache-stats
+
+# Clear cache
+resource-gemini cache-clear
+```
+
+### Token Usage Management
+```bash
+# View token usage statistics
+resource-gemini token-stats
+
+# Estimate costs based on usage
+resource-gemini token-cost
+
+# Clear token usage history
+resource-gemini token-clear
+```
+
 ### Test Connection
 ```bash
 resource-gemini test
@@ -78,10 +101,22 @@ resource-gemini inject huginn
 
 ## Environment Variables
 
+### Core Configuration
 - `GEMINI_API_KEY` - Google AI API key
 - `GEMINI_API_BASE` - API base URL (default: https://generativelanguage.googleapis.com/v1beta)
 - `GEMINI_DEFAULT_MODEL` - Default model (default: gemini-pro)
 - `GEMINI_TIMEOUT` - Request timeout in seconds (default: 30)
+
+### Cache Configuration
+- `GEMINI_CACHE_ENABLED` - Enable Redis caching (default: true)
+- `GEMINI_CACHE_TTL` - Cache time-to-live in seconds (default: 3600)
+- `GEMINI_CACHE_PREFIX` - Cache key prefix (default: gemini:cache)
+- `REDIS_HOST` - Redis host (default: localhost)
+- `REDIS_PORT` - Redis port (default: 6379)
+
+### Token Tracking
+- `GEMINI_TOKEN_TRACKING_ENABLED` - Enable token usage tracking (default: true)
+- `GEMINI_TOKEN_LOG_FILE` - Token usage log file path
 
 ## Integration
 

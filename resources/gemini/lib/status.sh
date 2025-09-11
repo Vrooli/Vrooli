@@ -91,6 +91,24 @@ gemini::status::collect_data() {
         fi
     fi
     
+    # Check cache status
+    local cache_status="Disabled"
+    if gemini::cache::is_available 2>/dev/null; then
+        cache_status="Enabled (Redis connected)"
+    elif [[ "$GEMINI_CACHE_ENABLED" == "true" ]]; then
+        cache_status="Configured (Redis not available)"
+    fi
+    
+    # Check token tracking status
+    local token_tracking="Disabled"
+    if [[ "$GEMINI_TOKEN_TRACKING_ENABLED" == "true" ]]; then
+        token_tracking="Enabled"
+        if [[ -f "${GEMINI_RESOURCE_DIR}/logs/token_usage.log" ]]; then
+            local request_count=$(wc -l < "${GEMINI_RESOURCE_DIR}/logs/token_usage.log" 2>/dev/null || echo "0")
+            token_tracking="Enabled ($request_count requests logged)"
+        fi
+    fi
+    
     # Output data as key-value pairs
     echo "status"
     echo "$status"
@@ -106,6 +124,10 @@ gemini::status::collect_data() {
     echo "$model"
     echo "available_models"
     echo "$models"
+    echo "cache_status"
+    echo "$cache_status"
+    echo "token_tracking"
+    echo "$token_tracking"
 }
 
 #######################################
@@ -129,6 +151,8 @@ gemini::status::display_text() {
     echo "API Base: ${data[api_base]}"
     echo "Default Model: ${data[default_model]}"
     echo "Available Models: ${data[available_models]}"
+    echo "Cache Status: ${data[cache_status]}"
+    echo "Token Tracking: ${data[token_tracking]}"
 }
 
 #######################################

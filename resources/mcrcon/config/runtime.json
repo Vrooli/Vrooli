@@ -1,0 +1,18 @@
+{
+  "startup_order": 850,
+  "dependencies": [],
+  "startup_timeout": 30,
+  "startup_time_estimate": "5-10s",
+  "recovery_attempts": 3,
+  "priority": "low",
+  "health_check": {
+    "type": "http",
+    "endpoint": "/health",
+    "timeout": 5,
+    "interval": 30
+  },
+  "resource_type": "client",
+  "category": "gaming",
+  "stability": "experimental",
+  "version": "1.0.0"
+}

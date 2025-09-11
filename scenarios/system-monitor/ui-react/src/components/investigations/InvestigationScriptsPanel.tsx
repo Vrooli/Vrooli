@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, RefreshCw, Plus } from 'lucide-react';
+import { FileText, RefreshCw, Plus, Play } from 'lucide-react';
 import type { InvestigationScript } from '../../types';
 
 interface InvestigationScriptsPanelProps {
@@ -253,7 +253,8 @@ echo "Investigation complete."`;
                       openScript(script);
                     }}
                   >
-                    ▶️ VIEW & RUN
+                    <Play size={14} style={{ marginRight: 'var(--spacing-xs)', display: 'inline-block' }} />
+                    VIEW & RUN
                   </button>
                 </div>
               </div>
@@ -391,7 +392,8 @@ echo "Investigation complete."`;
                       openScript(script);
                     }}
                   >
-                    ▶️ VIEW & RUN
+                    <Play size={14} style={{ marginRight: 'var(--spacing-xs)', display: 'inline-block' }} />
+                    VIEW & RUN
                   </button>
                 </div>
               </div>

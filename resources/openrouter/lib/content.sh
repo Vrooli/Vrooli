@@ -1,8 +1,15 @@
 #!/bin/bash
 # OpenRouter content management library
 
+# Define directories using cached APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+OPENROUTER_LIB_DIR="${APP_ROOT}/resources/openrouter/lib"
+OPENROUTER_RESOURCE_DIR="${APP_ROOT}/resources/openrouter"
+
 # Source dependencies
-source "${OPENROUTER_CLI_DIR}/lib/core.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+source "${OPENROUTER_LIB_DIR}/core.sh"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Content directory for storing prompts and configurations
 OPENROUTER_CONTENT_DIR="${var_ROOT_DIR}/data/resources/openrouter/content"
@@ -341,9 +348,10 @@ openrouter::content::execute() {
     local prompt_content
     prompt_content=$(cat "$prompt_file")
     
-    # Execute prompt via OpenRouter API
+    # Execute prompt via OpenRouter API with timeout
     local response
-    response=$(curl -s -X POST "${OPENROUTER_API_BASE}/chat/completions" \
+    local timeout="${OPENROUTER_TIMEOUT:-30}"
+    response=$(timeout "$timeout" curl -s -X POST "${OPENROUTER_API_BASE}/chat/completions" \
         -H "Authorization: Bearer ${api_key}" \
         -H "Content-Type: application/json" \
         -d "$(jq -n \

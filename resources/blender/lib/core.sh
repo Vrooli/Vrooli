@@ -57,6 +57,38 @@ EOF
     return 0
 }
 
+# Validate a Python script for Blender
+blender::validate_script() {
+    local script="$1"
+    
+    if [[ -z "$script" ]]; then
+        echo "[ERROR] No script specified"
+        return 1
+    fi
+    
+    if [[ ! -f "$script" ]]; then
+        echo "[ERROR] Script not found: $script"
+        return 1
+    fi
+    
+    # Check file extension
+    if [[ ! "$script" =~ \.py$ ]]; then
+        echo "[ERROR] Not a Python script: $script"
+        return 1
+    fi
+    
+    # Basic Python syntax check
+    if command -v python3 &>/dev/null; then
+        python3 -m py_compile "$script" 2>/dev/null || {
+            echo "[ERROR] Script has syntax errors: $script"
+            return 1
+        }
+    fi
+    
+    echo "[INFO] Script validated: $script"
+    return 0
+}
+
 # Check if Blender is installed
 blender::is_installed() {
     # Check both native and docker installations

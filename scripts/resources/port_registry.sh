@@ -39,6 +39,7 @@ declare -g -A RESOURCE_PORTS=(
     ["redis"]="6380"           # Redis in-memory data store (6380 to avoid conflict with internal Redis on 6379)
     ["neo4j"]="7474"           # Neo4j graph database (HTTP)
     ["neo4j-bolt"]="7687"      # Neo4j Bolt protocol
+    # Note: sqlite is serverless and doesn't use a port
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
@@ -72,6 +73,8 @@ declare -g -A RESOURCE_PORTS=(
     ["cncjs"]="8194"           # Web-based CNC controller for Grbl, Marlin, Smoothieware, TinyG
     ["esphome"]="6587"         # ESPHome IoT firmware framework for ESP32/ESP8266 microcontrollers
     ["freecad"]="8195"         # Parametric 3D CAD modeler with Python API for engineering design
+    ["ggwave"]="8196"          # Air-gapped data transmission via FSK-modulated audio signals
+    ["lnbits"]="5001"          # Lightning Network Bitcoin micropayments and wallet system
     
     # Collaboration Services (80xx range)
     ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform

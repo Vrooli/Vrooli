@@ -197,17 +197,6 @@
       "task_type": "RESOURCE_DEVELOPMENT"
     },
     {
-      "file": "add-fix-n8n-workflow.md",
-      "title": "N8n Workflow Development and Enhancement",
-      "description": "Complete guide for creating and fixing n8n automation workflows",
-      "variables": [],
-      "usage_count": 0,
-      "is_favorite": true,
-      "effectiveness_rating": 5,
-      "category": "automation",
-      "task_type": "WORKFLOW_DEVELOPMENT"
-    },
-    {
       "file": "add-fix-scenario.md",
       "title": "Scenario Development and Enhancement",
       "description": "Comprehensive guide for building complete Vrooli scenarios (applications)",

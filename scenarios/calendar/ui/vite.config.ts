@@ -10,11 +10,17 @@ export default defineConfig({
     }
   },
   server: {
-    port: parseInt(process.env.UI_PORT || '35001'),
+    port: parseInt(process.env.UI_PORT || (() => {
+      console.error('❌ UI_PORT environment variable is required');
+      process.exit(1);
+    })()),
     host: true,
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.API_PORT || '15001'}`,
+        target: `http://localhost:${process.env.API_PORT || (() => {
+          console.error('❌ API_PORT environment variable is required');
+          process.exit(1);
+        })()}`,
         changeOrigin: true
       }
     }

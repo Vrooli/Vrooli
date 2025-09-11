@@ -155,6 +155,56 @@ twilio::test::integration() {
         ((passed++))
     fi
     
+    # Test 6: Bulk SMS capability check
+    log::info "Test 6: Bulk SMS capability check..."
+    if declare -f twilio::send_bulk_sms &>/dev/null; then
+        # Test with test credentials
+        export TWILIO_ACCOUNT_SID="AC_test_bulk"
+        export TWILIO_AUTH_TOKEN="test_token"
+        
+        # Test bulk send in test mode
+        if twilio::send_bulk_sms "Test message" "" "+15551234567" "+15551234568" 2>&1 | grep -q "Test mode detected"; then
+            log::success "  ✅ Bulk SMS function works in test mode"
+            ((passed++))
+        else
+            log::error "  ❌ Bulk SMS function failed"
+            ((failed++))
+        fi
+    else
+        log::error "  ❌ Bulk SMS function missing"
+        ((failed++))
+    fi
+    
+    # Test 7: CSV file SMS capability check
+    log::info "Test 7: CSV file SMS capability check..."
+    if declare -f twilio::send_sms_from_file &>/dev/null; then
+        # Create test CSV file
+        local test_csv="/tmp/twilio_test_${RANDOM}.csv"
+        cat > "$test_csv" <<EOF
+phone_number,message
++15551234567,Test message 1
++15551234568,Test message 2
+EOF
+        
+        # Test CSV processing in test mode
+        export TWILIO_ACCOUNT_SID="AC_test_csv"
+        export TWILIO_AUTH_TOKEN="test_token"
+        
+        if twilio::send_sms_from_file "$test_csv" "" 2>&1 | grep -q "Test mode detected"; then
+            log::success "  ✅ CSV SMS function works in test mode"
+            ((passed++))
+        else
+            log::error "  ❌ CSV SMS function failed"
+            ((failed++))
+        fi
+        
+        # Clean up
+        rm -f "$test_csv"
+    else
+        log::error "  ❌ CSV SMS function missing"
+        ((failed++))
+    fi
+    
     # Summary
     echo
     log::info "📊 Integration Test Results:"

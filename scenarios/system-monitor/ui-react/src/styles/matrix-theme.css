@@ -516,3 +516,83 @@ p {
     box-shadow: var(--shadow-bright-glow);
   }
 }
+
+/* Range slider styles */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: rgba(0, 255, 0, 0.2);
+  border-radius: 2px;
+  height: 4px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-success);
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  height: 16px;
+  width: 16px;
+  margin-top: -6px;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  transition: all 0.2s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-track {
+  background: rgba(0, 255, 0, 0.2);
+  border-radius: 2px;
+  height: 4px;
+  border: none;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: var(--color-success);
+  border: 2px solid var(--color-accent);
+  border-radius: 50%;
+  cursor: pointer;
+  height: 12px;
+  width: 12px;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  transition: all 0.2s;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.8);
+  transform: scale(1.1);
+}
+
+/* Button styles for different states */
+.btn-success {
+  background: var(--color-success);
+  color: var(--color-background);
+  border-color: var(--color-success);
+}
+
+.btn-success:hover {
+  background: var(--color-text-bright);
+  box-shadow: var(--shadow-bright-glow);
+}
+
+.btn-secondary {
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--color-text-dim);
+  border-color: var(--color-text-dim);
+}
+
+.btn-secondary:hover {
+  background: rgba(0, 255, 0, 0.1);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}

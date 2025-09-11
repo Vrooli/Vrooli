@@ -5,19 +5,38 @@
 set -e
 
 # Configuration - NO FALLBACKS per Vrooli standards
-API_BASE_URL="${CALENDAR_API_URL}"
-AUTH_TOKEN="${CALENDAR_AUTH_TOKEN:-}"
 CONFIG_DIR="$HOME/.vrooli/calendar"
 CONFIG_FILE="$CONFIG_DIR/config.yaml"
 
+# Load config first if it exists
+if [[ -f "$CONFIG_FILE" ]]; then
+    source "$CONFIG_FILE" 2>/dev/null || true
+fi
+
+# Environment variables override config file
+API_BASE_URL="${CALENDAR_API_URL:-${api_url:-}}"
+AUTH_TOKEN="${CALENDAR_AUTH_TOKEN:-${auth_token:-}}"
+
 # Validate required configuration
 if [[ -z "$API_BASE_URL" ]]; then
-    print_error "CALENDAR_API_URL environment variable is required"
-    echo ""
-    echo "Set the API URL with:"
-    echo "  export CALENDAR_API_URL=http://localhost:\$API_PORT"
+    # Check if API_PORT is set, which would help user understand what's needed
+    if [[ -n "$API_PORT" ]]; then
+        print_warning "API_PORT is set to $API_PORT but CALENDAR_API_URL is not configured"
+        echo ""
+        echo "You can set it with:"
+        echo "  export CALENDAR_API_URL=http://localhost:$API_PORT"
+    else
+        print_error "CALENDAR_API_URL environment variable is required"
+        echo ""
+        echo "First, check the calendar service is running:"
+        echo "  vrooli scenario status calendar"
+        echo ""
+        echo "Then set the API URL with the assigned port:"
+        echo "  export CALENDAR_API_URL=http://localhost:\$API_PORT"
+    fi
     echo ""
     echo "Or configure in: $CONFIG_FILE"
+    echo "  api_url: http://localhost:<port>"
     exit 1
 fi
 

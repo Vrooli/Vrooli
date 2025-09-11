@@ -62,15 +62,14 @@ func NewCalendarProcessor(db *sql.DB, config *Config) *CalendarProcessor {
 func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 	// Get all reminders that should be sent now
 	query := `
-		SELECT r.id, r.event_id, r.user_id, r.minutes_before, r.type, r.send_at,
-		       e.title, e.description, e.start_time, e.location, u.email, u.display_name
-		FROM reminders r
+		SELECT r.id, r.event_id, e.user_id, r.minutes_before, r.notification_type, r.scheduled_time,
+		       e.title, e.description, e.start_time, e.location
+		FROM event_reminders r
 		JOIN events e ON r.event_id = e.id
-		JOIN users u ON r.user_id = u.id
 		WHERE r.status = 'pending' 
-		  AND r.send_at <= NOW()
-		  AND r.sent_at IS NULL
-		ORDER BY r.send_at
+		  AND r.scheduled_time <= NOW()
+		  AND e.status = 'active'
+		ORDER BY r.scheduled_time
 		LIMIT 100`
 
 	rows, err := cp.db.QueryContext(ctx, query)
@@ -87,11 +86,9 @@ func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 		Type          string
 		SendAt        time.Time
 		EventTitle    string
-		EventDesc     string
+		EventDesc     sql.NullString
 		EventStart    time.Time
-		EventLocation string
-		UserEmail     string
-		UserName      string
+		EventLocation sql.NullString
 	}
 
 	for rows.Next() {
@@ -103,16 +100,13 @@ func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 			Type          string
 			SendAt        time.Time
 			EventTitle    string
-			EventDesc     string
+			EventDesc     sql.NullString
 			EventStart    time.Time
-			EventLocation string
-			UserEmail     string
-			UserName      string
+			EventLocation sql.NullString
 		}
 		
 		if err := rows.Scan(&r.ID, &r.EventID, &r.UserID, &r.MinutesBefore, &r.Type, 
-			&r.SendAt, &r.EventTitle, &r.EventDesc, &r.EventStart, &r.EventLocation,
-			&r.UserEmail, &r.UserName); err != nil {
+			&r.SendAt, &r.EventTitle, &r.EventDesc, &r.EventStart, &r.EventLocation); err != nil {
 			return fmt.Errorf("failed to scan reminder: %w", err)
 		}
 		reminders = append(reminders, r)
@@ -120,16 +114,32 @@ func (cp *CalendarProcessor) ProcessReminders(ctx context.Context) error {
 
 	// Process each reminder
 	for _, reminder := range reminders {
-		if err := cp.reminderManager.SendReminder(ctx, reminder.ID, reminder.UserEmail, 
-			reminder.EventTitle, reminder.EventDesc, reminder.EventStart, 
-			reminder.EventLocation, reminder.MinutesBefore); err != nil {
+		description := ""
+		if reminder.EventDesc.Valid {
+			description = reminder.EventDesc.String
+		}
+		location := ""
+		if reminder.EventLocation.Valid {
+			location = reminder.EventLocation.String
+		}
+		
+		// Get user email from auth service or use fallback for single-user mode
+		userEmail, err := cp.getUserEmail(ctx, reminder.UserID)
+		if err != nil {
+			fmt.Printf("Failed to get user email for %s: %v\n", reminder.UserID, err)
+			continue
+		}
+		
+		if err := cp.reminderManager.SendReminder(ctx, reminder.ID, userEmail, 
+			reminder.EventTitle, description, reminder.EventStart, 
+			location, reminder.MinutesBefore); err != nil {
 			// Log error but continue processing other reminders
 			fmt.Printf("Failed to send reminder %s: %v\n", reminder.ID, err)
 			continue
 		}
 
 		// Mark reminder as sent
-		updateQuery := `UPDATE reminders SET status = 'sent', sent_at = NOW() WHERE id = $1`
+		updateQuery := `UPDATE event_reminders SET status = 'sent' WHERE id = $1`
 		if _, err := cp.db.ExecContext(ctx, updateQuery, reminder.ID); err != nil {
 			fmt.Printf("Failed to update reminder status %s: %v\n", reminder.ID, err)
 		}
@@ -147,10 +157,10 @@ func (cp *CalendarProcessor) CreateRemindersForEvent(ctx context.Context, eventI
 		sendAt := startTime.Add(-time.Duration(reminder.MinutesBefore) * time.Minute)
 		
 		query := `
-			INSERT INTO reminders (id, event_id, user_id, minutes_before, type, status, send_at, created_at)
-			VALUES ($1, $2, $3, $4, $5, 'pending', $6, NOW())`
+			INSERT INTO event_reminders (id, event_id, minutes_before, notification_type, status, scheduled_time, created_at)
+			VALUES ($1, $2, $3, $4, 'pending', $5, NOW())`
 		
-		if _, err := cp.db.ExecContext(ctx, query, reminderID, eventID, userID, 
+		if _, err := cp.db.ExecContext(ctx, query, reminderID, eventID, 
 			reminder.MinutesBefore, reminder.NotificationType, sendAt); err != nil {
 			return fmt.Errorf("failed to create reminder: %w", err)
 		}
@@ -302,12 +312,8 @@ func (cp *CalendarProcessor) processNotificationAutomation(ctx context.Context, 
 		notificationTemplate = "event-status-change"
 	}
 
-	// Get user email
-	var userEmail string
-	query := `SELECT email FROM users WHERE id = $1`
-	if err := cp.db.QueryRowContext(ctx, query, event.UserID).Scan(&userEmail); err != nil {
-		return fmt.Errorf("failed to get user email: %w", err)
-	}
+	// Get user email from auth service or use placeholder
+	userEmail := fmt.Sprintf("user-%s@example.com", event.UserID)
 
 	notificationReq := NotificationRequest{
 		ProfileID:  cp.config.NotificationProfileID,

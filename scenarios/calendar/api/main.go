@@ -49,7 +49,7 @@ type Event struct {
 	Timezone         string                 `json:"timezone"`
 	Location         string                 `json:"location"`
 	EventType        string                 `json:"event_type"`
-	Status           string                 `json:"status"`
+	Status           string                 `json:"status"` // active, cancelled, deleted
 	Metadata         map[string]interface{} `json:"metadata"`
 	AutomationConfig map[string]interface{} `json:"automation_config"`
 	CreatedAt        time.Time              `json:"created_at"`
@@ -117,10 +117,7 @@ func initConfig() *Config {
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
-		port = os.Getenv("PORT") // Fallback to PORT
-		if port == "" {
-			log.Fatal("❌ API_PORT or PORT environment variable is required")
-		}
+		log.Fatal("❌ API_PORT environment variable is required")
 	}
 
 	// Database configuration - support both POSTGRES_URL and individual components
@@ -147,19 +144,24 @@ func initConfig() *Config {
 		log.Fatal("❌ QDRANT_URL environment variable is required")
 	}
 
+	// Auth service is optional - single user mode if not available
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		log.Fatal("❌ AUTH_SERVICE_URL environment variable is required")
+		log.Println("⚠️  AUTH_SERVICE_URL not configured - running in single-user mode")
+		log.Println("   Events will not have user isolation")
 	}
 
+	// Notification service is optional - reminders won't be delivered
 	notificationServiceURL := os.Getenv("NOTIFICATION_SERVICE_URL")
 	if notificationServiceURL == "" {
-		log.Fatal("❌ NOTIFICATION_SERVICE_URL environment variable is required")
+		log.Println("⚠️  NOTIFICATION_SERVICE_URL not configured - notifications disabled")
+		log.Println("   Event reminders will be queued but not delivered")
 	}
 
+	// Ollama is optional - NLP features will gracefully degrade
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		log.Fatal("❌ OLLAMA_URL environment variable is required")
+		log.Println("⚠️  OLLAMA_URL not configured - NLP features will use rule-based fallback")
 	}
 
 	jwtSecret := os.Getenv("JWT_SECRET")
@@ -241,6 +243,109 @@ func initDatabase(config *Config) error {
 	}
 	
 	log.Println("🎉 Database connection pool established successfully!")
+	
+	// Run database migrations
+	if err := runMigrations(config); err != nil {
+		log.Printf("⚠️  Warning: Failed to run migrations: %v", err)
+		// Don't fail startup - migrations might already be applied
+	}
+	
+	return nil
+}
+
+// Run database migrations
+func runMigrations(config *Config) error {
+	log.Println("🔧 Running database migrations...")
+	
+	// Check if tables exist
+	var tableExists bool
+	checkQuery := `
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables 
+			WHERE table_schema = 'public' 
+			AND table_name = 'events'
+		)`
+	
+	if err := db.QueryRow(checkQuery).Scan(&tableExists); err != nil {
+		return fmt.Errorf("failed to check table existence: %v", err)
+	}
+	
+	if tableExists {
+		log.Println("✅ Database schema already exists")
+		return nil
+	}
+	
+	// Create events table
+	eventsSchema := `
+		CREATE TABLE IF NOT EXISTS events (
+			id UUID PRIMARY KEY,
+			user_id VARCHAR(255) NOT NULL,
+			title VARCHAR(255) NOT NULL,
+			description TEXT,
+			start_time TIMESTAMPTZ NOT NULL,
+			end_time TIMESTAMPTZ NOT NULL,
+			timezone VARCHAR(50) DEFAULT 'UTC',
+			location VARCHAR(500),
+			event_type VARCHAR(50) DEFAULT 'meeting',
+			status VARCHAR(20) DEFAULT 'active',
+			metadata JSONB DEFAULT '{}',
+			automation_config JSONB DEFAULT '{}',
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		);
+		
+		CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
+		CREATE INDEX IF NOT EXISTS idx_events_start_time ON events(start_time);
+		CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+	`
+	
+	if _, err := db.Exec(eventsSchema); err != nil {
+		return fmt.Errorf("failed to create events table: %v", err)
+	}
+	
+	// Create event_reminders table
+	remindersSchema := `
+		CREATE TABLE IF NOT EXISTS event_reminders (
+			id UUID PRIMARY KEY,
+			event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+			minutes_before INTEGER NOT NULL,
+			notification_type VARCHAR(20) DEFAULT 'email',
+			status VARCHAR(20) DEFAULT 'pending',
+			scheduled_time TIMESTAMPTZ NOT NULL,
+			notification_id VARCHAR(255),
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);
+		
+		CREATE INDEX IF NOT EXISTS idx_reminders_event_id ON event_reminders(event_id);
+		CREATE INDEX IF NOT EXISTS idx_reminders_scheduled_time ON event_reminders(scheduled_time);
+		CREATE INDEX IF NOT EXISTS idx_reminders_status ON event_reminders(status);
+	`
+	
+	if _, err := db.Exec(remindersSchema); err != nil {
+		return fmt.Errorf("failed to create event_reminders table: %v", err)
+	}
+	
+	// Create recurring_patterns table
+	recurringSchema := `
+		CREATE TABLE IF NOT EXISTS recurring_patterns (
+			id UUID PRIMARY KEY,
+			parent_event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+			pattern_type VARCHAR(20) NOT NULL,
+			interval_value INTEGER DEFAULT 1,
+			days_of_week INTEGER[],
+			end_date TIMESTAMPTZ,
+			max_occurrences INTEGER,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);
+		
+		CREATE INDEX IF NOT EXISTS idx_recurring_parent_event ON recurring_patterns(parent_event_id);
+	`
+	
+	if _, err := db.Exec(recurringSchema); err != nil {
+		return fmt.Errorf("failed to create recurring_patterns table: %v", err)
+	}
+	
+	log.Println("✅ Database migrations completed successfully")
 	return nil
 }
 
@@ -249,6 +354,17 @@ func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip auth for health check
 		if r.URL.Path == "/health" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Check if auth service is configured
+		authServiceURL := os.Getenv("AUTH_SERVICE_URL")
+		if authServiceURL == "" {
+			// Single-user mode - use default user
+			r.Header.Set("X-User-ID", "default-user")
+			r.Header.Set("X-Auth-User-ID", "default-user")
+			r.Header.Set("X-User-Email", "user@localhost")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -283,10 +399,17 @@ func authMiddleware(next http.Handler) http.Handler {
 
 // Validate token with scenario-authenticator service
 func validateToken(token string) (*User, error) {
-	// Get auth service URL from environment (required)
+	// Get auth service URL from environment
 	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
 	if authServiceURL == "" {
-		return nil, fmt.Errorf("AUTH_SERVICE_URL environment variable is required")
+		// Return default user in single-user mode
+		return &User{
+			ID:          "default-user",
+			AuthUserID:  "default-user",
+			Email:       "user@localhost",
+			DisplayName: "Default User",
+			Timezone:    "UTC",
+		}, nil
 	}
 
 	// Create validation request
@@ -331,24 +454,166 @@ func validateToken(token string) (*User, error) {
 
 // Health check endpoint
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
-		"services": map[string]string{
-			"database": "connected",
-			"api":      "running",
-		},
-	}
+	services := make(map[string]interface{})
+	overallStatus := "healthy"
+	statusCode := http.StatusOK
 
 	// Test database connection
 	if err := db.Ping(); err != nil {
-		health["status"] = "unhealthy"
-		health["services"].(map[string]string)["database"] = "error: " + err.Error()
-		w.WriteHeader(http.StatusServiceUnavailable)
+		services["database"] = map[string]interface{}{
+			"status": "unhealthy",
+			"error":  err.Error(),
+		}
+		overallStatus = "degraded"
+	} else {
+		// Check table existence
+		var tableCount int
+		tableQuery := `SELECT COUNT(*) FROM information_schema.tables 
+		               WHERE table_schema = 'public' 
+		               AND table_name IN ('events', 'event_reminders')`
+		if err := db.QueryRow(tableQuery).Scan(&tableCount); err != nil {
+			services["database"] = map[string]interface{}{
+				"status": "degraded",
+				"error":  "Schema check failed: " + err.Error(),
+			}
+			overallStatus = "degraded"
+		} else {
+			services["database"] = map[string]interface{}{
+				"status": "healthy",
+				"tables": tableCount,
+			}
+		}
+	}
+
+	// Test Qdrant connection (if configured)
+	config := initConfig()
+	if config.QdrantURL != "" {
+		qdrantHealthURL := config.QdrantURL + "/health"
+		client := &http.Client{Timeout: 2 * time.Second}
+		if resp, err := client.Get(qdrantHealthURL); err != nil {
+			services["qdrant"] = map[string]interface{}{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			}
+			overallStatus = "degraded"
+		} else {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				services["qdrant"] = map[string]interface{}{
+					"status": "healthy",
+				}
+			} else {
+				services["qdrant"] = map[string]interface{}{
+					"status": "unhealthy",
+					"code":   resp.StatusCode,
+				}
+				overallStatus = "degraded"
+			}
+		}
+	} else {
+		services["qdrant"] = map[string]interface{}{
+			"status": "not_configured",
+		}
+	}
+
+	// Test Auth Service connection
+	if config.AuthServiceURL != "" {
+		authHealthURL := config.AuthServiceURL + "/health"
+		client := &http.Client{Timeout: 2 * time.Second}
+		if resp, err := client.Get(authHealthURL); err != nil {
+			services["auth_service"] = map[string]interface{}{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			}
+			overallStatus = "degraded"
+		} else {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				services["auth_service"] = map[string]interface{}{
+					"status": "healthy",
+				}
+			} else {
+				services["auth_service"] = map[string]interface{}{
+					"status": "unhealthy",
+					"code":   resp.StatusCode,
+				}
+				overallStatus = "degraded"
+			}
+		}
+	}
+
+	// Test Notification Service connection
+	if config.NotificationServiceURL != "" {
+		notificationHealthURL := config.NotificationServiceURL + "/health"
+		client := &http.Client{Timeout: 2 * time.Second}
+		if resp, err := client.Get(notificationHealthURL); err != nil {
+			services["notification_service"] = map[string]interface{}{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			}
+			overallStatus = "degraded"
+		} else {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				services["notification_service"] = map[string]interface{}{
+					"status": "healthy",
+				}
+			} else {
+				services["notification_service"] = map[string]interface{}{
+					"status": "unhealthy",
+					"code":   resp.StatusCode,
+				}
+				overallStatus = "degraded"
+			}
+		}
+	}
+
+	// Test Ollama connection (optional)
+	if config.OllamaURL != "" {
+		ollamaHealthURL := config.OllamaURL + "/api/tags"
+		client := &http.Client{Timeout: 2 * time.Second}
+		if resp, err := client.Get(ollamaHealthURL); err != nil {
+			services["ollama"] = map[string]interface{}{
+				"status": "unhealthy",
+				"error":  err.Error(),
+			}
+			// Don't degrade overall status for optional service
+		} else {
+			defer resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				services["ollama"] = map[string]interface{}{
+					"status": "healthy",
+				}
+			} else {
+				services["ollama"] = map[string]interface{}{
+					"status": "unhealthy",
+					"code":   resp.StatusCode,
+				}
+			}
+		}
+	} else {
+		services["ollama"] = map[string]interface{}{
+			"status": "not_configured",
+			"note":   "Using rule-based NLP fallback",
+		}
+	}
+
+	// Check if any required service is completely down
+	if db == nil || (services["database"] != nil && 
+		services["database"].(map[string]interface{})["status"] == "unhealthy") {
+		overallStatus = "unhealthy"
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	health := map[string]interface{}{
+		"status":    overallStatus,
+		"timestamp": time.Now().UTC(),
+		"version":   "1.0.0",
+		"services":  services,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(health)
 }
 
@@ -514,6 +779,251 @@ func listEventsHandler(w http.ResponseWriter, r *http.Request) {
 		"events":      events,
 		"total_count": len(events),
 		"has_more":    len(events) >= 100,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// Get single event handler
+func getEventHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "User ID not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Get event ID from URL
+	vars := mux.Vars(r)
+	eventID := vars["id"]
+	if eventID == "" {
+		http.Error(w, "Event ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Query for the event
+	var event Event
+	var metadataJSON, automationJSON []byte
+	query := `
+		SELECT id, user_id, title, description, start_time, end_time, timezone, 
+		       location, event_type, status, metadata, automation_config, created_at, updated_at
+		FROM events 
+		WHERE id = $1 AND user_id = $2 AND status != 'deleted'
+	`
+	
+	err := db.QueryRow(query, eventID, userID).Scan(
+		&event.ID, &event.UserID, &event.Title, &event.Description,
+		&event.StartTime, &event.EndTime, &event.Timezone, &event.Location,
+		&event.EventType, &event.Status, &metadataJSON, &automationJSON,
+		&event.CreatedAt, &event.UpdatedAt,
+	)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "Event not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("Error querying event: %v", err)
+		http.Error(w, "Failed to retrieve event", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse metadata and automation config
+	if len(metadataJSON) > 0 {
+		json.Unmarshal(metadataJSON, &event.Metadata)
+	}
+	if len(automationJSON) > 0 {
+		json.Unmarshal(automationJSON, &event.AutomationConfig)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(event)
+}
+
+// Update event handler
+func updateEventHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "User ID not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Get event ID from URL
+	vars := mux.Vars(r)
+	eventID := vars["id"]
+	if eventID == "" {
+		http.Error(w, "Event ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse update request
+	var req CreateEventRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Build dynamic update query
+	updateFields := []string{}
+	args := []interface{}{}
+	argCount := 0
+
+	if req.Title != "" {
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("title = $%d", argCount))
+		args = append(args, req.Title)
+	}
+
+	if req.Description != "" {
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("description = $%d", argCount))
+		args = append(args, req.Description)
+	}
+
+	if req.StartTime != "" {
+		startTime, err := time.Parse(time.RFC3339, req.StartTime)
+		if err != nil {
+			http.Error(w, "Invalid start_time format: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("start_time = $%d", argCount))
+		args = append(args, startTime)
+	}
+
+	if req.EndTime != "" {
+		endTime, err := time.Parse(time.RFC3339, req.EndTime)
+		if err != nil {
+			http.Error(w, "Invalid end_time format: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("end_time = $%d", argCount))
+		args = append(args, endTime)
+	}
+
+	if req.Location != "" {
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("location = $%d", argCount))
+		args = append(args, req.Location)
+	}
+
+	if req.EventType != "" {
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("event_type = $%d", argCount))
+		args = append(args, req.EventType)
+	}
+
+	if req.Timezone != "" {
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("timezone = $%d", argCount))
+		args = append(args, req.Timezone)
+	}
+
+	if req.Metadata != nil {
+		metadataJSON, _ := json.Marshal(req.Metadata)
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("metadata = $%d", argCount))
+		args = append(args, metadataJSON)
+	}
+
+	if req.AutomationConfig != nil {
+		automationJSON, _ := json.Marshal(req.AutomationConfig)
+		argCount++
+		updateFields = append(updateFields, fmt.Sprintf("automation_config = $%d", argCount))
+		args = append(args, automationJSON)
+	}
+
+	// Always update the updated_at timestamp
+	argCount++
+	updateFields = append(updateFields, fmt.Sprintf("updated_at = $%d", argCount))
+	args = append(args, time.Now().UTC())
+
+	// Add WHERE clause parameters
+	argCount++
+	args = append(args, eventID)
+	argCount++
+	args = append(args, userID)
+
+	// Execute update
+	query := fmt.Sprintf(`
+		UPDATE events 
+		SET %s 
+		WHERE id = $%d AND user_id = $%d AND status != 'deleted'
+		RETURNING id, user_id, title, description, start_time, end_time, timezone, 
+		          location, event_type, status, created_at, updated_at
+	`, strings.Join(updateFields, ", "), argCount-1, argCount)
+
+	var event Event
+	err := db.QueryRow(query, args...).Scan(
+		&event.ID, &event.UserID, &event.Title, &event.Description,
+		&event.StartTime, &event.EndTime, &event.Timezone, &event.Location,
+		&event.EventType, &event.Status, &event.CreatedAt, &event.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		http.Error(w, "Event not found or unauthorized", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("Error updating event: %v", err)
+		http.Error(w, "Failed to update event", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(event)
+}
+
+// Delete event handler (soft delete)
+func deleteEventHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "User ID not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Get event ID from URL
+	vars := mux.Vars(r)
+	eventID := vars["id"]
+	if eventID == "" {
+		http.Error(w, "Event ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Soft delete the event
+	query := `
+		UPDATE events 
+		SET status = 'deleted', updated_at = $1
+		WHERE id = $2 AND user_id = $3 AND status != 'deleted'
+		RETURNING id
+	`
+
+	var deletedID string
+	err := db.QueryRow(query, time.Now().UTC(), eventID, userID).Scan(&deletedID)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "Event not found or already deleted", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("Error deleting event: %v", err)
+		http.Error(w, "Failed to delete event", http.StatusInternalServerError)
+		return
+	}
+
+	// Also mark reminders as cancelled
+	_, err = db.Exec(`
+		UPDATE event_reminders 
+		SET status = 'cancelled'
+		WHERE event_id = $1 AND status = 'pending'
+	`, eventID)
+	
+	if err != nil {
+		log.Printf("Warning: Failed to cancel reminders for event %s: %v", eventID, err)
+	}
+
+	response := map[string]interface{}{
+		"success": true,
+		"message": "Event deleted successfully",
+		"event_id": deletedID,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -751,7 +1261,7 @@ func main() {
 	// Initialize calendar processor
 	calendarProcessor = NewCalendarProcessor(db, config)
 	
-	// Initialize NLP processor
+	// Initialize NLP processor (will use fallback if Ollama unavailable)
 	nlpProcessor = NewNLPProcessor(config.OllamaURL, db, config)
 	
 	// Start reminder processor in background
@@ -771,6 +1281,9 @@ func main() {
 	// Event management
 	api.HandleFunc("/events", createEventHandler).Methods("POST")
 	api.HandleFunc("/events", listEventsHandler).Methods("GET")
+	api.HandleFunc("/events/{id}", getEventHandler).Methods("GET")
+	api.HandleFunc("/events/{id}", updateEventHandler).Methods("PUT")
+	api.HandleFunc("/events/{id}", deleteEventHandler).Methods("DELETE")
 	
 	// Schedule management
 	api.HandleFunc("/schedule/chat", scheduleChatHandler).Methods("POST")

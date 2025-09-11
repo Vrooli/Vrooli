@@ -318,13 +318,6 @@ BEGIN
          '[]'::jsonb,
          0, true, 5, 'resource'),
          
-        (automation_campaign_id,
-         'N8n Workflow Development and Enhancement',
-         'features/add-fix-n8n-workflow.md',
-         'Complete guide for creating and fixing n8n automation workflows',
-         '[]'::jsonb,
-         0, true, 5, 'workflow'),
-         
         (application_campaign_id,
          'Scenario Development and Enhancement',
          'features/add-fix-scenario.md',
@@ -354,11 +347,6 @@ BEGIN
     SELECT p.id, infrastructure_tag_id
     FROM prompts p
     WHERE p.file_path = 'features/add-fix-resource.md';
-
-    INSERT INTO prompt_tags (prompt_id, tag_id)
-    SELECT p.id, automation_tag_id
-    FROM prompts p
-    WHERE p.file_path = 'features/add-fix-n8n-workflow.md';
 
     INSERT INTO prompt_tags (prompt_id, tag_id)
     SELECT p.id, application_tag_id

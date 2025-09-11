@@ -35,10 +35,14 @@ case "$TEST_PHASE" in
         log::info "Running unit tests..."
         exec "${TEST_DIR}/phases/test-unit.sh"
         ;;
+    cache)
+        log::info "Running cache tests..."
+        exec "${TEST_DIR}/phases/test-cache.sh"
+        ;;
     all)
         log::info "Running all test phases..."
         tests_passed=0
-        total_tests=3
+        total_tests=4
         
         # Run each phase
         if "${TEST_DIR}/phases/test-unit.sh"; then
@@ -53,6 +57,10 @@ case "$TEST_PHASE" in
             ((tests_passed++))
         fi
         
+        if "${TEST_DIR}/phases/test-cache.sh"; then
+            ((tests_passed++))
+        fi
+        
         # Report results
         if [[ $tests_passed -eq $total_tests ]]; then
             log::success "✓ All test phases passed ($tests_passed/$total_tests)"
@@ -64,7 +72,7 @@ case "$TEST_PHASE" in
         ;;
     *)
         log::error "Unknown test phase: $TEST_PHASE"
-        echo "Usage: $0 [smoke|integration|unit|all]"
+        echo "Usage: $0 [smoke|integration|unit|cache|all]"
         exit 1
         ;;
 esac

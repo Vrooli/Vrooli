@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pandas-AI Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API service port",
+      "default": 8095,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "analysis_timeout": {
+      "type": "integer",
+      "description": "Timeout for analysis operations in seconds",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 300
+    },
+    "max_rows": {
+      "type": "integer",
+      "description": "Maximum rows to process in a single query",
+      "default": 100000,
+      "minimum": 100,
+      "maximum": 10000000
+    },
+    "ai_model": {
+      "type": "string",
+      "description": "AI model to use for analysis",
+      "default": "gpt-3.5-turbo",
+      "enum": ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo", "claude-3-sonnet", "claude-3-opus"]
+    },
+    "cache_enabled": {
+      "type": "boolean",
+      "description": "Enable result caching",
+      "default": true
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging verbosity",
+      "default": "INFO",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+    },
+    "database": {
+      "type": "object",
+      "description": "Database connection settings",
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "vrooli-postgres"
+            },
+            "port": {
+              "type": "integer",
+              "default": 5432
+            },
+            "database": {
+              "type": "string",
+              "default": "vrooli"
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "vrooli-redis"
+            },
+            "port": {
+              "type": "integer",
+              "default": 6379
+            }
+          }
+        },
+        "mongodb": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "vrooli-mongodb"
+            },
+            "port": {
+              "type": "integer",
+              "default": 27017
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

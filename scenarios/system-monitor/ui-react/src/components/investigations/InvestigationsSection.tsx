@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Search, AlertTriangle, Shield, Bot, Play } from 'lucide-react';
+import { ChevronDown, ChevronRight, Search, AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp } from 'lucide-react';
 import { InvestigationsPanel } from './InvestigationsPanel';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
+import { AutomaticTriggersSection } from './AutomaticTriggersSection';
 import type { Investigation, InvestigationScript } from '../../types';
 
 interface InvestigationsSectionProps {
   investigations: Investigation[];
   onOpenScriptEditor: (script?: InvestigationScript, content?: string, mode?: 'create' | 'edit' | 'view') => void;
-  onSpawnAgent: (autoFix: boolean) => void;
+  onSpawnAgent: (autoFix: boolean, note?: string) => void;
 }
 
 export const InvestigationsSection = ({ 
@@ -21,6 +22,8 @@ export const InvestigationsSection = ({
   const [isSpawning, setIsSpawning] = useState(false);
   const [reportsSearch, setReportsSearch] = useState('');
   const [scriptsSearch, setScriptsSearch] = useState('');
+  const [agentNote, setAgentNote] = useState('');
+  const [showNoteField, setShowNoteField] = useState(false);
 
   // Filter investigations based on search
   const filteredInvestigations = investigations.filter(inv => {
@@ -34,11 +37,16 @@ export const InvestigationsSection = ({
   const handleSpawnAgent = async () => {
     setIsSpawning(true);
     try {
-      await onSpawnAgent(autoFixEnabled);
+      await onSpawnAgent(autoFixEnabled, agentNote.trim() || undefined);
     } finally {
       // Keep spinning for visual effect
       setTimeout(() => setIsSpawning(false), 2000);
     }
+  };
+
+  const handleUpdateTrigger = (triggerId: string, config: any) => {
+    // TODO: Implement API call to update trigger configuration
+    console.log('Updating trigger:', triggerId, config);
   };
 
   return (
@@ -111,7 +119,8 @@ export const InvestigationsSection = ({
                 display: 'flex', 
                 alignItems: 'center', 
                 gap: 'var(--spacing-lg)',
-                flexWrap: 'wrap'
+                flexWrap: 'wrap',
+                marginBottom: 'var(--spacing-md)'
               }}>
                 {/* Auto-fix Checkbox */}
                 <label style={{ 
@@ -145,6 +154,23 @@ export const InvestigationsSection = ({
                   </span>
                 </label>
 
+                {/* Note Toggle Button */}
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => setShowNoteField(!showNoteField)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-xs)',
+                    padding: 'var(--spacing-xs) var(--spacing-sm)',
+                    fontSize: 'var(--font-size-xs)'
+                  }}
+                >
+                  <MessageCircle size={14} />
+                  NOTE
+                  {showNoteField ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+
                 {/* Spawn Agent Button */}
                 <button 
                   className="btn btn-primary"
@@ -166,6 +192,59 @@ export const InvestigationsSection = ({
                 </button>
               </div>
 
+              {/* Agent Note Field */}
+              {showNoteField && (
+                <div style={{
+                  marginBottom: 'var(--spacing-md)',
+                  padding: 'var(--spacing-md)',
+                  background: 'rgba(0, 0, 0, 0.3)',
+                  border: '1px solid var(--color-accent)',
+                  borderRadius: 'var(--border-radius-sm)'
+                }}>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: 'var(--spacing-sm)',
+                    color: 'var(--color-text-bright)',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 'var(--spacing-xs)'
+                  }}>
+                    <MessageCircle size={16} style={{ color: 'var(--color-accent)' }} />
+                    Investigation Note (Optional)
+                  </label>
+                  <textarea
+                    value={agentNote}
+                    onChange={(e) => setAgentNote(e.target.value)}
+                    placeholder="Provide context or specific areas to investigate first...\ne.g., 'Check database connections on port 5432' or 'Focus on recent memory spikes'"
+                    style={{
+                      width: '100%',
+                      minHeight: '80px',
+                      padding: 'var(--spacing-sm)',
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      border: '1px solid var(--color-text-dim)',
+                      borderRadius: 'var(--border-radius-sm)',
+                      color: 'var(--color-text)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontFamily: 'var(--font-family-mono)',
+                      resize: 'vertical',
+                      outline: 'none',
+                      transition: 'border-color 0.2s'
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-accent)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-text-dim)'}
+                  />
+                  <div style={{
+                    marginTop: 'var(--spacing-xs)',
+                    color: 'var(--color-text-dim)',
+                    fontSize: 'var(--font-size-xs)'
+                  }}>
+                    This note will be included in the agent's context to help it focus investigation efforts.
+                  </div>
+                </div>
+              )}
+
               {autoFixEnabled && (
                 <div style={{
                   marginTop: 'var(--spacing-md)',
@@ -184,6 +263,9 @@ export const InvestigationsSection = ({
             </div>
           </div>
         </div>
+
+        {/* Automatic Triggers Section */}
+        <AutomaticTriggersSection onUpdateTrigger={handleUpdateTrigger} />
 
         {/* Reports Subsection */}
         <div className="subsection" style={{ 

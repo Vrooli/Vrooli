@@ -90,6 +90,11 @@ cli::register_command "logs" "Show resource logs (N/A for API service)" "gemini:
 # ==============================================================================
 cli::register_command "list-models" "List available Gemini models" "gemini::list_models"
 cli::register_command "generate" "Generate content using Gemini" "gemini::generate_cli"
+cli::register_command "cache-stats" "Show cache statistics" "gemini::cache::stats"
+cli::register_command "cache-clear" "Clear all cached responses" "gemini::cache::clear_all"
+cli::register_command "token-stats" "Show token usage statistics" "gemini::tokens::get_stats"
+cli::register_command "token-cost" "Estimate token usage costs" "gemini::tokens::estimate_cost"
+cli::register_command "token-clear" "Clear token usage history" "gemini::tokens::clear_history"
 
 # Add no-op handlers for API service (since Gemini doesn't have Docker containers)
 gemini::docker::start_noop() {

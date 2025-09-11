@@ -19,7 +19,7 @@ AI maintenance task management system for Vrooli, organizing automated code qual
    ```
 
 2. **Access the web interface:**
-   Open http://localhost:3005 in your browser
+   Open http://localhost:${UI_PORT} in your browser (port provided by lifecycle system)
 
 3. **Use the CLI:**
    ```bash
@@ -29,14 +29,14 @@ AI maintenance task management system for Vrooli, organizing automated code qual
    ```
 
 4. **API access:**
-   The REST API is available at http://localhost:8085
+   The REST API is available at http://localhost:${API_PORT} (port provided by lifecycle system)
 
 ## Architecture
 
 ### Components
 
-- **Go API Server** (port 8085): RESTful backend with campaign and prompt management
-- **React UI** (port 3005): Web interface with campaign sidebar and prompt editor  
+- **Go API Server** (port allocated by lifecycle): RESTful backend with campaign and prompt management
+- **React UI** (port allocated by lifecycle): Web interface with campaign sidebar and prompt editor  
 - **Bash CLI**: Command-line tool for quick operations
 - **PostgreSQL**: Primary data storage
 - **Qdrant** (optional): Vector database for semantic search
@@ -151,7 +151,7 @@ bash deployment/validate.sh
 - **Memory**: ~200MB
 - **Storage**: ~50MB initial + data growth
 - **CPU**: Minimal (1 core sufficient)
-- **Network**: Ports 3005 (UI), 8085 (API)
+- **Network**: Ports allocated dynamically by lifecycle system
 
 ## Optional Enhancements
 

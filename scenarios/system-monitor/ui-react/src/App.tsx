@@ -268,14 +268,19 @@ echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
             <InvestigationsSection 
               investigations={investigations}
               onOpenScriptEditor={openScriptEditor}
-              onSpawnAgent={async (autoFix: boolean) => {
+              onSpawnAgent={async (autoFix: boolean, note?: string) => {
                 try {
+                  const requestBody: { auto_fix: boolean; note?: string } = { auto_fix: autoFix };
+                  if (note) {
+                    requestBody.note = note;
+                  }
+
                   const response = await fetch('/api/investigations/trigger', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ auto_fix: autoFix })
+                    body: JSON.stringify(requestBody)
                   });
                   
                   if (response.ok) {

@@ -2,15 +2,33 @@
 # Prompt Manager CLI
 # Command-line interface for managing prompts organized by campaigns
 
-set -euo pipefail
+set -eo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/prompt-manager/cli"
 CLI_NAME="prompt-manager"
 VERSION="1.0.0"
 
-# Default API URL - can be overridden via environment
-API_URL="${PROMPT_MANAGER_API_URL:-http://localhost:8085}"
+# API URL Discovery
+# 1. First check environment variable
+API_URL="${PROMPT_MANAGER_API_URL}"
+
+# 2. If not set, try to discover from lifecycle system
+if [[ -z "$API_URL" ]]; then
+    # Check if API_PORT is set (indicates we're running via lifecycle)
+    if [[ -n "${API_PORT}" ]]; then
+        API_URL="http://localhost:${API_PORT}"
+    fi
+fi
+
+# 3. Try to read from running resources file
+if [[ -z "$API_URL" ]] && [[ -f "${APP_ROOT}/.vrooli/running-resources.json" ]]; then
+    # Try to extract prompt-manager API port from running resources
+    API_PORT_FROM_FILE=$(jq -r '.scenarios["prompt-manager"].ports.api // empty' "${APP_ROOT}/.vrooli/running-resources.json" 2>/dev/null)
+    if [[ -n "$API_PORT_FROM_FILE" ]]; then
+        API_URL="http://localhost:${API_PORT_FROM_FILE}"
+    fi
+fi
 
 # Color codes for better UX
 RED='\033[1;31m'
@@ -66,30 +84,54 @@ warn() {
 # API helper functions
 api_get() {
     local endpoint="$1"
-    curl -s "${API_URL}${endpoint}" || error "Failed to connect to API at ${API_URL}"
+    curl -sf "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to connect to API at ${API_URL}${NC}" >&2
+        return 1
+    }
 }
 
 api_post() {
     local endpoint="$1"
     local data="$2"
-    curl -s -X POST -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" || error "Failed to post to API"
+    curl -sf -X POST -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to post to API${NC}" >&2
+        return 1
+    }
 }
 
 api_put() {
     local endpoint="$1"
     local data="$2"
-    curl -s -X PUT -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" || error "Failed to update via API"
+    curl -sf -X PUT -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to update via API${NC}" >&2
+        return 1
+    }
 }
 
 api_delete() {
     local endpoint="$1"
-    curl -s -X DELETE "${API_URL}${endpoint}" || error "Failed to delete via API"
+    curl -sf -X DELETE "${API_URL}${endpoint}" 2>/dev/null || {
+        echo -e "${RED}Failed to delete via API${NC}" >&2
+        return 1
+    }
 }
 
 # Check if API is available
 check_api() {
-    if ! api_get "/health" > /dev/null 2>&1; then
-        error "Prompt Manager API is not running at ${API_URL}. Please start it first."
+    if [[ -z "$API_URL" ]]; then
+        echo -e "${RED}❌ Cannot find Prompt Manager API${NC}" >&2
+        echo -e "${YELLOW}Please ensure the scenario is running:${NC}" >&2
+        echo -e "  ${WHITE}vrooli scenario start prompt-manager${NC}" >&2
+        echo -e "${YELLOW}Or set the API URL manually:${NC}" >&2
+        echo -e "  ${WHITE}export PROMPT_MANAGER_API_URL=http://localhost:<port>${NC}" >&2
+        exit 1
+    fi
+    
+    if ! curl -s "${API_URL}/health" > /dev/null 2>&1; then
+        echo -e "${RED}❌ Prompt Manager API is not responding at ${API_URL}${NC}" >&2
+        echo -e "${YELLOW}Please ensure the scenario is running:${NC}" >&2
+        echo -e "  ${WHITE}vrooli scenario start prompt-manager${NC}" >&2
+        exit 1
     fi
 }
 
@@ -118,7 +160,7 @@ cmd_campaigns() {
             check_api
             
             local campaigns
-            campaigns=$(api_get "/api/campaigns")
+            campaigns=$(api_get "/api/v1/campaigns")
             
             if [[ "$campaigns" == "[]" ]]; then
                 warn "No campaigns found"
@@ -151,7 +193,7 @@ cmd_campaigns() {
             }')
             
             local response
-            response=$(api_post "/api/campaigns" "$request")
+            response=$(api_post "/api/v1/campaigns" "$request")
             
             if [[ -n "$response" ]]; then
                 success "Campaign created!"
@@ -178,7 +220,7 @@ cmd_add() {
     if [[ -z "$campaign" ]]; then
         echo -e "${YELLOW}Available campaigns:${NC}"
         local campaigns
-        campaigns=$(api_get "/api/campaigns")
+        campaigns=$(api_get "/api/v1/campaigns")
         echo "$campaigns" | jq -r '.[] | "  \(.name) - \(.id)"'
         read -p "Enter campaign name or ID: " campaign
     fi
@@ -186,7 +228,7 @@ cmd_add() {
     # Get campaign ID if name was provided
     local campaign_id="$campaign"
     if [[ ! "$campaign" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
-        campaign_id=$(api_get "/api/campaigns" | jq -r ".[] | select(.name | test(\"$campaign\"; \"i\")) | .id" | head -1)
+        campaign_id=$(api_get "/api/v1/campaigns" | jq -r ".[] | select(.name | test(\"$campaign\"; \"i\")) | .id" | head -1)
         [[ -z "$campaign_id" ]] && error "Campaign not found: $campaign"
     fi
     
@@ -207,7 +249,7 @@ cmd_add() {
     }')
     
     local response
-    response=$(api_post "/api/prompts" "$request")
+    response=$(api_post "/api/v1/prompts" "$request")
     
     if [[ -n "$response" ]]; then
         success "Prompt added!"
@@ -225,7 +267,7 @@ cmd_list() {
     
     check_api
     
-    local endpoint="/api/prompts"
+    local endpoint="/api/v1/prompts"
     local query_params=""
     
     case "$filter" in
@@ -241,10 +283,10 @@ cmd_list() {
         # Get campaign ID
         local campaign_id="$campaign"
         if [[ ! "$campaign" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
-            campaign_id=$(api_get "/api/campaigns" | jq -r ".[] | select(.name | test(\"$campaign\"; \"i\")) | .id" | head -1)
+            campaign_id=$(api_get "/api/v1/campaigns" | jq -r ".[] | select(.name | test(\"$campaign\"; \"i\")) | .id" | head -1)
             [[ -z "$campaign_id" ]] && error "Campaign not found: $campaign"
         fi
-        endpoint="/api/campaigns/$campaign_id/prompts"
+        endpoint="/api/v1/campaigns/$campaign_id/prompts"
     fi
     
     info "Fetching prompts..."
@@ -270,7 +312,7 @@ cmd_search() {
     check_api
     
     local results
-    results=$(api_get "/api/search/prompts?q=$(echo "$query" | jq -R -r @uri)")
+    results=$(api_get "/api/v1/search/prompts?q=$(echo "$query" | jq -R -r @uri)")
     
     if [[ "$results" == "[]" ]]; then
         warn "No prompts found matching: $query"
@@ -291,7 +333,7 @@ cmd_show() {
     check_api
     
     local prompt
-    prompt=$(api_get "/api/prompts/$prompt_id")
+    prompt=$(api_get "/api/v1/prompts/$prompt_id")
     
     if [[ -z "$prompt" ]] || [[ "$prompt" == "null" ]]; then
         error "Prompt not found: $prompt_id"
@@ -339,11 +381,11 @@ cmd_use() {
     check_api
     
     # Record usage
-    api_post "/api/prompts/$prompt_id/use" "{}" > /dev/null
+    api_post "/api/v1/prompts/$prompt_id/use" "{}" > /dev/null
     
     # Get and display the prompt
     local prompt
-    prompt=$(api_get "/api/prompts/$prompt_id")
+    prompt=$(api_get "/api/v1/prompts/$prompt_id")
     
     if [[ -n "$prompt" ]]; then
         success "Usage recorded!"
@@ -384,7 +426,7 @@ cmd_quick() {
     check_api
     
     local prompt
-    prompt=$(api_get "/api/prompts/quick/$key")
+    prompt=$(api_get "/api/v1/prompts/quick/$key")
     
     if [[ -n "$prompt" ]] && [[ "$prompt" != "null" ]]; then
         echo -e "${YELLOW}Quick Prompt:${NC}"
@@ -418,7 +460,7 @@ cmd_help() {
     echo -e "  $CLI_NAME use 123e4567-e89b-12d3-a456-426614174000"
     echo
     echo -e "${CYAN}Environment Variables:${NC}"
-    echo -e "  ${YELLOW}PROMPT_MANAGER_API_URL${NC}    API base URL (default: http://localhost:8085)"
+    echo -e "  ${YELLOW}PROMPT_MANAGER_API_URL${NC}    API base URL (required)"
     echo
     echo -e "${MAGENTA}📝 Happy Prompting! 📝${NC}"
 }

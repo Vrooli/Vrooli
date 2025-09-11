@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import type { InfrastructureMonitorData } from '../../types';
 
 interface InfrastructureMonitorProps {
@@ -21,8 +21,9 @@ export const InfrastructureMonitor = ({ data, isExpanded, onToggle }: Infrastruc
           marginBottom: isExpanded ? 'var(--spacing-md)' : 0
         }}
       >
-        <h2 style={{ margin: 0, color: 'var(--color-text-bright)' }}>
-          ⚡ INFRASTRUCTURE MONITOR
+        <h2 style={{ margin: 0, color: 'var(--color-text-bright)', display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
+          <Zap size={20} />
+          INFRASTRUCTURE MONITOR
         </h2>
         <span className="expand-arrow" style={{ color: 'var(--color-accent)' }}>
           {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}

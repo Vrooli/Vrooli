@@ -199,6 +199,32 @@ blender::remove_injected() {
     return 0
 }
 
+# List exported output files
+blender::list_exports() {
+    # Initialize if needed
+    blender::init >/dev/null 2>&1
+    
+    if [[ ! -d "$BLENDER_OUTPUT_DIR" ]]; then
+        echo "[INFO] No output files found"
+        return 0
+    fi
+    
+    local count=$(find "$BLENDER_OUTPUT_DIR" -type f | wc -l)
+    echo "[INFO] Output files: $count"
+    
+    if [[ $count -gt 0 ]]; then
+        for file in "$BLENDER_OUTPUT_DIR"/*; do
+            [[ -f "$file" ]] || continue
+            local name=$(basename "$file")
+            local size=$(stat -c%s "$file" 2>/dev/null || echo 0)
+            local modified=$(stat -c%y "$file" 2>/dev/null | cut -d. -f1)
+            echo "  - $name (${size} bytes, modified: ${modified})"
+        done
+    fi
+    
+    return 0
+}
+
 # Export output files from Blender container
 blender::export() {
     local source_file="$1"

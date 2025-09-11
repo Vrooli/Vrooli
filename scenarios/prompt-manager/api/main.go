@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -140,6 +142,19 @@ type APIServer struct {
 }
 
 func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start prompt-manager
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Port configuration - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -167,14 +182,15 @@ func main() {
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
 
+	// Optional resource URLs - will be empty if not available
 	qdrantURL := os.Getenv("QDRANT_URL")
 	if qdrantURL == "" {
-		qdrantURL = "http://localhost:6333"
+		log.Println("⚠️  QDRANT_URL not provided - semantic search will be disabled")
 	}
 
 	ollamaURL := os.Getenv("OLLAMA_URL")
 	if ollamaURL == "" {
-		ollamaURL = "http://localhost:11434"
+		log.Println("⚠️  OLLAMA_URL not provided - prompt testing will be disabled")
 	}
 
 	// Connect to database
@@ -251,76 +267,74 @@ func main() {
 		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
 	)
 
-	// Health check
+	// Health check (outside versioning for simplicity)
 	router.HandleFunc("/health", server.healthCheck).Methods("GET")
 
-	// API routes
-	api := router.PathPrefix("/api").Subrouter()
+	// API v1 routes
+	v1 := router.PathPrefix("/api/v1").Subrouter()
 
 	// Campaign endpoints
-	api.HandleFunc("/campaigns", server.getCampaigns).Methods("GET")
-	api.HandleFunc("/campaigns", server.createCampaign).Methods("POST")
-	api.HandleFunc("/campaigns/{id}", server.getCampaign).Methods("GET")
-	api.HandleFunc("/campaigns/{id}", server.updateCampaign).Methods("PUT")
-	api.HandleFunc("/campaigns/{id}", server.deleteCampaign).Methods("DELETE")
-	api.HandleFunc("/campaigns/{id}/prompts", server.getCampaignPrompts).Methods("GET")
+	v1.HandleFunc("/campaigns", server.getCampaigns).Methods("GET")
+	v1.HandleFunc("/campaigns", server.createCampaign).Methods("POST")
+	v1.HandleFunc("/campaigns/{id}", server.getCampaign).Methods("GET")
+	v1.HandleFunc("/campaigns/{id}", server.updateCampaign).Methods("PUT")
+	v1.HandleFunc("/campaigns/{id}", server.deleteCampaign).Methods("DELETE")
+	v1.HandleFunc("/campaigns/{id}/prompts", server.getCampaignPrompts).Methods("GET")
 
 	// Prompt endpoints
-	api.HandleFunc("/prompts", server.getPrompts).Methods("GET")
-	api.HandleFunc("/prompts", server.createPrompt).Methods("POST")
-	api.HandleFunc("/prompts/{id}", server.getPrompt).Methods("GET")
-	api.HandleFunc("/prompts/{id}", server.updatePrompt).Methods("PUT")
-	api.HandleFunc("/prompts/{id}", server.deletePrompt).Methods("DELETE")
-	api.HandleFunc("/prompts/{id}/use", server.recordPromptUsage).Methods("POST")
+	v1.HandleFunc("/prompts", server.getPrompts).Methods("GET")
+	v1.HandleFunc("/prompts", server.createPrompt).Methods("POST")
+	v1.HandleFunc("/prompts/{id}", server.getPrompt).Methods("GET")
+	v1.HandleFunc("/prompts/{id}", server.updatePrompt).Methods("PUT")
+	v1.HandleFunc("/prompts/{id}", server.deletePrompt).Methods("DELETE")
+	v1.HandleFunc("/prompts/{id}/use", server.recordPromptUsage).Methods("POST")
 	
 	// Search endpoints
-	api.HandleFunc("/search/prompts", server.searchPrompts).Methods("GET")
-	api.HandleFunc("/prompts/semantic", server.semanticSearch).Methods("POST")
+	v1.HandleFunc("/search/prompts", server.searchPrompts).Methods("GET")
+	v1.HandleFunc("/prompts/semantic", server.semanticSearch).Methods("POST")
 	
 	// Quick access
-	api.HandleFunc("/prompts/quick/{key}", server.getPromptByQuickKey).Methods("GET")
-	api.HandleFunc("/prompts/recent", server.getRecentPrompts).Methods("GET")
-	api.HandleFunc("/prompts/favorites", server.getFavoritePrompts).Methods("GET")
+	v1.HandleFunc("/prompts/quick/{key}", server.getPromptByQuickKey).Methods("GET")
+	v1.HandleFunc("/prompts/recent", server.getRecentPrompts).Methods("GET")
+	v1.HandleFunc("/prompts/favorites", server.getFavoritePrompts).Methods("GET")
 
 	// Testing
-	api.HandleFunc("/prompts/{id}/test", server.testPrompt).Methods("POST")
-	api.HandleFunc("/prompts/{id}/test-history", server.getTestHistory).Methods("GET")
+	v1.HandleFunc("/prompts/{id}/test", server.testPrompt).Methods("POST")
+	v1.HandleFunc("/prompts/{id}/test-history", server.getTestHistory).Methods("GET")
 
 	// Tags
-	api.HandleFunc("/tags", server.getTags).Methods("GET")
-	api.HandleFunc("/tags", server.createTag).Methods("POST")
+	v1.HandleFunc("/tags", server.getTags).Methods("GET")
+	v1.HandleFunc("/tags", server.createTag).Methods("POST")
 
 	// Templates
-	api.HandleFunc("/templates", server.getTemplates).Methods("GET")
-	api.HandleFunc("/templates/{id}", server.getTemplate).Methods("GET")
-	
-	// N8N Workflow Integration endpoints
-	api.HandleFunc("/enhance", server.enhancePrompt).Methods("POST")
-	api.HandleFunc("/campaigns/manage", server.manageCampaignViaWorkflow).Methods("POST")
+	v1.HandleFunc("/templates", server.getTemplates).Methods("GET")
+	v1.HandleFunc("/templates/{id}", server.getTemplate).Methods("GET")
 
 	// Export/Import endpoints
-	api.HandleFunc("/export", server.exportData).Methods("GET")
-	api.HandleFunc("/import", server.importData).Methods("POST")
+	v1.HandleFunc("/export", server.exportData).Methods("GET")
+	v1.HandleFunc("/import", server.importData).Methods("POST")
 
 	// Prompt Version History
-	api.HandleFunc("/prompts/{id}/versions", server.getPromptVersions).Methods("GET")
-	api.HandleFunc("/prompts/{id}/revert/{version}", server.revertPromptVersion).Methods("POST")
+	v1.HandleFunc("/prompts/{id}/versions", server.getPromptVersions).Methods("GET")
+	v1.HandleFunc("/prompts/{id}/revert/{version}", server.revertPromptVersion).Methods("POST")
 
 	log.Printf("🚀 Prompt Manager API starting on port %s", port)
-	log.Printf("🗄️  Database: %s", postgresURL)
-	log.Printf("🔍 Qdrant: %s", qdrantURL)
-	log.Printf("🧠 Ollama: %s", ollamaURL)
+	log.Printf("🗄️  Database: Connected")
+	if qdrantURL != "" {
+		log.Printf("🔍 Qdrant: %s", qdrantURL)
+	} else {
+		log.Printf("🔍 Qdrant: Not available (semantic search disabled)")
+	}
+	if ollamaURL != "" {
+		log.Printf("🧠 Ollama: %s", ollamaURL)
+	} else {
+		log.Printf("🧠 Ollama: Not available (prompt testing disabled)")
+	}
 
 	handler := corsHandler(router)
 	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
 
 // Health check endpoint
 func (s *APIServer) healthCheck(w http.ResponseWriter, r *http.Request) {
@@ -347,6 +361,9 @@ func (s *APIServer) checkDatabase() string {
 }
 
 func (s *APIServer) checkQdrant() string {
+	if s.qdrantURL == "" {
+		return "not_configured"
+	}
 	resp, err := http.Get(s.qdrantURL + "/health")
 	if err != nil {
 		return "unavailable"
@@ -361,6 +378,9 @@ func (s *APIServer) checkQdrant() string {
 }
 
 func (s *APIServer) checkOllama() string {
+	if s.ollamaURL == "" {
+		return "not_configured"
+	}
 	resp, err := http.Get(s.ollamaURL + "/api/tags")
 	if err != nil {
 		return "unavailable"
@@ -784,11 +804,117 @@ func calculateTokenCount(content *string) *int {
 
 // Stub implementations for remaining endpoints
 func (s *APIServer) updateCampaign(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	campaignID := vars["id"]
+
+	var req CreateCampaignRequest // Reuse the create request structure
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Build dynamic update query
+	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
+	args := []interface{}{}
+	argIndex := 1
+
+	if req.Name != "" {
+		updates = append(updates, fmt.Sprintf("name = $%d", argIndex))
+		args = append(args, req.Name)
+		argIndex++
+	}
+	if req.Description != nil {
+		updates = append(updates, fmt.Sprintf("description = $%d", argIndex))
+		args = append(args, req.Description)
+		argIndex++
+	}
+	if req.Color != nil {
+		updates = append(updates, fmt.Sprintf("color = $%d", argIndex))
+		args = append(args, *req.Color)
+		argIndex++
+	}
+	if req.Icon != nil {
+		updates = append(updates, fmt.Sprintf("icon = $%d", argIndex))
+		args = append(args, *req.Icon)
+		argIndex++
+	}
+	if req.IsFavorite != nil {
+		updates = append(updates, fmt.Sprintf("is_favorite = $%d", argIndex))
+		args = append(args, *req.IsFavorite)
+		argIndex++
+	}
+	if req.ParentID != nil {
+		updates = append(updates, fmt.Sprintf("parent_id = $%d", argIndex))
+		args = append(args, req.ParentID)
+		argIndex++
+	}
+
+	// Add campaign ID as last argument
+	args = append(args, campaignID)
+
+	query := fmt.Sprintf(
+		"UPDATE campaigns SET %s WHERE id = $%d",
+		strings.Join(updates, ", "),
+		argIndex,
+	)
+
+	result, err := s.db.Exec(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "Campaign not found", http.StatusNotFound)
+		return
+	}
+
+	// Return updated campaign
+	s.getCampaign(w, r)
 }
 
 func (s *APIServer) deleteCampaign(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	campaignID := vars["id"]
+
+	// Check if campaign has prompts
+	var promptCount int
+	err := s.db.QueryRow("SELECT COUNT(*) FROM prompts WHERE campaign_id = $1", campaignID).Scan(&promptCount)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if promptCount > 0 {
+		http.Error(w, "Campaign has prompts. Delete or move prompts first.", http.StatusConflict)
+		return
+	}
+
+	// Delete the campaign
+	result, err := s.db.Exec("DELETE FROM campaigns WHERE id = $1", campaignID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "Campaign not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *APIServer) getCampaignPrompts(w http.ResponseWriter, r *http.Request) {
@@ -827,11 +953,131 @@ func (s *APIServer) getCampaignPrompts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) updatePrompt(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	promptID := vars["id"]
+
+	var req UpdatePromptRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Build dynamic update query
+	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
+	args := []interface{}{}
+	argIndex := 1
+
+	if req.Title != nil {
+		updates = append(updates, fmt.Sprintf("title = $%d", argIndex))
+		args = append(args, *req.Title)
+		argIndex++
+	}
+	if req.Content != nil {
+		updates = append(updates, fmt.Sprintf("content = $%d", argIndex))
+		args = append(args, *req.Content)
+		argIndex++
+		// Update word count and token count
+		updates = append(updates, fmt.Sprintf("word_count = $%d", argIndex))
+		args = append(args, calculateWordCount(req.Content))
+		argIndex++
+		updates = append(updates, fmt.Sprintf("estimated_tokens = $%d", argIndex))
+		args = append(args, calculateTokenCount(req.Content))
+		argIndex++
+	}
+	if req.Description != nil {
+		updates = append(updates, fmt.Sprintf("description = $%d", argIndex))
+		args = append(args, req.Description)
+		argIndex++
+	}
+	if req.IsFavorite != nil {
+		updates = append(updates, fmt.Sprintf("is_favorite = $%d", argIndex))
+		args = append(args, *req.IsFavorite)
+		argIndex++
+	}
+	if req.IsArchived != nil {
+		updates = append(updates, fmt.Sprintf("is_archived = $%d", argIndex))
+		args = append(args, *req.IsArchived)
+		argIndex++
+	}
+	if req.QuickAccessKey != nil {
+		updates = append(updates, fmt.Sprintf("quick_access_key = $%d", argIndex))
+		args = append(args, req.QuickAccessKey)
+		argIndex++
+	}
+	if req.EffectivenessRating != nil {
+		updates = append(updates, fmt.Sprintf("effectiveness_rating = $%d", argIndex))
+		args = append(args, req.EffectivenessRating)
+		argIndex++
+	}
+	if req.Notes != nil {
+		updates = append(updates, fmt.Sprintf("notes = $%d", argIndex))
+		args = append(args, req.Notes)
+		argIndex++
+	}
+	if len(req.Variables) > 0 {
+		variablesJSON, _ := json.Marshal(req.Variables)
+		updates = append(updates, fmt.Sprintf("variables = $%d", argIndex))
+		args = append(args, variablesJSON)
+		argIndex++
+	}
+
+	// Add prompt ID as last argument
+	args = append(args, promptID)
+
+	query := fmt.Sprintf(
+		"UPDATE prompts SET %s WHERE id = $%d",
+		strings.Join(updates, ", "),
+		argIndex,
+	)
+
+	_, err := s.db.Exec(query, args...)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Update tags if provided
+	if len(req.Tags) > 0 {
+		// Remove existing tags
+		s.db.Exec("DELETE FROM prompt_tags WHERE prompt_id = $1", promptID)
+		// Add new tags
+		s.addPromptTags(promptID, req.Tags)
+	}
+
+	// Return updated prompt
+	s.getPrompt(w, r)
 }
 
 func (s *APIServer) deletePrompt(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	vars := mux.Vars(r)
+	promptID := vars["id"]
+
+	// Delete associated tags first (cascade)
+	_, err := s.db.Exec("DELETE FROM prompt_tags WHERE prompt_id = $1", promptID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Delete the prompt
+	result, err := s.db.Exec("DELETE FROM prompts WHERE id = $1", promptID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, "Prompt not found", http.StatusNotFound)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *APIServer) recordPromptUsage(w http.ResponseWriter, r *http.Request) {
@@ -854,7 +1100,167 @@ func (s *APIServer) recordPromptUsage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) semanticSearch(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	var req struct {
+		Query  string   `json:"query"`
+		Limit  int      `json:"limit"`
+		Filter []string `json:"filter"` // Optional campaign IDs to filter
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	if req.Query == "" {
+		http.Error(w, "Query is required", http.StatusBadRequest)
+		return
+	}
+	
+	if req.Limit <= 0 || req.Limit > 100 {
+		req.Limit = 20
+	}
+	
+	// If Qdrant is available, use vector search
+	if s.qdrantURL != "" {
+		// Generate embedding for query using Ollama (if available)
+		if s.ollamaURL != "" {
+			embedding, err := s.generateEmbedding(req.Query)
+			if err == nil && embedding != nil {
+				// Search Qdrant with the embedding
+				results, err := s.searchQdrant(embedding, req.Limit, req.Filter)
+				if err == nil {
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(results)
+					return
+				}
+				log.Printf("Qdrant search failed, falling back to PostgreSQL: %v", err)
+			}
+		}
+	}
+	
+	// Fallback to PostgreSQL full-text search
+	s.searchPrompts(w, r)
+}
+
+// generateEmbedding creates an embedding vector using Ollama
+func (s *APIServer) generateEmbedding(text string) ([]float32, error) {
+	if s.ollamaURL == "" {
+		return nil, fmt.Errorf("Ollama not configured")
+	}
+	
+	payload := map[string]interface{}{
+		"model":  "nomic-embed-text",
+		"prompt": text,
+	}
+	
+	jsonData, _ := json.Marshal(payload)
+	resp, err := http.Post(s.ollamaURL+"/api/embeddings", "application/json", strings.NewReader(string(jsonData)))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("embedding generation failed: %d", resp.StatusCode)
+	}
+	
+	var result struct {
+		Embedding []float32 `json:"embedding"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	
+	return result.Embedding, nil
+}
+
+// searchQdrant searches the vector database for similar prompts
+func (s *APIServer) searchQdrant(embedding []float32, limit int, campaignFilter []string) ([]Prompt, error) {
+	payload := map[string]interface{}{
+		"vector": embedding,
+		"limit":  limit,
+		"with_payload": true,
+	}
+	
+	// Add campaign filter if provided
+	if len(campaignFilter) > 0 {
+		payload["filter"] = map[string]interface{}{
+			"must": []map[string]interface{}{
+				{
+					"key": "campaign_id",
+					"match": map[string]interface{}{
+						"any": campaignFilter,
+					},
+				},
+			},
+		}
+	}
+	
+	jsonData, _ := json.Marshal(payload)
+	resp, err := http.Post(s.qdrantURL+"/collections/prompts/points/search", "application/json", strings.NewReader(string(jsonData)))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("qdrant search failed: %d - %s", resp.StatusCode, string(body))
+	}
+	
+	var searchResult struct {
+		Result []struct {
+			ID      string                 `json:"id"`
+			Score   float32                `json:"score"`
+			Payload map[string]interface{} `json:"payload"`
+		} `json:"result"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
+		return nil, err
+	}
+	
+	// Convert Qdrant results to prompts
+	promptIDs := make([]string, 0, len(searchResult.Result))
+	for _, result := range searchResult.Result {
+		if id, ok := result.Payload["prompt_id"].(string); ok {
+			promptIDs = append(promptIDs, id)
+		}
+	}
+	
+	if len(promptIDs) == 0 {
+		return []Prompt{}, nil
+	}
+	
+	// Fetch full prompt details from PostgreSQL
+	query := `
+		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
+		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
+		FROM prompts p
+		LEFT JOIN campaigns c ON p.campaign_id = c.id
+		WHERE p.id = ANY($1::uuid[])
+		ORDER BY array_position($1::uuid[], p.id::uuid)`
+	
+	rows, err := s.db.Query(query, "{"+strings.Join(promptIDs, ",")+"}")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	var prompts []Prompt
+	for rows.Next() {
+		prompt, err := s.scanPrompt(rows)
+		if err != nil {
+			continue
+		}
+		prompts = append(prompts, prompt)
+	}
+	
+	return prompts, nil
 }
 
 func (s *APIServer) getPromptByQuickKey(w http.ResponseWriter, r *http.Request) {
@@ -872,7 +1278,158 @@ func (s *APIServer) getFavoritePrompts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) testPrompt(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNotImplemented)
+	if s.ollamaURL == "" {
+		http.Error(w, "Prompt testing is not available (Ollama not configured)", http.StatusServiceUnavailable)
+		return
+	}
+	
+	vars := mux.Vars(r)
+	promptID := vars["id"]
+	
+	// Fetch the prompt
+	query := `
+		SELECT p.id, p.campaign_id, p.title, p.content, p.description, 
+		       p.variables, p.usage_count, p.last_used, p.is_favorite, 
+		       p.is_archived, p.quick_access_key, p.version, p.parent_version_id,
+		       p.word_count, p.estimated_tokens, p.effectiveness_rating, 
+		       p.notes, p.created_at, p.updated_at, c.name as campaign_name
+		FROM prompts p
+		LEFT JOIN campaigns c ON p.campaign_id = c.id
+		WHERE p.id = $1`
+	
+	row := s.db.QueryRow(query, promptID)
+	prompt, err := s.scanPrompt(row)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Prompt not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	
+	// Parse test request
+	var req TestPromptRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	// Default model and parameters
+	if req.Model == "" {
+		req.Model = "llama3.2"
+	}
+	if req.MaxTokens == nil {
+		maxTokens := 1000
+		req.MaxTokens = &maxTokens
+	}
+	if req.Temperature == nil {
+		temp := 0.7
+		req.Temperature = &temp
+	}
+	
+	// Replace variables in prompt content
+	finalContent := prompt.Content
+	for key, value := range req.Variables {
+		placeholder := fmt.Sprintf("{{%s}}", key)
+		finalContent = strings.ReplaceAll(finalContent, placeholder, value)
+	}
+	
+	// Call Ollama API
+	startTime := time.Now()
+	
+	payload := map[string]interface{}{
+		"model":       req.Model,
+		"prompt":      finalContent,
+		"stream":      false,
+		"options": map[string]interface{}{
+			"num_predict": *req.MaxTokens,
+			"temperature": *req.Temperature,
+		},
+	}
+	
+	jsonData, _ := json.Marshal(payload)
+	resp, err := http.Post(s.ollamaURL+"/api/generate", "application/json", bytes.NewReader(jsonData))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to call Ollama: %v", err), http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		http.Error(w, fmt.Sprintf("Ollama error: %s", string(body)), http.StatusInternalServerError)
+		return
+	}
+	
+	// Parse Ollama response
+	var ollamaResp struct {
+		Model              string `json:"model"`
+		Response           string `json:"response"`
+		Done               bool   `json:"done"`
+		TotalDuration      int64  `json:"total_duration"`
+		LoadDuration       int64  `json:"load_duration"`
+		PromptEvalCount    int    `json:"prompt_eval_count"`
+		EvalCount          int    `json:"eval_count"`
+		EvalDuration       int64  `json:"eval_duration"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse Ollama response: %v", err), http.StatusInternalServerError)
+		return
+	}
+	
+	responseTime := time.Since(startTime).Milliseconds()
+	
+	// Store test result in database
+	testResult := TestResult{
+		ID:           uuid.New().String(),
+		PromptID:     promptID,
+		Model:        req.Model,
+		Response:     &ollamaResp.Response,
+		ResponseTime: ptrFloat64(float64(responseTime)),
+		TokenCount:   &ollamaResp.EvalCount,
+		TestedAt:     time.Now(),
+	}
+	
+	if len(req.Variables) > 0 {
+		varsJSON, _ := json.Marshal(req.Variables)
+		varsStr := string(varsJSON)
+		testResult.InputVars = &varsStr
+	}
+	
+	// Insert test result
+	insertQuery := `
+		INSERT INTO test_results (id, prompt_id, model, input_variables, response, 
+		                         response_time, token_count, tested_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	
+	_, err = s.db.Exec(insertQuery,
+		testResult.ID, testResult.PromptID, testResult.Model, testResult.InputVars,
+		testResult.Response, testResult.ResponseTime, testResult.TokenCount, testResult.TestedAt,
+	)
+	
+	if err != nil {
+		log.Printf("Failed to save test result: %v", err)
+	}
+	
+	// Return test result
+	response := map[string]interface{}{
+		"test_id":       testResult.ID,
+		"model":         testResult.Model,
+		"response":      ollamaResp.Response,
+		"response_time": responseTime,
+		"token_count":   ollamaResp.EvalCount,
+		"prompt_tokens": ollamaResp.PromptEvalCount,
+		"variables":     req.Variables,
+		"tested_at":     testResult.TestedAt,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func ptrFloat64(f float64) *float64 {
+	return &f
 }
 
 func (s *APIServer) getTestHistory(w http.ResponseWriter, r *http.Request) {
@@ -915,78 +1472,6 @@ func (s *APIServer) getTemplate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// N8N Workflow Integration Handlers
-func (s *APIServer) enhancePrompt(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Prompt           string `json:"prompt"`
-		EnhancementType  string `json:"enhancement_type"`
-		Context          string `json:"context"`
-		TargetAudience   string `json:"target_audience"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Call n8n webhook for prompt enhancement
-	n8nURL := os.Getenv("N8N_URL")
-	if n8nURL == "" {
-		n8nURL = "http://localhost:5678"
-	}
-
-	webhookURL := fmt.Sprintf("%s/webhook/prompt-enhancer-webhook", n8nURL)
-	
-	payload, _ := json.Marshal(req)
-	resp, err := http.Post(webhookURL, "application/json", strings.NewReader(string(payload)))
-	if err != nil {
-		http.Error(w, "Failed to enhance prompt", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
-
-func (s *APIServer) manageCampaignViaWorkflow(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Action       string   `json:"action"`
-		CampaignName string   `json:"campaign_name"`
-		Prompts      []string `json:"prompts"`
-		SearchQuery  string   `json:"search_query"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Call n8n webhook for campaign management
-	n8nURL := os.Getenv("N8N_URL")
-	if n8nURL == "" {
-		n8nURL = "http://localhost:5678"
-	}
-
-	webhookURL := fmt.Sprintf("%s/webhook/campaign-manager-webhook", n8nURL)
-	
-	payload, _ := json.Marshal(req)
-	resp, err := http.Post(webhookURL, "application/json", strings.NewReader(string(payload)))
-	if err != nil {
-		http.Error(w, "Failed to manage campaign", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
-}
 // Export/Import stub implementations
 func (s *APIServer) exportData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)

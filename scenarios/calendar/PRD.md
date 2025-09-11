@@ -95,41 +95,31 @@ optional:
   - resource_name: ollama
     purpose: Natural language processing for chat interface
     fallback: Basic command parsing without AI enhancement
-    access_method: Shared n8n workflow initialization/n8n/ollama.json
-    
-  - resource_name: n8n
-    purpose: Event-triggered workflow automation
-    fallback: Direct API calls without workflow orchestration
-    access_method: Custom workflows for event automation
+    access_method: Direct HTTP API integration for NLP processing
 ```
 
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: ollama.json
-      location: initialization/n8n/
-      purpose: Natural language processing for scheduling requests
-    - workflow: calendar-reminder.json
-      location: initialization/n8n/
-      purpose: Automated reminder generation and notification sending
-  
-  2_resource_cli:
+  1_resource_cli:
     - command: resource-postgres create-database calendar-system
       purpose: Initialize calendar database with proper schema
     - command: resource-qdrant create-collection calendar_events --dimensions 1536
       purpose: Create vector collection for semantic event search
   
-  3_direct_api:
+  2_direct_api:
     - justification: Real-time event queries need sub-second response times
       endpoint: scenario-authenticator /api/v1/auth/validate
     - justification: Immediate notification delivery for time-sensitive reminders
       endpoint: notification-hub /api/v1/profiles/calendar-prod/notifications/send
+    - justification: Natural language processing requires direct model access
+      endpoint: ollama /api/chat for scheduling intent parsing
 
-shared_workflow_criteria:
-  - Calendar reminder workflow reusable across all scheduling scenarios
-  - NLP scheduling workflow enables voice/chat interfaces in other scenarios
-  - Event automation workflow pattern for time-triggered scenario execution
+integration_patterns:
+  - All reminder processing handled via internal calendar-processor component
+  - NLP scheduling requests processed via internal nlp-processor component  
+  - Event automation triggers handled via internal event handlers
+  - No external workflow orchestration dependencies required
 ```
 
 ### Data Models
@@ -565,7 +555,7 @@ structure:
     - cli/calendar
     - cli/install.sh
     - initialization/postgres/schema.sql
-    - initialization/n8n/calendar-reminder.json
+    - initialization/postgres/seed.sql
     - ui/index.html
     - ui/calendar.js
     - scenario-test.yaml
@@ -575,12 +565,11 @@ structure:
     - cli
     - initialization
     - initialization/postgres
-    - initialization/n8n
     - ui
 
 resources:
   required: [postgres, qdrant, scenario-authenticator, notification-hub]
-  optional: [ollama, n8n]
+  optional: [ollama]
   health_timeout: 90
 
 tests:

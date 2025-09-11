@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mcrcon Configuration Schema",
+  "type": "object",
+  "properties": {
+    "server": {
+      "type": "object",
+      "description": "Minecraft server connection settings",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Minecraft server hostname or IP",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "description": "RCON port (usually 25575)",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 25575
+        },
+        "password": {
+          "type": "string",
+          "description": "RCON password",
+          "minLength": 1
+        }
+      },
+      "required": ["host", "port", "password"]
+    },
+    "timeout": {
+      "type": "integer",
+      "description": "Command timeout in seconds",
+      "minimum": 1,
+      "maximum": 300,
+      "default": 30
+    },
+    "retry_attempts": {
+      "type": "integer",
+      "description": "Number of retry attempts for failed commands",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 3
+    },
+    "auto_discover": {
+      "type": "boolean",
+      "description": "Automatically discover local Minecraft servers",
+      "default": true
+    },
+    "servers": {
+      "type": "array",
+      "description": "List of configured servers",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Server identifier"
+          },
+          "host": {
+            "type": "string",
+            "description": "Server hostname"
+          },
+          "port": {
+            "type": "integer",
+            "description": "RCON port"
+          },
+          "password": {
+            "type": "string",
+            "description": "RCON password"
+          },
+          "description": {
+            "type": "string",
+            "description": "Server description"
+          }
+        },
+        "required": ["name", "host", "port", "password"]
+      }
+    }
+  }
+}
