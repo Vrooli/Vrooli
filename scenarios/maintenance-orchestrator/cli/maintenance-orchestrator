@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-API_BASE="${MAINTENANCE_API_URL:-http://localhost:3250}/api/v1"
+# Configuration
+SCENARIO_NAME="maintenance-orchestrator"
 SCRIPT_NAME="maintenance-orchestrator"
 
 # Color codes for output
@@ -11,6 +12,23 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+################################################################################
+# Port Discovery - Dynamic port lookup
+################################################################################
+get_api_url() {
+    # Use vrooli scenario port command for dynamic port lookup
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}/api/v1"
+}
 
 # Helper functions
 print_success() {
@@ -71,14 +89,16 @@ api_call() {
     local method="$1"
     local endpoint="$2"
     local data="${3:-}"
+    local api_base
+    api_base=$(get_api_url)
     
     if [ -n "$data" ]; then
         curl -s -X "$method" \
              -H "Content-Type: application/json" \
              -d "$data" \
-             "${API_BASE}${endpoint}"
+             "${api_base}${endpoint}"
     else
-        curl -s -X "$method" "${API_BASE}${endpoint}"
+        curl -s -X "$method" "${api_base}${endpoint}"
     fi
 }
 
@@ -315,7 +335,11 @@ cmd_stop_all() {
 # Command: version
 cmd_version() {
     echo "$SCRIPT_NAME version 1.0.0"
-    echo "API endpoint: $API_BASE"
+    if api_url=$(get_api_url 2>/dev/null); then
+        echo "API endpoint: $api_url"
+    else
+        echo "API endpoint: Not running (use 'vrooli scenario run ${SCENARIO_NAME}' to start)"
+    fi
 }
 
 # Main command router

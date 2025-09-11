@@ -57,6 +57,68 @@
             background-clip: text;
         }
 
+        .header-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .connection-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connected .connection-dot {
+            background: #10b981;
+        }
+
+        .disconnected .connection-dot {
+            background: #ef4444;
+            animation: none;
+        }
+
+        .connecting .connection-dot {
+            background: #f59e0b;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .logs-btn {
+            padding: 8px 16px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #e0e6ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .logs-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
         .stats {
             display: flex;
             gap: 30px;
@@ -99,60 +161,30 @@
 
         .section-title {
             font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #64748b;
+            font-weight: 600;
+            color: #10b981;
             margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-title::before {
-            content: '';
-            width: 4px;
-            height: 16px;
-            background: #10b981;
-            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .preset-btn {
             width: 100%;
             padding: 15px;
             margin-bottom: 12px;
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(20, 25, 50, 0.6);
             border: 1px solid rgba(16, 185, 129, 0.2);
             border-radius: 10px;
             color: #e0e6ed;
-            font-size: 14px;
-            font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
             text-align: left;
-            position: relative;
-            overflow: hidden;
         }
 
         .preset-btn:hover {
             background: rgba(16, 185, 129, 0.1);
-            border-color: #10b981;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.3);
-        }
-
-        .preset-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .preset-btn:hover::before {
-            left: 100%;
+            border-color: rgba(16, 185, 129, 0.5);
+            transform: translateX(5px);
         }
 
         .preset-description {
@@ -174,23 +206,24 @@
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 20px;
-            margin-top: 20px;
         }
 
         .scenario-card {
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(20, 25, 50, 0.6);
             border: 1px solid rgba(16, 185, 129, 0.1);
             border-radius: 12px;
             padding: 20px;
             transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
+        }
+
+        .scenario-card.active {
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.05);
         }
 
         .scenario-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border-color: rgba(16, 185, 129, 0.3);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.2);
         }
 
         .scenario-header {
@@ -209,25 +242,23 @@
 
         .scenario-tags {
             display: flex;
-            flex-wrap: wrap;
             gap: 5px;
-            margin-top: 10px;
+            flex-wrap: wrap;
         }
 
         .tag {
-            background: rgba(16, 185, 129, 0.1);
-            color: #10b981;
-            padding: 3px 8px;
-            border-radius: 12px;
             font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            color: #93bbfc;
         }
 
         .toggle-switch {
             position: relative;
-            width: 56px;
-            height: 28px;
+            width: 48px;
+            height: 24px;
         }
 
         .toggle-switch input {
@@ -243,107 +274,242 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #475569;
-            transition: 0.4s;
-            border-radius: 28px;
+            background-color: rgba(100, 116, 139, 0.3);
+            transition: .4s;
+            border-radius: 24px;
         }
 
         .slider:before {
             position: absolute;
             content: "";
-            height: 20px;
-            width: 20px;
+            height: 16px;
+            width: 16px;
             left: 4px;
             bottom: 4px;
-            background-color: white;
-            transition: 0.4s;
+            background-color: #64748b;
+            transition: .4s;
             border-radius: 50%;
         }
 
         input:checked + .slider {
-            background: linear-gradient(135deg, #10b981, #059669);
-            box-shadow: 0 2px 10px rgba(16, 185, 129, 0.5);
+            background-color: rgba(16, 185, 129, 0.3);
         }
 
         input:checked + .slider:before {
-            transform: translateX(28px);
+            background-color: #10b981;
+            transform: translateX(24px);
         }
 
         .activity-section {
+            width: 350px;
             background: rgba(10, 14, 39, 0.7);
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 25px;
             border: 1px solid rgba(16, 185, 129, 0.1);
-            width: 350px;
         }
 
         .activity-log {
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
-            margin-top: 15px;
         }
 
         .activity-entry {
             padding: 12px;
             margin-bottom: 10px;
-            background: rgba(30, 41, 59, 0.3);
+            background: rgba(20, 25, 50, 0.6);
+            border-left: 3px solid rgba(16, 185, 129, 0.5);
             border-radius: 8px;
-            border-left: 3px solid #10b981;
-            font-size: 12px;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .activity-time {
+            font-size: 11px;
             color: #64748b;
-            font-size: 10px;
-            margin-top: 5px;
-        }
-
-        .emergency-stop {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 30px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
-            transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .emergency-stop:hover {
-            transform: scale(1.05);
-            box-shadow: 0 15px 40px rgba(239, 68, 68, 0.4);
         }
 
         .loading-spinner {
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             border: 3px solid rgba(16, 185, 129, 0.2);
-            border-top-color: #10b981;
+            border-top: 3px solid #10b981;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 50px auto;
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
-        .pulse {
-            animation: pulse 2s infinite;
+        .emergency-stop {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
+        .emergency-stop:hover {
+            background: #b91c1c;
+            transform: scale(1.05);
+        }
+
+        /* Logs Modal Styles */
+        .logs-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .logs-modal.active {
+            display: flex;
+        }
+
+        .logs-content {
+            background: rgba(10, 14, 39, 0.95);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 15px;
+            padding: 30px;
+            width: 90%;
+            max-width: 900px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .logs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logs-title {
+            font-size: 20px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #10b981, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logs-header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .logs-list {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 12px;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 10px;
+            border-radius: 6px;
+            background: rgba(20, 25, 50, 0.4);
+            border-left: 3px solid transparent;
+        }
+
+        .log-entry.error {
+            border-left-color: #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .log-entry.warn {
+            border-left-color: #f59e0b;
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .log-entry.info {
+            border-left-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .log-entry.success {
+            border-left-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+
+        .log-timestamp {
+            color: #64748b;
+            margin-right: 10px;
+            font-size: 11px;
+        }
+
+        .log-level {
+            font-weight: 600;
+            margin-right: 10px;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .log-level.error { color: #ef4444; }
+        .log-level.warn { color: #f59e0b; }
+        .log-level.info { color: #3b82f6; }
+        .log-level.success { color: #10b981; }
+
+        .log-message {
+            color: #e0e6ed;
+        }
+
+        .logs-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: rgba(20, 25, 50, 0.6);
+            color: #e0e6ed;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            border: none;
+        }
+
+        .modal-btn.primary:hover {
+            opacity: 0.9;
         }
     </style>
 </head>
@@ -353,18 +519,28 @@
             <div class="logo-icon">🎛️</div>
             <h1>Maintenance Orchestrator</h1>
         </div>
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-value" id="total-scenarios">0</div>
-                <div class="stat-label">Total</div>
+        <div class="header-right">
+            <div class="connection-indicator" id="connectionIndicator">
+                <div class="connection-dot"></div>
+                <span id="connectionStatus">Connecting...</span>
+                <span id="apiEndpoint" style="color: #64748b; font-size: 11px; margin-left: 8px;"></span>
             </div>
-            <div class="stat">
-                <div class="stat-value" id="active-scenarios" style="color: #10b981;">0</div>
-                <div class="stat-label">Active</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="inactive-scenarios" style="color: #64748b;">0</div>
-                <div class="stat-label">Inactive</div>
+            <button class="logs-btn" onclick="openLogsModal()">
+                📋 View Logs
+            </button>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="total-scenarios">0</div>
+                    <div class="stat-label">Total</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="active-scenarios" style="color: #10b981;">0</div>
+                    <div class="stat-label">Active</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="inactive-scenarios" style="color: #64748b;">0</div>
+                    <div class="stat-label">Inactive</div>
+                </div>
             </div>
         </div>
     </div>
@@ -392,49 +568,228 @@
         🛑 STOP ALL
     </button>
 
+    <!-- Logs Modal -->
+    <div id="logsModal" class="logs-modal">
+        <div class="logs-content">
+            <div class="logs-header">
+                <div class="logs-title">🔍 Connection & Activity Logs</div>
+                <div class="logs-header-buttons">
+                    <button class="modal-btn" onclick="clearLogs()">Clear</button>
+                    <button class="modal-btn" onclick="testConnection()">Test Connection</button>
+                    <button class="modal-btn" onclick="closeLogsModal()">✕</button>
+                </div>
+            </div>
+            <div class="logs-list" id="logsList">
+                <!-- Logs will be inserted here -->
+            </div>
+            <div class="logs-actions">
+                <button class="modal-btn primary" onclick="closeLogsModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        const API_BASE = 'http://localhost:3250/api/v1';
+        let API_BASE = '';
+        let apiUrl = '';
         let scenarios = {};
         let presets = {};
+        let connectionStatus = 'disconnected';
+        let logs = [];
+        let pollInterval = null;
+
+        // Logging functions
+        function addLog(message, level = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push({ timestamp, level, message });
+            
+            // Keep only last 200 logs
+            if (logs.length > 200) {
+                logs.shift();
+            }
+            
+            // Update logs display if modal is open
+            if (document.getElementById('logsModal').classList.contains('active')) {
+                updateLogsDisplay();
+            }
+            
+            // Also log to console
+            console.log(`[${level.toUpperCase()}] ${message}`);
+        }
+
+        function updateLogsDisplay() {
+            const logsList = document.getElementById('logsList');
+            logsList.innerHTML = logs.map(log => `
+                <div class="log-entry ${log.level}">
+                    <span class="log-timestamp">${log.timestamp}</span>
+                    <span class="log-level ${log.level}">[${log.level}]</span>
+                    <span class="log-message">${log.message}</span>
+                </div>
+            `).reverse().join('');
+        }
+
+        function updateConnectionStatus(status, message = '') {
+            connectionStatus = status;
+            const indicator = document.getElementById('connectionIndicator');
+            const statusText = document.getElementById('connectionStatus');
+            
+            // Remove all status classes
+            indicator.classList.remove('connected', 'disconnected', 'connecting');
+            
+            switch(status) {
+                case 'connected':
+                    indicator.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                    break;
+                case 'disconnected':
+                    indicator.classList.add('disconnected');
+                    statusText.textContent = message || 'Disconnected';
+                    break;
+                case 'connecting':
+                    indicator.classList.add('connecting');
+                    statusText.textContent = 'Connecting...';
+                    break;
+            }
+        }
+
+        // Modal functions
+        function openLogsModal() {
+            document.getElementById('logsModal').classList.add('active');
+            updateLogsDisplay();
+        }
+
+        function closeLogsModal() {
+            document.getElementById('logsModal').classList.remove('active');
+        }
+
+        function clearLogs() {
+            logs = [];
+            addLog('Logs cleared', 'info');
+            updateLogsDisplay();
+        }
+
+        // Get API configuration
+        async function getConfig() {
+            updateConnectionStatus('connecting');
+            addLog('Fetching API configuration...', 'info');
+            
+            try {
+                const response = await fetch('/config');
+                if (response.ok) {
+                    const config = await response.json();
+                    apiUrl = config.apiUrl;
+                    API_BASE = config.apiBase;
+                    addLog(`Config loaded: API at ${apiUrl}`, 'success');
+                    document.getElementById('apiEndpoint').textContent = apiUrl;
+                    return config;
+                } else {
+                    throw new Error(`Config endpoint returned ${response.status}`);
+                }
+            } catch (error) {
+                addLog(`Failed to get config: ${error.message}`, 'error');
+                
+                // Fallback to environment-based guessing
+                const uiPort = window.location.port || '37116';
+                const guessedApiPort = uiPort.replace('3', '1');
+                apiUrl = `http://localhost:${guessedApiPort}`;
+                API_BASE = `${apiUrl}/api/v1`;
+                
+                addLog(`Using fallback API URL: ${apiUrl}`, 'warn');
+                document.getElementById('apiEndpoint').textContent = `${apiUrl} (fallback)`;
+            }
+        }
+
+        // Test API connection
+        async function testConnection() {
+            addLog(`Testing connection to ${apiUrl}/health...`, 'info');
+            updateConnectionStatus('connecting');
+            
+            try {
+                const response = await fetch(`${apiUrl}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addLog(`API Health Check Success: ${JSON.stringify(data)}`, 'success');
+                    updateConnectionStatus('connected');
+                    return true;
+                } else {
+                    addLog(`API Health Check Failed: HTTP ${response.status}`, 'error');
+                    updateConnectionStatus('disconnected', `HTTP ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                addLog(`Connection failed: ${error.message}`, 'error');
+                updateConnectionStatus('disconnected', 'Cannot reach API');
+                return false;
+            }
+        }
 
         async function fetchScenarios() {
             try {
+                addLog('Fetching scenarios...', 'info');
                 const response = await fetch(`${API_BASE}/scenarios`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 scenarios = data.scenarios.reduce((acc, s) => {
                     acc[s.id] = s;
                     return acc;
                 }, {});
+                
+                addLog(`Loaded ${Object.keys(scenarios).length} scenarios`, 'success');
+                updateConnectionStatus('connected');
                 renderScenarios();
                 updateStats();
             } catch (error) {
-                console.error('Error fetching scenarios:', error);
+                addLog(`Error fetching scenarios: ${error.message}`, 'error');
+                updateConnectionStatus('disconnected', 'API Error');
             }
         }
 
         async function fetchPresets() {
             try {
+                addLog('Fetching presets...', 'info');
                 const response = await fetch(`${API_BASE}/presets`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 presets = data.presets.reduce((acc, p) => {
                     acc[p.id] = p;
                     return acc;
                 }, {});
+                
+                addLog(`Loaded ${Object.keys(presets).length} presets`, 'success');
                 renderPresets();
             } catch (error) {
-                console.error('Error fetching presets:', error);
+                addLog(`Error fetching presets: ${error.message}`, 'error');
             }
         }
 
         async function fetchStatus() {
             try {
                 const response = await fetch(`${API_BASE}/status`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const data = await response.json();
                 if (data.recentActivity) {
                     renderActivityLog(data.recentActivity);
                 }
+                updateConnectionStatus('connected');
             } catch (error) {
-                console.error('Error fetching status:', error);
+                addLog(`Error fetching status: ${error.message}`, 'warn');
             }
         }
 
@@ -508,6 +863,9 @@
         async function toggleScenario(id, activate) {
             try {
                 const endpoint = activate ? 'activate' : 'deactivate';
+                const scenarioName = scenarios[id]?.displayName || scenarios[id]?.name || id;
+                addLog(`${activate ? 'Activating' : 'Deactivating'} scenario: ${scenarioName}`, 'info');
+                
                 const response = await fetch(`${API_BASE}/scenarios/${id}/${endpoint}`, {
                     method: 'POST'
                 });
@@ -515,29 +873,37 @@
                 
                 if (data.success) {
                     scenarios[id].isActive = activate;
+                    addLog(`${activate ? 'Activated' : 'Deactivated'} ${scenarioName}`, 'success');
                     updateStats();
                     fetchStatus();
+                } else {
+                    addLog(`Failed to ${activate ? 'activate' : 'deactivate'} ${scenarioName}`, 'error');
                 }
             } catch (error) {
-                console.error('Error toggling scenario:', error);
+                addLog(`Error toggling scenario: ${error.message}`, 'error');
             }
         }
 
         async function applyPreset(presetId) {
-            if (!confirm(`Apply preset: ${presets[presetId].name}?`)) return;
+            const presetName = presets[presetId]?.name || presetId;
+            if (!confirm(`Apply preset: ${presetName}?`)) return;
             
             try {
+                addLog(`Applying preset: ${presetName}`, 'info');
                 const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
                     method: 'POST'
                 });
                 const data = await response.json();
                 
                 if (data.success) {
+                    addLog(`Applied preset: ${presetName} (${data.activated?.length || 0} activated, ${data.deactivated?.length || 0} deactivated)`, 'success');
                     fetchScenarios();
                     fetchStatus();
+                } else {
+                    addLog(`Failed to apply preset: ${presetName}`, 'error');
                 }
             } catch (error) {
-                console.error('Error applying preset:', error);
+                addLog(`Error applying preset: ${error.message}`, 'error');
             }
         }
 
@@ -545,30 +911,75 @@
             if (!confirm('⚠️ This will deactivate ALL maintenance scenarios. Continue?')) return;
             
             try {
+                addLog('Executing emergency stop...', 'warn');
                 const response = await fetch(`${API_BASE}/stop-all`, {
                     method: 'POST'
                 });
                 const data = await response.json();
                 
                 if (data.success) {
+                    addLog(`Emergency stop executed: ${data.deactivated?.length || 0} scenarios deactivated`, 'success');
                     fetchScenarios();
                     fetchStatus();
+                } else {
+                    addLog('Emergency stop failed', 'error');
                 }
             } catch (error) {
-                console.error('Error executing emergency stop:', error);
+                addLog(`Error executing emergency stop: ${error.message}`, 'error');
             }
         }
 
-        // Initial load
-        fetchScenarios();
-        fetchPresets();
-        fetchStatus();
+        // Initialize the dashboard
+        async function init() {
+            addLog('Initializing Maintenance Orchestrator Dashboard', 'info');
+            
+            // Get configuration first
+            await getConfig();
+            
+            // Test connection
+            const connected = await testConnection();
+            
+            if (connected) {
+                // Load initial data
+                await fetchScenarios();
+                await fetchPresets();
+                await fetchStatus();
+                
+                // Start polling for updates
+                pollInterval = setInterval(() => {
+                    fetchScenarios();
+                    fetchStatus();
+                }, 5000);
+                
+                addLog('Dashboard initialized successfully', 'success');
+            } else {
+                addLog('Could not connect to API - please check if the maintenance-orchestrator scenario is running', 'error');
+            }
+        }
 
-        // Poll for updates
-        setInterval(() => {
-            fetchScenarios();
-            fetchStatus();
-        }, 5000);
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeLogsModal();
+            }
+        });
+
+        // Close modal on outside click
+        document.getElementById('logsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'logsModal') {
+                closeLogsModal();
+            }
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+            }
+        });
+
+        // Start the application
+        init();
     </script>
 </body>
 </html>
