@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -486,6 +487,51 @@ func handleGetScenarioPresetAssignments(orchestrator *Orchestrator) http.Handler
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"assignments": assignments,
+		})
+	}
+}
+
+// Get scenario port using vrooli CLI
+func handleGetScenarioPort() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		scenarioName := vars["name"]
+		portType := r.URL.Query().Get("type")
+		
+		// Default to UI_PORT if not specified
+		if portType == "" {
+			portType = "UI_PORT"
+		}
+		
+		// Run vrooli scenario port command with timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		
+		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, portType)
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		
+		err := cmd.Run()
+		if err != nil {
+			// Scenario might not be running or might not have the requested port
+			log.Printf("Error getting port for %s/%s: %v, stderr: %s", scenarioName, portType, err, stderr.String())
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"port": nil,
+				"error": "Port not available",
+			})
+			return
+		}
+		
+		// Parse the port number
+		portStr := strings.TrimSpace(out.String())
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"port": portStr,
+			"type": portType,
 		})
 	}
 }

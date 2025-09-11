@@ -22,15 +22,15 @@ CREATE TABLE IF NOT EXISTS graphs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     tags JSONB DEFAULT '[]', -- Array of tags for categorization
-    permissions JSONB DEFAULT '{"public": true}', -- Access control
-    
-    -- Indexes for performance
-    INDEX idx_graphs_type ON graphs(type),
-    INDEX idx_graphs_created_at ON graphs(created_at DESC),
-    INDEX idx_graphs_updated_at ON graphs(updated_at DESC),
-    INDEX idx_graphs_tags ON graphs USING gin(tags),
-    INDEX idx_graphs_metadata ON graphs USING gin(metadata)
+    permissions JSONB DEFAULT '{"public": true}' -- Access control
 );
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_graphs_type ON graphs(type);
+CREATE INDEX IF NOT EXISTS idx_graphs_created_at ON graphs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_graphs_updated_at ON graphs(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_graphs_tags ON graphs USING gin(tags);
+CREATE INDEX IF NOT EXISTS idx_graphs_metadata ON graphs USING gin(metadata);
 
 -- Graph versions table: Stores version history
 CREATE TABLE IF NOT EXISTS graph_versions (
@@ -43,10 +43,11 @@ CREATE TABLE IF NOT EXISTS graph_versions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     -- Ensure unique version numbers per graph
-    UNIQUE(graph_id, version_number),
-    INDEX idx_graph_versions_graph_id ON graph_versions(graph_id),
-    INDEX idx_graph_versions_created_at ON graph_versions(created_at DESC)
+    UNIQUE(graph_id, version_number)
 );
+
+CREATE INDEX IF NOT EXISTS idx_graph_versions_graph_id ON graph_versions(graph_id);
+CREATE INDEX IF NOT EXISTS idx_graph_versions_created_at ON graph_versions(created_at DESC);
 
 -- Graph conversions table: Tracks format conversions
 CREATE TABLE IF NOT EXISTS graph_conversions (
@@ -59,12 +60,12 @@ CREATE TABLE IF NOT EXISTS graph_conversions (
     status VARCHAR(50) DEFAULT 'pending', -- pending, processing, completed, failed
     error_message TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP,
-    
-    INDEX idx_conversions_source ON graph_conversions(source_graph_id),
-    INDEX idx_conversions_target ON graph_conversions(target_graph_id),
-    INDEX idx_conversions_status ON graph_conversions(status)
+    completed_at TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_conversions_source ON graph_conversions(source_graph_id);
+CREATE INDEX IF NOT EXISTS idx_conversions_target ON graph_conversions(target_graph_id);
+CREATE INDEX IF NOT EXISTS idx_conversions_status ON graph_conversions(status);
 
 -- Graph relationships table: Links between related graphs
 CREATE TABLE IF NOT EXISTS graph_relationships (
@@ -75,11 +76,12 @@ CREATE TABLE IF NOT EXISTS graph_relationships (
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    UNIQUE(source_graph_id, target_graph_id, relationship_type),
-    INDEX idx_relationships_source ON graph_relationships(source_graph_id),
-    INDEX idx_relationships_target ON graph_relationships(target_graph_id),
-    INDEX idx_relationships_type ON graph_relationships(relationship_type)
+    UNIQUE(source_graph_id, target_graph_id, relationship_type)
 );
+
+CREATE INDEX IF NOT EXISTS idx_relationships_source ON graph_relationships(source_graph_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_target ON graph_relationships(target_graph_id);
+CREATE INDEX IF NOT EXISTS idx_relationships_type ON graph_relationships(relationship_type);
 
 -- Plugin registry table: Tracks available plugins and their capabilities
 CREATE TABLE IF NOT EXISTS plugins (
@@ -92,11 +94,11 @@ CREATE TABLE IF NOT EXISTS plugins (
     priority INTEGER DEFAULT 100,
     metadata JSONB DEFAULT '{}', -- Icon, color, capabilities, etc.
     installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_plugins_category ON plugins(category),
-    INDEX idx_plugins_enabled ON plugins(enabled)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_plugins_category ON plugins(category);
+CREATE INDEX IF NOT EXISTS idx_plugins_enabled ON plugins(enabled);
 
 -- Graph templates table: Reusable graph templates
 CREATE TABLE IF NOT EXISTS graph_templates (
@@ -110,12 +112,12 @@ CREATE TABLE IF NOT EXISTS graph_templates (
     usage_count INTEGER DEFAULT 0,
     created_by VARCHAR(255) DEFAULT 'system',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_templates_type ON graph_templates(type),
-    INDEX idx_templates_category ON graph_templates(category),
-    INDEX idx_templates_usage ON graph_templates(usage_count DESC)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_templates_type ON graph_templates(type);
+CREATE INDEX IF NOT EXISTS idx_templates_category ON graph_templates(category);
+CREATE INDEX IF NOT EXISTS idx_templates_usage ON graph_templates(usage_count DESC);
 
 -- Graph collaborations table: Track collaborative editing sessions
 CREATE TABLE IF NOT EXISTS graph_collaborations (
@@ -125,13 +127,13 @@ CREATE TABLE IF NOT EXISTS graph_collaborations (
     session_id VARCHAR(255),
     action VARCHAR(100) NOT NULL, -- view, edit, comment
     changes JSONB DEFAULT '{}', -- Delta/changes made
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_collaborations_graph ON graph_collaborations(graph_id),
-    INDEX idx_collaborations_user ON graph_collaborations(user_id),
-    INDEX idx_collaborations_session ON graph_collaborations(session_id),
-    INDEX idx_collaborations_timestamp ON graph_collaborations(timestamp DESC)
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_collaborations_graph ON graph_collaborations(graph_id);
+CREATE INDEX IF NOT EXISTS idx_collaborations_user ON graph_collaborations(user_id);
+CREATE INDEX IF NOT EXISTS idx_collaborations_session ON graph_collaborations(session_id);
+CREATE INDEX IF NOT EXISTS idx_collaborations_timestamp ON graph_collaborations(timestamp DESC);
 
 -- Graph analytics table: Usage and performance metrics
 CREATE TABLE IF NOT EXISTS graph_analytics (
@@ -142,13 +144,13 @@ CREATE TABLE IF NOT EXISTS graph_analytics (
     user_id VARCHAR(255),
     metadata JSONB DEFAULT '{}', -- Additional event data
     duration_ms INTEGER, -- Operation duration in milliseconds
-    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_analytics_graph ON graph_analytics(graph_id),
-    INDEX idx_analytics_plugin ON graph_analytics(plugin_id),
-    INDEX idx_analytics_event ON graph_analytics(event_type),
-    INDEX idx_analytics_timestamp ON graph_analytics(timestamp DESC)
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_analytics_graph ON graph_analytics(graph_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_plugin ON graph_analytics(plugin_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_event ON graph_analytics(event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_timestamp ON graph_analytics(timestamp DESC);
 
 -- Insert default plugins
 INSERT INTO plugins (id, name, category, description, formats, enabled, priority, metadata)

@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-background: 255 255 255;
+    --color-foreground: 15 23 42;
+    --color-primary: 59 130 246;
+    --color-secondary: 14 165 233;
+    --color-success: 16 185 129;
+    --color-warning: 245 158 11;
+    --color-error: 239 68 68;
+    --color-border: 229 231 235;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-background: 17 24 39;
+      --color-foreground: 243 244 246;
+      --color-primary: 96 165 250;
+      --color-secondary: 56 189 248;
+      --color-success: 52 211 153;
+      --color-warning: 251 191 36;
+      --color-error: 248 113 113;
+      --color-border: 55 65 81;
+    }
+  }
+
+  body {
+    @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus-visible:ring-primary-600;
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary-600 text-white hover:bg-secondary-700 focus-visible:ring-secondary-600;
+  }
+
+  .btn-outline {
+    @apply btn border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700;
+  }
+
+  .btn-ghost {
+    @apply btn hover:bg-gray-100 dark:hover:bg-gray-800;
+  }
+
+  .input {
+    @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:placeholder:text-gray-500;
+  }
+
+  .label {
+    @apply text-sm font-medium text-gray-700 dark:text-gray-300;
+  }
+
+  .card {
+    @apply rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 z-50 bg-black/50 backdrop-blur-sm;
+  }
+
+  .modal-content {
+    @apply fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800;
+  }
+}
+
+@layer utilities {
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: 80px repeat(7, 1fr);
+    grid-template-rows: 40px repeat(24, 60px);
+  }
+
+  .calendar-month-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-template-rows: 40px repeat(6, 120px);
+  }
+
+  .event-block {
+    @apply absolute rounded px-2 py-1 text-xs font-medium shadow-sm transition-all hover:shadow-md hover:z-10;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(156 163 175) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(156 163 175);
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(107 114 128);
+  }
+}

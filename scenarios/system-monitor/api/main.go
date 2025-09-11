@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math"
 	"math/rand"
@@ -388,6 +389,8 @@ func main() {
 	r.HandleFunc("/api/monitoring/threshold-check", thresholdMonitorHandler).Methods("POST")
 	r.HandleFunc("/api/monitoring/investigate-anomaly", anomalyInvestigationHandler).Methods("POST")
 	r.HandleFunc("/api/monitoring/generate-report", systemReportHandler).Methods("POST")
+
+	// Investigation Scripts endpoints - TODO: Add back when investigation_endpoints.go is ready
 
 	
 	// Debug logs endpoint for UI troubleshooting
@@ -1129,22 +1132,98 @@ func getContextSwitches() int64 {
 	return ctxt
 }
 
+// Cache for file descriptor metrics
+var (
+	fdCacheMutex sync.RWMutex
+	fdCacheUsed  int
+	fdCacheMax   int
+	fdCacheTime  time.Time
+)
+
+// Simple rate limiter for expensive endpoints
+type RateLimiter struct {
+	requests map[string][]time.Time
+	mu       sync.Mutex
+	limit    int
+	window   time.Duration
+}
+
+func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
+	return &RateLimiter{
+		requests: make(map[string][]time.Time),
+		limit:    limit,
+		window:   window,
+	}
+}
+
+func (rl *RateLimiter) Allow(key string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	
+	now := time.Now()
+	windowStart := now.Add(-rl.window)
+	
+	// Clean old requests
+	var validRequests []time.Time
+	for _, t := range rl.requests[key] {
+		if t.After(windowStart) {
+			validRequests = append(validRequests, t)
+		}
+	}
+	
+	// Check if under limit
+	if len(validRequests) >= rl.limit {
+		rl.requests[key] = validRequests
+		return false
+	}
+	
+	// Add new request
+	validRequests = append(validRequests, now)
+	rl.requests[key] = validRequests
+	return true
+}
+
+// Initialize rate limiters for expensive endpoints
+var (
+	detailedMetricsLimiter = NewRateLimiter(10, time.Minute) // 10 requests per minute
+	processMetricsLimiter  = NewRateLimiter(10, time.Minute) // 10 requests per minute
+	infraMetricsLimiter    = NewRateLimiter(10, time.Minute) // 10 requests per minute
+)
+
 func getSystemFileDescriptors() (int, int) {
-	// Get current FD count
-	cmd1 := exec.Command("bash", "-c", "lsof 2>/dev/null | wc -l")
-	output1, err1 := cmd1.Output()
+	// Check cache (valid for 60 seconds)
+	fdCacheMutex.RLock()
+	if time.Since(fdCacheTime) < 60*time.Second && fdCacheUsed > 0 {
+		used, max := fdCacheUsed, fdCacheMax
+		fdCacheMutex.RUnlock()
+		return used, max
+	}
+	fdCacheMutex.RUnlock()
+
+	// Get current FD count from /proc/sys/fs/file-nr
+	// Format: allocated-fds allocated-but-unused max-fds
+	data, err := os.ReadFile("/proc/sys/fs/file-nr")
 	used := 0
-	if err1 == nil {
-		used, _ = strconv.Atoi(strings.TrimSpace(string(output1)))
+	if err == nil {
+		parts := strings.Fields(string(data))
+		if len(parts) >= 1 {
+			used, _ = strconv.Atoi(parts[0])
+		}
 	}
 	
 	// Get max FD limit
-	cmd2 := exec.Command("bash", "-c", "cat /proc/sys/fs/file-max")
-	output2, err2 := cmd2.Output()
+	data2, err2 := os.ReadFile("/proc/sys/fs/file-max")
 	max := 65536 // fallback
 	if err2 == nil {
-		max, _ = strconv.Atoi(strings.TrimSpace(string(output2)))
+		max, _ = strconv.Atoi(strings.TrimSpace(string(data2)))
 	}
+	
+	// Update cache
+	fdCacheMutex.Lock()
+	fdCacheUsed = used
+	fdCacheMax = max
+	fdCacheTime = time.Now()
+	fdCacheMutex.Unlock()
 	
 	return used, max
 }
@@ -1201,24 +1280,118 @@ func runClaudeInvestigation(investigationID string) {
 	var findings string
 	var details map[string]interface{}
 	
-	// Load prompt template from file (hot-reloadable) with investigation context
+	// Load investigation prompt with system context and script capabilities
 	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID)
 	if err != nil {
 		log.Printf("Failed to load prompt template: %v", err)
-		prompt = fmt.Sprintf(`System Anomaly Investigation
-Investigation ID: %s
-API Base URL: http://localhost:8080
-CPU: %.2f%%, Memory: %.2f%%, TCP Connections: %d
-Analyze system for anomalies and provide findings.`,
-			investigationID, cpuUsage, memoryUsage, tcpConnections)
+		// Enhanced fallback prompt with investigation scripts context
+		prompt = fmt.Sprintf(`# System Anomaly Investigation
+
+## Investigation Context
+- **Investigation ID**: %s
+- **Trigger**: Manual investigation request
+- **Timestamp**: %s
+- **API Base URL**: http://localhost:8080
+
+## Current System Metrics
+- **CPU Usage**: %.2f%%
+- **Memory Usage**: %.2f%%  
+- **TCP Connections**: %d
+
+## Your Investigation Capabilities
+
+### Investigation Scripts System
+You have **full read/write access** to the investigation scripts directory at:
+- **../investigations/active/** - Ready-to-use investigation scripts
+- **../investigations/manifest.json** - Script registry
+- **../investigations/templates/** - Script templates
+
+### Available Investigation Tools
+Check for existing investigation scripts that may help:
+1. **high-cpu-analysis.sh** - Identifies excessive CPU consumers and traces origins
+2. **process-genealogy.sh** - Traces parent-child relationships for spawn issues
+
+### Your Task
+1. **Immediate Analysis**: Assess current system state for anomalies
+2. **Pattern Detection**: Look for known problematic patterns (excessive lsof, worker spawning, etc.)
+3. **Root Cause Investigation**: Use available tools and create new ones as needed
+4. **Recommendations**: Provide specific, actionable solutions
+5. **Tool Enhancement**: Improve existing investigation scripts or create new ones
+
+Please begin your systematic investigation now, utilizing the investigation scripts framework to build lasting diagnostic capabilities.`,
+			investigationID, timestamp, cpuUsage, memoryUsage, tcpConnections)
 	}
 
-	// Try Claude Code investigation with timeout
-	cmd := exec.Command("bash", "-c", fmt.Sprintf(`cd ${VROOLI_ROOT:-${HOME}/Vrooli} && echo %q | timeout 10 vrooli resource claude-code run 2>&1 || true`, prompt))
-	output, err := cmd.Output()
-	
-	// Check if Claude Code actually worked (not just help output)
-	claudeWorked := err == nil && !strings.Contains(string(output), "USAGE:") && !strings.Contains(string(output), "Failed to load library")
+	// Try Claude Code investigation with proper timeout and settings
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		if homeDir, err := os.UserHomeDir(); err == nil {
+			vrooliRoot = filepath.Join(homeDir, "Vrooli")
+		}
+	}
+	if vrooliRoot == "" {
+		vrooliRoot = "." // Fallback to current directory
+	}
+
+	// Set timeout (10 minutes for investigation)
+	timeoutDuration := 10 * time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
+	defer cancel()
+
+	// Use resource-claude-code directly with proper arguments
+	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-")
+	cmd.Dir = vrooliRoot
+
+	// Apply Claude execution settings via environment variables
+	cmd.Env = append(os.Environ(),
+		"MAX_TURNS=75",
+		"ALLOWED_TOOLS=Read,Write,Edit,Bash,LS,Glob,Grep",
+		"TIMEOUT=600", // 10 minutes in seconds
+		"SKIP_PERMISSIONS=yes",
+	)
+
+	// Set up pipes and execute Claude Code
+	var output []byte
+	var claudeWorked bool
+
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		log.Printf("Failed to create stdin pipe for Claude Code: %v", err)
+		claudeWorked = false
+	} else {
+		stdoutPipe, err := cmd.StdoutPipe()
+		if err != nil {
+			log.Printf("Failed to create stdout pipe for Claude Code: %v", err)
+			claudeWorked = false
+		} else {
+			// Start the command
+			if err := cmd.Start(); err != nil {
+				log.Printf("Failed to start Claude Code: %v", err)
+				claudeWorked = false
+			} else {
+				// Write prompt to stdin in a goroutine
+				go func() {
+					defer stdinPipe.Close()
+					if _, err := stdinPipe.Write([]byte(prompt)); err != nil {
+						log.Printf("Failed to write prompt to Claude Code stdin: %v", err)
+					}
+				}()
+
+				// Read output
+				output, err = io.ReadAll(stdoutPipe)
+				
+				// Wait for command to complete
+				waitErr := cmd.Wait()
+				
+				// Check if Claude Code actually worked
+				claudeWorked = err == nil && waitErr == nil && !strings.Contains(string(output), "USAGE:") && !strings.Contains(string(output), "Failed to load library")
+				
+				if !claudeWorked {
+					log.Printf("Claude Code execution failed - err: %v, waitErr: %v, output preview: %.500s", err, waitErr, string(output))
+				}
+			}
+		}
+	}
 	
 	if claudeWorked {
 		findings = string(output)
@@ -1638,6 +1811,13 @@ func getLogsHandler(w http.ResponseWriter, r *http.Request) {
 
 // New handlers for enhanced metrics
 func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	// Rate limiting
+	clientIP := r.RemoteAddr
+	if !detailedMetricsLimiter.Allow(clientIP) {
+		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
+		return
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	
 	timestamp := time.Now().Format(time.RFC3339)
@@ -1725,6 +1905,13 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getProcessMonitorHandler(w http.ResponseWriter, r *http.Request) {
+	// Rate limiting
+	clientIP := r.RemoteAddr
+	if !processMetricsLimiter.Allow(clientIP) {
+		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
+		return
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	
 	zombieProcesses := getZombieProcesses()
@@ -1752,6 +1939,13 @@ func getProcessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getInfrastructureMonitorHandler(w http.ResponseWriter, r *http.Request) {
+	// Rate limiting
+	clientIP := r.RemoteAddr
+	if !infraMetricsLimiter.Allow(clientIP) {
+		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
+		return
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	
 	response := InfrastructureMonitorResponse{

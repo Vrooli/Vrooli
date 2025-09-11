@@ -92,6 +92,7 @@ func main() {
 	v1.HandleFunc("/scenarios/{name}/remove-tag", handleRemoveMaintenanceTag()).Methods("POST")
 	v1.HandleFunc("/scenarios/{name}/preset-assignments", handleGetScenarioPresetAssignments(orchestrator)).Methods("GET")
 	v1.HandleFunc("/scenarios/{name}/preset-assignments", handleUpdateScenarioPresetAssignments(orchestrator)).Methods("POST")
+	v1.HandleFunc("/scenarios/{name}/port", handleGetScenarioPort()).Methods("GET")
 
 	// Options handlers for CORS
 	v1.HandleFunc("/scenarios", optionsHandler).Methods("OPTIONS")

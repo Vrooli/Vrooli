@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "description": "Investigation scripts registry for system-monitor scenario",
+  "last_updated": "2025-09-11T00:00:00Z",
+  "scripts": {
+    "high-cpu-analysis": {
+      "name": "High CPU Analysis",
+      "description": "Identifies processes consuming excessive CPU and traces their origins",
+      "file": "active/high-cpu-analysis.sh",
+      "category": "performance",
+      "triggers": [
+        "cpu_usage > 80%",
+        "load_average > 4.0",
+        "excessive_processes"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30-60s",
+      "safety_level": "safe"
+    },
+    "process-genealogy": {
+      "name": "Process Genealogy Tracer",
+      "description": "Traces parent-child relationships to find process spawn sources",
+      "file": "active/process-genealogy.sh",
+      "category": "process-analysis",
+      "triggers": [
+        "excessive_processes",
+        "memory_pressure",
+        "fork_bomb_suspected"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11", 
+      "version": "1.0",
+      "execution_time_estimate": "15-30s",
+      "safety_level": "safe"
+    },
+    "resource-leak-detector": {
+      "name": "Resource Leak Detector",
+      "description": "Detects file descriptor, memory, and connection leaks",
+      "file": "active/resource-leak-detector.sh",
+      "category": "resource-management",
+      "triggers": [
+        "fd_usage > 80%",
+        "memory_growth_pattern",
+        "connection_buildup"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0", 
+      "execution_time_estimate": "45-90s",
+      "safety_level": "safe"
+    }
+  },
+  "categories": {
+    "performance": {
+      "description": "CPU, memory, and general performance issues",
+      "color": "#ff6b6b"
+    },
+    "process-analysis": {
+      "description": "Process management and lifecycle issues", 
+      "color": "#4ecdc4"
+    },
+    "resource-management": {
+      "description": "File descriptors, connections, and resource leaks",
+      "color": "#45b7d1"
+    },
+    "network": {
+      "description": "Network connectivity and performance issues",
+      "color": "#96ceb4" 
+    },
+    "storage": {
+      "description": "Disk I/O and storage-related problems",
+      "color": "#feca57"
+    }
+  },
+  "templates": {
+    "investigation_script": {
+      "file": "templates/investigation-template.sh",
+      "description": "Base template for creating new investigation scripts"
+    }
+  },
+  "settings": {
+    "results_retention_days": 7,
+    "max_execution_time_seconds": 300,
+    "auto_cleanup_results": true,
+    "require_metadata": true
+  }
+}

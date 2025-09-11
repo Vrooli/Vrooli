@@ -69,6 +69,9 @@ declare -g -A RESOURCE_PORTS=(
     ["vocr"]="9420"            # Vision OCR - Advanced screen recognition and AI-powered image analysis
     ["matrix-synapse"]="8008"  # Matrix Synapse federated communication server
     ["audiocraft"]="7862"      # Meta's comprehensive audio generation suite (MusicGen + AudioGen + EnCodec)
+    ["cncjs"]="8194"           # Web-based CNC controller for Grbl, Marlin, Smoothieware, TinyG
+    ["esphome"]="6587"         # ESPHome IoT firmware framework for ESP32/ESP8266 microcontrollers
+    ["freecad"]="8195"         # Parametric 3D CAD modeler with Python API for engineering design
     
     # Collaboration Services (80xx range)
     ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform

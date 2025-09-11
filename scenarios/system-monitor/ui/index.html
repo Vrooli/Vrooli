@@ -317,6 +317,26 @@
                 </div>
             </section>
 
+            <!-- Investigation Scripts -->
+            <section class="investigation-scripts-panel">
+                <div class="panel-header">
+                    <h2>INVESTIGATION SCRIPTS</h2>
+                    <div class="investigation-script-controls">
+                        <button class="btn-action" onclick="showNewScriptDialog()">
+                            <span class="btn-icon">📝</span>
+                            NEW SCRIPT
+                        </button>
+                        <button class="btn-action" onclick="refreshInvestigationScripts()">
+                            <span class="btn-icon">🔄</span>
+                            REFRESH
+                        </button>
+                    </div>
+                </div>
+                <div class="investigation-scripts-list" id="investigation-scripts-list">
+                    <div class="loading">LOADING SCRIPTS...</div>
+                </div>
+            </section>
+
             <!-- Generated Reports -->
             <section class="reports-panel">
                 <div class="panel-header">
@@ -363,6 +383,77 @@
             </div>
             <div class="report-modal-body" id="report-modal-body">
                 <div class="loading">LOADING REPORT...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Investigation Script Editor Modal -->
+    <div class="script-editor-modal" id="script-editor-modal">
+        <div class="script-editor-content">
+            <div class="script-editor-header">
+                <h3 id="script-editor-title">Investigation Script</h3>
+                <div class="script-editor-controls">
+                    <button class="btn-action" onclick="executeScript()">
+                        <span class="btn-icon">▶️</span>
+                        RUN
+                    </button>
+                    <button class="btn-action" onclick="saveScript()">
+                        <span class="btn-icon">💾</span>
+                        SAVE
+                    </button>
+                    <button class="script-editor-close" onclick="closeScriptEditor()">×</button>
+                </div>
+            </div>
+            <div class="script-editor-body">
+                <div class="script-metadata-section">
+                    <div class="metadata-grid">
+                        <div class="metadata-field">
+                            <label>Script ID:</label>
+                            <input type="text" id="script-id" placeholder="script-name" />
+                        </div>
+                        <div class="metadata-field">
+                            <label>Name:</label>
+                            <input type="text" id="script-name" placeholder="Human readable name" />
+                        </div>
+                        <div class="metadata-field">
+                            <label>Category:</label>
+                            <select id="script-category">
+                                <option value="performance">Performance</option>
+                                <option value="process-analysis">Process Analysis</option>
+                                <option value="resource-management">Resource Management</option>
+                                <option value="network">Network</option>
+                                <option value="storage">Storage</option>
+                            </select>
+                        </div>
+                        <div class="metadata-field">
+                            <label>Description:</label>
+                            <textarea id="script-description" placeholder="Brief description of what this script investigates"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="script-code-section">
+                    <div class="code-editor-header">
+                        <span>Script Code</span>
+                        <div class="editor-info">
+                            <span id="cursor-position">Line 1, Column 1</span>
+                            <span id="script-length">0 chars</span>
+                        </div>
+                    </div>
+                    <textarea id="script-code" class="code-editor" placeholder="#!/bin/bash&#10;# Your investigation script here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Execution Results Modal -->
+    <div class="script-results-modal" id="script-results-modal">
+        <div class="script-results-content">
+            <div class="script-results-header">
+                <h3 id="script-results-title">Script Execution Results</h3>
+                <button class="script-results-close" onclick="closeScriptResults()">×</button>
+            </div>
+            <div class="script-results-body" id="script-results-body">
+                <div class="loading">EXECUTING SCRIPT...</div>
             </div>
         </div>
     </div>

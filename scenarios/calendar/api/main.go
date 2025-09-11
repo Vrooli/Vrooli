@@ -36,6 +36,7 @@ type Config struct {
 // Database connection
 var db *sql.DB
 var calendarProcessor *CalendarProcessor
+var nlpProcessor *NLPProcessor
 
 // Models
 type Event struct {
@@ -282,14 +283,49 @@ func authMiddleware(next http.Handler) http.Handler {
 
 // Validate token with scenario-authenticator service
 func validateToken(token string) (*User, error) {
-	// This would make an HTTP request to scenario-authenticator
-	// For now, return a mock user for development
+	// Get auth service URL from environment (required)
+	authServiceURL := os.Getenv("AUTH_SERVICE_URL")
+	if authServiceURL == "" {
+		return nil, fmt.Errorf("AUTH_SERVICE_URL environment variable is required")
+	}
+
+	// Create validation request
+	req, err := http.NewRequest("GET", authServiceURL+"/api/v1/auth/validate", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	// Make request to scenario-authenticator
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("auth service request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("invalid token")
+	}
+
+	// Parse response
+	var authResponse struct {
+		UserID      string `json:"user_id"`
+		Email       string `json:"email"`
+		DisplayName string `json:"display_name"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&authResponse); err != nil {
+		return nil, fmt.Errorf("failed to parse auth response: %w", err)
+	}
+
+	// Create user from auth response
 	return &User{
-		ID:          "test-user-id",
-		AuthUserID:  "auth-user-123",
-		Email:       "test@example.com",
-		DisplayName: "Test User",
-		Timezone:    "UTC",
+		ID:          authResponse.UserID,
+		AuthUserID:  authResponse.UserID,
+		Email:       authResponse.Email,
+		DisplayName: authResponse.DisplayName,
+		Timezone:    "UTC", // Default timezone, could be fetched from user profile
 	}, nil
 }
 
@@ -497,46 +533,176 @@ func scheduleChatHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For now, return a simple response
-	// In a full implementation, this would use Ollama/Claude for NLP
-	response := ChatResponse{
-		Response: "I understand you want to schedule something. Can you provide more details about what you'd like to schedule?",
-		SuggestedActions: []SuggestedAction{
-			{
-				Action:     "create_event",
-				Confidence: 0.7,
-				Parameters: map[string]interface{}{
-					"title":      "New Event",
-					"start_time": time.Now().Add(time.Hour).Format(time.RFC3339),
+	// Use NLP processor to handle natural language scheduling
+	ctx := r.Context()
+	response, err := nlpProcessor.ProcessSchedulingRequest(ctx, userID, req.Message)
+	if err != nil {
+		log.Printf("Error processing chat request: %v", err)
+		// Return a fallback response on error
+		response = &ChatResponse{
+			Response: "I'm having trouble understanding your request. Could you try rephrasing it?",
+			SuggestedActions: []SuggestedAction{
+				{
+					Action:     "create_event",
+					Confidence: 0.5,
+				},
+				{
+					Action:     "list_events",
+					Confidence: 0.5,
 				},
 			},
-		},
-		RequiresConfirmation: true,
-		Context: map[string]interface{}{
-			"conversation_id": uuid.New().String(),
-			"user_message":    req.Message,
-		},
+		}
 	}
+
+	// Add conversation context
+	if response.Context == nil {
+		response.Context = make(map[string]interface{})
+	}
+	response.Context["conversation_id"] = uuid.New().String()
+	response.Context["user_message"] = req.Message
+	response.Context["timestamp"] = time.Now().UTC()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
 func scheduleOptimizeHandler(w http.ResponseWriter, r *http.Request) {
-	// Placeholder for AI-powered schedule optimization
+	var req struct {
+		OptimizationGoal string    `json:"optimization_goal"` // "minimize_gaps", "maximize_focus_time", "balance_workload"
+		StartDate        time.Time `json:"start_date"`
+		EndDate          time.Time `json:"end_date"`
+		Constraints      map[string]interface{} `json:"constraints"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	userID := r.Header.Get("X-User-ID")
+	if userID == "" {
+		http.Error(w, "User ID not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Fetch user's events in the date range
+	query := `
+		SELECT id, title, start_time, end_time, event_type, metadata
+		FROM events
+		WHERE user_id = $1 AND start_time >= $2 AND end_time <= $3
+		  AND status != 'cancelled'
+		ORDER BY start_time`
+
+	rows, err := db.Query(query, userID, req.StartDate, req.EndDate)
+	if err != nil {
+		http.Error(w, "Failed to fetch events", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var events []Event
+	for rows.Next() {
+		var e Event
+		var metadataJSON []byte
+		if err := rows.Scan(&e.ID, &e.Title, &e.StartTime, &e.EndTime, &e.EventType, &metadataJSON); err != nil {
+			continue
+		}
+		if len(metadataJSON) > 0 {
+			json.Unmarshal(metadataJSON, &e.Metadata)
+		}
+		events = append(events, e)
+	}
+
+	// Analyze schedule and generate optimization suggestions
+	suggestions := analyzeSchedule(events, req.OptimizationGoal)
+
 	response := map[string]interface{}{
-		"suggestions": []map[string]interface{}{
-			{
-				"description":      "Move morning meeting to afternoon to create a 2-hour block",
-				"affected_events":  []string{},
-				"proposed_changes": []map[string]interface{}{},
-				"confidence_score": 0.8,
-			},
-		},
+		"optimization_goal": req.OptimizationGoal,
+		"current_efficiency": calculateScheduleEfficiency(events),
+		"suggestions": suggestions,
+		"potential_time_saved": calculateTimeSaved(suggestions),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// Helper functions for schedule optimization
+func analyzeSchedule(events []Event, goal string) []map[string]interface{} {
+	suggestions := []map[string]interface{}{}
+
+	// Identify gaps and overlaps
+	for i := 0; i < len(events)-1; i++ {
+		gap := events[i+1].StartTime.Sub(events[i].EndTime)
+		
+		if gap > 30*time.Minute && gap < 2*time.Hour {
+			// Suggest consolidating small gaps
+			suggestions = append(suggestions, map[string]interface{}{
+				"type":        "consolidate_gap",
+				"description": fmt.Sprintf("Move %s to eliminate %v gap", events[i+1].Title, gap),
+				"event_id":    events[i+1].ID,
+				"proposed_start": events[i].EndTime,
+				"confidence":  0.7,
+			})
+		}
+	}
+
+	// Suggest batching similar events
+	eventTypes := make(map[string][]Event)
+	for _, e := range events {
+		eventTypes[e.EventType] = append(eventTypes[e.EventType], e)
+	}
+
+	for eventType, typeEvents := range eventTypes {
+		if len(typeEvents) > 2 {
+			suggestions = append(suggestions, map[string]interface{}{
+				"type":        "batch_similar",
+				"description": fmt.Sprintf("Batch %d %s events together", len(typeEvents), eventType),
+				"event_ids":   getEventIDs(typeEvents),
+				"confidence":  0.8,
+			})
+		}
+	}
+
+	return suggestions
+}
+
+func calculateScheduleEfficiency(events []Event) float64 {
+	if len(events) == 0 {
+		return 1.0
+	}
+
+	totalTime := events[len(events)-1].EndTime.Sub(events[0].StartTime)
+	busyTime := time.Duration(0)
+	for _, e := range events {
+		busyTime += e.EndTime.Sub(e.StartTime)
+	}
+
+	if totalTime > 0 {
+		return float64(busyTime) / float64(totalTime)
+	}
+	return 0
+}
+
+func calculateTimeSaved(suggestions []map[string]interface{}) int {
+	// Estimate time saved in minutes
+	totalMinutes := 0
+	for _, s := range suggestions {
+		if s["type"] == "consolidate_gap" {
+			totalMinutes += 15 // Estimate 15 minutes saved per gap consolidation
+		} else if s["type"] == "batch_similar" {
+			totalMinutes += 30 // Estimate 30 minutes saved per batching
+		}
+	}
+	return totalMinutes
+}
+
+func getEventIDs(events []Event) []string {
+	ids := make([]string, len(events))
+	for i, e := range events {
+		ids[i] = e.ID
+	}
+	return ids
 }
 
 // processRemindersHandler manually triggers reminder processing
@@ -558,6 +724,19 @@ func processRemindersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start calendar
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	log.Println("Starting Calendar API...")
 
 	// Initialize configuration
@@ -571,6 +750,9 @@ func main() {
 
 	// Initialize calendar processor
 	calendarProcessor = NewCalendarProcessor(db, config)
+	
+	// Initialize NLP processor
+	nlpProcessor = NewNLPProcessor(config.OllamaURL, db, config)
 	
 	// Start reminder processor in background
 	ctx := context.Background()

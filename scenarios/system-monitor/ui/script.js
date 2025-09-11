@@ -63,8 +63,8 @@ class SystemMonitor {
     }
 
     setupEventListeners() {
-        // Auto-refresh every 30 seconds
-        setInterval(() => this.refreshDashboard(), 30000);
+        // Auto-refresh every 60 seconds (reduced from 30s)
+        setInterval(() => this.refreshDashboard(), 60000);
         
         // Handle window focus to refresh data
         window.addEventListener('focus', () => this.refreshDashboard());
@@ -72,8 +72,8 @@ class SystemMonitor {
     
     // Error tracking methods
     async startErrorPolling() {
-        // Check for errors every 10 seconds
-        setInterval(() => this.checkForErrors(), 10000);
+        // Check for errors every 30 seconds (reduced from 10s)
+        setInterval(() => this.checkForErrors(), 30000);
         
         // Initial check
         setTimeout(() => this.checkForErrors(), 2000);
@@ -462,8 +462,8 @@ class SystemMonitor {
         // Initial fetch
         this.fetchMetrics();
         
-        // Poll every 5 seconds
-        setInterval(() => this.fetchMetrics(), 5000);
+        // Poll every 30 seconds (reduced from 5s to prevent high load)
+        setInterval(() => this.fetchMetrics(), 30000);
     }
 
     startDetailedMetricsPolling() {
@@ -472,21 +472,21 @@ class SystemMonitor {
         this.fetchProcessMetrics();
         this.fetchInfrastructureMetrics();
         
-        // Poll detailed metrics every 10 seconds
+        // Poll detailed metrics every 60 seconds (reduced from 10s)
         setInterval(() => {
             if (this.expandedCards.size > 0 || this.expandedPanels.size > 0) {
                 this.fetchDetailedMetrics();
             }
         }, 10000);
         
-        // Poll process metrics every 15 seconds when panel is expanded
+        // Poll process metrics every 45 seconds when panel is expanded (reduced from 15s)
         setInterval(() => {
             if (this.expandedPanels.has('process')) {
                 this.fetchProcessMetrics();
             }
         }, 15000);
         
-        // Poll infrastructure metrics every 15 seconds when panel is expanded
+        // Poll infrastructure metrics every 45 seconds when panel is expanded (reduced from 15s)
         setInterval(() => {
             if (this.expandedPanels.has('infrastructure')) {
                 this.fetchInfrastructureMetrics();

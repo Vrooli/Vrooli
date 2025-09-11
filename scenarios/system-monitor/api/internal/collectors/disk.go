@@ -134,19 +134,20 @@ func (c *DiskCollector) getFileDescriptors() map[string]interface{} {
 		return fdInfo
 	}
 	
-	// Get current FD count (simplified approach)
-	cmd := exec.Command("bash", "-c", "lsof 2>/dev/null | wc -l")
-	output, err := cmd.Output()
+	// Get current FD count from /proc/sys/fs/file-nr (much faster than lsof)
+	data, err := os.ReadFile("/proc/sys/fs/file-nr")
 	if err == nil {
-		used, _ := strconv.Atoi(strings.TrimSpace(string(output)))
-		fdInfo["used"] = used
+		parts := strings.Fields(string(data))
+		if len(parts) >= 1 {
+			used, _ := strconv.Atoi(parts[0])
+			fdInfo["used"] = used
+		}
 	}
 	
 	// Get max FD limit
-	cmd = exec.Command("bash", "-c", "cat /proc/sys/fs/file-max")
-	output, err = cmd.Output()
+	data, err = os.ReadFile("/proc/sys/fs/file-max")
 	if err == nil {
-		max, _ := strconv.Atoi(strings.TrimSpace(string(output)))
+		max, _ := strconv.Atoi(strings.TrimSpace(string(data)))
 		if max > 0 {
 			fdInfo["max"] = max
 		}

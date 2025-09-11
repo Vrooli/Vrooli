@@ -116,7 +116,7 @@
   "integration": {
     "provides": {
       "api": {
-        "base_url": "http://localhost:3300/api/v1",
+        "base_url": "http://localhost:${API_PORT:-15001}/api/v1",
         "key_endpoints": [
           "POST /events - Create calendar events",
           "GET /events - List and search events",
@@ -154,8 +154,8 @@
   },
   "deployment": {
     "health_checks": [
-      "api:http://localhost:3300/health",
-      "ui:http://localhost:3301/",
+      "api:http://localhost:${API_PORT:-15001}/health",
+      "ui:http://localhost:${UI_PORT:-35001}/",
       "postgres:resource-postgres status calendar-system",
       "qdrant:curl -f http://localhost:6333/collections/calendar_events"
     ],
@@ -195,7 +195,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "true",
+          "run": "pkill -f \"vite\" || true; sleep 1; pkill -9 -f \"vite\" 2>/dev/null || true",
           "description": "Stop UI process"
         }
       ]
@@ -215,9 +215,14 @@
           "background": true
         },
         {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI dependencies"
+        },
+        {
           "name": "start-ui",
-          "run": "cd ui && python -m http.server 8080",
-          "description": "Start UI server",
+          "run": "cd ui && npm run dev",
+          "description": "Start Vite development server",
           "background": true
         }
       ]

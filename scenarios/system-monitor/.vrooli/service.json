@@ -17,7 +17,9 @@
       "alerts",
       "metrics",
       "dark-theme",
-      "nodejs-ui",
+      "react-ui",
+      "typescript",
+      "vite",
       "go-api",
       "node-red-flows",
       "postgres-storage",
@@ -46,9 +48,10 @@
     },
     "ui": {
       "enabled": true,
-      "framework": "javascript",
-      "path": "ui",
-      "main": "server.js"
+      "framework": "react",
+      "path": "ui-react",
+      "main": "src/App.tsx",
+      "build_tool": "vite"
     },
     "cli": {
       "enabled": true,
@@ -216,8 +219,13 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies"
+          "run": "cd ui-react && npm install",
+          "description": "Install React UI dependencies"
+        },
+        {
+          "name": "build-ui",
+          "run": "cd ui-react && npm run build",
+          "description": "Build React UI for production"
         }
       ]
     },
@@ -232,8 +240,8 @@
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server",
+          "run": "cd ui-react && npm run start",
+          "description": "Start React UI dev server",
           "background": true
         },
         {
@@ -268,8 +276,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/system-monitor.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/system-monitor.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f \"scenarios/system-monitor.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/system-monitor.*vite\" 2>/dev/null || true",
+          "description": "Stop React UI dev server"
         }
       ]
     }

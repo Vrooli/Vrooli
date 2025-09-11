@@ -45,8 +45,7 @@
 - **qdrant**: Vector embeddings for AI-powered semantic search
 
 ### Optional Enhancements
-- **ollama**: Natural language processing for chat interface
-- **n8n**: Workflow automation for complex event-triggered sequences
+- **ollama**: Natural language processing for chat interface (native Go integration)
 
 ## 🎨 UX Style
 
@@ -82,7 +81,7 @@ calendar schedule chat "find time for a 2-hour project review this week"
 ### API Integration
 ```javascript
 // Create event from another scenario
-const response = await fetch('http://localhost:3300/api/v1/events', {
+const response = await fetch('http://localhost:15001/api/v1/events', {
   method: 'POST',
   headers: {
     'Authorization': `Bearer ${userToken}`,

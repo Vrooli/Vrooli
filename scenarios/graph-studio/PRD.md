@@ -80,10 +80,6 @@ required:
     integration_pattern: Direct database connection for performance
     access_method: Database driver with connection pooling
     
-  - resource_name: n8n
-    purpose: Orchestrate complex graph transformations and analysis workflows
-    integration_pattern: Shared workflows for reusable operations
-    access_method: initialization/n8n/graph-operations.json
     
   - resource_name: minio
     purpose: Store large graph files and visualization assets
@@ -403,9 +399,9 @@ plugin_styles:
 ## 🔄 Integration Requirements
 
 ### Upstream Dependencies
-- **initialization/n8n/ollama.json**: For AI-powered suggestions
 - **postgres resource**: Database must be initialized
 - **minio resource**: For large file storage
+- **ollama resource**: For AI-powered suggestions (optional)
 
 ### Downstream Enablement
 - **knowledge-base scenarios**: Can build on semantic graph capabilities
@@ -470,7 +466,6 @@ structure:
     - cli/graph-studio
     - cli/install.sh
     - initialization/postgres/schema.sql
-    - initialization/n8n/graph-operations.json
     - scenario-test.yaml
     
   required_dirs:

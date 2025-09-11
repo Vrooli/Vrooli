@@ -66,14 +66,16 @@ graph-studio convert <graph-id> mermaid
 ### Integration
 - RESTful API for programmatic access
 - CLI for automation and scripting
-- N8n workflows for complex operations
 - Event system for real-time updates
+- Cross-scenario integration capabilities
 
 ## 🛠️ API Usage
 
 ### Create a Graph
 ```bash
-curl -X POST http://localhost:8080/api/v1/graphs \
+# Get the API port dynamically
+API_PORT=$(vrooli scenario port graph-studio API_PORT)
+curl -X POST http://localhost:$API_PORT/api/v1/graphs \
   -H "Content-Type: application/json" \
   -d '{
     "name": "System Architecture",
@@ -87,19 +89,22 @@ curl -X POST http://localhost:8080/api/v1/graphs \
 
 ### Validate a Graph
 ```bash
-curl -X POST http://localhost:8080/api/v1/graphs/{id}/validate
+API_PORT=$(vrooli scenario port graph-studio API_PORT)
+curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/validate
 ```
 
 ### Convert Format
 ```bash
-curl -X POST http://localhost:8080/api/v1/graphs/{id}/convert \
+API_PORT=$(vrooli scenario port graph-studio API_PORT)
+curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/convert \
   -H "Content-Type: application/json" \
   -d '{"target_format": "mermaid"}'
 ```
 
 ### Render Graph
 ```bash
-curl -X POST http://localhost:8080/api/v1/graphs/{id}/render \
+API_PORT=$(vrooli scenario port graph-studio API_PORT)
+curl -X POST http://localhost:$API_PORT/api/v1/graphs/{id}/render \
   -H "Content-Type: application/json" \
   -d '{"format": "svg"}'
 ```
@@ -174,7 +179,8 @@ graph-studio validate --all
 
 **Cannot connect to API**
 - Ensure PostgreSQL is running: `vrooli resource postgres status`
-- Check API logs: `docker logs graph-studio-api`
+- Check API logs: `vrooli scenario logs graph-studio`
+- Verify scenario is running: `vrooli scenario status graph-studio`
 
 **Plugin not loading**
 - Verify plugin is enabled in `service.json`

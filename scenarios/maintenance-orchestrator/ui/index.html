@@ -421,6 +421,16 @@
         .scenario-card:hover::before {
             opacity: 1;
         }
+        
+        .scenario-card .action-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .scenario-card .action-btn:hover {
+            background: rgba(16, 185, 129, 0.25) !important;
+            border-color: rgba(16, 185, 129, 0.5) !important;
+            transform: scale(1.1);
+        }
 
         .scenario-card.preview {
             border: 2px solid #3b82f6;
@@ -1183,6 +1193,7 @@
         let previewedPreset = null;
         let previewedScenarios = new Set();
         let presetsVisible = true;
+        let cachedStatuses = {}; // Cache for scenario statuses to prevent flicker
 
         // Logging functions
         function addLog(message, level = 'info') {
@@ -1352,14 +1363,24 @@
                 const data = await response.json();
                 scenarioStatuses = data.statuses || {};
                 
-                // Update scenarios with health status
+                // Update cached statuses only if changed
                 Object.keys(scenarios).forEach(id => {
-                    if (scenarioStatuses[id]) {
-                        scenarios[id].health = scenarioStatuses[id].status;
-                        scenarios[id].processCount = scenarioStatuses[id].processCount;
-                    } else {
-                        scenarios[id].health = 'stopped';
-                        scenarios[id].processCount = 0;
+                    const newStatus = scenarioStatuses[id] || { status: 'stopped', processCount: 0 };
+                    const currentCached = cachedStatuses[id];
+                    
+                    // Only update cache if status actually changed or if it's the first fetch
+                    if (!currentCached || 
+                        currentCached.health !== newStatus.status || 
+                        currentCached.processCount !== newStatus.processCount) {
+                        
+                        cachedStatuses[id] = {
+                            health: newStatus.status,
+                            processCount: newStatus.processCount
+                        };
+                        
+                        // Update scenario object
+                        scenarios[id].health = newStatus.status;
+                        scenarios[id].processCount = newStatus.processCount;
                     }
                 });
                 
@@ -1406,10 +1427,17 @@
             }
         }
 
-        function getStatusChip(health, processCount) {
-            switch(health) {
+        function getStatusChip(scenarioId) {
+            // Check if we have a cached status for this scenario
+            if (!cachedStatuses[scenarioId]) {
+                // No cached status yet, show loading state
+                return `<span class="status-chip stopped">⏳ Loading...</span>`;
+            }
+            
+            const status = cachedStatuses[scenarioId];
+            switch(status.health) {
                 case 'running':
-                    return `<span class="status-chip running">🟢 Running (${processCount})</span>`;
+                    return `<span class="status-chip running">🟢 Running (${status.processCount})</span>`;
                 case 'error':
                     return `<span class="status-chip error">🔴 Error</span>`;
                 default:
@@ -1475,28 +1503,50 @@
             }
             
             grid.innerHTML = filtered.map(scenario => {
-                const statusChip = getStatusChip(scenario.health || 'stopped', scenario.processCount || 0);
+                const statusChip = getStatusChip(scenario.id);
                 const isPreview = previewedScenarios.has(scenario.id);
                 const previewClass = isPreview ? ' preview' : '';
                 
+                // Limit tags to 3 with overflow indicator
+                let tagsHtml = '';
+                if (scenario.tags && scenario.tags.length > 0) {
+                    const visibleTags = scenario.tags.slice(0, 3);
+                    const remainingCount = scenario.tags.length - 3;
+                    
+                    tagsHtml = visibleTags.map(tag => `<span class="tag">${tag}</span>`).join('');
+                    if (remainingCount > 0) {
+                        tagsHtml += `<span class="tag" style="background: rgba(100, 116, 139, 0.15); color: #94a3b8;">+${remainingCount}</span>`;
+                    }
+                }
+                
                 return `
-                <div class="scenario-card ${scenario.isActive ? 'active' : ''}${previewClass}">
+                <div class="scenario-card ${scenario.isActive ? 'active' : ''}${previewClass}" 
+                     onclick="openScenario(event, '${scenario.id}')"
+                     style="cursor: pointer;">
                     <div class="scenario-header">
-                        <div>
+                        <div style="flex: 1;">
                             <div class="scenario-name">
                                 ${scenario.displayName || scenario.name}
                                 ${statusChip}
                             </div>
                             <div class="scenario-tags">
-                                ${scenario.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                                ${tagsHtml}
                             </div>
                         </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" 
-                                   ${scenario.isActive ? 'checked' : ''} 
-                                   onchange="toggleScenario('${scenario.id}', this.checked)">
-                            <span class="slider"></span>
-                        </label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="action-btn" 
+                                    onclick="event.stopPropagation(); openScenarioInNewTab('${scenario.id}')" 
+                                    title="Open scenario in new tab"
+                                    style="padding: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; color: #10b981; cursor: pointer; transition: all 0.3s ease;">
+                                ↗️
+                            </button>
+                            <label class="toggle-switch" onclick="event.stopPropagation();">
+                                <input type="checkbox" 
+                                       ${scenario.isActive ? 'checked' : ''} 
+                                       onchange="toggleScenario('${scenario.id}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
                     ${scenario.description ? `<div style="color: #64748b; font-size: 12px; margin-top: 10px;">${scenario.description}</div>` : ''}
                 </div>
@@ -1561,6 +1611,46 @@
                 }
             } catch (error) {
                 addLog(`Error toggling scenario: ${error.message}`, 'error');
+            }
+        }
+
+        async function openScenario(event, scenarioId) {
+            // Don't open if clicking on toggle switch, action buttons, or other interactive elements
+            if (event.target.closest('.toggle-switch') || 
+                event.target.closest('.action-btn') || 
+                event.target.closest('button') ||
+                event.target.closest('label')) {
+                return;
+            }
+            
+            // Use the same logic as openScenarioInNewTab
+            await openScenarioInNewTab(scenarioId);
+        }
+        
+        async function openScenarioInNewTab(scenarioId) {
+            // Fetch the actual port for the scenario
+            try {
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/port?type=UI_PORT`);
+                const data = await response.json();
+                
+                if (data.port) {
+                    // Open scenario using the actual port
+                    window.open(`http://localhost:${data.port}`, '_blank');
+                    addLog(`Opening ${scenarioId} on port ${data.port}`, 'info');
+                } else {
+                    // Try API_PORT as fallback
+                    const apiResponse = await fetch(`${API_BASE}/scenarios/${scenarioId}/port?type=API_PORT`);
+                    const apiData = await apiResponse.json();
+                    
+                    if (apiData.port) {
+                        window.open(`http://localhost:${apiData.port}`, '_blank');
+                        addLog(`Opening ${scenarioId} on API port ${apiData.port}`, 'info');
+                    } else {
+                        addLog(`Cannot open ${scenarioId}: No port available (scenario may not be running)`, 'warn');
+                    }
+                }
+            } catch (error) {
+                addLog(`Error fetching port for ${scenarioId}: ${error.message}`, 'error');
             }
         }
 
