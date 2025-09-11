@@ -1,4 +1,5 @@
 import type { Investigation } from '../../types';
+import { LoadingSkeleton } from '../common/LoadingSkeleton';
 
 interface InvestigationsPanelProps {
   investigations: Investigation[];
@@ -29,14 +30,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
     return (
       <div className="investigation-list">
         {investigations.length === 0 ? (
-          <div className="loading" style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
-            SCANNING SYSTEM...
-          </div>
+          <LoadingSkeleton variant="list" count={3} />
         ) : (
           investigations.map(investigation => (
             <div key={investigation.id} className="investigation-item" style={{
@@ -145,14 +139,7 @@ export const InvestigationsPanel = ({ investigations, embedded = false }: Invest
       
       <div className="investigation-list">
         {investigations.length === 0 ? (
-          <div className="loading" style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
-            SCANNING SYSTEM...
-          </div>
+          <LoadingSkeleton variant="list" count={3} />
         ) : (
           investigations.map(investigation => (
             <div key={investigation.id} className="investigation-item" style={{

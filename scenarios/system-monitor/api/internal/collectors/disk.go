@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"runtime"
 	"strconv"

@@ -159,6 +159,12 @@ func setupRoutes(cfg *config.Config, health *handlers.HealthHandler, metrics *ha
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", investigation.GetLatestInvestigation).Methods("GET")
 	r.HandleFunc("/api/investigations/trigger", investigation.TriggerInvestigation).Methods("POST")
+	r.HandleFunc("/api/investigations/cooldown", investigation.GetCooldownStatus).Methods("GET")
+	r.HandleFunc("/api/investigations/cooldown/reset", investigation.ResetCooldown).Methods("POST")
+	r.HandleFunc("/api/investigations/cooldown/period", investigation.UpdateCooldownPeriod).Methods("PUT")
+	r.HandleFunc("/api/investigations/triggers", investigation.GetTriggers).Methods("GET")
+	r.HandleFunc("/api/investigations/triggers/{id}", investigation.UpdateTrigger).Methods("PUT")
+	r.HandleFunc("/api/investigations/triggers/{id}/threshold", investigation.UpdateTriggerThreshold).Methods("PUT")
 	r.HandleFunc("/api/investigations/{id}", investigation.GetInvestigation).Methods("GET")
 	r.HandleFunc("/api/investigations/{id}/status", investigation.UpdateInvestigationStatus).Methods("PUT")
 	r.HandleFunc("/api/investigations/{id}/findings", investigation.UpdateInvestigationFindings).Methods("PUT")

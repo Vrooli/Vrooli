@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { FileText, RefreshCw, Plus, Play } from 'lucide-react';
+import { FileText, RefreshCw, Plus } from 'lucide-react';
 import type { InvestigationScript } from '../../types';
+import { LoadingSkeleton } from '../common/LoadingSkeleton';
 
 interface InvestigationScriptsPanelProps {
   onOpenScriptEditor: (script?: InvestigationScript, content?: string, mode?: 'create' | 'edit' | 'view') => void;
@@ -161,14 +162,7 @@ echo "Investigation complete."`;
     return (
       <div className="investigation-scripts-list">
         {loading ? (
-          <div className="loading" style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
-            LOADING SCRIPTS...
-          </div>
+          <LoadingSkeleton variant="list" count={3} />
         ) : scripts.length === 0 ? (
           <div style={{
             textAlign: 'center',
@@ -179,83 +173,69 @@ echo "Investigation complete."`;
             NO SCRIPTS AVAILABLE
           </div>
         ) : (
-          <div className="grid grid-2" style={{ gap: 'var(--spacing-md)' }}>
+          <div className="scripts-list">
             {filteredScripts.map(script => (
               <div 
                 key={script.id} 
-                className="script-item card" 
+                className="script-item" 
                 onClick={() => openScript(script)}
                 style={{
                   padding: 'var(--spacing-md)',
-                  background: 'rgba(0, 0, 0, 0.5)',
+                  borderBottom: '1px solid var(--color-accent)',
+                  background: 'rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
-                  transition: 'all var(--transition-fast)'
+                  transition: 'background 0.2s'
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
               >
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: 'var(--spacing-sm)'
+                  alignItems: 'center',
+                  marginBottom: 'var(--spacing-xs)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                     <FileText size={16} style={{ color: 'var(--color-accent)' }} />
-                    <h4 style={{ 
+                    <span style={{ 
                       margin: 0, 
                       color: 'var(--color-text-bright)',
-                      fontSize: 'var(--font-size-md)'
+                      fontSize: 'var(--font-size-md)',
+                      fontWeight: 'bold'
                     }}>
                       {script.name}
-                    </h4>
+                    </span>
                   </div>
                   
                   <span style={{
-                    padding: 'var(--spacing-xs)',
-                    background: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
-                    color: 'var(--color-background)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: 'var(--font-size-xs)',
+                    color: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
+                    fontSize: 'var(--font-size-sm)',
+                    textTransform: 'uppercase',
                     fontWeight: 'bold'
                   }}>
                     {script.enabled ? 'ENABLED' : 'DISABLED'}
                   </span>
                 </div>
                 
-                <p style={{
-                  margin: '0 0 var(--spacing-sm) 0',
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 'var(--spacing-sm)'
+                }}>
+                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                    Category: {script.category}
+                  </span>
+                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                    By: {script.author}
+                  </span>
+                </div>
+                
+                <div style={{
                   color: 'var(--color-text)',
                   fontSize: 'var(--font-size-sm)',
                   lineHeight: 1.4
                 }}>
                   {script.description}
-                </p>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: 'var(--font-size-xs)',
-                  color: 'var(--color-text-dim)'
-                }}>
-                  <span>Category: {script.category}</span>
-                  <span>By: {script.author}</span>
-                </div>
-                
-                <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                  <button 
-                    className="btn btn-action" 
-                    style={{ 
-                      fontSize: 'var(--font-size-sm)',
-                      padding: 'var(--spacing-xs) var(--spacing-sm)'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openScript(script);
-                    }}
-                  >
-                    <Play size={14} style={{ marginRight: 'var(--spacing-xs)', display: 'inline-block' }} />
-                    VIEW & RUN
-                  </button>
                 </div>
               </div>
             ))}
@@ -300,14 +280,7 @@ echo "Investigation complete."`;
       
       <div className="investigation-scripts-list">
         {loading ? (
-          <div className="loading" style={{
-            textAlign: 'center',
-            color: 'var(--color-text-dim)',
-            padding: 'var(--spacing-lg)',
-            fontSize: 'var(--font-size-lg)'
-          }}>
-            LOADING SCRIPTS...
-          </div>
+          <LoadingSkeleton variant="list" count={3} />
         ) : scripts.length === 0 ? (
           <div style={{
             textAlign: 'center',
@@ -318,83 +291,69 @@ echo "Investigation complete."`;
             NO SCRIPTS AVAILABLE
           </div>
         ) : (
-          <div className="grid grid-2" style={{ gap: 'var(--spacing-md)' }}>
+          <div className="scripts-list">
             {filteredScripts.map(script => (
               <div 
                 key={script.id} 
-                className="script-item card" 
+                className="script-item" 
                 onClick={() => openScript(script)}
                 style={{
                   padding: 'var(--spacing-md)',
-                  background: 'rgba(0, 0, 0, 0.5)',
+                  borderBottom: '1px solid var(--color-accent)',
+                  background: 'rgba(0, 0, 0, 0.2)',
                   cursor: 'pointer',
-                  transition: 'all var(--transition-fast)'
+                  transition: 'background 0.2s'
                 }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.4)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.2)'}
               >
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  marginBottom: 'var(--spacing-sm)'
+                  alignItems: 'center',
+                  marginBottom: 'var(--spacing-xs)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)' }}>
                     <FileText size={16} style={{ color: 'var(--color-accent)' }} />
-                    <h4 style={{ 
+                    <span style={{ 
                       margin: 0, 
                       color: 'var(--color-text-bright)',
-                      fontSize: 'var(--font-size-md)'
+                      fontSize: 'var(--font-size-md)',
+                      fontWeight: 'bold'
                     }}>
                       {script.name}
-                    </h4>
+                    </span>
                   </div>
                   
                   <span style={{
-                    padding: 'var(--spacing-xs)',
-                    background: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
-                    color: 'var(--color-background)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: 'var(--font-size-xs)',
+                    color: script.enabled ? 'var(--color-success)' : 'var(--color-text-dim)',
+                    fontSize: 'var(--font-size-sm)',
+                    textTransform: 'uppercase',
                     fontWeight: 'bold'
                   }}>
                     {script.enabled ? 'ENABLED' : 'DISABLED'}
                   </span>
                 </div>
                 
-                <p style={{
-                  margin: '0 0 var(--spacing-sm) 0',
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginBottom: 'var(--spacing-sm)'
+                }}>
+                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                    Category: {script.category}
+                  </span>
+                  <span style={{ color: 'var(--color-text-dim)', fontSize: 'var(--font-size-sm)' }}>
+                    By: {script.author}
+                  </span>
+                </div>
+                
+                <div style={{
                   color: 'var(--color-text)',
                   fontSize: 'var(--font-size-sm)',
                   lineHeight: 1.4
                 }}>
                   {script.description}
-                </p>
-                
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: 'var(--font-size-xs)',
-                  color: 'var(--color-text-dim)'
-                }}>
-                  <span>Category: {script.category}</span>
-                  <span>By: {script.author}</span>
-                </div>
-                
-                <div style={{ marginTop: 'var(--spacing-sm)' }}>
-                  <button 
-                    className="btn btn-action" 
-                    style={{ 
-                      fontSize: 'var(--font-size-sm)',
-                      padding: 'var(--spacing-xs) var(--spacing-sm)'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openScript(script);
-                    }}
-                  >
-                    <Play size={14} style={{ marginRight: 'var(--spacing-xs)', display: 'inline-block' }} />
-                    VIEW & RUN
-                  </button>
                 </div>
               </div>
             ))}

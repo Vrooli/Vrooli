@@ -105,7 +105,7 @@ func (c *CPUCollector) getCPUUsage() float64 {
 		c.lastSampleTime = now
 		
 		// Use top command for immediate reading
-		cmd := exec.Command("bash", "-c", "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\([0-9.]*\)%* id.*/\1/' | awk '{print 100 - $1}'")
+		cmd := exec.Command("bash", "-c", "top -bn1 | grep 'Cpu(s)' | sed 's/.*, *\\([0-9.]*\\)%* id.*/\\1/' | awk '{print 100 - $1}'")
 		output, err := cmd.Output()
 		if err != nil {
 			return 25.0 // Default fallback

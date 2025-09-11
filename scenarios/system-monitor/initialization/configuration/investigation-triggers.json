@@ -1,0 +1,79 @@
+{
+    "version": "1.0.0",
+    "cooldown": {
+        "period_seconds": 300,
+        "description": "Minimum time between automatic investigations to prevent spam"
+    },
+    "triggers": [
+        {
+            "id": "high_cpu",
+            "name": "High CPU Usage",
+            "description": "Triggers when CPU usage exceeds threshold for sustained period",
+            "icon": "cpu",
+            "enabled": true,
+            "auto_fix": false,
+            "threshold": 85,
+            "unit": "%",
+            "condition": "above",
+            "sustained_duration_seconds": 60,
+            "priority": "high"
+        },
+        {
+            "id": "memory_pressure",
+            "name": "Memory Pressure",
+            "description": "Triggers when available memory falls below threshold",
+            "icon": "database",
+            "enabled": true,
+            "auto_fix": true,
+            "threshold": 10,
+            "unit": "%",
+            "condition": "below",
+            "sustained_duration_seconds": 30,
+            "priority": "critical"
+        },
+        {
+            "id": "disk_space",
+            "name": "Low Disk Space",
+            "description": "Triggers when disk usage exceeds threshold",
+            "icon": "hard-drive",
+            "enabled": true,
+            "auto_fix": true,
+            "threshold": 90,
+            "unit": "%",
+            "condition": "above",
+            "sustained_duration_seconds": 120,
+            "priority": "high"
+        },
+        {
+            "id": "network_connections",
+            "name": "Excessive Network Connections",
+            "description": "Triggers when active connections exceed normal levels",
+            "icon": "network",
+            "enabled": false,
+            "auto_fix": false,
+            "threshold": 1000,
+            "unit": " connections",
+            "condition": "above",
+            "sustained_duration_seconds": 30,
+            "priority": "medium"
+        },
+        {
+            "id": "process_anomaly",
+            "name": "Process Anomaly",
+            "description": "Triggers when zombie or high-resource processes detected",
+            "icon": "zap",
+            "enabled": true,
+            "auto_fix": false,
+            "threshold": 5,
+            "unit": " processes",
+            "condition": "above",
+            "sustained_duration_seconds": 10,
+            "priority": "high"
+        }
+    ],
+    "metadata": {
+        "created_at": "2025-09-11T00:00:00Z",
+        "last_modified": "2025-09-11T00:00:00Z",
+        "config_version": "1.0.0"
+    }
+}

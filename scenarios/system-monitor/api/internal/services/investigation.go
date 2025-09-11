@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,23 +20,51 @@ import (
 
 // InvestigationService handles anomaly investigations
 type InvestigationService struct {
-	config   *config.Config
-	repo     repository.InvestigationRepository
-	alertSvc *AlertService
-	mu       sync.RWMutex
+	config         *config.Config
+	repo           repository.InvestigationRepository
+	alertSvc       *AlertService
+	mu             sync.RWMutex
+	cooldownPeriod time.Duration
+	lastTrigger    time.Time
+	triggers       map[string]*models.TriggerConfig
 }
 
 // NewInvestigationService creates a new investigation service
 func NewInvestigationService(cfg *config.Config, repo repository.InvestigationRepository, alertSvc *AlertService) *InvestigationService {
-	return &InvestigationService{
-		config:   cfg,
-		repo:     repo,
-		alertSvc: alertSvc,
+	s := &InvestigationService{
+		config:         cfg,
+		repo:           repo,
+		alertSvc:       alertSvc,
+		cooldownPeriod: 5 * time.Minute, // Default 5 minutes
+		lastTrigger:    time.Time{},     // Start with zero time - no cooldown initially
+		triggers:       make(map[string]*models.TriggerConfig),
 	}
+	
+	// Load triggers from configuration file, fallback to defaults if not found
+	if err := s.loadTriggersFromConfig(); err != nil {
+		// Initialize default triggers if config not found
+		s.initializeDefaultTriggers()
+	}
+	
+	return s
 }
 
 // TriggerInvestigation starts a new investigation
-func (s *InvestigationService) TriggerInvestigation(ctx context.Context) (*models.Investigation, error) {
+func (s *InvestigationService) TriggerInvestigation(ctx context.Context, autoFix bool, note string) (*models.Investigation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Check cooldown
+	if s.lastTrigger.IsZero() == false {
+		elapsed := time.Since(s.lastTrigger)
+		if elapsed < s.cooldownPeriod {
+			return nil, fmt.Errorf("investigation is in cooldown period. Please wait %d seconds", int((s.cooldownPeriod-elapsed).Seconds()))
+		}
+	}
+	
+	// Update last trigger time
+	s.lastTrigger = time.Now()
+	
 	// Generate investigation ID
 	investigationID := fmt.Sprintf("inv_%d", time.Now().Unix())
 	
@@ -50,13 +80,21 @@ func (s *InvestigationService) TriggerInvestigation(ctx context.Context) (*model
 		Steps:     []models.InvestigationStep{},
 	}
 	
+	// Add auto_fix and note to details
+	if autoFix {
+		investigation.Details["auto_fix"] = true
+	}
+	if note != "" {
+		investigation.Details["note"] = note
+	}
+	
 	// Save to repository
 	if err := s.repo.CreateInvestigation(ctx, investigation); err != nil {
 		return nil, fmt.Errorf("failed to create investigation: %w", err)
 	}
 	
 	// Start investigation in background
-	go s.runInvestigation(investigationID)
+	go s.runInvestigation(investigationID, autoFix, note)
 	
 	return investigation, nil
 }
@@ -133,7 +171,7 @@ func (s *InvestigationService) AddInvestigationStep(ctx context.Context, id stri
 }
 
 // runInvestigation performs the actual investigation
-func (s *InvestigationService) runInvestigation(investigationID string) {
+func (s *InvestigationService) runInvestigation(investigationID string, autoFix bool, note string) {
 	ctx := context.Background()
 	
 	// Update status to in_progress
@@ -380,4 +418,257 @@ func (s *InvestigationService) getTCPConnections() int {
 		return 50
 	}
 	return count
+}
+
+// initializeDefaultTriggers sets up default trigger configurations
+func (s *InvestigationService) initializeDefaultTriggers() {
+	s.triggers["high-cpu"] = &models.TriggerConfig{
+		ID:          "high-cpu",
+		Name:        "High CPU Usage",
+		Description: "Triggers when CPU usage exceeds threshold",
+		Icon:        "cpu",
+		Enabled:     true,
+		AutoFix:     false,
+		Threshold:   85.0,
+		Unit:        "%",
+		Condition:   "above",
+	}
+	
+	s.triggers["high-memory"] = &models.TriggerConfig{
+		ID:          "high-memory",
+		Name:        "High Memory Usage",
+		Description: "Triggers when memory usage exceeds threshold",
+		Icon:        "database",
+		Enabled:     true,
+		AutoFix:     false,
+		Threshold:   90.0,
+		Unit:        "%",
+		Condition:   "above",
+	}
+	
+	s.triggers["disk-space"] = &models.TriggerConfig{
+		ID:          "disk-space",
+		Name:        "Low Disk Space",
+		Description: "Triggers when available disk space falls below threshold",
+		Icon:        "hard-drive",
+		Enabled:     false,
+		AutoFix:     true,
+		Threshold:   10.0,
+		Unit:        "GB",
+		Condition:   "below",
+	}
+	
+	s.triggers["network-connections"] = &models.TriggerConfig{
+		ID:          "network-connections",
+		Name:        "Excessive Network Connections",
+		Description: "Triggers when TCP connections exceed threshold",
+		Icon:        "network",
+		Enabled:     true,
+		AutoFix:     false,
+		Threshold:   1000.0,
+		Unit:        "connections",
+		Condition:   "above",
+	}
+	
+	s.triggers["process-count"] = &models.TriggerConfig{
+		ID:          "process-count",
+		Name:        "Process Count Anomaly",
+		Description: "Triggers when process count exceeds normal range",
+		Icon:        "zap",
+		Enabled:     false,
+		AutoFix:     false,
+		Threshold:   500.0,
+		Unit:        "processes",
+		Condition:   "above",
+	}
+}
+
+// GetCooldownStatus returns the current cooldown status
+func (s *InvestigationService) GetCooldownStatus(ctx context.Context) (*models.CooldownStatus, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	remainingSeconds := 0
+	isReady := true
+	
+	if !s.lastTrigger.IsZero() {
+		elapsed := time.Since(s.lastTrigger)
+		if elapsed < s.cooldownPeriod {
+			remainingSeconds = int((s.cooldownPeriod - elapsed).Seconds())
+			isReady = false
+		}
+	}
+	
+	return &models.CooldownStatus{
+		CooldownPeriodSeconds: int(s.cooldownPeriod.Seconds()),
+		RemainingSeconds:      remainingSeconds,
+		LastTriggerTime:       s.lastTrigger,
+		IsReady:               isReady,
+	}, nil
+}
+
+// ResetCooldown resets the cooldown timer
+func (s *InvestigationService) ResetCooldown(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	s.lastTrigger = time.Time{} // Reset to zero time
+	return nil
+}
+
+// GetTriggers returns all trigger configurations
+func (s *InvestigationService) GetTriggers(ctx context.Context) (map[string]*models.TriggerConfig, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	// Return a copy to prevent concurrent modification
+	triggers := make(map[string]*models.TriggerConfig)
+	for k, v := range s.triggers {
+		triggers[k] = &models.TriggerConfig{
+			ID:          v.ID,
+			Name:        v.Name,
+			Description: v.Description,
+			Icon:        v.Icon,
+			Enabled:     v.Enabled,
+			AutoFix:     v.AutoFix,
+			Threshold:   v.Threshold,
+			Unit:        v.Unit,
+			Condition:   v.Condition,
+		}
+	}
+	
+	return triggers, nil
+}
+
+// UpdateTrigger updates a trigger configuration
+func (s *InvestigationService) UpdateTrigger(ctx context.Context, id string, enabled *bool, autoFix *bool, threshold *float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	trigger, exists := s.triggers[id]
+	if !exists {
+		return fmt.Errorf("trigger not found: %s", id)
+	}
+	
+	if enabled != nil {
+		trigger.Enabled = *enabled
+	}
+	if autoFix != nil {
+		trigger.AutoFix = *autoFix
+	}
+	if threshold != nil {
+		trigger.Threshold = *threshold
+	}
+	
+	// Save to configuration file
+	return s.saveTriggersToConfig()
+}
+
+// UpdateCooldownPeriod updates the cooldown period for investigations
+func (s *InvestigationService) UpdateCooldownPeriod(ctx context.Context, periodSeconds int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	s.cooldownPeriod = time.Duration(periodSeconds) * time.Second
+	
+	// Save to configuration file
+	return s.saveTriggersToConfig()
+}
+
+// loadTriggersFromConfig loads trigger configuration from JSON file
+func (s *InvestigationService) loadTriggersFromConfig() error {
+	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
+		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	}
+	
+	data, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+	
+	var config struct {
+		Cooldown struct {
+			PeriodSeconds int `json:"period_seconds"`
+		} `json:"cooldown"`
+		Triggers []struct {
+			ID          string  `json:"id"`
+			Name        string  `json:"name"`
+			Description string  `json:"description"`
+			Icon        string  `json:"icon"`
+			Enabled     bool    `json:"enabled"`
+			AutoFix     bool    `json:"auto_fix"`
+			Threshold   float64 `json:"threshold"`
+			Unit        string  `json:"unit"`
+			Condition   string  `json:"condition"`
+		} `json:"triggers"`
+	}
+	
+	if err := json.Unmarshal(data, &config); err != nil {
+		return err
+	}
+	
+	// Update cooldown period
+	s.cooldownPeriod = time.Duration(config.Cooldown.PeriodSeconds) * time.Second
+	
+	// Load triggers
+	for _, t := range config.Triggers {
+		s.triggers[t.ID] = &models.TriggerConfig{
+			ID:          t.ID,
+			Name:        t.Name,
+			Description: t.Description,
+			Icon:        t.Icon,
+			Enabled:     t.Enabled,
+			AutoFix:     t.AutoFix,
+			Threshold:   t.Threshold,
+			Unit:        t.Unit,
+			Condition:   t.Condition,
+		}
+	}
+	
+	return nil
+}
+
+// saveTriggersToConfig saves trigger configuration to JSON file
+func (s *InvestigationService) saveTriggersToConfig() error {
+	configPath := filepath.Join(os.Getenv("VROOLI_ROOT"), "scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	if configPath == "scenarios/system-monitor/initialization/configuration/investigation-triggers.json" {
+		configPath = filepath.Join(os.Getenv("HOME"), "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
+	}
+	
+	// Prepare config structure
+	var triggers []map[string]interface{}
+	for _, t := range s.triggers {
+		triggers = append(triggers, map[string]interface{}{
+			"id":          t.ID,
+			"name":        t.Name,
+			"description": t.Description,
+			"icon":        t.Icon,
+			"enabled":     t.Enabled,
+			"auto_fix":    t.AutoFix,
+			"threshold":   t.Threshold,
+			"unit":        t.Unit,
+			"condition":   t.Condition,
+		})
+	}
+	
+	config := map[string]interface{}{
+		"version": "1.0.0",
+		"cooldown": map[string]interface{}{
+			"period_seconds": int(s.cooldownPeriod.Seconds()),
+			"description":    "Minimum time between automatic investigations to prevent spam",
+		},
+		"triggers": triggers,
+		"metadata": map[string]interface{}{
+			"last_modified": time.Now().Format(time.RFC3339),
+			"config_version": "1.0.0",
+		},
+	}
+	
+	data, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return err
+	}
+	
+	return ioutil.WriteFile(configPath, data, 0644)
 }

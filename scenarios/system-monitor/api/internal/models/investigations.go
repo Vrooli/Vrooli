@@ -115,3 +115,24 @@ type Anomaly struct {
 	ResolvedAt  *time.Time             `json:"resolved_at,omitempty"`
 	Status      string                 `json:"status"`
 }
+
+// TriggerConfig represents configuration for automatic investigation triggers
+type TriggerConfig struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Icon        string  `json:"icon"`
+	Enabled     bool    `json:"enabled"`
+	AutoFix     bool    `json:"auto_fix"`
+	Threshold   float64 `json:"threshold"`
+	Unit        string  `json:"unit"`
+	Condition   string  `json:"condition"` // "above" or "below"
+}
+
+// CooldownStatus represents the current cooldown status
+type CooldownStatus struct {
+	CooldownPeriodSeconds int       `json:"cooldown_period_seconds"`
+	RemainingSeconds      int       `json:"remaining_seconds"`
+	LastTriggerTime       time.Time `json:"last_trigger_time"`
+	IsReady               bool      `json:"is_ready"`
+}

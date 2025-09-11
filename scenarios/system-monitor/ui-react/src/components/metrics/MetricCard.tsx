@@ -242,40 +242,44 @@ export const MetricCard = ({
         const systemDetails = details as SystemHealth;
         return (
           <div className="metric-details" style={{ marginTop: 'var(--spacing-md)' }}>
-            <div className="detail-item" style={{ marginBottom: 'var(--spacing-md)' }}>
-              <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
-                File Descriptors:
-              </span>
-              <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
-                {systemDetails.file_descriptors.used} / {systemDetails.file_descriptors.max} 
-                ({systemDetails.file_descriptors.percent.toFixed(1)}%)
-              </span>
-            </div>
-            
-            <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
-              <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
-                Service Dependencies:
-              </h4>
-              <div className="service-list">
-                {systemDetails.service_dependencies.slice(0, 5).map((service, index) => (
-                  <div key={index} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    margin: 'var(--spacing-xs) 0',
-                    fontSize: 'var(--font-size-sm)'
-                  }}>
-                    <span>{service.name}</span>
-                    <span style={{ 
-                      color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)'
-                    }}>
-                      {service.status}
-                    </span>
-                  </div>
-                ))}
+            {systemDetails.file_descriptors && (
+              <div className="detail-item" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <span className="detail-label" style={{ color: 'var(--color-text-dim)' }}>
+                  File Descriptors:
+                </span>
+                <span className="detail-value" style={{ color: 'var(--color-text-bright)' }}>
+                  {systemDetails.file_descriptors.used} / {systemDetails.file_descriptors.max} 
+                  ({systemDetails.file_descriptors.percent.toFixed(1)}%)
+                </span>
               </div>
-            </div>
+            )}
             
-            {systemDetails.certificates.length > 0 && (
+            {systemDetails.service_dependencies && systemDetails.service_dependencies.length > 0 && (
+              <div className="detail-section" style={{ marginBottom: 'var(--spacing-md)' }}>
+                <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
+                  Service Dependencies:
+                </h4>
+                <div className="service-list">
+                  {systemDetails.service_dependencies.slice(0, 5).map((service, index) => (
+                    <div key={index} style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between',
+                      margin: 'var(--spacing-xs) 0',
+                      fontSize: 'var(--font-size-sm)'
+                    }}>
+                      <span>{service.name}</span>
+                      <span style={{ 
+                        color: service.status === 'healthy' ? 'var(--color-success)' : 'var(--color-error)'
+                      }}>
+                        {service.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {systemDetails.certificates && systemDetails.certificates.length > 0 && (
               <div className="detail-section">
                 <h4 style={{ margin: '0 0 var(--spacing-sm) 0', color: 'var(--color-text-bright)' }}>
                   Certificates:

@@ -52,6 +52,18 @@ type ProcessInfo struct {
 	Goroutines  int     `json:"goroutines,omitempty"`
 }
 
+type TriggerConfig struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Icon        string  `json:"icon"`
+	Enabled     bool    `json:"enabled"`
+	AutoFix     bool    `json:"auto_fix"`
+	Threshold   float64 `json:"threshold"`
+	Unit        string  `json:"unit"`
+	Condition   string  `json:"condition"`
+}
+
 type TCPConnectionStates struct {
 	Established int `json:"established"`
 	TimeWait    int `json:"time_wait"`
@@ -273,6 +285,71 @@ var (
 	latestInvestigation *Investigation
 	investigations      = make(map[string]*Investigation)
 	investigationsMutex sync.RWMutex
+	
+	// Cooldown configuration
+	cooldownPeriodSeconds = 300 // Default 5 minutes
+	lastTriggerTime      time.Time
+	cooldownMutex        sync.RWMutex
+	
+	// Trigger configurations
+	triggers = map[string]*TriggerConfig{
+		"high_cpu": {
+			ID:          "high_cpu",
+			Name:        "High CPU Usage",
+			Description: "Triggers when CPU usage exceeds threshold",
+			Icon:        "cpu",
+			Enabled:     true,
+			AutoFix:     false,
+			Threshold:   85,
+			Unit:        "%",
+			Condition:   "above",
+		},
+		"memory_pressure": {
+			ID:          "memory_pressure",
+			Name:        "Memory Pressure",
+			Description: "Triggers when available memory falls below threshold",
+			Icon:        "database",
+			Enabled:     true,
+			AutoFix:     true,
+			Threshold:   10,
+			Unit:        "%",
+			Condition:   "below",
+		},
+		"disk_space": {
+			ID:          "disk_space",
+			Name:        "Low Disk Space",
+			Description: "Triggers when disk usage exceeds threshold",
+			Icon:        "hard-drive",
+			Enabled:     true,
+			AutoFix:     true,
+			Threshold:   90,
+			Unit:        "%",
+			Condition:   "above",
+		},
+		"network_connections": {
+			ID:          "network_connections",
+			Name:        "Excessive Network Connections",
+			Description: "Triggers when active connections exceed normal levels",
+			Icon:        "network",
+			Enabled:     false,
+			AutoFix:     false,
+			Threshold:   1000,
+			Unit:        " connections",
+			Condition:   "above",
+		},
+		"process_anomaly": {
+			ID:          "process_anomaly",
+			Name:        "Process Anomaly",
+			Description: "Triggers when zombie or high-resource processes detected",
+			Icon:        "zap",
+			Enabled:     true,
+			AutoFix:     false,
+			Threshold:   5,
+			Unit:        " processes",
+			Condition:   "above",
+		},
+	}
+	triggersMutex sync.RWMutex
 	startTime           = time.Now()
 	monitoringProcessor *MonitoringProcessor
 	
@@ -374,6 +451,12 @@ func main() {
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
+	r.HandleFunc("/api/investigations/cooldown", getCooldownStatusHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/cooldown/reset", resetCooldownHandler).Methods("POST")
+	r.HandleFunc("/api/investigations/cooldown/period", updateCooldownPeriodHandler).Methods("PUT")
+	r.HandleFunc("/api/investigations/triggers", getTriggersHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/triggers/{id}", updateTriggerHandler).Methods("PUT")
+	r.HandleFunc("/api/investigations/triggers/{id}/threshold", updateTriggerThresholdHandler).Methods("PUT")
 	r.HandleFunc("/api/investigations/{id}", getInvestigationHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/{id}/status", updateInvestigationStatusHandler).Methods("PUT")
 	r.HandleFunc("/api/investigations/{id}/findings", updateInvestigationFindingsHandler).Methods("PUT")
@@ -1284,6 +1367,147 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 		"api_base_url":     "http://localhost:8080",
 		"message":          "Investigation queued for Claude Code processing",
 	})
+}
+
+// getCooldownStatusHandler returns the current cooldown status
+func getCooldownStatusHandler(w http.ResponseWriter, r *http.Request) {
+	cooldownMutex.RLock()
+	defer cooldownMutex.RUnlock()
+	
+	remainingSeconds := 0
+	isReady := true
+	
+	if !lastTriggerTime.IsZero() {
+		elapsed := time.Since(lastTriggerTime)
+		cooldownDuration := time.Duration(cooldownPeriodSeconds) * time.Second
+		if elapsed < cooldownDuration {
+			remainingSeconds = int((cooldownDuration - elapsed).Seconds())
+			isReady = false
+		}
+	}
+	
+	response := map[string]interface{}{
+		"cooldown_period_seconds": cooldownPeriodSeconds,
+		"remaining_seconds":       remainingSeconds,
+		"last_trigger_time":       lastTriggerTime,
+		"is_ready":                isReady,
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// resetCooldownHandler resets the cooldown timer
+func resetCooldownHandler(w http.ResponseWriter, r *http.Request) {
+	cooldownMutex.Lock()
+	defer cooldownMutex.Unlock()
+	
+	lastTriggerTime = time.Time{} // Reset to zero time
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "cooldown_reset"})
+}
+
+// updateCooldownPeriodHandler updates the cooldown period
+func updateCooldownPeriodHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		CooldownPeriodSeconds int `json:"cooldown_period_seconds"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	cooldownMutex.Lock()
+	cooldownPeriodSeconds = req.CooldownPeriodSeconds
+	cooldownMutex.Unlock()
+	
+	// TODO: Save to configuration file if needed
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
+// getTriggersHandler returns all trigger configurations
+func getTriggersHandler(w http.ResponseWriter, r *http.Request) {
+	triggersMutex.RLock()
+	defer triggersMutex.RUnlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(triggers)
+}
+
+// updateTriggerHandler updates a trigger configuration
+func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	triggerID := vars["id"]
+	
+	var req struct {
+		Enabled   *bool    `json:"enabled,omitempty"`
+		AutoFix   *bool    `json:"auto_fix,omitempty"`
+		Threshold *float64 `json:"threshold,omitempty"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	triggersMutex.Lock()
+	defer triggersMutex.Unlock()
+	
+	trigger, exists := triggers[triggerID]
+	if !exists {
+		http.Error(w, "Trigger not found", http.StatusNotFound)
+		return
+	}
+	
+	if req.Enabled != nil {
+		trigger.Enabled = *req.Enabled
+	}
+	if req.AutoFix != nil {
+		trigger.AutoFix = *req.AutoFix
+	}
+	if req.Threshold != nil {
+		trigger.Threshold = *req.Threshold
+	}
+	
+	// TODO: Save to configuration file if needed
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+}
+
+// updateTriggerThresholdHandler updates just the threshold of a trigger
+func updateTriggerThresholdHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	triggerID := vars["id"]
+	
+	var req struct {
+		Threshold float64 `json:"threshold"`
+	}
+	
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	triggersMutex.Lock()
+	defer triggersMutex.Unlock()
+	
+	trigger, exists := triggers[triggerID]
+	if !exists {
+		http.Error(w, "Trigger not found", http.StatusNotFound)
+		return
+	}
+	
+	trigger.Threshold = req.Threshold
+	
+	// TODO: Save to configuration file if needed
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
 
 func runClaudeInvestigation(investigationID string, autoFix bool, userNote string) {

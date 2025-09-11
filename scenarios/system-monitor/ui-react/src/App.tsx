@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ErrorInfo } from 'react';
 import { Header } from './components/common/Header';
 import { MetricsGrid } from './components/metrics/MetricsGrid';
 import { ProcessMonitor } from './components/monitoring/ProcessMonitor';
@@ -9,6 +10,7 @@ import { ReportsPanel } from './components/reports/ReportsPanel';
 import { Terminal } from './components/common/Terminal';
 import { ModalsContainer } from './components/modals/ModalsContainer';
 import { MatrixBackground } from './components/common/MatrixBackground';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useSystemMonitor } from './hooks/useSystemMonitor';
 import type { DashboardState, ModalState, InvestigationScript, ScriptExecution } from './types';
 import './styles/matrix-theme.css';
@@ -216,105 +218,122 @@ echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
     }
   };
 
+  const handleError = (error: Error, errorInfo: ErrorInfo) => {
+    // Log error details for monitoring/analytics
+    console.error('App Error Boundary caught error:', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: new Date().toISOString(),
+      url: window.location.href,
+      userAgent: navigator.userAgent
+    });
+
+    // TODO: Send error to logging service
+    // Example: sendErrorToService(error, errorInfo);
+  };
+
   return (
-    <div className="app">
-      <MatrixBackground />
-      
-      <Header 
-        isOnline={dashboardState.isOnline}
-        unreadErrorCount={dashboardState.unreadErrorCount}
-        onRefresh={refreshDashboard}
-        onToggleTerminal={toggleTerminal}
-      />
+    <ErrorBoundary onError={handleError}>
+      <div className="app">
+        <MatrixBackground />
+        
+        <Header 
+          isOnline={dashboardState.isOnline}
+          unreadErrorCount={dashboardState.unreadErrorCount}
+          onRefresh={refreshDashboard}
+          onToggleTerminal={toggleTerminal}
+        />
 
-      <main className="main-content">
-        <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
-          
-          {/* Real-time Metrics Grid */}
-          <section className="mb-lg">
-            <MetricsGrid 
-              metrics={metrics}
-              detailedMetrics={detailedMetrics}
-              expandedCards={dashboardState.expandedCards}
-              onToggleCard={toggleCard}
-            />
-          </section>
+        <main className="main-content">
+          <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
+            
+            {/* Real-time Metrics Grid */}
+            <section className="mb-lg">
+              <MetricsGrid 
+                metrics={metrics}
+                detailedMetrics={detailedMetrics}
+                expandedCards={dashboardState.expandedCards}
+                onToggleCard={toggleCard}
+              />
+            </section>
 
-          {/* Process Monitor Panel */}
-          <section className="mb-lg">
-            <ProcessMonitor 
-              data={processMonitorData}
-              isExpanded={dashboardState.expandedPanels.has('process')}
-              onToggle={() => togglePanel('process')}
-            />
-          </section>
+            {/* Process Monitor Panel */}
+            <section className="mb-lg">
+              <ProcessMonitor 
+                data={processMonitorData}
+                isExpanded={dashboardState.expandedPanels.has('process')}
+                onToggle={() => togglePanel('process')}
+              />
+            </section>
 
-          {/* Infrastructure Monitor Panel */}
-          <section className="mb-lg">
-            <InfrastructureMonitor 
-              data={infrastructureData}
-              isExpanded={dashboardState.expandedPanels.has('infrastructure')}
-              onToggle={() => togglePanel('infrastructure')}
-            />
-          </section>
+            {/* Infrastructure Monitor Panel */}
+            <section className="mb-lg">
+              <InfrastructureMonitor 
+                data={infrastructureData}
+                isExpanded={dashboardState.expandedPanels.has('infrastructure')}
+                onToggle={() => togglePanel('infrastructure')}
+              />
+            </section>
 
-          {/* Alert Panel */}
-          <section className="mb-lg">
-            <AlertPanel alerts={dashboardState.alerts} />
-          </section>
+            {/* Alert Panel */}
+            <section className="mb-lg">
+              <AlertPanel alerts={dashboardState.alerts} />
+            </section>
 
-          {/* Investigations Section */}
-          <section className="mb-lg">
-            <InvestigationsSection 
-              investigations={investigations}
-              onOpenScriptEditor={openScriptEditor}
-              onSpawnAgent={async (autoFix: boolean, note?: string) => {
-                try {
-                  const requestBody: { auto_fix: boolean; note?: string } = { auto_fix: autoFix };
-                  if (note) {
-                    requestBody.note = note;
+            {/* Investigations Section */}
+            <section className="mb-lg">
+              <InvestigationsSection 
+                investigations={investigations}
+                onOpenScriptEditor={openScriptEditor}
+                onSpawnAgent={async (autoFix: boolean, note?: string) => {
+                  try {
+                    const requestBody: { auto_fix: boolean; note?: string } = { auto_fix: autoFix };
+                    if (note) {
+                      requestBody.note = note;
+                    }
+
+                    const response = await fetch('/api/investigations/trigger', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify(requestBody)
+                    });
+                    
+                    if (response.ok) {
+                      console.log('Investigation triggered with auto-fix:', autoFix);
+                      // TODO: Show success message or refresh investigations
+                    }
+                  } catch (error) {
+                    console.error('Failed to trigger investigation:', error);
                   }
+                }}
+              />
+            </section>
 
-                  const response = await fetch('/api/investigations/trigger', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                  });
-                  
-                  if (response.ok) {
-                    console.log('Investigation triggered with auto-fix:', autoFix);
-                    // TODO: Show success message or refresh investigations
-                  }
-                } catch (error) {
-                  console.error('Failed to trigger investigation:', error);
-                }
-              }}
-            />
-          </section>
+            {/* Playback Reports */}
+            <section className="mb-lg">
+              <ReportsPanel />
+            </section>
 
-          {/* Playback Reports */}
-          <section className="mb-lg">
-            <ReportsPanel />
-          </section>
+          </div>
+        </main>
 
-        </div>
-      </main>
+        <Terminal 
+          isVisible={dashboardState.terminalVisible}
+          onClose={toggleTerminal}
+        />
 
-      <Terminal 
-        isVisible={dashboardState.terminalVisible}
-        onClose={toggleTerminal}
-      />
-
-      <ModalsContainer 
-        modalState={modalState}
-        onCloseScriptEditor={closeScriptEditor}
-        onCloseScriptResults={closeScriptResults}
-        onExecuteScript={executeScript}
-        onSaveScript={saveScript}
-      />
-    </div>
+        <ModalsContainer 
+          modalState={modalState}
+          onCloseScriptEditor={closeScriptEditor}
+          onCloseScriptResults={closeScriptResults}
+          onExecuteScript={executeScript}
+          onSaveScript={saveScript}
+        />
+      </div>
+    </ErrorBoundary>
   );
 }
 

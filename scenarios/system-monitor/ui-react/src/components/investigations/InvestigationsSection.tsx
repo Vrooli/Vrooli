@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, Search, AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronDown, ChevronRight, Search, AlertTriangle, Shield, Bot, Play, MessageCircle, ChevronUp, Square, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { InvestigationsPanel } from './InvestigationsPanel';
 import { InvestigationScriptsPanel } from './InvestigationScriptsPanel';
 import { AutomaticTriggersSection } from './AutomaticTriggersSection';
@@ -24,6 +24,16 @@ export const InvestigationsSection = ({
   const [scriptsSearch, setScriptsSearch] = useState('');
   const [agentNote, setAgentNote] = useState('');
   const [showNoteField, setShowNoteField] = useState(false);
+  
+  // Agent status tracking - now API-driven
+  const [agentData, setAgentData] = useState<{
+    id: string;
+    status: 'initializing' | 'investigating' | 'analyzing' | 'completed' | 'error';
+    startTime: string;
+    autoFix: boolean;
+    note?: string;
+  } | null>(null);
+  const [statusPolling, setStatusPolling] = useState(false);
 
   // Filter investigations based on search
   const filteredInvestigations = investigations.filter(inv => {
@@ -34,13 +44,138 @@ export const InvestigationsSection = ({
            inv.status?.toLowerCase().includes(searchLower);
   });
 
+  // Check for existing running agent on component mount
+  useEffect(() => {
+    checkForRunningAgent();
+  }, []);
+
+  // Poll for agent status updates when agent is running
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout;
+    
+    if (agentData && agentData.status !== 'completed' && agentData.status !== 'error') {
+      setStatusPolling(true);
+      pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/investigations/agent/${agentData.id}/status`);
+          if (response.ok) {
+            const statusData = await response.json();
+            setAgentData(prev => prev ? { ...prev, status: statusData.status } : null);
+            
+            // Stop polling if agent finished
+            if (statusData.status === 'completed' || statusData.status === 'error') {
+              setStatusPolling(false);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to poll agent status:', error);
+        }
+      }, 2000); // Poll every 2 seconds
+    } else {
+      setStatusPolling(false);
+    }
+
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        setStatusPolling(false);
+      }
+    };
+  }, [agentData?.id, agentData?.status]);
+
+  const checkForRunningAgent = async () => {
+    try {
+      const response = await fetch('/api/investigations/agent/current');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.agent) {
+          setAgentData(data.agent);
+        }
+      } else if (response.status !== 404) {
+        console.error('Failed to check for running agent:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Failed to check for running agent:', error);
+    }
+  };
+
+  const formatElapsedTime = (startTime: string): string => {
+    const start = new Date(startTime);
+    const now = new Date();
+    const seconds = Math.floor((now.getTime() - start.getTime()) / 1000);
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    } else if (minutes > 0) {
+      return `${minutes}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
+  };
+
   const handleSpawnAgent = async () => {
     setIsSpawning(true);
     try {
-      await onSpawnAgent(autoFixEnabled, agentNote.trim() || undefined);
+      // Call API to spawn agent
+      const response = await fetch('/api/investigations/agent/spawn', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          autoFix: autoFixEnabled,
+          note: agentNote.trim() || undefined
+        })
+      });
+
+      if (response.ok) {
+        const agentResponse = await response.json();
+        setAgentData({
+          id: agentResponse.agentId,
+          status: 'initializing',
+          startTime: new Date().toISOString(),
+          autoFix: autoFixEnabled,
+          note: agentNote.trim() || undefined
+        });
+        
+        // Also call the parent handler for any additional logic
+        await onSpawnAgent(autoFixEnabled, agentNote.trim() || undefined);
+      } else {
+        console.error('Failed to spawn agent:', response.statusText);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`Failed to spawn agent: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to spawn agent:', error);
+      alert(`Failed to spawn agent: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      // Keep spinning for visual effect
-      setTimeout(() => setIsSpawning(false), 2000);
+      setIsSpawning(false);
+    }
+  };
+
+  const handleStopAgent = async () => {
+    if (!agentData) return;
+    
+    try {
+      const response = await fetch(`/api/investigations/agent/${agentData.id}/stop`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        setAgentData(null);
+        setStatusPolling(false);
+      } else {
+        console.error('Failed to stop agent:', response.statusText);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        alert(`Failed to stop agent: ${errorData.error || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Failed to stop agent:', error);
+      alert(`Failed to stop agent: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -171,25 +306,158 @@ export const InvestigationsSection = ({
                   {showNoteField ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                 </button>
 
-                {/* Spawn Agent Button */}
-                <button 
-                  className="btn btn-primary"
-                  onClick={handleSpawnAgent}
-                  disabled={isSpawning}
-                  style={{
+                {/* Agent Control - Show spawn button or status */}
+                {!agentData ? (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={handleSpawnAgent}
+                    disabled={isSpawning}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-sm)',
+                      padding: 'var(--spacing-sm) var(--spacing-lg)',
+                      fontSize: 'var(--font-size-sm)',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px'
+                    }}
+                  >
+                    <Play size={16} className={isSpawning ? 'animate-spin' : ''} />
+                    {isSpawning ? 'SPAWNING...' : 'SPAWN AGENT'}
+                  </button>
+                ) : (
+                  <div className="agent-status-display" style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 'var(--spacing-sm)',
+                    gap: 'var(--spacing-md)',
                     padding: 'var(--spacing-sm) var(--spacing-lg)',
-                    fontSize: 'var(--font-size-sm)',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}
-                >
-                  <Play size={16} className={isSpawning ? 'animate-spin' : ''} />
-                  {isSpawning ? 'SPAWNING...' : 'SPAWN AGENT'}
-                </button>
+                    background: agentData.status === 'error' ? 'rgba(255, 0, 0, 0.1)' : 
+                              agentData.status === 'completed' ? 'rgba(0, 255, 0, 0.1)' : 
+                              'rgba(0, 255, 0, 0.1)',
+                    border: agentData.status === 'error' ? '1px solid var(--color-error)' : 
+                           agentData.status === 'completed' ? '1px solid var(--color-success)' :
+                           '1px solid var(--color-success)',
+                    borderRadius: 'var(--border-radius-md)',
+                    minWidth: '300px'
+                  }}>
+                    {/* Status Icon */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-xs)'
+                    }}>
+                      {agentData.status === 'initializing' && (
+                        <Bot size={16} className="animate-pulse" style={{ color: 'var(--color-warning)' }} />
+                      )}
+                      {agentData.status === 'investigating' && (
+                        <Search size={16} className="animate-pulse" style={{ color: 'var(--color-success)' }} />
+                      )}
+                      {agentData.status === 'analyzing' && (
+                        <AlertTriangle size={16} className="animate-pulse" style={{ color: 'var(--color-warning)' }} />
+                      )}
+                      {agentData.status === 'completed' && (
+                        <CheckCircle size={16} style={{ color: 'var(--color-success)' }} />
+                      )}
+                      {agentData.status === 'error' && (
+                        <AlertCircle size={16} style={{ color: 'var(--color-error)' }} />
+                      )}
+                      
+                      <span style={{
+                        color: 'var(--color-text-bright)',
+                        fontSize: 'var(--font-size-sm)',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        {agentData.status}
+                      </span>
+                    </div>
+                    
+                    {/* Elapsed Time */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--spacing-xs)'
+                    }}>
+                      <Clock size={14} style={{ color: 'var(--color-text-dim)' }} />
+                      <span style={{
+                        color: 'var(--color-text)',
+                        fontSize: 'var(--font-size-sm)',
+                        fontFamily: 'var(--font-family-mono)'
+                      }}>
+                        {formatElapsedTime(agentData.startTime)}
+                      </span>
+                    </div>
+                    
+                    {/* Polling indicator */}
+                    {statusPolling && (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--spacing-xs)'
+                      }}>
+                        <div style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          background: 'var(--color-success)',
+                          animation: 'pulse 1.5s infinite'
+                        }} />
+                        <span style={{
+                          color: 'var(--color-text-dim)',
+                          fontSize: 'var(--font-size-xs)'
+                        }}>
+                          LIVE
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Stop Button - only show if agent is still running */}
+                    {agentData.status !== 'completed' && agentData.status !== 'error' && (
+                      <button
+                        className="btn btn-secondary"
+                        onClick={handleStopAgent}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--spacing-xs)',
+                          padding: 'var(--spacing-xs) var(--spacing-sm)',
+                          fontSize: 'var(--font-size-xs)',
+                          background: 'rgba(255, 0, 0, 0.1)',
+                          border: '1px solid var(--color-error)',
+                          color: 'var(--color-error)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 0, 0, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 0, 0, 0.1)';
+                        }}
+                      >
+                        <Square size={12} />
+                        STOP
+                      </button>
+                    )}
+                    
+                    {/* Clear completed/error status */}
+                    {(agentData.status === 'completed' || agentData.status === 'error') && (
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => setAgentData(null)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--spacing-xs)',
+                          padding: 'var(--spacing-xs) var(--spacing-sm)',
+                          fontSize: 'var(--font-size-xs)'
+                        }}
+                      >
+                        CLEAR
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Agent Note Field */}
@@ -202,12 +470,11 @@ export const InvestigationsSection = ({
                   borderRadius: 'var(--border-radius-sm)'
                 }}>
                   <label style={{
-                    display: 'block',
+                    display: 'flex',
                     marginBottom: 'var(--spacing-sm)',
                     color: 'var(--color-text-bright)',
                     fontSize: 'var(--font-size-sm)',
                     fontWeight: 'bold',
-                    display: 'flex',
                     alignItems: 'center',
                     gap: 'var(--spacing-xs)'
                   }}>

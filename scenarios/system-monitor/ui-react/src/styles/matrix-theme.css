@@ -517,6 +517,16 @@ p {
   }
 }
 
+/* Spinning animation for loaders */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinning-loader {
+  animation: spin 1s linear infinite;
+}
+
 /* Range slider styles */
 input[type="range"] {
   -webkit-appearance: none;

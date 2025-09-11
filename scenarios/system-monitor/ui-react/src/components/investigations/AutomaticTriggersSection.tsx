@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Settings, Shield, Clock, RefreshCw, AlertCircle, Cpu, HardDrive, Network, Database, Zap } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Settings, Shield, Clock, RefreshCw, AlertCircle, Cpu, HardDrive, Network, Database, Zap, X, Save } from 'lucide-react';
 
 interface TriggerConfig {
   id: string;
@@ -18,115 +18,220 @@ interface AutomaticTriggersSectionProps {
 }
 
 export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersSectionProps) => {
-  const [triggers, setTriggers] = useState<TriggerConfig[]>([
-    {
-      id: 'high-cpu',
-      name: 'High CPU Usage',
-      description: 'Triggers when CPU usage exceeds threshold',
-      icon: Cpu,
-      enabled: true,
-      autoFix: false,
-      threshold: 85,
-      unit: '%',
-      condition: 'above'
-    },
-    {
-      id: 'high-memory',
-      name: 'High Memory Usage',
-      description: 'Triggers when memory usage exceeds threshold',
-      icon: Database,
-      enabled: true,
-      autoFix: false,
-      threshold: 90,
-      unit: '%',
-      condition: 'above'
-    },
-    {
-      id: 'disk-space',
-      name: 'Low Disk Space',
-      description: 'Triggers when available disk space falls below threshold',
-      icon: HardDrive,
-      enabled: false,
-      autoFix: true,
-      threshold: 10,
-      unit: 'GB',
-      condition: 'below'
-    },
-    {
-      id: 'network-connections',
-      name: 'Excessive Network Connections',
-      description: 'Triggers when TCP connections exceed threshold',
-      icon: Network,
-      enabled: true,
-      autoFix: false,
-      threshold: 1000,
-      unit: 'connections',
-      condition: 'above'
-    },
-    {
-      id: 'process-count',
-      name: 'Process Count Anomaly',
-      description: 'Triggers when process count exceeds normal range',
-      icon: Zap,
-      enabled: false,
-      autoFix: false,
-      threshold: 500,
-      unit: 'processes',
-      condition: 'above'
-    }
-  ]);
+  const [triggers, setTriggers] = useState<TriggerConfig[]>([]);
+  const cooldownUpdateTimeoutRef = useRef<NodeJS.Timeout>();
+  const [cooldownStatus, setCooldownStatus] = useState({
+    cooldownPeriodSeconds: 300,
+    remainingSeconds: 0,
+    lastTriggerTime: new Date(),
+    isReady: true
+  });
+  const [localCooldownValue, setLocalCooldownValue] = useState(300);
+  const [loading, setLoading] = useState(true);
+  const [editingTrigger, setEditingTrigger] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<{ [key: string]: number }>({});
 
-  const [cooldownPeriod, setCooldownPeriod] = useState(300); // 5 minutes default
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
-  const [, setLastTriggerTime] = useState<Date | null>(null);
+  // Load data from API on mount
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Update cooldown timer
   useEffect(() => {
-    if (cooldownRemaining <= 0) return;
+    if (cooldownStatus.remainingSeconds <= 0) return;
     
     const timer = setInterval(() => {
-      setCooldownRemaining(prev => Math.max(0, prev - 1));
+      setCooldownStatus(prev => ({
+        ...prev,
+        remainingSeconds: Math.max(0, prev.remainingSeconds - 1),
+        isReady: prev.remainingSeconds <= 1
+      }));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [cooldownRemaining]);
+  }, [cooldownStatus.remainingSeconds]);
 
-  // Simulate checking for last trigger time on mount
+  // Cleanup timeout on unmount
   useEffect(() => {
-    // TODO: Fetch actual last trigger time from API
-    const mockLastTrigger = new Date(Date.now() - 120000); // 2 minutes ago
-    setLastTriggerTime(mockLastTrigger);
-    
-    const elapsed = Math.floor((Date.now() - mockLastTrigger.getTime()) / 1000);
-    const remaining = Math.max(0, cooldownPeriod - elapsed);
-    setCooldownRemaining(remaining);
-  }, [cooldownPeriod]);
-
-  const handleToggleTrigger = (triggerId: string) => {
-    setTriggers(prev => prev.map(trigger => {
-      if (trigger.id === triggerId) {
-        const updated = { ...trigger, enabled: !trigger.enabled };
-        onUpdateTrigger(triggerId, { enabled: updated.enabled });
-        return updated;
+    return () => {
+      if (cooldownUpdateTimeoutRef.current) {
+        clearTimeout(cooldownUpdateTimeoutRef.current);
       }
-      return trigger;
-    }));
+    };
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load triggers and cooldown status
+      const [triggersResponse, cooldownResponse] = await Promise.all([
+        fetch('/api/investigations/triggers'),
+        fetch('/api/investigations/cooldown')
+      ]);
+      
+      if (triggersResponse.ok) {
+        const triggersData = await triggersResponse.json();
+        // Convert API data to UI format
+        const uiTriggers = Object.values(triggersData).map((trigger: any) => ({
+          id: trigger.id,
+          name: trigger.name,
+          description: trigger.description,
+          icon: getIconComponent(trigger.icon),
+          enabled: trigger.enabled,
+          autoFix: trigger.auto_fix,
+          threshold: trigger.threshold,
+          unit: trigger.unit,
+          condition: trigger.condition
+        }));
+        setTriggers(uiTriggers as TriggerConfig[]);
+      }
+      
+      if (cooldownResponse.ok) {
+        const cooldownData = await cooldownResponse.json();
+        setCooldownStatus({
+          cooldownPeriodSeconds: cooldownData.cooldown_period_seconds,
+          remainingSeconds: cooldownData.remaining_seconds,
+          lastTriggerTime: new Date(cooldownData.last_trigger_time),
+          isReady: cooldownData.is_ready
+        });
+        setLocalCooldownValue(cooldownData.cooldown_period_seconds);
+      }
+    } catch (error) {
+      console.error('Failed to load trigger data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleToggleAutoFix = (triggerId: string) => {
-    setTriggers(prev => prev.map(trigger => {
-      if (trigger.id === triggerId) {
-        const updated = { ...trigger, autoFix: !trigger.autoFix };
-        onUpdateTrigger(triggerId, { autoFix: updated.autoFix });
-        return updated;
-      }
-      return trigger;
-    }));
+  const getIconComponent = (iconName: string): React.ElementType => {
+    switch (iconName) {
+      case 'cpu': return Cpu;
+      case 'database': return Database;
+      case 'hard-drive': return HardDrive;
+      case 'network': return Network;
+      case 'zap': return Zap;
+      default: return AlertCircle;
+    }
   };
 
-  const handleResetCooldown = () => {
-    setCooldownRemaining(0);
-    // TODO: Call API to reset cooldown
+  const handleToggleTrigger = async (triggerId: string) => {
+    try {
+      const trigger = triggers.find(t => t.id === triggerId);
+      if (!trigger) return;
+      
+      const response = await fetch(`/api/investigations/triggers/${triggerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !trigger.enabled })
+      });
+      
+      if (response.ok) {
+        setTriggers(prev => prev.map(t => 
+          t.id === triggerId ? { ...t, enabled: !t.enabled } : t
+        ));
+        onUpdateTrigger(triggerId, { enabled: !trigger.enabled });
+      } else {
+        console.error('Failed to update trigger');
+      }
+    } catch (error) {
+      console.error('Failed to update trigger:', error);
+    }
+  };
+
+  const handleToggleAutoFix = async (triggerId: string) => {
+    try {
+      const trigger = triggers.find(t => t.id === triggerId);
+      if (!trigger) return;
+      
+      const response = await fetch(`/api/investigations/triggers/${triggerId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auto_fix: !trigger.autoFix })
+      });
+      
+      if (response.ok) {
+        setTriggers(prev => prev.map(t => 
+          t.id === triggerId ? { ...t, autoFix: !t.autoFix } : t
+        ));
+        onUpdateTrigger(triggerId, { autoFix: !trigger.autoFix });
+      } else {
+        console.error('Failed to update trigger auto-fix');
+      }
+    } catch (error) {
+      console.error('Failed to update trigger auto-fix:', error);
+    }
+  };
+
+  const handleUpdateCooldownPeriod = async (newPeriodSeconds: number) => {
+    try {
+      const response = await fetch('/api/investigations/cooldown/period', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          cooldown_period_seconds: newPeriodSeconds
+        })
+      });
+      
+      if (response.ok) {
+        setCooldownStatus(prev => ({
+          ...prev,
+          cooldownPeriodSeconds: newPeriodSeconds
+        }));
+      } else {
+        console.error('Failed to update cooldown period:', response.status);
+        // Revert local value on failure
+        setLocalCooldownValue(cooldownStatus.cooldownPeriodSeconds);
+      }
+    } catch (error) {
+      console.error('Failed to update cooldown period:', error);
+      // Revert local value on error
+      setLocalCooldownValue(cooldownStatus.cooldownPeriodSeconds);
+    }
+  };
+
+  const handleUpdateTriggerThreshold = async (triggerId: string, newThreshold: number) => {
+    try {
+      const response = await fetch(`/api/investigations/triggers/${triggerId}/threshold`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ threshold: newThreshold })
+      });
+      
+      if (response.ok) {
+        setTriggers(prev => prev.map(t => 
+          t.id === triggerId ? { ...t, threshold: newThreshold } : t
+        ));
+        setEditingTrigger(null);
+        setEditValues({});
+      } else {
+        console.error('Failed to update trigger threshold');
+      }
+    } catch (error) {
+      console.error('Failed to update trigger threshold:', error);
+    }
+  };
+
+  const handleResetCooldown = async () => {
+    try {
+      const response = await fetch('/api/investigations/cooldown/reset', {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        setCooldownStatus(prev => ({
+          ...prev,
+          remainingSeconds: 0,
+          isReady: true
+        }));
+      } else {
+        console.error('Failed to reset cooldown');
+      }
+    } catch (error) {
+      console.error('Failed to reset cooldown:', error);
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -140,6 +245,22 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
     return `${Math.floor(seconds / 3600)}h`;
   };
+
+  if (loading) {
+    return (
+      <div className="automatic-triggers-section" style={{
+        background: 'rgba(0, 255, 0, 0.03)',
+        border: '1px solid var(--color-accent)',
+        borderRadius: 'var(--border-radius-md)',
+        padding: 'var(--spacing-lg)',
+        marginBottom: 'var(--spacing-xl)',
+        textAlign: 'center',
+        color: 'var(--color-text-dim)'
+      }}>
+        Loading trigger configuration...
+      </div>
+    );
+  }
 
   return (
     <div className="automatic-triggers-section" style={{
@@ -203,13 +324,25 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 min="60"
                 max="3600"
                 step="60"
-                value={cooldownPeriod}
-                onChange={(e) => setCooldownPeriod(Number(e.target.value))}
+                value={localCooldownValue}
+                onChange={(e) => {
+                  const newValue = parseInt(e.target.value);
+                  // Update local state immediately for responsive UI
+                  setLocalCooldownValue(newValue);
+                  // Clear any existing timeout
+                  if (cooldownUpdateTimeoutRef.current) {
+                    clearTimeout(cooldownUpdateTimeoutRef.current);
+                  }
+                  // Set new timeout for API call
+                  cooldownUpdateTimeoutRef.current = setTimeout(() => {
+                    handleUpdateCooldownPeriod(newValue);
+                  }, 500);
+                }}
                 style={{
                   flex: 1,
-                  height: '4px',
+                  height: '6px',
                   background: 'rgba(0, 255, 0, 0.2)',
-                  borderRadius: '2px',
+                  borderRadius: '3px',
                   outline: 'none',
                   WebkitAppearance: 'none',
                   cursor: 'pointer'
@@ -221,7 +354,7 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                 fontFamily: 'var(--font-family-mono)',
                 minWidth: '50px'
               }}>
-                {formatCooldownPeriod(cooldownPeriod)}
+                {formatCooldownPeriod(localCooldownValue)}
               </span>
             </div>
 
@@ -232,13 +365,13 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
               paddingLeft: 'var(--spacing-md)',
               borderLeft: '1px solid rgba(0, 255, 0, 0.2)'
             }}>
-              {cooldownRemaining > 0 ? (
+              {cooldownStatus.remainingSeconds > 0 ? (
                 <>
                   <span style={{
                     color: 'var(--color-warning)',
                     fontSize: 'var(--font-size-sm)'
                   }}>
-                    Cooldown: {formatTime(cooldownRemaining)}
+                    Cooldown: {formatTime(cooldownStatus.remainingSeconds)}
                   </span>
                   <button
                     className="btn btn-secondary"
@@ -307,13 +440,103 @@ export const AutomaticTriggersSection = ({ onUpdateTrigger }: AutomaticTriggersS
                       }}>
                         {trigger.name}
                       </span>
-                      <span style={{
-                        color: 'var(--color-warning)',
-                        fontSize: 'var(--font-size-xs)',
-                        fontFamily: 'var(--font-family-mono)'
-                      }}>
-                        {trigger.condition === 'above' ? '>' : '<'} {trigger.threshold}{trigger.unit}
-                      </span>
+                      {editingTrigger === trigger.id ? (
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 'var(--spacing-xs)'
+                        }}>
+                          <span style={{
+                            color: 'var(--color-text)',
+                            fontSize: 'var(--font-size-xs)'
+                          }}>
+                            {trigger.condition === 'above' ? '>' : '<'}
+                          </span>
+                          <input
+                            type="number"
+                            value={editValues[trigger.id] ?? trigger.threshold}
+                            onChange={(e) => setEditValues({ ...editValues, [trigger.id]: parseFloat(e.target.value) })}
+                            style={{
+                              width: '60px',
+                              padding: '2px 4px',
+                              background: 'rgba(0, 0, 0, 0.5)',
+                              border: '1px solid var(--color-accent)',
+                              borderRadius: 'var(--border-radius-sm)',
+                              color: 'var(--color-success)',
+                              fontSize: 'var(--font-size-xs)',
+                              fontFamily: 'var(--font-family-mono)'
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold);
+                              } else if (e.key === 'Escape') {
+                                setEditingTrigger(null);
+                                setEditValues({});
+                              }
+                            }}
+                          />
+                          <span style={{
+                            color: 'var(--color-text)',
+                            fontSize: 'var(--font-size-xs)'
+                          }}>
+                            {trigger.unit}
+                          </span>
+                          <button
+                            onClick={() => handleUpdateTriggerThreshold(trigger.id, editValues[trigger.id] ?? trigger.threshold)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--color-success)',
+                              cursor: 'pointer',
+                              padding: '2px'
+                            }}
+                            title="Save"
+                          >
+                            <Save size={14} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingTrigger(null);
+                              setEditValues({});
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--color-error)',
+                              cursor: 'pointer',
+                              padding: '2px'
+                            }}
+                            title="Cancel"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ) : (
+                        <span style={{
+                          color: 'var(--color-warning)',
+                          fontSize: 'var(--font-size-xs)',
+                          fontFamily: 'var(--font-family-mono)'
+                        }}>
+                          {trigger.condition === 'above' ? '>' : '<'} {trigger.threshold}{trigger.unit}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => {
+                          setEditingTrigger(trigger.id);
+                          setEditValues({ [trigger.id]: trigger.threshold });
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--color-accent)',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: editingTrigger === trigger.id ? 'none' : 'block'
+                        }}
+                        title="Configure threshold"
+                      >
+                        <Settings size={14} />
+                      </button>
                     </div>
                     <span style={{
                       color: 'var(--color-text-dim)',
