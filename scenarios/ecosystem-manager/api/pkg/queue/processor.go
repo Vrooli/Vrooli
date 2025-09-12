@@ -41,6 +41,11 @@ type Processor struct {
 	// Process health monitoring
 	healthCheckInterval time.Duration
 	stopHealthCheck     chan bool
+	
+	// Rate limit pause management
+	rateLimitPaused bool
+	pauseUntil      time.Time
+	pauseMutex      sync.Mutex
 }
 
 // NewProcessor creates a new queue processor
@@ -158,6 +163,35 @@ func (qp *Processor) ProcessQueue() {
 		// Skip processing while in maintenance mode
 		return
 	}
+	
+	// Check if rate limit paused
+	qp.pauseMutex.Lock()
+	if qp.rateLimitPaused {
+		if time.Now().Before(qp.pauseUntil) {
+			remaining := qp.pauseUntil.Sub(time.Now())
+			log.Printf("⏸️ Queue paused due to rate limit. Resuming in %v", remaining.Round(time.Second))
+			qp.pauseMutex.Unlock()
+			
+			// Broadcast pause status
+			qp.broadcastUpdate("rate_limit_pause", map[string]interface{}{
+				"paused":         true,
+				"pause_until":    qp.pauseUntil.Format(time.RFC3339),
+				"remaining_secs": int(remaining.Seconds()),
+			})
+			return
+		} else {
+			// Pause has expired, resume processing
+			qp.rateLimitPaused = false
+			qp.pauseUntil = time.Time{}
+			log.Printf("✅ Rate limit pause expired. Resuming queue processing.")
+			
+			// Broadcast resume
+			qp.broadcastUpdate("rate_limit_resume", map[string]interface{}{
+				"paused": false,
+			})
+		}
+	}
+	qp.pauseMutex.Unlock()
 
 	// Check current in-progress tasks
 	inProgressTasks, err := qp.storage.GetQueueItems("in-progress")
@@ -381,6 +415,22 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	isPaused := qp.isPaused
 	isRunning := qp.isRunning
 	qp.mu.Unlock()
+	
+	// Check rate limit pause status
+	rateLimitPaused, pauseUntil := qp.IsRateLimitPaused()
+	var rateLimitInfo map[string]interface{}
+	if rateLimitPaused {
+		remaining := pauseUntil.Sub(time.Now())
+		rateLimitInfo = map[string]interface{}{
+			"paused":         true,
+			"pause_until":    pauseUntil.Format(time.RFC3339),
+			"remaining_secs": int(remaining.Seconds()),
+		}
+	} else {
+		rateLimitInfo = map[string]interface{}{
+			"paused": false,
+		}
+	}
 
 	// Count tasks by status
 	inProgressTasks, _ := qp.storage.GetQueueItems("in-progress")
@@ -405,15 +455,16 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	availableSlots := maxConcurrent - executingCount
 
 	return map[string]interface{}{
-		"processor_active":  !isPaused && isRunning,
+		"processor_active":  !isPaused && isRunning && !rateLimitPaused,
 		"maintenance_state": map[bool]string{true: "inactive", false: "active"}[isPaused],
+		"rate_limit_info":   rateLimitInfo,
 		"max_concurrent":    maxConcurrent,
 		"executing_count":   executingCount,
 		"available_slots":   availableSlots,
 		"pending_count":     len(pendingTasks),
 		"ready_in_progress": readyInProgress,
 		"refresh_interval":  currentSettings.RefreshInterval, // from settings
-		"processor_running": isRunning && !isPaused,
+		"processor_running": isRunning && !isPaused && !rateLimitPaused,
 		"timestamp":         time.Now().Unix(),
 	}
 }
@@ -639,4 +690,45 @@ func (qp *Processor) killProcess(pid int) error {
 	}
 
 	return nil
+}
+
+// handleRateLimitPause pauses the queue processor due to rate limiting
+func (qp *Processor) handleRateLimitPause(retryAfterSeconds int) {
+	qp.pauseMutex.Lock()
+	defer qp.pauseMutex.Unlock()
+	
+	// Cap the pause duration at 4 hours
+	if retryAfterSeconds > 14400 {
+		retryAfterSeconds = 14400
+	}
+	
+	// Minimum pause of 5 minutes
+	if retryAfterSeconds < 300 {
+		retryAfterSeconds = 300
+	}
+	
+	pauseDuration := time.Duration(retryAfterSeconds) * time.Second
+	qp.rateLimitPaused = true
+	qp.pauseUntil = time.Now().Add(pauseDuration)
+	
+	log.Printf("🛑 RATE LIMIT HIT: Pausing queue processor for %v (until %s)", 
+		pauseDuration, qp.pauseUntil.Format(time.RFC3339))
+	
+	// Broadcast the pause event  
+	qp.broadcastUpdate("rate_limit_pause_started", map[string]interface{}{
+		"pause_duration": retryAfterSeconds,
+		"pause_until":    qp.pauseUntil.Format(time.RFC3339),
+		"reason":         "API rate limit reached",
+	})
+}
+
+// IsRateLimitPaused checks if the processor is currently paused due to rate limits
+func (qp *Processor) IsRateLimitPaused() (bool, time.Time) {
+	qp.pauseMutex.Lock()
+	defer qp.pauseMutex.Unlock()
+	
+	if qp.rateLimitPaused && time.Now().Before(qp.pauseUntil) {
+		return true, qp.pauseUntil
+	}
+	return false, time.Time{}
 }

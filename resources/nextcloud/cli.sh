@@ -289,7 +289,12 @@ occ_command() {
         exit 1
     fi
     
-    docker exec -u www-data "$container_name" php occ "$@"
+    # Check if OC_PASS is set and pass it to docker
+    if [[ -n "${OC_PASS:-}" ]]; then
+        docker exec -e "OC_PASS=${OC_PASS}" -u www-data "$container_name" php occ "$@"
+    else
+        docker exec -u www-data "$container_name" php occ "$@"
+    fi
 }
 
 users_command() {
@@ -318,7 +323,8 @@ users_command() {
                 password=$(openssl rand -base64 12)
                 echo "Generated password: $password"
             fi
-            occ_command user:add --password-from-env "$username" <<< "$password"
+            export OC_PASS="$password"
+            occ_command user:add --password-from-env "$username"
             ;;
         delete)
             local username="${1:-}"

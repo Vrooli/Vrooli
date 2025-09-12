@@ -127,14 +127,16 @@ neo4j::status::collect_data() {
 # Args: data_array (key-value pairs)
 #######################################
 neo4j::status::display_text() {
-    local -A data
+    local -A data=()
     
     # Convert array to associative array
-    for ((i=1; i<=$#; i+=2)); do
-        local key="${!i}"
-        local value_idx=$((i+1))
-        local value="${!value_idx}"
-        data["$key"]="$value"
+    local args=("$@")
+    for ((i=0; i<${#args[@]}; i+=2)); do
+        local key="${args[i]}"
+        local value="${args[i+1]:-}"
+        if [[ -n "$key" ]]; then
+            data["$key"]="$value"
+        fi
     done
     
     # Header

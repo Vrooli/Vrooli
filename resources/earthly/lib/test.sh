@@ -130,10 +130,14 @@ EOF
     echo -n "Testing build execution... "
     # Check if earthly binary exists and Docker is running
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
-        if timeout 60 earthly -f "${EARTHLY_HOME}/test.earth" +test &>/dev/null; then
+        # Copy Earthfile to current directory for proper execution
+        cp "${EARTHLY_HOME}/test.earth" ./Earthfile 2>/dev/null || true
+        if timeout 60 earthly +test &>/dev/null; then
             echo "✅ PASS"
+            rm -f ./Earthfile
         else
             echo "⚠️  SKIP: Build execution skipped (Docker/Earthly issue)"
+            rm -f ./Earthfile
         fi
     else
         echo "⚠️  SKIP: Earthly or Docker not available"
@@ -156,10 +160,12 @@ EOF
     # Test 4: Cache functionality
     echo -n "Testing cache functionality... "
     local first_run=$(date +%s)
-    timeout 60 earthly -f "${EARTHLY_HOME}/test.earth" +build &>/dev/null
+    cp "${EARTHLY_HOME}/test.earth" ./Earthfile 2>/dev/null || true
+    timeout 60 earthly +build &>/dev/null
     local second_run=$(date +%s)
-    timeout 60 earthly -f "${EARTHLY_HOME}/test.earth" +build &>/dev/null
+    timeout 60 earthly +build &>/dev/null
     local third_run=$(date +%s)
+    rm -f ./Earthfile
     
     local first_duration=$((second_run - first_run))
     local second_duration=$((third_run - second_run))
@@ -188,10 +194,13 @@ all:
     BUILD +target2
 EOF
         
-        if timeout 60 earthly -f "${EARTHLY_HOME}/parallel.earth" +all &>/dev/null; then
+        cp "${EARTHLY_HOME}/parallel.earth" ./Earthfile 2>/dev/null || true
+        if timeout 60 earthly +all &>/dev/null; then
             echo "✅ PASS"
+            rm -f ./Earthfile
         else
             echo "⚠️  SKIP: Parallel test skipped (Docker/Earthly issue)"
+            rm -f ./Earthfile
         fi
     else
         echo "⚠️  SKIP: Earthly or Docker not available"

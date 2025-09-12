@@ -40,8 +40,11 @@ esphome::install() {
 # Example ESPHome configuration
 esphome:
   name: example-device
-  platform: ESP32
+
+esp32:
   board: esp32dev
+  framework:
+    type: arduino
 
 wifi:
   ssid: "YourWiFiSSID"
@@ -52,7 +55,8 @@ logger:
 
 # Enable OTA updates
 ota:
-  password: "vrooli_ota"
+  - platform: esphome
+    password: "vrooli_ota"
 
 # Enable Home Assistant API
 api:
@@ -254,9 +258,24 @@ esphome::health_check() {
         return 1
     fi
     
-    # Check if dashboard is accessible
-    timeout 5 curl -sf "${ESPHOME_BASE_URL}/health" > /dev/null 2>&1 || \
-    timeout 5 curl -sf "${ESPHOME_BASE_URL}" > /dev/null 2>&1
+    # ESPHome doesn't have /health endpoint, check dashboard availability
+    # and return a proper health response
+    if timeout 5 curl -sf "${ESPHOME_BASE_URL}" > /dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Add a health endpoint wrapper that returns JSON
+esphome::health() {
+    if esphome::health_check; then
+        echo '{"status":"healthy","service":"esphome","dashboard":"accessible"}'
+        return 0
+    else
+        echo '{"status":"unhealthy","service":"esphome","error":"Dashboard not accessible"}'
+        return 1
+    fi
 }
 
 esphome::view_logs() {
@@ -496,6 +515,38 @@ esphome::validate_config() {
     
     log::success "Configuration is valid"
     return 0
+}
+
+# Add info command for v2.0 compliance
+esphome::info() {
+    esphome::export_config
+    
+    cat <<EOF
+{
+  "resource": "esphome",
+  "version": "latest",
+  "status": "$(docker ps --format "{{.Names}}" | grep -q "^${ESPHOME_CONTAINER_NAME}$" && echo "running" || echo "stopped")",
+  "port": ${ESPHOME_PORT},
+  "dashboard_url": "${ESPHOME_BASE_URL}",
+  "config": {
+    "container_name": "${ESPHOME_CONTAINER_NAME}",
+    "image": "${ESPHOME_IMAGE}",
+    "data_dir": "${ESPHOME_DATA_DIR}",
+    "config_dir": "${ESPHOME_CONFIG_DIR}",
+    "build_dir": "${ESPHOME_BUILD_DIR}",
+    "parallel_builds": ${ESPHOME_PARALLEL_BUILDS},
+    "compile_timeout": ${ESPHOME_COMPILE_TIMEOUT},
+    "upload_timeout": ${ESPHOME_UPLOAD_TIMEOUT}
+  },
+  "capabilities": [
+    "firmware-generation",
+    "ota-updates",
+    "device-discovery",
+    "yaml-configuration",
+    "web-dashboard"
+  ]
+}
+EOF
 }
 
 esphome::clean_build() {

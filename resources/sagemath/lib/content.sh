@@ -265,15 +265,65 @@ sagemath::content::execute() {
         # It's an expression - calculate directly
         echo "🧮 Calculating: $expression_or_file"
         
+        # Check if it's a plot command
+        local is_plot=false
+        if echo "$expression_or_file" | grep -qE "plot\(|plot3d\(|matrix_plot\(|list_plot\(|density_plot\(|contour_plot\("; then
+            is_plot=true
+        fi
+        
         # Create temporary script
         local temp_script="$SAGEMATH_SCRIPTS_DIR/temp_calc_$$.sage"
-        cat > "$temp_script" << EOF
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        
+        if [ "$is_plot" = true ]; then
+            # For plot operations, save to file
+            local plot_file="/home/sage/outputs/plot_${timestamp}.png"
+            cat > "$temp_script" << EOF
+try:
+    # Execute the full expression
+    exec(compile('''$expression_or_file''', '<string>', 'exec'))
+    
+    # Find the last plot object in locals
+    plot_obj = None
+    for var_name in reversed(list(locals().keys())):
+        var = locals()[var_name]
+        if hasattr(var, 'save') and hasattr(var, 'plot'):
+            plot_obj = var
+            break
+    
+    # If no plot object found, try to get the last expression result
+    if plot_obj is None:
+        import sys
+        if '_' in dir():
+            plot_obj = _
+    
+    # Check if the expression itself creates a plot
+    if 'plot' in '''$expression_or_file''' or 'plot3d' in '''$expression_or_file''':
+        plot_expr = '''$expression_or_file'''
+        # Extract just the plot command if there are multiple statements
+        if ';' in plot_expr:
+            plot_expr = plot_expr.split(';')[-1].strip()
+        plot_obj = eval(plot_expr)
+    
+    if plot_obj and hasattr(plot_obj, 'save'):
+        plot_obj.save('$plot_file', dpi=150)
+        print("Plot saved to: outputs/plot_${timestamp}.png")
+        print("Result:", plot_obj)
+    else:
+        print("Result:", plot_obj if plot_obj else "Plot generation attempted")
+except Exception as e:
+    print("Error:", str(e))
+EOF
+        else
+            # For non-plot operations
+            cat > "$temp_script" << EOF
 try:
     result = $expression_or_file
     print("Result:", result)
 except Exception as e:
     print("Error:", str(e))
 EOF
+        fi
         
         # Execute calculation
         local output=$(docker exec "$SAGEMATH_CONTAINER_NAME" sage "/home/sage/scripts/$(basename "$temp_script")" 2>&1)
@@ -283,6 +333,11 @@ EOF
         
         # Display result
         echo "📊 $output"
+        
+        # If plot was generated, show the file path
+        if [ "$is_plot" = true ] && [ -f "$SAGEMATH_OUTPUTS_DIR/plot_${timestamp}.png" ]; then
+            echo "📈 Plot saved to: $SAGEMATH_OUTPUTS_DIR/plot_${timestamp}.png"
+        fi
         
         return 0
     fi

@@ -68,6 +68,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="ffmpeg::inject::process_single"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
+cli::register_command "info" "Show resource runtime information" "ffmpeg::info"
 cli::register_command "status" "Show detailed resource status" "ffmpeg::status"
 cli::register_command "logs" "Show FFmpeg logs" "ffmpeg::logs"
 
@@ -75,7 +76,7 @@ cli::register_command "logs" "Show FFmpeg logs" "ffmpeg::logs"
 # FFMPEG-SPECIFIC CUSTOM COMMANDS
 # ==============================================================================
 # Custom top-level commands for media processing shortcuts
-cli::register_command "info" "Get media file information" "ffmpeg::info"
+cli::register_command "media-info" "Get media file information" "ffmpeg::media_info"
 cli::register_command "transcode" "Convert media format" "ffmpeg::transcode"
 cli::register_command "extract" "Extract audio/video/frames" "ffmpeg::extract"
 

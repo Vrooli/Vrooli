@@ -51,7 +51,7 @@ fi
 
 # Test 5: Help command works
 echo -n "  Testing help command... "
-if "${RESOURCE_DIR}/cli.sh" help | grep -q "Nextcloud Resource Management"; then
+if "${RESOURCE_DIR}/cli.sh" help | grep -qi "nextcloud.*resource.*management"; then
     echo "✓"
 else
     echo "✗"

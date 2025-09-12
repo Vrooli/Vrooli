@@ -32,6 +32,9 @@ ffmpeg::inject::batch_process() {
         return 1
     fi
     
+    # Initialize configuration
+    ffmpeg::inject::init || return 1
+    
     # Create output and temp directories
     mkdir -p "${FFMPEG_OUTPUT_DIR}" "${FFMPEG_TEMP_DIR}"
     

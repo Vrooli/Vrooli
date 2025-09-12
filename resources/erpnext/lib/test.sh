@@ -1,124 +1,89 @@
-#!/bin/bash
-# ERPNext Test Functions - Health checks and validation only
+#!/usr/bin/env bash
+################################################################################
+# ERPNext Resource - Test Library
+# 
+# Test functions for ERPNext resource validation
+# Delegates to test/phases/* scripts per v2.0 contract
+################################################################################
 
-# Smoke test - basic health check
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+ERPNEXT_RESOURCE_DIR="${APP_ROOT}/resources/erpnext"
+ERPNEXT_TEST_DIR="${ERPNEXT_RESOURCE_DIR}/test"
+
+# Source utilities
+source "${APP_ROOT}/scripts/lib/utils/var.sh" || return 1
+source "${var_LIB_UTILS_DIR}/format.sh" || return 1
+source "${var_LIB_UTILS_DIR}/log.sh" || return 1
+
+################################################################################
+# Test Delegation Functions (v2.0 Contract)
+################################################################################
+
+# Smoke test - delegates to test/phases/test-smoke.sh
 erpnext::test::smoke() {
-    log::info "Running ERPNext smoke test..."
+    log::info "Running ERPNext smoke tests..."
     
-    # Test if containers are running
-    if ! erpnext::is_running; then
-        log::error "ERPNext containers are not running"
-        return 1
+    if [[ ! -f "${ERPNEXT_TEST_DIR}/phases/test-smoke.sh" ]]; then
+        log::error "Smoke test script not found"
+        return 2  # Not available
     fi
     
-    # Test if ERPNext is healthy
-    if ! erpnext::is_healthy; then
-        log::error "ERPNext is not responding to health checks"
-        return 1
-    fi
-    
-    # Test if port is accessible
-    if command -v curl >/dev/null; then
-        if ! curl -f -s "http://localhost:${ERPNEXT_PORT}" >/dev/null; then
-            log::error "ERPNext web interface is not accessible on port ${ERPNEXT_PORT}"
-            return 1
-        fi
-    fi
-    
-    log::success "ERPNext smoke test passed"
-    return 0
+    bash "${ERPNEXT_TEST_DIR}/phases/test-smoke.sh"
+    return $?
 }
 
-# Integration test - comprehensive health validation
+# Integration test - delegates to test/phases/test-integration.sh
 erpnext::test::integration() {
-    log::info "Running ERPNext integration test..."
+    log::info "Running ERPNext integration tests..."
     
-    # Run smoke test first
-    erpnext::test::smoke || return 1
-    
-    # Test database connectivity
-    if ! docker exec erpnext-app bench --site "${ERPNEXT_SITE_NAME}" mariadb --execute "SELECT 1" >/dev/null 2>&1; then
-        log::error "Database connectivity test failed"
-        return 1
+    if [[ ! -f "${ERPNEXT_TEST_DIR}/phases/test-integration.sh" ]]; then
+        log::error "Integration test script not found"
+        return 2  # Not available
     fi
     
-    # Test Redis connectivity
-    if ! docker exec erpnext-redis redis-cli ping >/dev/null 2>&1; then
-        log::error "Redis connectivity test failed"
-        return 1
-    fi
-    
-    # Test if apps are loaded correctly
-    if ! docker exec erpnext-app bench version >/dev/null 2>&1; then
-        log::error "ERPNext apps version check failed"
-        return 1
-    fi
-    
-    log::success "ERPNext integration test passed"
-    return 0
+    bash "${ERPNEXT_TEST_DIR}/phases/test-integration.sh"
+    return $?
 }
 
-# Unit test - individual component validation (optional)
+# Unit test - delegates to test/phases/test-unit.sh
 erpnext::test::unit() {
     log::info "Running ERPNext unit tests..."
     
-    # Test Docker image availability
-    if ! docker images | grep -q "frappe/erpnext"; then
-        log::error "ERPNext Docker image not found"
-        return 1
+    if [[ ! -f "${ERPNEXT_TEST_DIR}/phases/test-unit.sh" ]]; then
+        log::error "Unit test script not found"
+        return 2  # Not available
     fi
     
-    # Test configuration files
-    if [ ! -f "${ERPNEXT_RESOURCE_DIR}/config/defaults.sh" ]; then
-        log::error "ERPNext configuration file not found"
-        return 1
-    fi
-    
-    # Test data directory structure
-    local data_dir="${HOME}/.erpnext"
-    if [ ! -d "$data_dir" ]; then
-        log::warn "ERPNext data directory not found (expected after installation)"
-    fi
-    
-    log::success "ERPNext unit tests passed"
-    return 0
+    bash "${ERPNEXT_TEST_DIR}/phases/test-unit.sh"
+    return $?
 }
 
-# Performance test - validate ERPNext performance (custom test phase)
+# All tests - delegates to test/run-tests.sh
+erpnext::test::all() {
+    log::info "Running all ERPNext tests..."
+    
+    if [[ ! -f "${ERPNEXT_TEST_DIR}/run-tests.sh" ]]; then
+        log::error "Main test runner not found"
+        return 2  # Not available
+    fi
+    
+    bash "${ERPNEXT_TEST_DIR}/run-tests.sh" all
+    return $?
+}
+
+# Performance test - custom test phase (beyond v2.0 requirements)
 erpnext::test::performance() {
-    log::info "Running ERPNext performance test..."
+    log::info "Running ERPNext performance tests..."
     
-    if ! erpnext::is_running; then
-        log::error "ERPNext must be running for performance tests"
-        return 1
+    # Create performance test script if needed
+    local perf_test="${ERPNEXT_TEST_DIR}/phases/test-performance.sh"
+    if [[ ! -f "$perf_test" ]]; then
+        log::warn "Performance test not yet implemented"
+        return 2  # Not available
     fi
     
-    # Test response time
-    if command -v curl >/dev/null; then
-        local response_time
-        response_time=$(curl -o /dev/null -s -w '%{time_total}' "http://localhost:${ERPNEXT_PORT}")
-        
-        # Convert to milliseconds for comparison
-        local response_ms
-        response_ms=$(echo "$response_time * 1000" | bc -l 2>/dev/null || echo "1000")
-        
-        if (( $(echo "$response_ms > 5000" | bc -l 2>/dev/null || echo 1) )); then
-            log::warn "ERPNext response time is slow: ${response_ms}ms"
-        else
-            log::success "ERPNext response time acceptable: ${response_ms}ms"
-        fi
-    fi
-    
-    # Test memory usage
-    local memory_usage
-    memory_usage=$(docker stats erpnext-app --no-stream --format "table {{.MemUsage}}" 2>/dev/null | tail -n 1 | cut -d'/' -f1 | sed 's/[^0-9.]//g' || echo "0")
-    
-    if [ -n "$memory_usage" ] && (( $(echo "$memory_usage > 1000" | bc -l 2>/dev/null || echo 0) )); then
-        log::warn "ERPNext memory usage is high: ${memory_usage}MB"
-    else
-        log::success "ERPNext memory usage acceptable: ${memory_usage}MB"
-    fi
-    
-    log::success "ERPNext performance test completed"
-    return 0
+    bash "$perf_test"
+    return $?
 }

@@ -50,6 +50,9 @@ main() {
         prune)
             restic::prune "$@"
             ;;
+        verify)
+            restic::verify "$@"
+            ;;
         *)
             echo "Error: Unknown command: $command"
             echo "Run 'resource-restic help' for usage information"

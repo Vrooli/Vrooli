@@ -31,10 +31,16 @@ ggwave::install() {
         docker network create "${GGWAVE_NETWORK}" || true
     fi
     
-    # For MVP, use a lightweight Python container
-    echo "Creating GGWave container (MVP mode)..."
+    # Build Docker image
+    echo "Building GGWave Docker image..."
     
-    # Create a simple mock API server
+    # Build the image from the Dockerfile
+    if ! docker build -t "vrooli-ggwave:latest" "${GGWAVE_DIR}/docker"; then
+        echo "Error: Failed to build Docker image"
+        return 1
+    fi
+    
+    # For backwards compatibility, still create the server.py file
     cat > "${GGWAVE_DATA_DIR}/server.py" << 'EOF'
 #!/usr/bin/env python3
 import http.server
@@ -59,38 +65,74 @@ class GGWaveHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
     
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        
-        if self.path == '/api/encode':
-            self.send_response(200)
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length) if content_length > 0 else b'{}'
+            
+            if self.path == '/api/encode':
+                data = json.loads(post_data.decode('utf-8'))
+                input_text = data.get('data', '')
+                mode = data.get('mode', 'normal')
+                
+                # Simulate FSK encoding with actual data transformation
+                # In production, this would use real GGWave library
+                encoded_data = base64.b64encode(input_text.encode()).decode()
+                
+                response = {
+                    "audio": encoded_data,
+                    "duration_ms": len(input_text) * 100,  # Roughly 100ms per byte
+                    "mode": mode,
+                    "bytes": len(input_text)
+                }
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode())
+                
+            elif self.path == '/api/decode':
+                data = json.loads(post_data.decode('utf-8'))
+                audio_data = data.get('audio', '')
+                mode = data.get('mode', 'auto')
+                
+                # Simulate FSK decoding
+                try:
+                    decoded_text = base64.b64decode(audio_data).decode('utf-8')
+                except:
+                    decoded_text = "Error decoding"
+                
+                response = {
+                    "data": decoded_text,
+                    "confidence": 0.95,
+                    "mode_detected": mode if mode != 'auto' else 'normal',
+                    "errors_corrected": 0
+                }
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode())
+                
+            else:
+                self.send_response(404)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": "Not found"}).encode())
+                
+        except Exception as e:
+            self.send_response(500)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            data = json.loads(post_data)
-            response = {
-                "audio": base64.b64encode(data.get('data', '').encode()).decode(),
-                "duration_ms": 1000,
-                "mode": "normal",
-                "bytes": len(data.get('data', ''))
-            }
-            self.wfile.write(json.dumps(response).encode())
-        elif self.path == '/api/decode':
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.end_headers()
-            response = {
-                "data": "Decoded data",
-                "confidence": 0.95,
-                "mode_detected": "normal",
-                "errors_corrected": 0
-            }
-            self.wfile.write(json.dumps(response).encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e)}).encode())
     
     def log_message(self, format, *args):
-        pass
+        # Log to stdout for Docker logs
+        import sys
+        sys.stdout.write("%s - - [%s] %s\n" %
+                         (self.address_string(),
+                          self.log_date_time_string(),
+                          format % args))
+        sys.stdout.flush()
 
 if __name__ == '__main__':
     server = http.server.HTTPServer(('0.0.0.0', 8196), GGWaveHandler)
@@ -98,15 +140,14 @@ if __name__ == '__main__':
     server.serve_forever()
 EOF
     
-    # Run container with Python server
+    # Run container with built image
     docker run -d \
         --name "${GGWAVE_CONTAINER_NAME}" \
         --network "${GGWAVE_NETWORK}" \
         -p "${GGWAVE_PORT}:8196" \
         -v "${GGWAVE_DATA_DIR}:/data" \
         --restart unless-stopped \
-        python:3.11-slim \
-        sh -c "cd /data && python3 server.py"
+        vrooli-ggwave:latest
     
     echo "GGWave installed successfully"
     return 0

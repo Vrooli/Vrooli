@@ -9,11 +9,13 @@ Nextcloud is a comprehensive collaboration platform that combines file storage, 
 ## Features
 
 - **File Storage & Sync**: WebDAV-compliant file storage with automatic synchronization
-- **Document Collaboration**: Integrated office suite for real-time document editing
+- **Document Collaboration**: Share and collaborate on documents with version control
 - **Sharing & Permissions**: Granular sharing controls with password protection and expiration
-- **External Storage**: Mount S3, FTP, SMB/CIFS, and other storage backends
-- **Security**: End-to-end encryption, two-factor authentication, and GDPR compliance
+- **External Storage**: Mount S3, FTP, SMB/CIFS, and other storage backends (S3 implemented)
+- **Security**: Secure password storage, brute force protection, and session management
 - **API Access**: WebDAV, OCS, and REST APIs for programmatic access
+- **User Management**: CLI-based user creation and management via OCC commands
+- **Backup & Restore**: Automated backup and restore functionality for data protection
 
 ## Quick Start
 
@@ -85,6 +87,38 @@ curl -u admin:password -X POST \
   -d "path=/file.pdf&shareType=3"
 ```
 
+## Usage Examples
+
+### User Management
+```bash
+# Create new user
+vrooli resource nextcloud users add --username john --password "SecurePass123!"
+
+# List users
+vrooli resource nextcloud users list
+
+# Delete user
+vrooli resource nextcloud users delete john
+```
+
+### Backup & Restore
+```bash
+# Create backup
+vrooli resource nextcloud content execute --name backup
+
+# Restore from backup
+vrooli resource nextcloud content execute --name restore --options "nextcloud_backup_20250912.tar.gz"
+```
+
+### External Storage (S3)
+```bash
+# Mount S3 bucket
+vrooli resource nextcloud content execute --name mount-s3 --options "bucket=mybucket,key=ACCESS_KEY,secret=SECRET_KEY"
+
+# Mount MinIO bucket
+vrooli resource nextcloud content execute --name mount-s3 --options "bucket=data,endpoint=http://localhost:9000,key=minioadmin,secret=minioadmin"
+```
+
 ## CLI Commands
 
 ### Lifecycle Management
@@ -99,7 +133,7 @@ curl -u admin:password -X POST \
 - `content list [--filter <pattern>]` - List files
 - `content get --name <file>` - Download file
 - `content remove --name <file>` - Delete file
-- `content execute --name <operation>` - Execute operations
+- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3)
 
 ### Testing
 - `test smoke` - Quick health check

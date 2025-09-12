@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${VOCR_CLI_DIR}/config/defaults.sh"
 
 # Source VOCR libraries
-for lib in common status install capture; do
+for lib in core status install capture test; do
     lib_file="${VOCR_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -51,8 +51,11 @@ CLI_COMMAND_HANDLERS["manage::start"]="vocr::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="vocr::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="vocr::restart"
 
-# Test handlers - health checks only
-CLI_COMMAND_HANDLERS["test::smoke"]="vocr::status"
+# Test handlers - delegate to test library
+CLI_COMMAND_HANDLERS["test::smoke"]="vocr::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="vocr::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="vocr::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="vocr::test::all"
 
 # Content handlers for VOCR business functionality
 CLI_COMMAND_HANDLERS["content::add"]="vocr::ocr::extract"      # Add OCR scan result

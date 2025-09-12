@@ -13,7 +13,7 @@ export SQLITE_DATABASE_PATH="${SQLITE_DATABASE_PATH:-${VROOLI_DATA}/sqlite/datab
 # Default database settings
 export SQLITE_MAX_CONNECTIONS="${SQLITE_MAX_CONNECTIONS:-10}"
 export SQLITE_JOURNAL_MODE="${SQLITE_JOURNAL_MODE:-WAL}"  # Write-Ahead Logging
-export SQLITE_BUSY_TIMEOUT="${SQLITE_BUSY_TIMEOUT:-5000}"  # milliseconds
+export SQLITE_BUSY_TIMEOUT="${SQLITE_BUSY_TIMEOUT:-10000}"  # milliseconds (increased for better concurrency)
 export SQLITE_CACHE_SIZE="${SQLITE_CACHE_SIZE:-2000}"      # pages
 export SQLITE_PAGE_SIZE="${SQLITE_PAGE_SIZE:-4096}"        # bytes
 

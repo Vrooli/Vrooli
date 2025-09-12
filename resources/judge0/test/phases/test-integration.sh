@@ -124,9 +124,9 @@ test_batch_submissions() {
     
     # Submit multiple programs simultaneously
     local batch_data='[
-        {"source_code": "print(1)", "language_id": 92},
-        {"source_code": "print(2)", "language_id": 92},
-        {"source_code": "print(3)", "language_id": 92}
+        {"source_code": "print(1)", "language_id": 71},
+        {"source_code": "print(2)", "language_id": 71},
+        {"source_code": "print(3)", "language_id": 71}
     ]'
     
     local batch_result=$(timeout 15 curl -sf -X POST "${API_URL}/submissions/batch?wait=true" \
@@ -161,7 +161,7 @@ test_sequential_submissions() {
     for i in {1..3}; do
         local result=$(timeout 10 curl -sf -X POST "${API_URL}/submissions?wait=true" \
             -H "Content-Type: application/json" \
-            -d "{\"source_code\": \"print($i)\", \"language_id\": 92}" 2>/dev/null || echo "FAILED")
+            -d "{\"source_code\": \"print($i)\", \"language_id\": 71}" 2>/dev/null || echo "FAILED")
         
         if [[ "$result" != "FAILED" ]]; then
             local stdout=$(echo "$result" | python3 -c "import sys, json; print(json.load(sys.stdin).get('stdout', '').strip())" 2>/dev/null)
@@ -186,7 +186,7 @@ test_error_handling() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "print(undefined_variable)",
-            "language_id": 92
+            "language_id": 71
         }' 2>/dev/null || echo "FAILED")
     
     if [[ "$compile_error" != "FAILED" ]]; then
@@ -230,7 +230,7 @@ test_performance_benchmarks() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "for i in range(100000): pass\nprint(\"done\")",
-            "language_id": 92
+            "language_id": 71
         }' 2>/dev/null || echo "FAILED")
     local end_time=$(date +%s%N)
     
@@ -257,7 +257,7 @@ test_performance_benchmarks() {
     for i in {1..5}; do
         timeout 10 curl -sf -X POST "${API_URL}/submissions?wait=false" \
             -H "Content-Type: application/json" \
-            -d "{\"source_code\": \"import time; time.sleep(0.1); print($i)\", \"language_id\": 92}" &>/dev/null &
+            -d "{\"source_code\": \"import time; time.sleep(0.1); print($i)\", \"language_id\": 71}" &>/dev/null &
     done
     wait
     local concurrent_end=$(date +%s%N)
@@ -280,7 +280,7 @@ test_stdin_stdout_handling() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "name = input(); print(f\"Hello, {name}!\")",
-            "language_id": 92,
+            "language_id": 71,
             "stdin": "Judge0"
         }' 2>/dev/null || echo "FAILED")
     
@@ -300,7 +300,7 @@ test_stdin_stdout_handling() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "for i in range(3): print(f\"Line {i+1}\")",
-            "language_id": 92
+            "language_id": 71
         }' 2>/dev/null || echo "FAILED")
     
     if [[ "$multiline_test" != "FAILED" ]]; then
@@ -323,7 +323,7 @@ test_security_isolation() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "import urllib.request; urllib.request.urlopen(\"http://google.com\")",
-            "language_id": 92
+            "language_id": 71
         }' 2>/dev/null || echo "FAILED")
     
     if [[ "$network_test" != "FAILED" ]]; then
@@ -346,7 +346,7 @@ test_security_isolation() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "import os; os.system(\"rm -rf /\")",
-            "language_id": 92
+            "language_id": 71
         }' 2>/dev/null || echo "FAILED")
     
     if [[ "$fs_test" != "FAILED" ]]; then

@@ -6,6 +6,9 @@ export GGWAVE_RESOURCE_NAME="ggwave"
 export GGWAVE_DISPLAY_NAME="GGWave Data-over-Sound"
 export GGWAVE_VERSION="0.4.0"
 
+# Resource directory (set by CLI, fallback for direct sourcing)
+export GGWAVE_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 # Port configuration - MUST use port registry
 if [[ -f "${SCRIPTS_DIR:-/opt/vrooli/scripts}/resources/port_registry.sh" ]]; then
     source "${SCRIPTS_DIR:-/opt/vrooli/scripts}/resources/port_registry.sh"

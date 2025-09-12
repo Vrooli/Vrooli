@@ -338,3 +338,140 @@ sqlite::content::backup() {
     
     return 0
 }
+
+# Restore a database from backup
+sqlite::content::restore() {
+    local db_name="${1:-}"
+    local backup_file="${2:-}"
+    
+    if [[ -z "$db_name" ]] || [[ -z "$backup_file" ]]; then
+        log::error "Database name and backup file required"
+        echo "Usage: resource-sqlite content restore <database_name> <backup_file>"
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    local backup_path
+    
+    # Check if backup_file is absolute or relative path
+    if [[ "$backup_file" == /* ]]; then
+        backup_path="$backup_file"
+    else
+        # Look in backup directory
+        backup_path="${SQLITE_BACKUP_PATH}/${backup_file}"
+    fi
+    
+    if [[ ! -f "$backup_path" ]]; then
+        log::error "Backup file not found: $backup_file"
+        return 1
+    fi
+    
+    # If database exists, confirm overwrite
+    if [[ -f "$db_path" ]]; then
+        read -p "Database '$db_name' exists. Overwrite? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log::info "Restore cancelled"
+            return 1
+        fi
+        
+        # Create backup of current database before overwriting
+        local timestamp
+        timestamp=$(date +%Y%m%d_%H%M%S)
+        local safety_backup="${db_path%.db}_before_restore_${timestamp}.db"
+        sqlite3 "$db_path" ".backup '$safety_backup'"
+        log::info "Current database backed up to: $(basename "$safety_backup")"
+    fi
+    
+    # Restore database using SQLite restore command
+    sqlite3 "$db_path" ".restore '$backup_path'"
+    
+    # Set proper permissions
+    chmod "${SQLITE_FILE_PERMISSIONS}" "$db_path"
+    
+    log::info "Database restored: $db_name from $backup_file"
+    echo "Database path: $db_path"
+    
+    return 0
+}
+
+# Get database info or query result
+sqlite::content::get() {
+    local db_name="${1:-}"
+    local query="${2:-}"
+    
+    if [[ -z "$db_name" ]]; then
+        log::error "Database name required"
+        echo "Usage: resource-sqlite content get <database_name> [query]"
+        echo "  Without query: shows database schema and statistics"
+        echo "  With query: executes SELECT query and returns results"
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database not found: $db_name"
+        return 1
+    fi
+    
+    if [[ -z "$query" ]]; then
+        # Show database info
+        echo "Database: $db_name"
+        echo "================"
+        
+        # Get file size
+        local size
+        size=$(du -h "$db_path" | cut -f1)
+        echo "Size: $size"
+        
+        # Get page count and size
+        local page_count page_size
+        page_count=$(sqlite3 "$db_path" "PRAGMA page_count;")
+        page_size=$(sqlite3 "$db_path" "PRAGMA page_size;")
+        echo "Pages: $page_count (${page_size} bytes each)"
+        
+        # Get journal mode
+        local journal_mode
+        journal_mode=$(sqlite3 "$db_path" "PRAGMA journal_mode;")
+        echo "Journal Mode: $journal_mode"
+        
+        # Get schema
+        echo ""
+        echo "Schema:"
+        echo "-------"
+        sqlite3 "$db_path" ".schema"
+        
+        # Get table statistics
+        echo ""
+        echo "Tables:"
+        echo "-------"
+        sqlite3 "$db_path" "SELECT name, sql FROM sqlite_master WHERE type='table' ORDER BY name;" | while IFS='|' read -r name sql; do
+            local count
+            count=$(sqlite3 "$db_path" "SELECT COUNT(*) FROM $name;")
+            echo "  $name: $count rows"
+        done
+    else
+        # Execute SELECT query
+        if [[ ! "$query" =~ ^[[:space:]]*SELECT ]]; then
+            log::error "Only SELECT queries are allowed with 'get' command"
+            echo "Use 'execute' command for other SQL operations"
+            return 1
+        fi
+        
+        # Execute query with column headers
+        sqlite3 -header -column "$db_path" "$query"
+    fi
+    
+    return 0
+}

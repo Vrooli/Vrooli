@@ -1,0 +1,208 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Wiki.js Configuration Schema",
+  "description": "Configuration schema for Wiki.js documentation platform",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "object",
+      "description": "Container configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "default": "wikijs",
+          "description": "Container name"
+        },
+        "image": {
+          "type": "string",
+          "default": "requarks/wiki:2",
+          "description": "Docker image"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "description": "Network configuration",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 3010,
+          "description": "HTTP port for Wiki.js"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["host", "bridge"],
+          "default": "host",
+          "description": "Docker network mode"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["postgres", "mysql", "mariadb", "mssql"],
+          "default": "postgres",
+          "description": "Database type"
+        },
+        "host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Database host"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5433,
+          "description": "Database port"
+        },
+        "name": {
+          "type": "string",
+          "default": "wikijs",
+          "description": "Database name"
+        },
+        "user": {
+          "type": "string",
+          "default": "wikijs",
+          "description": "Database user"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password"
+        }
+      },
+      "required": ["type", "host", "port", "name", "user"]
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "dataDir": {
+          "type": "string",
+          "description": "Data directory path"
+        },
+        "backupDir": {
+          "type": "string",
+          "description": "Backup directory path"
+        }
+      }
+    },
+    "git": {
+      "type": "object",
+      "description": "Git integration configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Git synchronization"
+        },
+        "url": {
+          "type": "string",
+          "description": "Git repository URL"
+        },
+        "branch": {
+          "type": "string",
+          "default": "main",
+          "description": "Git branch"
+        },
+        "user": {
+          "type": "string",
+          "description": "Git username"
+        },
+        "password": {
+          "type": "string",
+          "description": "Git password or token"
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "description": "Search configuration",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["db", "elasticsearch", "algolia"],
+          "default": "db",
+          "description": "Search engine type"
+        },
+        "elasticsearch": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Elasticsearch host"
+            },
+            "port": {
+              "type": "integer",
+              "default": 9200,
+              "description": "Elasticsearch port"
+            }
+          }
+        }
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["local", "ldap", "oauth2", "saml", "github", "google"]
+          },
+          "default": ["local"],
+          "description": "Enabled authentication providers"
+        },
+        "adminEmail": {
+          "type": "string",
+          "format": "email",
+          "default": "admin@vrooli.local",
+          "description": "Admin email address"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance configuration",
+      "properties": {
+        "maxFileSize": {
+          "type": "integer",
+          "default": 5242880,
+          "description": "Maximum file upload size in bytes"
+        },
+        "cacheEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable caching"
+        }
+      }
+    },
+    "startup": {
+      "type": "object",
+      "description": "Startup configuration",
+      "properties": {
+        "timeout": {
+          "type": "integer",
+          "default": 35,
+          "description": "Startup timeout in seconds"
+        },
+        "healthCheckInterval": {
+          "type": "integer",
+          "default": 5,
+          "description": "Health check interval in seconds"
+        },
+        "healthCheckRetries": {
+          "type": "integer",
+          "default": 10,
+          "description": "Number of health check retries"
+        }
+      }
+    }
+  },
+  "required": ["database"],
+  "additionalProperties": false
+}

@@ -260,23 +260,28 @@ postgres::common::health_check() {
         return 1
     fi
     
+    # Get instance credentials
+    local instance_user=$(postgres::common::get_instance_config "$instance_name" "user" 2>/dev/null || echo "${POSTGRES_DEFAULT_USER}")
+    local instance_password=$(postgres::common::get_instance_config "$instance_name" "password" 2>/dev/null || echo "${POSTGRES_DEFAULT_PASSWORD:-}")
+    local instance_database=$(postgres::common::get_instance_config "$instance_name" "database" 2>/dev/null || echo "${POSTGRES_DEFAULT_DB}")
+    
     # Step 1: Check if PostgreSQL is accepting connections
-    if ! timeout 10 docker exec "$container_name" pg_isready -h localhost -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
+    if ! timeout 10 docker exec "$container_name" pg_isready -h localhost -U "${instance_user}" >/dev/null 2>&1; then
         return 1
     fi
     
     # Step 2: Verify we can actually connect and query
     # Use PGPASSWORD to avoid password prompt issues
-    if ! PGPASSWORD="${POSTGRES_DEFAULT_PASSWORD}" timeout 10 docker exec "$container_name" psql -h localhost -U "${POSTGRES_DEFAULT_USER}" -d postgres -c "SELECT 1" >/dev/null 2>&1; then
+    if ! PGPASSWORD="${instance_password}" timeout 10 docker exec "$container_name" psql -h localhost -U "${instance_user}" -d "${instance_database}" -c "SELECT 1" >/dev/null 2>&1; then
         return 1
     fi
     
     # Step 3: Check if the default database exists (if not postgres)
-    if [[ "${POSTGRES_DEFAULT_DB}" != "postgres" ]]; then
-        if ! PGPASSWORD="${POSTGRES_DEFAULT_PASSWORD}" timeout 5 docker exec "$container_name" psql -h localhost -U "${POSTGRES_DEFAULT_USER}" -d postgres -tc "SELECT 1 FROM pg_database WHERE datname='${POSTGRES_DEFAULT_DB}'" 2>/dev/null | grep -q 1; then
+    if [[ "${instance_database}" != "postgres" ]]; then
+        if ! PGPASSWORD="${instance_password}" timeout 5 docker exec "$container_name" psql -h localhost -U "${instance_user}" -d "${instance_database}" -tc "SELECT 1 FROM pg_database WHERE datname='${instance_database}'" 2>/dev/null | grep -q 1; then
             # Database doesn't exist yet, but postgres is running
             # This is OK during initial setup
-            log::debug "Database ${POSTGRES_DEFAULT_DB} not yet created, but PostgreSQL is running"
+            log::debug "Database ${instance_database} not yet created, but PostgreSQL is running"
         fi
     fi
     

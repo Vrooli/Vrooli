@@ -44,6 +44,10 @@ done
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "sqlite" "Lightweight serverless SQL database engine" "v2"
 
+# Register status and logs as flat commands (required by v2.0 contract)
+cli::register_command "status" "Show resource status" "cli::_handle_status"
+cli::register_command "logs" "Show resource logs" "cli::_handle_logs"
+
 # Override default handlers to point directly to SQLite implementations
 CLI_COMMAND_HANDLERS["manage::install"]="sqlite::install"
 CLI_COMMAND_HANDLERS["manage::uninstall"]="sqlite::uninstall"
@@ -59,8 +63,10 @@ CLI_COMMAND_HANDLERS["test::all"]="sqlite::test::all"
 CLI_COMMAND_HANDLERS["content::create"]="sqlite::content::create"
 CLI_COMMAND_HANDLERS["content::execute"]="sqlite::content::execute"
 CLI_COMMAND_HANDLERS["content::list"]="sqlite::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="sqlite::content::get"
 CLI_COMMAND_HANDLERS["content::remove"]="sqlite::content::remove"
 CLI_COMMAND_HANDLERS["content::backup"]="sqlite::content::backup"
+CLI_COMMAND_HANDLERS["content::restore"]="sqlite::content::restore"
 
 CLI_COMMAND_HANDLERS["status"]="sqlite::status"
 CLI_COMMAND_HANDLERS["logs"]="sqlite::logs"

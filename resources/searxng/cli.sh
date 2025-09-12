@@ -32,7 +32,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SEARXNG_CLI_DIR}/config/defaults.sh"
 
 # Source SearXNG libraries
-for lib in common docker install status config api; do
+for lib in common docker install status config api test; do
     lib_file="${SEARXNG_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -51,7 +51,11 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="searxng::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="searxng::start_container"  
 CLI_COMMAND_HANDLERS["manage::stop"]="searxng::stop_container"
 CLI_COMMAND_HANDLERS["manage::restart"]="searxng::restart_container"
-CLI_COMMAND_HANDLERS["test::smoke"]="searxng::is_healthy"
+# Test handlers for v2.0 compliance
+CLI_COMMAND_HANDLERS["test::smoke"]="searxng::test"
+CLI_COMMAND_HANDLERS["test::integration"]="searxng::test"
+CLI_COMMAND_HANDLERS["test::unit"]="searxng::test"
+CLI_COMMAND_HANDLERS["test::all"]="searxng::test"
 
 # Content handlers - SearXNG business functionality (search operations)
 CLI_COMMAND_HANDLERS["content::add"]="searxng::batch_search_file"
@@ -90,9 +94,7 @@ cli::register_subcommand "content" "enable-redis" "Enable Redis caching" "searxn
 cli::register_subcommand "content" "disable-redis" "Disable Redis caching" "searxng::disable_redis"
 cli::register_subcommand "content" "redis-status" "Show Redis caching status" "searxng::redis_status"
 
-# Custom test subcommands for SearXNG health/connectivity testing
-cli::register_subcommand "test" "api" "Test API endpoints" "searxng::test_api"
-cli::register_subcommand "test" "diagnose" "Run comprehensive diagnostics" "searxng::diagnose"
+# Note: test phases (smoke/integration/unit/all) are handled via CLI_COMMAND_HANDLERS above
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

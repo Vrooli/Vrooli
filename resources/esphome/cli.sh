@@ -69,6 +69,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="esphome::compile"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
+cli::register_command "info" "Show structured resource information" "esphome::info"
 cli::register_command "status" "Show detailed resource status" "esphome::status"
 cli::register_command "logs" "Show ESPHome logs" "esphome::view_logs"
 

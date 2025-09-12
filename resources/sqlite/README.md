@@ -76,6 +76,12 @@ vrooli resource sqlite content remove <db_name>
 
 # Backup a database
 vrooli resource sqlite content backup <db_name>
+
+# Restore a database from backup
+vrooli resource sqlite content restore <db_name> <backup_file>
+
+# Get database info or run SELECT query
+vrooli resource sqlite content get <db_name> [query]
 ```
 
 ### Testing Commands
@@ -121,7 +127,7 @@ Configuration is managed through environment variables. Default values are defin
 | `SQLITE_DATABASE_PATH` | `${VROOLI_DATA}/sqlite/databases` | Where databases are stored |
 | `SQLITE_BACKUP_PATH` | `${VROOLI_DATA}/sqlite/backups` | Where backups are stored |
 | `SQLITE_JOURNAL_MODE` | `WAL` | Journal mode (WAL recommended) |
-| `SQLITE_BUSY_TIMEOUT` | `5000` | Busy timeout in milliseconds |
+| `SQLITE_BUSY_TIMEOUT` | `10000` | Busy timeout in milliseconds |
 | `SQLITE_CACHE_SIZE` | `2000` | Cache size in pages |
 | `SQLITE_FILE_PERMISSIONS` | `600` | Unix permissions for database files |
 

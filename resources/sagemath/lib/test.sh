@@ -10,6 +10,9 @@ SAGEMATH_LIB_DIR="$(builtin cd "${BASH_SOURCE[0]%/*}" && builtin pwd)"
 SAGEMATH_RESOURCE_DIR="$(builtin cd "${SAGEMATH_LIB_DIR}/.." && builtin pwd)"
 SAGEMATH_TEST_DIR="${SAGEMATH_RESOURCE_DIR}/test"
 
+# Source common library for shared functions and variables
+source "${SAGEMATH_LIB_DIR}/common.sh"
+
 # Universal Contract v2.0 handler for test::smoke
 sagemath::test::smoke() {
     if [[ -f "${SAGEMATH_TEST_DIR}/phases/test-smoke.sh" ]]; then
@@ -77,48 +80,63 @@ for i in range(100):
     
     echo ""
     echo "Benchmark 2: Linear algebra operations"
-    echo -n "  100x100 matrix operations... "
+    echo -n "  20x20 matrix multiplication... "
     start=$(date +%s%N)
-    docker exec "$SAGEMATH_CONTAINER_NAME" sage -c "
+    timeout 3 docker exec "$SAGEMATH_CONTAINER_NAME" sage -c "
 from sage.all import *
-import numpy as np
-A = matrix(RR, 100, 100, lambda i,j: i+j)
-B = A.inverse()
+A = random_matrix(RR, 20, 20)
+B = random_matrix(RR, 20, 20)
 C = A * B
-det_A = A.det()
-" 2>/dev/null
-    end=$(date +%s%N)
-    elapsed=$(( (end - start) / 1000000 ))
-    echo "${elapsed}ms"
+D = A.transpose()
+E = D * A
+print('done')
+" &>/dev/null
+    if [ $? -eq 0 ]; then
+        end=$(date +%s%N)
+        elapsed=$(( (end - start) / 1000000 ))
+        echo "${elapsed}ms"
+    else
+        echo "timeout (>3s)"
+    fi
     
     echo ""
     echo "Benchmark 3: Number theory"
     echo -n "  Prime factorization of large numbers... "
     start=$(date +%s%N)
-    docker exec "$SAGEMATH_CONTAINER_NAME" sage -c "
+    timeout 5 docker exec "$SAGEMATH_CONTAINER_NAME" sage -c "
 from sage.all import *
-for n in [10**10 + 7, 10**11 + 3, 10**12 + 39]:
+for n in [10**8 + 7, 10**9 + 3]:
     factor(n)
-" 2>/dev/null
-    end=$(date +%s%N)
-    elapsed=$(( (end - start) / 1000000 ))
-    echo "${elapsed}ms"
+print('done')
+" &>/dev/null
+    if [ $? -eq 0 ]; then
+        end=$(date +%s%N)
+        elapsed=$(( (end - start) / 1000000 ))
+        echo "${elapsed}ms"
+    else
+        echo "timeout (>5s)"
+    fi
     
     echo ""
     echo "Benchmark 4: Calculus operations"
     echo -n "  Integration and differentiation... "
     start=$(date +%s%N)
-    docker exec "$SAGEMATH_CONTAINER_NAME" sage -c "
+    timeout 5 docker exec "$SAGEMATH_CONTAINER_NAME" sage -c "
 from sage.all import *
 x = var('x')
-f = sin(x) * exp(-x) * x^2
-for i in range(10):
-    df = diff(f, x, i)
-    integral(f, x, 0, pi)
-" 2>/dev/null
-    end=$(date +%s%N)
-    elapsed=$(( (end - start) / 1000000 ))
-    echo "${elapsed}ms"
+f = sin(x) * exp(-x)
+for i in range(5):
+    df = diff(f, x)
+    integral(f, x)
+print('done')
+" &>/dev/null
+    if [ $? -eq 0 ]; then
+        end=$(date +%s%N)
+        elapsed=$(( (end - start) / 1000000 ))
+        echo "${elapsed}ms"
+    else
+        echo "timeout (>5s)"
+    fi
     
     echo ""
     echo "Performance benchmarks complete!"

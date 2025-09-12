@@ -1,5 +1,12 @@
-#!/bin/bash
-# ERPNext Resource Library - Main functions
+#!/usr/bin/env bash
+################################################################################
+# ERPNext Resource Library - Main Compatibility Layer
+# 
+# Provides backward compatibility for existing scripts
+# Delegates to core.sh for v2.0 functionality
+################################################################################
+
+set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 ERPNEXT_LIB_DIR="${APP_ROOT}/resources/erpnext/lib"
@@ -10,69 +17,22 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh" || return 1
 source "${var_LIB_UTILS_DIR}/format.sh" || return 1
 source "${var_LIB_UTILS_DIR}/log.sh" || return 1
 
-# Source ERPNext specific libraries
-source "$ERPNEXT_LIB_DIR/config.sh" || return 1
-source "$ERPNEXT_LIB_DIR/docker.sh" || return 1
-source "$ERPNEXT_LIB_DIR/status.sh" || return 1
-source "$ERPNEXT_LIB_DIR/inject.sh" || return 1
+# Source core library (v2.0)
+source "$ERPNEXT_LIB_DIR/core.sh" || return 1
 
-# Start ERPNext
-erpnext::start() {
-    log::info "Starting ERPNext..."
-    
-    if erpnext::is_running; then
-        log::warn "ERPNext is already running"
-        return 0
+# Source other ERPNext specific libraries
+for lib in config docker status inject content test; do
+    lib_file="$ERPNEXT_LIB_DIR/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        source "$lib_file" 2>/dev/null || true
     fi
-    
-    # Start using Docker Compose
-    erpnext::docker::start || {
-        log::error "Failed to start ERPNext"
-        return 1
-    }
-    
-    # Wait for health
-    local max_wait=60
-    local waited=0
-    while [ $waited -lt $max_wait ]; do
-        if erpnext::is_healthy; then
-            log::success "ERPNext started successfully"
-            return 0
-        fi
-        sleep 2
-        ((waited+=2))
-    done
-    
-    log::error "ERPNext failed to become healthy within ${max_wait} seconds"
-    return 1
-}
+done
 
-# Stop ERPNext
-erpnext::stop() {
-    log::info "Stopping ERPNext..."
-    
-    if ! erpnext::is_running; then
-        log::warn "ERPNext is not running"
-        return 0
-    fi
-    
-    erpnext::docker::stop || {
-        log::error "Failed to stop ERPNext"
-        return 1
-    }
-    
-    log::success "ERPNext stopped successfully"
-    return 0
-}
-
-# Restart ERPNext
-erpnext::restart() {
-    log::info "Restarting ERPNext..."
-    erpnext::stop || return 1
-    sleep 2
-    erpnext::start || return 1
-    return 0
-}
+# The core.sh file now provides these functions:
+# - erpnext::start
+# - erpnext::stop  
+# - erpnext::restart
+# They are already defined and exported from core.sh
 
 # Install ERPNext
 erpnext::install() {

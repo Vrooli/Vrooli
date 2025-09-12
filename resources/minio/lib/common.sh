@@ -102,7 +102,8 @@ minio::common::check_disk_space() {
     mkdir -p "$parent_dir"
     
     # Get available space in GB
-    local available_gb=$(df -BG "$parent_dir" | awk 'NR==2 {print $4}' | sed 's/G//')
+    local available_gb
+    available_gb=$(df -BG "$parent_dir" | awk 'NR==2 {print $4}' | sed 's/G//')
     
     if [[ $available_gb -lt $MINIO_MIN_DISK_SPACE_GB ]]; then
         log::error "${MSG_INSUFFICIENT_DISK}: ${available_gb}GB available, ${MINIO_MIN_DISK_SPACE_GB}GB required"

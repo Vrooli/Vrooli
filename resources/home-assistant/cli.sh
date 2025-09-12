@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${HOME_ASSISTANT_CLI_DIR}/config/defaults.sh"
 
 # Source Home Assistant libraries
-for lib in core health install status inject; do
+for lib in core health install status inject test; do
     lib_file="${HOME_ASSISTANT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -52,8 +52,10 @@ CLI_COMMAND_HANDLERS["manage::stop"]="home_assistant::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="home_assistant::docker::restart"
 
 # Test handlers for Home Assistant health checks
-CLI_COMMAND_HANDLERS["test::smoke"]="home_assistant::health::is_healthy"
-CLI_COMMAND_HANDLERS["test::integration"]="home_assistant::health::get_status"
+CLI_COMMAND_HANDLERS["test::smoke"]="home_assistant::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="home_assistant::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="home_assistant::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="home_assistant::test::all"
 
 # Content handlers for Home Assistant automation functionality
 CLI_COMMAND_HANDLERS["content::add"]="home_assistant::inject"

@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OBS_CLI_DIR}/config/defaults.sh"
 
 # Source OBS Studio libraries
-for lib in common core install status start stop content; do
+for lib in common core install status start stop content test; do
     lib_file="${OBS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -53,7 +53,12 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="obs::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="obs::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="obs::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="obs::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="obs::get_status"
+
+# Override test handlers to use proper test functions
+CLI_COMMAND_HANDLERS["test::smoke"]="obs::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="obs::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="obs::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="obs::test::all"
 
 # Override content handlers for OBS Studio-specific recording/streaming functionality
 CLI_COMMAND_HANDLERS["content::add"]="obs::content::add"

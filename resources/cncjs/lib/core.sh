@@ -209,8 +209,14 @@ cncjs::health_check() {
         return 1
     fi
     
-    # Check HTTP endpoint
-    if ! timeout 5 curl -sf "http://localhost:${CNCJS_PORT}/" &>/dev/null; then
+    # Check HTTP endpoint with proper timeout and response validation
+    local response
+    if ! response=$(timeout 5 curl -sf "http://localhost:${CNCJS_PORT}/" 2>/dev/null); then
+        return 1
+    fi
+    
+    # Verify response contains CNCjs content
+    if ! echo "$response" | grep -q "CNCjs"; then
         return 1
     fi
     
@@ -240,9 +246,10 @@ cncjs::status() {
             health="healthy"
             
             # Try to get controller state
-            local api_response
-            if api_response=$(timeout 5 curl -sf "http://localhost:${CNCJS_PORT}/api/state" 2>/dev/null); then
-                controller_state="connected"
+            # Note: API requires authentication, so we check if service is responding
+            if timeout 2 curl -sf "http://localhost:${CNCJS_PORT}/" &>/dev/null; then
+                # Controller state requires actual hardware connection
+                controller_state="service ready (controller not connected)"
             fi
         else
             health="unhealthy"
@@ -375,6 +382,97 @@ cncjs::content() {
             ;;
         *)
             log::error "Unknown content action: $action"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Macro management for automation
+#######################################
+cncjs::macro() {
+    local action="${1:-list}"
+    shift || true
+    
+    local macro_dir="${CNCJS_DATA_DIR}/macros"
+    mkdir -p "$macro_dir"
+    
+    case "$action" in
+        list)
+            log::info "Available macros:"
+            if [[ -d "$macro_dir" ]]; then
+                for macro in "$macro_dir"/*.macro; do
+                    if [[ -f "$macro" ]]; then
+                        local name=$(basename "$macro" .macro)
+                        local desc=$(head -n 1 "$macro" | sed 's/^; *//')
+                        echo "  - $name: $desc"
+                    fi
+                done 2>/dev/null
+                if ! ls "$macro_dir"/*.macro &>/dev/null; then
+                    echo "  No macros found"
+                fi
+            else
+                echo "  No macros found"
+            fi
+            ;;
+        add)
+            local name="${1:-}"
+            local gcode="${2:-}"
+            if [[ -z "$name" ]] || [[ -z "$gcode" ]]; then
+                log::error "Usage: macro add <name> <gcode_or_file>"
+                return 1
+            fi
+            
+            local macro_file="$macro_dir/${name}.macro"
+            if [[ -f "$gcode" ]]; then
+                # Copy file as macro
+                cp "$gcode" "$macro_file"
+            else
+                # Save as direct G-code command with description
+                echo "; $name - User-defined macro" > "$macro_file"
+                echo "; Created: $(date)" >> "$macro_file"
+                echo "" >> "$macro_file"
+                echo "$gcode" >> "$macro_file"
+            fi
+            log::success "Macro '$name' saved"
+            ;;
+        run)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: macro run <name>"
+                return 1
+            fi
+            
+            local macro_file="$macro_dir/${name}.macro"
+            if [[ ! -f "$macro_file" ]]; then
+                log::error "Macro not found: $name"
+                return 1
+            fi
+            
+            # Copy macro to watch directory for execution
+            cp "$macro_file" "${CNCJS_WATCH_DIR}/${name}_$(date +%s).gcode"
+            log::info "Macro '$name' queued for execution"
+            log::warning "Note: Actual execution requires CNC controller connection"
+            ;;
+        remove)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: macro remove <name>"
+                return 1
+            fi
+            
+            local macro_file="$macro_dir/${name}.macro"
+            if [[ ! -f "$macro_file" ]]; then
+                log::error "Macro not found: $name"
+                return 1
+            fi
+            
+            rm "$macro_file"
+            log::success "Macro '$name' removed"
+            ;;
+        *)
+            log::error "Unknown macro action: $action"
+            echo "Valid actions: list, add, run, remove"
             return 1
             ;;
     esac

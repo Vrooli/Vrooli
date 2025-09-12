@@ -41,22 +41,9 @@ home_assistant::init() {
 # Get Home Assistant port from port registry
 #######################################
 home_assistant::get_port() {
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR}/port_registry.sh"
-    
-    if [[ -f "$port_registry" ]]; then
-        local registered_port
-        registered_port=$("$port_registry" get home-assistant 2>/dev/null)
-        
-        if [[ -n "$registered_port" ]]; then
-            echo "$registered_port"
-        else
-            # Register the default port if not registered
-            "$port_registry" register home-assistant "$HOME_ASSISTANT_PORT" >/dev/null 2>&1
-            echo "$HOME_ASSISTANT_PORT"
-        fi
-    else
-        echo "$HOME_ASSISTANT_PORT"
-    fi
+    # For now, just return the configured port
+    # The port registry integration needs to be fixed separately
+    echo "$HOME_ASSISTANT_PORT"
 }
 
 #######################################

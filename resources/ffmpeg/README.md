@@ -50,7 +50,14 @@ resource-ffmpeg extract --type thumbnail --input video.mp4 --output thumb.jpg --
 ### Media Information
 Get detailed media file information:
 ```bash
-resource-ffmpeg info --file media.mp4
+resource-ffmpeg media-info media.mp4
+```
+
+### Resource Information
+Display resource runtime configuration:
+```bash
+resource-ffmpeg info         # Human-readable format
+resource-ffmpeg info --json  # JSON format
 ```
 
 ## Configuration
@@ -153,6 +160,23 @@ GPU acceleration is automatically detected and used when available:
 - NVIDIA NVENC for H.264/H.265 encoding
 - Intel Quick Sync Video
 - AMD VCE/VCN
+- VAAPI generic acceleration
+
+Test hardware acceleration:
+```bash
+# Benchmark hardware vs software encoding
+vrooli resource ffmpeg content benchmark
+```
+
+### Batch Processing
+Process multiple files in parallel:
+```bash
+# Process all videos in a directory (4 parallel jobs)
+vrooli resource ffmpeg content process /path/to/videos transcode "*.mp4" 4
+
+# Batch extract audio from videos (2 parallel jobs)
+vrooli resource ffmpeg content process /path/to/videos extract "*.avi" 2
+```
 
 ## Troubleshooting
 

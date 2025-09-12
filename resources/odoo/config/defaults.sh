@@ -9,6 +9,7 @@
 export ODOO_RESOURCE_NAME="odoo"
 export ODOO_RESOURCE_CATEGORY="business-application"
 export ODOO_RESOURCE_DISPLAY_NAME="Odoo Community Edition"
+export ODOO_VERSION="${ODOO_VERSION:-17.0}"
 
 # Paths  
 export ODOO_BASE_DIR="${APP_ROOT}/resources/odoo"

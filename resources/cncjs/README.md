@@ -45,6 +45,24 @@ vrooli resource cncjs content execute mypart.gcode
 vrooli resource cncjs content remove mypart.gcode
 ```
 
+### Macro Automation
+
+```bash
+# Create a macro for common operations
+vrooli resource cncjs macro add "home" "G28 ; Home all axes"
+vrooli resource cncjs macro add "probe_z" "G38.2 Z-10 F50 ; Probe Z axis"
+vrooli resource cncjs macro add "park" "G0 Z5 F500 ; Raise Z\nG0 X0 Y0 F2000 ; Go to origin"
+
+# List available macros
+vrooli resource cncjs macro list
+
+# Execute a macro (requires controller connection)
+vrooli resource cncjs macro run "home"
+
+# Remove a macro
+vrooli resource cncjs macro remove "home"
+```
+
 ### Configuration
 
 Default configuration is stored in `~/.cncjs/.cncrc`. Key settings:
@@ -72,8 +90,8 @@ Default configuration is stored in `~/.cncjs/.cncrc`. Key settings:
 - ✅ G-code file management
 - ✅ Web-based control interface
 
-### P1 Requirements (Planned)
-- ⏳ Macro automation system
+### P1 Requirements (Implemented)
+- ✅ Macro automation system - Create and execute reusable G-code macros
 - ⏳ Multi-controller support
 - ⏳ 3D visualization
 - ⏳ Workflow storage

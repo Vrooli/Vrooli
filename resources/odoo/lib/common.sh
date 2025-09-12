@@ -49,6 +49,39 @@ odoo_is_running() {
     docker ps --format "{{.Names}}" | grep -q "^${ODOO_CONTAINER_NAME}$"
 }
 
+# Show resource information (v2.0 info command)
+odoo::info() {
+    local format="${1:-text}"
+    local runtime_file="$ODOO_CONFIG_DIR/runtime.json"
+    
+    if [[ ! -f "$runtime_file" ]]; then
+        log::error "Runtime configuration not found: $runtime_file"
+        return 1
+    fi
+    
+    if [[ "$format" == "--json" ]] || [[ "$format" == "json" ]]; then
+        cat "$runtime_file"
+    else
+        # Parse and display in text format
+        echo "Odoo Resource Information:"
+        echo "=========================="
+        
+        # Use jq if available, otherwise basic parsing
+        if command -v jq &>/dev/null; then
+            echo "Startup Order: $(jq -r '.startup_order' "$runtime_file")"
+            echo "Dependencies: $(jq -r '.dependencies | join(", ")' "$runtime_file")"
+            echo "Startup Timeout: $(jq -r '.startup_timeout' "$runtime_file")s"
+            echo "Startup Time Estimate: $(jq -r '.startup_time_estimate' "$runtime_file")"
+            echo "Recovery Attempts: $(jq -r '.recovery_attempts' "$runtime_file")"
+            echo "Priority: $(jq -r '.priority' "$runtime_file")"
+        else
+            # Fallback to grep-based parsing
+            grep -E '"startup_order"|"dependencies"|"startup_timeout"|"startup_time_estimate"|"recovery_attempts"|"priority"' "$runtime_file" | \
+                sed 's/[",]//g' | sed 's/^[ \t]*//'
+        fi
+    fi
+}
+
 # Get container logs
 odoo_logs() {
     local lines="${1:-50}"

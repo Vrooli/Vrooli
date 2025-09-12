@@ -8,7 +8,7 @@ export var_DATA_DIR="${DATA_DIR:-${HOME}/.vrooli/data}"
 export LNBITS_CONTAINER_NAME="lnbits-server"
 export LNBITS_POSTGRES_CONTAINER="lnbits-postgres"
 export LNBITS_NETWORK="lnbits-network"
-export LNBITS_IMAGE="lnbitsdocker/lnbits:0.12.1"
+export LNBITS_IMAGE="lnbits/lnbits:latest"
 export POSTGRES_IMAGE="postgres:14-alpine"
 
 # Source port registry
@@ -45,6 +45,7 @@ export LNBITS_POSTGRES_DB="${LNBITS_POSTGRES_DB:-lnbits}"
 
 # Lightning backend configuration
 export LNBITS_BACKEND_WALLET="${LNBITS_BACKEND_WALLET:-FakeWallet}"
+export FAKE_WALLET_SECRET="${FAKE_WALLET_SECRET:-supersecretkey}"
 
 # Resource metadata
 export LNBITS_RESOURCE_NAME="lnbits"

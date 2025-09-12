@@ -1,0 +1,187 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ERPNext Resource Configuration Schema",
+  "description": "Configuration schema for ERPNext ERP system resource",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "description": "Whether ERPNext resource is enabled",
+      "default": true
+    },
+    "port": {
+      "type": "integer",
+      "description": "Port for ERPNext web interface",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8020
+    },
+    "admin_user": {
+      "type": "string",
+      "description": "Administrator username",
+      "default": "Administrator"
+    },
+    "admin_password": {
+      "type": "string",
+      "description": "Administrator password",
+      "minLength": 8
+    },
+    "site_name": {
+      "type": "string",
+      "description": "ERPNext site name",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+      "default": "erpnext.local"
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["mariadb", "postgres"],
+          "default": "mariadb"
+        },
+        "host": {
+          "type": "string",
+          "description": "Database host",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Database port",
+          "default": 3306
+        },
+        "name": {
+          "type": "string",
+          "description": "Database name",
+          "default": "erpnext"
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user",
+          "default": "erpnext"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password"
+        }
+      },
+      "required": ["type"]
+    },
+    "redis": {
+      "type": "object",
+      "description": "Redis configuration",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Redis host",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Redis port",
+          "default": 6379
+        }
+      }
+    },
+    "modules": {
+      "type": "object",
+      "description": "ERPNext modules to enable",
+      "properties": {
+        "accounting": {
+          "type": "boolean",
+          "default": true
+        },
+        "inventory": {
+          "type": "boolean",
+          "default": true
+        },
+        "hr": {
+          "type": "boolean",
+          "default": true
+        },
+        "crm": {
+          "type": "boolean",
+          "default": true
+        },
+        "projects": {
+          "type": "boolean",
+          "default": true
+        },
+        "manufacturing": {
+          "type": "boolean",
+          "default": false
+        },
+        "ecommerce": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning settings",
+      "properties": {
+        "workers": {
+          "type": "integer",
+          "description": "Number of worker processes",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 2
+        },
+        "max_connections": {
+          "type": "integer",
+          "description": "Maximum database connections",
+          "minimum": 10,
+          "maximum": 1000,
+          "default": 100
+        },
+        "cache_size": {
+          "type": "string",
+          "description": "Redis cache size",
+          "pattern": "^[0-9]+[MG]B?$",
+          "default": "512MB"
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "description": "Backup configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron schedule for backups",
+          "default": "0 2 * * *"
+        },
+        "retention_days": {
+          "type": "integer",
+          "description": "Number of days to retain backups",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 7
+        },
+        "path": {
+          "type": "string",
+          "description": "Backup storage path",
+          "default": "${HOME}/.erpnext/backups"
+        }
+      }
+    },
+    "developer_mode": {
+      "type": "boolean",
+      "description": "Enable developer mode",
+      "default": false
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "Enable debug logging",
+      "default": false
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

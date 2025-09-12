@@ -197,6 +197,40 @@ cncjs::test_integration() {
         fi
     fi
     
+    # Test 6: Macro management
+    log::info "Test 6: Testing macro management..."
+    # Create a test macro
+    if cncjs::macro add "test_macro" "G0 X0 Y0 ; Test macro" &>/dev/null; then
+        log::success "✓ Macro creation successful"
+        
+        # List macros
+        if cncjs::macro list 2>/dev/null | grep -q "test_macro"; then
+            log::success "✓ Macro listing works"
+        else
+            log::error "✗ Macro not found in list"
+            ((failed++))
+        fi
+        
+        # Run macro (just queues it)
+        if cncjs::macro run "test_macro" &>/dev/null; then
+            log::success "✓ Macro execution queued"
+        else
+            log::error "✗ Macro execution failed"
+            ((failed++))
+        fi
+        
+        # Remove macro
+        if cncjs::macro remove "test_macro" &>/dev/null; then
+            log::success "✓ Macro removal successful"
+        else
+            log::error "✗ Macro removal failed"
+            ((failed++))
+        fi
+    else
+        log::error "✗ Macro creation failed"
+        ((failed++))
+    fi
+    
     if [[ $failed -eq 0 ]]; then
         log::success "All integration tests passed!"
         return 0

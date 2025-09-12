@@ -54,6 +54,8 @@ CLI_COMMAND_HANDLERS["manage::stop"]="odoo::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="odoo::docker::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="odoo::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="odoo::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="odoo::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="odoo::test::all"
 
 # Content handlers for ERP business functionality
 CLI_COMMAND_HANDLERS["content::add"]="odoo::content::add"
@@ -65,6 +67,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="odoo::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
+cli::register_command "info" "Show resource runtime information" "odoo::info"
 cli::register_command "status" "Show detailed Odoo status" "odoo::status"
 cli::register_command "logs" "Show Odoo logs" "odoo::docker::logs"
 

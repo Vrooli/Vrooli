@@ -537,17 +537,28 @@ execute_build() {
     local start_time=$(date +%s)
     
     # Run with optimized settings
+    # Copy Earthfile to current directory as earthly expects it there
+    local temp_earthfile=""
+    if [[ "${earthfile}" != "./Earthfile" ]]; then
+        cp "${earthfile}" ./Earthfile
+        temp_earthfile="./Earthfile"
+    fi
+    
     if earthly ${platform} ${cache_opt} ${no_cache_opt} ${parallel_opt} ${metrics_opt} ${satellite_opt} \
             --config "${EARTHLY_CONFIG_DIR}/config.yml" \
             --buildkit-cache-size-mb "${EARTHLY_CACHE_SIZE_MB}" \
             --conversion-parallelism "${EARTHLY_PARALLEL_LIMIT}" \
-            -f "${earthfile}" \
             "${target}" 2>&1 | tee "${build_log}"; then
         
         local end_time=$(date +%s)
         local build_time=$((end_time - start_time))
         log_info "Build completed in ${build_time} seconds"
         log_info "Build log saved to: ${build_log}"
+        
+        # Cleanup temporary file
+        if [[ -n "${temp_earthfile}" ]]; then
+            rm -f "${temp_earthfile}"
+        fi
         
         # Track metrics
         echo "${target},${build_time},$(date +%Y-%m-%d_%H:%M:%S),success" >> "${EARTHLY_LOGS_DIR}/metrics.csv"
@@ -557,6 +568,11 @@ execute_build() {
         local build_time=$((end_time - start_time))
         log_error "Build failed after ${build_time} seconds"
         log_info "Build log saved to: ${build_log}"
+        
+        # Cleanup temporary file
+        if [[ -n "${temp_earthfile}" ]]; then
+            rm -f "${temp_earthfile}"
+        fi
         
         # Track failure
         echo "${target},${build_time},$(date +%Y-%m-%d_%H:%M:%S),failed" >> "${EARTHLY_LOGS_DIR}/metrics.csv"

@@ -9,21 +9,21 @@ WIKIJS_CONTAINER="wikijs"
 WIKIJS_IMAGE="requarks/wiki:2"
 WIKIJS_DB_NAME="wikijs"
 WIKIJS_DB_USER="wikijs"
-WIKIJS_DATA_DIR="${var_DATA_DIR:-/var/lib/vrooli}/resources/wikijs"
+WIKIJS_DATA_DIR="${APP_ROOT}/.vrooli/data/resources/wikijs"
 WIKIJS_CONFIG_FILE="$WIKIJS_DATA_DIR/config.yml"
 
 # Get Wiki.js port from registry
 get_wikijs_port() {
-    local port_registry="${var_SCRIPT_DIR:-/root/Vrooli/scripts}/resources/port_registry.sh"
+    local port_registry="${APP_ROOT:-/root/Vrooli}/scripts/resources/port_registry.sh"
     if [[ -f "$port_registry" ]]; then
         local port=$("$port_registry" get wikijs 2>/dev/null || echo "")
-        if [[ -z "$port" ]]; then
-            # Register if not found
-            port=$("$port_registry" register wikijs 3000 "Wiki.js documentation platform" 2>/dev/null || echo "3000")
+        if [[ -n "$port" ]]; then
+            echo "$port"
+        else
+            echo "3010"  # Use the registered port
         fi
-        echo "${port:-3000}"
     else
-        echo "3000"
+        echo "3010"
     fi
 }
 
@@ -59,7 +59,8 @@ get_db_config() {
 
 # Check if Wiki.js is installed
 is_installed() {
-    [[ -d "$WIKIJS_DATA_DIR" ]] && [[ -f "$WIKIJS_CONFIG_FILE" ]]
+    # Check if data directory exists (config file is created on first run)
+    [[ -d "$WIKIJS_DATA_DIR" ]]
 }
 
 # Check if Wiki.js container is running
@@ -81,27 +82,10 @@ get_container_status() {
 # Check Wiki.js health
 check_health() {
     local port=$(get_wikijs_port)
-    local max_attempts=3
-    local attempt=1
     
-    # First check if Wiki.js is responding at all (including setup mode)
-    if timeout 3 curl -sf "http://localhost:${port}" &>/dev/null; then
-        # Check if it's in setup mode
-        if timeout 3 curl -s "http://localhost:${port}" | grep -q "Wiki.js Setup"; then
-            # Setup mode is considered healthy - WikiJS is running and waiting for configuration
-            return 0
-        fi
-        
-        # Otherwise check the GraphQL endpoint for a fully configured instance
-        while [[ $attempt -le $max_attempts ]]; do
-            if timeout 5 curl -sf "http://localhost:${port}/graphql" \
-                -H "Content-Type: application/json" \
-                -d '{"query":"{ system { status } }"}' &>/dev/null; then
-                return 0
-            fi
-            ((attempt++))
-            [[ $attempt -le $max_attempts ]] && sleep 2
-        done
+    # Check if Wiki.js is responding with proper timeout (per v2.0 contract)
+    if timeout 5 curl -sf "http://localhost:${port}/" &>/dev/null; then
+        return 0
     fi
     
     return 1

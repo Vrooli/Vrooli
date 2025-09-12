@@ -1,0 +1,285 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Home Assistant Resource Configuration Schema",
+  "description": "Configuration schema for Home Assistant resource deployment",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "object",
+      "description": "Docker container configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Container name",
+          "default": "home-assistant",
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$"
+        },
+        "image": {
+          "type": "string",
+          "description": "Docker image to use",
+          "default": "homeassistant/home-assistant:stable",
+          "pattern": "^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[a-z0-9]+([._-][a-z0-9]+)*$"
+        },
+        "restart_policy": {
+          "type": "string",
+          "description": "Container restart policy",
+          "enum": ["no", "always", "unless-stopped", "on-failure"],
+          "default": "unless-stopped"
+        },
+        "privileged": {
+          "type": "boolean",
+          "description": "Run container in privileged mode (required for some integrations)",
+          "default": true
+        },
+        "network_mode": {
+          "type": "string",
+          "description": "Docker network mode",
+          "enum": ["bridge", "host", "none"],
+          "default": "host"
+        }
+      },
+      "required": ["name", "image"]
+    },
+    "network": {
+      "type": "object",
+      "description": "Network configuration",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "Port for Home Assistant web interface",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8123
+        },
+        "base_url": {
+          "type": "string",
+          "description": "Base URL for accessing Home Assistant",
+          "format": "uri",
+          "default": "http://localhost:8123"
+        },
+        "ssl": {
+          "type": "object",
+          "description": "SSL/TLS configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable SSL/TLS",
+              "default": false
+            },
+            "cert_path": {
+              "type": "string",
+              "description": "Path to SSL certificate"
+            },
+            "key_path": {
+              "type": "string",
+              "description": "Path to SSL private key"
+            }
+          }
+        }
+      },
+      "required": ["port"]
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Base data directory",
+          "default": "${var_DATA_DIR}/resources/home-assistant"
+        },
+        "config_dir": {
+          "type": "string",
+          "description": "Configuration directory",
+          "default": "${data_dir}/config"
+        },
+        "backup_dir": {
+          "type": "string",
+          "description": "Backup directory",
+          "default": "${data_dir}/backups"
+        },
+        "media_dir": {
+          "type": "string",
+          "description": "Media files directory",
+          "default": "${data_dir}/media"
+        }
+      },
+      "required": ["data_dir", "config_dir"]
+    },
+    "runtime": {
+      "type": "object",
+      "description": "Runtime configuration",
+      "properties": {
+        "time_zone": {
+          "type": "string",
+          "description": "Time zone for Home Assistant",
+          "default": "America/New_York",
+          "pattern": "^[A-Za-z]+/[A-Za-z_]+$"
+        },
+        "install_timeout": {
+          "type": "integer",
+          "description": "Installation timeout in seconds",
+          "minimum": 60,
+          "maximum": 600,
+          "default": 300
+        },
+        "health_check_timeout": {
+          "type": "integer",
+          "description": "Health check timeout in seconds",
+          "minimum": 10,
+          "maximum": 120,
+          "default": 60
+        },
+        "health_check_interval": {
+          "type": "integer",
+          "description": "Health check interval in seconds",
+          "minimum": 1,
+          "maximum": 30,
+          "default": 5
+        },
+        "startup_wait": {
+          "type": "integer",
+          "description": "Time to wait for startup in seconds",
+          "minimum": 10,
+          "maximum": 120,
+          "default": 30
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "Integration configuration",
+      "properties": {
+        "recorder": {
+          "type": "object",
+          "description": "Recorder (history) configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable recorder",
+              "default": true
+            },
+            "db_url": {
+              "type": "string",
+              "description": "Database URL for recorder",
+              "format": "uri"
+            },
+            "purge_keep_days": {
+              "type": "integer",
+              "description": "Days to keep history",
+              "minimum": 1,
+              "maximum": 365,
+              "default": 10
+            }
+          }
+        },
+        "mqtt": {
+          "type": "object",
+          "description": "MQTT broker configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable MQTT integration",
+              "default": false
+            },
+            "broker": {
+              "type": "string",
+              "description": "MQTT broker address"
+            },
+            "port": {
+              "type": "integer",
+              "description": "MQTT broker port",
+              "default": 1883
+            },
+            "username": {
+              "type": "string",
+              "description": "MQTT username"
+            }
+          }
+        },
+        "zwave": {
+          "type": "object",
+          "description": "Z-Wave configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable Z-Wave integration",
+              "default": false
+            },
+            "device": {
+              "type": "string",
+              "description": "Z-Wave USB device path",
+              "pattern": "^/dev/.*"
+            }
+          }
+        },
+        "zigbee": {
+          "type": "object",
+          "description": "Zigbee configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "description": "Enable Zigbee integration",
+              "default": false
+            },
+            "device": {
+              "type": "string",
+              "description": "Zigbee USB device path",
+              "pattern": "^/dev/.*"
+            }
+          }
+        }
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "api_token": {
+          "type": "string",
+          "description": "Long-lived API access token",
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "webhook_secret": {
+          "type": "string",
+          "description": "Webhook validation secret"
+        },
+        "trusted_networks": {
+          "type": "array",
+          "description": "Trusted network ranges",
+          "items": {
+            "type": "string",
+            "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}(/[0-9]{1,2})?$"
+          },
+          "default": ["127.0.0.1", "::1"]
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning",
+      "properties": {
+        "memory_limit": {
+          "type": "string",
+          "description": "Container memory limit",
+          "pattern": "^[0-9]+[kmg]$",
+          "default": "2g"
+        },
+        "cpu_limit": {
+          "type": "string",
+          "description": "Container CPU limit",
+          "pattern": "^[0-9]+(\\.[0-9]+)?$",
+          "default": "2.0"
+        },
+        "log_level": {
+          "type": "string",
+          "description": "Logging level",
+          "enum": ["debug", "info", "warning", "error", "critical"],
+          "default": "info"
+        }
+      }
+    }
+  },
+  "required": ["container", "network", "storage"],
+  "additionalProperties": false
+}

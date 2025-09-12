@@ -64,6 +64,7 @@ declare -g -A RESOURCE_PORTS=(
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
     ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
     ["haystack"]="8075"        # End-to-end framework for question answering and search
+    ["crewai"]="8084"          # Multi-agent AI framework for collaborative AI systems
     ["keycloak"]="8070"        # Enterprise identity and access management
     ["erpnext"]="8020"         # Complete open-source ERP suite
     ["blender"]="8093"         # 3D creation suite with Python API
@@ -78,6 +79,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Collaboration Services (80xx range)
     ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform
+    ["wikijs"]="3010"          # Wiki.js documentation platform with Git backend
     
     # Data Integration Services (80xx range)
     ["airbyte"]="8002"         # Airbyte ELT platform webapp (moved from 8000)

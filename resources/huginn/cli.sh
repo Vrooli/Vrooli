@@ -29,7 +29,7 @@ source "${HUGINN_CLI_DIR}/config/defaults.sh"
 source "${HUGINN_CLI_DIR}/config/messages.sh"
 
 # Source Huginn libraries
-for lib in common docker install status api inject testing; do
+for lib in common docker install status api inject test testing; do
     lib_file="${HUGINN_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -40,7 +40,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="huginn::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="huginn::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="huginn::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="huginn::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="huginn::health_check"
+CLI_COMMAND_HANDLERS["test::smoke"]="huginn::test_smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="huginn::test_integration"
+CLI_COMMAND_HANDLERS["test::unit"]="huginn::test_unit"
+CLI_COMMAND_HANDLERS["test::all"]="huginn::test_all"
 
 CLI_COMMAND_HANDLERS["content::add"]="huginn::import_scenario_file"
 CLI_COMMAND_HANDLERS["content::list"]="huginn::list_agents"

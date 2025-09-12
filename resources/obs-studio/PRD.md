@@ -63,20 +63,31 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - [ ] Transition effects
 
 ### Testing
-- [x] BATS test files co-located with implementation
-- [x] Integration tests in test/ directory
-- [x] Uses shared fixtures from __test/fixtures/data/
+- [x] v2.0 contract compliant test structure
+- [x] lib/test.sh with smoke/integration/unit functions
+- [x] test/run-tests.sh main runner
+- [x] test/phases/ directory with test-smoke.sh, test-integration.sh, test-unit.sh
+- [x] All test commands functional (smoke <30s, integration <120s, unit <60s)
 - [x] Test results included in status output
-- [ ] Content management tests
-- [ ] Scene switching tests
-- [ ] Recording tests
+- [x] Content management tests (basic)
+- [x] Scene management tests (mock mode)
+- [x] Recording tests (mock mode)
 
 ### Documentation
 - [x] Main README.md with overview
 - [x] Examples directory with sample workflows
+- [x] config/schema.json with complete configuration schema
 - [ ] API documentation
 - [ ] Scene configuration guide
 - [ ] Streaming setup guide
+
+### v2.0 Contract Compliance (2025-09-12)
+- [x] Required files: cli.sh, lib/core.sh, lib/test.sh
+- [x] Required config files: defaults.sh, schema.json, runtime.json
+- [x] Required test structure: run-tests.sh, phases/test-smoke.sh, phases/test-integration.sh, phases/test-unit.sh
+- [x] All required CLI commands: help, info, manage (install/uninstall/start/stop/restart), test (smoke/integration/unit/all), content, status, logs
+- [x] Proper timeout handling in health checks
+- [x] Test time limits enforced (smoke <30s, integration <120s, unit <60s)
 
 ## Content Management Specification
 
@@ -151,6 +162,19 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - Recording/streaming capabilities verified
 - Integration tests passing
 - Documentation complete and accurate
+
+## Progress History
+
+### 2025-09-12: v2.0 Contract Compliance (70% → 85%)
+**Improvements Made:**
+- ✅ Created lib/test.sh with proper test implementations
+- ✅ Created config/schema.json with complete configuration schema
+- ✅ Created test/run-tests.sh and phases/ directory structure
+- ✅ Fixed all test command implementations (smoke/integration/unit/all)
+- ✅ Ensured all tests pass and meet time requirements
+- ✅ Updated CLI to properly wire test handlers
+
+**Net Progress:** +6 features working, 0 regressions = +6 net
 
 ## Known Issues & Improvements
 - WebSocket occasionally fails to start (fixed by restart)

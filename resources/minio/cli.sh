@@ -55,7 +55,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="minio::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="minio::docker::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="minio::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="minio::docker::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="minio::status_wrapper"
+CLI_COMMAND_HANDLERS["test::smoke"]="minio::test::smoke_handler"
+CLI_COMMAND_HANDLERS["test::integration"]="minio::test::integration_handler"
+CLI_COMMAND_HANDLERS["test::unit"]="minio::test::unit_handler"
+CLI_COMMAND_HANDLERS["test::all"]="minio::test::all_handler"
 
 # Content handlers for S3 object storage business functionality
 CLI_COMMAND_HANDLERS["content::add"]="minio::content::add_bucket"
@@ -247,6 +250,25 @@ minio::content::configure() {
         log::error "MinIO client configuration not available"
         return 1
     fi
+}
+
+# ==============================================================================
+# TEST HANDLERS - Delegate to test runner per v2.0 contract
+# ==============================================================================
+minio::test::smoke_handler() {
+    "${MINIO_CLI_DIR}/test/run-tests.sh" smoke
+}
+
+minio::test::integration_handler() {
+    "${MINIO_CLI_DIR}/test/run-tests.sh" integration
+}
+
+minio::test::unit_handler() {
+    "${MINIO_CLI_DIR}/test/run-tests.sh" unit
+}
+
+minio::test::all_handler() {
+    "${MINIO_CLI_DIR}/test/run-tests.sh" all
 }
 
 # ==============================================================================

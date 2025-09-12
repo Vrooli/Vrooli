@@ -180,8 +180,9 @@ class EcosystemManager {
             await this.pollTargets();
         } catch (error) {
             console.error('Failed to load discovery data:', error);
-            this.resources = [];
-            this.scenarios = [];
+            // Don't clear the arrays on error - keep any existing data
+            // this.resources = [];
+            // this.scenarios = [];
             this.targetCacheState.resources.error = error.message;
             this.targetCacheState.scenarios.error = error.message;
         }
@@ -235,7 +236,7 @@ class EcosystemManager {
                 this.resources = newResources;
                 this.targetCacheState.resources.error = null;
                 this.targetCacheState.resources.lastUpdate = Date.now();
-                console.log(`🔧 Updated ${this.resources.length} resources in cache:`, this.resources.map(r => r.name));
+                console.log(`🔧 Updated ${this.resources.length} resources in cache:`, this.resources.map(r => r.name).slice(0, 10) + (this.resources.length > 10 ? `... and ${this.resources.length - 10} more` : ''));
             } else {
                 console.warn('Failed to load resources:', resourcesResponse.statusText);
                 this.targetCacheState.resources.error = `HTTP ${resourcesResponse.status}`;
@@ -1229,6 +1230,8 @@ class EcosystemManager {
     // Removed duplicate functions - see lines 1688 and 1698 for the actual implementations
     
     updateTargetOptions(type) {
+        console.log(`🎯 updateTargetOptions called with type: ${type}, resources count: ${this.resources.length}, scenarios count: ${this.scenarios.length}`);
+        
         const targetSelect = document.getElementById('task-target');
         
         // Convert input to select if it's not already
@@ -1276,6 +1279,7 @@ class EcosystemManager {
                 }
             }
             
+            console.log(`🎯 Adding ${targets.length} targets to dropdown. First few:`, targets.slice(0, 3).map(t => t.name));
             targets.forEach(target => {
                 const option = document.createElement('option');
                 option.value = target.name;
@@ -1314,6 +1318,8 @@ class EcosystemManager {
                 select.appendChild(option);
             });
             
+            console.log(`🎯 After adding all options, select now has ${select.options.length} options`);
+            
             // If no targets found, show a helpful message
             if (targets.length === 0) {
                 const option = document.createElement('option');
@@ -1326,6 +1332,14 @@ class EcosystemManager {
                 if (hasNeverLoaded) {
                     option.textContent = `Loading ${type}s... please wait`;
                     option.style.color = '#ffc107';
+                    console.log(`⏳ Targets not loaded yet. Triggering immediate poll...`);
+                    // Trigger an immediate poll and re-populate when done
+                    this.pollTargets().then(() => {
+                        console.log(`✅ Poll complete, re-populating dropdown`);
+                        this.updateTargetOptions(type);
+                    }).catch(err => {
+                        console.error(`❌ Poll failed:`, err);
+                    });
                 } else if (cacheState && cacheState.error) {
                     option.textContent = `Failed to load ${type}s - check connection`;
                     option.style.color = '#dc3545';

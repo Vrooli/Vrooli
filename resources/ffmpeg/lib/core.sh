@@ -51,11 +51,38 @@ ffmpeg::get_version() {
     fi
 }
 
-# Wrapper functions for CLI v2.0 shortcuts
+# Show resource runtime information (v2.0 contract requirement)
 ffmpeg::info() {
+    local json_flag="${1:-}"
+    local runtime_file="${FFMPEG_CLI_DIR}/config/runtime.json"
+    
+    if [[ ! -f "$runtime_file" ]]; then
+        log::error "Runtime configuration not found at $runtime_file"
+        return 1
+    fi
+    
+    if [[ "$json_flag" == "--json" ]]; then
+        cat "$runtime_file"
+    else
+        log::header "FFmpeg Resource Information"
+        log::info "Runtime Configuration:"
+        jq -r '
+            "  Startup Order: \(.startup_order)",
+            "  Startup Timeout: \(.startup_timeout)s",
+            "  Startup Time Estimate: \(.startup_time_estimate)",
+            "  Dependencies: \(.dependencies | join(", "))",
+            "  Recovery Attempts: \(.recovery_attempts)",
+            "  Priority: \(.priority)"
+        ' "$runtime_file"
+    fi
+    return 0
+}
+
+# Get media file information (renamed from info to avoid conflict)
+ffmpeg::media_info() {
     local file_path="$1"
     if [[ -z "$file_path" ]]; then
-        log::error "Usage: ffmpeg info <file_path>"
+        log::error "Usage: ffmpeg media-info <file_path>"
         return 1
     fi
     ffmpeg::inject::get_detailed_info "$file_path"

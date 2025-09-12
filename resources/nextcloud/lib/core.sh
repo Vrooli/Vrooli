@@ -355,9 +355,12 @@ execute_content() {
         restore)
             execute_restore "$options"
             ;;
+        mount-s3)
+            execute_mount_s3 "$options"
+            ;;
         *)
             echo "Error: Unknown operation: $name" >&2
-            echo "Available operations: share, backup, restore" >&2
+            echo "Available operations: share, backup, restore, mount-s3" >&2
             return 1
             ;;
     esac
@@ -587,6 +590,64 @@ execute_restore() {
     
     echo "Restore completed successfully"
     return 0
+}
+
+execute_mount_s3() {
+    local options="$1"
+    
+    # Parse options (format: bucket=name,key=access_key,secret=secret_key,endpoint=url)
+    local bucket=""
+    local key=""
+    local secret=""
+    local endpoint="${NEXTCLOUD_S3_ENDPOINT:-https://s3.amazonaws.com}"
+    local mount_name=""
+    
+    IFS=',' read -ra OPTS <<< "$options"
+    for opt in "${OPTS[@]}"; do
+        IFS='=' read -r opt_key value <<< "$opt"
+        case "$opt_key" in
+            bucket) bucket="$value" ;;
+            key) key="$value" ;;
+            secret) secret="$value" ;;
+            endpoint) endpoint="$value" ;;
+            name) mount_name="$value" ;;
+        esac
+    done
+    
+    if [[ -z "$bucket" ]]; then
+        echo "Error: bucket option required" >&2
+        echo "Usage: resource-nextcloud content execute --name mount-s3 --options \"bucket=mybucket,key=accesskey,secret=secretkey\"" >&2
+        return 1
+    fi
+    
+    # Use environment variables if not provided
+    key="${key:-${NEXTCLOUD_S3_KEY}}"
+    secret="${secret:-${NEXTCLOUD_S3_SECRET}}"
+    mount_name="${mount_name:-S3-${bucket}}"
+    
+    echo "Mounting S3 bucket: $bucket as $mount_name..."
+    
+    # Create the external storage mount using OCC
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ files_external:create \
+        "$mount_name" \
+        amazons3 \
+        amazons3::accesskey \
+        -c bucket="$bucket" \
+        -c key="$key" \
+        -c secret="$secret" \
+        -c hostname="$endpoint" \
+        -c use_ssl=true \
+        -c use_path_style=true \
+        --user "${NEXTCLOUD_ADMIN_USER}"
+    
+    if [[ $? -eq 0 ]]; then
+        echo "S3 bucket mounted successfully as: $mount_name"
+        echo "Access it at: Files → $mount_name"
+        return 0
+    else
+        echo "Error: Failed to mount S3 bucket" >&2
+        return 1
+    fi
 }
 
 get_status_json() {

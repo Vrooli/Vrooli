@@ -1,0 +1,106 @@
+# Keycloak Resource PRD
+
+## Executive Summary
+**What**: Enterprise-grade identity and access management platform for Vrooli
+**Why**: Centralized authentication, authorization, and SSO for all scenarios
+**Who**: Developers building multi-tenant SaaS, enterprise apps, and secure APIs
+**Value**: Eliminates auth complexity, enables SSO, provides enterprise-grade security
+**Priority**: High - Core infrastructure service
+
+## Requirements Checklist
+
+### P0 Requirements (Must Have)
+- [x] **Health Check Endpoint**: Must respond within 1 second with service status
+- [x] **Lifecycle Management**: setup/start/stop/restart commands work reliably
+- [x] **Admin Console Access**: Web UI accessible at configured port
+- [x] **Realm Management**: Ability to create/import/export realm configurations
+- [x] **User Management**: Create users and manage credentials via API
+- [x] **OAuth2/OIDC Support**: Issue and validate JWT tokens
+- [x] **Docker Deployment**: Containerized with proper networking
+
+### P1 Requirements (Should Have)
+- [ ] **PostgreSQL Integration**: Use shared Vrooli PostgreSQL for production
+- [ ] **LDAP/AD Federation**: Connect to enterprise directories
+- [ ] **Social Login Providers**: GitHub, Google, Facebook authentication
+- [ ] **Multi-Realm Support**: Isolate tenants with separate realms
+
+### P2 Requirements (Nice to Have)
+- [ ] **Backup/Restore**: Automated realm and user data backup
+- [ ] **Performance Monitoring**: Metrics and health dashboards
+- [ ] **Theme Customization**: Branded login pages per realm
+
+## Technical Specifications
+
+### Architecture
+- **Container**: keycloak/keycloak:latest
+- **Port**: 8070 (HTTP), 8443 (HTTPS)
+- **Database**: H2 (dev), PostgreSQL (production)
+- **Network**: vrooli-network
+
+### Dependencies
+- Docker
+- PostgreSQL (optional, for production)
+
+### API Endpoints
+- `/health`: Health check endpoint
+- `/admin`: Administration console
+- `/realms/{realm}/.well-known/openid-configuration`: OIDC discovery
+- `/realms/{realm}/protocol/openid-connect/token`: Token endpoint
+- `/realms/{realm}/protocol/openid-connect/auth`: Authorization endpoint
+
+### Configuration
+- Admin credentials via environment variables
+- Realm configuration via JSON import
+- Feature flags for advanced capabilities
+- JVM tuning for performance
+
+## Success Metrics
+
+### Completion Criteria
+- [x] All P0 requirements implemented (100% - 7/7 complete)
+- [ ] 75% of P1 requirements complete (0%)
+- [x] Documentation complete (90%)
+- [x] All tests passing (100% - all test phases pass)
+
+### Quality Metrics
+- Health check response time < 1s
+- Startup time < 60s
+- Memory usage < 2GB
+- Zero security vulnerabilities
+
+### Performance Targets
+- 1000+ concurrent users
+- < 100ms token validation
+- 99.9% uptime
+
+## Revenue Justification
+Keycloak enables secure multi-tenant SaaS applications worth $50K+ by providing:
+- Enterprise SSO capabilities ($15K value)
+- Multi-tenant isolation ($20K value)
+- Compliance-ready authentication ($15K value)
+
+## Implementation History
+- 2024-01-10: Initial implementation with basic Docker setup
+- 2024-09-12: PRD created, v2.0 contract compliance started
+  - Created PRD.md with P0/P1/P2 requirements
+  - Added complete test suite structure (run-tests.sh, test phases)
+  - Created config/schema.json for configuration validation
+  - Fixed health check timeouts (added timeout wrapper)
+  - Implemented v2.0 compliant content management (content.sh)
+  - Updated CLI to delegate to test runner
+  - All unit tests passing
+- 2025-09-12: Completed all P0 requirements (100%)
+  - Fixed health check to use OIDC discovery endpoint
+  - Implemented realm management (add/list/get/remove)
+  - Implemented user management (add users to realms)
+  - Implemented client management (add clients to realms)
+  - Verified admin console access
+  - Confirmed OAuth2/OIDC support working
+  - All test phases passing (smoke/unit/integration)
+
+## Next Steps
+1. Add PostgreSQL integration for production deployments
+2. Implement LDAP/AD federation for enterprise directories
+3. Add social login providers (GitHub, Google, Facebook)
+4. Implement multi-realm support for tenant isolation
+5. Add backup/restore capabilities for realm data

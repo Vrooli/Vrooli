@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status inject; do
+for lib in common install lifecycle status inject content; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -50,12 +50,24 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="keycloak::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="keycloak::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="keycloak::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="keycloak::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::smoke"
+# Test handlers - delegate to test runner
+CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::run_phase smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="keycloak::test::run_phase integration"
+CLI_COMMAND_HANDLERS["test::unit"]="keycloak::test::run_phase unit"
+CLI_COMMAND_HANDLERS["test::all"]="keycloak::test::run_phase all"
+
+# Test runner function
+keycloak::test::run_phase() {
+    local phase="${1:-all}"
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" "$phase"
+}
 
 # Override content handlers for Keycloak-specific realm/user management
-CLI_COMMAND_HANDLERS["content::add"]="keycloak::inject"
-CLI_COMMAND_HANDLERS["content::list"]="keycloak::list_injected"
-CLI_COMMAND_HANDLERS["content::remove"]="keycloak::clear_data"
+CLI_COMMAND_HANDLERS["content::add"]="keycloak::content::add"
+CLI_COMMAND_HANDLERS["content::list"]="keycloak::content::list"
+CLI_COMMAND_HANDLERS["content::get"]="keycloak::content::get"
+CLI_COMMAND_HANDLERS["content::remove"]="keycloak::content::remove"
+CLI_COMMAND_HANDLERS["content::execute"]="keycloak::content::execute"
 
 # Add Keycloak-specific custom commands for realm management
 cli::register_subcommand "content" "inject" "Inject realm configuration from JSON file" "keycloak::inject"

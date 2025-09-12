@@ -65,6 +65,7 @@ Resource-specific commands:
   restore             Restore from snapshot
   snapshots           List available snapshots
   prune               Remove old snapshots
+  verify              Verify backup integrity
 
 Examples:
   resource-restic manage install        # Install and initialize
@@ -410,20 +411,16 @@ restic::content() {
     
     case "$subcommand" in
         add)
-            echo "Adding backup target..."
-            # TODO: Implement adding backup targets
+            restic::content_add "$@"
             ;;
         list)
-            echo "Listing backup targets..."
-            # TODO: Implement listing targets
+            restic::content_list "$@"
             ;;
         get)
-            echo "Getting backup target details..."
-            # TODO: Implement getting target details
+            restic::content_get "$@"
             ;;
         remove)
-            echo "Removing backup target..."
-            # TODO: Implement removing targets
+            restic::content_remove "$@"
             ;;
         execute)
             restic::backup "$@"
@@ -434,6 +431,188 @@ restic::content() {
             return 1
             ;;
     esac
+}
+
+#######################################
+# Add backup target
+#######################################
+restic::content_add() {
+    local name=""
+    local path=""
+    local tags=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --path)
+                path="$2"
+                shift 2
+                ;;
+            --tags)
+                tags="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" || -z "$path" ]]; then
+        echo "Error: --name and --path are required"
+        echo "Usage: resource-restic content add --name <name> --path <path> [--tags <tags>]"
+        return 1
+    fi
+    
+    # Store backup target configuration
+    local config_file="${CONFIG_VOLUME}/_data/targets.json"
+    local targets_json="{}"
+    
+    # Read existing targets if file exists
+    if docker exec "$CONTAINER_NAME" test -f /config/targets.json 2>/dev/null; then
+        targets_json=$(docker exec "$CONTAINER_NAME" cat /config/targets.json 2>/dev/null || echo "{}")
+    fi
+    
+    # Add new target
+    local new_target="{\"path\":\"$path\",\"tags\":\"$tags\"}"
+    targets_json=$(echo "$targets_json" | jq --arg name "$name" --argjson target "$new_target" '.[$name] = $target')
+    
+    # Save updated targets
+    echo "$targets_json" | docker exec -i "$CONTAINER_NAME" sh -c 'cat > /config/targets.json'
+    
+    echo "Added backup target: $name -> $path"
+    return 0
+}
+
+#######################################
+# List backup targets
+#######################################
+restic::content_list() {
+    local json_output=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Check if container is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+        echo "Error: Restic container is not running"
+        return 1
+    fi
+    
+    # Read targets configuration
+    local targets_json="{}"
+    if docker exec "$CONTAINER_NAME" test -f /config/targets.json 2>/dev/null; then
+        targets_json=$(docker exec "$CONTAINER_NAME" cat /config/targets.json 2>/dev/null || echo "{}")
+    fi
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$targets_json"
+    else
+        echo "Backup Targets:"
+        echo "$targets_json" | jq -r 'to_entries[] | "  \(.key): \(.value.path) (tags: \(.value.tags // "none"))"' 2>/dev/null || echo "  No targets configured"
+    fi
+    return 0
+}
+
+#######################################
+# Get backup target details
+#######################################
+restic::content_get() {
+    local name="${1:-}"
+    local json_output=false
+    
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json)
+                json_output=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$name" ]]; then
+        echo "Error: Target name required"
+        echo "Usage: resource-restic content get <name> [--json]"
+        return 1
+    fi
+    
+    # Check if container is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+        echo "Error: Restic container is not running"
+        return 1
+    fi
+    
+    # Read targets configuration
+    local targets_json="{}"
+    if docker exec "$CONTAINER_NAME" test -f /config/targets.json 2>/dev/null; then
+        targets_json=$(docker exec "$CONTAINER_NAME" cat /config/targets.json 2>/dev/null || echo "{}")
+    fi
+    
+    # Get specific target
+    local target=$(echo "$targets_json" | jq --arg name "$name" '.[$name]' 2>/dev/null)
+    
+    if [[ "$target" == "null" || -z "$target" ]]; then
+        echo "Error: Target '$name' not found"
+        return 1
+    fi
+    
+    if [[ "$json_output" == true ]]; then
+        echo "$target"
+    else
+        echo "Target: $name"
+        echo "$target" | jq -r '"  Path: \(.path)\n  Tags: \(.tags // "none")"' 2>/dev/null
+    fi
+    return 0
+}
+
+#######################################
+# Remove backup target
+#######################################
+restic::content_remove() {
+    local name="${1:-}"
+    
+    if [[ -z "$name" ]]; then
+        echo "Error: Target name required"
+        echo "Usage: resource-restic content remove <name>"
+        return 1
+    fi
+    
+    # Check if container is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+        echo "Error: Restic container is not running"
+        return 1
+    fi
+    
+    # Read targets configuration
+    local targets_json="{}"
+    if docker exec "$CONTAINER_NAME" test -f /config/targets.json 2>/dev/null; then
+        targets_json=$(docker exec "$CONTAINER_NAME" cat /config/targets.json 2>/dev/null || echo "{}")
+    fi
+    
+    # Remove target
+    targets_json=$(echo "$targets_json" | jq --arg name "$name" 'del(.[$name])')
+    
+    # Save updated targets
+    echo "$targets_json" | docker exec -i "$CONTAINER_NAME" sh -c 'cat > /config/targets.json'
+    
+    echo "Removed backup target: $name"
+    return 0
 }
 
 #######################################
@@ -623,6 +802,59 @@ restic::restore() {
     fi
 }
 
+
+#######################################
+# Verify backup integrity
+#######################################
+restic::verify() {
+    echo "Verifying backup integrity..."
+    
+    local snapshot="${1:-latest}"
+    local read_data=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --snapshot)
+                snapshot="$2"
+                shift 2
+                ;;
+            --read-data)
+                read_data=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    echo "Checking snapshot: $snapshot"
+    
+    # Run check command in container
+    local check_args="check"
+    if [[ "$read_data" == true ]]; then
+        check_args="$check_args --read-data"
+    fi
+    
+    if docker exec "$CONTAINER_NAME" restic $check_args 2>&1; then
+        echo "✓ Repository integrity verified"
+        
+        # Also verify specific snapshot if not checking all
+        if [[ "$snapshot" != "all" ]]; then
+            if docker exec "$CONTAINER_NAME" restic check --read-data-subset="$snapshot" 2>&1; then
+                echo "✓ Snapshot $snapshot verified"
+                return 0
+            else
+                echo "✗ Snapshot $snapshot has issues"
+                return 1
+            fi
+        fi
+        return 0
+    else
+        echo "✗ Repository integrity check failed"
+        return 1
+    fi
+}
 
 #######################################
 # Prune old snapshots

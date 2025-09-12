@@ -48,6 +48,13 @@ COMMANDS:
         list                List available G-code files
         add <file>          Upload G-code file
         get <name>          Download G-code file
+        remove <name>       Remove G-code file
+        execute <name>      Queue G-code for execution
+    macro                   Manage automation macros
+        list                List available macros
+        add <name> <code>   Create new macro
+        run <name>          Execute macro
+        remove <name>       Delete macro
         remove <name>       Delete G-code file
         execute <name>      Execute G-code job
     status                  Show detailed service status
@@ -173,6 +180,11 @@ main() {
             ;;
         credentials)
             cncjs::credentials "$@"
+            ;;
+        macro)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::macro "$subcommand" "$@"
             ;;
         *)
             echo "Unknown command: $command" >&2

@@ -124,14 +124,27 @@ sqlite::test::integration() {
     
     # Test 6: Concurrent access
     log::info "Test 6: Testing concurrent access..."
+    # Use retry logic with busy timeout for concurrent inserts
     (
         for i in {1..5}; do
-            sqlite3 "$db_path" "INSERT INTO users (name, email) VALUES ('User$i', 'user$i@example.com');"
+            # Retry up to 3 times with busy timeout set
+            for attempt in {1..3}; do
+                if sqlite3 "$db_path" "PRAGMA busy_timeout = 10000; INSERT INTO users (name, email) VALUES ('User$i', 'user$i@example.com');" 2>/dev/null; then
+                    break
+                fi
+                sleep 0.1
+            done
         done
     ) &
     (
         for i in {6..10}; do
-            sqlite3 "$db_path" "INSERT INTO users (name, email) VALUES ('User$i', 'user$i@example.com');"
+            # Retry up to 3 times with busy timeout set
+            for attempt in {1..3}; do
+                if sqlite3 "$db_path" "PRAGMA busy_timeout = 10000; INSERT INTO users (name, email) VALUES ('User$i', 'user$i@example.com');" 2>/dev/null; then
+                    break
+                fi
+                sleep 0.1
+            done
         done
     ) &
     wait

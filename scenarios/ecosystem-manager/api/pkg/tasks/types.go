@@ -66,10 +66,12 @@ type ClaudeCodeRequest struct {
 
 // ClaudeCodeResponse represents a response from Claude Code
 type ClaudeCodeResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-	Output  string `json:"output"`
-	Error   string `json:"error,omitempty"`
+	Success     bool   `json:"success"`
+	Message     string `json:"message"`
+	Output      string `json:"output"`
+	Error       string `json:"error,omitempty"`
+	RateLimited bool   `json:"rate_limited,omitempty"`
+	RetryAfter  int    `json:"retry_after,omitempty"` // Seconds to wait before retry
 }
 
 // RunningProcess tracks an executing claude-code process

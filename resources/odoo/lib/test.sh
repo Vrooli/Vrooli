@@ -133,6 +133,22 @@ odoo::test::integration() {
     odoo_test "$@"
 }
 
+# Unit test handler
+odoo::test::unit() {
+    local resource_dir="${ODOO_BASE_DIR:-/home/matthalloran8/Vrooli/resources/odoo}"
+    log::info "Running Odoo unit tests..."
+    "$resource_dir/test/run-tests.sh" unit
+}
+
+# All tests handler
+odoo::test::all() {
+    local resource_dir="${ODOO_BASE_DIR:-/home/matthalloran8/Vrooli/resources/odoo}"
+    log::info "Running all Odoo tests..."
+    "$resource_dir/test/run-tests.sh" all
+}
+
 export -f odoo_test
 export -f odoo::test::smoke
 export -f odoo::test::integration
+export -f odoo::test::unit
+export -f odoo::test::all

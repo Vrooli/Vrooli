@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${CREWAI_CLI_DIR}/config/defaults.sh"
 
 # Source CrewAI libraries
-for lib in core install status inject content manage; do
+for lib in core install status inject content manage test; do
     lib_file="${CREWAI_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -52,7 +52,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="crewai::install::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="start_crewai"
 CLI_COMMAND_HANDLERS["manage::stop"]="stop_crewai"
 CLI_COMMAND_HANDLERS["manage::restart"]="crewai::manage::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="crewai::status::check"
+CLI_COMMAND_HANDLERS["test::smoke"]="crewai::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="crewai::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="crewai::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="crewai::test::all"
 
 # Content handlers - CrewAI specific content management
 CLI_COMMAND_HANDLERS["content::add"]="crewai::content::add"

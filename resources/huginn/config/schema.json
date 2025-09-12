@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Huginn Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "huginn": {
+      "type": "object",
+      "description": "Huginn agent-based workflow automation platform configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable or disable Huginn resource",
+          "default": false
+        },
+        "port": {
+          "type": "integer",
+          "description": "Web interface port",
+          "default": 4111,
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "admin_username": {
+          "type": "string",
+          "description": "Admin username for web interface",
+          "default": "admin",
+          "minLength": 3
+        },
+        "admin_password": {
+          "type": "string",
+          "description": "Admin password for web interface",
+          "default": "changeme",
+          "minLength": 8
+        },
+        "database": {
+          "type": "object",
+          "description": "Database configuration",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "PostgreSQL host",
+              "default": "postgres"
+            },
+            "port": {
+              "type": "integer",
+              "description": "PostgreSQL port",
+              "default": 5432
+            },
+            "name": {
+              "type": "string",
+              "description": "Database name",
+              "default": "huginn_production"
+            },
+            "username": {
+              "type": "string",
+              "description": "Database username",
+              "default": "huginn"
+            },
+            "password": {
+              "type": "string",
+              "description": "Database password",
+              "default": "huginn_secure_2025"
+            }
+          }
+        },
+        "workers": {
+          "type": "object",
+          "description": "Worker configuration",
+          "properties": {
+            "delayed_job_workers": {
+              "type": "integer",
+              "description": "Number of delayed job workers",
+              "default": 3,
+              "minimum": 1,
+              "maximum": 10
+            },
+            "scheduler_enabled": {
+              "type": "boolean",
+              "description": "Enable agent scheduler",
+              "default": true
+            }
+          }
+        },
+        "integrations": {
+          "type": "object",
+          "description": "Integration settings",
+          "properties": {
+            "redis_enabled": {
+              "type": "boolean",
+              "description": "Enable Redis integration for event publishing",
+              "default": false
+            },
+            "minio_enabled": {
+              "type": "boolean",
+              "description": "Enable MinIO integration for artifact storage",
+              "default": false
+            },
+            "ollama_enabled": {
+              "type": "boolean",
+              "description": "Enable Ollama integration for AI processing",
+              "default": false
+            }
+          }
+        },
+        "memory_limit": {
+          "type": "string",
+          "description": "Container memory limit",
+          "default": "2G",
+          "pattern": "^[0-9]+[MG]$"
+        },
+        "cpu_limit": {
+          "type": "string",
+          "description": "Container CPU limit",
+          "default": "2.0",
+          "pattern": "^[0-9]+(\\.[0-9]+)?$"
+        },
+        "auto_start": {
+          "type": "boolean",
+          "description": "Auto-start on system boot",
+          "default": false
+        }
+      },
+      "required": ["port"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["huginn"]
+}

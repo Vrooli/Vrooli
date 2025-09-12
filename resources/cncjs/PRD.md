@@ -19,7 +19,7 @@
 - [x] **Web Interface**: Accessible browser-based control panel on configured port
 
 ### P1 Requirements (Should Have)
-- [ ] **Macro Support**: Can define and execute automation macros
+- [x] **Macro Support**: Can define and execute automation macros (implemented 2025-01-12)
 - [ ] **Multi-Controller**: Support for Grbl, Marlin, Smoothieware, TinyG
 - [ ] **3D Visualization**: WebGL-based G-code path visualization
 - [ ] **Workflow Storage**: Save and manage CNC job workflows
@@ -154,3 +154,4 @@ metrics:
 
 ## Progress History
 - 2025-01-11: Initial PRD creation (0% → 0%)
+- 2025-01-12: Improved health checks, implemented macro support (30% → 45%)

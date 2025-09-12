@@ -56,7 +56,7 @@ test_health_endpoint() {
     
     # Test with proper timeout
     local response
-    response=$(timeout 5 curl -sf --max-time 3 "${API_URL}/system_info" 2>/dev/null || echo "FAILED")
+    response=$(timeout 5 curl -sf --max-time 3 "${API_URL}/system_info" 2>/dev/null) || response="FAILED"
     
     if [[ "$response" == "FAILED" ]]; then
         log_test "FAIL" "Health endpoint" "No response from ${API_URL}/system_info"
@@ -69,7 +69,7 @@ test_health_endpoint() {
         
         # Check response time
         local start_time=$(date +%s%N)
-        timeout 1 curl -sf "${API_URL}/system_info" &>/dev/null
+        timeout 1 curl -sf --max-time 1 "${API_URL}/system_info" &>/dev/null
         local end_time=$(date +%s%N)
         local response_time=$(( (end_time - start_time) / 1000000 ))
         
@@ -155,7 +155,7 @@ test_submission_endpoint() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "print(\"Hello, Judge0!\")",
-            "language_id": 92,
+            "language_id": 71,
             "stdin": "",
             "expected_output": "Hello, Judge0!\n"
         }' 2>/dev/null || echo "FAILED")
@@ -219,7 +219,7 @@ test_resource_limits() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "while True: pass",
-            "language_id": 92,
+            "language_id": 71,
             "cpu_time_limit": 1
         }' 2>/dev/null || echo "FAILED")
     
@@ -240,7 +240,7 @@ test_resource_limits() {
         -H "Content-Type: application/json" \
         -d '{
             "source_code": "a = [0] * (256 * 1024 * 1024)",
-            "language_id": 92,
+            "language_id": 71,
             "memory_limit": 50000
         }' 2>/dev/null || echo "FAILED")
     

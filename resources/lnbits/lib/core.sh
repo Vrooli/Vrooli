@@ -36,6 +36,21 @@ get_uptime() {
     fi
 }
 
+# Get or generate PostgreSQL password
+get_postgres_password() {
+    local password_file="${LNBITS_CONFIG_DIR}/.postgres_password"
+    
+    if [[ -f "$password_file" ]]; then
+        cat "$password_file"
+    else
+        # Generate new password if file doesn't exist
+        local new_password="lnbits_secure_$(openssl rand -hex 16)"
+        echo "$new_password" > "$password_file"
+        chmod 600 "$password_file"
+        echo "$new_password"
+    fi
+}
+
 # Install LNbits
 manage_install() {
     local force=false
@@ -72,21 +87,21 @@ manage_install() {
     docker pull "${LNBITS_IMAGE}"
     docker pull "${POSTGRES_IMAGE}"
     
-    # Start PostgreSQL for LNbits
+    # Start PostgreSQL for LNbits with a fixed password
     if ! docker ps -a --format "{{.Names}}" | grep -q "^${LNBITS_POSTGRES_CONTAINER}$"; then
         echo "Starting PostgreSQL for LNbits..."
         docker run -d \
             --name "${LNBITS_POSTGRES_CONTAINER}" \
             --network "${LNBITS_NETWORK}" \
             -e POSTGRES_USER="${LNBITS_POSTGRES_USER}" \
-            -e POSTGRES_PASSWORD="${LNBITS_POSTGRES_PASSWORD}" \
+            -e POSTGRES_PASSWORD="lnbitssecret123" \
             -e POSTGRES_DB="${LNBITS_POSTGRES_DB}" \
             -v "${LNBITS_POSTGRES_DATA}:/var/lib/postgresql/data" \
             "${POSTGRES_IMAGE}"
         
         # Wait for PostgreSQL to be ready
         echo "Waiting for PostgreSQL to be ready..."
-        sleep 5
+        sleep 10
     fi
     
     echo "LNbits installation complete!"
@@ -124,7 +139,8 @@ manage_start() {
     # Ensure PostgreSQL is running
     if ! docker ps --format "{{.Names}}" | grep -q "^${LNBITS_POSTGRES_CONTAINER}$"; then
         docker start "${LNBITS_POSTGRES_CONTAINER}"
-        sleep 3
+        echo "Waiting for PostgreSQL to be ready..."
+        sleep 5
     fi
     
     # Start LNbits container
@@ -134,8 +150,9 @@ manage_start() {
         -p "${LNBITS_PORT}:5000" \
         -e LNBITS_ADMIN_UI="${LNBITS_ADMIN_UI}" \
         -e LNBITS_SITE_TITLE="${LNBITS_SITE_TITLE}" \
-        -e LNBITS_DATABASE_URL="postgres://${LNBITS_POSTGRES_USER}:${LNBITS_POSTGRES_PASSWORD}@${LNBITS_POSTGRES_CONTAINER}:5432/${LNBITS_POSTGRES_DB}" \
+        -e LNBITS_DATABASE_URL="postgres://lnbits:lnbitssecret123@${LNBITS_POSTGRES_CONTAINER}:5432/lnbits" \
         -e LNBITS_BACKEND_WALLET_CLASS="${LNBITS_BACKEND_WALLET}" \
+        -e FAKE_WALLET_SECRET="${FAKE_WALLET_SECRET}" \
         -e LNBITS_DATA_FOLDER="/app/data" \
         -v "${LNBITS_DATA_DIR}:/app/data" \
         -v "${LNBITS_EXTENSIONS_DIR}:/app/lnbits/extensions" \

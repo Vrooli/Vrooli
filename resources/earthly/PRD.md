@@ -203,3 +203,6 @@ vrooli resource earthly configure --list
 - 2025-01-11: Completed all security requirements with audit logging and container isolation
 - 2025-01-11: Fixed integration tests to handle Docker availability gracefully
 - 2025-01-11: Achieved 100% PRD completion with all P0, P1, and P2 requirements met
+- 2025-01-12: Fixed CLI symlink handling for proper script directory resolution
+- 2025-01-12: Fixed Earthly build execution by removing incorrect -f flag usage
+- 2025-01-12: Verified all builds work correctly with proper Earthfile handling

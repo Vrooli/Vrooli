@@ -95,8 +95,34 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			log.Printf("Failed to move task %s to completed: %v", task.ID, err)
 		}
 	} else {
-		log.Printf("Task %s failed after %v: %s", task.ID, executionTime.Round(time.Second), result.Error)
-		qp.handleTaskFailureWithTiming(task, result.Error, executionStartTime, executionTime, timeoutDuration)
+		// Check if this is a rate limit error
+		if result.RateLimited {
+			log.Printf("🚫 Task %s hit rate limit. Pausing queue for %d seconds", task.ID, result.RetryAfter)
+			
+			// Move task back to pending (don't mark as failed)
+			task.CurrentPhase = "rate_limited"
+			task.Notes = fmt.Sprintf("Rate limited at %s. Will retry after %d seconds.", 
+				time.Now().Format(time.RFC3339), result.RetryAfter)
+			qp.storage.SaveQueueItem(task, "in-progress")
+			
+			// Move back to pending queue for retry
+			if err := qp.storage.MoveTask(task.ID, "in-progress", "pending"); err != nil {
+				log.Printf("Failed to move rate-limited task %s back to pending: %v", task.ID, err)
+			}
+			
+			// Trigger a pause of the queue processor
+			qp.handleRateLimitPause(result.RetryAfter)
+			
+			// Broadcast rate limit event
+			qp.broadcastUpdate("rate_limit_hit", map[string]interface{}{
+				"task_id":     task.ID,
+				"retry_after": result.RetryAfter,
+				"pause_until": time.Now().Add(time.Duration(result.RetryAfter) * time.Second).Format(time.RFC3339),
+			})
+		} else {
+			log.Printf("Task %s failed after %v: %s", task.ID, executionTime.Round(time.Second), result.Error)
+			qp.handleTaskFailureWithTiming(task, result.Error, executionStartTime, executionTime, timeoutDuration)
+		}
 	}
 }
 
@@ -335,6 +361,22 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 
 	// Check output for error patterns even if exit code is 0
 	outputStr := string(output)
+	stderrStr := string(stderrOutput)
+	combinedOutput := outputStr + "\n" + stderrStr
+
+	// Check for rate limit errors FIRST
+	if strings.Contains(combinedOutput, "usage limit") || strings.Contains(combinedOutput, "rate limit") || 
+	   strings.Contains(combinedOutput, "Rate/Usage limit reached") || strings.Contains(combinedOutput, "429") ||
+	   strings.Contains(combinedOutput, "Usage limit reached") {
+		log.Printf("🚫 Rate limit detected for task %s", task.ID)
+		return &tasks.ClaudeCodeResponse{
+			Success:       false,
+			Error:        "RATE_LIMIT: API rate limit reached",
+			RateLimited:  true,
+			RetryAfter:   qp.extractRetryAfter(combinedOutput),
+			Output:       outputStr,
+		}, nil
+	}
 
 	// Check for common error patterns that might not set exit code
 	if strings.Contains(outputStr, "Error: Reached max turns") {
@@ -363,6 +405,42 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		Message: "Task completed successfully",
 		Output:  outputStr,
 	}, nil
+}
+
+// extractRetryAfter attempts to extract retry-after duration from rate limit error messages
+func (qp *Processor) extractRetryAfter(output string) int {
+	// Default to 30 minutes if we can't parse
+	defaultRetry := 1800 // 30 minutes in seconds
+	
+	// Look for patterns like "retry_after: 300" or "5 hours"
+	if strings.Contains(output, "5 hour") || strings.Contains(output, "5-hour") {
+		return 5 * 3600 // 5 hours
+	}
+	if strings.Contains(output, "retry_after") {
+		// Try to extract number after retry_after
+		parts := strings.Split(output, "retry_after")
+		if len(parts) > 1 {
+			// Look for a number in the next part
+			var seconds int
+			if _, err := fmt.Sscanf(parts[1], ": \"%d\"", &seconds); err == nil && seconds > 0 {
+				// Cap at 4 hours maximum
+				if seconds > 14400 {
+					return 14400
+				}
+				return seconds
+			}
+			// Try without quotes
+			if _, err := fmt.Sscanf(parts[1], ": %d", &seconds); err == nil && seconds > 0 {
+				// Cap at 4 hours maximum
+				if seconds > 14400 {
+					return 14400
+				}
+				return seconds
+			}
+		}
+	}
+	
+	return defaultRetry
 }
 
 // broadcastUpdate sends updates to all connected WebSocket clients

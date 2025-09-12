@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VOCR Configuration Schema",
+  "description": "Configuration schema for VOCR (Vision OCR) resource",
+  "type": "object",
+  "properties": {
+    "host": {
+      "type": "string",
+      "description": "Host to bind the VOCR service to",
+      "default": "localhost"
+    },
+    "port": {
+      "type": "integer",
+      "description": "Port for VOCR service (from port_registry.sh)",
+      "default": 9420,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "ocr_engine": {
+      "type": "string",
+      "description": "OCR engine to use",
+      "enum": ["tesseract", "easyocr"],
+      "default": "tesseract"
+    },
+    "ocr_languages": {
+      "type": "string",
+      "description": "Comma-separated list of OCR language codes",
+      "default": "eng",
+      "pattern": "^[a-z]{3}(,[a-z]{3})*$"
+    },
+    "vision_enabled": {
+      "type": "boolean",
+      "description": "Enable AI vision capabilities",
+      "default": true
+    },
+    "gpu_enabled": {
+      "type": "boolean",
+      "description": "Enable GPU acceleration if available",
+      "default": false
+    },
+    "capture_method": {
+      "type": "string",
+      "description": "Screen capture method",
+      "enum": ["auto", "scrot", "imagemagick", "screencapture", "pillow"],
+      "default": "auto"
+    },
+    "screenshots_dir": {
+      "type": "string",
+      "description": "Directory to store screenshots",
+      "default": "${VOCR_DATA_DIR}/screenshots"
+    },
+    "models_dir": {
+      "type": "string",
+      "description": "Directory for custom OCR models",
+      "default": "${VOCR_DATA_DIR}/models"
+    },
+    "max_image_size": {
+      "type": "integer",
+      "description": "Maximum image size in MB",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 100
+    },
+    "request_timeout": {
+      "type": "integer",
+      "description": "Request timeout in seconds",
+      "default": 30,
+      "minimum": 5,
+      "maximum": 300
+    },
+    "cache_enabled": {
+      "type": "boolean",
+      "description": "Enable OCR result caching",
+      "default": true
+    },
+    "cache_ttl": {
+      "type": "integer",
+      "description": "Cache time-to-live in seconds",
+      "default": 3600,
+      "minimum": 60,
+      "maximum": 86400
+    },
+    "log_level": {
+      "type": "string",
+      "description": "Logging level",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "default": "INFO"
+    }
+  },
+  "required": ["host", "port", "ocr_engine"],
+  "additionalProperties": false
+}

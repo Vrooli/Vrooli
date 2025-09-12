@@ -5,14 +5,14 @@ keycloak::test::smoke() {
     log::info "Running Keycloak smoke test..."
     
     # Check if Keycloak is running
-    if ! docker ps --format "table {{.Names}}" | grep -q "^keycloak$"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "${KEYCLOAK_CONTAINER_NAME:-vrooli-keycloak}"; then
         log::error "Keycloak container is not running"
         return 1
     fi
     
-    # Check health endpoint
-    local health_url="http://localhost:${KEYCLOAK_PORT:-8070}/health"
-    if curl -sf "${health_url}" > /dev/null 2>&1; then
+    # Check health endpoint - use OIDC discovery endpoint as health check
+    local health_url="http://localhost:${KEYCLOAK_PORT:-8070}/realms/master/.well-known/openid-configuration"
+    if timeout 5 curl -sf "${health_url}" > /dev/null 2>&1; then
         log::success "Keycloak health check passed"
         return 0
     else
@@ -24,7 +24,7 @@ keycloak::test::smoke() {
 keycloak::logs() {
     local lines="${1:-50}"
     log::info "Showing last ${lines} lines of Keycloak logs..."
-    docker logs keycloak --tail "${lines}" 2>&1
+    docker logs "${KEYCLOAK_CONTAINER_NAME:-vrooli-keycloak}" --tail "${lines}" 2>&1
 }
 
 keycloak::credentials() {

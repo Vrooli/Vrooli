@@ -11,17 +11,21 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
-# Configuration
-CREWAI_NAME="crewai"
-CREWAI_DATA_DIR="${HOME}/.crewai"
-CREWAI_WORKSPACE_DIR="${CREWAI_DATA_DIR}/workspace"
-CREWAI_CREWS_DIR="${CREWAI_DATA_DIR}/crews"
-CREWAI_AGENTS_DIR="${CREWAI_DATA_DIR}/agents"
-CREWAI_PID_FILE="${CREWAI_DATA_DIR}/crewai.pid"
-CREWAI_LOG_FILE="${CREWAI_DATA_DIR}/crewai.log"
-CREWAI_PORT=8084
-CREWAI_SERVER_FILE="${CREWAI_DATA_DIR}/server.py"
-CREWAI_MOCK_MODE="true"  # Run in mock mode until venv issue resolved
+# Configuration - Get port from registry or environment
+if [[ -z "${CREWAI_PORT:-}" ]]; then
+    CREWAI_PORT=$("${APP_ROOT}/scripts/resources/port_registry.sh" crewai | grep -E "crewai\s+:" | awk '{print $3}')
+    CREWAI_PORT="${CREWAI_PORT:-8084}"
+fi
+
+CREWAI_NAME="${CREWAI_NAME:-crewai}"
+CREWAI_DATA_DIR="${CREWAI_DATA_DIR:-${HOME}/.crewai}"
+CREWAI_WORKSPACE_DIR="${CREWAI_WORKSPACE_DIR:-${CREWAI_DATA_DIR}/workspace}"
+CREWAI_CREWS_DIR="${CREWAI_CREWS_DIR:-${CREWAI_DATA_DIR}/crews}"
+CREWAI_AGENTS_DIR="${CREWAI_AGENTS_DIR:-${CREWAI_DATA_DIR}/agents}"
+CREWAI_PID_FILE="${CREWAI_PID_FILE:-${CREWAI_DATA_DIR}/crewai.pid}"
+CREWAI_LOG_FILE="${CREWAI_LOG_FILE:-${CREWAI_DATA_DIR}/crewai.log}"
+CREWAI_SERVER_FILE="${CREWAI_SERVER_FILE:-${CREWAI_DATA_DIR}/server.py}"
+CREWAI_MOCK_MODE="${CREWAI_MOCK_MODE:-true}"  # Run in mock mode until venv issue resolved
 
 # Check if Python is available
 check_python() {
@@ -68,7 +72,7 @@ import shutil
 from urllib.parse import urlparse, parse_qs
 
 # Configuration
-PORT = 8084
+PORT = ${CREWAI_PORT:-8084}
 
 # Paths
 CREWAI_DATA_DIR = Path.home() / ".crewai"
