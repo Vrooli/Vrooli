@@ -20,11 +20,7 @@
                 <span class="chrome-text">SECURITY VAULT ACCESS TERMINAL</span>
                 <span class="version">v1.0.0</span>
             </div>
-            <div class="terminal-controls">
-                <div class="control-btn minimize"></div>
-                <div class="control-btn maximize"></div>
-                <div class="control-btn close"></div>
-            </div>
+            <!-- Terminal controls removed for cleaner look -->
         </header>
 
         <!-- Main Dashboard Grid -->
@@ -33,10 +29,6 @@
             <section class="panel status-panel" id="status-panel">
                 <div class="panel-header">
                     <h2><span class="matrix-green">●</span> SYSTEM STATUS</h2>
-                    <div class="status-indicator" id="api-status">
-                        <span class="pulse-dot"></span>
-                        <span>CONNECTING...</span>
-                    </div>
                 </div>
                 <div class="panel-content">
                     <div class="status-grid">
@@ -46,11 +38,29 @@
                         </div>
                         <div class="status-item">
                             <span class="label">VAULT STATUS</span>
-                            <span class="value" id="vault-status">Checking...</span>
+                            <div class="status-with-info">
+                                <span class="value" id="vault-status">Checking...</span>
+                                <button class="info-btn" id="vault-info-btn" title="View details">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="status-item">
                             <span class="label">DATABASE</span>
-                            <span class="value" id="db-status">Connecting...</span>
+                            <div class="status-with-action">
+                                <span class="value" id="db-status">Connecting...</span>
+                                <button class="open-external-btn" id="open-vault-btn" title="Open Vault UI">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                        <polyline points="15 3 21 3 21 9"></polyline>
+                                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="status-item">
                             <span class="label">LAST SCAN</span>
@@ -64,9 +74,12 @@
             <section class="panel health-panel" id="health-panel">
                 <div class="panel-header">
                     <h2><span class="matrix-green">●</span> VAULT SECRETS & SECURITY</h2>
-                    <button class="chrome-btn scan-btn" id="scan-all-btn">
-                        <span class="btn-glow"></span>
-                        CHECK VAULT
+                    <button class="refresh-btn" id="scan-all-btn" title="Refresh">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
                     </button>
                 </div>
                 <div class="panel-content">
@@ -139,20 +152,7 @@
                 </div>
             </section>
 
-            <!-- Security Alerts -->
-            <section class="panel alerts-panel" id="alerts-panel">
-                <div class="panel-header">
-                    <h2><span class="matrix-green">●</span> SECURITY ALERTS</h2>
-                    <div class="alert-count" id="alert-count">0</div>
-                </div>
-                <div class="panel-content">
-                    <div class="alerts-container" id="alerts-container">
-                        <div class="no-alerts">
-                            <span class="chrome-text">NO ACTIVE SECURITY THREATS</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            <!-- Security Alerts section removed - vulnerabilities shown in stat boxes -->
         </main>
 
         <!-- Terminal Footer -->

@@ -9,6 +9,8 @@ class SecretsManager {
         this.securityScanResult = null;
         this.complianceData = null;
         this.isConnected = false;
+        this.currentView = 'vault'; // Track current view: 'vault', 'critical', 'high', 'medium', 'low', 'configured', 'total'
+        this.activeStatCard = null; // Track which stat card is active
         
         this.init();
     }
@@ -37,9 +39,27 @@ class SecretsManager {
     }
     
     bindEvents() {
-        // Scan button - now checks vault status
+        // Refresh button - now checks vault status
         document.getElementById('scan-all-btn').addEventListener('click', () => {
             this.loadVaultStatus();
+            this.loadComplianceData();
+            // After refresh, restore the current view if it's not vault
+            if (this.currentView !== 'vault') {
+                setTimeout(() => {
+                    this.restoreCurrentView();
+                }, 1000);
+            }
+        });
+        
+        // Vault info button - shows status details
+        document.getElementById('vault-info-btn').addEventListener('click', () => {
+            this.showVaultStatusInfo();
+        });
+        
+        // Open vault UI button
+        document.getElementById('open-vault-btn').addEventListener('click', () => {
+            // Vault typically runs on port 8200
+            window.open('http://localhost:8200', '_blank');
         });
         
         // Validate button - now runs security scan
@@ -106,6 +126,9 @@ class SecretsManager {
                 card.style.boxShadow = '0 4px 8px rgba(0,255,0,0.3)';
                 card.style.borderColor = '#00ff00';
                 
+                // Store active card reference
+                this.activeStatCard = card;
+                
                 // Get the type from the card
                 const label = card.querySelector('.stat-label')?.textContent || '';
                 this.filterTableByType(label);
@@ -149,16 +172,12 @@ class SecretsManager {
     }
     
     updateApiStatus(healthData) {
-        const statusElement = document.getElementById('api-status');
+        // Status indicator removed - just update endpoint
         const endpointElement = document.getElementById('api-endpoint');
         
         if (healthData) {
-            statusElement.innerHTML = '<span class="pulse-dot"></span><span>OPERATIONAL</span>';
-            statusElement.className = 'status-indicator connected';
             endpointElement.textContent = this.apiUrl;
         } else {
-            statusElement.innerHTML = '<span class="pulse-dot error"></span><span>OFFLINE</span>';
-            statusElement.className = 'status-indicator error';
             endpointElement.textContent = 'Connection Failed';
         }
     }
@@ -267,7 +286,10 @@ class SecretsManager {
             const vaultResponse = await fetch(`${this.apiUrl}/api/v1/vault/secrets/status`);
             if (vaultResponse.ok) {
                 this.vaultStatus = await vaultResponse.json();
-                this.updateVaultSecretsTable();
+                // Only update table if we're in vault view, otherwise preserve current view
+                if (this.currentView === 'vault') {
+                    this.updateVaultSecretsTable();
+                }
             }
             
             // Refresh compliance data
@@ -276,6 +298,11 @@ class SecretsManager {
                 this.complianceData = await complianceResponse.json();
                 this.updateHealthStats(this.complianceData);
                 this.updateSecurityAlerts(this.complianceData);
+                
+                // Refresh current vulnerability view if showing vulnerabilities
+                if (this.currentView !== 'vault' && this.currentView !== 'configured' && this.currentView !== 'total') {
+                    this.showVulnerabilitiesBySeverity(this.currentView);
+                }
             }
         } catch (error) {
             console.warn('Auto-refresh failed:', error);
@@ -306,10 +333,33 @@ class SecretsManager {
             document.getElementById('low-vulns').textContent = this.vulnerabilityCounts.low;
         }
         
-        // Update vault and database status
-        document.getElementById('vault-status').textContent = 
-            data.vault_secrets_health > 75 ? 'Operational' : 
-            data.vault_secrets_health > 50 ? 'Degraded' : 'Critical';
+        // Update vault and database status with proper coloring
+        const vaultStatusEl = document.getElementById('vault-status');
+        const vaultHealth = data.vault_secrets_health;
+        
+        // Remove all status classes
+        vaultStatusEl.classList.remove('critical', 'warning');
+        
+        if (vaultHealth > 75) {
+            vaultStatusEl.textContent = 'Operational';
+            // Default green color, no extra class needed
+        } else if (vaultHealth > 50) {
+            vaultStatusEl.textContent = 'Degraded';
+            vaultStatusEl.classList.add('warning');
+        } else {
+            vaultStatusEl.textContent = 'Critical';
+            vaultStatusEl.classList.add('critical');
+        }
+        
+        // Store health info for info button
+        this.vaultHealthInfo = {
+            status: vaultStatusEl.textContent,
+            health: vaultHealth,
+            totalSecrets: data.total_secrets || 0,
+            configuredSecrets: data.configured_secrets || 0,
+            missingSecrets: data.missing_secrets || 0
+        };
+        
         document.getElementById('db-status').textContent = 'Connected';
     }
     
@@ -406,34 +456,49 @@ class SecretsManager {
         setTimeout(() => {
             if (label.includes('Configured')) {
                 // Show configured resources
+                this.currentView = 'configured';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> CONFIGURED RESOURCES';
                 this.showConfiguredResources();
             } else if (label.includes('Total')) {
                 // Show all resources
+                this.currentView = 'total';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> ALL RESOURCES';
                 this.updateVaultSecretsTable();
             } else if (label.includes('Critical')) {
                 // Show critical vulnerabilities
+                this.currentView = 'critical';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> CRITICAL VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('critical');
             } else if (label.includes('High')) {
                 // Show high vulnerabilities
+                this.currentView = 'high';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> HIGH SEVERITY VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('high');
             } else if (label.includes('Medium')) {
                 // Show medium vulnerabilities
+                this.currentView = 'medium';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> MEDIUM SEVERITY VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('medium');
             } else if (label.includes('Low')) {
                 // Show low vulnerabilities
+                this.currentView = 'low';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> LOW SEVERITY VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('low');
             } else {
                 // Default to showing vault status
+                this.currentView = 'vault';
                 sectionTitle.innerHTML = '<span class="matrix-green">●</span> RESOURCE VAULT STATUS';
                 this.updateVaultSecretsTable();
             }
         }, 300); // 300ms delay to show skeleton animation
+    }
+    
+    restoreCurrentView() {
+        // Restore the current view and active stat card after refresh
+        if (this.activeStatCard) {
+            // Re-trigger the click on the active stat card
+            this.activeStatCard.click();
+        }
     }
     
     showConfiguredResources() {
@@ -730,6 +795,10 @@ ${vuln.code}</pre>
     }
     
     updateSecurityAlerts(data) {
+        // Alerts section removed - vulnerabilities shown in stat boxes
+        return;
+        
+        /* Legacy code preserved for reference
         const alertsContainer = document.getElementById('alerts-container');
         const alertCount = document.getElementById('alert-count');
         
@@ -795,6 +864,7 @@ ${vuln.code}</pre>
                 </div>
             `).join('');
         }
+        */
     }
     
     showProvisionModal(resourceOrKey, isResource = false) {
@@ -885,12 +955,42 @@ ${vuln.code}</pre>
         const scanBtn = document.getElementById('scan-all-btn');
         if (scanning) {
             scanBtn.disabled = true;
-            scanBtn.innerHTML = '<span class="btn-glow"></span>SCANNING...';
+            scanBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="rotating">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>`;
             this.showTableSkeleton();
         } else {
             scanBtn.disabled = false;
-            scanBtn.innerHTML = '<span class="btn-glow"></span>CHECK VAULT';
+            scanBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"></polyline>
+                    <polyline points="1 20 1 14 7 14"></polyline>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>`;
         }
+    }
+    
+    showVaultStatusInfo() {
+        if (!this.vaultHealthInfo) {
+            this.showNotification('Loading vault status...', 'info');
+            return;
+        }
+        
+        const info = this.vaultHealthInfo;
+        const message = `Vault Status: ${info.status}\n` +
+                       `Health Score: ${info.health}%\n` +
+                       `Total Secrets: ${info.totalSecrets}\n` +
+                       `Configured: ${info.configuredSecrets}\n` +
+                       `Missing: ${info.missingSecrets}\n\n` +
+                       `Status Thresholds:\n` +
+                       `• Operational: >75% health\n` +
+                       `• Degraded: 50-75% health\n` +
+                       `• Critical: <50% health`;
+        
+        alert(message);
     }
     
     showTableSkeleton() {

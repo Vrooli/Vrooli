@@ -846,6 +846,100 @@ main() {
                 [[ "$stopped_at" != "null" ]] && [[ "$stopped_at" != "N/A" ]] && echo "Stopped:       $stopped_at"
                 [[ "$restart_count" != "0" ]] && echo "Restarts:      $restart_count"
                 
+                # 🔍 AUTOMATIC FAILURE DIAGNOSIS FOR STOPPED SCENARIOS
+                if [[ "$status" == "stopped" ]] && [[ "$json_output" != "true" ]]; then
+                    local failure_found=false
+                    
+                    # Check API startup logs for common failure patterns
+                    local api_logs
+                    api_logs=$(vrooli scenario logs "$scenario_name" --step start-api 2>/dev/null | tail -15)
+                    if [[ -n "$api_logs" ]]; then
+                        if echo "$api_logs" | grep -q "EADDRINUSE"; then
+                            local port=$(echo "$api_logs" | grep -oE "port [0-9]+" | head -1 | cut -d' ' -f2)
+                            [[ -z "$port" ]] && port=$(echo "$api_logs" | grep -oE ":::[0-9]+" | head -1 | cut -d':' -f4)
+                            echo ""
+                            echo "🔍 API Startup Failure:"
+                            echo "   Port ${port:-'unknown'} conflict - check for hardcoded ports in API"
+                            echo "   💡 Ensure API uses API_PORT environment variable"
+                            failure_found=true
+                        elif echo "$api_logs" | grep -qE "(API_PORT.*required|API_PORT.*not set|environment variable.*required|required.*not set)"; then
+                            echo ""
+                            echo "🔍 API Startup Failure:"
+                            echo "   Missing API_PORT environment variable"
+                            echo "   💡 Check if scenario is started via lifecycle system"
+                            failure_found=true
+                        elif echo "$api_logs" | grep -qE "(database.*connection.*failed|connect.*database.*failed|postgres.*connection.*error)"; then
+                            echo ""
+                            echo "🔍 API Startup Failure:"
+                            echo "   Database connection failed"
+                            echo "   💡 Ensure PostgreSQL resource is running: resource-postgres status"
+                            failure_found=true
+                        elif echo "$api_logs" | grep -qE "(go build.*failed|build.*error|compilation.*error)"; then
+                            echo ""
+                            echo "🔍 API Startup Failure:"
+                            echo "   Build/compilation error in API"
+                            echo "   💡 Check Go syntax and dependencies in api/ directory"
+                            failure_found=true
+                        elif echo "$api_logs" | grep -qE "(Error:|error:|panic:|fatal:|crash)"; then
+                            local error_line=$(echo "$api_logs" | grep -E "(Error:|error:|panic:|fatal:|crash)" | tail -1 | sed 's/^[[:space:]]*//' | cut -c1-70)
+                            echo ""
+                            echo "🔍 API Startup Failure:"
+                            echo "   $error_line"
+                            failure_found=true
+                        fi
+                    fi
+                    
+                    # Check UI startup logs for common failure patterns
+                    local ui_logs
+                    ui_logs=$(vrooli scenario logs "$scenario_name" --step start-ui 2>/dev/null | tail -15)
+                    if [[ -n "$ui_logs" ]]; then
+                        if echo "$ui_logs" | grep -q "EADDRINUSE"; then
+                            local port
+                            port=$(echo "$ui_logs" | grep -oE "port [0-9]+" | head -1 | cut -d' ' -f2) || true
+                            [[ -z "$port" ]] && port=$(echo "$ui_logs" | grep -oE ":::[0-9]+" | head -1 | cut -d':' -f4) || true
+                            echo ""
+                            echo "🔍 UI Startup Failure:"
+                            echo "   Port ${port:-'3000'} conflict - check PORT vs UI_PORT usage!"
+                            echo "   💡 UI should use UI_PORT environment variable, not generic PORT"
+                            failure_found=true
+                        elif echo "$ui_logs" | grep -qE "(UI_PORT.*required|UI_PORT.*not set|PORT.*required|environment variable.*required)"; then
+                            echo ""
+                            echo "🔍 UI Startup Failure:"
+                            echo "   Missing UI_PORT environment variable"
+                            echo "   💡 Check if UI server uses UI_PORT (not generic PORT)"
+                            failure_found=true
+                        elif echo "$ui_logs" | grep -qE "(npm.*not found|node.*not found|package.*not found)"; then
+                            echo ""
+                            echo "🔍 UI Startup Failure:"
+                            echo "   Node.js/npm dependencies missing"
+                            echo "   💡 Run: cd ui && npm install"
+                            failure_found=true
+                        elif echo "$ui_logs" | grep -qE "(Cannot find module|Module not found|import.*failed)"; then
+                            local module=$(echo "$ui_logs" | grep -oE "(Cannot find module|Module not found).*" | head -1 | cut -c1-50)
+                            echo ""
+                            echo "🔍 UI Startup Failure:"
+                            echo "   $module"
+                            echo "   💡 Check UI dependencies and imports"
+                            failure_found=true
+                        elif echo "$ui_logs" | grep -qE "(Error:|error:|crash|fatal)"; then
+                            local error_line=$(echo "$ui_logs" | grep -E "(Error:|error:|crash|fatal)" | head -1 | sed 's/^[[:space:]]*//' | cut -c1-70)
+                            echo ""
+                            echo "🔍 UI Startup Failure:"
+                            echo "   $error_line"
+                            failure_found=true
+                        fi
+                    fi
+                    
+                    # Generic advice if no specific failure patterns found
+                    if [[ "$failure_found" == "false" ]] && [[ -z "$last_error" || "$last_error" == "null" ]]; then
+                        echo ""
+                        echo "💡 Troubleshooting tips:"
+                        echo "   • Check detailed logs: vrooli scenario logs $scenario_name"
+                        echo "   • Verify dependencies: make sure required resources are running"
+                        echo "   • Clean restart: vrooli scenario stop $scenario_name && vrooli scenario start $scenario_name"
+                    fi
+                fi
+                
                 # Show allocated ports from native Go API format
                 local ports
                 ports=$(echo "$response" | jq -r '.data.allocated_ports // {}' 2>/dev/null)

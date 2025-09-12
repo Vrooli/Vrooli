@@ -139,30 +139,14 @@ html, body {
     gap: 8px;
 }
 
-.control-btn {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1px solid var(--chrome-dark);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.control-btn.minimize { background: var(--warning-amber); }
-.control-btn.maximize { background: var(--electric-blue); }
-.control-btn.close { background: var(--error-red); }
-
-.control-btn:hover {
-    transform: scale(1.2);
-    box-shadow: 0 0 10px currentColor;
-}
+/* Terminal controls removed for cleaner UI */
 
 /* Main Dashboard Grid */
 .dashboard-grid {
     flex: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto 1fr;
     gap: 1px;
     padding: 1px;
     background: var(--bg-dark);
@@ -215,6 +199,12 @@ html, body {
     flex: 1;
     padding: 15px;
     overflow: auto;
+}
+
+.secrets-panel .panel-content {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Status Panel */
@@ -270,6 +260,63 @@ html, body {
     color: var(--matrix-green);
     font-weight: 700;
     text-shadow: var(--glow-matrix);
+}
+
+.status-item .value.critical {
+    color: var(--error-red);
+    text-shadow: var(--glow-error);
+}
+
+.status-item .value.warning {
+    color: var(--warning-amber);
+    text-shadow: var(--glow-warning);
+}
+
+.status-with-info, .status-with-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-btn, .open-external-btn {
+    background: none;
+    border: none;
+    color: var(--chrome-dark);
+    cursor: pointer;
+    padding: 2px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.info-btn:hover {
+    color: var(--matrix-green);
+    filter: drop-shadow(0 0 3px var(--matrix-green));
+}
+
+.open-external-btn:hover {
+    color: var(--electric-blue);
+    filter: drop-shadow(0 0 3px var(--electric-blue));
+}
+
+.refresh-btn {
+    background: none;
+    border: 1px solid var(--chrome-dark);
+    border-radius: 3px;
+    color: var(--chrome-silver);
+    cursor: pointer;
+    padding: 4px 6px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-btn:hover {
+    border-color: var(--matrix-green);
+    color: var(--matrix-green);
+    filter: drop-shadow(0 0 5px var(--matrix-green));
 }
 
 /* Health Panel */
@@ -338,6 +385,8 @@ html, body {
 .secrets-panel {
     grid-column: 1 / -1;
     grid-row: 2;
+    display: flex;
+    flex-direction: column;
 }
 
 .panel-controls {
@@ -347,14 +396,15 @@ html, body {
 }
 
 .secrets-table-container {
+    flex: 1;
     overflow: auto;
-    max-height: 400px;
-    border: 1px solid var(--chrome-dark);
-    border-radius: 5px;
+    border: none;
+    border-radius: 0;
 }
 
 .secrets-table {
     width: 100%;
+    height: 100%;
     border-collapse: collapse;
     background: var(--bg-black);
     font-size: 11px;
@@ -364,9 +414,10 @@ html, body {
     background: var(--bg-medium);
     color: var(--matrix-green);
     font-weight: 700;
-    padding: 12px 10px;
+    padding: 12px 15px;
     text-align: left;
     border-bottom: 2px solid var(--matrix-dim);
+    border-top: 1px solid var(--chrome-dark);
     font-family: var(--font-display);
     letter-spacing: 1px;
     position: sticky;
@@ -375,14 +426,17 @@ html, body {
 }
 
 .secrets-table td {
-    padding: 10px;
+    padding: 10px 15px;
     border-bottom: 1px solid rgba(192, 192, 192, 0.1);
     color: var(--chrome-silver);
 }
 
 .secrets-table tr:hover {
     background: rgba(0, 255, 65, 0.05);
-    border-left: 3px solid var(--matrix-green);
+}
+
+.secrets-table tbody tr:hover {
+    box-shadow: inset 3px 0 0 var(--matrix-green);
 }
 
 .status-badge {
@@ -437,31 +491,8 @@ html, body {
     30% { opacity: 1; }
 }
 
-/* Alerts Panel */
-.alerts-panel {
-    grid-column: 1 / -1;
-    grid-row: 3;
-    max-height: 200px;
-}
-
-.alert-count {
-    background: var(--error-red);
-    color: white;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 10px;
-    min-width: 20px;
-    text-align: center;
-}
-
-.no-alerts {
-    text-align: center;
-    color: var(--chrome-dark);
-    padding: 20px;
-    font-family: var(--font-display);
-    letter-spacing: 1px;
-}
+/* Alerts Panel - Removed */
+/* Security alerts now shown through vulnerability stat boxes */
 
 /* Chrome UI Components */
 .chrome-btn {
@@ -515,21 +546,7 @@ html, body {
     transform: translateY(-1px);
 }
 
-.btn-glow {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, transparent, rgba(0, 255, 65, 0.3), transparent);
-    opacity: 0;
-    animation: btn-glow 2s ease-in-out infinite;
-}
-
-@keyframes btn-glow {
-    0%, 100% { opacity: 0; transform: translateX(-100%); }
-    50% { opacity: 1; transform: translateX(100%); }
-}
+/* Removed btn-glow animation for cleaner UI */
 
 .chrome-select, .chrome-input {
     background: var(--bg-black);
@@ -721,7 +738,7 @@ html, body {
 @media (max-width: 600px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
-        grid-template-rows: auto auto 1fr auto;
+        grid-template-rows: auto auto 1fr;
     }
     
     .status-panel {
@@ -737,11 +754,6 @@ html, body {
     .secrets-panel {
         grid-column: 1;
         grid-row: 3;
-    }
-    
-    .alerts-panel {
-        grid-column: 1;
-        grid-row: 4;
     }
     
     .status-grid {
@@ -773,6 +785,10 @@ html, body {
     .panel-content {
         padding: 10px;
         overflow: auto;
+    }
+    
+    .secrets-panel .panel-content {
+        padding: 0;
     }
     
     .health-stats {
@@ -827,3 +843,13 @@ html, body {
 .secret-health.missing { color: var(--error-red) !important; }
 .secret-health.invalid { color: var(--warning-amber) !important; }
 .secret-health.discovered { color: var(--electric-blue) !important; }
+
+/* Rotating animation for refresh button */
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.rotating {
+    animation: rotate 1s linear infinite;
+}
