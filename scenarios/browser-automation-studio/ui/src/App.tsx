@@ -12,7 +12,7 @@ import 'reactflow/dist/style.css';
 function App() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState<string>('/');
-  const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
+  // const currentWorkflow = useWorkflowStore((state) => state.currentWorkflow);
   const currentExecution = useExecutionStore((state) => state.currentExecution);
 
   return (

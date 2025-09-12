@@ -83,6 +83,7 @@ func main() {
 	v1.HandleFunc("/scenarios/{id}/activate", handleActivateScenario(orchestrator)).Methods("POST")
 	v1.HandleFunc("/scenarios/{id}/deactivate", handleDeactivateScenario(orchestrator)).Methods("POST")
 	v1.HandleFunc("/presets", handleGetPresets(orchestrator)).Methods("GET")
+	v1.HandleFunc("/presets/active", handleGetActivePresets(orchestrator)).Methods("GET")
 	v1.HandleFunc("/presets/{id}/apply", handleApplyPreset(orchestrator)).Methods("POST")
 	v1.HandleFunc("/status", handleGetStatus(orchestrator, startTime)).Methods("GET")
 	v1.HandleFunc("/stop-all", handleStopAll(orchestrator)).Methods("POST")
@@ -93,12 +94,15 @@ func main() {
 	v1.HandleFunc("/scenarios/{name}/preset-assignments", handleGetScenarioPresetAssignments(orchestrator)).Methods("GET")
 	v1.HandleFunc("/scenarios/{name}/preset-assignments", handleUpdateScenarioPresetAssignments(orchestrator)).Methods("POST")
 	v1.HandleFunc("/scenarios/{name}/port", handleGetScenarioPort()).Methods("GET")
+	v1.HandleFunc("/scenarios/{id}/start", handleStartScenario()).Methods("POST")
+	v1.HandleFunc("/scenarios/{id}/stop", handleStopScenario()).Methods("POST")
 
 	// Options handlers for CORS
 	v1.HandleFunc("/scenarios", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/scenarios/{id}/activate", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/scenarios/{id}/deactivate", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/presets", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/presets/active", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/presets/{id}/apply", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/status", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/stop-all", optionsHandler).Methods("OPTIONS")
@@ -107,6 +111,8 @@ func main() {
 	v1.HandleFunc("/scenarios/{name}/add-tag", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/scenarios/{name}/remove-tag", optionsHandler).Methods("OPTIONS")
 	v1.HandleFunc("/scenarios/{name}/preset-assignments", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/scenarios/{id}/start", optionsHandler).Methods("OPTIONS")
+	v1.HandleFunc("/scenarios/{id}/stop", optionsHandler).Methods("OPTIONS")
 
 	logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
 	logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)

@@ -18,6 +18,11 @@ import (
 
 // RegisterHandler handles user registration
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == "OPTIONS" {
+		return
+	}
+	
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendError(w, "Invalid request body", http.StatusBadRequest)
@@ -110,6 +115,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 // LoginHandler handles user login
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == "OPTIONS" {
+		return
+	}
+	
 	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		utils.SendError(w, "Invalid request body", http.StatusBadRequest)

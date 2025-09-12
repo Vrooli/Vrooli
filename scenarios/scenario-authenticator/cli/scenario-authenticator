@@ -21,16 +21,15 @@ NC='\033[0m' # No Color
 get_api_url() {
     # Use vrooli scenario port command for dynamic port lookup
     local api_port
-    api_port=$(vrooli scenario port "${SCENARIO_NAME}" AUTH_API_PORT 2>/dev/null)
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
     
     if [[ -z "$api_port" ]]; then
-        # Try fallback to API_PORT
-        api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
-    fi
-    
-    if [[ -z "$api_port" ]]; then
-        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
-        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running or not accessible${NC}" >&2
+        echo -e "${YELLOW}   Troubleshooting:${NC}" >&2
+        echo "   1. Start the service: vrooli scenario run ${SCENARIO_NAME}" >&2
+        echo "   2. Or use: cd scenarios/${SCENARIO_NAME} && make run" >&2
+        echo "   3. Check service status: vrooli scenario status ${SCENARIO_NAME}" >&2
+        echo "   4. View logs: vrooli scenario logs ${SCENARIO_NAME}" >&2
         exit 1
     fi
     
@@ -40,12 +39,7 @@ get_api_url() {
 get_ui_url() {
     # Get UI port for integration code generation
     local ui_port
-    ui_port=$(vrooli scenario port "${SCENARIO_NAME}" AUTH_UI_PORT 2>/dev/null)
-    
-    if [[ -z "$ui_port" ]]; then
-        # Try fallback to UI_PORT
-        ui_port=$(vrooli scenario port "${SCENARIO_NAME}" UI_PORT 2>/dev/null)
-    fi
+    ui_port=$(vrooli scenario port "${SCENARIO_NAME}" UI_PORT 2>/dev/null)
     
     if [[ -z "$ui_port" ]]; then
         echo ""
@@ -311,7 +305,7 @@ const validateAuth = async (req, res, next) => {
     
     try {
         // Get auth API port dynamically
-        const authApiPort = process.env.AUTH_API_PORT || process.env.API_PORT;
+        const authApiPort = process.env.API_PORT;
         const authApiUrl = \`http://localhost:\${authApiPort}\`;
         
         const response = await fetch(\`\${authApiUrl}/api/v1/auth/validate\`, {
@@ -345,7 +339,7 @@ async function checkAuth() {
     const token = localStorage.getItem('auth_token');
     if (!token) {
         // Get auth UI port dynamically from environment or configuration
-        const authUiPort = window.AUTH_UI_PORT || '${ui_url##*:}';
+        const authUiPort = window.UI_PORT || '${ui_url##*:}';
         window.location.href = \`http://localhost:\${authUiPort}/login?redirect=\` + 
                               encodeURIComponent(window.location.href);
         return false;
@@ -353,7 +347,7 @@ async function checkAuth() {
     
     try {
         // Get auth API port dynamically from environment or configuration
-        const authApiPort = window.AUTH_API_PORT || '${api_url##*:}';
+        const authApiPort = window.API_PORT || '${api_url##*:}';
         const authApiUrl = \`http://localhost:\${authApiPort}\`;
         
         const response = await fetch(\`\${authApiUrl}/api/v1/auth/validate\`, {
@@ -363,7 +357,7 @@ async function checkAuth() {
         const validation = await response.json();
         if (!validation.valid) {
             localStorage.removeItem('auth_token');
-            const authUiPort = window.AUTH_UI_PORT || '${ui_url##*:}';
+            const authUiPort = window.UI_PORT || '${ui_url##*:}';
             window.location.href = \`http://localhost:\${authUiPort}/login?redirect=\` + 
                                   encodeURIComponent(window.location.href);
             return false;
@@ -409,43 +403,64 @@ Universal authentication service for Vrooli
 
 Usage: $0 <command> [arguments]
 
-Commands:
-    status [--verbose]                      Show service status
-    help                                    Show this help message
+CORE COMMANDS:
+    status [--verbose]                      Show service health and statistics
+    help                                    Show this help message  
     version                                 Show CLI and API versions
-    
+
+USER MANAGEMENT:
     user create <email> <pass> [username]   Create new user account
     user list [role] [limit]               List users with optional filters
-    user get <id>                          Get user details
+    user get <id>                          Get user details by ID
     user update <id> <field> <value>       Update user field
     user delete <id>                       Delete user (soft delete)
-    
-    token validate <token>                  Validate JWT token
+
+TOKEN OPERATIONS:
+    token validate <token>                  Validate JWT token and show info
     token refresh <refresh_token>           Get new token from refresh token
-    
-    session list [user_id]                  List active sessions
+
+SESSION MANAGEMENT:
+    session list [user_id]                  List active user sessions
     session revoke <session_id>             Revoke specific session
-    
-    protect <scenario> [type]               Generate integration code (api|ui)
-    
-Environment Variables:
-    AUTH_TOKEN      Bearer token for authenticated requests
-    OUTPUT_FORMAT   Output format: text or json (default: text)
 
-Examples:
-    # Create admin user
-    $0 user create admin@example.com SecurePass123! admin
-    
-    # Validate a token
-    $0 token validate "eyJhbGciOiJSUzI1NiIs..."
-    
-    # Generate UI protection code
-    $0 protect my-scenario ui
-    
-    # Get JSON output
-    OUTPUT_FORMAT=json $0 status
+INTEGRATION:
+    protect <scenario> [type]               Generate integration code
+                                           Types: api (default), ui
 
-For more information, see: https://github.com/vrooli/scenarios/scenario-authenticator
+ENVIRONMENT VARIABLES:
+    AUTH_TOKEN      Bearer token for authenticated API requests
+    OUTPUT_FORMAT   Output format: text (default) or json
+
+EXAMPLES:
+
+    # Service Management
+    $0 status --verbose                     # Detailed service status
+    OUTPUT_FORMAT=json $0 status           # Status in JSON format
+
+    # User Operations  
+    $0 user create admin@company.com "Secure123!" admin
+    $0 user list                           # List all users
+    $0 user list admin 5                   # List 5 admin users
+    
+    # Token Operations
+    $0 token validate "\$AUTH_TOKEN"        # Validate current token
+    export AUTH_TOKEN="\$(echo '\$LOGIN_RESPONSE' | jq -r '.token')"
+    
+    # Integration Code Generation
+    $0 protect my-scenario api             # Generate API middleware
+    $0 protect my-scenario ui              # Generate UI auth check
+    
+    # Session Management
+    $0 session list                        # All active sessions
+    $0 session list \$USER_ID              # Sessions for specific user
+
+TROUBLESHOOTING:
+    - Ensure service is running: vrooli scenario run scenario-authenticator
+    - Check service logs: vrooli scenario logs scenario-authenticator  
+    - Verify database connection: $0 status --verbose
+    - Test API directly: curl \$(vrooli scenario port scenario-authenticator API_PORT)/health
+
+For more information: https://docs.vrooli.com/scenarios/authentication
 EOF
 }
 
@@ -468,9 +483,22 @@ case "${1:-}" in
             list)
                 cmd_user_list "$3" "$4"
                 ;;
+            get|update|delete)
+                print_warning "Command '$2' not yet implemented"
+                echo "Available user commands: create, list"
+                echo "Use: $0 help for full command reference"
+                exit 1
+                ;;
             *)
                 print_error "Unknown user command: $2"
-                echo "Use: $0 user [create|list|get|update|delete]"
+                echo "Available user commands:"
+                echo "  - create <email> <password> [username]  Create new user"
+                echo "  - list [role] [limit]                   List users"
+                echo "  - get <id>                              Get user by ID (coming soon)"
+                echo "  - update <id> <field> <value>           Update user (coming soon)"
+                echo "  - delete <id>                           Delete user (coming soon)"
+                echo ""
+                echo "Use: $0 help for complete documentation"
                 exit 1
                 ;;
         esac
@@ -481,11 +509,20 @@ case "${1:-}" in
                 cmd_token_validate "$3"
                 ;;
             refresh)
-                print_warning "Not implemented yet"
+                print_warning "Token refresh not yet implemented"
+                echo "Available token commands:"
+                echo "  - validate <token>           Validate JWT token"
+                echo "  - refresh <refresh_token>    Refresh token (coming soon)"
+                exit 1
                 ;;
             *)
                 print_error "Unknown token command: $2"
-                echo "Use: $0 token [validate|refresh]"
+                echo "Available token commands:"
+                echo "  - validate <token>           Validate JWT token and show details"
+                echo "  - refresh <refresh_token>    Get new token from refresh token (coming soon)"
+                echo ""
+                echo "Example: $0 token validate \"eyJhbGciOiJSUzI1NiIs...\""
+                echo "Use: $0 help for complete documentation"
                 exit 1
                 ;;
         esac
@@ -496,11 +533,22 @@ case "${1:-}" in
                 cmd_session_list "$3"
                 ;;
             revoke)
-                print_warning "Not implemented yet"
+                print_warning "Session revoke not yet implemented"
+                echo "Available session commands:"
+                echo "  - list [user_id]           List active sessions"
+                echo "  - revoke <session_id>      Revoke session (coming soon)"
+                exit 1
                 ;;
             *)
                 print_error "Unknown session command: $2"
-                echo "Use: $0 session [list|revoke]"
+                echo "Available session commands:"
+                echo "  - list [user_id]           List active user sessions"
+                echo "  - revoke <session_id>      Revoke specific session (coming soon)"
+                echo ""
+                echo "Examples:"
+                echo "  $0 session list                     # All active sessions"
+                echo "  $0 session list abc123...           # Sessions for specific user"
+                echo "Use: $0 help for complete documentation"
                 exit 1
                 ;;
         esac
@@ -513,7 +561,20 @@ case "${1:-}" in
         ;;
     *)
         print_error "Unknown command: $1"
-        echo "Use: $0 help"
+        echo ""
+        echo "Available commands:"
+        echo "  status      Show service status"
+        echo "  version     Show version information"
+        echo "  user        User management (create, list)"
+        echo "  token       Token operations (validate)"
+        echo "  session     Session management (list)"
+        echo "  protect     Generate integration code"
+        echo "  help        Show detailed help"
+        echo ""
+        echo "Examples:"
+        echo "  $0 status                           # Check service health"
+        echo "  $0 user create test@example.com     # Create new user"
+        echo "  $0 help                            # Complete documentation"
         exit 1
         ;;
 esac

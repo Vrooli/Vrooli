@@ -312,8 +312,11 @@ func (cp *CalendarProcessor) processNotificationAutomation(ctx context.Context, 
 		notificationTemplate = "event-status-change"
 	}
 
-	// Get user email from auth service or use placeholder
-	userEmail := fmt.Sprintf("user-%s@example.com", event.UserID)
+	// Get user email from auth service or use fallback for single-user mode
+	userEmail, err := cp.getUserEmail(ctx, event.UserID)
+	if err != nil {
+		return fmt.Errorf("failed to get user email: %w", err)
+	}
 
 	notificationReq := NotificationRequest{
 		ProfileID:  cp.config.NotificationProfileID,
@@ -422,4 +425,51 @@ func (cp *CalendarProcessor) processRecurringAutomation(ctx context.Context, eve
 	}
 
 	return nil
+}
+
+// getUserEmail gets user email from auth service or returns fallback for single-user mode
+func (cp *CalendarProcessor) getUserEmail(ctx context.Context, userID string) (string, error) {
+	// Check if auth service is configured
+	if cp.config.AuthServiceURL == "" {
+		// Single-user mode - use default email
+		return "user@localhost", nil
+	}
+
+	// Create request to get user info from auth service
+	req, err := http.NewRequestWithContext(ctx, "GET", 
+		cp.config.AuthServiceURL+"/api/v1/users/"+userID, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create user request: %w", err)
+	}
+
+	// Add any required auth headers (this might need to be adjusted based on auth service API)
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("auth service request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Fallback to localhost email if auth service fails
+		fmt.Printf("Warning: Failed to get user email from auth service (status %d), using fallback\n", resp.StatusCode)
+		return "user@localhost", nil
+	}
+
+	// Parse response to get email
+	var userResponse struct {
+		Email string `json:"email"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userResponse); err != nil {
+		// Fallback if response parsing fails
+		fmt.Printf("Warning: Failed to parse user response from auth service: %v, using fallback\n", err)
+		return "user@localhost", nil
+	}
+
+	if userResponse.Email == "" {
+		return "user@localhost", nil
+	}
+
+	return userResponse.Email, nil
 }

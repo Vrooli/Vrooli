@@ -63,29 +63,37 @@
             <!-- Secret Health Overview -->
             <section class="panel health-panel" id="health-panel">
                 <div class="panel-header">
-                    <h2><span class="matrix-green">●</span> SECRET HEALTH MATRIX</h2>
+                    <h2><span class="matrix-green">●</span> VAULT SECRETS & SECURITY</h2>
                     <button class="chrome-btn scan-btn" id="scan-all-btn">
                         <span class="btn-glow"></span>
-                        FULL SCAN
+                        CHECK VAULT
                     </button>
                 </div>
                 <div class="panel-content">
                     <div class="health-stats">
                         <div class="stat-card valid">
                             <div class="stat-value" id="valid-secrets">0</div>
-                            <div class="stat-label">VALID</div>
-                        </div>
-                        <div class="stat-card missing">
-                            <div class="stat-value" id="missing-secrets">0</div>
-                            <div class="stat-label">MISSING</div>
-                        </div>
-                        <div class="stat-card invalid">
-                            <div class="stat-value" id="invalid-secrets">0</div>
-                            <div class="stat-label">INVALID</div>
+                            <div class="stat-label">Configured</div>
                         </div>
                         <div class="stat-card total">
                             <div class="stat-value" id="total-secrets">0</div>
-                            <div class="stat-label">TOTAL</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-card missing">
+                            <div class="stat-value" id="critical-vulns">0</div>
+                            <div class="stat-label">Critical Vulns</div>
+                        </div>
+                        <div class="stat-card invalid">
+                            <div class="stat-value" id="high-vulns">0</div>
+                            <div class="stat-label">High Vulns</div>
+                        </div>
+                        <div class="stat-card discovered">
+                            <div class="stat-value" id="medium-vulns">0</div>
+                            <div class="stat-label">Medium Vulns</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="low-vulns">0</div>
+                            <div class="stat-label">Low Vulns</div>
                         </div>
                     </div>
                 </div>
@@ -94,9 +102,9 @@
             <!-- Resource Secrets Table -->
             <section class="panel secrets-panel" id="secrets-panel">
                 <div class="panel-header">
-                    <h2><span class="matrix-green">●</span> RESOURCE SECRETS</h2>
+                    <h2><span class="matrix-green">●</span> RESOURCE VAULT STATUS</h2>
                     <div class="panel-controls">
-                        <button class="chrome-btn" id="validate-btn">VALIDATE ALL</button>
+                        <button class="chrome-btn" id="validate-btn">SECURITY SCAN</button>
                         <select class="chrome-select" id="resource-filter">
                             <option value="">ALL RESOURCES</option>
                         </select>
@@ -108,7 +116,7 @@
                             <thead>
                                 <tr>
                                     <th>RESOURCE</th>
-                                    <th>SECRET KEY</th>
+                                    <th>VAULT INFO</th>
                                     <th>TYPE</th>
                                     <th>STATUS</th>
                                     <th>ACTIONS</th>

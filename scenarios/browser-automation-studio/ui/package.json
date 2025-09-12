@@ -5,9 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh vite'",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh npx vite'",
+    "build": "tsc && npx vite build",
+    "preview": "npx vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
@@ -24,7 +24,7 @@
     "axios": "^1.6.5",
     "lucide-react": "^0.312.0",
     "react-hot-toast": "^2.4.1",
-    "react-split-pane": "^0.1.92",
+    "react-split": "^2.0.14",
     "react-markdown": "^9.0.1",
     "react-syntax-highlighter": "^15.5.0",
     "date-fns": "^3.2.0",

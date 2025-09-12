@@ -5,72 +5,108 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"scenario-authenticator/auth"
 	"scenario-authenticator/db"
 	"scenario-authenticator/handlers"
-	"scenario-authenticator/middleware"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 func main() {
+	// Enforce lifecycle management - prevent direct execution
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		log.Fatal("❌ This service must be started through the Vrooli lifecycle system.\n" +
+			"   Use: vrooli scenario run scenario-authenticator\n" +
+			"   Or:  cd scenarios/scenario-authenticator && make run")
+	}
+	
+	// Change to project root directory for consistent file operations
+	if err := os.Chdir("../.."); err != nil {
+		log.Printf("⚠️  Warning: Could not change to project root: %v", err)
+	}
+
 	// Load configuration from environment variables
-	port := getRequiredEnv("AUTH_API_PORT", "API_PORT")
+	port := getRequiredEnv("API_PORT", "")
 	dbURL := getDBURL()
 	redisURL := getRequiredEnv("REDIS_URL", "")
 
 	// Initialize database
 	if err := db.InitDB(dbURL); err != nil {
-		log.Fatal("❌ Failed to initialize database:", err)
+		log.Fatalf("[scenario-authenticator/api] ❌ Failed to initialize database: %v", err)
 	}
 	defer db.Close()
 
 	// Initialize Redis
 	if err := db.InitRedis(redisURL); err != nil {
-		log.Fatal("❌ Failed to initialize Redis:", err)
+		log.Fatalf("[scenario-authenticator/api] ❌ Failed to initialize Redis: %v", err)
 	}
 
 	// Load JWT keys
 	if err := auth.LoadJWTKeys(); err != nil {
-		log.Fatal("❌ Failed to load JWT keys:", err)
+		log.Fatalf("[scenario-authenticator/api] ❌ Failed to load JWT keys: %v", err)
 	}
 
-	// Setup routes
-	router := mux.NewRouter()
+	// Setup Chi router
+	router := chi.NewRouter()
+	
+	// Add middleware
+	router.Use(middleware.Logger)
+	router.Use(middleware.Recoverer)
+	
+	// Configure CORS - this properly handles OPTIONS requests
+	router.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},  // Allow all origins for development
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
 	
 	// Health check
-	router.HandleFunc("/health", handlers.HealthHandler).Methods("GET")
+	router.Get("/health", handlers.HealthHandler)
 	
 	// Authentication endpoints
-	router.HandleFunc("/api/v1/auth/register", handlers.RegisterHandler).Methods("POST")
-	router.HandleFunc("/api/v1/auth/login", handlers.LoginHandler).Methods("POST")
-	router.HandleFunc("/api/v1/auth/validate", handlers.ValidateHandler).Methods("GET", "POST")
-	router.HandleFunc("/api/v1/auth/refresh", handlers.RefreshHandler).Methods("POST")
-	router.HandleFunc("/api/v1/auth/logout", handlers.LogoutHandler).Methods("POST")
-	router.HandleFunc("/api/v1/auth/reset-password", handlers.ResetPasswordHandler).Methods("POST")
-	router.HandleFunc("/api/v1/auth/complete-reset", handlers.CompleteResetHandler).Methods("POST")
+	router.Post("/api/v1/auth/register", handlers.RegisterHandler)
+	router.Post("/api/v1/auth/login", handlers.LoginHandler)
+	router.Get("/api/v1/auth/validate", handlers.ValidateHandler)
+	router.Post("/api/v1/auth/validate", handlers.ValidateHandler)
+	router.Post("/api/v1/auth/refresh", handlers.RefreshHandler)
+	router.Post("/api/v1/auth/logout", handlers.LogoutHandler)
+	router.Post("/api/v1/auth/reset-password", handlers.ResetPasswordHandler)
+	router.Post("/api/v1/auth/complete-reset", handlers.CompleteResetHandler)
 	
 	// User management endpoints
-	router.HandleFunc("/api/v1/users", handlers.GetUsersHandler).Methods("GET")
-	router.HandleFunc("/api/v1/users/{id}", handlers.GetUserHandler).Methods("GET")
-	router.HandleFunc("/api/v1/users/{id}", handlers.UpdateUserHandler).Methods("PUT")
-	router.HandleFunc("/api/v1/users/{id}", handlers.DeleteUserHandler).Methods("DELETE")
+	router.Get("/api/v1/users", handlers.GetUsersHandler)
+	router.Get("/api/v1/users/{id}", handlers.GetUserHandler)
+	router.Put("/api/v1/users/{id}", handlers.UpdateUserHandler)
+	router.Delete("/api/v1/users/{id}", handlers.DeleteUserHandler)
 	
 	// Session management
-	router.HandleFunc("/api/v1/sessions", handlers.GetSessionsHandler).Methods("GET")
-	router.HandleFunc("/api/v1/sessions/{id}", handlers.RevokeSessionHandler).Methods("DELETE")
-
-	// Apply CORS middleware
-	router.Use(middleware.CORSMiddleware)
+	router.Get("/api/v1/sessions", handlers.GetSessionsHandler)
+	router.Delete("/api/v1/sessions/{id}", handlers.RevokeSessionHandler)
+	
+	// Application management
+	router.Get("/api/v1/applications", handlers.GetApplicationsHandler)
+	router.Post("/api/v1/applications", handlers.RegisterApplicationHandler)
+	router.Get("/api/v1/applications/{id}", handlers.GetApplicationHandler)
+	router.Put("/api/v1/applications/{id}", handlers.UpdateApplicationHandler)
+	router.Delete("/api/v1/applications/{id}", handlers.DeleteApplicationHandler)
+	router.Get("/api/v1/applications/{id}/integration-code", handlers.GenerateIntegrationCodeHandler)
 	
 	// Start server
-	log.Printf("🚀 Authentication API server starting on port %s", port)
-	log.Printf("📍 Health check: http://localhost:%s/health", port)
-	log.Printf("🔑 JWT keys loaded successfully")
+	log.Printf("[scenario-authenticator/api] 🚀 Authentication API server starting on port %s", port)
+	log.Printf("[scenario-authenticator/api] 📍 Health check: http://localhost:%s/health", port)
+	log.Printf("[scenario-authenticator/api] 🔑 JWT keys loaded successfully")
+	log.Printf("[scenario-authenticator/api] 🎯 Ready to process authentication requests")
+	log.Printf("[scenario-authenticator/api] ✨ CORS enabled with Chi router")
 	
 	if err := http.ListenAndServe(":"+port, router); err != nil {
-		log.Fatal("❌ Server failed to start:", err)
+		log.Fatalf("[scenario-authenticator/api] ❌ Server failed to start: %v", err)
 	}
 }
 
@@ -81,16 +117,23 @@ func getRequiredEnv(primary, fallback string) string {
 		value = os.Getenv(fallback)
 	}
 	if value == "" {
-		log.Fatalf("❌ %s environment variable is required", primary)
+		log.Fatalf("[scenario-authenticator/api] ❌ %s environment variable is required", primary)
 	}
 	return value
 }
 
 // getDBURL constructs database URL from environment variables
 func getDBURL() string {
-	// Try POSTGRES_URL first
+	// Try POSTGRES_URL first, but override the database name
 	dbURL := os.Getenv("POSTGRES_URL")
 	if dbURL != "" {
+		// Replace the database name with scenario_authenticator
+		// Parse the URL and replace the database part
+		if strings.Contains(dbURL, "vrooli?") {
+			dbURL = strings.Replace(dbURL, "vrooli?", "scenario_authenticator?", 1)
+		} else if strings.Contains(dbURL, "vrooli") && strings.Contains(dbURL, "sslmode") {
+			dbURL = strings.Replace(dbURL, "vrooli", "scenario_authenticator", 1)
+		}
 		return dbURL
 	}
 	
@@ -99,10 +142,11 @@ func getDBURL() string {
 	dbPort := os.Getenv("POSTGRES_PORT")
 	dbUser := os.Getenv("POSTGRES_USER")
 	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	dbName := os.Getenv("POSTGRES_DB")
+	// Force scenario_authenticator database
+	dbName := "scenario_authenticator"
 	
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
+		log.Fatal("[scenario-authenticator/api] ❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
 	}
 	
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",

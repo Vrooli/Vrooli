@@ -143,7 +143,8 @@ Browser Automation Studio provides automation capabilities to all Vrooli scenari
 
 ```javascript
 // From any scenario
-const result = await fetch('http://localhost:8090/api/v1/workflows/execute', {
+const API_PORT = process.env.BROWSER_AUTOMATION_API_PORT;
+const result = await fetch(`http://localhost:${API_PORT}/api/v1/workflows/execute`, {
   method: 'POST',
   body: JSON.stringify({
     workflow_id: 'ui-validation-checkout',

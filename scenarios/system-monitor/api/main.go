@@ -21,15 +21,20 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	
+	"system-monitor-api/internal/handlers"
+	"system-monitor-api/internal/services"
 )
 
 type HealthResponse struct {
-	Status    string                 `json:"status"`
-	Service   string                 `json:"service"`
-	Timestamp int64                  `json:"timestamp"`
-	Uptime    float64                `json:"uptime"`
-	Checks    map[string]interface{} `json:"checks"`
-	Version   string                 `json:"version"`
+	Status           string                 `json:"status"`
+	Service          string                 `json:"service"`
+	Timestamp        int64                  `json:"timestamp"`
+	Uptime           float64                `json:"uptime"`
+	Checks           map[string]interface{} `json:"checks"`
+	Version          string                 `json:"version"`
+	ProcessorActive  bool                   `json:"processor_active"`
+	MaintenanceState string                 `json:"maintenance_state"`
 }
 
 type MetricsResponse struct {
@@ -353,6 +358,11 @@ var (
 	startTime           = time.Now()
 	monitoringProcessor *MonitoringProcessor
 	
+	// Settings management
+	settingsManager     *services.SettingsManager
+	settingsHandler     *handlers.SettingsHandler
+	monitoringService   *services.MonitoringService
+	
 	// Error tracking for system output
 	errorLogs           []ErrorLog
 	errorLogsMutex      sync.RWMutex
@@ -599,6 +609,77 @@ func main() {
 	// Initialize MonitoringProcessor
 	monitoringProcessor = NewMonitoringProcessor(db)
 	
+	// Initialize Settings Manager
+	settingsManager = services.NewSettingsManager()
+	settingsHandler = handlers.NewSettingsHandler(settingsManager)
+	
+	// Initialize Monitoring Service
+	monitoringService = services.NewMonitoringService(settingsManager)
+	
+	// Set up monitoring callbacks
+	monitoringService.SetThresholdChecker(func(ctx context.Context) error {
+		log.Println("🔍 Running threshold check...")
+		// Use the existing MonitoringProcessor
+		req := ThresholdMonitorRequest{ForceCheck: false}
+		_, err := monitoringProcessor.MonitorThresholds(ctx, req)
+		if err != nil {
+			log.Printf("Threshold check failed: %v", err)
+			return err
+		}
+		log.Println("✅ Threshold check completed")
+		return nil
+	})
+	
+	monitoringService.SetAnomalyDetector(func(ctx context.Context) error {
+		log.Println("🔍 Running anomaly detection...")
+		// Use existing anomaly detection logic
+		req := AnomalyInvestigationRequest{
+			AnomalyType: "system_check",
+			Severity:    "low",
+			Context:     make(map[string]interface{}),
+			TimeRange:   "5m",
+			AutoResolve: false,
+		}
+		_, err := monitoringProcessor.InvestigateAnomaly(ctx, req)
+		if err != nil {
+			log.Printf("Anomaly detection failed: %v", err)
+			return err
+		}
+		log.Println("✅ Anomaly detection completed")
+		return nil
+	})
+	
+	monitoringService.SetReportGenerator(func(ctx context.Context) error {
+		log.Println("📊 Generating system report...")
+		// Use existing report generation logic
+		req := ReportGenerationRequest{
+			ReportType: "hourly",
+			TimeRange:  "1h",
+			Format:     "json",
+		}
+		_, err := monitoringProcessor.GenerateReport(ctx, req)
+		if err != nil {
+			log.Printf("Report generation failed: %v", err)
+			return err
+		}
+		log.Println("✅ System report generated")
+		return nil
+	})
+	
+	// Set callback for when active status changes
+	settingsManager.SetActiveChangedCallback(func(active bool) {
+		if active {
+			log.Println("🟢 System monitor activated - monitoring loops will start")
+		} else {
+			log.Println("🔴 System monitor deactivated - monitoring loops paused")
+		}
+	})
+	
+	// Start the monitoring service
+	if err := monitoringService.Start(); err != nil {
+		log.Printf("Failed to start monitoring service: %v", err)
+	}
+	
 	// Load trigger configuration from file
 	if err := loadTriggerConfig(); err != nil {
 		log.Printf("Failed to load trigger config, using defaults: %v", err)
@@ -615,10 +696,19 @@ func main() {
 	r.HandleFunc("/api/metrics/processes", getProcessMonitorHandler).Methods("GET")
 	r.HandleFunc("/api/metrics/infrastructure", getInfrastructureMonitorHandler).Methods("GET")
 
+	// Settings endpoints
+	r.HandleFunc("/api/settings", settingsHandler.GetSettings).Methods("GET")
+	r.HandleFunc("/api/settings", settingsHandler.UpdateSettings).Methods("PUT")
+	r.HandleFunc("/api/settings/reset", settingsHandler.ResetSettings).Methods("POST")
+	r.HandleFunc("/api/maintenance/state", settingsHandler.GetMaintenanceState).Methods("GET")
+	r.HandleFunc("/api/maintenance/state", settingsHandler.SetMaintenanceState).Methods("POST")
+
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/agent/spawn", spawnAgentHandler).Methods("POST")
+	r.HandleFunc("/api/investigations/agent/{id}/status", getAgentStatusHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/agent/current", getCurrentAgentHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/cooldown", getCooldownStatusHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/cooldown/reset", resetCooldownHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/cooldown/period", updateCooldownPeriodHandler).Methods("PUT")
@@ -779,13 +869,19 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Calculate uptime
 	uptime := time.Since(startTime).Seconds()
 	
+	// Get processor status
+	processorActive := settingsManager.IsActive()
+	maintenanceState := settingsManager.GetMaintenanceState()
+	
 	response := HealthResponse{
-		Status:    overallStatus,
-		Service:   "system-monitor",
-		Timestamp: time.Now().Unix(),
-		Uptime:    uptime,
-		Checks:    checks,
-		Version:   "2.0.0",
+		Status:           overallStatus,
+		Service:          "system-monitor",
+		Timestamp:        time.Now().Unix(),
+		Uptime:           uptime,
+		Checks:           checks,
+		Version:          "2.0.0",
+		ProcessorActive:  processorActive,
+		MaintenanceState: maintenanceState,
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
@@ -1486,6 +1582,63 @@ func spawnAgentHandler(w http.ResponseWriter, r *http.Request) {
 	// This is the endpoint the UI calls when spawning an agent
 	// It's essentially the same as triggerInvestigationHandler
 	triggerInvestigationHandler(w, r)
+}
+
+func getAgentStatusHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	investigationsMutex.RLock()
+	investigation, exists := investigations[id]
+	investigationsMutex.RUnlock()
+	
+	if !exists {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Investigation not found",
+		})
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":       investigation.ID,
+		"status":   investigation.Status,
+		"progress": investigation.Progress,
+		"findings": investigation.Findings,
+	})
+}
+
+func getCurrentAgentHandler(w http.ResponseWriter, r *http.Request) {
+	investigationsMutex.RLock()
+	var currentAgent *Investigation
+	
+	// Find the most recent running investigation
+	for _, inv := range investigations {
+		if inv.Status == "in_progress" || inv.Status == "queued" {
+			if currentAgent == nil || inv.StartTime.After(currentAgent.StartTime) {
+				currentAgent = inv
+			}
+		}
+	}
+	investigationsMutex.RUnlock()
+	
+	w.Header().Set("Content-Type", "application/json")
+	if currentAgent != nil {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"agent": map[string]interface{}{
+				"id":       currentAgent.ID,
+				"status":   currentAgent.Status,
+				"progress": currentAgent.Progress,
+				"startTime": currentAgent.StartTime.Format(time.RFC3339),
+			},
+		})
+	} else {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"agent": nil,
+		})
+	}
 }
 
 func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {

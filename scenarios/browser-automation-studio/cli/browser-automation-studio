@@ -6,7 +6,18 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-API_URL="${BROWSER_AUTOMATION_API_URL:-http://localhost:8090/api/v1}"
+
+# Get API URL from environment or exit with error
+if [ -n "${API_PORT}" ]; then
+    API_HOST="${API_HOST:-localhost}"
+    API_URL="http://${API_HOST}:${API_PORT}/api/v1"
+elif [ -n "${BROWSER_AUTOMATION_API_URL}" ]; then
+    API_URL="${BROWSER_AUTOMATION_API_URL}"
+else
+    echo -e "${RED}Error: API_PORT environment variable is required${NC}"
+    echo "Please ensure the browser-automation-studio is running through the lifecycle system"
+    exit 1
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -229,9 +240,34 @@ execute_workflow() {
         
         if [ "$wait" = true ]; then
             echo "Waiting for completion..."
-            # In real implementation, poll for status
-            sleep 5
-            echo -e "${GREEN}✓ Execution completed${NC}"
+            # Poll for completion status
+            max_attempts=60  # 5 minutes max
+            attempt=1
+            
+            while [ $attempt -le $max_attempts ]; do
+                status_response=$(curl -s "${API_URL}/executions/${execution_id}")
+                status=$(echo "$status_response" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
+                
+                if [ "$status" = "completed" ]; then
+                    echo -e "${GREEN}✓ Execution completed successfully${NC}"
+                    break
+                elif [ "$status" = "failed" ]; then
+                    echo -e "${RED}✗ Execution failed${NC}"
+                    error=$(echo "$status_response" | grep -o '"error":"[^"]*' | cut -d'"' -f4)
+                    if [ -n "$error" ]; then
+                        echo "Error: $error"
+                    fi
+                    break
+                fi
+                
+                echo -n "."
+                sleep 5
+                attempt=$((attempt + 1))
+            done
+            
+            if [ $attempt -gt $max_attempts ]; then
+                echo -e "${YELLOW}⚠ Timeout waiting for execution completion${NC}"
+            fi
         fi
         
         if [ -n "$output_dir" ]; then
@@ -273,10 +309,18 @@ list_workflows() {
     else
         echo -e "${BLUE}Workflows${NC}"
         echo "========="
-        # Parse and display in tree format
-        echo "$response" | grep -o '"name":"[^"]*' | cut -d'"' -f4 | while read -r name; do
-            echo "  📁 $name"
-        done
+        
+        if echo "$response" | grep -q '"workflows"'; then
+            # Parse and display workflows with folder organization
+            echo "$response" | grep -o '"name":"[^"]*\|"folder_path":"[^"]*\|"created_at":"[^"]*' | \
+            awk 'BEGIN{print ""} 
+                 /name/{name=$0; gsub(/.*"name":"/, "", name); gsub(/".*/, "", name)} 
+                 /folder_path/{folder=$0; gsub(/.*"folder_path":"/, "", folder); gsub(/".*/, "", folder)} 
+                 /created_at/{created=$0; gsub(/.*"created_at":"/, "", created); gsub(/T.*/, "", created); 
+                           printf "  📁 %s (%s) - %s\n", name, folder, created}'
+        else
+            echo "No workflows found"
+        fi
     fi
 }
 
@@ -316,13 +360,60 @@ case "${1:-}" in
         case "${2:-}" in
             watch)
                 check_api_health
-                echo -e "${BLUE}Watching execution: ${3}${NC}"
-                echo "Real-time updates would stream here..."
+                execution_id="${3}"
+                if [ -z "$execution_id" ]; then
+                    echo -e "${RED}Error: Execution ID required${NC}"
+                    exit 1
+                fi
+                
+                echo -e "${BLUE}Watching execution: ${execution_id}${NC}"
+                echo "Press Ctrl+C to stop watching"
+                echo ""
+                
+                # Poll for execution updates
+                while true; do
+                    # Get current execution status
+                    response=$(curl -s "${API_URL}/executions/${execution_id}")
+                    if echo "$response" | grep -q '"error"'; then
+                        echo -e "${RED}✗ Execution not found${NC}"
+                        break
+                    fi
+                    
+                    status=$(echo "$response" | grep -o '"status":"[^"]*' | cut -d'"' -f4)
+                    progress=$(echo "$response" | grep -o '"progress":[0-9]*' | cut -d':' -f2)
+                    current_step=$(echo "$response" | grep -o '"current_step":"[^"]*' | cut -d'"' -f4)
+                    
+                    # Show current status
+                    printf "\r\033[K"  # Clear current line
+                    printf "${BLUE}Status: ${status} | Progress: ${progress}%% | Step: ${current_step}${NC}"
+                    
+                    # Check if execution is complete
+                    if [ "$status" = "completed" ] || [ "$status" = "failed" ]; then
+                        echo ""
+                        echo -e "${GREEN}✓ Execution ${status}${NC}"
+                        break
+                    fi
+                    
+                    sleep 2
+                done
                 ;;
             list)
                 check_api_health
-                echo -e "${BLUE}Executions${NC}"
-                curl -s "${API_URL}/executions"
+                echo -e "${BLUE}Recent Executions${NC}"
+                echo "=================="
+                
+                response=$(curl -s "${API_URL}/executions")
+                if echo "$response" | grep -q '"executions"'; then
+                    # Parse and display executions in a readable format
+                    echo "$response" | grep -o '"id":"[^"]*\|"status":"[^"]*\|"started_at":"[^"]*' | \
+                    awk 'BEGIN{print ""} 
+                         /id/{id=$0; gsub(/.*"id":"/, "", id); gsub(/".*/, "", id)} 
+                         /status/{status=$0; gsub(/.*"status":"/, "", status); gsub(/".*/, "", status)} 
+                         /started_at/{started=$0; gsub(/.*"started_at":"/, "", started); gsub(/T.*/, "", started); 
+                                    printf "  📊 %s [%s] - %s\n", id, status, started}' 
+                else
+                    echo "No executions found"
+                fi
                 ;;
             stop)
                 check_api_health

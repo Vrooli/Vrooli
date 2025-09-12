@@ -36,7 +36,7 @@ const (
 // ValidateSecrets validates secrets for a specific resource or all resources
 func (v *SecretValidator) ValidateSecrets(resource string) (*ValidationResponse, error) {
 	validationID := uuid.New().String()
-	startTime := time.Now()
+	_ = time.Now() // startTime for future use
 	
 	v.logger.Info(fmt.Sprintf("Starting secret validation (ID: %s, Resource: %s)", validationID, resource))
 	

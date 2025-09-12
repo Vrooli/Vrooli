@@ -47,7 +47,8 @@ check_response() {
 log_info "Checking if authentication API is running on port ${API_PORT}..."
 if ! curl -s -f "${BASE_URL}/health" > /dev/null 2>&1; then
     log_error "Authentication API is not running on port ${API_PORT}"
-    log_info "Start the API with: cd api && ./scenario-authenticator-api"
+    log_info "Start the service with: vrooli scenario run scenario-authenticator"
+    log_info "Or use: cd scenarios/scenario-authenticator && make run"
     exit 1
 fi
 

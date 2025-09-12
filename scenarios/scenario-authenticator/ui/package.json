@@ -15,6 +15,7 @@
   ],
   "author": "Vrooli",
   "license": "MIT",
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "express": "^5.1.0"
+  }
 }

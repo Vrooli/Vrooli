@@ -22,12 +22,17 @@ This scenario provides **foundational authentication capabilities** that transfo
 ### 1. Setup and Run
 
 ```bash
-# Setup the authentication service
+# Setup the authentication service (REQUIRED - do not run directly)
 vrooli scenario run scenario-authenticator
 
-# Access points:
-# - Authentication API: http://localhost:3250
-# - Authentication UI: http://localhost:3251
+# Alternative using Makefile
+cd scenarios/scenario-authenticator && make run
+
+# ⚠️  IMPORTANT: Always use the lifecycle system, never run ./api/scenario-authenticator-api directly
+
+# Access points will be displayed after startup
+# - Authentication API: Dynamic port (check logs or use CLI)
+# - Authentication UI: Dynamic port (check logs or use CLI)  
 # - CLI: scenario-authenticator --help
 ```
 
@@ -37,13 +42,13 @@ vrooli scenario run scenario-authenticator
 # Via CLI
 scenario-authenticator user create admin@example.com SecurePass123! admin
 
-# Via API
-curl -X POST http://localhost:3250/api/v1/auth/register \
+# Via API (replace port with actual API port)
+curl -X POST http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"admin@example.com","password":"SecurePass123!"}'
 
-# Via UI
-# Visit http://localhost:3251 and click "Sign Up"
+# Via UI (check logs for actual UI port)
+# Visit the UI URL displayed in the startup logs and click "Sign Up"
 ```
 
 ### 3. Validate Tokens
@@ -55,9 +60,9 @@ export AUTH_TOKEN="eyJhbGciOiJSUzI1NiIs..."
 # Validate via CLI
 scenario-authenticator token validate $AUTH_TOKEN
 
-# Validate via API
+# Validate via API (using dynamic port discovery)
 curl -H "Authorization: Bearer $AUTH_TOKEN" \
-  http://localhost:3250/api/v1/auth/validate
+  http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/api/v1/auth/validate
 ```
 
 ## 🔧 Integration Guide
@@ -75,7 +80,11 @@ const validateAuth = async (req, res, next) => {
     }
     
     try {
-        const response = await fetch('http://localhost:3250/api/v1/auth/validate', {
+        // Get auth API port dynamically
+        const authApiPort = process.env.AUTH_API_PORT || process.env.API_PORT;
+        const authApiUrl = `http://localhost:${authApiPort}`;
+        
+        const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -112,7 +121,14 @@ func authMiddleware(next http.Handler) http.Handler {
         
         token = strings.Replace(token, "Bearer ", "", 1)
         
-        resp, err := http.Get("http://localhost:3250/api/v1/auth/validate?token=" + token)
+        // Get auth API port from environment
+        authPort := os.Getenv("AUTH_API_PORT")
+        if authPort == "" {
+            authPort = os.Getenv("API_PORT")
+        }
+        authURL := fmt.Sprintf("http://localhost:%s/api/v1/auth/validate?token=%s", authPort, token)
+        
+        resp, err := http.Get(authURL)
         if err != nil || resp.StatusCode != 200 {
             http.Error(w, "Invalid token", 401)
             return
@@ -134,20 +150,27 @@ func authMiddleware(next http.Handler) http.Handler {
 async function checkAuth() {
     const token = localStorage.getItem('auth_token');
     if (!token) {
-        window.location.href = 'http://localhost:3251/login?redirect=' + 
+        // Get auth UI port dynamically from environment or configuration
+        const authUiPort = window.AUTH_UI_PORT || getAuthUIPortFromConfig();
+        window.location.href = `http://localhost:${authUiPort}/login?redirect=` + 
                               encodeURIComponent(window.location.href);
         return false;
     }
     
     try {
-        const response = await fetch('http://localhost:3250/api/v1/auth/validate', {
+        // Get auth API port dynamically from environment or configuration
+        const authApiPort = window.AUTH_API_PORT || getAuthAPIPortFromConfig();
+        const authApiUrl = `http://localhost:${authApiPort}`;
+        
+        const response = await fetch(`${authApiUrl}/api/v1/auth/validate`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         
         const validation = await response.json();
         if (!validation.valid) {
             localStorage.removeItem('auth_token');
-            window.location.href = 'http://localhost:3251/login?redirect=' + 
+            const authUiPort = window.AUTH_UI_PORT || getAuthUIPortFromConfig();
+            window.location.href = `http://localhost:${authUiPort}/login?redirect=` + 
                                   encodeURIComponent(window.location.href);
             return false;
         }
@@ -253,8 +276,10 @@ vrooli scenario test scenario-authenticator
 
 # Test specific components
 scenario-authenticator status --json
-curl -f http://localhost:3250/health
-curl -f http://localhost:3251/health
+
+# Test health endpoints (using dynamic port discovery)
+curl -f http://localhost:$(vrooli scenario port scenario-authenticator AUTH_API_PORT)/health
+curl -f http://localhost:$(vrooli scenario port scenario-authenticator AUTH_UI_PORT)/health
 ```
 
 ## 📊 Monitoring
@@ -278,8 +303,8 @@ scenario-authenticator status --verbose
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `AUTH_API_PORT` | 3250 | API server port |
-| `AUTH_UI_PORT` | 3251 | UI server port |
+| `AUTH_API_PORT` | Dynamic (15000-19999) | API server port |
+| `AUTH_UI_PORT` | Dynamic (35000-39999) | UI server port |
 | `DATABASE_URL` | auto | PostgreSQL connection |
 | `REDIS_URL` | auto | Redis connection |
 | `JWT_EXPIRY` | 1h | Token expiration time |

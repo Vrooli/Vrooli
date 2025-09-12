@@ -494,7 +494,7 @@ discovery:
       - web-scraping
       - screenshot-capture
     interfaces:
-      - api: http://localhost:8090/api/v1
+      - api: http://localhost:${API_PORT}/api/v1
       - cli: browser-automation-studio
       - events: browser-automation.*
       

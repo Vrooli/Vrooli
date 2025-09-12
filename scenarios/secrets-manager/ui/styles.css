@@ -165,7 +165,7 @@ html, body {
     grid-template-rows: auto 1fr auto;
     gap: 1px;
     padding: 1px;
-    background: var(--matrix-green);
+    background: var(--bg-dark);
     overflow: auto;
 }
 
@@ -718,18 +718,46 @@ html, body {
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
+@media (max-width: 600px) {
     .dashboard-grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto auto 1fr auto;
     }
     
-    .health-stats {
-        grid-template-columns: repeat(2, 1fr);
+    .status-panel {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    
+    .health-panel {
+        grid-column: 1;
+        grid-row: 2;
+    }
+    
+    .secrets-panel {
+        grid-column: 1;
+        grid-row: 3;
+    }
+    
+    .alerts-panel {
+        grid-column: 1;
+        grid-row: 4;
     }
     
     .status-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 1024px) {
+    .health-stats {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .health-stats {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -744,10 +772,12 @@ html, body {
     
     .panel-content {
         padding: 10px;
+        overflow: auto;
     }
     
     .health-stats {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
     
     .secrets-table {
@@ -755,6 +785,39 @@ html, body {
     }
     
     .secrets-table th, .secrets-table td {
+        padding: 8px;
+    }
+    
+    .terminal-container {
+        height: 100vh;
+        overflow: hidden;
+    }
+    
+    .dashboard-grid {
+        overflow: hidden;
+    }
+}
+
+@media (max-width: 480px) {
+    .health-stats {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    
+    .stat-card {
+        min-height: 60px;
+        padding: 8px;
+    }
+    
+    .terminal-title h1 {
+        font-size: 10px;
+    }
+    
+    .terminal-version {
+        font-size: 7px;
+    }
+    
+    .panel-content {
         padding: 8px;
     }
 }

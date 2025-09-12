@@ -135,8 +135,8 @@ export const InvestigationsSection = ({
       if (response.ok) {
         const agentResponse = await response.json();
         setAgentData({
-          id: agentResponse.agentId,
-          status: 'initializing',
+          id: agentResponse.investigation_id,
+          status: agentResponse.status || 'initializing',
           startTime: new Date().toISOString(),
           autoFix: autoFixEnabled,
           note: agentNote.trim() || undefined

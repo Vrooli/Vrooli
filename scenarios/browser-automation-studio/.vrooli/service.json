@@ -1,220 +1,217 @@
 {
-  "name": "browser-automation-studio",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "description": "Visual browser automation studio with AI-powered workflow builder and debugging",
-  "category": "automation",
-  "tags": [
-    "browser",
-    "automation",
-    "testing",
-    "workflow",
-    "visual",
-    "scraping"
-  ],
-  "author": "Vrooli AI",
-  "license": "MIT",
-  "homepage": "https://github.com/Vrooli/Vrooli/tree/main/scenarios/browser-automation-studio",
-  "capabilities": {
-    "visual-workflow-builder": "Drag-and-drop browser automation workflow creation",
-    "real-time-execution": "Live screenshot and log streaming during execution",
-    "ai-generation": "Generate workflows from natural language descriptions",
-    "ai-debugging": "Automatic debugging and fixing of failed workflows",
-    "scheduling": "Calendar-based workflow scheduling",
-    "api-access": "Full API for programmatic workflow management",
-    "cli-access": "Complete CLI for all operations"
+  "service": {
+    "name": "browser-automation-studio",
+    "displayName": "Browser Automation Studio",
+    "description": "Visual browser automation studio with AI-powered workflow builder and real-time debugging",
+    "version": "1.0.0",
+    "tags": [
+      "browser-automation",
+      "visual-workflows",
+      "screenshot-capture",
+      "ui-testing",
+      "web-scraping",
+      "ai-debugging",
+      "workflow-builder",
+      "real-time-execution",
+      "go-api",
+      "react-ui",
+      "postgres-storage"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Browser Automation Studio API port",
+      "range": "20000-24999"
+    },
+    "ui": {
+      "env_var": "UI_PORT", 
+      "description": "Visual workflow builder UI port",
+      "range": "40000-44999"
+    },
+    "websocket": {
+      "env_var": "WS_PORT",
+      "description": "WebSocket port for real-time updates",
+      "range": "25000-29999"
+    }
   },
   "resources": {
     "required": {
       "browserless": {
         "version": ">=2.0.0",
-        "purpose": "Core browser automation engine",
-        "config": {
-          "concurrent_sessions": 10,
-          "default_timeout": 30000
-        }
+        "purpose": "Core browser automation engine for workflow execution"
       },
       "postgres": {
         "version": ">=14.0",
-        "purpose": "Workflow and execution storage",
-        "database": "browser_automation_studio",
-        "schema": "initialization/storage/postgres/schema.sql"
+        "purpose": "Workflow definitions and execution history storage",
+        "database": "browser_automation_studio"
       },
       "minio": {
         "version": ">=2023.0.0",
-        "purpose": "Screenshot and artifact storage",
-        "bucket": "browser-automation-screenshots"
+        "purpose": "Screenshot and artifact storage with S3-compatible API"
       }
     },
     "optional": {
       "redis": {
         "version": ">=7.0",
-        "purpose": "WebSocket pub/sub and caching",
-        "fallback": "in-memory"
+        "purpose": "WebSocket pub/sub and execution caching",
+        "fallback": "in-memory storage for single-instance deployments"
       },
       "ollama": {
-        "version": ">=0.1.0",
-        "purpose": "AI workflow generation and debugging",
-        "models": [
-          "llama3.2",
-          "codellama"
-        ],
-        "fallback": "disabled"
-      },
-      "n8n": {
-        "version": ">=1.0.0",
-        "purpose": "Workflow execution engine integration",
-        "workflows": [
-          "initialization/automation/n8n/browser-orchestrator.json"
-        ]
+        "version": ">=0.1.0", 
+        "purpose": "AI workflow generation and debugging assistance",
+        "fallback": "manual workflow creation only"
       }
-    }
-  },
-  "ports": {
-    "api": "${BROWSER_AUTOMATION_API_PORT:-8090}",
-    "ui": "${BROWSER_AUTOMATION_UI_PORT:-3090}",
-    "websocket": "${BROWSER_AUTOMATION_WS_PORT:-8091}"
-  },
-  "environment": {
-    "NODE_ENV": "${NODE_ENV:-production}",
-    "DATABASE_URL": "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/browser_automation_studio",
-    "MINIO_ENDPOINT": "${MINIO_ENDPOINT:-localhost:9000}",
-    "MINIO_ACCESS_KEY": "${MINIO_ACCESS_KEY}",
-    "MINIO_SECRET_KEY": "${MINIO_SECRET_KEY}",
-    "BROWSERLESS_URL": "${BROWSERLESS_URL:-http://localhost:3000}",
-    "REDIS_URL": "${REDIS_URL:-redis://localhost:6379}",
-    "OLLAMA_URL": "${OLLAMA_URL:-http://localhost:11434}",
-    "JWT_SECRET": "${JWT_SECRET:-change-me-in-production}",
-    "CLAUDE_API_KEY": "${CLAUDE_API_KEY}"
-  },
-  "scripts": {
-    "setup": "./scripts/setup.sh",
-    "start": "./scripts/start.sh",
-    "stop": "./scripts/stop.sh",
-    "test": "./scripts/test.sh",
-    "build": "./scripts/build.sh",
-    "migrate": "cd api && go run cmd/migrate/main.go up"
-  },
-  "healthcheck": {
-    "api": {
-      "endpoint": "/health",
-      "interval": 30,
-      "timeout": 5,
-      "retries": 3
-    },
-    "ui": {
-      "endpoint": "/",
-      "interval": 30,
-      "timeout": 5,
-      "retries": 3
-    }
-  },
-  "metrics": {
-    "workflows_created": 0,
-    "workflows_executed": 0,
-    "success_rate": 0,
-    "average_execution_time": 0,
-    "screenshots_captured": 0
-  },
-  "deployment": {
-    "type": "container",
-    "dockerfile": "Dockerfile",
-    "compose": "docker-compose.yml",
-    "kubernetes": "k8s/",
-    "minimum_resources": {
-      "cpu": "2 cores",
-      "memory": "4GB",
-      "storage": "20GB"
-    }
-  },
-  "integrations": {
-    "provides": [
-      {
-        "name": "browser-automation-api",
-        "type": "rest",
-        "endpoint": "http://localhost:8090/api/v1",
-        "documentation": "docs/api.md"
-      },
-      {
-        "name": "browser-automation-cli",
-        "type": "cli",
-        "command": "browser-automation-studio",
-        "installation": "cli/install.sh"
-      },
-      {
-        "name": "browser-automation-events",
-        "type": "webhook",
-        "events": [
-          "workflow.execution.started",
-          "workflow.execution.completed",
-          "workflow.execution.failed"
-        ]
-      }
-    ],
-    "consumes": [
-      {
-        "name": "calendar-scheduler",
-        "type": "event",
-        "optional": true
-      },
-      {
-        "name": "claude-code-agent",
-        "type": "api",
-        "optional": true
-      }
-    ]
-  },
-  "ui": {
-    "framework": "react",
-    "bundler": "vite",
-    "dependencies": {
-      "reactflow": "^11.10.0",
-      "typescript": "^5.0.0",
-      "tailwindcss": "^3.0.0",
-      "socket.io-client": "^4.0.0",
-      "react-query": "^3.0.0",
-      "zustand": "^4.0.0"
-    },
-    "features": [
-      "visual-workflow-builder",
-      "real-time-screenshot-viewer",
-      "execution-timeline",
-      "workflow-organization",
-      "ai-prompt-interface"
-    ]
-  },
-  "api": {
-    "framework": "go",
-    "router": "chi",
-    "database": "postgres",
-    "orm": "sqlx",
-    "features": [
-      "workflow-crud",
-      "execution-engine",
-      "screenshot-streaming",
-      "ai-integration",
-      "scheduling"
-    ]
-  },
-  "monitoring": {
-    "logging": {
-      "level": "${LOG_LEVEL:-info}",
-      "format": "json",
-      "destination": "stdout"
-    },
-    "tracing": {
-      "enabled": "${TRACING_ENABLED:-false}",
-      "exporter": "otlp",
-      "endpoint": "${OTEL_EXPORTER_OTLP_ENDPOINT}"
-    },
-    "metrics": {
-      "enabled": "${METRICS_ENABLED:-true}",
-      "exporter": "prometheus",
-      "port": 9090
     }
   },
   "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Browser Automation Studio health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http", 
+          "target": "http://localhost:${UI_PORT}/",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Browser Automation Studio",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/browser-automation-studio-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "browser-automation-studio"
+          },
+          {
+            "type": "directory",
+            "path": "initialization/storage/postgres"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "create-data-dirs",
+          "run": "mkdir -p data/workflows data/executions data/screenshots",
+          "description": "Create data directories for workflow storage"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o browser-automation-studio-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install React UI dependencies"
+        },
+        {
+          "name": "setup-database",
+          "run": "echo 'Database schema will be initialized on first API startup'",
+          "description": "Prepare database schema"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Browser Automation Studio initialized\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start browser automation studio with API and UI servers",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./browser-automation-studio-api",
+          "description": "Start Go API server with workflow engine",
+          "background": true,
+          "condition": {
+            "file_exists": "api/browser-automation-studio-api"
+          }
+        },
+        {
+          "name": "start-ui", 
+          "run": "cd ui && npm run dev",
+          "description": "Start React UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Workflow Builder: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: browser-automation-studio --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test browser automation studio API and CLI",
+      "steps": [
+        {
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$API_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-workflow-endpoints",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/workflows",
+          "description": "Test workflow listing endpoint"
+        },
+        {
+          "name": "test-ui-accessibility",
+          "run": "curl -sf http://localhost:$UI_PORT/",
+          "description": "Test UI accessibility"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "browser-automation-studio status && browser-automation-studio help",
+          "description": "Test basic CLI functionality"
+        }
+      ]
+    },
     "stop": {
-      "description": "Stop browser-automation-studio services",
+      "description": "Stop all browser automation studio services",
       "steps": [
         {
           "name": "stop-api",
@@ -225,28 +222,6 @@
           "name": "stop-ui",
           "run": "pkill -f \"scenarios/browser-automation-studio.*vite\" || true; sleep 1; pkill -9 -f \"scenarios/browser-automation-studio.*vite\" 2>/dev/null || true",
           "description": "Stop UI process"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Development mode",
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go build -o browser-automation-studio-api .",
-          "description": "Build API server"
-        },
-        {
-          "name": "start-api",
-          "run": "cd api && ./browser-automation-studio-api",
-          "description": "Start API server",
-          "background": true
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && npm run dev || node server.js",
-          "description": "Start UI server",
-          "background": true
         }
       ]
     }

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Node, Edge } from 'reactflow';
 import axios from 'axios';
+import { API_BASE } from '../config';
 
 interface Workflow {
   id: string;
@@ -26,8 +27,6 @@ interface WorkflowStore {
   generateWorkflow: (prompt: string, name: string, folderPath: string) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8090/api/v1';
 
 export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   workflows: [],

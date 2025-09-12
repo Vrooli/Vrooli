@@ -93,6 +93,17 @@ func handleGetPresets(orchestrator *Orchestrator) http.HandlerFunc {
 	}
 }
 
+func handleGetActivePresets(orchestrator *Orchestrator) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		activePresets := orchestrator.GetActivePresets()
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"activePresets": activePresets,
+		})
+	}
+}
+
 func handleApplyPreset(orchestrator *Orchestrator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
@@ -188,6 +199,7 @@ func handleStopAll(orchestrator *Orchestrator) http.HandlerFunc {
 	}
 }
 
+
 func notifyScenarioStateChange(endpoint, state string) {
 	client := &http.Client{Timeout: 5 * time.Second}
 	
@@ -208,6 +220,78 @@ func notifyScenarioStateChange(endpoint, state string) {
 		return
 	}
 	defer resp.Body.Close()
+}
+
+// Start a scenario process using vrooli CLI
+func handleStartScenario() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		scenarioID := vars["id"]
+		
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		
+		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "start", scenarioID)
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		
+		err := cmd.Run()
+		if err != nil {
+			log.Printf("Error starting scenario %s: %v, stderr: %s", scenarioID, err, stderr.String())
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to start scenario: %v", err),
+			})
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":  true,
+			"scenario": scenarioID,
+			"action":   "started",
+			"output":   strings.TrimSpace(out.String()),
+		})
+	}
+}
+
+// Stop a scenario process using vrooli CLI
+func handleStopScenario() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		scenarioID := vars["id"]
+		
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		
+		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "stop", scenarioID)
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		
+		err := cmd.Run()
+		if err != nil {
+			log.Printf("Error stopping scenario %s: %v, stderr: %s", scenarioID, err, stderr.String())
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"error":   fmt.Sprintf("Failed to stop scenario: %v", err),
+			})
+			return
+		}
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":  true,
+			"scenario": scenarioID,
+			"action":   "stopped",
+			"output":   strings.TrimSpace(out.String()),
+		})
+	}
 }
 
 // Fetch scenario statuses using vrooli CLI

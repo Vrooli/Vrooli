@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -36,14 +37,14 @@ func InitDB(dbURL string) error {
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
 	
-	log.Println("🔄 Attempting database connection with exponential backoff...")
-	log.Printf("📆 Database URL configured")
+	log.Println("[scenario-authenticator/db] 🔄 Attempting database connection with exponential backoff...")
+	log.Printf("[scenario-authenticator/db] 📆 Database URL configured")
 	
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = DB.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("[scenario-authenticator/db] ✅ Database connected successfully on attempt %d", attempt + 1)
 			break
 		}
 		
@@ -58,15 +59,15 @@ func InitDB(dbURL string) error {
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
 		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
-		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
+		log.Printf("[scenario-authenticator/db] ⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+		log.Printf("[scenario-authenticator/db] ⏳ Waiting %v before next attempt", actualDelay)
 		
 		// Provide detailed status every few attempts
 		if attempt > 0 && attempt % 3 == 0 {
-			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
-			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
+			log.Printf("[scenario-authenticator/db] 📈 Retry progress:")
+			log.Printf("[scenario-authenticator/db]    - Attempts made: %d/%d", attempt + 1, maxRetries)
+			log.Printf("[scenario-authenticator/db]    - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("[scenario-authenticator/db]    - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
 		
 		time.Sleep(actualDelay)
@@ -76,14 +77,21 @@ func InitDB(dbURL string) error {
 		return fmt.Errorf("database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
 	
-	log.Println("🎉 Database connection pool established successfully!")
+	log.Println("[scenario-authenticator/db] 🎉 Database connection pool established successfully!")
 	return nil
 }
 
 // InitRedis initializes the Redis connection
 func InitRedis(redisURL string) error {
+	// Parse Redis URL to extract host:port
+	// Handle both formats: "redis://localhost:6380" and "localhost:6380"
+	addr := redisURL
+	if strings.HasPrefix(redisURL, "redis://") {
+		addr = strings.TrimPrefix(redisURL, "redis://")
+	}
+	
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr:     redisURL,
+		Addr:     addr,
 		Password: "",
 		DB:       0,
 	})
@@ -92,7 +100,7 @@ func InitRedis(redisURL string) error {
 		return fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 	
-	log.Println("Redis connected successfully")
+	log.Println("[scenario-authenticator/redis] ✅ Redis connected successfully")
 	return nil
 }
 

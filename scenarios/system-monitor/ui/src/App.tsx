@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ErrorInfo } from 'react';
 import { Header } from './components/common/Header';
+import { StatusIndicator } from './components/common/StatusIndicator';
 import { MetricsGrid } from './components/metrics/MetricsGrid';
 import { ProcessMonitor } from './components/monitoring/ProcessMonitor';
 import { InfrastructureMonitor } from './components/monitoring/InfrastructureMonitor';
@@ -9,6 +10,7 @@ import { InvestigationsSection } from './components/investigations/Investigation
 import { ReportsPanel } from './components/reports/ReportsPanel';
 import { Terminal } from './components/common/Terminal';
 import { ModalsContainer } from './components/modals/ModalsContainer';
+import { SystemSettingsModal } from './components/modals/SystemSettingsModal';
 import { MatrixBackground } from './components/common/MatrixBackground';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { useSystemMonitor } from './hooks/useSystemMonitor';
@@ -39,6 +41,8 @@ function App() {
       isOpen: false
     }
   });
+
+  const [systemSettingsModalOpen, setSystemSettingsModalOpen] = useState(false);
 
   const {
     metrics,
@@ -245,6 +249,16 @@ echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
           onToggleTerminal={toggleTerminal}
         />
 
+        {/* System Status Indicator */}
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          right: '20px',
+          zIndex: 100
+        }}>
+          <StatusIndicator onOpenSettings={() => setSystemSettingsModalOpen(true)} />
+        </div>
+
         <main className="main-content">
           <div className="container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto' }}>
             
@@ -331,6 +345,12 @@ echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
           onCloseScriptResults={closeScriptResults}
           onExecuteScript={executeScript}
           onSaveScript={saveScript}
+        />
+
+        {/* System Settings Modal */}
+        <SystemSettingsModal
+          isOpen={systemSettingsModalOpen}
+          onClose={() => setSystemSettingsModalOpen(false)}
         />
       </div>
     </ErrorBoundary>

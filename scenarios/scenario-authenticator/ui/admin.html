@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Service Admin - Scenario Authenticator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 40px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 40px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-change {
+            font-size: 12px;
+            color: #4CAF50;
+            margin-top: 4px;
+        }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 2px solid #f0f0f0;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .table td {
+            padding: 12px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #333;
+        }
+
+        .table tr:hover {
+            background: #f9f9f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 20px;
+            border-bottom: 2px solid #f0f0f0;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            padding: 12px 0;
+            color: #666;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: #333;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            color: #333;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .copy-btn {
+            float: right;
+            margin-top: -10px;
+            margin-right: -10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .empty-state-text {
+            margin-bottom: 20px;
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Loading spinner */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Snackbar */
+        .snackbar {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 2000;
+            left: 50%;
+            transform: translateX(-50%);
+            bottom: 30px;
+        }
+
+        .snackbar.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        .snackbar.success {
+            background-color: #4CAF50;
+        }
+
+        .snackbar.error {
+            background-color: #f44336;
+        }
+
+        @keyframes fadein {
+            from {bottom: 0; opacity: 0;}
+            to {bottom: 30px; opacity: 1;}
+        }
+
+        @keyframes fadeout {
+            from {bottom: 30px; opacity: 1;}
+            to {bottom: 0; opacity: 0;}
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div>
+                <h1>🔐 Scenario Authenticator Admin</h1>
+                <div class="header-subtitle">Central authentication service for all Vrooli scenarios</div>
+            </div>
+            <div>
+                <span id="adminEmail" style="margin-right: 20px;">admin@vrooli.local</span>
+                <button class="btn btn-secondary" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Registered Applications</div>
+                <div class="stat-value" id="totalApps">0</div>
+                <div class="stat-change">↑ 2 this week</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-value" id="totalUsers">1</div>
+                <div class="stat-change">↑ 12 today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Sessions</div>
+                <div class="stat-value" id="activeSessions">0</div>
+                <div class="stat-change">Across all scenarios</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Auth Requests Today</div>
+                <div class="stat-value" id="authRequests">0</div>
+                <div class="stat-change">↑ 18% from yesterday</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" data-tab="applications">Applications</div>
+            <div class="tab" data-tab="users">Users</div>
+            <div class="tab" data-tab="sessions">Sessions</div>
+            <div class="tab" data-tab="audit">Audit Logs</div>
+            <div class="tab" data-tab="integration">Integration Guide</div>
+        </div>
+
+        <!-- Applications Tab -->
+        <div class="tab-content active" id="applications-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Registered Applications</h2>
+                    <button class="btn btn-primary" onclick="showRegisterModal()">+ Register New Application</button>
+                </div>
+                
+                <div id="appsTable">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <div class="empty-state-title">No Applications Yet</div>
+                        <div class="empty-state-text">Register your first scenario to start using authentication</div>
+                        <button class="btn btn-primary" onclick="showRegisterModal()">Register First Application</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div class="tab-content" id="users-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">All Users</h2>
+                    <button class="btn btn-primary" onclick="createUser()">+ Create User</button>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Username</th>
+                            <th>Roles</th>
+                            <th>Applications</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr>
+                            <td>admin@vrooli.local</td>
+                            <td>admin</td>
+                            <td><span class="status-badge status-active">admin</span></td>
+                            <td>All</td>
+                            <td>Today</td>
+                            <td class="actions-cell">
+                                <button class="btn btn-secondary btn-small">View</button>
+                                <button class="btn btn-danger btn-small">Disable</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sessions Tab -->
+        <div class="tab-content" id="sessions-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Active Sessions</h2>
+                    <button class="btn btn-secondary" onclick="refreshSessions()">🔄 Refresh</button>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Application</th>
+                            <th>IP Address</th>
+                            <th>Started</th>
+                            <th>Last Activity</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionsTableBody">
+                        <tr>
+                            <td colspan="6" style="text-align: center; padding: 40px; color: #666;">
+                                No active sessions
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Audit Logs Tab -->
+        <div class="tab-content" id="audit-tab">
+            <div class="section">
+                <div class="section-header">
+                    <h2 class="section-title">Authentication Events</h2>
+                    <select class="form-select" style="width: 200px;">
+                        <option>All Applications</option>
+                        <option>scenario-visited-tracker</option>
+                        <option>scenario-saas-billing</option>
+                    </select>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event</th>
+                            <th>User</th>
+                            <th>Application</th>
+                            <th>IP Address</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                        <tr>
+                            <td>Just now</td>
+                            <td>user.logged_in</td>
+                            <td>admin@vrooli.local</td>
+                            <td>Auth Admin</td>
+                            <td>127.0.0.1</td>
+                            <td><span class="status-badge status-active">Success</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Integration Guide Tab -->
+        <div class="tab-content" id="integration-tab">
+            <div class="section">
+                <h2 class="section-title">Quick Integration Guide</h2>
+                
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">1. Register Your Application</h3>
+                <p style="color: #666; margin-bottom: 15px;">First, register your scenario using the admin dashboard or CLI:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    scenario-authenticator app register --name "my-scenario" --type api
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">2. Add Authentication to Your API</h3>
+                <p style="color: #666; margin-bottom: 15px;">For Go APIs, add this middleware:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+import "github.com/vrooli/auth-client-go"
+
+// In your main.go
+authClient := auth.NewClient("http://localhost:15000", "YOUR_API_KEY")
+router.Use(authClient.ValidateToken)
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">3. Protect Your UI Routes</h3>
+                <p style="color: #666; margin-bottom: 15px;">For JavaScript UIs, add this check:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+// Check authentication
+async function requireAuth() {
+    const token = localStorage.getItem('authToken');
+    const response = await fetch('http://localhost:15000/api/v1/auth/validate', {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (!response.ok) {
+        window.location.href = 'http://localhost:35000/login?redirect=' + encodeURIComponent(window.location.href);
+    }
+}
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">4. Handle User Context</h3>
+                <p style="color: #666; margin-bottom: 15px;">Access user information from validated tokens:</p>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+// Token validation response includes:
+{
+    "valid": true,
+    "user_id": "uuid",
+    "email": "user@example.com",
+    "roles": ["user", "admin"],
+    "expires_at": "2024-01-01T00:00:00Z"
+}
+                </div>
+
+                <div style="margin-top: 40px; padding: 20px; background: #f0f8ff; border-left: 4px solid #667eea; border-radius: 4px;">
+                    <h4 style="margin-bottom: 10px;">🚀 Need Help?</h4>
+                    <p style="color: #666;">Generate complete integration code for your scenario:</p>
+                    <code style="background: white; padding: 4px 8px; border-radius: 4px;">scenario-authenticator protect --scenario your-scenario-name</code>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Register Application Modal -->
+    <div class="modal" id="registerModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Register New Application</h2>
+            </div>
+            
+            <form id="registerAppForm">
+                <div class="form-group">
+                    <label class="form-label">Scenario Name</label>
+                    <input type="text" class="form-input" id="appName" placeholder="scenario-example" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Display Name</label>
+                    <input type="text" class="form-input" id="appDisplayName" placeholder="Example Scenario" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Scenario Type</label>
+                    <select class="form-select" id="appType">
+                        <option value="api">API Only</option>
+                        <option value="ui">UI Only</option>
+                        <option value="workflow">Workflow (n8n)</option>
+                        <option value="hybrid">Hybrid (API + UI)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Allowed Origins (for CORS)</label>
+                    <input type="text" class="form-input" id="appOrigins" placeholder="http://localhost:3000, http://localhost:3001">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Rate Limit (requests/hour)</label>
+                    <input type="number" class="form-input" id="appRateLimit" value="1000">
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 30px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Application</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Application Details Modal -->
+    <div class="modal" id="appDetailsModal" style="z-index: 1001;">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title" id="appDetailsTitle">Application Details</h2>
+                <button class="modal-close" onclick="closeAppDetailsModal()">×</button>
+            </div>
+            
+            <div id="appDetailsContent">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- API Credentials Modal -->
+    <div class="modal" id="credentialsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Application Registered!</h2>
+            </div>
+            
+            <p style="color: #666; margin-bottom: 20px;">
+                Save these credentials securely. They will not be shown again.
+            </p>
+            
+            <div class="form-group">
+                <label class="form-label">API Key</label>
+                <div class="code-block" id="apiKeyDisplay">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <span id="apiKeyValue"></span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">API Secret</label>
+                <div class="code-block" id="apiSecretDisplay">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <span id="apiSecretValue"></span>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Integration Endpoint</label>
+                <div class="code-block">
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    <span id="endpointValue">http://localhost:15000/api/v1/auth</span>
+                </div>
+            </div>
+            
+            <div style="display: flex; justify-content: center; margin-top: 30px;">
+                <button class="btn btn-primary" onclick="closeCredentialsModal()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="snackbar" class="snackbar">
+        <span id="snackbar-message"></span>
+    </div>
+
+    <script>
+        let API_URL = '';
+        let authToken = '';
+
+        // Initialize
+        async function init() {
+            // Get auth data
+            const authData = JSON.parse(localStorage.getItem('authData') || sessionStorage.getItem('authData') || '{}');
+            authToken = authData.token || localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+            
+            if (!authToken) {
+                window.location.href = '/';
+                return;
+            }
+
+            // Get API URL from config
+            try {
+                const configResponse = await fetch('/config');
+                const config = await configResponse.json();
+                API_URL = config.apiUrl;
+                
+                // Load initial data
+                loadApplications();
+                loadStatistics();
+                
+                // Set admin email
+                if (authData.user) {
+                    document.getElementById('adminEmail').textContent = authData.user.email || 'Admin';
+                }
+            } catch (error) {
+                console.error('Failed to initialize:', error);
+                showSnackbar('Failed to load configuration', 'error');
+            }
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                // Update active tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                // Show corresponding content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+                
+                // Load tab-specific data
+                switch(tabName) {
+                    case 'applications':
+                        loadApplications();
+                        break;
+                    case 'users':
+                        loadUsers();
+                        break;
+                    case 'sessions':
+                        loadSessions();
+                        break;
+                    case 'audit':
+                        loadAuditLogs();
+                        break;
+                }
+            });
+        });
+
+        // Load applications
+        async function loadApplications() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications?stats=true`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch applications');
+                }
+                
+                const data = await response.json();
+                const apps = data.applications || [];
+            
+            const appsDiv = document.getElementById('appsTable');
+            
+            if (apps.length === 0) {
+                appsDiv.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <div class="empty-state-title">No Applications Yet</div>
+                        <div class="empty-state-text">Register your first scenario to start using authentication</div>
+                        <button class="btn btn-primary" onclick="showRegisterModal()">Register First Application</button>
+                    </div>
+                `;
+            } else {
+                appsDiv.innerHTML = `
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Users</th>
+                                <th>Active Sessions</th>
+                                <th>Events Today</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${apps.map(app => `
+                                <tr>
+                                    <td>
+                                        <strong>${app.display_name}</strong><br>
+                                        <small style="color: #666;">${app.name}</small>
+                                    </td>
+                                    <td><span class="status-badge">${app.scenario_type || 'api'}</span></td>
+                                    <td><span class="status-badge status-${app.is_active ? 'active' : 'inactive'}">${app.is_active ? 'active' : 'inactive'}</span></td>
+                                    <td>${app.total_users || 0}</td>
+                                    <td>${app.active_sessions || 0}</td>
+                                    <td>${app.total_events_today || 0}</td>
+                                    <td class="actions-cell">
+                                        <button class="btn btn-secondary btn-small" onclick="viewApp('${app.id}', '${app.name}')">View</button>
+                                        <button class="btn btn-secondary btn-small" onclick="generateCode('${app.id}', '${app.name}')">Code</button>
+                                        <button class="btn btn-danger btn-small" onclick="revokeApp('${app.id}', '${app.name}')">Revoke</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+            } catch (error) {
+                console.error('Error loading applications:', error);
+                showSnackbar('Failed to load applications', 'error');
+                document.getElementById('appsTable').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <div class="empty-state-title">Error Loading Applications</div>
+                        <div class="empty-state-text">Please try refreshing the page</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Load statistics
+        async function loadStatistics() {
+            // Update with real data when endpoints are ready
+            document.getElementById('totalApps').textContent = '1';
+            document.getElementById('totalUsers').textContent = '1';
+            document.getElementById('activeSessions').textContent = '0';
+            document.getElementById('authRequests').textContent = '0';
+        }
+
+        // Load users
+        async function loadUsers() {
+            // Will be implemented with real endpoint
+        }
+
+        // Load sessions
+        async function loadSessions() {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/sessions`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    // Display sessions
+                }
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+            }
+        }
+
+        // Load audit logs
+        async function loadAuditLogs() {
+            // Will be implemented with real endpoint
+        }
+
+        // Show register modal
+        function showRegisterModal() {
+            document.getElementById('registerModal').classList.add('show');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('registerModal').classList.remove('show');
+        }
+
+        // Register application form
+        document.getElementById('registerAppForm')?.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const appData = {
+                name: document.getElementById('appName').value,
+                display_name: document.getElementById('appDisplayName').value,
+                scenario_type: document.getElementById('appType').value,
+                allowed_origins: document.getElementById('appOrigins').value.split(',').map(o => o.trim()),
+                rate_limit: parseInt(document.getElementById('appRateLimit').value)
+            };
+            
+            // For now, show mock credentials
+            document.getElementById('apiKeyValue').textContent = 'ak_' + generateRandomString(32);
+            document.getElementById('apiSecretValue').textContent = 'as_' + generateRandomString(32);
+            
+            closeModal();
+            document.getElementById('credentialsModal').classList.add('show');
+            
+            showSnackbar('Application registered successfully!', 'success');
+            loadApplications();
+        });
+
+        // Close credentials modal
+        function closeCredentialsModal() {
+            document.getElementById('credentialsModal').classList.remove('show');
+        }
+
+        // Generate random string
+        function generateRandomString(length) {
+            const chars = 'abcdef0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // Copy code
+        function copyCode(button) {
+            const codeBlock = button.parentElement;
+            const text = codeBlock.textContent.replace('Copy', '').trim();
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                }, 2000);
+            });
+        }
+
+        // View application
+        async function viewApp(appId, name) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications/${appId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch application details');
+                }
+                
+                const app = await response.json();
+                showAppDetails(app);
+            } catch (error) {
+                console.error('Error loading application details:', error);
+                showSnackbar('Failed to load application details', 'error');
+            }
+        }
+
+        // Generate integration code
+        async function generateCode(appId, name) {
+            try {
+                const response = await fetch(`${API_URL}/api/v1/applications/${appId}/integration-code?type=api`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to generate integration code');
+                }
+                
+                const data = await response.json();
+                showIntegrationCode(data, name);
+            } catch (error) {
+                console.error('Error generating integration code:', error);
+                showSnackbar('Failed to generate integration code', 'error');
+            }
+        }
+
+        // Revoke application
+        async function revokeApp(appId, name) {
+            if (confirm(`Are you sure you want to revoke access for ${name}?`)) {
+                try {
+                    const response = await fetch(`${API_URL}/api/v1/applications/${appId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to revoke application');
+                    }
+                    
+                    showSnackbar(`${name} access revoked`, 'success');
+                    loadApplications();
+                } catch (error) {
+                    console.error('Error revoking application:', error);
+                    showSnackbar('Failed to revoke application access', 'error');
+                }
+            }
+        }
+
+        // Show application details
+        function showAppDetails(app) {
+            const modal = document.getElementById('appDetailsModal');
+            const title = document.getElementById('appDetailsTitle');
+            const content = document.getElementById('appDetailsContent');
+            
+            title.textContent = `${app.display_name} - Details`;
+            
+            const lastAccessedText = app.last_accessed ? 
+                new Date(app.last_accessed).toLocaleDateString() : 'Never';
+            
+            const originsText = app.allowed_origins && app.allowed_origins.length > 0 ? 
+                app.allowed_origins.join(', ') : 'None configured';
+                
+            const redirectsText = app.redirect_uris && app.redirect_uris.length > 0 ? 
+                app.redirect_uris.join(', ') : 'None configured';
+            
+            content.innerHTML = `
+                <div style="display: grid; gap: 30px;">
+                    <!-- Basic Information -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Basic Information</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div>
+                                <label style="font-weight: 600; color: #666;">Name</label>
+                                <p style="margin: 5px 0 15px 0;">${app.name}</p>
+                                
+                                <label style="font-weight: 600; color: #666;">Display Name</label>
+                                <p style="margin: 5px 0 15px 0;">${app.display_name}</p>
+                                
+                                <label style="font-weight: 600; color: #666;">Description</label>
+                                <p style="margin: 5px 0 15px 0;">${app.description || 'No description provided'}</p>
+                            </div>
+                            <div>
+                                <label style="font-weight: 600; color: #666;">Type</label>
+                                <p style="margin: 5px 0 15px 0;"><span class="status-badge">${app.scenario_type}</span></p>
+                                
+                                <label style="font-weight: 600; color: #666;">Status</label>
+                                <p style="margin: 5px 0 15px 0;"><span class="status-badge status-${app.is_active ? 'active' : 'inactive'}">${app.is_active ? 'Active' : 'Inactive'}</span></p>
+                                
+                                <label style="font-weight: 600; color: #666;">Created</label>
+                                <p style="margin: 5px 0 15px 0;">${new Date(app.created_at).toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Statistics -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Usage Statistics</h3>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+                            <div class="stat-card">
+                                <div class="stat-number">${app.total_users || 0}</div>
+                                <div class="stat-label">Total Users</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${app.total_authentications || 0}</div>
+                                <div class="stat-label">Total Auths</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${app.rate_limit || 1000}</div>
+                                <div class="stat-label">Rate Limit/hr</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-number">${app.max_users ? app.max_users : '∞'}</div>
+                                <div class="stat-label">Max Users</div>
+                            </div>
+                        </div>
+                        <p style="margin-top: 15px; color: #666; font-size: 14px;">
+                            <strong>Last Accessed:</strong> ${lastAccessedText}
+                        </p>
+                    </section>
+                    
+                    <!-- Configuration -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Configuration</h3>
+                        <div>
+                            <label style="font-weight: 600; color: #666;">Allowed Origins (CORS)</label>
+                            <p style="margin: 5px 0 15px 0; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px;">${originsText}</p>
+                            
+                            <label style="font-weight: 600; color: #666;">Redirect URIs</label>
+                            <p style="margin: 5px 0 15px 0; font-family: monospace; background: #f5f5f5; padding: 10px; border-radius: 4px;">${redirectsText}</p>
+                            
+                            <label style="font-weight: 600; color: #666;">Permissions</label>
+                            <p style="margin: 5px 0 15px 0;">
+                                ${app.permissions && app.permissions.length > 0 ? 
+                                    app.permissions.map(perm => `<span class="status-badge" style="margin-right: 5px;">${perm}</span>`).join('') : 
+                                    'Default permissions'
+                                }
+                            </p>
+                        </div>
+                    </section>
+                    
+                    <!-- Actions -->
+                    <section>
+                        <h3 style="margin-bottom: 15px; color: #333;">Actions</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="generateCode('${app.id}', '${app.name}')">📋 Integration Code</button>
+                            <button class="btn btn-secondary" onclick="editApp('${app.id}')">✏️ Edit Settings</button>
+                            <button class="btn btn-danger" onclick="revokeApp('${app.id}', '${app.name}')">🚫 Revoke Access</button>
+                        </div>
+                    </section>
+                </div>
+                
+                <div style="margin-top: 30px; text-align: right;">
+                    <button class="btn btn-secondary" onclick="closeAppDetailsModal()">Close</button>
+                </div>
+            `;
+            
+            modal.classList.add('show');
+        }
+        
+        // Close application details modal
+        function closeAppDetailsModal() {
+            document.getElementById('appDetailsModal').classList.remove('show');
+        }
+        
+        // Show integration code modal
+        function showIntegrationCode(data, appName) {
+            const modal = document.createElement('div');
+            modal.className = 'modal show';
+            modal.style.zIndex = '1002';
+            
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2 class="modal-title">Integration Code - ${appName}</h2>
+                        <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <p style="color: #666;">Copy the code below to integrate authentication into your ${data.integration_type} scenario:</p>
+                    </div>
+                    
+                    <div class="code-block" style="position: relative;">
+                        <button class="copy-btn" onclick="copyCode(this)" style="position: absolute; top: 10px; right: 10px;">Copy</button>
+                        <pre style="white-space: pre-wrap; font-family: monospace; font-size: 14px; line-height: 1.5;">${data.code}</pre>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">Close</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        // Edit application (placeholder)
+        function editApp(appId) {
+            showSnackbar('Application editing coming soon', 'info');
+        }
+
+        // Create user
+        function createUser() {
+            showSnackbar('User creation dialog coming soon', 'info');
+        }
+
+        // Refresh sessions
+        function refreshSessions() {
+            loadSessions();
+            showSnackbar('Sessions refreshed', 'success');
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await fetch(`${API_URL}/api/v1/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+            
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = '/';
+        }
+
+        // Show snackbar
+        function showSnackbar(message, type = 'info') {
+            const snackbar = document.getElementById('snackbar');
+            const messageSpan = document.getElementById('snackbar-message');
+            
+            messageSpan.textContent = message;
+            snackbar.className = `snackbar ${type}`;
+            snackbar.classList.add('show');
+            
+            setTimeout(() => {
+                snackbar.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

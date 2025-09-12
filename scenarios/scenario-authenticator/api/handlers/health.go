@@ -16,6 +16,11 @@ type HealthResponse struct {
 
 // HealthHandler handles health check requests
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle CORS preflight
+	if r.Method == "OPTIONS" {
+		return
+	}
+	
 	// Check database connection
 	dbHealthy := false
 	if db.DB != nil {

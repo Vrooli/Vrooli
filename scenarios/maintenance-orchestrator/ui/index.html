@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Maintenance Orchestrator | Mission Control</title>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         * {
             margin: 0;
@@ -45,6 +47,7 @@
             align-items: center;
             justify-content: center;
             font-size: 24px;
+            color: #ffffff;
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
         }
 
@@ -100,6 +103,16 @@
             100% { opacity: 1; }
         }
 
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Apply spinning animation to loader icons */
+        i[data-lucide="loader"] {
+            animation: spin 1s linear infinite;
+        }
+
         .logs-btn {
             padding: 8px 16px;
             background: rgba(20, 25, 50, 0.6);
@@ -127,6 +140,54 @@
 
         .stat {
             text-align: center;
+        }
+
+        /* Loading skeleton styles */
+        .skeleton-loader {
+            padding: 20px;
+        }
+
+        .skeleton-card {
+            background: rgba(30, 35, 60, 0.5);
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-title {
+            height: 24px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 4px;
+            width: 60%;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-text {
+            height: 16px;
+            background: rgba(59, 130, 246, 0.08);
+            border-radius: 4px;
+            width: 80%;
+            margin-bottom: 8px;
+        }
+
+        .skeleton-tags {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .skeleton-tag {
+            height: 24px;
+            width: 60px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+        }
+
+        @keyframes skeleton-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
         }
 
         .stat-value {
@@ -302,14 +363,25 @@
         }
 
         .preset-btn.preview {
-            border: 2px solid #3b82f6;
             background: rgba(59, 130, 246, 0.1);
             transform: translateX(5px);
+            box-shadow: inset 0 0 0 2px #3b82f6;
         }
 
         .preset-btn.preview:hover {
             border-color: #2563eb;
             background: rgba(59, 130, 246, 0.15);
+        }
+
+        .preset-btn.active {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.6);
+            box-shadow: 0 2px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .preset-btn.active:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: rgba(16, 185, 129, 0.8);
         }
 
         .preset-action-icon {
@@ -433,10 +505,9 @@
         }
 
         .scenario-card.preview {
-            border: 2px solid #3b82f6;
             background: rgba(59, 130, 246, 0.12);
             transform: translateY(-8px);
-            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.35);
+            box-shadow: inset 0 0 0 2px #3b82f6, 0 20px 40px rgba(59, 130, 246, 0.35);
         }
         
         .scenario-card.preview::before {
@@ -489,6 +560,80 @@
             transform: scale(1.05);
         }
 
+        /* 3-State Toggle */
+        .state-toggle {
+            position: relative;
+            width: 72px;
+            height: 24px;
+            background: rgba(20, 25, 50, 0.6);
+            border: 1px solid rgba(16, 185, 129, 0.1);
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all 0.4s ease;
+        }
+
+        .state-toggle:before {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transition: all 0.4s ease;
+        }
+
+        /* Stopped state (red) */
+        .state-toggle.stopped {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .state-toggle.stopped:before {
+            background-color: #ef4444;
+            left: 2px;
+        }
+
+        /* Running but inactive state (yellow) */
+        .state-toggle.running-inactive {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+
+        .state-toggle.running-inactive:before {
+            background-color: #f59e0b;
+            left: 26px;
+        }
+
+        /* Running and active state (green) */
+        .state-toggle.running-active {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+
+        .state-toggle.running-active:before {
+            background-color: #10b981;
+            left: 50px;
+        }
+
+        .state-toggle:hover:not(.loading) {
+            transform: scale(1.05);
+        }
+
+        /* Loading state */
+        .state-toggle.loading {
+            background: rgba(100, 116, 139, 0.2);
+            border-color: rgba(100, 116, 139, 0.3);
+            cursor: wait;
+        }
+
+        .state-toggle.loading:before {
+            background-color: #64748b;
+            left: 26px; /* Center position */
+            animation: spin 1s linear infinite;
+        }
+
+        /* Legacy 2-state toggle (kept for compatibility) */
         .toggle-switch {
             position: relative;
             width: 48px;
@@ -533,6 +678,7 @@
             background-color: #10b981;
             transform: translateX(24px);
         }
+
 
 
         .loading-spinner {
@@ -1015,7 +1161,7 @@
 <body>
     <div class="header">
         <div class="logo">
-            <div class="logo-icon">🎛️</div>
+            <div class="logo-icon"><i data-lucide="activity" style="width: 24px; height: 24px;"></i></div>
             <h1>Maintenance Orchestrator</h1>
         </div>
         <div class="header-right">
@@ -1025,7 +1171,7 @@
                 <span id="apiEndpoint" style="color: #64748b; font-size: 11px; margin-left: 8px;"></span>
             </div>
             <button class="logs-btn" onclick="openLogsModal()">
-                📋 View Logs
+                <i data-lucide="clipboard-list" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>View Logs
             </button>
             <div class="stats">
                 <div class="stat">
@@ -1047,7 +1193,7 @@
     <!-- Control Bar -->
     <div class="control-bar">
         <div class="search-container">
-            <span class="search-icon">🔍</span>
+            <i data-lucide="search" class="search-icon" style="width: 18px; height: 18px;"></i>
             <input type="text" class="search-input" id="searchInput" placeholder="Search scenarios..." />
         </div>
         <div class="sort-container">
@@ -1061,10 +1207,10 @@
             </select>
         </div>
         <button class="refresh-btn" id="refreshBtn" onclick="manualRefresh()">
-            🔄 Refresh
+            <i data-lucide="refresh-cw" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Refresh
         </button>
         <button class="add-scenario-btn" onclick="openManageScenarioModal()">
-            ⚙️ Manage
+            <i data-lucide="settings" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Manage
         </button>
     </div>
 
@@ -1091,14 +1237,14 @@
     </div>
 
     <button class="emergency-stop" onclick="emergencyStop()">
-        🛑 STOP ALL
+        <i data-lucide="stop-circle" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>STOP ALL
     </button>
 
     <!-- Logs Modal -->
     <div id="logsModal" class="logs-modal">
         <div class="logs-content">
             <div class="logs-header">
-                <div class="logs-title">🔍 Connection & Activity Logs</div>
+                <div class="logs-title"><i data-lucide="activity" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Connection & Activity Logs</div>
                 <div class="logs-header-buttons">
                     <button class="modal-btn" onclick="clearLogs()">Clear</button>
                     <button class="modal-btn" onclick="testConnection()">Test Connection</button>
@@ -1118,14 +1264,14 @@
     <div id="manageScenarioModal" class="logs-modal">
         <div class="logs-content">
             <div class="logs-header">
-                <div class="logs-title">⚙️ Manage Maintenance Scenarios</div>
+                <div class="logs-title"><i data-lucide="settings-2" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"></i>Manage Maintenance Scenarios</div>
                 <div class="logs-header-buttons">
                     <button class="modal-btn" onclick="closeManageScenarioModal()">✕</button>
                 </div>
             </div>
             <div class="scenario-selector">
                 <div class="search-container" style="margin-bottom: 20px;">
-                    <span class="search-icon">🔍</span>
+                    <i data-lucide="search" class="search-icon" style="width: 18px; height: 18px;"></i>
                     <input type="text" class="search-input" id="modalSearchInput" placeholder="Search scenarios..." onkeyup="filterModalScenarios()" />
                 </div>
                 <div id="availableScenariosList" class="available-scenarios-list">
@@ -1194,6 +1340,8 @@
         let previewedScenarios = new Set();
         let presetsVisible = true;
         let cachedStatuses = {}; // Cache for scenario statuses to prevent flicker
+        let loadingStates = {}; // Track which scenarios are loading state changes
+        let initialLoadComplete = false; // Track if initial health check has completed
 
         // Logging functions
         function addLog(message, level = 'info') {
@@ -1431,22 +1579,28 @@
             // Check if we have a cached status for this scenario
             if (!cachedStatuses[scenarioId]) {
                 // No cached status yet, show loading state
-                return `<span class="status-chip stopped">⏳ Loading...</span>`;
+                return `<span class="status-chip stopped"><i data-lucide="loader" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px;"></i>Loading...</span>`;
             }
             
             const status = cachedStatuses[scenarioId];
             switch(status.health) {
                 case 'running':
-                    return `<span class="status-chip running">🟢 Running (${status.processCount})</span>`;
+                    return `<span class="status-chip running"><i data-lucide="circle-check" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: #10b981;"></i>Running (${status.processCount})</span>`;
                 case 'error':
-                    return `<span class="status-chip error">🔴 Error</span>`;
+                    return `<span class="status-chip error"><i data-lucide="circle-x" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: #ef4444;"></i>Error</span>`;
                 default:
-                    return `<span class="status-chip stopped">⚫ Stopped</span>`;
+                    return `<span class="status-chip stopped"><i data-lucide="circle" style="width: 14px; height: 14px; vertical-align: middle; margin-right: 4px; color: #64748b;"></i>Stopped</span>`;
             }
         }
 
         function filterAndSortScenarios() {
             let filtered = Object.values(scenarios);
+            
+            // Filter out the maintenance orchestrator itself
+            filtered = filtered.filter(s => 
+                s.id !== 'maintenance-orchestrator' && 
+                s.name !== 'maintenance-orchestrator'
+            );
             
             // Apply search filter
             if (searchTerm) {
@@ -1538,47 +1692,54 @@
                                     onclick="event.stopPropagation(); openScenarioInNewTab('${scenario.id}')" 
                                     title="Open scenario in new tab"
                                     style="padding: 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; color: #10b981; cursor: pointer; transition: all 0.3s ease;">
-                                ↗️
+                                <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
                             </button>
-                            <label class="toggle-switch" onclick="event.stopPropagation();">
-                                <input type="checkbox" 
-                                       ${scenario.isActive ? 'checked' : ''} 
-                                       onchange="toggleScenario('${scenario.id}', this.checked)">
-                                <span class="slider"></span>
-                            </label>
+                            
+                            <div class="state-toggle ${getScenarioState(scenario.id)}" 
+                                 onclick="event.stopPropagation(); cycleScenarioState('${scenario.id}')"
+                                 title="${getScenarioStateTitle(scenario.id)}">
+                            </div>
                         </div>
                     </div>
                     ${scenario.description ? `<div style="color: #64748b; font-size: 12px; margin-top: 10px;">${scenario.description}</div>` : ''}
                 </div>
             `;
             }).join('');
+            
+            // Initialize Lucide icons
+            lucide.createIcons();
         }
 
         function renderPresets() {
             const container = document.getElementById('presets-container');
             container.innerHTML = Object.values(presets).map(preset => {
                 const isPreview = previewedPreset === preset.id;
-                const previewClass = isPreview ? ' preview' : '';
+                const isActive = isPresetActive(preset.id);
                 
+                const classes = [];
+                if (isPreview) classes.push('preview');
+                if (isActive) classes.push('active');
+                const classString = classes.length > 0 ? ' ' + classes.join(' ') : '';
+                
+                // Always show action icons, with different icons based on active state
                 let actionIcon = '';
-                if (isPreview) {
-                    // Check if this preset is currently active
-                    const isActive = isPresetActive(preset.id);
-                    if (isActive) {
-                        actionIcon = `<span class="preset-action-icon deactivate" onclick="event.stopPropagation(); deactivatePreset('${preset.id}')" title="Deactivate preset">⏹️</span>`;
-                    } else {
-                        actionIcon = `<span class="preset-action-icon activate" onclick="event.stopPropagation(); activatePreset('${preset.id}')" title="Activate preset">▶️</span>`;
-                    }
+                if (isActive) {
+                    actionIcon = `<span class="preset-action-icon deactivate" onclick="event.stopPropagation(); deactivatePreset('${preset.id}')" title="Deactivate preset"><i data-lucide="square" style="width: 16px; height: 16px;"></i></span>`;
+                } else {
+                    actionIcon = `<span class="preset-action-icon activate" onclick="event.stopPropagation(); activatePreset('${preset.id}')" title="Activate preset"><i data-lucide="play" style="width: 16px; height: 16px;"></i></span>`;
                 }
                 
                 return `
-                    <button class="preset-btn${previewClass}" onclick="previewPreset('${preset.id}')">
+                    <button class="preset-btn${classString}" onclick="previewPreset('${preset.id}')">
                         ${actionIcon}
-                        <div>${preset.name}</div>
+                        <div>${preset.name}${isActive ? ' <i data-lucide="check-circle" style="width: 14px; height: 14px; vertical-align: middle; color: #10b981;"></i>' : ''}</div>
                         <div class="preset-description">${preset.description}</div>
                     </button>
                 `;
             }).join('');
+            
+            // Initialize Lucide icons
+            lucide.createIcons();
         }
 
 
@@ -1614,9 +1775,163 @@
             }
         }
 
+        // 3-State System Functions
+        function getScenarioProcessStatus(scenarioId) {
+            const status = scenarioStatuses[scenarioId];
+            if (!status || status.status === 'stopped') return 'stopped';
+            return status.status === 'running' ? 'running' : 'stopped';
+        }
+
+        function getScenarioState(scenarioId) {
+            // Show loading if initial load hasn't completed or scenario is actively loading
+            if (!initialLoadComplete || loadingStates[scenarioId]) {
+                return 'loading';
+            }
+
+            const processStatus = getScenarioProcessStatus(scenarioId);
+            const isActive = scenarios[scenarioId]?.isActive || false;
+
+            if (processStatus === 'stopped') return 'stopped';
+            if (processStatus === 'running' && !isActive) return 'running-inactive';
+            if (processStatus === 'running' && isActive) return 'running-active';
+            return 'stopped';
+        }
+
+        function getScenarioStateTitle(scenarioId) {
+            const state = getScenarioState(scenarioId);
+            switch (state) {
+                case 'loading':
+                    return 'Loading... Please wait';
+                case 'stopped':
+                    return 'Stopped - Click to start process and activate maintenance';
+                case 'running-inactive':
+                    return 'Running but maintenance inactive - Click to activate maintenance';
+                case 'running-active':
+                    return 'Running with active maintenance - Click to stop process completely';
+                default:
+                    return 'Unknown state';
+            }
+        }
+
+        async function cycleScenarioState(scenarioId) {
+            // Don't allow clicks while already loading
+            if (loadingStates[scenarioId]) {
+                return;
+            }
+
+            const currentState = getScenarioState(scenarioId);
+            const scenarioName = scenarios[scenarioId]?.displayName || scenarios[scenarioId]?.name || scenarioId;
+
+            // Set loading state and re-render
+            loadingStates[scenarioId] = true;
+            renderScenarios();
+
+            try {
+                switch (currentState) {
+                    case 'loading':
+                        // Already loading, shouldn't reach here but just in case
+                        return;
+                    
+                    case 'stopped':
+                        // Start process and activate maintenance
+                        addLog(`Starting and activating ${scenarioName}`, 'info');
+                        await startScenario(scenarioId);
+                        // Wait a moment for the process to start, then activate maintenance
+                        setTimeout(async () => {
+                            await toggleScenario(scenarioId, true);
+                            // Clear loading state after both operations
+                            loadingStates[scenarioId] = false;
+                            renderScenarios();
+                        }, 2000);
+                        return; // Don't clear loading state immediately
+                    
+                    case 'running-inactive':
+                        // Just activate maintenance
+                        await toggleScenario(scenarioId, true);
+                        break;
+                    
+                    case 'running-active':
+                        // Stop process completely (which also deactivates maintenance)
+                        addLog(`Stopping ${scenarioName}`, 'info');
+                        await stopScenario(scenarioId);
+                        // Deactivate maintenance as well
+                        setTimeout(async () => {
+                            await toggleScenario(scenarioId, false);
+                            // Clear loading state after both operations
+                            loadingStates[scenarioId] = false;
+                            renderScenarios();
+                        }, 1000);
+                        return; // Don't clear loading state immediately
+                }
+                
+                // Clear loading state for single operations
+                loadingStates[scenarioId] = false;
+                renderScenarios();
+                
+            } catch (error) {
+                addLog(`Error cycling state for ${scenarioName}: ${error.message}`, 'error');
+                // Clear loading state on error
+                loadingStates[scenarioId] = false;
+                renderScenarios();
+            }
+        }
+
+        async function startScenario(scenarioId) {
+            const scenarioName = scenarios[scenarioId]?.displayName || scenarios[scenarioId]?.name || scenarioId;
+            
+            try {
+                addLog(`Starting scenario: ${scenarioName}`, 'info');
+                
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/start`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Successfully started ${scenarioName}`, 'success');
+                    // Refresh status after a delay to allow process to start
+                    setTimeout(() => {
+                        pollData();
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                addLog(`Failed to start ${scenarioName}: ${error.message}`, 'error');
+                console.error('Start scenario error:', error);
+            }
+        }
+
+        async function stopScenario(scenarioId) {
+            const scenarioName = scenarios[scenarioId]?.displayName || scenarios[scenarioId]?.name || scenarioId;
+            
+            try {
+                addLog(`Stopping scenario: ${scenarioName}`, 'info');
+                
+                const response = await fetch(`${API_BASE}/scenarios/${scenarioId}/stop`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(`Successfully stopped ${scenarioName}`, 'success');
+                    // Refresh status after a delay
+                    setTimeout(() => {
+                        pollData();
+                    }, 2000);
+                } else {
+                    throw new Error(data.error || 'Unknown error');
+                }
+            } catch (error) {
+                addLog(`Failed to stop ${scenarioName}: ${error.message}`, 'error');
+                console.error('Stop scenario error:', error);
+            }
+        }
+
         async function openScenario(event, scenarioId) {
             // Don't open if clicking on toggle switch, action buttons, or other interactive elements
             if (event.target.closest('.toggle-switch') || 
+                event.target.closest('.state-toggle') ||
                 event.target.closest('.action-btn') || 
                 event.target.closest('button') ||
                 event.target.closest('label')) {
@@ -1701,21 +2016,8 @@
             const preset = presets[presetId];
             if (!preset) return false;
             
-            // Check if all scenarios that would be affected by this preset are currently active
-            const affectedScenarios = [];
-            if (preset.pattern === '*') {
-                affectedScenarios.push(...Object.keys(scenarios));
-            } else if (preset.tags && preset.tags.length > 0) {
-                Object.values(scenarios).forEach(scenario => {
-                    if (scenario.tags && scenario.tags.some(tag => preset.tags.includes(tag))) {
-                        affectedScenarios.push(scenario.id);
-                    }
-                });
-            } else if (preset.states) {
-                affectedScenarios.push(...Object.keys(preset.states));
-            }
-            
-            return affectedScenarios.length > 0 && affectedScenarios.every(id => scenarios[id]?.isActive);
+            // Use the isActive field from the preset
+            return preset.isActive || false;
         }
         
         async function activatePreset(presetId) {
@@ -1741,22 +2043,21 @@
         }
         
         async function deactivatePreset(presetId) {
-            // For now, deactivating a preset means stopping all scenarios
-            // In the future, this could be more sophisticated
-            if (!confirm('Deactivate all scenarios?')) return;
+            const presetName = presets[presetId]?.name || presetId;
             
             try {
-                const response = await fetch(`${API_BASE}/stop-all`, {
+                addLog(`Deactivating preset: ${presetName}`, 'info');
+                const response = await fetch(`${API_BASE}/presets/${presetId}/apply`, {
                     method: 'POST'
                 });
                 const data = await response.json();
                 
                 if (data.success) {
-                    addLog(`✅ Deactivated preset`, 'success');
+                    addLog(`✅ Deactivated preset: ${presetName}`, 'success');
                     clearPreview();
                     fetchScenarios();
                 } else {
-                    addLog(`Failed to deactivate preset`, 'error');
+                    addLog(`Failed to deactivate preset: ${presetName}`, 'error');
                 }
             } catch (error) {
                 addLog(`Error deactivating preset: ${error.message}`, 'error');
@@ -1855,6 +2156,9 @@
 
         // Search and sort handlers
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize Lucide icons
+            lucide.createIcons();
+            
             const searchInput = document.getElementById('searchInput');
             const sortSelect = document.getElementById('sortSelect');
             
@@ -1879,6 +2183,40 @@
         async function openManageScenarioModal() {
             document.getElementById('manageScenarioModal').style.display = 'flex';
             document.getElementById('modalSearchInput').value = '';
+            
+            // Show loading skeleton while fetching
+            const container = document.getElementById('availableScenariosList');
+            container.innerHTML = `
+                <div class="skeleton-loader">
+                    <div class="skeleton-card">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                        </div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-title"></div>
+                        <div class="skeleton-text"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                            <div class="skeleton-tag"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
             await loadAllScenarios();
         }
 
@@ -1927,12 +2265,15 @@
                                 ${hasMaintenance ? '❌' : '➕'}
                             </button>
                             <button class="action-btn bookmark-btn" onclick="event.stopPropagation(); openPresetAssignmentModal('${scenario.name}', '${scenario.displayName || scenario.name}')" title="Assign to presets">
-                                🔖
+                                <i data-lucide="bookmark" style="width: 16px; height: 16px;"></i>
                             </button>
                         </div>
                     </div>
                 `;
             }).join('');
+            
+            // Initialize Lucide icons for newly rendered content
+            lucide.createIcons();
         }
 
         function filterModalScenarios() {
@@ -2075,6 +2416,10 @@
                 await fetchScenarios();
                 await fetchPresets();
                 await fetchScenarioStatuses();
+                
+                // Mark initial load as complete
+                initialLoadComplete = true;
+                renderScenarios(); // Re-render to remove loading states
                 
                 // Start sequential polling
                 startPolling();

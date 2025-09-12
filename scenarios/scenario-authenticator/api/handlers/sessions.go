@@ -7,7 +7,7 @@ import (
 	"scenario-authenticator/db"
 	"scenario-authenticator/utils"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 // GetSessionsHandler lists active sessions
@@ -55,8 +55,7 @@ func GetSessionsHandler(w http.ResponseWriter, r *http.Request) {
 
 // RevokeSessionHandler revokes a specific session
 func RevokeSessionHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	sessionID := vars["id"]
+	sessionID := chi.URLParam(r, "id")
 	
 	// Get session to find associated tokens
 	sessionData, err := db.RedisClient.Get(db.Ctx, "session:"+sessionID).Result()

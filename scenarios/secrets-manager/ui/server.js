@@ -50,10 +50,9 @@ app.use('/health', (req, res) => {
     proxyToApi(req, res, '/health');
 });
 
-// API endpoints proxy
+// API endpoints proxy - use originalUrl to preserve full path
 app.use('/api', (req, res) => {
-    const fullApiPath = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
-    proxyToApi(req, res, fullApiPath);
+    proxyToApi(req, res, req.originalUrl);
 });
 
 // Also proxy root-level endpoints that the secrets-manager API expects
@@ -82,17 +81,6 @@ app.use(express.static(__dirname, {
         res.setHeader('X-Frame-Options', 'DENY');
         res.setHeader('X-XSS-Protection', '1; mode=block');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-// Health check endpoint for orchestrator
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        scenario: 'secrets-manager',
-        port: PORT,
-        timestamp: new Date().toISOString()
-    });
-});
-
         
         if (path.endsWith('.js')) {
             res.setHeader('Cache-Control', 'no-cache');

@@ -23,12 +23,12 @@
   },
   "ports": {
     "api": {
-      "env_var": "AUTH_API_PORT",
+      "env_var": "API_PORT",
       "description": "Authentication API server port",
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "AUTH_UI_PORT",
+      "env_var": "UI_PORT",
       "description": "Authentication UI server port",
       "range": "35000-39999"
     }
@@ -42,6 +42,10 @@
       "initialization": [
         {
           "file": "initialization/postgres/schema.sql",
+          "type": "schema"
+        },
+        {
+          "file": "initialization/postgres/applications.sql",
           "type": "schema"
         },
         {
@@ -82,8 +86,16 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${AUTH_API_PORT}/health",
+          "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         },
@@ -133,7 +145,7 @@
       "steps": [
         {
           "name": "initialize-database",
-          "run": "resource-postgres content create-database --name scenario_authenticator",
+          "run": "resource-postgres content create-database main scenario_authenticator",
           "description": "Create authentication database"
         },
         {
@@ -166,7 +178,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo 'Authentication Service initialized - UI: http://localhost:${AUTH_UI_PORT} - API: http://localhost:${AUTH_API_PORT} - CLI: scenario-authenticator --help'",
+          "run": "echo 'Authentication Service initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -191,7 +203,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo 'Auth Services running - UI: http://localhost:${AUTH_UI_PORT} - API: http://localhost:${AUTH_API_PORT} - CLI: scenario-authenticator --help'",
+          "run": "echo 'Auth Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: scenario-authenticator --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -269,7 +281,7 @@
       }
     ],
     "example_integration": {
-      "api": "const isValid = await fetch(`http://localhost:${process.env.AUTH_API_PORT}/api/v1/auth/validate`, { headers: { 'Authorization': `Bearer ${token}` } });",
+      "api": "const isValid = await fetch(`http://localhost:${process.env.API_PORT}/api/v1/auth/validate`, { headers: { 'Authorization': `Bearer ${token}` } });",
       "cli": "scenario-authenticator token validate $TOKEN"
     }
   }

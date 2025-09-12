@@ -23,6 +23,7 @@ type Preset struct {
 	Tags        []string        `json:"tags,omitempty"`
 	Pattern     string          `json:"pattern,omitempty"`
 	IsDefault   bool            `json:"isDefault"`
+	IsActive    bool            `json:"isActive"`
 }
 
 type ActivityEntry struct {

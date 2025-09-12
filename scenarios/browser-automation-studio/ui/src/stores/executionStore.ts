@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
+import { API_BASE, WS_BASE } from '../config';
 
 interface Screenshot {
   id: string;
@@ -45,9 +46,6 @@ interface ExecutionStore {
   updateExecutionStatus: (status: Execution['status'], error?: string) => void;
   updateProgress: (progress: number, currentStep?: string) => void;
 }
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8090/api/v1';
-const WS_BASE = import.meta.env.VITE_WS_URL || 'ws://localhost:8091';
 
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],

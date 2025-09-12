@@ -9,7 +9,7 @@ import (
 	"scenario-authenticator/utils"
 	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 )
 
 // GetUsersHandler lists users with optional filters
@@ -82,8 +82,7 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetUserHandler gets a specific user by ID
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	userID := vars["id"]
+	userID := chi.URLParam(r, "id")
 	
 	var user models.User
 	var rolesJSON string

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Pause, RotateCw, X, Terminal, Image, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
+import { Pause, RotateCw, X, Terminal, Image, Clock, CheckCircle, XCircle, Loader } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Screenshot {

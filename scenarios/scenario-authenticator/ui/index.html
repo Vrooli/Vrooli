@@ -319,9 +319,154 @@
         .tab:hover:not(.active) {
             background: var(--bg-color);
         }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 1000;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--error-color);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .connection-status.checking {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .connected .status-dot {
+            background: var(--success-color);
+        }
+
+        .disconnected .status-dot {
+            background: var(--error-color);
+        }
+
+        .checking .status-dot {
+            background: var(--warning-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Snack Bar Styles */
+        .snackbar {
+            visibility: hidden;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--error-color);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            z-index: 2000;
+            min-width: 300px;
+            max-width: 90vw;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateX(-50%) translateY(100px);
+        }
+
+        .snackbar.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .snackbar.success {
+            background-color: var(--success-color);
+        }
+
+        .snackbar.warning {
+            background-color: var(--warning-color);
+        }
+
+        .snackbar.info {
+            background-color: var(--primary-color);
+        }
+
+        #snackbar-message {
+            flex: 1;
+            line-height: 1.4;
+        }
+
+        #snackbar-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        #snackbar-close:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateX(-50%) translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Connection Status Indicator -->
+    <div class="connection-status checking" id="connectionStatus" title="Click to refresh connection">
+        <div class="status-dot"></div>
+        <span id="connectionText">Checking connection...</span>
+    </div>
+
     <div class="auth-container">
         <div class="auth-card">
             <div class="logo">
@@ -427,6 +572,12 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- Snack Bar Notifications -->
+    <div id="snackbar" class="snackbar">
+        <span id="snackbar-message"></span>
+        <button id="snackbar-close">&times;</button>
     </div>
 
     <script src="auth.js"></script>

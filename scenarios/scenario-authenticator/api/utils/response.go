@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"scenario-authenticator/models"
@@ -37,4 +39,14 @@ func SendValidationResponse(w http.ResponseWriter, valid bool, claims *models.Cl
 	}
 	
 	SendJSON(w, response, http.StatusOK)
+}
+
+// GenerateSecureToken generates a cryptographically secure random token
+func GenerateSecureToken(length int) string {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to time-based token if crypto/rand fails
+		return hex.EncodeToString([]byte(time.Now().Format(time.RFC3339Nano)))[:length]
+	}
+	return hex.EncodeToString(bytes)[:length]
 }

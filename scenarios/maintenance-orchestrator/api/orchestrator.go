@@ -118,32 +118,25 @@ func (o *Orchestrator) ApplyPreset(presetID string) ([]string, []string, bool) {
 		return nil, nil, false
 	}
 	
-	activated := make([]string, 0)
-	deactivated := make([]string, 0)
+	// Toggle preset active state
+	preset.IsActive = !preset.IsActive
 	
-	for scenarioID, shouldBeActive := range preset.States {
-		scenario, exists := o.scenarios[scenarioID]
-		if !exists {
-			continue
-		}
-		
-		if shouldBeActive && !scenario.IsActive {
-			scenario.IsActive = true
-			now := time.Now()
-			scenario.LastActive = &now
-			activated = append(activated, scenarioID)
-		} else if !shouldBeActive && scenario.IsActive {
-			scenario.IsActive = false
-			deactivated = append(deactivated, scenarioID)
-		}
+	// Apply the union of all active presets to scenarios
+	activated, deactivated := o.applyPresetUnion()
+	
+	action := "activate-preset"
+	if !preset.IsActive {
+		action = "deactivate-preset"
 	}
 	
 	o.activityLog = append(o.activityLog, ActivityEntry{
 		Timestamp: time.Now(),
-		Action:    "apply-preset",
+		Action:    action,
 		Preset:    presetID,
 		Success:   true,
-		Message:   fmt.Sprintf("Activated: %d, Deactivated: %d", len(activated), len(deactivated)),
+		Message:   fmt.Sprintf("Preset %s, Scenarios changed: %d activated, %d deactivated", 
+			map[bool]string{true: "activated", false: "deactivated"}[preset.IsActive],
+			len(activated), len(deactivated)),
 	})
 	
 	return activated, deactivated, true
@@ -153,6 +146,12 @@ func (o *Orchestrator) StopAll() []string {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	
+	// Deactivate all presets first
+	for _, preset := range o.presets {
+		preset.IsActive = false
+	}
+	
+	// Deactivate all scenarios
 	deactivated := make([]string, 0)
 	for scenarioID, scenario := range o.scenarios {
 		if scenario.IsActive {
@@ -165,7 +164,7 @@ func (o *Orchestrator) StopAll() []string {
 		Timestamp: time.Now(),
 		Action:    "stop-all",
 		Success:   true,
-		Message:   fmt.Sprintf("Deactivated %d scenarios", len(deactivated)),
+		Message:   fmt.Sprintf("Deactivated all presets and %d scenarios", len(deactivated)),
 	})
 	
 	return deactivated
@@ -210,4 +209,65 @@ func (o *Orchestrator) UpdatePresetStates() {
 			}
 		}
 	}
+}
+
+// applyPresetUnion calculates the union of all active presets and applies the result to scenarios
+// This method assumes the mutex is already locked
+func (o *Orchestrator) applyPresetUnion() ([]string, []string) {
+	// Calculate which scenarios should be active based on the union of all active presets
+	shouldBeActive := make(map[string]bool)
+	
+	for _, preset := range o.presets {
+		if preset.IsActive {
+			for scenarioID, active := range preset.States {
+				if active {
+					shouldBeActive[scenarioID] = true
+				}
+			}
+		}
+	}
+	
+	activated := make([]string, 0)
+	deactivated := make([]string, 0)
+	
+	// Update scenarios based on union
+	for scenarioID, scenario := range o.scenarios {
+		if shouldBeActive[scenarioID] && !scenario.IsActive {
+			scenario.IsActive = true
+			now := time.Now()
+			scenario.LastActive = &now
+			activated = append(activated, scenarioID)
+		} else if !shouldBeActive[scenarioID] && scenario.IsActive {
+			scenario.IsActive = false
+			deactivated = append(deactivated, scenarioID)
+		}
+	}
+	
+	return activated, deactivated
+}
+
+// GetActivePresets returns a list of currently active presets
+func (o *Orchestrator) GetActivePresets() []*Preset {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	
+	activePresets := make([]*Preset, 0)
+	for _, preset := range o.presets {
+		if preset.IsActive {
+			activePresets = append(activePresets, preset)
+		}
+	}
+	return activePresets
+}
+
+// IsPresetActive checks if a preset is currently active
+func (o *Orchestrator) IsPresetActive(presetID string) bool {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	
+	preset, exists := o.presets[presetID]
+	if !exists {
+		return false
+	}
+	return preset.IsActive
 }

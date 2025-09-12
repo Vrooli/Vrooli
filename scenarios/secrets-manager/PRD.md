@@ -4,43 +4,44 @@
 
 ### Core Capability
 **What permanent capability does this scenario add to Vrooli?**
-Provides automated discovery, validation, and provisioning of secrets required by Vrooli resources. This eliminates the manual process of hunting through resource documentation to identify required environment variables, API keys, and credentials needed for proper resource functionality.
+Provides vault-integrated secrets management and security vulnerability scanning for the entire Vrooli ecosystem. Leverages the standardized `config/secrets.yaml` system to identify missing secrets, enable interactive provisioning through vault, and scan scenario code for critical security vulnerabilities like hardcoded credentials, SQL injection, and authentication bypasses.
 
 ### Intelligence Amplification
 **How does this capability make future agents smarter?**
-- Agents can automatically validate dependencies before attempting to use resources
-- Prevents runtime failures due to missing credentials
-- Creates a centralized knowledge base of all resource secret requirements
-- Enables predictable, reproducible deployments of scenarios that depend on external services
+- Agents can automatically validate that required secrets are configured before attempting resource usage
+- Prevents runtime failures due to missing vault-managed credentials
+- Identifies security vulnerabilities in scenario code before deployment
+- Creates comprehensive security posture visibility across all scenarios
+- Enables secure-by-default development practices through automated security scanning
 
 ### Recursive Value
 **What new scenarios become possible after this exists?**
-1. **Automated Deployment Validator** - Scenarios that check environment completeness before startup
-2. **Resource Dependency Mapper** - Visual mapping of which scenarios need which credentials
-3. **Security Compliance Scanner** - Auditing which secrets are stored securely vs. in environment
-4. **CI/CD Environment Validator** - Ensuring all required secrets are available in deployment pipelines
-5. **Resource Onboarding Assistant** - Guided setup for new developers joining Vrooli
+1. **Automated Security CI/CD** - Pre-commit hooks that block insecure code deployment
+2. **Compliance Dashboard** - Real-time security and secrets compliance monitoring
+3. **Zero-Touch Onboarding** - Automated secrets provisioning for new developer environments
+4. **Security-Aware Orchestration** - Scenarios that self-validate security requirements before execution
+5. **Vulnerability Remediation Assistant** - Automated fixing of common security anti-patterns
 
 ## 📊 Success Metrics
 
 ### Functional Requirements
 - **Must Have (P0)**
-  - [ ] Scan all `/resources/` configurations to identify required secrets (env vars, credentials, API keys)
-  - [ ] Validate current environment against discovered requirements
-  - [ ] Generate prioritized report of missing secrets with resource-specific guidance
-  - [ ] Dark chrome security dashboard UI showing secret health status
-  - [ ] CLI interface for programmatic secret validation
+  - [ ] Integrate with `resource-vault secrets scan` to discover all resources with `config/secrets.yaml`
+  - [ ] Use `resource-vault secrets validate` to identify missing/invalid secrets in vault
+  - [ ] Dark chrome security dashboard showing vault secrets health status per resource
+  - [ ] Scan scenario Go code for critical security vulnerabilities (SQL injection, hardcoded secrets, etc.)
+  - [ ] CLI interface for programmatic vault secrets status and security scanning
   
 - **Should Have (P1)**
-  - [ ] Interactive provisioning wizard for missing secrets
-  - [ ] Integration with Vault for secure secret storage and retrieval
-  - [ ] Export missing secrets checklist for manual setup
-  - [ ] Resource-specific setup documentation and links
+  - [ ] Interactive provisioning wizard using `resource-vault secrets init <resource>`
+  - [ ] Security vulnerability remediation suggestions with fix examples  
+  - [ ] Export vault secrets as environment variables via `resource-vault secrets export`
+  - [ ] Security compliance scoring with priority-based vulnerability classification
   
 - **Nice to Have (P2)**
-  - [ ] Automated secret rotation reminders
-  - [ ] CI/CD environment export functionality
-  - [ ] Secret usage analytics (which resources use which secrets)
+  - [ ] Automated security fixes for simple patterns (e.g., add `defer resp.Body.Close()`)
+  - [ ] CI/CD integration for pre-commit security scanning hooks
+  - [ ] Security trend analysis and vulnerability pattern detection over time
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -63,47 +64,47 @@ Provides automated discovery, validation, and provisioning of secrets required b
 ```yaml
 required:
   - resource_name: vault
-    purpose: Secure secret storage and retrieval
-    integration_pattern: CLI and shared workflow
-    access_method: resource-vault CLI commands
+    purpose: Core secrets management system integration
+    integration_pattern: CLI-based vault secrets commands
+    access_method: resource-vault secrets scan/check/validate/init/export
     
   - resource_name: postgres
-    purpose: Metadata tracking and secret requirement persistence
+    purpose: Security scan results and vulnerability tracking
     integration_pattern: Direct connection
     access_method: Standard postgres connection
     
-  - resource_name: n8n
-    purpose: Resource scanning and validation workflows
-    integration_pattern: Shared workflows
-    access_method: shared n8n workflows
-    
 optional:
   - resource_name: redis
-    purpose: Caching scan results between runs
+    purpose: Caching security scan results and secrets status
     fallback: In-memory caching with reduced performance
     access_method: resource-redis CLI commands
 ```
 
-### Resource Integration Standards
+### Integration Architecture
 ```yaml
-integration_priorities:
-  1_shared_workflows:
-    - workflow: resource-scanner.json
-      location: initialization/automation/n8n/
-      purpose: Automated scanning of resource configurations
-    - workflow: secret-validator.json
-      location: initialization/automation/n8n/
-      purpose: Validation of secrets against live resources
+integration_approach:
+  1_vault_secrets_integration:
+    - command: resource-vault secrets scan
+      purpose: Discover all resources with config/secrets.yaml files
+    - command: resource-vault secrets validate
+      purpose: Check which secrets are missing/invalid in vault
+    - command: resource-vault secrets check <resource>
+      purpose: Get detailed status for specific resource
+    - command: resource-vault secrets init <resource>
+      purpose: Interactive provisioning of missing secrets
+    - command: resource-vault secrets export <resource>
+      purpose: Export as environment variables
   
-  2_resource_cli:
-    - command: resource-vault get <path>
-      purpose: Retrieve stored secrets
-    - command: resource-vault put <path> <data>
-      purpose: Store new secrets securely
+  2_security_scanning:
+    - scope: scenarios/*/api/*.go files
+      purpose: Go AST analysis for security vulnerabilities
+    - patterns: SQL injection, hardcoded secrets, HTTP body leaks, CORS misconfig
+    - remediation: Automated fixes and secure coding suggestions
   
-  3_direct_api:
-    - justification: Real-time resource health checks require direct API access
-      endpoint: Various resource health endpoints
+  3_dashboard_integration:
+    - vault_status: Real-time secrets health per resource
+    - security_score: Vulnerability risk assessment per scenario
+    - compliance: Overall security posture dashboard
 ```
 
 ### Data Models
@@ -143,55 +144,74 @@ primary_entities:
 ```yaml
 endpoints:
   - method: GET
-    path: /api/v1/secrets/scan
-    purpose: Trigger full resource secret discovery scan
+    path: /api/v1/vault/secrets/status
+    purpose: Get vault secrets status using resource-vault CLI
     input_schema: |
       {
-        resources?: string[]  // Optional filter to specific resources
+        resource?: string  // Optional filter to specific resource
       }
     output_schema: |
       {
-        scan_id: string,
-        discovered_secrets: ResourceSecret[],
-        scan_duration_ms: number
-      }
-    sla:
-      response_time: 5000ms
-      availability: 99%
-      
-  - method: GET
-    path: /api/v1/secrets/validate
-    purpose: Validate current environment against requirements
-    input_schema: |
-      {
-        resource?: string  // Optional specific resource
-      }
-    output_schema: |
-      {
-        validation_id: string,
-        total_secrets: number,
-        valid_secrets: number,
-        missing_secrets: SecretValidation[],
-        invalid_secrets: SecretValidation[]
+        total_resources: number,
+        configured_resources: number,
+        missing_secrets: VaultSecretStatus[],
+        health_summary: ResourceHealthSummary[]
       }
     sla:
       response_time: 3000ms
       availability: 99%
       
   - method: POST
-    path: /api/v1/secrets/provision
-    purpose: Interactive secret provisioning workflow
+    path: /api/v1/vault/secrets/provision
+    purpose: Provision missing secrets using resource-vault init
     input_schema: |
       {
-        secret_key: string,
-        secret_value: string,
-        storage_method: enum(vault, env)
+        resource_name: string,
+        secrets: { [key: string]: string }  // secret_name -> value
       }
     output_schema: |
       {
         success: boolean,
-        storage_location: string,
-        validation_result: SecretValidation
+        provisioned_secrets: string[],
+        vault_paths: { [key: string]: string }
+      }
+    sla:
+      response_time: 5000ms
+      availability: 99%
+      
+  - method: GET
+    path: /api/v1/security/scan
+    purpose: Scan scenarios for security vulnerabilities
+    input_schema: |
+      {
+        scenario?: string,    // Optional specific scenario
+        severity?: string     // Optional filter: critical, high, medium, low
+      }
+    output_schema: |
+      {
+        scan_id: string,
+        vulnerabilities: SecurityVulnerability[],
+        risk_score: number,
+        recommendations: RemediationSuggestion[]
+      }
+    sla:
+      response_time: 10000ms
+      availability: 99%
+      
+  - method: GET
+    path: /api/v1/security/compliance
+    purpose: Get overall security compliance dashboard
+    output_schema: |
+      {
+        overall_score: number,
+        vault_secrets_health: number,
+        vulnerability_summary: {
+          critical: number,
+          high: number,
+          medium: number,
+          low: number
+        },
+        remediation_progress: ComplianceMetrics
       }
     sla:
       response_time: 2000ms
@@ -235,40 +255,57 @@ required_commands:
     flags: [--json]
 
 custom_commands:
-  - name: scan
-    description: Discover secrets required by resources
-    api_endpoint: /api/v1/secrets/scan
+  - name: vault-status
+    description: Show vault secrets status for all resources
+    api_endpoint: /api/v1/vault/secrets/status
     arguments:
       - name: resource
         type: string
         required: false
-        description: Specific resource to scan (optional)
+        description: Specific resource to check (optional)
     flags:
       - name: --output
         description: Output format (table, json, yaml)
-    output: Table of discovered secrets or JSON structure
-    
-  - name: validate
-    description: Validate current environment secrets
-    api_endpoint: /api/v1/secrets/validate
-    arguments: []
-    flags:
-      - name: --resource
-        description: Validate specific resource only
       - name: --missing-only
-        description: Show only missing secrets
-    output: Validation report with missing/invalid secrets
+        description: Show only resources with missing secrets
+    output: Table showing vault secrets health per resource
+    
+  - name: security-scan
+    description: Scan scenarios for security vulnerabilities
+    api_endpoint: /api/v1/security/scan
+    arguments:
+      - name: scenario
+        type: string
+        required: false
+        description: Specific scenario to scan (optional)
+    flags:
+      - name: --severity
+        description: Filter by severity (critical, high, medium, low)
+      - name: --fix
+        description: Auto-fix simple security issues where possible
+    output: Security vulnerabilities with remediation suggestions
     
   - name: provision
-    description: Interactive secret provisioning wizard
-    api_endpoint: /api/v1/secrets/provision
+    description: Interactive vault secrets provisioning wizard
+    api_endpoint: /api/v1/vault/secrets/provision
+    arguments:
+      - name: resource
+        type: string
+        required: true
+        description: Resource name to provision secrets for
+    flags:
+      - name: --auto
+        description: Auto-generate secrets where possible
+    output: Success confirmation with vault paths
+    
+  - name: compliance
+    description: Show overall security and secrets compliance
+    api_endpoint: /api/v1/security/compliance
     arguments: []
     flags:
-      - name: --secret
-        description: Specific secret key to provision
-      - name: --vault
-        description: Store in vault instead of environment
-    output: Success confirmation and storage location
+      - name: --detailed
+        description: Show detailed compliance breakdown
+    output: Security compliance dashboard with scores
 ```
 
 ## 🔄 Integration Requirements
