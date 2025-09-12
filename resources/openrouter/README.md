@@ -36,10 +36,16 @@ vault kv put secret/openrouter api_key="your-key-here"
 vrooli resource openrouter test
 
 # List available models
-vrooli resource openrouter list-models
+vrooli resource openrouter content models
 
 # Test a specific model
 vrooli resource openrouter test-model "anthropic/claude-3-opus"
+
+# View usage analytics
+vrooli resource openrouter usage today      # Today's usage
+vrooli resource openrouter usage week       # Last 7 days
+vrooli resource openrouter usage month      # Last 30 days
+vrooli resource openrouter usage all        # All-time usage
 ```
 
 ## Configuration
@@ -116,17 +122,29 @@ vrooli scenario run document-processor
 
 ## Monitoring & Analytics
 
-Check usage and costs:
+### Usage Tracking
+The resource automatically tracks all API usage including tokens, costs, and models used:
+
 ```bash
-# Show current usage
-vrooli resource openrouter usage
-
-# Show cost breakdown by model
-vrooli resource openrouter costs --breakdown
-
-# Show rate limit status
-vrooli resource openrouter limits
+# View usage for different periods
+vrooli resource openrouter usage today      # Today's usage
+vrooli resource openrouter usage week       # Last 7 days
+vrooli resource openrouter usage month      # Last 30 days
+vrooli resource openrouter usage all        # All-time usage
 ```
+
+### Rate Limit Management
+Built-in rate limit handling with automatic queuing:
+- Requests are automatically queued when rate limited
+- Exponential backoff for retries
+- Priority queuing (high/normal/low)
+- Automatic processing when limits reset
+
+### Cost Optimization
+The resource includes automatic model selection for cost optimization:
+- Auto-selects cheapest model that meets requirements
+- Fallback chains for failed requests
+- Usage analytics to track spending
 
 ## Troubleshooting
 

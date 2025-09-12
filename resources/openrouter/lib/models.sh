@@ -11,6 +11,11 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${OPENROUTER_RESOURCE_DIR}/config/defaults.sh"
 
+# Source rate limit handling if available
+if [[ -f "${OPENROUTER_LIB_DIR}/ratelimit.sh" ]]; then
+    source "${OPENROUTER_LIB_DIR}/ratelimit.sh"
+fi
+
 # Model selection strategies
 openrouter::models::select_auto() {
     local task_type="${1:-general}"
@@ -113,8 +118,27 @@ openrouter::models::execute_with_fallback() {
     for model in "${models_to_try[@]}"; do
         log::info "Trying model: $model"
         
+        # Check rate limiting before making request
+        if command -v openrouter::ratelimit::check >/dev/null 2>&1; then
+            if ! openrouter::ratelimit::check; then
+                log::warn "Rate limited, queuing request"
+                local request_data=$(jq -n \
+                    --arg model "$model" \
+                    --arg content "$prompt" \
+                    --argjson max_tokens "$max_tokens" \
+                    '{
+                        model: $model,
+                        messages: [{role: "user", content: $content}],
+                        max_tokens: $max_tokens
+                    }')
+                openrouter::ratelimit::queue_request "$request_data" "normal"
+                continue
+            fi
+        fi
+        
         local response
-        response=$(timeout "$timeout" curl -s -X POST \
+        local temp_headers=$(mktemp)
+        response=$(timeout "$timeout" curl -s -D "$temp_headers" -X POST \
             -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
@@ -128,8 +152,29 @@ openrouter::models::execute_with_fallback() {
                 }')" \
             "${OPENROUTER_API_BASE}/chat/completions" 2>/dev/null)
         
+        # Get response code
+        local response_code=$(grep "^HTTP/" "$temp_headers" 2>/dev/null | tail -1 | cut -d' ' -f2)
+        
+        # Update rate limit tracking if available
+        if command -v openrouter::ratelimit::update >/dev/null 2>&1; then
+            openrouter::ratelimit::update "$(<"$temp_headers")" "$response_code"
+        fi
+        
+        rm -f "$temp_headers"
+        
         # Check if successful
         if [[ -n "$response" ]] && ! echo "$response" | jq -e '.error' >/dev/null 2>&1; then
+            # Track usage if response includes usage data
+            local usage=$(echo "$response" | jq -r '.usage // empty')
+            if [[ -n "$usage" ]]; then
+                local prompt_tokens=$(echo "$usage" | jq -r '.prompt_tokens // 0')
+                local completion_tokens=$(echo "$usage" | jq -r '.completion_tokens // 0')
+                local total_cost=$(echo "$usage" | jq -r '.total_cost // 0')
+                
+                # Track the usage
+                openrouter::models::track_usage "$model" "$prompt_tokens" "$completion_tokens" "$total_cost"
+            fi
+            
             # Success - return the response with model info
             echo "$response" | jq --arg model "$model" '. + {actual_model: $model}'
             return 0
@@ -176,6 +221,174 @@ openrouter::models::get_pricing() {
             context_length: .context_length,
             per_request_limits: .per_request_limits
         }'
+}
+
+# Track usage and costs
+openrouter::models::track_usage() {
+    local model="${1}"
+    local prompt_tokens="${2}"
+    local completion_tokens="${3}"
+    local cost="${4:-0}"
+    
+    # Create usage tracking directory if it doesn't exist
+    local usage_dir="${var_ROOT_DIR}/data/openrouter/usage"
+    mkdir -p "$usage_dir"
+    
+    # Create daily usage file
+    local date=$(date +%Y-%m-%d)
+    local usage_file="$usage_dir/usage-$date.json"
+    
+    # Initialize file if it doesn't exist
+    if [[ ! -f "$usage_file" ]]; then
+        echo '{"total_cost": 0, "total_prompt_tokens": 0, "total_completion_tokens": 0, "requests": []}' > "$usage_file"
+    fi
+    
+    # Add new usage entry
+    local timestamp=$(date -Iseconds)
+    local new_entry=$(jq -n \
+        --arg model "$model" \
+        --arg timestamp "$timestamp" \
+        --argjson prompt_tokens "$prompt_tokens" \
+        --argjson completion_tokens "$completion_tokens" \
+        --argjson cost "$cost" \
+        '{
+            model: $model,
+            timestamp: $timestamp,
+            prompt_tokens: $prompt_tokens,
+            completion_tokens: $completion_tokens,
+            cost: $cost
+        }')
+    
+    # Update the usage file
+    jq --argjson entry "$new_entry" \
+       --argjson prompt_tokens "$prompt_tokens" \
+       --argjson completion_tokens "$completion_tokens" \
+       --argjson cost "$cost" \
+       '.requests += [$entry] |
+        .total_prompt_tokens += $prompt_tokens |
+        .total_completion_tokens += $completion_tokens |
+        .total_cost += $cost' "$usage_file" > "$usage_file.tmp" && mv "$usage_file.tmp" "$usage_file"
+}
+
+# Get usage analytics
+openrouter::models::get_usage_analytics() {
+    local period="${1:-today}"  # today, week, month, all
+    local usage_dir="${var_ROOT_DIR}/data/openrouter/usage"
+    
+    if [[ ! -d "$usage_dir" ]]; then
+        echo '{"error": "No usage data available"}'
+        return 1
+    fi
+    
+    case "$period" in
+        today)
+            local date=$(date +%Y-%m-%d)
+            local usage_file="$usage_dir/usage-$date.json"
+            if [[ -f "$usage_file" ]]; then
+                cat "$usage_file"
+            else
+                echo '{"total_cost": 0, "total_prompt_tokens": 0, "total_completion_tokens": 0, "requests": []}'
+            fi
+            ;;
+        week)
+            # Aggregate last 7 days
+            local total_cost=0
+            local total_prompt=0
+            local total_completion=0
+            local total_requests=0
+            
+            for i in {0..6}; do
+                local date=$(date -d "$i days ago" +%Y-%m-%d 2>/dev/null || date -v -${i}d +%Y-%m-%d)
+                local usage_file="$usage_dir/usage-$date.json"
+                if [[ -f "$usage_file" ]]; then
+                    local day_data=$(cat "$usage_file")
+                    total_cost=$(echo "$total_cost + $(echo "$day_data" | jq -r '.total_cost')" | bc)
+                    total_prompt=$((total_prompt + $(echo "$day_data" | jq -r '.total_prompt_tokens')))
+                    total_completion=$((total_completion + $(echo "$day_data" | jq -r '.total_completion_tokens')))
+                    total_requests=$((total_requests + $(echo "$day_data" | jq -r '.requests | length')))
+                fi
+            done
+            
+            jq -n \
+                --argjson cost "$total_cost" \
+                --argjson prompt "$total_prompt" \
+                --argjson completion "$total_completion" \
+                --argjson requests "$total_requests" \
+                '{
+                    period: "week",
+                    total_cost: $cost,
+                    total_prompt_tokens: $prompt,
+                    total_completion_tokens: $completion,
+                    total_requests: $requests
+                }'
+            ;;
+        month)
+            # Aggregate last 30 days
+            local total_cost=0
+            local total_prompt=0
+            local total_completion=0
+            local total_requests=0
+            
+            for i in {0..29}; do
+                local date=$(date -d "$i days ago" +%Y-%m-%d 2>/dev/null || date -v -${i}d +%Y-%m-%d)
+                local usage_file="$usage_dir/usage-$date.json"
+                if [[ -f "$usage_file" ]]; then
+                    local day_data=$(cat "$usage_file")
+                    total_cost=$(echo "$total_cost + $(echo "$day_data" | jq -r '.total_cost')" | bc)
+                    total_prompt=$((total_prompt + $(echo "$day_data" | jq -r '.total_prompt_tokens')))
+                    total_completion=$((total_completion + $(echo "$day_data" | jq -r '.total_completion_tokens')))
+                    total_requests=$((total_requests + $(echo "$day_data" | jq -r '.requests | length')))
+                fi
+            done
+            
+            jq -n \
+                --argjson cost "$total_cost" \
+                --argjson prompt "$total_prompt" \
+                --argjson completion "$total_completion" \
+                --argjson requests "$total_requests" \
+                '{
+                    period: "month",
+                    total_cost: $cost,
+                    total_prompt_tokens: $prompt,
+                    total_completion_tokens: $completion,
+                    total_requests: $requests
+                }'
+            ;;
+        all)
+            # Aggregate all available data
+            local total_cost=0
+            local total_prompt=0
+            local total_completion=0
+            local total_requests=0
+            
+            for file in "$usage_dir"/usage-*.json; do
+                if [[ -f "$file" ]]; then
+                    local day_data=$(cat "$file")
+                    total_cost=$(echo "$total_cost + $(echo "$day_data" | jq -r '.total_cost')" | bc)
+                    total_prompt=$((total_prompt + $(echo "$day_data" | jq -r '.total_prompt_tokens')))
+                    total_completion=$((total_completion + $(echo "$day_data" | jq -r '.total_completion_tokens')))
+                    total_requests=$((total_requests + $(echo "$day_data" | jq -r '.requests | length')))
+                fi
+            done
+            
+            jq -n \
+                --argjson cost "$total_cost" \
+                --argjson prompt "$total_prompt" \
+                --argjson completion "$total_completion" \
+                --argjson requests "$total_requests" \
+                '{
+                    period: "all",
+                    total_cost: $cost,
+                    total_prompt_tokens: $prompt,
+                    total_completion_tokens: $completion,
+                    total_requests: $requests
+                }'
+            ;;
+        *)
+            echo '{"error": "Invalid period. Use: today, week, month, or all"}'
+            return 1
+            ;;
+    esac
 }
 
 # List models by category

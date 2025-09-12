@@ -22,8 +22,16 @@
   - Implemented send-bulk command for multiple recipients
   - Added send-from-file for CSV batch processing
   - Includes rate limiting (100ms between messages)
-- [ ] **Message History**: Track sent messages and delivery status
-- [ ] **Template Support**: Pre-defined message templates with variable substitution
+- [x] **Message History**: Track sent messages and delivery status
+  - Implemented automatic message logging for all sends
+  - Added history viewing, statistics, and export to CSV
+  - Delivery status tracking with API updates
+  - History management commands (list, stats, export, clear)
+- [x] **Template Support**: Pre-defined message templates with variable substitution
+  - Create, list, update, delete message templates
+  - Variable substitution with {{variable}} syntax
+  - Send SMS using templates with variable replacement
+  - Bulk sending with templates and CSV data
 - [ ] **Rate Limiting**: Respect Twilio API rate limits automatically (partial - basic implementation in bulk SMS)
 
 ### P2 Requirements (Nice to Have)
@@ -57,9 +65,9 @@ N/A - CLI-based service
 
 ### Completion Metrics
 - **P0 Completion**: 100% (6/6 requirements met) ✅
-- **P1 Completion**: 25% (1/4 requirements met)  
+- **P1 Completion**: 75% (3/4 requirements met)  
 - **P2 Completion**: 0% (0/3 requirements met)
-- **Overall**: 54% complete
+- **Overall**: 69% complete
 
 ### Quality Metrics
 - Health check response time: <5 seconds required
@@ -147,6 +155,20 @@ N/A - CLI-based service
 - Integration examples
 
 ## Change History
+
+### 2025-09-12 - Message History & Templates Implementation
+- ✅ Implemented message history tracking (P1 requirement)
+  - Automatic logging of all sent messages with SID tracking
+  - History viewing, statistics, and CSV export capabilities
+  - Delivery status updates from Twilio API
+  - History management commands (list, stats, export, update, clear)
+- ✅ Implemented template support (P1 requirement)
+  - Complete CRUD operations for message templates
+  - Variable substitution with {{variable}} syntax
+  - Template-based sending for single and bulk messages
+  - CSV integration for bulk template sends
+- ✅ Added comprehensive tests for new functionality
+- Progress: 54% → 69% complete (+2 P1 requirements)
 
 ### 2025-01-11 - Bulk SMS Implementation
 - ✅ Implemented bulk SMS sending capability (P1 requirement)

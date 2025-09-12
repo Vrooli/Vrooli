@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${TWILIO_CLI_DIR}/config/defaults.sh"
 
 # Source Twilio libraries
-for lib in common core config inject install lifecycle logs numbers sms start status stop test; do
+for lib in common core config inject install lifecycle logs numbers sms history templates start status stop test; do
     lib_file="${TWILIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -67,6 +67,22 @@ cli::register_subcommand "content" "send-sms" "Send SMS message" "twilio::send_s
 cli::register_subcommand "content" "send-bulk" "Send bulk SMS to multiple recipients" "twilio::send_bulk_sms"
 cli::register_subcommand "content" "send-from-file" "Send SMS from CSV file" "twilio::send_sms_from_file"
 cli::register_subcommand "content" "numbers" "List phone numbers" "twilio::list_numbers"
+
+# Add history management commands
+cli::register_subcommand "content" "history" "List message history" "twilio::history::list"
+cli::register_subcommand "content" "history-stats" "Show message statistics" "twilio::history::stats"
+cli::register_subcommand "content" "history-export" "Export message history to CSV" "twilio::history::export_csv"
+cli::register_subcommand "content" "history-update" "Update delivery statuses from API" "twilio::history::update_pending_statuses"
+cli::register_subcommand "content" "history-clear" "Clear message history (requires --force)" "twilio::history::clear"
+
+# Add template management commands
+cli::register_subcommand "content" "template-create" "Create a message template" "twilio::templates::create"
+cli::register_subcommand "content" "template-list" "List all templates" "twilio::templates::list"
+cli::register_subcommand "content" "template-get" "Get a specific template" "twilio::templates::get"
+cli::register_subcommand "content" "template-update" "Update a template" "twilio::templates::update"
+cli::register_subcommand "content" "template-delete" "Delete a template" "twilio::templates::delete"
+cli::register_subcommand "content" "template-send" "Send SMS using a template" "twilio::templates::send"
+cli::register_subcommand "content" "template-send-bulk" "Send bulk SMS using template and CSV" "twilio::templates::send_bulk"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "twilio::status::new"

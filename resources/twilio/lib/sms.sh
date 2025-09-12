@@ -7,6 +7,7 @@ TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
 
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
+source "$TWILIO_LIB_DIR/history.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Send SMS
@@ -54,11 +55,28 @@ send_sms() {
         local cmd
         cmd=$(twilio::get_command)
         if "$cmd" phone-numbers:update "$from" --sms-url="" 2>/dev/null; then
-            if "$cmd" api:core:messages:create \
+            # Send message and capture response to get SID
+            local response
+            response=$("$cmd" api:core:messages:create \
                 --from "$from" \
                 --to "$to" \
-                --body "$message" 2>&1; then
-                log::success "SMS sent successfully!"
+                --body "$message" 2>&1)
+            
+            if [[ $? -eq 0 ]]; then
+                # Extract SID from response
+                local sid
+                sid=$(echo "$response" | grep -oE 'SM[a-f0-9]{32}' | head -1)
+                
+                # Log to history
+                if [[ -n "$sid" ]]; then
+                    twilio::history::log_message "$sid" "$from" "$to" "$message" "sent"
+                else
+                    # Generate a local ID if we can't extract SID
+                    sid="LOCAL_$(date +%s)_$(echo "$to" | md5sum | cut -c1-8)"
+                    twilio::history::log_message "$sid" "$from" "$to" "$message" "sent"
+                fi
+                
+                log::success "SMS sent successfully! (SID: $sid)"
             else
                 log::error "Failed to send SMS"
                 return 1
@@ -145,14 +163,29 @@ send_bulk_sms() {
     for recipient in "${recipients[@]}"; do
         log::info "   Sending to: $recipient ($((success_count + fail_count + 1))/$total)"
         
-        if "$cmd" api:core:messages:create \
+        local response
+        response=$("$cmd" api:core:messages:create \
             --from "$from" \
             --to "$recipient" \
-            --body "$message" &>/dev/null; then
+            --body "$message" 2>&1)
+        
+        if [[ $? -eq 0 ]]; then
             ((success_count++))
+            # Extract SID and log to history
+            local sid
+            sid=$(echo "$response" | grep -oE 'SM[a-f0-9]{32}' | head -1)
+            if [[ -n "$sid" ]]; then
+                twilio::history::log_message "$sid" "$from" "$recipient" "$message" "sent"
+            else
+                sid="BULK_$(date +%s)_$(echo "$recipient" | md5sum | cut -c1-8)"
+                twilio::history::log_message "$sid" "$from" "$recipient" "$message" "sent"
+            fi
         else
             log::warn "   Failed to send to: $recipient"
             ((fail_count++))
+            # Log failure to history
+            local sid="FAILED_$(date +%s)_$(echo "$recipient" | md5sum | cut -c1-8)"
+            twilio::history::log_message "$sid" "$from" "$recipient" "$message" "failed"
         fi
         
         # Rate limiting: Wait 100ms between messages to avoid hitting API limits
@@ -259,14 +292,29 @@ send_sms_from_file() {
         
         log::info "   Sending to: $phone_number"
         
-        if "$cmd" api:core:messages:create \
+        local response
+        response=$("$cmd" api:core:messages:create \
             --from "$from" \
             --to "$phone_number" \
-            --body "$message" &>/dev/null; then
+            --body "$message" 2>&1)
+        
+        if [[ $? -eq 0 ]]; then
             ((success_count++))
+            # Extract SID and log to history
+            local sid
+            sid=$(echo "$response" | grep -oE 'SM[a-f0-9]{32}' | head -1)
+            if [[ -n "$sid" ]]; then
+                twilio::history::log_message "$sid" "$from" "$phone_number" "$message" "sent"
+            else
+                sid="CSV_$(date +%s)_$(echo "$phone_number" | md5sum | cut -c1-8)"
+                twilio::history::log_message "$sid" "$from" "$phone_number" "$message" "sent"
+            fi
         else
             log::warn "   Failed to send to: $phone_number"
             ((fail_count++))
+            # Log failure to history
+            local sid="FAILED_$(date +%s)_$(echo "$phone_number" | md5sum | cut -c1-8)"
+            twilio::history::log_message "$sid" "$from" "$phone_number" "$message" "failed"
         fi
         
         # Rate limiting

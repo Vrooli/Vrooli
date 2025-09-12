@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Splink Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API service port",
+      "default": 8096,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "backend": {
+      "type": "string",
+      "description": "Processing backend",
+      "enum": ["duckdb", "spark", "athena", "sqlite"],
+      "default": "duckdb"
+    },
+    "max_workers": {
+      "type": "integer",
+      "description": "Maximum number of worker threads",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 16
+    },
+    "max_dataset_size": {
+      "type": "integer",
+      "description": "Maximum dataset size in records",
+      "default": 10000000,
+      "minimum": 1000
+    },
+    "memory_limit": {
+      "type": "string",
+      "description": "Memory limit for processing",
+      "pattern": "^[0-9]+[KMG]B?$",
+      "default": "4G"
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["local", "minio", "s3"],
+          "default": "local"
+        },
+        "path": {
+          "type": "string",
+          "description": "Storage path or bucket"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "host": {
+          "type": "string",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5433
+        },
+        "database": {
+          "type": "string",
+          "default": "splink"
+        },
+        "user": {
+          "type": "string",
+          "default": "splink"
+        }
+      }
+    },
+    "redis": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "host": {
+          "type": "string",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "default": 6380
+        }
+      }
+    },
+    "linkage_defaults": {
+      "type": "object",
+      "properties": {
+        "threshold": {
+          "type": "number",
+          "description": "Default matching threshold",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.9
+        },
+        "link_type": {
+          "type": "string",
+          "enum": ["one_to_one", "one_to_many", "many_to_many"],
+          "default": "one_to_one"
+        },
+        "blocking_rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Default blocking rules for performance"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "default": "json"
+        }
+      }
+    }
+  },
+  "required": ["port", "backend"],
+  "additionalProperties": false
+}

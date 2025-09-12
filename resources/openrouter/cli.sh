@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OPENROUTER_CLI_DIR}/config/defaults.sh"
 
 # Source OpenRouter libraries
-for lib in core status install configure content test info models; do
+for lib in core status install configure content test info models usage ratelimit; do
     lib_file="${OPENROUTER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -68,10 +68,17 @@ CLI_COMMAND_HANDLERS["content::get"]="openrouter::content::get"
 CLI_COMMAND_HANDLERS["content::remove"]="openrouter::content::remove"
 CLI_COMMAND_HANDLERS["content::execute"]="openrouter::content::execute"
 
+# Usage tracking handlers
+CLI_COMMAND_HANDLERS["usage::today"]="openrouter::usage::today"
+CLI_COMMAND_HANDLERS["usage::week"]="openrouter::usage::week"
+CLI_COMMAND_HANDLERS["usage::month"]="openrouter::usage::month"
+CLI_COMMAND_HANDLERS["usage::all"]="openrouter::usage::all"
+
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
 cli::register_command "info" "Show structured resource information" "openrouter::info"
+cli::register_command "usage" "Show usage analytics and costs" "openrouter::usage"
 cli::register_command "status" "Show detailed resource status" "openrouter::status"
 
 # OpenRouter is API service - no logs to show

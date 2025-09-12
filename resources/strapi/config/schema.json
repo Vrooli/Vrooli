@@ -1,0 +1,200 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Strapi Resource Configuration Schema",
+  "type": "object",
+  "required": ["database", "server"],
+  "properties": {
+    "server": {
+      "type": "object",
+      "required": ["host", "port"],
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Server bind address",
+          "default": "0.0.0.0"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Server port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 1337
+        },
+        "admin": {
+          "type": "object",
+          "properties": {
+            "auth": {
+              "type": "object",
+              "properties": {
+                "secret": {
+                  "type": "string",
+                  "description": "JWT secret for admin authentication"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "required": ["client", "connection"],
+      "properties": {
+        "client": {
+          "type": "string",
+          "enum": ["postgres", "mysql", "sqlite"],
+          "description": "Database client type",
+          "default": "postgres"
+        },
+        "connection": {
+          "type": "object",
+          "required": ["host", "port", "database", "user", "password"],
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Database host"
+            },
+            "port": {
+              "type": "integer",
+              "description": "Database port"
+            },
+            "database": {
+              "type": "string",
+              "description": "Database name"
+            },
+            "user": {
+              "type": "string",
+              "description": "Database user"
+            },
+            "password": {
+              "type": "string",
+              "description": "Database password"
+            },
+            "ssl": {
+              "type": "boolean",
+              "description": "Enable SSL connection",
+              "default": false
+            }
+          }
+        },
+        "pool": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "integer",
+              "description": "Minimum connections",
+              "default": 2
+            },
+            "max": {
+              "type": "integer",
+              "description": "Maximum connections",
+              "default": 10
+            }
+          }
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["local", "s3", "cloudinary"],
+          "description": "Storage provider for uploads",
+          "default": "local"
+        },
+        "s3": {
+          "type": "object",
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "description": "S3 endpoint URL"
+            },
+            "accessKey": {
+              "type": "string",
+              "description": "S3 access key"
+            },
+            "secretKey": {
+              "type": "string",
+              "description": "S3 secret key"
+            },
+            "bucket": {
+              "type": "string",
+              "description": "S3 bucket name"
+            },
+            "region": {
+              "type": "string",
+              "description": "S3 region",
+              "default": "us-east-1"
+            }
+          }
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "cors": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "origin": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "default": ["*"]
+            }
+          }
+        },
+        "rateLimit": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "max": {
+              "type": "integer",
+              "description": "Max requests per window",
+              "default": 100
+            },
+            "window": {
+              "type": "integer",
+              "description": "Time window in ms",
+              "default": 60000
+            }
+          }
+        }
+      }
+    },
+    "cache": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "type": {
+          "type": "string",
+          "enum": ["memory", "redis"],
+          "default": "memory"
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}

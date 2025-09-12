@@ -190,11 +190,15 @@ EOF
         export TWILIO_ACCOUNT_SID="AC_test_csv"
         export TWILIO_AUTH_TOKEN="test_token"
         
-        if twilio::send_sms_from_file "$test_csv" "" 2>&1 | grep -q "Test mode detected"; then
+        local output
+        output=$(twilio::send_sms_from_file "$test_csv" "" 2>&1)
+        
+        if echo "$output" | grep -q "Test mode detected"; then
             log::success "  ✅ CSV SMS function works in test mode"
             ((passed++))
         else
             log::error "  ❌ CSV SMS function failed"
+            log::debug "Output was: $output"
             ((failed++))
         fi
         

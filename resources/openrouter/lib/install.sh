@@ -44,15 +44,17 @@ openrouter::install() {
             fi
         fi
         
-        # If still no key, prompt user
+        # If still no key, inform user but don't fail (external API service)
         if [[ -z "$OPENROUTER_API_KEY" ]]; then
             log::warn "OpenRouter API key not found"
             log::info "Please obtain an API key from https://openrouter.ai/keys"
             log::info "Then either:"
-            log::info "  1. Store in Vault: docker exec vault sh -c 'vault kv put secret/vrooli/openrouter api_key=<YOUR_KEY>'"
+            log::info "  1. Store in Vault: docker exec vault sh -c 'vault kv put secret/resources/openrouter/api/main value=<YOUR_KEY>'"
             log::info "  2. Set environment variable: export OPENROUTER_API_KEY=<YOUR_KEY>"
             log::info "  3. Add to .env file: OPENROUTER_API_KEY=<YOUR_KEY>"
-            return 1
+            
+            # Set placeholder key so install succeeds
+            export OPENROUTER_API_KEY="sk-placeholder-key"
         fi
     fi
     

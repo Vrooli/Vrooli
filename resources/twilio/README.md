@@ -76,7 +76,7 @@ If Vault is not available, credentials can be stored in `~/.vrooli/twilio-creden
 
 ### SMS Messaging
 
-Send SMS messages with delivery confirmation:
+Send SMS messages with delivery confirmation and history tracking:
 
 ```bash
 # Send with default from number
@@ -108,6 +108,57 @@ resource-twilio content send-from-file /path/to/recipients.csv
 - Progress tracking with success/failure counts
 - Test mode for safe testing without sending real messages
 - CSV batch processing for large recipient lists
+- Automatic message history logging with delivery tracking
+
+### Message History
+
+Track and analyze all sent messages:
+
+```bash
+# View message history (latest 50)
+resource-twilio content history
+
+# Show statistics
+resource-twilio content history-stats
+
+# Export to CSV
+resource-twilio content history-export messages.csv
+
+# Update delivery statuses from API
+resource-twilio content history-update
+
+# Clear history (requires --force)
+resource-twilio content history-clear --force
+```
+
+### Message Templates
+
+Create and use reusable message templates with variable substitution:
+
+```bash
+# Create a template
+resource-twilio content template-create "welcome" \
+  "Hi {{name}}, welcome to {{company}}!" \
+  "Welcome message template"
+
+# List all templates
+resource-twilio content template-list
+
+# Send using template
+resource-twilio content template-send "welcome" "+1234567890" \
+  "name=John Doe" "company=Vrooli"
+
+# Bulk send with template and CSV
+# CSV format: phone_number,name,company
+resource-twilio content template-send-bulk "welcome" recipients.csv
+
+# Update template
+resource-twilio content template-update "welcome" \
+  "Hello {{name}}, welcome aboard!"
+
+# Delete template
+resource-twilio content template-delete "welcome"
+```
 
 ### Phone Number Management
 
@@ -179,7 +230,15 @@ resource-twilio content send-sms "$USER_PHONE" "Task completed successfully"
 | `test smoke` | Run quick validation tests |
 | `test all` | Run all test suites |
 | `content send-sms` | Send an SMS message |
+| `content send-bulk` | Send bulk SMS to multiple recipients |
+| `content send-from-file` | Send SMS from CSV file |
 | `content numbers` | List phone numbers |
+| `content history` | View message history |
+| `content history-stats` | Show message statistics |
+| `content history-export` | Export history to CSV |
+| `content template-create` | Create message template |
+| `content template-list` | List all templates |
+| `content template-send` | Send SMS using template |
 | `status` | Show detailed status |
 | `info` | Show configuration information |
 
