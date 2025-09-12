@@ -5,7 +5,18 @@ const http = require('http');
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.UI_PORT || process.env.PORT;
+
+// Ensure required environment variables are set
+if (!process.env.UI_PORT) {
+    console.error('Error: UI_PORT environment variable is required');
+    process.exit(1);
+}
+if (!process.env.API_PORT) {
+    console.error('Error: API_PORT environment variable is required');
+    process.exit(1);
+}
+
+const PORT = process.env.UI_PORT;
 const API_PORT = process.env.API_PORT;
 const server = http.createServer(app);
 // Only handle WebSocket on /ws path, not all connections
@@ -14,7 +25,7 @@ const wss = new WebSocket.Server({
     path: '/ws'  // Only handle WebSocket connections on /ws endpoint
 });
 
-const API_BASE = process.env.API_BASE || `http://localhost:${API_PORT}`;
+const API_BASE = `http://localhost:${API_PORT}`;
 
 // Parse JSON bodies
 app.use(express.json());
@@ -58,10 +69,23 @@ function proxyToApi(req, res, apiPath) {
     }
 }
 
-// API endpoints proxy
-app.use('/api', (req, res) => {
-    const fullApiPath = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+// API endpoints proxy - support both versioned and unversioned for backward compatibility
+app.use('/api/v1', (req, res) => {
+    const fullApiPath = '/api/v1' + (req.url.startsWith('/') ? req.url : '/' + req.url);
     proxyToApi(req, res, fullApiPath);
+});
+
+// Legacy API proxy (redirect to v1)
+app.use('/api', (req, res) => {
+    // Skip if already versioned
+    if (req.url.startsWith('/v1')) {
+        const fullApiPath = '/api' + req.url;
+        proxyToApi(req, res, fullApiPath);
+    } else {
+        // Redirect to v1
+        const fullApiPath = '/api/v1' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+        proxyToApi(req, res, fullApiPath);
+    }
 });
 
 // WebSocket handling
@@ -282,10 +306,9 @@ server.listen(PORT, () => {
 ║                                            ║
 ║  Access dashboard at:                      ║
 ║  http://localhost:${PORT}                     ║
-╔════════════════════════════════════════════╗
-    UPDATED_CODE
+╚════════════════════════════════════════════╝
     
-🔍 DIAGNOSTIC INFO (boop):
+🔍 DIAGNOSTIC INFO:
 Working Directory: ${process.cwd()}
 Script Path: ${__filename}
 Process ID: ${process.pid}

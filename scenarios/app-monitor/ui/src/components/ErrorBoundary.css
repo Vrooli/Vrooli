@@ -1,0 +1,326 @@
+/* Error Boundary - Matrix Cyberpunk Theme */
+
+.error-boundary-fallback {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0a;
+  color: #00ff41;
+  font-family: 'Share Tech Mono', monospace;
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+}
+
+.error-content {
+  background: rgba(13, 17, 23, 0.95);
+  border: 2px solid #00ff41;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 800px;
+  width: 100%;
+  position: relative;
+  z-index: 10;
+  box-shadow: 
+    0 0 30px rgba(0, 255, 65, 0.3),
+    inset 0 0 30px rgba(0, 255, 65, 0.1);
+  animation: error-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes error-glow {
+  from {
+    box-shadow: 
+      0 0 30px rgba(0, 255, 65, 0.3),
+      inset 0 0 30px rgba(0, 255, 65, 0.1);
+  }
+  to {
+    box-shadow: 
+      0 0 50px rgba(255, 0, 64, 0.4),
+      inset 0 0 30px rgba(255, 0, 64, 0.1);
+    border-color: #ff0040;
+  }
+}
+
+.error-header {
+  text-align: center;
+  margin-bottom: 24px;
+  border-bottom: 1px solid rgba(0, 255, 65, 0.3);
+  padding-bottom: 16px;
+}
+
+.error-header h2 {
+  color: #ff0040;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  text-shadow: 0 0 10px rgba(255, 0, 64, 0.8);
+  animation: error-flicker 3s ease-in-out infinite;
+}
+
+@keyframes error-flicker {
+  0%, 90%, 100% { opacity: 1; }
+  92%, 94%, 96%, 98% { opacity: 0.8; }
+}
+
+.error-code {
+  color: #39ff14;
+  font-size: 1.1rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.error-details {
+  margin-bottom: 24px;
+}
+
+.error-message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(0, 255, 65, 0.05);
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  border-radius: 6px;
+}
+
+.error-message .label {
+  color: #00ffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.error-message .value {
+  color: #00ff41;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  word-break: break-word;
+}
+
+.error-stack {
+  margin-top: 16px;
+}
+
+.error-stack summary {
+  color: #00ffff;
+  cursor: pointer;
+  padding: 8px 0;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px dashed rgba(0, 255, 255, 0.5);
+}
+
+.error-stack summary:hover {
+  color: #39ff14;
+  text-shadow: 0 0 5px rgba(57, 255, 20, 0.8);
+}
+
+.error-stack pre {
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  border-radius: 4px;
+  padding: 16px;
+  margin-top: 8px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #008f11;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.error-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.error-btn {
+  background: transparent;
+  border: 2px solid;
+  border-radius: 6px;
+  padding: 12px 24px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.error-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.error-btn:hover::before {
+  left: 100%;
+}
+
+.error-btn.primary {
+  border-color: #00ff41;
+  color: #00ff41;
+}
+
+.error-btn.primary:hover {
+  background: rgba(0, 255, 65, 0.1);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.4);
+  text-shadow: 0 0 5px rgba(0, 255, 65, 0.8);
+}
+
+.error-btn.secondary {
+  border-color: #00ffff;
+  color: #00ffff;
+}
+
+.error-btn.secondary:hover {
+  background: rgba(0, 255, 255, 0.1);
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+}
+
+.error-help {
+  background: rgba(0, 255, 255, 0.05);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 16px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.error-help p {
+  color: #00ffff;
+  margin: 0 0 12px 0;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.error-help ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #008f11;
+}
+
+.error-help li {
+  margin-bottom: 4px;
+}
+
+/* Matrix rain effect for error boundary */
+.matrix-rain-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    rgba(255, 0, 64, 0.1) 0%,
+    transparent 50%,
+    rgba(0, 255, 65, 0.05) 100%
+  );
+  opacity: 0.3;
+  z-index: 1;
+  animation: matrix-rain-error 8s linear infinite;
+}
+
+@keyframes matrix-rain-error {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .error-content {
+    padding: 20px;
+    margin: 10px;
+  }
+  
+  .error-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .error-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .error-btn {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .error-stack pre {
+    font-size: 0.75rem;
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 480px) {
+  .error-boundary-fallback {
+    padding: 10px;
+  }
+  
+  .error-header h2 {
+    font-size: 1.2rem;
+  }
+  
+  .error-code {
+    font-size: 0.9rem;
+  }
+  
+  .error-message {
+    padding: 12px;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .error-content {
+    animation: none;
+  }
+  
+  .error-header h2 {
+    animation: none;
+  }
+  
+  .matrix-rain-error {
+    animation: none;
+  }
+  
+  .error-btn::before {
+    transition: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .error-content {
+    border-width: 3px;
+    background: rgba(0, 0, 0, 0.95);
+  }
+  
+  .error-btn {
+    border-width: 3px;
+  }
+  
+  .error-message,
+  .error-help {
+    border-width: 2px;
+  }
+}

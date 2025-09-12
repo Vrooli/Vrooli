@@ -15,11 +15,11 @@ import (
 
 // Config holds all application configuration
 type Config struct {
-	API      APIConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	Docker   DockerConfig
-	NodeRED  NodeREDConfig
+	API           APIConfig
+	Database      DatabaseConfig
+	Redis         RedisConfig
+	Docker        DockerConfig
+	Orchestrator  OrchestratorConfig
 }
 
 // APIConfig holds API server configuration
@@ -61,16 +61,17 @@ type DockerConfig struct {
 	CertPath    string
 }
 
-// NodeREDConfig holds Node-RED configuration
-type NodeREDConfig struct {
-	BaseURL string
+// OrchestratorConfig holds orchestrator configuration
+type OrchestratorConfig struct {
+	StatusURL string
 }
+
 
 // LoadConfig loads configuration from environment variables with defaults
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		API: APIConfig{
-			Port:            getEnv("API_PORT", getEnv("PORT", "")),
+			Port:            os.Getenv("API_PORT"),
 			ReadTimeout:     getDurationEnv("API_READ_TIMEOUT", 30*time.Second),
 			WriteTimeout:    getDurationEnv("API_WRITE_TIMEOUT", 30*time.Second),
 			ShutdownTimeout: getDurationEnv("API_SHUTDOWN_TIMEOUT", 10*time.Second),
@@ -100,8 +101,8 @@ func LoadConfig() (*Config, error) {
 			TLSVerify:  getBoolEnv("DOCKER_TLS_VERIFY", false),
 			CertPath:   getEnv("DOCKER_CERT_PATH", ""),
 		},
-		NodeRED: NodeREDConfig{
-			BaseURL: getEnv("NODE_RED_BASE_URL", "http://localhost:1880"),
+		Orchestrator: OrchestratorConfig{
+			StatusURL: getEnv("ORCHESTRATOR_STATUS_URL", ""),
 		},
 	}
 

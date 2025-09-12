@@ -6,6 +6,7 @@ import { logger } from '@/services/logger';
 import type { App, AppViewMode } from '@/types';
 import AppCard from '../AppCard';
 import AppModal from '../AppModal';
+import { AppsGridSkeleton } from '../LoadingSkeleton';
 import './AppsView.css';
 
 interface AppsViewProps {
@@ -207,10 +208,7 @@ const AppsView = memo<AppsViewProps>(({ apps, setApps }) => {
       </div>
 
       {loading && filteredApps.length === 0 ? (
-        <div className="loading-state">
-          <div className="loading-spinner">⟳</div>
-          <p>LOADING APPLICATIONS...</p>
-        </div>
+        <AppsGridSkeleton count={6} viewMode={viewMode} />
       ) : filteredApps.length === 0 ? (
         <div className="empty-state">
           <p>NO APPLICATIONS FOUND</p>

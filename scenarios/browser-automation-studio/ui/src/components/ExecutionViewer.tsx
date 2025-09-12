@@ -33,7 +33,7 @@ interface ExecutionProps {
 function ExecutionViewer({ execution }: ExecutionProps) {
   const [activeTab, setActiveTab] = useState<'screenshots' | 'logs'>('screenshots');
   const [selectedScreenshot, setSelectedScreenshot] = useState<Screenshot | null>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  // const [autoScroll, setAutoScroll] = useState(true);
 
   useEffect(() => {
     if (execution.screenshots.length > 0 && !selectedScreenshot) {

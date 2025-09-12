@@ -5,6 +5,7 @@ import NodePalette from './NodePalette';
 interface SidebarProps {
   selectedFolder: string;
   onFolderSelect: (folder: string) => void;
+  projectId?: string;
 }
 
 interface FolderItem {
@@ -118,7 +119,10 @@ function FolderTree({
   );
 }
 
-function Sidebar({ selectedFolder, onFolderSelect }: SidebarProps) {
+function Sidebar({ selectedFolder, onFolderSelect, projectId }: SidebarProps) {
+  // TODO: Implement project-specific workflow loading
+  console.log('Project ID:', projectId);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'folders' | 'nodes'>('nodes');
 

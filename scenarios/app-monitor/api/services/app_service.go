@@ -84,8 +84,8 @@ func (s *AppService) GetAppsFromOrchestrator(ctx context.Context) ([]repository.
 	defer s.cache.mu.Unlock()
 
 	// Execute vrooli scenario status --json with timeout
-	// 15 second timeout to account for scenarios with issues that need attention
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 15*time.Second)
+	// 45 second timeout to account for scenarios with issues that need attention
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 	
 	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", "--json")

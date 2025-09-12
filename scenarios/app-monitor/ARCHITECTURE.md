@@ -85,11 +85,11 @@ logger.error("Error message", error);
 ### Environment Variables
 ```bash
 # Required
-export API_PORT=21600
+export API_PORT=<assigned_by_lifecycle>
 
 # Optional but recommended
-export CORS_ALLOWED_ORIGINS="http://localhost:3456,http://localhost:8085"
-export WS_ALLOWED_ORIGINS="http://localhost:3456,http://localhost:8085"
+export CORS_ALLOWED_ORIGINS="http://localhost:${UI_PORT}"
+export WS_ALLOWED_ORIGINS="http://localhost:${UI_PORT}"
 export DB_MAX_OPEN_CONNS=25
 export DB_MAX_IDLE_CONNS=5
 export RATE_LIMIT_PER_MINUTE=100

@@ -21,15 +21,18 @@ type CORSConfig struct {
 
 // DefaultCORSConfig returns a secure default CORS configuration
 func DefaultCORSConfig() *CORSConfig {
-	// Get allowed origins from environment or use defaults
+	// Get allowed origins from environment (required)
 	origins := os.Getenv("CORS_ALLOWED_ORIGINS")
-	allowedOrigins := []string{"http://localhost:3456", "http://localhost:8085"}
+	var allowedOrigins []string
 	
 	if origins != "" {
 		allowedOrigins = strings.Split(origins, ",")
 		for i, origin := range allowedOrigins {
 			allowedOrigins[i] = strings.TrimSpace(origin)
 		}
+	} else {
+		// No CORS origins configured - will be restrictive
+		allowedOrigins = []string{}
 	}
 
 	return &CORSConfig{
@@ -104,15 +107,18 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 
 // SecureWebSocketUpgrader creates a WebSocket upgrader with proper origin validation
 func SecureWebSocketUpgrader() *websocket.Upgrader {
-	// Get allowed origins from environment
+	// Get allowed origins from environment (required)
 	origins := os.Getenv("WS_ALLOWED_ORIGINS")
-	allowedOrigins := []string{"http://localhost:3456", "http://localhost:8085"}
+	var allowedOrigins []string
 	
 	if origins != "" {
 		allowedOrigins = strings.Split(origins, ",")
 		for i, origin := range allowedOrigins {
 			allowedOrigins[i] = strings.TrimSpace(origin)
 		}
+	} else {
+		// No WebSocket origins configured - will be restrictive
+		allowedOrigins = []string{}
 	}
 
 	return &websocket.Upgrader{

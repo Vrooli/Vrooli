@@ -132,7 +132,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       get().updateExecutionStatus(status, error);
     });
     
-    socket.on('complete', (result) => {
+    socket.on('complete', (_result) => {
       get().updateExecutionStatus('completed');
       get().disconnectWebSocket();
     });

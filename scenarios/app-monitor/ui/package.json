@@ -4,9 +4,7 @@
   "version": "1.0.0",
   "description": "Matrix-themed monitoring dashboard for Vrooli scenarios",
   "scripts": {
-    "dev": "concurrently \"VITE_PORT=${VITE_PORT} vite\" \"node server.js\"",
-    "dev:vite": "VITE_PORT=${VITE_PORT} vite",
-    "dev:server": "nodemon server.js",
+    "dev": "VITE_PORT=${VITE_PORT} vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "start": "node server.js",
@@ -33,11 +31,9 @@
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
-    "concurrently": "^8.2.2",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
-    "nodemon": "^3.0.1",
     "typescript": "^5.2.2",
     "vite": "^5.0.8"
   }

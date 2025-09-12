@@ -154,7 +154,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./browser-automation-studio-api",
+          "run": "cd api && export DATABASE_URL='postgres://vrooli:newpass123@localhost:5433/browser_automation_studio?sslmode=disable' && export BROWSERLESS_URL='http://localhost:4110' && ./browser-automation-studio-api",
           "description": "Start Go API server with workflow engine",
           "background": true,
           "condition": {
@@ -190,13 +190,18 @@
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
+          "run": "timeout 30 bash -c 'until curl -sf http://localhost:$API_PORT/health; do sleep 2; done'",
+          "description": "Test API health endpoint with retry"
         },
         {
           "name": "test-workflow-endpoints",
           "run": "curl -sf http://localhost:$API_PORT/api/v1/workflows",
           "description": "Test workflow listing endpoint"
+        },
+        {
+          "name": "test-project-endpoints",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/projects",
+          "description": "Test project listing endpoint"
         },
         {
           "name": "test-ui-accessibility",

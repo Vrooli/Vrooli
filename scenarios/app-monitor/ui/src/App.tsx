@@ -5,6 +5,7 @@ import AppsView from '@/components/views/AppsView';
 import MetricsView from '@/components/views/MetricsView';
 import LogsView from '@/components/views/LogsView';
 import ResourcesView from '@/components/views/ResourcesView';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAppWebSocket } from '@/hooks/useWebSocket';
 import { appService } from '@/services/api';
 import type { App } from '@/types';
@@ -67,22 +68,24 @@ function App() {
   }, []);
 
   return (
-    <Router>
-      <div className="app">
-        <div className="matrix-rain"></div>
-        <Layout isConnected={isConnected}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/apps" replace />} />
-            <Route path="/apps" element={<AppsView apps={apps} setApps={setApps} />} />
-            <Route path="/metrics" element={<MetricsView />} />
-            <Route path="/logs" element={<LogsView />} />
-            <Route path="/logs/:appId" element={<LogsView />} />
-            <Route path="/resources" element={<ResourcesView />} />
-            <Route path="*" element={<Navigate to="/apps" replace />} />
-          </Routes>
-        </Layout>
-      </div>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <div className="app">
+          <div className="matrix-rain"></div>
+          <Layout isConnected={isConnected}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/apps" replace />} />
+              <Route path="/apps" element={<AppsView apps={apps} setApps={setApps} />} />
+              <Route path="/metrics" element={<MetricsView />} />
+              <Route path="/logs" element={<LogsView />} />
+              <Route path="/logs/:appId" element={<LogsView />} />
+              <Route path="/resources" element={<ResourcesView />} />
+              <Route path="*" element={<Navigate to="/apps" replace />} />
+            </Routes>
+          </Layout>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 

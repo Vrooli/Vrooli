@@ -18,7 +18,6 @@
       "automation",
       "nodejs-ui",
       "go-api",
-      "node-red-flows",
       "postgres-storage",
       "redis-cache",
       "ollama-ai"
@@ -27,13 +26,18 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "port": 21600,
+      "range": "21600-21699",
       "description": "App monitoring coordination API port"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "port": 3456,
-      "description": "Web UI dashboard port"
+      "range": "21700-21799",
+      "description": "Web UI dashboard port (production)"
+    },
+    "vite": {
+      "env_var": "VITE_PORT",
+      "range": "21800-21899",
+      "description": "Vite dev server port (development)"
     }
   },
   "resources": {
@@ -68,17 +72,6 @@
         "llama3.2"
       ],
       "purpose": "AI-powered analysis for unhealthy apps and performance optimization recommendations"
-    },
-    "node-red": {
-      "type": "node-red",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/automation/node-red/docker-monitor.json",
-          "type": "flow"
-        }
-      ]
     }
   },
   "lifecycle": {
@@ -166,13 +159,13 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  CLI: app-monitor --help'",
+          "run": "echo '🚀 App Monitor initialized\\n  UI Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: app-monitor --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start app monitor with Go API server and automation workflows",
+      "description": "Start app monitor with Go API server",
       "steps": [
         {
           "name": "start-api",
@@ -199,8 +192,36 @@
         }
       ]
     },
+    "dev": {
+      "description": "Start app monitor in development mode with hot reload",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./app-monitor-api",
+          "description": "Start Go coordination API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/app-monitor-api"
+          }
+        },
+        {
+          "name": "start-vite-dev",
+          "run": "cd ui && VITE_PORT=${VITE_PORT} npm run dev",
+          "description": "Start Vite dev server with hot reload",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "show-dev-services",
+          "run": "echo '🚀 App Monitor (DEV MODE) running:\\n  UI Dashboard: http://localhost:${VITE_PORT}\\n  API Server: http://localhost:${API_PORT}\\n  CLI: app-monitor --help\\n\\n🔥 Hot reload enabled - changes will update automatically'",
+          "description": "Display development service URLs"
+        }
+      ]
+    },
     "test": {
-      "description": "Test app monitor API, CLI, and automation workflows",
+      "description": "Test app monitor API and CLI",
       "steps": [
         {
           "name": "test-go-build",
@@ -217,12 +238,12 @@
         },
         {
           "name": "test-apps-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/apps",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/apps",
           "description": "Test API apps endpoint"
         },
         {
           "name": "test-docker-access",
-          "run": "curl -sf http://localhost:$API_PORT/api/docker/info",
+          "run": "curl -sf http://localhost:$API_PORT/api/v1/docker/info",
           "description": "Test Docker API access through app monitor"
         },
         {
@@ -232,11 +253,6 @@
           "condition": {
             "file_exists": "cli/app-monitor.bats"
           }
-        },
-        {
-          "name": "test-automation-workflows",
-          "run": "bash test/test-automation-integration.sh",
-          "description": "Test n8n and Node-RED workflow integration"
         }
       ]
     },

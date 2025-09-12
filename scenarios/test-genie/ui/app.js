@@ -8,6 +8,8 @@ class TestGenieApp {
             executions: [],
             metrics: {}
         };
+        this.refreshInterval = null;
+        this.wsConnection = null;
         
         this.init();
     }
@@ -150,23 +152,53 @@ class TestGenieApp {
     }
 
     async loadDashboardData() {
-        // Update header stats (mock data for now)
-        this.updateHeaderStats({
-            activeSuites: Math.floor(Math.random() * 20) + 5,
-            runningTests: Math.floor(Math.random() * 10),
-            avgCoverage: Math.floor(Math.random() * 20) + 80
-        });
+        try {
+            // Load system metrics from API
+            const [systemMetrics, testSuites, executions] = await Promise.all([
+                this.fetchWithErrorHandling('/system/metrics'),
+                this.fetchWithErrorHandling('/test-suite'),
+                this.fetchWithErrorHandling('/test-execution')
+            ]);
 
-        // Update dashboard metrics (mock data for now)
-        this.updateDashboardMetrics({
-            totalSuites: Math.floor(Math.random() * 100) + 50,
-            testsGenerated: Math.floor(Math.random() * 1000) + 500,
-            avgCoverage: Math.floor(Math.random() * 20) + 80,
-            failedTests: Math.floor(Math.random() * 10)
-        });
+            // Calculate dashboard metrics from real data
+            const activeSuites = testSuites ? testSuites.filter(s => s.status === 'active').length : 0;
+            const runningExecutions = executions ? executions.filter(e => e.status === 'running').length : 0;
+            
+            let avgCoverage = 0;
+            if (testSuites && testSuites.length > 0) {
+                const totalCoverage = testSuites.reduce((sum, suite) => {
+                    const coverage = suite.coverage_metrics?.code_coverage || 0;
+                    return sum + parseFloat(coverage);
+                }, 0);
+                avgCoverage = Math.round(totalCoverage / testSuites.length);
+            }
 
-        // Load recent executions
-        await this.loadRecentExecutions();
+            // Update header stats with real data
+            this.updateHeaderStats({
+                activeSuites,
+                runningTests: runningExecutions,
+                avgCoverage
+            });
+
+            // Calculate additional metrics
+            const totalSuites = testSuites ? testSuites.length : 0;
+            const totalTestCases = testSuites ? testSuites.reduce((sum, suite) => sum + (suite.total_tests || 0), 0) : 0;
+            const failedTests = executions ? executions.filter(e => e.status === 'failed').length : 0;
+
+            this.updateDashboardMetrics({
+                totalSuites,
+                testsGenerated: totalTestCases,
+                avgCoverage,
+                failedTests
+            });
+
+            // Load recent executions with real data
+            await this.loadRecentExecutions();
+            
+        } catch (error) {
+            console.error('Failed to load dashboard data:', error);
+            this.showError('Failed to load dashboard data');
+        }
     }
 
     updateHeaderStats(stats) {
@@ -185,38 +217,29 @@ class TestGenieApp {
     async loadRecentExecutions() {
         const container = document.getElementById('recent-executions');
         
-        // Mock recent executions data
-        const executions = [
-            {
-                id: 'exec-001',
-                suiteName: 'document-manager',
-                status: 'completed',
-                duration: 120.5,
-                passed: 28,
-                failed: 2,
-                timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
-            },
-            {
-                id: 'exec-002',
-                suiteName: 'personal-digital-twin',
-                status: 'running',
-                duration: 45.2,
-                passed: 15,
-                failed: 0,
-                timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-            },
-            {
-                id: 'exec-003',
-                suiteName: 'test-genie',
-                status: 'completed',
-                duration: 89.7,
-                passed: 42,
-                failed: 1,
-                timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+        try {
+            const executions = await this.fetchWithErrorHandling('/test-execution?limit=5&sort=desc');
+            
+            if (executions && executions.length > 0) {
+                // Transform API data to match our display format
+                const formattedExecutions = executions.map(exec => ({
+                    id: exec.id,
+                    suiteName: exec.suite_name || 'Unknown Suite',
+                    status: exec.status,
+                    duration: this.calculateDuration(exec.start_time, exec.end_time),
+                    passed: exec.passed_tests || 0,
+                    failed: exec.failed_tests || 0,
+                    timestamp: exec.start_time
+                }));
+                
+                container.innerHTML = this.renderExecutionsTable(formattedExecutions);
+            } else {
+                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No recent executions found</p>';
             }
-        ];
-
-        container.innerHTML = this.renderExecutionsTable(executions);
+        } catch (error) {
+            console.error('Failed to load recent executions:', error);
+            container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load recent executions</p>';
+        }
     }
 
     renderExecutionsTable(executions) {
@@ -301,40 +324,29 @@ class TestGenieApp {
         const container = document.getElementById('suites-table');
         container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading test suites...</div>';
 
-        // Mock test suites data
-        setTimeout(() => {
-            const suites = [
-                {
-                    id: 'suite-001',
-                    scenarioName: 'document-manager',
-                    suiteType: 'unit,integration',
-                    testsCount: 45,
-                    coverage: 92.3,
-                    status: 'active',
-                    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString()
-                },
-                {
-                    id: 'suite-002',
-                    scenarioName: 'personal-digital-twin',
-                    suiteType: 'unit,integration,performance',
-                    testsCount: 67,
-                    coverage: 88.7,
-                    status: 'active',
-                    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
-                },
-                {
-                    id: 'suite-003',
-                    scenarioName: 'test-genie',
-                    suiteType: 'unit,integration,vault',
-                    testsCount: 89,
-                    coverage: 95.1,
-                    status: 'active',
-                    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString()
-                }
-            ];
-
-            container.innerHTML = this.renderSuitesTable(suites);
-        }, 1000);
+        try {
+            const suites = await this.fetchWithErrorHandling('/test-suite');
+            
+            if (suites && suites.length > 0) {
+                // Transform API data to match our display format
+                const formattedSuites = suites.map(suite => ({
+                    id: suite.id,
+                    scenarioName: suite.scenario_name,
+                    suiteType: suite.test_types ? suite.test_types.join(',') : 'unknown',
+                    testsCount: suite.total_tests || 0,
+                    coverage: parseFloat(suite.coverage_metrics?.code_coverage || 0),
+                    status: suite.status,
+                    createdAt: suite.generated_at || suite.created_at
+                }));
+                
+                container.innerHTML = this.renderSuitesTable(formattedSuites);
+            } else {
+                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test suites found</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load test suites:', error);
+            container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load test suites</p>';
+        }
     }
 
     renderSuitesTable(suites) {
@@ -388,58 +400,29 @@ class TestGenieApp {
         const container = document.getElementById('executions-table');
         container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading test executions...</div>';
 
-        // Use the same mock data as recent executions but with more entries
-        setTimeout(() => {
-            const executions = [
-                {
-                    id: 'exec-001',
-                    suiteName: 'document-manager',
-                    status: 'completed',
-                    duration: 120.5,
-                    passed: 28,
-                    failed: 2,
-                    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString()
-                },
-                {
-                    id: 'exec-002',
-                    suiteName: 'personal-digital-twin',
-                    status: 'running',
-                    duration: 45.2,
-                    passed: 15,
-                    failed: 0,
-                    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString()
-                },
-                {
-                    id: 'exec-003',
-                    suiteName: 'test-genie',
-                    status: 'completed',
-                    duration: 89.7,
-                    passed: 42,
-                    failed: 1,
-                    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
-                },
-                {
-                    id: 'exec-004',
-                    suiteName: 'app-monitor',
-                    status: 'failed',
-                    duration: 25.3,
-                    passed: 8,
-                    failed: 5,
-                    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString()
-                },
-                {
-                    id: 'exec-005',
-                    suiteName: 'scenario-improver',
-                    status: 'completed',
-                    duration: 156.8,
-                    passed: 67,
-                    failed: 0,
-                    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString()
-                }
-            ];
-
-            container.innerHTML = this.renderExecutionsTable(executions);
-        }, 1000);
+        try {
+            const executions = await this.fetchWithErrorHandling('/test-execution');
+            
+            if (executions && executions.length > 0) {
+                // Transform API data to match our display format
+                const formattedExecutions = executions.map(exec => ({
+                    id: exec.id,
+                    suiteName: exec.suite_name || 'Unknown Suite',
+                    status: exec.status,
+                    duration: this.calculateDuration(exec.start_time, exec.end_time),
+                    passed: exec.passed_tests || 0,
+                    failed: exec.failed_tests || 0,
+                    timestamp: exec.start_time
+                }));
+                
+                container.innerHTML = this.renderExecutionsTable(formattedExecutions);
+            } else {
+                container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No test executions found</p>';
+            }
+        } catch (error) {
+            console.error('Failed to load test executions:', error);
+            container.innerHTML = '<p style="color: var(--accent-error); text-align: center; padding: 2rem;">Failed to load test executions</p>';
+        }
     }
 
     async handleGenerateSubmit() {
@@ -592,32 +575,63 @@ ${(result.improvement_suggestions || []).map(suggestion => `  • ${suggestion}`
 
         resultDiv.style.display = 'none';
 
-        // Simulate vault creation (this would use CLI in real implementation)
-        setTimeout(() => {
-            const vaultId = `vault-${Date.now().toString(36)}`;
+        try {
+            const requestData = {
+                scenario_name: scenarioName,
+                vault_name: `${scenarioName}-vault-${Date.now()}`,
+                phases: phases,
+                phase_configurations: phases.reduce((config, phase) => {
+                    config[phase] = {
+                        timeout: timeout,
+                        retry_count: 3,
+                        parallel_execution: false
+                    };
+                    return config;
+                }, {}),
+                success_criteria: {
+                    minimum_pass_rate: 90,
+                    maximum_duration: timeout * phases.length,
+                    required_phases: phases
+                },
+                total_timeout: timeout * phases.length
+            };
+
+            const response = await fetch(`${this.apiBaseUrl}/test-vault`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
             
             resultDiv.innerHTML = `🏛️ Test Vault Created Successfully!
 
-Vault ID: ${vaultId}
+Vault ID: ${result.vault_id}
 Scenario: ${scenarioName}
 Phases: ${phases.join(', ')}
 Phase Timeout: ${timeout}s
 Total Estimated Time: ${timeout * phases.length}s
 
-Vault Structure Created:
-  📁 test-vault-${scenarioName}/
-    📄 vault.yaml
-    📄 run_vault.sh
-    📁 phases/
-${phases.map(phase => `      📄 ${phase}.yaml`).join('\n')}
+Vault Configuration:
+  Total Timeout: ${result.total_timeout}s
+  Success Criteria: ${result.success_criteria?.minimum_pass_rate || 90}% pass rate
+  Phases: ${result.phases?.length || phases.length} configured
 
 To execute the vault:
-  cd test-vault-${scenarioName}
-  ./run_vault.sh`;
+  POST /api/v1/test-vault/${result.vault_id}/execute`;
 
             resultDiv.style.display = 'block';
             this.showSuccess(`Test vault created successfully with ${phases.length} phases!`);
-        }, 1500);
+        } catch (error) {
+            console.error('Test vault creation failed:', error);
+            this.showError(`Test vault creation failed: ${error.message}`);
+        }
     }
 
     // Action handlers
@@ -738,7 +752,149 @@ To execute the vault:
             }, 300);
         }, 5000);
     }
+
+    // Utility methods for API calls
+    async fetchWithErrorHandling(endpoint) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}${endpoint}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`API call failed for ${endpoint}:`, error);
+            return null;
+        }
+    }
+
+    calculateDuration(startTime, endTime) {
+        if (!startTime) return 0;
+        if (!endTime) {
+            // For running executions, calculate current duration
+            const start = new Date(startTime);
+            const now = new Date();
+            return Math.round((now - start) / 1000 * 10) / 10; // Round to 1 decimal
+        }
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        return Math.round((end - start) / 1000 * 10) / 10; // Round to 1 decimal
+    }
+
+    // WebSocket connection for real-time updates
+    initWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        try {
+            this.wsConnection = new WebSocket(wsUrl);
+            
+            this.wsConnection.onopen = () => {
+                console.log('WebSocket connection established');
+                
+                // Subscribe to relevant topics
+                this.wsConnection.send(JSON.stringify({
+                    type: 'subscribe',
+                    payload: {
+                        topics: ['system_status', 'executions', 'test_completion']
+                    }
+                }));
+            };
+            
+            this.wsConnection.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                this.handleWebSocketMessage(data);
+            };
+            
+            this.wsConnection.onclose = () => {
+                console.log('WebSocket connection closed');
+                // Reconnect after 5 seconds
+                setTimeout(() => this.initWebSocket(), 5000);
+            };
+            
+            this.wsConnection.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        } catch (error) {
+            console.error('Failed to initialize WebSocket:', error);
+        }
+    }
+
+    handleWebSocketMessage(data) {
+        switch (data.type) {
+            case 'execution_update':
+                this.handleExecutionUpdate(data.payload);
+                break;
+            case 'test_completion':
+                this.handleTestCompletion(data.payload);
+                break;
+            case 'system_status':
+                this.updateSystemStatus(data.payload.healthy);
+                break;
+            default:
+                console.log('Unknown WebSocket message type:', data.type);
+        }
+    }
+
+    handleExecutionUpdate(payload) {
+        // Update execution status in real-time
+        if (this.activePage === 'executions' || this.activePage === 'dashboard') {
+            this.loadPageData(this.activePage);
+        }
+        
+        // Show notification for execution status changes
+        if (payload.status === 'completed') {
+            this.showSuccess(`Test execution ${payload.execution_id} completed successfully`);
+        } else if (payload.status === 'failed') {
+            this.showError(`Test execution ${payload.execution_id} failed`);
+        }
+    }
+
+    handleTestCompletion(payload) {
+        // Refresh dashboard metrics
+        if (this.activePage === 'dashboard') {
+            this.loadDashboardData();
+        }
+        
+        this.showInfo(`Test ${payload.test_name} completed with status: ${payload.status}`);
+    }
+
+    // Enhanced periodic updates with better error handling
+    startPeriodicUpdates() {
+        // Update system status every 30 seconds
+        setInterval(async () => {
+            await this.checkApiHealth();
+        }, 30000);
+
+        // Update current page data every 60 seconds
+        this.refreshInterval = setInterval(async () => {
+            if (this.activePage === 'dashboard') {
+                await this.loadDashboardData();
+            } else if (this.activePage === 'executions') {
+                await this.loadExecutions();
+            } else if (this.activePage === 'suites') {
+                await this.loadTestSuites();
+            }
+        }, 60000);
+
+        // Initialize WebSocket for real-time updates
+        this.initWebSocket();
+    }
+
+    // Clean up resources
+    destroy() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
+        if (this.wsConnection) {
+            this.wsConnection.close();
+        }
+    }
 }
 
 // Initialize the app
 const app = new TestGenieApp();
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    app.destroy();
+});

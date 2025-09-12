@@ -1,13 +1,16 @@
-import { Plus, Play, Save, FolderOpen, Brain, Bug } from 'lucide-react';
+import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { useExecutionStore } from '../stores/executionStore';
+import { Project } from '../stores/projectStore';
 import toast from 'react-hot-toast';
 
 interface HeaderProps {
   onNewWorkflow: () => void;
+  onBackToDashboard?: () => void;
+  currentProject?: Project | null;
 }
 
-function Header({ onNewWorkflow }: HeaderProps) {
+function Header({ onNewWorkflow, onBackToDashboard, currentProject }: HeaderProps) {
   const { currentWorkflow, saveWorkflow } = useWorkflowStore();
   const { startExecution } = useExecutionStore();
 
@@ -45,12 +48,33 @@ function Header({ onNewWorkflow }: HeaderProps) {
     <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
-            <div className="w-8 h-8 bg-flow-accent rounded-lg flex items-center justify-center">
-              <Brain size={20} />
-            </div>
-            Browser Automation Studio
-          </h1>
+          <div className="flex items-center gap-2">
+            {onBackToDashboard && (
+              <button
+                onClick={onBackToDashboard}
+                className="toolbar-button flex items-center gap-2"
+                title="Back to Dashboard"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
+            
+            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              <div className="w-8 h-8 bg-flow-accent rounded-lg flex items-center justify-center">
+                <Brain size={20} />
+              </div>
+              {currentProject ? currentProject.name : 'Browser Automation Studio'}
+            </h1>
+            
+            {currentProject && (
+              <div className="text-sm text-gray-400">
+                {currentProject.description && (
+                  <span className="mr-2">• {currentProject.description}</span>
+                )}
+                <span className="text-xs">{currentProject.folder_path}</span>
+              </div>
+            )}
+          </div>
           
           <div className="flex items-center gap-2">
             <button

@@ -5,41 +5,82 @@ App Monitor provides a centralized dashboard for monitoring and managing all run
 
 ## How It Helps Vrooli
 - **Self-Monitoring**: Enables Vrooli to track its own application ecosystem
-- **Auto-Recovery**: Automatically restarts unhealthy apps using shared workflows
+- **Auto-Recovery**: Provides restart capability for unhealthy apps
 - **Performance Intelligence**: Uses AI to analyze performance issues and suggest optimizations
 - **Cross-Scenario Support**: Other scenarios can query app health status via CLI/API
 - **Resource Efficiency**: Identifies resource-hungry apps for optimization
 
 ## Dependencies
 - **Core Resources**: PostgreSQL (metrics storage), Redis (real-time events)
-- **Automation**: n8n (health checks, auto-restart), Node-RED (Docker monitoring), Windmill (dashboards)
-- **AI**: Ollama (performance analysis via shared workflow)
-- **Shared Workflows**: `ollama.json`, `cache-manager.json`, `rate-limiter.json`
+- **AI**: Ollama (performance analysis)
+- **Docker**: Direct Docker API integration for container monitoring
+- **Orchestrator**: Optional integration with orchestrator status API
+
+## Environment Variables
+```bash
+# Required
+export API_PORT=21600           # API server port
+export UI_PORT=21700            # UI server port
+
+# Optional
+export ORCHESTRATOR_STATUS_URL="http://localhost:9500/status"  # Orchestrator status endpoint
+export POSTGRES_URL="postgres://..."                           # Database connection
+export REDIS_URL="redis://localhost:6379"                     # Redis connection
+export API_KEY="your-secret-key"                              # Optional API authentication
+```
 
 ## Features
 - Real-time health monitoring with customizable alert thresholds
 - Performance metrics collection (CPU, memory, response times, error rates)
 - AI-powered root cause analysis for unhealthy applications
-- Automatic restart capability for failed apps
-- Docker container monitoring via Node-RED
-- Interactive Windmill dashboards for visual monitoring
+- Restart capability for failed apps
+- Direct Docker container monitoring
+- Interactive dashboard for visual monitoring
 - CLI for scriptable health checks
 
 ## API Endpoints
+
+### Health Endpoints
 - `GET /health` - API health check
-- `GET /api/apps` - List all monitored applications
-- `GET /api/apps/:id/health` - Get specific app health status
-- `POST /api/apps/:id/restart` - Trigger app restart
-- `GET /api/docker/info` - Docker daemon information
-- `GET /api/metrics/:id` - Get app performance metrics
+- `GET /api/health` - Alternative health check
+
+### App Management (v1)
+- `GET /api/v1/apps` - List all monitored applications
+- `GET /api/v1/apps/:id` - Get specific app information
+- `POST /api/v1/apps/:id/start` - Start an application
+- `POST /api/v1/apps/:id/stop` - Stop an application
+- `GET /api/v1/apps/:id/logs` - Get application logs
+- `GET /api/v1/apps/:id/logs/lifecycle` - Get lifecycle logs
+- `GET /api/v1/apps/:id/logs/background` - Get background logs
+- `GET /api/v1/apps/:id/metrics` - Get app performance metrics
+- `GET /api/v1/logs/:appName` - Get logs by app name
+
+### System Information
+- `GET /api/v1/system/info` - Get system and orchestrator information
+- `GET /api/v1/system/metrics` - Get system metrics
+- `GET /api/v1/resources` - Get resource status
+
+### Docker Integration
+- `GET /api/v1/docker/info` - Docker daemon information
+- `GET /api/v1/docker/containers` - List Docker containers
+
+### Real-time Updates
+- `GET /ws` - WebSocket endpoint for real-time updates
 
 ## CLI Commands
 ```bash
-app-monitor list              # List all monitored apps
-app-monitor health <app-id>   # Check specific app health
-app-monitor restart <app-id>  # Restart an application
-app-monitor metrics <app-id>  # Get performance metrics
-app-monitor analyze <app-id>  # Run AI performance analysis
+app-monitor status                  # Check App Monitor service health
+app-monitor list                    # List all managed applications
+app-monitor start <app-id>          # Start an application
+app-monitor stop <app-id>           # Stop an application
+app-monitor logs <app-id> [limit]   # Show application logs (default: 50)
+app-monitor metrics <app-id> [hrs]  # Show application metrics (default: 24h)
+app-monitor docker                  # Show Docker system information
+app-monitor help                    # Show help message
+
+# Environment Variables
+export API_PORT=21600                                    # Required: API port
+export APP_MONITOR_API_URL="http://localhost:$API_PORT" # Optional: API URL override
 ```
 
 ## UI Style

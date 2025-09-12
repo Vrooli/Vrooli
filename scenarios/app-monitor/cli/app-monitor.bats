@@ -3,7 +3,7 @@
 
 setup() {
     # Test configuration
-    export APP_MONITOR_API_URL="${APP_MONITOR_API_URL:-http://localhost:8090}"
+    export APP_MONITOR_API_URL="${APP_MONITOR_API_URL:-http://localhost:${API_PORT}}"
     
     # Check if API is available
     if \! curl -sf "$APP_MONITOR_API_URL/health" > /dev/null 2>&1; then

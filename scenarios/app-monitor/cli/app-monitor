@@ -4,7 +4,12 @@
 set -euo pipefail
 
 # Configuration
-API_BASE_URL="${APP_MONITOR_API_URL:-http://localhost:8090}"
+# API_PORT must be provided by environment
+if [ -z "$API_PORT" ]; then
+    echo "Error: API_PORT environment variable is required"
+    exit 1
+fi
+API_BASE_URL="${APP_MONITOR_API_URL:-http://localhost:${API_PORT}}"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 SCRIPT_DIR="${APP_ROOT}/scenarios/app-monitor/cli"
 
@@ -87,7 +92,7 @@ cmd_list() {
     fi
     
     local apps_response
-    apps_response=$(api_request "GET" "/api/apps")
+    apps_response=$(api_request "GET" "/api/v1/apps")
     
     if [[ "$apps_response" == "[]" ]]; then
         log_info "No apps currently registered"
@@ -107,7 +112,7 @@ cmd_start() {
     fi
     
     local response
-    response=$(api_request "POST" "/api/apps/$app_id/start")
+    response=$(api_request "POST" "/api/v1/apps/$app_id/start")
     
     local message
     message=$(echo "$response" | jq -r '.message // .error // "Unknown response"')
@@ -130,7 +135,7 @@ cmd_stop() {
     fi
     
     local response
-    response=$(api_request "POST" "/api/apps/$app_id/stop")
+    response=$(api_request "POST" "/api/v1/apps/$app_id/stop")
     
     local message
     message=$(echo "$response" | jq -r '.message // .error // "Unknown response"')
@@ -154,7 +159,7 @@ cmd_logs() {
     fi
     
     local logs_response
-    logs_response=$(api_request "GET" "/api/apps/$app_id/logs?limit=$limit")
+    logs_response=$(api_request "GET" "/api/v1/apps/$app_id/logs?limit=$limit")
     
     if [[ "$logs_response" == "[]" ]]; then
         log_info "No logs found for app: $app_id"
@@ -175,7 +180,7 @@ cmd_metrics() {
     fi
     
     local metrics_response
-    metrics_response=$(api_request "GET" "/api/apps/$app_id/metrics?hours=$hours")
+    metrics_response=$(api_request "GET" "/api/v1/apps/$app_id/metrics?hours=$hours")
     
     if [[ "$metrics_response" == "[]" ]]; then
         log_info "No metrics found for app: $app_id"
@@ -193,7 +198,7 @@ cmd_docker() {
     fi
     
     local docker_response
-    docker_response=$(api_request "GET" "/api/docker/info")
+    docker_response=$(api_request "GET" "/api/v1/docker/info")
     
     echo "$docker_response" | jq '{
         "Containers": .Containers,
@@ -202,6 +207,70 @@ cmd_docker() {
         "Operating System": .OperatingSystem,
         "Architecture": .Architecture
     }'
+}
+
+cmd_health() {
+    local app_id="$1"
+    
+    log_info "Checking health for app: $app_id"
+    
+    if \! check_api; then
+        return 1
+    fi
+    
+    local response
+    response=$(api_request "GET" "/api/v1/apps/$app_id")
+    
+    if [[ "$response" == "null" ]] || echo "$response" | jq -e '.error' > /dev/null 2>&1; then
+        log_error "App not found: $app_id"
+        return 1
+    fi
+    
+    local status
+    local uptime
+    local memory
+    local cpu
+    status=$(echo "$response" | jq -r '.status // "unknown"')
+    uptime=$(echo "$response" | jq -r '.uptime // "unknown"')
+    memory=$(echo "$response" | jq -r '.memory_usage // "unknown"')
+    cpu=$(echo "$response" | jq -r '.cpu_usage // "unknown"')
+    
+    case "$status" in
+        "running")
+            log_success "App $app_id is healthy"
+            ;;
+        "stopped")
+            log_warning "App $app_id is stopped"
+            ;;
+        *)
+            log_error "App $app_id status: $status"
+            ;;
+    esac
+    
+    echo "  Status: $status"
+    echo "  Uptime: $uptime"
+    echo "  Memory: $memory%"
+    echo "  CPU: $cpu%"
+}
+
+cmd_restart() {
+    local app_id="$1"
+    
+    log_info "Restarting app: $app_id"
+    
+    # First stop the app
+    log_info "Stopping app..."
+    if cmd_stop "$app_id"; then
+        # Wait a moment for clean shutdown
+        sleep 2
+        
+        # Then start the app
+        log_info "Starting app..."
+        cmd_start "$app_id"
+    else
+        log_error "Failed to stop app, restart aborted"
+        return 1
+    fi
 }
 
 cmd_help() {
@@ -216,18 +285,24 @@ Commands:
     list                    List all managed applications
     start <app_id>          Start an application
     stop <app_id>           Stop an application
+    restart <app_id>        Restart an application (stop then start)
+    health <app_id>         Check specific app health status
     logs <app_id> [limit]   Show application logs (default: 50)
     metrics <app_id> [hrs]  Show application metrics (default: 24h)
     docker                  Show Docker system information
     help                    Show this help message
 
 Environment Variables:
-    APP_MONITOR_API_URL     API base URL (default: http://localhost:8090)
+    APP_MONITOR_API_URL     API base URL (default: http://localhost:\$API_PORT)
+    API_PORT                API port (required)
 
 Examples:
     app-monitor status
     app-monitor list
     app-monitor start abc123
+    app-monitor stop abc123
+    app-monitor restart abc123
+    app-monitor health abc123
     app-monitor logs abc123 100
     app-monitor metrics abc123 12
 
@@ -275,6 +350,20 @@ main() {
                 return 1
             fi
             cmd_stop "$@"
+            ;;
+        "restart")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for restart command"
+                return 1
+            fi
+            cmd_restart "$@"
+            ;;
+        "health")
+            if [[ $# -eq 0 ]]; then
+                log_error "App ID required for health command"
+                return 1
+            fi
+            cmd_health "$@"
             ;;
         "logs")
             if [[ $# -eq 0 ]]; then

@@ -1,7 +1,7 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import ReactFlow, {
   Node,
-  Edge,
+  // Edge,
   Controls,
   MiniMap,
   Background,
@@ -45,7 +45,14 @@ const defaultEdgeOptions = {
   },
 };
 
-function WorkflowBuilder() {
+interface WorkflowBuilderProps {
+  projectId?: string;
+}
+
+function WorkflowBuilder({ projectId }: WorkflowBuilderProps) {
+  // TODO: Implement project-specific workflow features
+  console.log('Project ID:', projectId);
+  
   const { nodes: storeNodes, edges: storeEdges, updateWorkflow } = useWorkflowStore();
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);

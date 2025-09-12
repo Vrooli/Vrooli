@@ -26,15 +26,17 @@ type resourceCache struct {
 
 // SystemHandler handles system-related endpoints
 type SystemHandler struct {
-	metricsService *services.MetricsService
-	resourceCache  *resourceCache
+	metricsService   *services.MetricsService
+	resourceCache    *resourceCache
+	orchestratorURL  string
 }
 
 // NewSystemHandler creates a new system handler
-func NewSystemHandler(metricsService *services.MetricsService) *SystemHandler {
+func NewSystemHandler(metricsService *services.MetricsService, orchestratorURL string) *SystemHandler {
 	return &SystemHandler{
-		metricsService: metricsService,
-		resourceCache:  &resourceCache{},
+		metricsService:  metricsService,
+		resourceCache:   &resourceCache{},
+		orchestratorURL: orchestratorURL,
 	}
 }
 
@@ -79,10 +81,12 @@ func (h *SystemHandler) GetSystemInfo(c *gin.Context) {
 
 	// Get orchestrator status from API
 	orchStatus := make(map[string]interface{})
-	resp, err := http.Get("http://localhost:9500/status")
-	if err == nil {
-		defer resp.Body.Close()
-		json.NewDecoder(resp.Body).Decode(&orchStatus)
+	if h.orchestratorURL != "" {
+		resp, err := http.Get(h.orchestratorURL)
+		if err == nil {
+			defer resp.Body.Close()
+			json.NewDecoder(resp.Body).Decode(&orchStatus)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

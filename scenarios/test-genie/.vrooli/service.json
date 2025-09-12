@@ -1,0 +1,303 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "test-genie",
+    "displayName": "Test Genie",
+    "description": "AI-powered comprehensive test generation and management platform",
+    "version": "1.0.0",
+    "tags": [
+      "testing",
+      "ai",
+      "test-generation",
+      "quality-assurance",
+      "ollama",
+      "postgres",
+      "vault-testing",
+      "coverage-analysis",
+      "go-api",
+      "express-ui",
+      "comprehensive-testing"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Test Genie API server port",
+      "range": "8200-8299"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Test Genie dashboard port",
+      "range": "3000-3099"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "required": true,
+      "description": "Database for test suite storage, results, and analytics",
+      "health_check": {
+        "type": "postgres",
+        "database": "${POSTGRES_DB:-test_genie}",
+        "timeout": 5000
+      }
+    },
+    "ollama": {
+      "required": true,
+      "description": "AI service for intelligent test generation",
+      "health_check": {
+        "type": "http",
+        "url": "http://localhost:${OLLAMA_PORT:-11434}/api/tags",
+        "timeout": 10000
+      }
+    },
+    "redis": {
+      "required": false,
+      "description": "Optional caching for test results and AI responses",
+      "health_check": {
+        "type": "redis",
+        "timeout": 3000
+      }
+    },
+    "qdrant": {
+      "required": false,
+      "description": "Optional vector database for semantic test similarity",
+      "health_check": {
+        "type": "http",
+        "url": "http://localhost:${QDRANT_PORT:-6333}/health",
+        "timeout": 5000
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Test Genie health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "database_connection",
+          "type": "postgres",
+          "target": "${POSTGRES_HOST:-localhost}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-test_genie}",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 60000
+        },
+        {
+          "name": "ai_service",
+          "type": "http",
+          "target": "http://localhost:${OLLAMA_PORT:-11434}/api/tags",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 60000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 30000
+    },
+    "setup": {
+      "description": "Initialize Test Genie with all dependencies and build artifacts",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/test-genie-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "test-genie"
+          },
+          {
+            "type": "directory",
+            "path": "initialization/storage/postgres"
+          },
+          {
+            "type": "file",
+            "path": "ui/package.json"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "verify-resources",
+          "run": "echo '🔍 Verifying required resources...' && resource-postgres status && resource-ollama status",
+          "description": "Verify required resources are available",
+          "condition": {
+            "always": true
+          }
+        },
+        {
+          "name": "install-go-deps",
+          "run": "cd api && go mod download",
+          "description": "Download Go dependencies",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go build -o test-genie-api .",
+          "description": "Build Test Genie API binary",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install Test Genie CLI globally",
+          "condition": {
+            "file_exists": "cli/install.sh"
+          }
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install UI server dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "setup-database",
+          "run": "resource-postgres exec --database test_genie --file initialization/storage/postgres/schema.sql",
+          "description": "Initialize database schema",
+          "condition": {
+            "file_exists": "initialization/storage/postgres/schema.sql"
+          }
+        },
+        {
+          "name": "verify-ai-models",
+          "run": "curl -f http://localhost:${OLLAMA_PORT:-11434}/api/tags | jq '.models[] | select(.name | contains(\"llama\")) | .name' | head -1 || echo 'Warning: No Llama models found in Ollama'",
+          "description": "Verify AI models are available",
+          "condition": {
+            "always": true
+          }
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '\\n🚀 Test Genie initialized successfully!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '  📚 Generate tests: test-genie generate <scenario> --types unit,integration'\\necho '  🏗️  Create vault: test-genie vault <scenario> --phases setup,develop,test'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Test Genie services (API and UI)",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./test-genie-api",
+          "description": "Start Test Genie API server",
+          "background": true,
+          "condition": {
+            "file_exists": "api/test-genie-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start Test Genie dashboard",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "sleep 3 && echo '\\n🚀 Test Genie services started!'\\necho '  📊 Dashboard: http://localhost:${UI_PORT}'\\necho '  🔧 API: http://localhost:${API_PORT}'\\necho '  💻 CLI: test-genie --help'\\necho '\\n💡 Quick start:'\\necho '  test-genie generate my-scenario --types unit,integration'\\necho '  test-genie vault my-scenario --phases setup,develop,test'",
+          "description": "Display running services information"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Test Genie functionality",
+      "steps": [
+        {
+          "name": "test-go-compilation",
+          "run": "cd api && go build -o test-build . && rm test-build",
+          "description": "Verify Go code compiles",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -f http://localhost:${API_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-ui-health",
+          "run": "curl -f http://localhost:${UI_PORT}/health",
+          "description": "Test UI health endpoint"
+        },
+        {
+          "name": "test-database-connection",
+          "run": "curl -f -X POST http://localhost:${API_PORT}/api/v1/test-analysis/coverage -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test\",\"source_code_paths\":[\".\"]}' >/dev/null",
+          "description": "Test database connectivity"
+        },
+        {
+          "name": "test-ai-integration",
+          "run": "curl -f http://localhost:${OLLAMA_PORT:-11434}/api/tags >/dev/null",
+          "description": "Test AI service connectivity"
+        },
+        {
+          "name": "test-test-generation",
+          "run": "curl -f -X POST http://localhost:${API_PORT}/api/v1/test-suite/generate -H 'Content-Type: application/json' -d '{\"scenario_name\":\"test-scenario\",\"test_types\":[\"unit\"],\"coverage_target\":80}' >/dev/null",
+          "description": "Test core test generation functionality"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "test-genie status && test-genie generate test-demo --types unit --coverage 80 >/dev/null",
+          "description": "Test CLI functionality"
+        },
+        {
+          "name": "run-scenario-tests",
+          "run": "if [ -f scenario-test.yaml ]; then vrooli test scenario test-genie; else echo 'Scenario tests not available'; fi",
+          "description": "Run comprehensive scenario test suite"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Test Genie services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"test-genie-api\" || true; sleep 1; pkill -9 -f \"test-genie-api\" 2>/dev/null || true",
+          "description": "Stop API server process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"scenarios/test-genie.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/test-genie.*server\\.js\" 2>/dev/null || true",
+          "description": "Stop UI server process"
+        },
+        {
+          "name": "cleanup-temp-files",
+          "run": "find . -name 'test-vault-*' -type d -exec rm -rf {} + 2>/dev/null || true; rm -f *.log *.tmp 2>/dev/null || true",
+          "description": "Clean up temporary files and test vaults"
+        }
+      ]
+    }
+  }
+}

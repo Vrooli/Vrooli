@@ -42,10 +42,94 @@ func (s *WorkflowService) CheckHealth() string {
 	return status
 }
 
+// Project methods
+
+// CreateProject creates a new project
+func (s *WorkflowService) CreateProject(ctx context.Context, project *database.Project) error {
+	project.CreatedAt = time.Now()
+	project.UpdatedAt = time.Now()
+	return s.repo.CreateProject(ctx, project)
+}
+
+// GetProject gets a project by ID
+func (s *WorkflowService) GetProject(ctx context.Context, id uuid.UUID) (*database.Project, error) {
+	return s.repo.GetProject(ctx, id)
+}
+
+// GetProjectByName gets a project by name
+func (s *WorkflowService) GetProjectByName(ctx context.Context, name string) (*database.Project, error) {
+	return s.repo.GetProjectByName(ctx, name)
+}
+
+// GetProjectByFolderPath gets a project by folder path
+func (s *WorkflowService) GetProjectByFolderPath(ctx context.Context, folderPath string) (*database.Project, error) {
+	return s.repo.GetProjectByFolderPath(ctx, folderPath)
+}
+
+// UpdateProject updates a project
+func (s *WorkflowService) UpdateProject(ctx context.Context, project *database.Project) error {
+	project.UpdatedAt = time.Now()
+	return s.repo.UpdateProject(ctx, project)
+}
+
+// DeleteProject deletes a project and all its workflows
+func (s *WorkflowService) DeleteProject(ctx context.Context, id uuid.UUID) error {
+	return s.repo.DeleteProject(ctx, id)
+}
+
+// ListProjects lists all projects
+func (s *WorkflowService) ListProjects(ctx context.Context, limit, offset int) ([]*database.Project, error) {
+	return s.repo.ListProjects(ctx, limit, offset)
+}
+
+// GetProjectStats gets statistics for a project
+func (s *WorkflowService) GetProjectStats(ctx context.Context, projectID uuid.UUID) (map[string]interface{}, error) {
+	return s.repo.GetProjectStats(ctx, projectID)
+}
+
+// ListWorkflowsByProject lists workflows for a specific project
+func (s *WorkflowService) ListWorkflowsByProject(ctx context.Context, projectID uuid.UUID, limit, offset int) ([]*database.Workflow, error) {
+	return s.repo.ListWorkflowsByProject(ctx, projectID, limit, offset)
+}
+
+// Workflow methods
+
 // CreateWorkflow creates a new workflow
 func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath string, flowDefinition map[string]interface{}, aiPrompt string) (*database.Workflow, error) {
 	workflow := &database.Workflow{
 		ID:         uuid.New(),
+		Name:       name,
+		FolderPath: folderPath,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+		Tags:       []string{},
+		Version:    1,
+	}
+
+	if aiPrompt != "" {
+		// Generate workflow from AI prompt
+		workflow.FlowDefinition = s.generateWorkflowFromPrompt(aiPrompt)
+	} else if flowDefinition != nil {
+		workflow.FlowDefinition = database.JSONMap(flowDefinition)
+	} else {
+		workflow.FlowDefinition = database.JSONMap{
+			"nodes": []interface{}{},
+			"edges": []interface{}{},
+		}
+	}
+
+	if err := s.repo.CreateWorkflow(ctx, workflow); err != nil {
+		return nil, err
+	}
+
+	return workflow, nil
+}
+
+// CreateWorkflowWithProject creates a new workflow with optional project association
+func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, projectID *uuid.UUID, name, folderPath string, flowDefinition map[string]interface{}, aiPrompt string) (*database.Workflow, error) {
+	workflow := &database.Workflow{
+		ID:         uuid.New(),
+		ProjectID:  projectID,
 		Name:       name,
 		FolderPath: folderPath,
 		CreatedAt:  time.Now(),

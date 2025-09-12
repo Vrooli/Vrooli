@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { resourceService } from '@/services/api';
 import type { Resource } from '@/types';
+import { ResourcesGridSkeleton } from '../LoadingSkeleton';
 import './ResourcesView.css';
 
 export default function ResourcesView() {
@@ -48,10 +49,7 @@ export default function ResourcesView() {
       </div>
       
       {loading ? (
-        <div className="loading-container">
-          <div className="spinner"></div>
-          <p>Loading resources...</p>
-        </div>
+        <ResourcesGridSkeleton count={4} />
       ) : resources.length === 0 ? (
         <div className="empty-state">
           <p>No resources configured</p>

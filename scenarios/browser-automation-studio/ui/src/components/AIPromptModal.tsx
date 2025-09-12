@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 interface AIPromptModalProps {
   onClose: () => void;
   folder: string;
+  projectId?: string;
 }
 
 const examplePrompts = [
@@ -16,7 +17,7 @@ const examplePrompts = [
   "Monitor a product page for price changes every hour",
 ];
 
-function AIPromptModal({ onClose, folder }: AIPromptModalProps) {
+function AIPromptModal({ onClose, folder, projectId }: AIPromptModalProps) {
   const [prompt, setPrompt] = useState('');
   const [workflowName, setWorkflowName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -35,7 +36,7 @@ function AIPromptModal({ onClose, folder }: AIPromptModalProps) {
 
     setIsGenerating(true);
     try {
-      await generateWorkflow(prompt, workflowName, folder);
+      await generateWorkflow(prompt, workflowName, folder, projectId);
       toast.success('Workflow generated successfully!');
       onClose();
     } catch (error) {

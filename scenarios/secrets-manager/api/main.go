@@ -126,11 +126,14 @@ type SecurityScanResult struct {
 }
 
 type RemediationSuggestion struct {
-	VulnerabilityType string `json:"vulnerability_type"`
-	Priority          string `json:"priority"`
-	Description       string `json:"description"`
-	FixCommand        string `json:"fix_command,omitempty"`
-	Documentation     string `json:"documentation,omitempty"`
+	VulnerabilityType string   `json:"vulnerability_type"`
+	Priority          string   `json:"priority"`
+	Description       string   `json:"description"`
+	FixCommand        string   `json:"fix_command,omitempty"`
+	Documentation     string   `json:"documentation,omitempty"`
+	AffectedFiles     []string `json:"affected_files"`
+	Count            int      `json:"count"`
+	EstimatedEffort  string   `json:"estimated_effort"`
 }
 
 type ComplianceMetrics struct {
@@ -915,37 +918,30 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 func vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	severity := r.URL.Query().Get("severity")
+	scenario := r.URL.Query().Get("scenario")
 	
-	// Get security scan results
-	securityResults, err := scanScenariosForVulnerabilities("", "")
+	// Get security scan results from real filesystem scan
+	securityResults, err := scanScenariosForVulnerabilities(scenario, severity)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to scan for vulnerabilities: %v", err), http.StatusInternalServerError)
 		return
 	}
 	
-	vulnerabilities := securityResults.Vulnerabilities
-	
-	// Filter by severity if provided
-	if severity != "" {
-		var filteredVulns []SecurityVulnerability
-		for _, vuln := range vulnerabilities {
-			if vuln.Severity == severity {
-				filteredVulns = append(filteredVulns, vuln)
-			}
-		}
-		vulnerabilities = filteredVulns
-	}
-	
 	response := map[string]interface{}{
-		"vulnerabilities": vulnerabilities,
-		"total_count":     len(vulnerabilities),
+		"vulnerabilities": securityResults.Vulnerabilities,
+		"total_count":     len(securityResults.Vulnerabilities),
 		"scan_id":         securityResults.ScanID,
 		"scan_duration":   securityResults.ScanDurationMs,
+		"risk_score":      securityResults.RiskScore,
+		"recommendations": securityResults.Recommendations,
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+
+
 
 func validateHandler(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest

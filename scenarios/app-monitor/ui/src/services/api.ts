@@ -4,7 +4,7 @@ import { logger } from '@/services/logger';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: '/api/v1',
   timeout: 35000, // 35s to accommodate 30s backend timeout for resource checks
   headers: {
     'Content-Type': 'application/json',
@@ -147,7 +147,7 @@ export const logService = {
 
   // Stream logs (returns EventSource)
   streamLogs(onMessage: (log: LogEntry) => void): EventSource {
-    const eventSource = new EventSource('/api/logs/stream');
+    const eventSource = new EventSource('/api/v1/logs/stream');
     
     eventSource.onmessage = (event) => {
       try {

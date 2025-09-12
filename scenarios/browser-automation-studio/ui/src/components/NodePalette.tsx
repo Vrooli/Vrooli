@@ -1,4 +1,4 @@
-import { Globe, MousePointer, Keyboard, Camera, Clock, Database, Eye, Code } from 'lucide-react';
+import { Globe, MousePointer, Keyboard, Camera, Clock, Database, Code } from 'lucide-react';
 
 const nodeTypes = [
   { type: 'navigate', label: 'Navigate', icon: Globe, color: 'text-blue-400', description: 'Navigate to URL' },

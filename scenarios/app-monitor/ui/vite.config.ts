@@ -14,11 +14,11 @@ export default defineConfig(({ mode }) => {
       host: true, // Allow external connections
       proxy: {
         '/api': {
-          target: `http://localhost:${env.API_PORT || '8090'}`,
+          target: `http://localhost:${env.API_PORT}`,
           changeOrigin: true,
         },
         '/ws': {
-          target: `ws://localhost:${env.UI_PORT || '8085'}`,
+          target: `ws://localhost:${env.API_PORT}`,
           ws: true,
           changeOrigin: true,
         },

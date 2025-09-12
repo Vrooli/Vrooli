@@ -33,6 +33,16 @@ func (j *JSONMap) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, j)
 }
 
+// Project represents a project containing related workflows
+type Project struct {
+	ID          uuid.UUID `json:"id" db:"id"`
+	Name        string    `json:"name" db:"name"`
+	Description string    `json:"description,omitempty" db:"description"`
+	FolderPath  string    `json:"folder_path" db:"folder_path"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // WorkflowFolder represents a workflow organization folder
 type WorkflowFolder struct {
 	ID          uuid.UUID  `json:"id" db:"id"`
@@ -47,6 +57,7 @@ type WorkflowFolder struct {
 // Workflow represents a browser automation workflow
 type Workflow struct {
 	ID             uuid.UUID      `json:"id" db:"id"`
+	ProjectID      *uuid.UUID     `json:"project_id,omitempty" db:"project_id"`
 	Name           string         `json:"name" db:"name"`
 	FolderPath     string         `json:"folder_path" db:"folder_path"`
 	FlowDefinition JSONMap        `json:"flow_definition" db:"flow_definition"`

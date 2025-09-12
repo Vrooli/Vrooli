@@ -5,6 +5,7 @@ import { API_BASE } from '../config';
 
 interface Workflow {
   id: string;
+  projectId?: string;
   name: string;
   folderPath: string;
   nodes: Node[];
@@ -19,12 +20,12 @@ interface WorkflowStore {
   nodes: Node[];
   edges: Edge[];
   
-  loadWorkflows: () => Promise<void>;
+  loadWorkflows: (projectId?: string) => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
-  createWorkflow: (name: string, folderPath: string) => Promise<void>;
+  createWorkflow: (name: string, folderPath: string, projectId?: string) => Promise<void>;
   saveWorkflow: () => Promise<void>;
   updateWorkflow: (updates: Partial<Workflow>) => void;
-  generateWorkflow: (prompt: string, name: string, folderPath: string) => Promise<void>;
+  generateWorkflow: (prompt: string, name: string, folderPath: string, projectId?: string) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;
 }
 
@@ -34,9 +35,13 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   nodes: [],
   edges: [],
   
-  loadWorkflows: async () => {
+  loadWorkflows: async (projectId?: string) => {
     try {
-      const response = await axios.get(`${API_BASE}/workflows`);
+      let url = `${API_BASE}/workflows`;
+      if (projectId) {
+        url = `${API_BASE}/projects/${projectId}/workflows`;
+      }
+      const response = await axios.get(url);
       set({ workflows: response.data.workflows });
     } catch (error) {
       console.error('Failed to load workflows:', error);
@@ -57,9 +62,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
   
-  createWorkflow: async (name: string, folderPath: string) => {
+  createWorkflow: async (name: string, folderPath: string, projectId?: string) => {
     try {
       const response = await axios.post(`${API_BASE}/workflows/create`, {
+        project_id: projectId,
         name,
         folder_path: folderPath,
         flow_definition: {
@@ -116,9 +122,10 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     });
   },
   
-  generateWorkflow: async (prompt: string, name: string, folderPath: string) => {
+  generateWorkflow: async (prompt: string, name: string, folderPath: string, projectId?: string) => {
     try {
       const response = await axios.post(`${API_BASE}/workflows/create`, {
+        project_id: projectId,
         name,
         folder_path: folderPath,
         ai_prompt: prompt

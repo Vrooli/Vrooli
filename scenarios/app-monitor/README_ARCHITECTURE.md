@@ -78,11 +78,11 @@ Environment variables (all optional except API_PORT):
 
 ```bash
 # Required
-API_PORT=21600
+API_PORT=<assigned_by_lifecycle>
 
 # Optional security
-CORS_ALLOWED_ORIGINS=http://localhost:3456,http://localhost:8085
-WS_ALLOWED_ORIGINS=http://localhost:3456,http://localhost:8085
+CORS_ALLOWED_ORIGINS=http://localhost:${UI_PORT}
+WS_ALLOWED_ORIGINS=http://localhost:${UI_PORT}
 API_KEY=your-secret-key
 RATE_LIMIT_PER_MINUTE=100
 

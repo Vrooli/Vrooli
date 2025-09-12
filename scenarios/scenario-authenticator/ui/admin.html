@@ -623,58 +623,98 @@
                 <h2 class="section-title">Quick Integration Guide</h2>
                 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">1. Register Your Application</h3>
-                <p style="color: #666; margin-bottom: 15px;">First, register your scenario using the admin dashboard or CLI:</p>
+                <p style="color: #666; margin-bottom: 15px;">First, register your scenario using the admin dashboard "+ Register New Application" button above, or generate integration code directly:</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    scenario-authenticator app register --name "my-scenario" --type api
+                    scenario-authenticator protect my-scenario api
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">2. Add Authentication to Your API</h3>
-                <p style="color: #666; margin-bottom: 15px;">For Go APIs, add this middleware:</p>
+                <p style="color: #666; margin-bottom: 15px;">For Go APIs, add this validation middleware:</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-import "github.com/vrooli/auth-client-go"
+// Add to your protected routes
+func validateAuth(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        authHeader := r.Header.Get("Authorization")
+        if authHeader == "" {
+            http.Error(w, "Authorization required", 401)
+            return
+        }
+        
+        // Get current API port dynamically
+        apiPort := os.Getenv("AUTH_API_PORT") // Set this in your scenario
+        if apiPort == "" {
+            apiPort = "15837" // fallback to current port
+        }
+        
+        resp, err := http.Get(fmt.Sprintf("http://localhost:%s/api/v1/auth/validate", apiPort))
+        if err != nil || resp.StatusCode != 200 {
+            http.Error(w, "Invalid token", 401)
+            return
+        }
+        
+        next.ServeHTTP(w, r)
+    })
+}
 
-// In your main.go
-authClient := auth.NewClient("http://localhost:15000", "YOUR_API_KEY")
-router.Use(authClient.ValidateToken)
+// Use middleware: router.Use(validateAuth)
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">3. Protect Your UI Routes</h3>
-                <p style="color: #666; margin-bottom: 15px;">For JavaScript UIs, add this check:</p>
+                <p style="color: #666; margin-bottom: 15px;">For JavaScript UIs, add this check (replace ports with your scenario's dynamic ports):</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-// Check authentication
+// Check authentication with dynamic ports
 async function requireAuth() {
     const token = localStorage.getItem('authToken');
-    const response = await fetch('http://localhost:15000/api/v1/auth/validate', {
+    
+    // Get auth service port from your scenario's environment
+    const authApiPort = window.AUTH_API_PORT || '15837'; // Replace with your scenario's port
+    const authUiPort = window.AUTH_UI_PORT || '37578'; // Replace with your scenario's port
+    
+    const response = await fetch(`http://localhost:${authApiPort}/api/v1/auth/validate`, {
         headers: { 'Authorization': `Bearer ${token}` }
     });
     
     if (!response.ok) {
-        window.location.href = 'http://localhost:35000/login?redirect=' + encodeURIComponent(window.location.href);
+        window.location.href = `http://localhost:${authUiPort}/login?redirect=` + 
+            encodeURIComponent(window.location.href);
     }
+    
+    return await response.json(); // Returns user data
 }
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">4. Handle User Context</h3>
-                <p style="color: #666; margin-bottom: 15px;">Access user information from validated tokens:</p>
+                <p style="color: #666; margin-bottom: 15px;">The token validation API returns this user information:</p>
                 <div class="code-block">
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-// Token validation response includes:
+// GET /api/v1/auth/validate response:
 {
     "valid": true,
-    "user_id": "uuid",
+    "user_id": "uuid-string",
     "email": "user@example.com",
-    "roles": ["user", "admin"],
-    "expires_at": "2024-01-01T00:00:00Z"
+    "roles": ["user"],
+    "expires_at": "2025-01-01T12:00:00Z"
+}
+
+// Invalid token response:
+{
+    "valid": false
 }
                 </div>
 
                 <div style="margin-top: 40px; padding: 20px; background: #f0f8ff; border-left: 4px solid #667eea; border-radius: 4px;">
                     <h4 style="margin-bottom: 10px;">🚀 Need Help?</h4>
                     <p style="color: #666;">Generate complete integration code for your scenario:</p>
-                    <code style="background: white; padding: 4px 8px; border-radius: 4px;">scenario-authenticator protect --scenario your-scenario-name</code>
+                    <code style="background: white; padding: 4px 8px; border-radius: 4px;">scenario-authenticator protect your-scenario-name api</code>
+                    <br><br>
+                    <p style="color: #666; margin-bottom: 10px;"><strong>Current Service URLs:</strong></p>
+                    <code style="background: white; padding: 4px 8px; border-radius: 4px; margin-right: 10px;">API: http://localhost:15837</code>
+                    <code style="background: white; padding: 4px 8px; border-radius: 4px;">UI: http://localhost:37578</code>
+                    <br><br>
+                    <p style="color: #666; font-size: 12px;"><em>Note: Ports are allocated dynamically. Use 'vrooli scenario status scenario-authenticator' to get current ports.</em></p>
                 </div>
             </div>
         </div>
@@ -849,9 +889,32 @@ async function requireAuth() {
                     case 'audit':
                         loadAuditLogs();
                         break;
+                    case 'integration':
+                        updateIntegrationGuideUrls();
+                        break;
                 }
             });
         });
+
+        // Update Integration Guide URLs with current ports
+        function updateIntegrationGuideUrls() {
+            const currentApiUrl = API_URL;
+            const currentUiUrl = window.location.origin;
+            
+            // Update the help section with current URLs
+            const helpSection = document.querySelector('#integration-tab .code');
+            if (helpSection) {
+                const codeElements = document.querySelectorAll('#integration-tab code');
+                codeElements.forEach(code => {
+                    if (code.textContent.includes('http://localhost:15837')) {
+                        code.textContent = code.textContent.replace('http://localhost:15837', currentApiUrl);
+                    }
+                    if (code.textContent.includes('http://localhost:37578')) {
+                        code.textContent = code.textContent.replace('http://localhost:37578', currentUiUrl);
+                    }
+                });
+            }
+        }
 
         // Load applications
         async function loadApplications() {

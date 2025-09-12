@@ -135,11 +135,29 @@ func main() {
 	r.Get("/ws", handler.HandleWebSocket) // WebSocket endpoint
 	
 	r.Route("/api/v1", func(r chi.Router) {
+		// Project routes
+		r.Post("/projects", handler.CreateProject)
+		r.Get("/projects", handler.ListProjects)
+		r.Get("/projects/{id}", handler.GetProject)
+		r.Put("/projects/{id}", handler.UpdateProject)
+		r.Delete("/projects/{id}", handler.DeleteProject)
+		r.Get("/projects/{id}/workflows", handler.GetProjectWorkflows)
+		r.Post("/projects/{id}/execute-all", handler.ExecuteAllProjectWorkflows)
+		
+		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)
 		r.Get("/workflows", handler.ListWorkflows)
 		r.Get("/workflows/{id}", handler.GetWorkflow)
 		r.Post("/workflows/{id}/execute", handler.ExecuteWorkflow)
+		
+		// Execution routes
+		r.Get("/executions", handler.ListExecutions)
+		r.Get("/executions/{id}", handler.GetExecution)
+		r.Post("/executions/{id}/stop", handler.StopExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
+		
+		// Scenario routes
+		r.Get("/scenarios/{name}/port", handler.GetScenarioPort)
 		
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
