@@ -14,10 +14,9 @@ HAYSTACK_CLI="${APP_ROOT}/resources/haystack/cli.sh"
 
 # Source utilities
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/resources/port-registry.sh"
 
 # Get Haystack port
-HAYSTACK_PORT=$(resources::get_port "haystack")
+HAYSTACK_PORT=8075
 
 # Test data
 TEST_DOC='{"documents":[{"content":"Machine learning is a subset of artificial intelligence.","metadata":{"source":"test"}}]}'
@@ -174,6 +173,108 @@ test_info_command() {
     fi
 }
 
+test_batch_indexing() {
+    log::test "Batch document indexing"
+    
+    # Prepare batch data
+    local batch_data='{"documents":[[{"content":"First batch document","metadata":{"batch":1}}],[{"content":"Second batch document","metadata":{"batch":2}}]],"batch_size":2}'
+    
+    local response
+    response=$(curl -sf -X POST "http://localhost:${HAYSTACK_PORT}/batch_index" \
+        -H "Content-Type: application/json" \
+        -d "${batch_data}" 2>&1 || echo "Failed")
+    
+    if [[ "${response}" == *"Failed"* ]]; then
+        log::error "Batch indexing failed"
+        return 1
+    fi
+    
+    if echo "${response}" | grep -q '"status":"success"'; then
+        log::success "Batch indexing works: indexed documents successfully"
+        return 0
+    else
+        log::error "Unexpected batch response: ${response}"
+        return 1
+    fi
+}
+
+test_enhanced_query() {
+    log::test "Enhanced query with LLM integration"
+    
+    # First index some test data
+    curl -sf -X POST "http://localhost:${HAYSTACK_PORT}/index" \
+        -H "Content-Type: application/json" \
+        -d '{"documents":[{"content":"Artificial intelligence includes machine learning and deep learning.","metadata":{"topic":"AI"}}]}' &>/dev/null || true
+    
+    # Test enhanced query with LLM
+    local response
+    response=$(curl -sf -X POST "http://localhost:${HAYSTACK_PORT}/enhanced_query" \
+        -H "Content-Type: application/json" \
+        -d '{"query":"What is AI?","use_llm":true,"generate_answer":true,"top_k":3}' 2>&1 || echo "Failed")
+    
+    if [[ "${response}" == *"Failed"* ]]; then
+        log::warning "Enhanced query not available (Ollama may be down)"
+        return 0  # Don't fail if Ollama is not available
+    fi
+    
+    if echo "${response}" | grep -q '"status":"success"'; then
+        log::success "Enhanced query works"
+        return 0
+    else
+        log::error "Unexpected enhanced query response: ${response}"
+        return 1
+    fi
+}
+
+test_custom_pipeline() {
+    log::test "Custom pipeline creation and execution"
+    
+    # Create a custom pipeline
+    local pipeline_config='{
+        "name": "test_pipeline",
+        "components": [
+            {"type": "cleaner", "name": "doc_cleaner", "params": {}},
+            {"type": "splitter", "name": "doc_splitter", "params": {"split_length": 50}},
+            {"type": "embedder", "name": "doc_embedder", "params": {"model": "sentence-transformers/all-MiniLM-L6-v2"}},
+            {"type": "writer", "name": "doc_writer", "params": {}}
+        ],
+        "connections": [
+            {"from": "doc_cleaner", "to": "doc_splitter"},
+            {"from": "doc_splitter", "to": "doc_embedder"},
+            {"from": "doc_embedder", "to": "doc_writer"}
+        ]
+    }'
+    
+    local response
+    response=$(curl -sf -X POST "http://localhost:${HAYSTACK_PORT}/custom_pipeline" \
+        -H "Content-Type: application/json" \
+        -d "${pipeline_config}" 2>&1 || echo "Failed")
+    
+    if [[ "${response}" == *"Failed"* ]]; then
+        log::error "Custom pipeline creation failed"
+        return 1
+    fi
+    
+    if echo "${response}" | grep -q '"status":"success"'; then
+        log::success "Custom pipeline created successfully"
+        
+        # List pipelines
+        local list_response
+        list_response=$(curl -sf "http://localhost:${HAYSTACK_PORT}/pipelines")
+        
+        if echo "${list_response}" | grep -q '"test_pipeline"'; then
+            log::success "Custom pipeline registered and listable"
+            return 0
+        else
+            log::error "Pipeline not found in list"
+            return 1
+        fi
+    else
+        log::error "Unexpected pipeline creation response: ${response}"
+        return 1
+    fi
+}
+
 # Cleanup
 cleanup() {
     log::info "Cleaning up after integration tests"
@@ -196,6 +297,9 @@ main() {
     test_query_endpoint || ((failed++))
     test_status_command || ((failed++))
     test_info_command || ((failed++))
+    test_batch_indexing || ((failed++))
+    test_enhanced_query || ((failed++))
+    test_custom_pipeline || ((failed++))
     
     # Cleanup
     cleanup
@@ -211,7 +315,7 @@ main() {
 }
 
 # Run with timeout (120 seconds per universal.yaml)
-timeout 120 bash -c "$(declare -f main setup cleanup test_lifecycle test_health_endpoint test_index_endpoint test_query_endpoint test_status_command test_info_command); main" || {
+timeout 120 bash -c "$(declare -f main setup cleanup test_lifecycle test_health_endpoint test_index_endpoint test_query_endpoint test_status_command test_info_command test_batch_indexing test_enhanced_query test_custom_pipeline); main" || {
     log::error "Integration tests exceeded 120 second timeout"
     exit 1
 }

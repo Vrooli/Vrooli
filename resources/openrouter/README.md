@@ -46,6 +46,11 @@ vrooli resource openrouter usage today      # Today's usage
 vrooli resource openrouter usage week       # Last 7 days
 vrooli resource openrouter usage month      # Last 30 days
 vrooli resource openrouter usage all        # All-time usage
+
+# Benchmark model performance (NEW)
+vrooli resource openrouter benchmark test "openai/gpt-4"   # Test single model
+vrooli resource openrouter benchmark compare               # Compare default models
+vrooli resource openrouter benchmark list                  # List past benchmarks
 ```
 
 ## Configuration
@@ -132,6 +137,32 @@ vrooli resource openrouter usage week       # Last 7 days
 vrooli resource openrouter usage month      # Last 30 days
 vrooli resource openrouter usage all        # All-time usage
 ```
+
+### Performance Benchmarking (NEW - v1.1.0)
+Compare model performance to make informed decisions:
+
+```bash
+# Benchmark a single model
+vrooli resource openrouter benchmark test "openai/gpt-4"
+
+# Compare multiple models
+vrooli resource openrouter benchmark compare "openai/gpt-3.5-turbo" "anthropic/claude-3-haiku" "mistralai/mistral-7b"
+
+# Use default comparison set
+vrooli resource openrouter benchmark compare
+
+# View past benchmark results
+vrooli resource openrouter benchmark list
+
+# Clean old benchmarks (>30 days)
+vrooli resource openrouter benchmark clean
+```
+
+Benchmarks measure:
+- Response time (milliseconds)
+- Token throughput (tokens/second)
+- Success rate
+- Relative performance
 
 ### Rate Limit Management
 Built-in rate limit handling with automatic queuing:

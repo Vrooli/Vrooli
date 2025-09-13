@@ -6,6 +6,8 @@ Cloud communications platform for SMS, voice, and video capabilities.
 
 The Twilio resource provides integration with Twilio's cloud communications API, enabling:
 - SMS messaging (send/receive)
+- Voice calls (outbound calls and conferences)
+- WhatsApp messaging (text and media)
 - Phone number management  
 - Message templates
 - Delivery tracking
@@ -195,6 +197,82 @@ resource-twilio content audit-archive 6
 - Integration with system audit logs
 - Failed attempt logging for security monitoring
 
+### Voice Calls
+
+Make outbound voice calls and conference calls:
+
+```bash
+# Make a voice call with text-to-speech
+resource-twilio content make-call "+1234567890" "Hello, this is an automated call"
+
+# Make a call with specific voice and language
+resource-twilio content make-call "+1234567890" "Bonjour!" "" "alice" "fr-FR"
+
+# Create a conference call
+resource-twilio content make-conference "team-meeting" "+1234567890" "+0987654321" "+5555555555"
+
+# View voice call history
+resource-twilio content voice-history 10
+
+# Get voice call statistics
+resource-twilio content voice-stats
+
+# Update call status from API
+resource-twilio content voice-status "CA123456789"
+
+# Export voice history to CSV
+resource-twilio content voice-export voice_calls.csv
+```
+
+**Features:**
+- Text-to-speech with multiple voices
+- Multiple language support
+- Conference calling capability
+- Call history tracking
+- Status updates from API
+
+### WhatsApp Messaging
+
+Send WhatsApp messages through Business API:
+
+```bash
+# Set up WhatsApp sandbox (for development)
+resource-twilio content whatsapp-setup
+
+# Send WhatsApp message
+resource-twilio content send-whatsapp "+1234567890" "Hello from WhatsApp!"
+
+# Send WhatsApp message with media
+resource-twilio content send-whatsapp "+1234567890" "Check this out!" "" "https://example.com/image.jpg"
+
+# Send WhatsApp template message
+resource-twilio content send-whatsapp-template "+1234567890" "HX123456" "" "John" "Order #123"
+
+# Send bulk WhatsApp messages
+resource-twilio content send-whatsapp-bulk "Announcement" "+1234567890" "+0987654321"
+
+# View WhatsApp history
+resource-twilio content whatsapp-history 10
+
+# Get WhatsApp statistics
+resource-twilio content whatsapp-stats
+
+# Export WhatsApp history to CSV
+resource-twilio content whatsapp-export whatsapp_messages.csv
+```
+
+**Setup Requirements:**
+- For development: Join Twilio WhatsApp sandbox
+- For production: WhatsApp Business API approval
+- Configure `whatsapp_from_number` in settings
+
+**Features:**
+- Text and media messaging
+- Template messages for notifications
+- Bulk messaging support
+- Message history tracking
+- Sandbox setup guide
+
 ### Analytics Dashboard
 
 Real-time analytics and cost tracking:
@@ -295,6 +373,18 @@ resource-twilio content send-sms "$USER_PHONE" "Task completed successfully"
 | `content template-send` | Send SMS using template |
 | `content audit-search` | Search audit logs |
 | `content audit-stats` | Show audit statistics |
+| `content make-call` | Make a voice call |
+| `content make-conference` | Create a conference call |
+| `content voice-history` | List voice call history |
+| `content voice-stats` | Show voice call statistics |
+| `content voice-export` | Export voice history to CSV |
+| `content send-whatsapp` | Send WhatsApp message |
+| `content send-whatsapp-template` | Send WhatsApp template |
+| `content send-whatsapp-bulk` | Send bulk WhatsApp messages |
+| `content whatsapp-history` | List WhatsApp history |
+| `content whatsapp-stats` | Show WhatsApp statistics |
+| `content whatsapp-export` | Export WhatsApp history |
+| `content whatsapp-setup` | WhatsApp sandbox setup guide |
 | `content audit-archive` | Archive old audit logs |
 | `content dashboard` | Show analytics dashboard |
 | `content analytics-export` | Export analytics report |

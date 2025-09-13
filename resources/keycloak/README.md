@@ -84,6 +84,32 @@ vrooli resource keycloak social test --alias github --realm master
 vrooli resource keycloak social remove --alias github --realm master
 ```
 
+## Multi-Realm Tenant Isolation
+
+```bash
+# Create an isolated tenant realm
+vrooli resource keycloak realm create-tenant "Acme Corp" admin@acme.com SecurePass123!
+
+# List all tenant realms
+vrooli resource keycloak realm list-tenants
+
+# Get tenant details
+vrooli resource keycloak realm get-tenant acme-corp
+
+# Export tenant configuration
+vrooli resource keycloak realm export-tenant acme-corp /tmp/acme-backup.json
+
+# Delete a tenant realm
+vrooli resource keycloak realm delete-tenant acme-corp
+```
+
+Multi-realm features:
+- Complete tenant isolation with separate user databases
+- Tenant-specific roles and groups
+- Default OAuth2 client per tenant
+- Tenant admin user creation
+- Export/import tenant configurations
+
 ## LDAP/AD Federation
 
 ```bash

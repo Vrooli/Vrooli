@@ -20,6 +20,7 @@ declare -A TEST_PHASES=(
     ["smoke"]="test-smoke.sh"
     ["integration"]="test-integration.sh"  
     ["unit"]="test-unit.sh"
+    ["multi-realm"]="test-multi-realm.sh"
 )
 
 # Default to all tests
@@ -60,11 +61,14 @@ main() {
         unit)
             run_test_phase "unit" || exit_code=$?
             ;;
+        multi-realm)
+            run_test_phase "multi-realm" || exit_code=$?
+            ;;
         all)
             log::info "Running all test phases..."
             
-            # Run tests in order: smoke -> unit -> integration
-            for phase in smoke unit integration; do
+            # Run tests in order: smoke -> unit -> integration -> multi-realm
+            for phase in smoke unit integration multi-realm; do
                 if ! run_test_phase "$phase"; then
                     exit_code=1
                     # Continue running other tests even if one fails

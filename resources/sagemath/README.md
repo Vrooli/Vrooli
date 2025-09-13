@@ -9,6 +9,8 @@ SageMath is a comprehensive open-source mathematics software system that provide
 - **Graph Theory**: Network analysis, combinatorics
 - **Number Theory**: Cryptography, prime numbers, factorization
 - **Visualization**: 2D/3D plotting, animations, interactive graphics
+- **GPU Acceleration**: CUDA support for numerical computations
+- **Parallel Computing**: Multi-core distributed processing
 - **v2.0 Contract Compliant**: Full CLI standardization with manage/test/content groups
 - **Health Monitoring**: JSON health endpoint with component status
 - **Extended Math CLI**: Specialized commands for common mathematical operations
@@ -69,11 +71,40 @@ vrooli resource sagemath content add --file analysis.ipynb
 vrooli resource sagemath content notebook  # Opens Jupyter interface
 ```
 
+### GPU Acceleration
+```bash
+# Check GPU availability
+vrooli resource sagemath gpu check
+
+# Enable GPU acceleration in container
+vrooli resource sagemath gpu enable
+
+# Run GPU-accelerated computation
+vrooli resource sagemath gpu compute "matrix_multiply(A, B)"
+
+# Benchmark GPU vs CPU performance
+vrooli resource sagemath gpu benchmark
+```
+
+### Parallel Computing
+```bash
+# Check parallel computing capabilities
+vrooli resource sagemath parallel status
+
+# Run parallel computation with 8 cores
+vrooli resource sagemath parallel compute "@parallel\ndef f(n): return is_prime(n)" 8
+
+# Test parallel processing
+vrooli resource sagemath test parallel
+```
+
 ### Testing
 ```bash
 # Run tests
 vrooli resource sagemath test smoke       # Quick health check
 vrooli resource sagemath test integration # Full functionality test
+vrooli resource sagemath test parallel     # Parallel computing test
+vrooli resource sagemath test performance  # Performance benchmarks
 vrooli resource sagemath test all         # Complete test suite
 ```
 

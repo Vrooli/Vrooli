@@ -489,10 +489,11 @@ unstructured_io::resource_usage() {
 
 #######################################
 # Standard status function using new wrapper
+# NOTE: Commented out to avoid conflict with legacy compatibility function above
 #######################################
-unstructured_io::status() {
-    status::run_standard "unstructured-io" "unstructured_io::status::collect_data" "unstructured_io::status::display_text" "$@"
-}
+# unstructured_io::status() {
+#     status::run_standard "unstructured-io" "unstructured_io::status::collect_data" "unstructured_io::status::display_text" "$@"
+# }
 
 #######################################
 # Export functions for subshell availability

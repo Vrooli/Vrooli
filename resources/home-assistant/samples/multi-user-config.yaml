@@ -1,0 +1,73 @@
+# Home Assistant Multi-User Configuration Template
+# This template enables basic multi-user support with different access levels
+# 
+# To use:
+# 1. Inject this configuration: vrooli resource home-assistant content add samples/multi-user-config.yaml
+# 2. Restart Home Assistant: vrooli resource home-assistant manage restart
+# 3. Configure users in the UI at http://localhost:8123/config/users
+
+homeassistant:
+  auth_providers:
+    - type: homeassistant
+    - type: trusted_networks
+      trusted_networks:
+        - 127.0.0.1
+        - ::1
+      trusted_users:
+        127.0.0.1:
+          - user_id: local_admin
+      allow_bypass_login: true
+
+# Enable person tracking for multi-user scenarios
+person:
+
+# Group configuration for access control
+group:
+  admins:
+    name: Administrators
+    entities: []
+  
+  users:
+    name: Regular Users
+    entities: []
+  
+  guests:
+    name: Guest Users
+    entities: []
+
+# Frontend configuration for user-specific dashboards
+frontend:
+  themes: !include_dir_merge_named themes/
+
+# Logger configuration with user activity tracking
+logger:
+  default: info
+  logs:
+    homeassistant.auth: debug
+    homeassistant.components.auth: debug
+
+# Recorder to track user actions
+recorder:
+  purge_keep_days: 30
+  include:
+    domains:
+      - person
+      - group
+    entities:
+      - sensor.last_boot
+  exclude:
+    event_types:
+      - service_removed
+      - service_executed
+      - platform_discovered
+      - homeassistant_start
+      - homeassistant_stop
+
+# HTTP configuration with session management
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+  ip_ban_enabled: true
+  login_attempts_threshold: 5

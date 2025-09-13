@@ -60,7 +60,7 @@ CLI_COMMAND_HANDLERS["content::add"]="kicad::inject"
 CLI_COMMAND_HANDLERS["content::list"]="kicad::content::list"
 CLI_COMMAND_HANDLERS["content::get"]="kicad::content::get"
 CLI_COMMAND_HANDLERS["content::remove"]="kicad::content::remove"
-CLI_COMMAND_HANDLERS["content::execute"]="kicad::export::project"
+CLI_COMMAND_HANDLERS["content::execute"]="kicad::content::execute"
 
 # Add KiCad-specific content subcommands
 cli::register_subcommand "content" "export" "Export PCB project to various formats" "kicad::export::project"

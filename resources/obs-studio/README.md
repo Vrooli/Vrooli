@@ -65,22 +65,33 @@ OBS Studio enables automated content production through:
 
 ```bash
 # Install OBS Studio
-vrooli resource obs-studio install
+vrooli resource obs-studio manage install
 
 # Start OBS Studio
-vrooli resource obs-studio start
+vrooli resource obs-studio manage start
 
 # Check status
 vrooli resource obs-studio status
 
-# Control scenes
-resource-obs-studio switch-scene "Main"
+# Content Management
+# Add a scene configuration
+vrooli resource obs-studio content add --file scene.json --type scene
 
-# Start recording
-resource-obs-studio start-recording
+# List all content
+vrooli resource obs-studio content list
 
-# Stop recording
-resource-obs-studio stop-recording
+# Get specific content
+vrooli resource obs-studio content get --name my-scene
+
+# Activate a scene
+vrooli resource obs-studio content execute --name my-scene
+
+# Control recording
+vrooli resource obs-studio content record start
+vrooli resource obs-studio content record stop
+
+# Remove content
+vrooli resource obs-studio content remove --name my-scene
 ```
 
 ## Configuration

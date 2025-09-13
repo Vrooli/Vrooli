@@ -118,8 +118,16 @@ postgis_install() {
             "${var_SCRIPTS_RESOURCES_LIB_DIR}/install-resource-cli.sh" "${APP_ROOT}/resources/postgis" 2>/dev/null || true
         fi
         
+        # Start health server
+        if [[ -f "${POSTGIS_INSTALL_LIB_DIR}/health.sh" ]]; then
+            source "${POSTGIS_INSTALL_LIB_DIR}/health.sh"
+            log::info "Starting health server..."
+            postgis::health::start_server
+        fi
+        
         log::success "PostGIS $version installed and running on port ${POSTGIS_STANDALONE_PORT}"
         log::info "Connection: psql -h localhost -p ${POSTGIS_STANDALONE_PORT} -U vrooli -d spatial"
+        log::info "Health endpoint: http://localhost:5435/health"
         return 0
     else
         log::error "Failed to verify PostGIS installation"
@@ -137,6 +145,14 @@ postgis_start() {
     
     if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
         log::info "PostGIS is already running"
+        # Ensure health server is also running
+        if [[ -f "${POSTGIS_INSTALL_LIB_DIR}/health.sh" ]]; then
+            source "${POSTGIS_INSTALL_LIB_DIR}/health.sh"
+            if ! postgis::health::is_running; then
+                log::info "Starting health server..."
+                postgis::health::start_server
+            fi
+        fi
         return 0
     fi
     
@@ -145,6 +161,13 @@ postgis_start() {
     sleep 3
     
     if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
+        # Start health server
+        if [[ -f "${POSTGIS_INSTALL_LIB_DIR}/health.sh" ]]; then
+            source "${POSTGIS_INSTALL_LIB_DIR}/health.sh"
+            log::info "Starting health server..."
+            postgis::health::start_server
+        fi
+        
         log::success "PostGIS started successfully"
         return 0
     else
@@ -155,6 +178,15 @@ postgis_start() {
 
 # Stop PostGIS container
 postgis_stop() {
+    # Stop health server first
+    if [[ -f "${POSTGIS_INSTALL_LIB_DIR}/health.sh" ]]; then
+        source "${POSTGIS_INSTALL_LIB_DIR}/health.sh"
+        if postgis::health::is_running; then
+            log::info "Stopping health server..."
+            postgis::health::stop_server
+        fi
+    fi
+    
     if ! docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then
         log::info "PostGIS is not running"
         return 0
@@ -169,6 +201,15 @@ postgis_stop() {
 # Uninstall PostGIS (stop and remove container)
 postgis_uninstall() {
     log::header "Uninstalling PostGIS"
+    
+    # Stop health server first
+    if [[ -f "${POSTGIS_INSTALL_LIB_DIR}/health.sh" ]]; then
+        source "${POSTGIS_INSTALL_LIB_DIR}/health.sh"
+        if postgis::health::is_running; then
+            log::info "Stopping health server..."
+            postgis::health::stop_server
+        fi
+    fi
     
     # Stop container if running
     if docker ps --format "{{.Names}}" | grep -q "^${POSTGIS_CONTAINER}$"; then

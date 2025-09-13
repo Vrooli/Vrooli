@@ -17,11 +17,11 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - [x] `resource-obs-studio start` - Start OBS Studio service and WebSocket server
 - [x] `resource-obs-studio stop` - Stop OBS Studio service
 - [x] `resource-obs-studio status` - Check health and configuration (supports --format json)
-- [ ] `resource-obs-studio content add --file <scene.json>` - Add a scene configuration
-- [ ] `resource-obs-studio content list` - List all scene configurations
-- [ ] `resource-obs-studio content get --name <scene-name>` - Get scene configuration
-- [ ] `resource-obs-studio content remove --name <scene-name>` - Remove scene
-- [ ] `resource-obs-studio content execute --name <scene-name>` - Activate a scene
+- [x] `resource-obs-studio content add --file <scene.json>` - Add a scene configuration
+- [x] `resource-obs-studio content list` - List all scene configurations
+- [x] `resource-obs-studio content get --name <scene-name>` - Get scene configuration
+- [x] `resource-obs-studio content remove --name <scene-name>` - Remove scene
+- [x] `resource-obs-studio content execute --name <scene-name>` - Activate a scene
 - [x] `resource-obs-studio test` - Run integration tests
 
 ### Deprecated Commands (for backwards compatibility)
@@ -56,8 +56,8 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - [x] Mock mode for testing
 - [x] Scene configuration management
 - [x] Recording management
-- [ ] Content management (add/list/get/remove/execute)
-- [ ] Streaming control
+- [x] Content management (add/list/get/remove/execute)
+- [ ] Streaming control (basic stub, not fully implemented)
 - [ ] Source management (cameras, screens, media)
 - [ ] Audio mixer control
 - [ ] Transition effects
@@ -164,6 +164,17 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - Documentation complete and accurate
 
 ## Progress History
+
+### 2025-09-13: Content Management Verification (85% → 90%)
+**Improvements Made:**
+- ✅ Verified content management commands fully functional (add/list/get/remove/execute)
+- ✅ Fixed example scripts to use correct v2.0 command structure
+- ✅ Updated streaming-workflow.sh to demonstrate proper content management
+- ✅ Updated basic-recording.sh to use content commands correctly
+- ✅ Confirmed all tests passing including content management tests
+- ✅ Updated PRD checkboxes to accurately reflect working functionality
+
+**Net Progress:** +5 features verified working, 0 regressions = +5 net
 
 ### 2025-09-12: v2.0 Contract Compliance (70% → 85%)
 **Improvements Made:**

@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Pi-hole Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Pi-hole Docker image version",
+      "default": "latest"
+    },
+    "ports": {
+      "type": "object",
+      "properties": {
+        "dns": {
+          "type": "integer",
+          "description": "DNS service port",
+          "default": 53,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "api": {
+          "type": "integer",
+          "description": "Web interface and API port",
+          "default": 8087,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "dhcp": {
+          "type": "integer",
+          "description": "DHCP service port (optional)",
+          "default": 67,
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "dns": {
+      "type": "object",
+      "properties": {
+        "upstream_dns_1": {
+          "type": "string",
+          "description": "Primary upstream DNS server",
+          "default": "1.1.1.1",
+          "format": "ipv4"
+        },
+        "upstream_dns_2": {
+          "type": "string",
+          "description": "Secondary upstream DNS server",
+          "default": "1.0.0.1",
+          "format": "ipv4"
+        },
+        "custom_records": {
+          "type": "array",
+          "description": "Custom DNS records",
+          "items": {
+            "type": "object",
+            "properties": {
+              "domain": {
+                "type": "string",
+                "format": "hostname"
+              },
+              "ip": {
+                "type": "string",
+                "format": "ipv4"
+              }
+            },
+            "required": ["domain", "ip"]
+          }
+        }
+      }
+    },
+    "blocklists": {
+      "type": "array",
+      "description": "URLs of blocklists to use",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "enable_dhcp": {
+          "type": "boolean",
+          "description": "Enable DHCP server",
+          "default": false
+        },
+        "enable_ipv6": {
+          "type": "boolean",
+          "description": "Enable IPv6 support",
+          "default": true
+        },
+        "query_logging": {
+          "type": "boolean",
+          "description": "Enable query logging",
+          "default": true
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "cache_size": {
+          "type": "integer",
+          "description": "DNS cache size",
+          "default": 10000,
+          "minimum": 0
+        },
+        "max_queries": {
+          "type": "integer",
+          "description": "Maximum queries to store",
+          "default": 1000000,
+          "minimum": 1000
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

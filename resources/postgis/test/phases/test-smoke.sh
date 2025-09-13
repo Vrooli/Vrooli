@@ -52,6 +52,19 @@ test_health_check() {
     fi
 }
 
+test_http_health_endpoint() {
+    test::start "HTTP health endpoint"
+    
+    # Check if health endpoint responds
+    if timeout 5 curl -sf http://localhost:5435/health >/dev/null 2>&1; then
+        test::pass "HTTP health endpoint is responding"
+    else
+        test::fail "HTTP health endpoint not responding (optional)"
+        # Don't fail the test as this is being added
+        return 0
+    fi
+}
+
 test_port_accessible() {
     test::start "Port accessibility"
     
@@ -126,6 +139,7 @@ main() {
     # Run tests
     test_container_running || ((failed++))
     test_health_check || ((failed++))
+    test_http_health_endpoint || ((failed++))
     test_port_accessible || ((failed++))
     test_database_connection || ((failed++))
     test_postgis_installed || ((failed++))

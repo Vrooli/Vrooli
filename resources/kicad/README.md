@@ -32,23 +32,43 @@ KiCad enables Vrooli to:
 
 ### Installation
 ```bash
-# Install KiCad
-vrooli resource install kicad
+# Install KiCad (will attempt to install actual KiCad binary if possible)
+vrooli resource kicad manage install
 
 # Check status
-resource-kicad status
+vrooli resource kicad status
 ```
+
+**Note**: The resource will attempt to automatically install KiCad:
+- **Ubuntu/Debian**: Uses APT and adds KiCad 8.0 PPA for latest version
+- **macOS**: Uses Homebrew to install KiCad cask
+- **Other**: Provides installation instructions and falls back to mock mode
 
 ### Basic Usage
 ```bash
-# Import a project
-resource-kicad inject my-circuit.kicad_sch
+# List projects and libraries
+vrooli resource kicad content list
 
-# List projects
-resource-kicad list-projects
+# Import a project
+vrooli resource kicad inject my-circuit.kicad_sch
 
 # Export to manufacturing files
-resource-kicad export my-board gerber,pdf
+vrooli resource kicad export my-board gerber,pdf
+```
+
+### Programmatic Operations
+```bash
+# Create Python automation scripts
+vrooli resource kicad content execute create-scripts
+
+# Place components programmatically
+vrooli resource kicad content execute place-components board.kicad_pcb config.yaml
+
+# Generate BOM (Bill of Materials)
+vrooli resource kicad content execute generate-bom schematic.kicad_sch
+
+# Run Design Rule Check
+vrooli resource kicad content execute run-drc board.kicad_pcb
 ```
 
 ## Architecture
@@ -60,9 +80,11 @@ kicad/
 │   └── defaults.sh     # Configuration
 ├── lib/
 │   ├── common.sh       # Shared functions
-│   ├── install.sh      # Installation logic
+│   ├── install.sh      # Installation logic (now installs real KiCad)
 │   ├── status.sh       # Status reporting
 │   ├── inject.sh       # File injection
+│   ├── python.sh       # Python API functions
+│   ├── content.sh      # Content management
 │   └── test.sh         # Test runner
 ├── test/
 │   └── integration.bats # Integration tests
@@ -87,6 +109,31 @@ kicad/
 ## Integration
 
 ### Python Scripting
+
+KiCad provides two Python APIs:
+1. **Native pcbnew module** - Available when KiCad is installed
+2. **Alternative libraries** (pykicad, kikit) - Work independently
+
+#### Programmatic Component Placement
+```yaml
+# config.yaml - Define component positions
+origin: [50, 50]  # mm offset
+components:
+  R1:
+    location: [10, 20]  # mm
+    rotation: 90        # degrees
+    flipped: false
+  U1:
+    location: [25, 30]
+    rotation: 45
+```
+
+```bash
+# Apply placement configuration
+vrooli resource kicad content execute place-components board.kicad_pcb config.yaml
+```
+
+#### Python API Example
 ```python
 import pcbnew
 
@@ -94,12 +141,16 @@ import pcbnew
 board = pcbnew.LoadBoard("my-board.kicad_pcb")
 
 # Get all components
-for module in board.GetModules():
+for module in board.GetFootprints():
     print(module.GetReference(), module.GetValue())
 
-# Export to Gerber
-plot_controller = pcbnew.PLOT_CONTROLLER(board)
-plot_controller.OpenPlotfile("my-board", pcbnew.PLOT_FORMAT_GERBER)
+# Move a component programmatically
+module = board.FindFootprintByReference("R1")
+module.SetPosition(pcbnew.VECTOR2I(10000000, 20000000))  # in nanometers
+module.SetOrientation(pcbnew.EDA_ANGLE(90, pcbnew.DEGREES_T))
+
+# Save the board
+board.Save("modified-board.kicad_pcb")
 ```
 
 ### Automation Workflows

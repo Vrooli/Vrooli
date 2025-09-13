@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SAGEMATH_CLI_DIR}/config/defaults.sh"
 
 # Source SageMath libraries
-for lib in common docker install status content test health mathematics; do
+for lib in common docker install status content test health mathematics gpu; do
     lib_file="${SAGEMATH_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -80,6 +80,23 @@ cli::register_subcommand "content" "notebook" "Open Jupyter notebook interface" 
 
 # SageMath-specific test commands
 cli::register_subcommand "test" "performance" "Run performance benchmarks" "sagemath::test::performance"
+cli::register_subcommand "test" "parallel" "Test parallel processing capabilities" "sagemath::test::parallel"
+
+# ==============================================================================
+# GPU ACCELERATION COMMANDS
+# ==============================================================================
+cli::register_command "gpu" "GPU acceleration operations" "sagemath::gpu"
+cli::register_subcommand "gpu" "check" "Check GPU availability" "sagemath::gpu::check"
+cli::register_subcommand "gpu" "enable" "Enable GPU acceleration" "sagemath::gpu::enable"
+cli::register_subcommand "gpu" "compute" "Run GPU-accelerated computation" "sagemath::gpu::compute"
+cli::register_subcommand "gpu" "benchmark" "Benchmark GPU vs CPU" "sagemath::gpu::benchmark"
+
+# ==============================================================================
+# PARALLEL COMPUTING COMMANDS
+# ==============================================================================
+cli::register_command "parallel" "Parallel computing operations" "sagemath::parallel"
+cli::register_subcommand "parallel" "compute" "Run parallel computation" "sagemath::parallel::compute"
+cli::register_subcommand "parallel" "status" "Check parallel computing status" "sagemath::parallel::status"
 
 # ==============================================================================
 # MATHEMATICAL OPERATIONS AS DIRECT COMMANDS
@@ -95,6 +112,85 @@ cli::register_command "polynomial" "Polynomial operations" "sagemath::math::poly
 cli::register_command "complex" "Complex number operations" "sagemath::math::complex"
 cli::register_command "limit" "Calculate limits" "sagemath::math::limit"
 cli::register_command "series" "Series expansions" "sagemath::math::series"
+
+# ==============================================================================
+# GPU HANDLER FUNCTIONS
+# ==============================================================================
+sagemath::gpu() {
+    echo "GPU acceleration operations:"
+    echo "  check     - Check GPU availability"
+    echo "  enable    - Enable GPU acceleration in container"
+    echo "  compute   - Run GPU-accelerated computation"
+    echo "  benchmark - Benchmark GPU vs CPU performance"
+}
+
+sagemath::gpu::check() {
+    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" check
+}
+
+sagemath::gpu::enable() {
+    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" enable
+}
+
+sagemath::gpu::compute() {
+    local code="${1:-}"
+    if [[ -z "$code" ]]; then
+        error "Usage: resource-sagemath gpu compute \"<code>\""
+        exit 1
+    fi
+    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" compute "$code"
+}
+
+sagemath::gpu::benchmark() {
+    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" benchmark
+}
+
+# ==============================================================================
+# PARALLEL HANDLER FUNCTIONS
+# ==============================================================================
+sagemath::parallel() {
+    echo "Parallel computing operations:"
+    echo "  compute - Run parallel computation"
+    echo "  status  - Check parallel computing capabilities"
+}
+
+sagemath::parallel::compute() {
+    local code="${1:-}"
+    local cores="${2:-4}"
+    if [[ -z "$code" ]]; then
+        error "Usage: resource-sagemath parallel compute \"<code>\" [num_cores]"
+        exit 1
+    fi
+    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" parallel "$code" "$cores"
+}
+
+sagemath::parallel::status() {
+    local status=$(docker exec "$SAGEMATH_CONTAINER_NAME" python3 -c 'import multiprocessing; print(multiprocessing.cpu_count())')
+    echo "Available CPU cores: ${status}"
+    
+    # Check if parallel sage is available
+    local parallel_check=$(docker exec "$SAGEMATH_CONTAINER_NAME" sage -c 'from sage.parallel.decorate import parallel; print("Parallel computing available")')
+    echo "${parallel_check}"
+}
+
+# Test parallel processing
+sagemath::test::parallel() {
+    echo "Testing parallel processing capabilities..."
+    
+    # Test parallel computation
+    local test_code='
+@parallel
+def compute_prime(n):
+    return n, is_prime(n)
+
+results = list(compute_prime([10^6 + i for i in range(10)]))
+for r in results:
+    print(f"Prime check {r[0][0]}: {r[1]}")
+'
+    
+    "${SAGEMATH_CLI_DIR}/lib/gpu.sh" parallel "$test_code" 4
+    echo "Parallel processing test complete!"
+}
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

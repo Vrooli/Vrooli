@@ -84,6 +84,17 @@ cli::register_command "extract" "Extract audio/video/frames" "ffmpeg::extract"
 cli::register_subcommand "content" "process" "Process media with custom options" "ffmpeg::inject::batch_process" "modifies-system"
 cli::register_subcommand "content" "benchmark" "Benchmark encoding performance" "ffmpeg::hardware::benchmark"
 
+# Preset commands group
+cli::register_command_group "preset" "Preset conversion management"
+cli::register_subcommand "preset" "list" "List available presets" "ffmpeg::preset::list"
+cli::register_subcommand "preset" "apply" "Apply a preset to a file" "ffmpeg::preset::apply"
+
+# Stream processing commands group
+cli::register_command_group "stream" "Stream processing and transcoding"
+cli::register_subcommand "stream" "capture" "Capture stream to file" "ffmpeg::stream::capture"
+cli::register_subcommand "stream" "transcode" "Transcode live stream" "ffmpeg::stream::transcode"
+cli::register_subcommand "stream" "info" "Get stream information" "ffmpeg::stream::info"
+
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"

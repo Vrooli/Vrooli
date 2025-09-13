@@ -64,7 +64,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="unstructured_io::process_document"
 
 # Add document-specific content subcommands
 cli::register_subcommand "content" "process" "Process document" "unstructured_io::content::process" "modifies-system"
-cli::register_subcommand "content" "process-directory" "Process directory" "unstructured_io::process_directory" "modifies-system"
+cli::register_subcommand "content" "process-directory" "Process directory" "unstructured_io::content::process_directory" "modifies-system"
 cli::register_subcommand "content" "extract-tables" "Extract tables" "unstructured_io::extract_tables"
 cli::register_subcommand "content" "extract-metadata" "Extract metadata" "unstructured_io::extract_metadata"
 cli::register_subcommand "content" "create-report" "Generate report" "unstructured_io::create_report" "modifies-system"

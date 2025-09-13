@@ -8,13 +8,16 @@ source "${APP_ROOT}/scripts/resources/port_registry.sh"
 # BTCPay constants
 export BTCPAY_CONTAINER_NAME="btcpay-server"
 export BTCPAY_POSTGRES_CONTAINER="btcpay-postgres"
+export BTCPAY_NBXPLORER_CONTAINER="btcpay-nbxplorer"
 export BTCPAY_NETWORK="btcpay-network"
 export BTCPAY_IMAGE="btcpayserver/btcpayserver:1.13.5"
 export BTCPAY_POSTGRES_IMAGE="postgres:14-alpine"
+export BTCPAY_NBXPLORER_IMAGE="nicolasdorier/nbxplorer:2.5.9"
 export BTCPAY_PORT="${BTCPAY_PORT:-$(ports::get_resource_port 'btcpay')}"
 export BTCPAY_DATA_DIR="${var_DATA_DIR}/resources/btcpay"
 export BTCPAY_CONFIG_DIR="${BTCPAY_DATA_DIR}/config"
 export BTCPAY_POSTGRES_DATA="${BTCPAY_DATA_DIR}/postgres"
+export BTCPAY_NBXPLORER_DATA="${BTCPAY_DATA_DIR}/nbxplorer"
 export BTCPAY_LOGS_DIR="${BTCPAY_DATA_DIR}/logs"
 
 # BTCPay configuration
@@ -24,7 +27,7 @@ export BTCPAY_BASE_URL="${BTCPAY_PROTOCOL}://${BTCPAY_HOST}"
 
 # PostgreSQL configuration
 export BTCPAY_POSTGRES_USER="btcpay"
-export BTCPAY_POSTGRES_PASSWORD="btcpay_secure_password"
+export BTCPAY_POSTGRES_PASSWORD="btcpay123"
 export BTCPAY_POSTGRES_DB="btcpayserver"
 
 # Resource metadata

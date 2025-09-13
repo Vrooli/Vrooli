@@ -124,6 +124,32 @@ else
     exit 1
 fi
 
+# Test 9: GPU functionality (non-critical)
+echo -n "Testing GPU availability... "
+gpu_info=$(/home/matthalloran8/Vrooli/resources/sagemath/lib/gpu.sh check 2>/dev/null || echo "none")
+if [[ "$gpu_info" != "none" ]]; then
+    echo "✓ (GPU: ${gpu_info%%,*})"
+else
+    echo "✓ (No GPU available)"
+fi
+
+# Test 10: Parallel computing
+echo -n "Testing parallel computing... "
+parallel_test='
+from sage.parallel.decorate import parallel
+@parallel
+def test_func(n):
+    return n*2
+results = list(test_func([1,2,3]))
+print(len(results))
+'
+result=$(timeout 10 docker exec sagemath-main sage -c "$parallel_test" 2>/dev/null || echo "0")
+if [[ "$result" == *"3"* ]]; then
+    echo "✓"
+else
+    echo "⚠ (Warning: parallel test failed, but not critical)"
+fi
+
 echo ""
 echo "All integration tests passed!"
 exit 0

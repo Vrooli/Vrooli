@@ -60,6 +60,37 @@ resource-ffmpeg info         # Human-readable format
 resource-ffmpeg info --json  # JSON format
 ```
 
+### Preset Library
+Apply optimized presets for common use cases:
+```bash
+# List available presets
+resource-ffmpeg preset list
+
+# Apply presets
+resource-ffmpeg preset apply web-720p input.mp4
+resource-ffmpeg preset apply podcast audio.wav
+resource-ffmpeg preset apply social-square video.mp4
+resource-ffmpeg preset apply gif-from-video clip.mp4
+```
+
+Available presets include:
+- **Video**: web-1080p, web-720p, mobile-high, mobile-low, social-square, social-vertical
+- **Audio**: podcast, music-high, music-standard, audiobook
+- **Conversion**: gif-from-video, extract-audio, remove-audio, compress-50
+
+### Stream Processing
+Process live streams and real-time media:
+```bash
+# Get stream information
+resource-ffmpeg stream info https://stream.example.com/live.m3u8
+
+# Capture stream to file (duration in seconds)
+resource-ffmpeg stream capture https://stream.example.com/live.m3u8 output.mp4 60
+
+# Transcode live stream
+resource-ffmpeg stream transcode rtmp://input.com/live rtmp://output.com/live web-720p
+```
+
 ## Configuration
 
 Configuration is stored in `config/defaults.sh` and can be customized via environment variables:

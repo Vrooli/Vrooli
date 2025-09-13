@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${TWILIO_CLI_DIR}/config/defaults.sh"
 
 # Source Twilio libraries
-for lib in common core config inject install lifecycle logs numbers sms history templates audit analytics start status stop test; do
+for lib in common core config inject install lifecycle logs numbers sms history templates audit analytics voice whatsapp start status stop test; do
     lib_file="${TWILIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -94,6 +94,24 @@ cli::register_subcommand "content" "dashboard" "Show analytics dashboard" "twili
 cli::register_subcommand "content" "analytics-export" "Export analytics report" "twilio::analytics::export_report"
 cli::register_subcommand "content" "analytics-costs" "Show daily cost breakdown" "twilio::analytics::daily_costs"
 cli::register_subcommand "content" "analytics-performance" "Show performance metrics" "twilio::analytics::performance"
+
+# Add voice call commands
+cli::register_subcommand "content" "make-call" "Make a voice call" "make_call"
+cli::register_subcommand "content" "make-conference" "Create a conference call" "make_conference"
+cli::register_subcommand "content" "voice-history" "List voice call history" "get_voice_history"
+cli::register_subcommand "content" "voice-stats" "Show voice call statistics" "get_voice_stats"
+cli::register_subcommand "content" "voice-status" "Update call status from API" "update_call_status"
+cli::register_subcommand "content" "voice-export" "Export voice history to CSV" "export_voice_history"
+
+# Add WhatsApp commands
+cli::register_subcommand "content" "send-whatsapp" "Send WhatsApp message" "send_whatsapp"
+cli::register_subcommand "content" "send-whatsapp-template" "Send WhatsApp template message" "send_whatsapp_template"
+cli::register_subcommand "content" "send-whatsapp-bulk" "Send bulk WhatsApp messages" "send_whatsapp_bulk"
+cli::register_subcommand "content" "whatsapp-history" "List WhatsApp message history" "get_whatsapp_history"
+cli::register_subcommand "content" "whatsapp-stats" "Show WhatsApp statistics" "get_whatsapp_stats"
+cli::register_subcommand "content" "whatsapp-status" "Update WhatsApp message status" "update_whatsapp_status"
+cli::register_subcommand "content" "whatsapp-export" "Export WhatsApp history to CSV" "export_whatsapp_history"
+cli::register_subcommand "content" "whatsapp-setup" "WhatsApp sandbox setup guide" "setup_whatsapp_sandbox"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "twilio::status::new"

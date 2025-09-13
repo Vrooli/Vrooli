@@ -209,6 +209,86 @@ EOF
         failed=$((failed + 1))
     fi
     
+    # Test 8: Voice call function availability
+    log::info "Test 8: Voice call function availability..."
+    if declare -f make_call &>/dev/null; then
+        log::success "  ✅ Voice call function available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ Voice call function missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 9: Voice conference function availability
+    log::info "Test 9: Voice conference function availability..."
+    if declare -f make_conference &>/dev/null; then
+        log::success "  ✅ Conference call function available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ Conference call function missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 10: Voice history functionality
+    log::info "Test 10: Voice history functionality..."
+    if declare -f get_voice_history &>/dev/null && declare -f get_voice_stats &>/dev/null; then
+        log::success "  ✅ Voice history functions available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ Voice history functions missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 11: WhatsApp message function availability
+    log::info "Test 11: WhatsApp message function availability..."
+    if declare -f send_whatsapp &>/dev/null; then
+        log::success "  ✅ WhatsApp message function available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ WhatsApp message function missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 12: WhatsApp template function availability
+    log::info "Test 12: WhatsApp template function availability..."
+    if declare -f send_whatsapp_template &>/dev/null; then
+        log::success "  ✅ WhatsApp template function available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ WhatsApp template function missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 13: WhatsApp bulk function availability
+    log::info "Test 13: WhatsApp bulk function availability..."
+    if declare -f send_whatsapp_bulk &>/dev/null; then
+        log::success "  ✅ WhatsApp bulk function available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ WhatsApp bulk function missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 14: WhatsApp history functionality
+    log::info "Test 14: WhatsApp history functionality..."
+    if declare -f get_whatsapp_history &>/dev/null && declare -f get_whatsapp_stats &>/dev/null; then
+        log::success "  ✅ WhatsApp history functions available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ WhatsApp history functions missing"
+        failed=$((failed + 1))
+    fi
+    
+    # Test 15: WhatsApp setup helper availability
+    log::info "Test 15: WhatsApp setup helper availability..."
+    if declare -f setup_whatsapp_sandbox &>/dev/null; then
+        log::success "  ✅ WhatsApp setup helper available"
+        passed=$((passed + 1))
+    else
+        log::error "  ❌ WhatsApp setup helper missing"
+        failed=$((failed + 1))
+    fi
+    
     # Summary
     echo
     log::info "📊 Integration Test Results:"

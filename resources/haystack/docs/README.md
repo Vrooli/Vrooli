@@ -9,7 +9,10 @@ Haystack provides sophisticated question-answering capabilities over documents a
 ## Features
 
 - **Document Indexing**: Index text documents with automatic chunking and embedding
+- **Batch Processing**: Efficiently index large document sets in parallel
 - **Semantic Search**: Query documents using natural language
+- **LLM-Enhanced Search**: Use Ollama models for query expansion and answer generation
+- **Custom Pipelines**: Create and run custom Haystack processing pipelines
 - **File Upload**: Direct file upload and indexing support
 - **Python Script Execution**: Run custom Python scripts in the Haystack environment
 - **REST API**: Full-featured API for integration with other services
@@ -43,11 +46,58 @@ resource-haystack content add process_data.py
 ```
 
 ### Query documents
-Use the REST API:
+Standard query:
 ```bash
 curl -X POST http://localhost:8075/query \
   -H "Content-Type: application/json" \
   -d '{"query": "What is machine learning?", "top_k": 5}'
+```
+
+Enhanced query with LLM:
+```bash
+curl -X POST http://localhost:8075/enhanced_query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is machine learning?",
+    "use_llm": true,
+    "generate_answer": true,
+    "top_k": 3
+  }'
+```
+
+### Batch indexing
+Index multiple document sets efficiently:
+```bash
+curl -X POST http://localhost:8075/batch_index \
+  -H "Content-Type: application/json" \
+  -d '{
+    "documents": [
+      [{"content": "Doc 1", "metadata": {"batch": 1}}],
+      [{"content": "Doc 2", "metadata": {"batch": 2}}]
+    ],
+    "batch_size": 10
+  }'
+```
+
+### Custom pipelines
+Create a custom processing pipeline:
+```bash
+curl -X POST http://localhost:8075/custom_pipeline \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my_pipeline",
+    "components": [
+      {"type": "cleaner", "name": "clean", "params": {}},
+      {"type": "splitter", "name": "split", "params": {"split_length": 100}},
+      {"type": "embedder", "name": "embed", "params": {}},
+      {"type": "writer", "name": "write", "params": {}}
+    ],
+    "connections": [
+      {"from": "clean", "to": "split"},
+      {"from": "split", "to": "embed"},
+      {"from": "embed", "to": "write"}
+    ]
+  }'
 ```
 
 ### Clear data
@@ -57,10 +107,15 @@ resource-haystack clear
 
 ## API Endpoints
 
-- `GET /health` - Health check
+- `GET /health` - Health check with feature status
 - `POST /index` - Index documents
-- `POST /query` - Query documents
+- `POST /batch_index` - Batch index multiple document sets
+- `POST /query` - Query documents  
+- `POST /enhanced_query` - Query with LLM enhancement
 - `POST /upload` - Upload and index file
+- `POST /custom_pipeline` - Create custom processing pipeline
+- `POST /run_pipeline/{name}` - Execute custom pipeline
+- `GET /pipelines` - List registered pipelines
 - `GET /stats` - Get statistics
 - `DELETE /clear` - Clear all data
 

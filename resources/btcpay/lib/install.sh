@@ -27,6 +27,7 @@ btcpay::install() {
     log::info "Creating data directories..."
     mkdir -p "${BTCPAY_CONFIG_DIR}"
     mkdir -p "${BTCPAY_POSTGRES_DATA}"
+    mkdir -p "${BTCPAY_NBXPLORER_DATA}"
     mkdir -p "${BTCPAY_LOGS_DIR}"
     
     # Create Docker network
@@ -43,6 +44,12 @@ btcpay::install() {
     log::info "Pulling PostgreSQL image..."
     if ! docker pull "${BTCPAY_POSTGRES_IMAGE}"; then
         log::error "Failed to pull PostgreSQL image"
+        return 1
+    fi
+    
+    log::info "Pulling NBXplorer image..."
+    if ! docker pull "${BTCPAY_NBXPLORER_IMAGE}"; then
+        log::error "Failed to pull NBXplorer image"
         return 1
     fi
     

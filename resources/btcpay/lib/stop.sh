@@ -25,6 +25,13 @@ btcpay::stop() {
     docker stop "${BTCPAY_CONTAINER_NAME}" &>/dev/null || true
     docker rm "${BTCPAY_CONTAINER_NAME}" &>/dev/null || true
     
+    # Stop NBXplorer
+    if docker ps --filter "name=${BTCPAY_NBXPLORER_CONTAINER}" --format "{{.Names}}" | grep -q "${BTCPAY_NBXPLORER_CONTAINER}"; then
+        log::info "Stopping NBXplorer container..."
+        docker stop "${BTCPAY_NBXPLORER_CONTAINER}" &>/dev/null || true
+        docker rm "${BTCPAY_NBXPLORER_CONTAINER}" &>/dev/null || true
+    fi
+    
     # Optionally stop PostgreSQL
     if docker ps --filter "name=${BTCPAY_POSTGRES_CONTAINER}" --format "{{.Names}}" | grep -q "${BTCPAY_POSTGRES_CONTAINER}"; then
         log::info "Stopping PostgreSQL container..."

@@ -37,7 +37,7 @@ unstructured_io::process_document() {
         local cached_result=$(unstructured_io::get_cached "$cache_key")
         
         if [[ -n "$cached_result" ]]; then
-            if [[ "$QUIET" != "yes" ]]; then
+            if [[ "${QUIET:-no}" != "yes" ]]; then
                 echo "📦 Using cached result for: $(basename "$file")" >&2
             fi
             echo "$cached_result"
@@ -46,7 +46,7 @@ unstructured_io::process_document() {
     fi
     
     local filename=$(basename "$file")
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         eval "echo \"$MSG_PROCESSING_FILE\"" >&2
     fi
     
@@ -107,7 +107,7 @@ unstructured_io::process_document() {
     local body=$(echo "$response" | head -n-1)
     
     if [ "$http_code" = "200" ]; then
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo "$MSG_PROCESSING_SUCCESS" >&2
         fi
         
@@ -389,7 +389,7 @@ unstructured_io::batch_process() {
         return 1
     fi
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo "🚀 Starting batch processing of $count documents..." >&2
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" >&2
     fi
@@ -416,7 +416,7 @@ unstructured_io::batch_process() {
     for file in "${actual_files[@]}"; do
         ((current_file++))
         
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             # Show progress bar
             show_progress $current_file $count
             echo >&2
@@ -429,24 +429,24 @@ unstructured_io::batch_process() {
         
         if unstructured_io::process_document "$file" "$strategy" "$output_format"; then
             ((success_count++))
-            if [[ "$QUIET" != "yes" ]]; then
+            if [[ "${QUIET:-no}" != "yes" ]]; then
                 local file_end=$(date +%s)
                 local file_duration=$((file_end - file_start))
                 echo "   ✅ Completed in ${file_duration}s" >&2
             fi
         else
             failed_files+=("$file")
-            if [[ "$QUIET" != "yes" ]]; then
+            if [[ "${QUIET:-no}" != "yes" ]]; then
                 echo "   ❌ Failed to process" >&2
             fi
         fi
         
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
         fi
     done
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         local end_time=$(date +%s)
         local total_duration=$((end_time - start_time))
         local avg_time=$((total_duration / count))
@@ -471,7 +471,7 @@ unstructured_io::batch_process() {
     fi
     
     if [ ${#failed_files[@]} -gt 0 ]; then
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
             echo "❌ Failed files:" >&2
             for file in "${failed_files[@]}"; do
@@ -505,7 +505,7 @@ This is a test document for Unstructured.io API.
 This test verifies the API is working correctly.
 EOF
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo "🧪 Testing Unstructured.io API..." >&2
         echo >&2
     fi
@@ -513,14 +513,14 @@ EOF
     # Process the test file
     if unstructured_io::process_document "$test_file" "fast" "markdown"; then
         trash::safe_remove "$test_file" --temp
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
             echo "✅ API test passed successfully" >&2
         fi
         return 0
     else
         trash::safe_remove "$test_file" --temp
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
             echo "❌ API test failed" >&2
         fi

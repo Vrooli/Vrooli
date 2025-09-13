@@ -75,10 +75,11 @@ cli::register_command "api-info" "Show Home Assistant API information" "home_ass
 cli::register_subcommand "content" "reload" "Reload automations without restart" "home_assistant::reload_automations"
 cli::register_subcommand "content" "export" "Export current configuration" "home_assistant::export_config"
 
-# Backup and restore commands
-cli::register_command "backup" "Backup Home Assistant configuration" "home_assistant::backup"
-cli::register_command "restore" "Restore Home Assistant configuration" "home_assistant::restore"
+# Backup and restore commands - backup is a group with subcommands
+cli::register_command_group "backup" "Backup and restore operations"
+cli::register_subcommand "backup" "create" "Create a new backup" "home_assistant::backup"
 cli::register_subcommand "backup" "list" "List available backups" "home_assistant::backup::list"
+cli::register_subcommand "backup" "restore" "Restore from a backup" "home_assistant::restore"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

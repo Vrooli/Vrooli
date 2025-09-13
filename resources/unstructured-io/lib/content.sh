@@ -74,6 +74,19 @@ unstructured_io::content::process() {
     unstructured_io::content::execute "$@"
 }
 
+# Process directory of documents
+unstructured_io::content::process_directory() {
+    local dir="${1:-}"
+    if [[ -z "$dir" ]]; then
+        echo "❌ Error: Directory path required" >&2
+        echo "Usage: vrooli resource unstructured-io content process-directory <directory> [strategy] [format] [recursive]" >&2
+        return 1
+    fi
+    
+    # Call the actual process_directory function with proper arguments
+    unstructured_io::process_directory "$dir" "${2:-}" "${3:-}" "${4:-}"
+}
+
 # Clear processing cache
 unstructured_io::content::clear_cache() {
     local file="${1:-}"

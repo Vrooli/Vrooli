@@ -36,18 +36,44 @@ kicad::install() {
         # Ubuntu/Debian
         echo "Installing KiCad on Ubuntu/Debian..."
         
-        # Check if PPA should be added (skip if KiCad is already available)
-        if ! command -v kicad &>/dev/null && ! apt-cache show kicad &>/dev/null; then
-            echo "Note: For the latest KiCad version, you may want to add the KiCad PPA"
-            echo "Run: sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases"
-        fi
-        
-        # Don't require sudo if already in sudoers
-        if command -v kicad &>/dev/null; then
-            echo "KiCad already installed, skipping apt install"
+        # Check if KiCad is already installed
+        if command -v kicad &>/dev/null || command -v kicad-cli &>/dev/null; then
+            echo "KiCad already installed, checking version..."
+            kicad_version=$(kicad::get_version)
+            echo "KiCad version: $kicad_version"
         else
-            echo "Note: KiCad installation requires system package installation"
-            echo "You may need to run: sudo apt-get install -y kicad kicad-libraries kicad-doc-en"
+            echo "KiCad not found. Attempting to install..."
+            
+            # Try to update package list and install KiCad
+            # First check if we can use apt without password (in CI/CD or with NOPASSWD sudo)
+            if sudo -n apt-get update &>/dev/null; then
+                echo "Updating package list..."
+                sudo apt-get update
+                
+                # Try to add KiCad PPA for latest version
+                if command -v add-apt-repository &>/dev/null; then
+                    echo "Adding KiCad 8.0 PPA for latest version..."
+                    sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases 2>/dev/null || true
+                    sudo apt-get update
+                fi
+                
+                echo "Installing KiCad and libraries..."
+                sudo apt-get install -y kicad kicad-libraries kicad-doc-en || {
+                    echo "Failed to install full KiCad suite, trying minimal installation..."
+                    sudo apt-get install -y kicad || {
+                        echo "Warning: Could not install KiCad automatically"
+                        echo "Please run manually: sudo apt-get install -y kicad kicad-libraries"
+                    }
+                }
+            else
+                echo "Cannot install KiCad automatically (sudo requires password)"
+                echo "To install KiCad, please run:"
+                echo "  sudo add-apt-repository --yes ppa:kicad/kicad-8.0-releases"
+                echo "  sudo apt-get update"
+                echo "  sudo apt-get install -y kicad kicad-libraries kicad-doc-en"
+                echo ""
+                echo "Continuing with mock installation for development..."
+            fi
         fi
         
         # Install Python dependencies
@@ -104,10 +130,31 @@ kicad::install() {
         # macOS
         echo "Installing KiCad on macOS..."
         if command -v brew &>/dev/null; then
-            if ! command -v kicad &>/dev/null; then
-                brew install --cask kicad
+            if ! command -v kicad-cli &>/dev/null && ! ls /Applications/KiCad/KiCad.app &>/dev/null; then
+                echo "Installing KiCad via Homebrew..."
+                brew install --cask kicad || {
+                    echo "Failed to install KiCad via Homebrew"
+                    echo "You can download KiCad manually from: https://www.kicad.org/download/macos/"
+                    echo "Continuing with mock installation for development..."
+                }
+                
+                # KiCad on macOS installs to /Applications/KiCad/KiCad.app
+                # The CLI tools are in the app bundle
+                if [[ -d "/Applications/KiCad/KiCad.app" ]]; then
+                    echo "KiCad installed to /Applications/KiCad/KiCad.app"
+                    # Add KiCad CLI to PATH if not already there
+                    kicad_cli_path="/Applications/KiCad/KiCad.app/Contents/MacOS"
+                    if [[ ":$PATH:" != *":$kicad_cli_path:"* ]]; then
+                        echo "export PATH=\"\$PATH:$kicad_cli_path\"" >> ~/.zshrc
+                        echo "export PATH=\"\$PATH:$kicad_cli_path\"" >> ~/.bashrc
+                        export PATH="$PATH:$kicad_cli_path"
+                        echo "Added KiCad CLI tools to PATH"
+                    fi
+                fi
             else
                 echo "KiCad already installed"
+                kicad_version=$(kicad::get_version)
+                echo "KiCad version: $kicad_version"
             fi
             
             # Set up Python virtual environment
@@ -118,7 +165,9 @@ kicad::install() {
             "${KICAD_DATA_DIR}/venv/bin/pip" install pykicad kikit pcbdraw
         else
             echo "Error: Homebrew is required to install KiCad on macOS"
-            return 1
+            echo "Install Homebrew from: https://brew.sh"
+            echo "Then run: brew install --cask kicad"
+            echo "Continuing with mock installation for development..."
         fi
         
     else
@@ -128,6 +177,12 @@ kicad::install() {
     
     # Set up initial configuration
     kicad::setup_initial_config
+    
+    # Create mock implementation if KiCad binary not available
+    if ! command -v kicad &>/dev/null && ! command -v kicad-cli &>/dev/null; then
+        echo "Creating mock KiCad implementation for development..."
+        kicad::create_mock_implementation
+    fi
     
     # Install resource CLI
     local cli_install_script="${APP_ROOT}/scripts/lib/resources/install-resource-cli.sh"
@@ -190,7 +245,76 @@ EOF
     echo "Initial KiCad configuration created"
 }
 
+# Create mock KiCad implementation for development/testing
+kicad::create_mock_implementation() {
+    echo "Creating mock KiCad CLI for development..."
+    
+    # Create mock kicad-cli script
+    cat > "${KICAD_DATA_DIR}/kicad-cli-mock" <<'EOF'
+#!/bin/bash
+# Mock KiCad CLI for development/testing
+
+case "$1" in
+    version)
+        echo "8.0.0-mock"
+        ;;
+    pcb)
+        case "$2" in
+            export)
+                echo "Mock: Exporting PCB to ${@:3}"
+                # Create dummy output files
+                for arg in "$@"; do
+                    if [[ "$arg" == *.gbr ]] || [[ "$arg" == *.drl ]] || [[ "$arg" == *.pdf ]]; then
+                        touch "$arg"
+                        echo "Mock: Created $arg"
+                    fi
+                done
+                ;;
+            *)
+                echo "Mock: PCB command $2 (not implemented)"
+                ;;
+        esac
+        ;;
+    sch)
+        case "$2" in
+            export)
+                echo "Mock: Exporting schematic to ${@:3}"
+                # Create dummy output files
+                for arg in "$@"; do
+                    if [[ "$arg" == *.pdf ]] || [[ "$arg" == *.svg ]]; then
+                        touch "$arg"
+                        echo "Mock: Created $arg"
+                    fi
+                done
+                ;;
+            *)
+                echo "Mock: Schematic command $2 (not implemented)"
+                ;;
+        esac
+        ;;
+    *)
+        echo "Mock KiCad CLI - Development Mode"
+        echo "Usage: kicad-cli [version|pcb|sch] ..."
+        echo ""
+        echo "This is a mock implementation. Install KiCad for full functionality:"
+        echo "  Ubuntu/Debian: sudo apt-get install kicad"
+        echo "  macOS: brew install --cask kicad"
+        echo "  Other: https://www.kicad.org/download/"
+        ;;
+esac
+EOF
+    chmod +x "${KICAD_DATA_DIR}/kicad-cli-mock"
+    
+    # Create symlink if possible
+    if [[ -w /usr/local/bin ]]; then
+        ln -sf "${KICAD_DATA_DIR}/kicad-cli-mock" /usr/local/bin/kicad-cli-mock 2>/dev/null || true
+    fi
+    
+    echo "Mock KiCad CLI created at ${KICAD_DATA_DIR}/kicad-cli-mock"
+}
+
 # Export functions
 export -f kicad::can_install
 export -f kicad::install
 export -f kicad::setup_initial_config
+export -f kicad::create_mock_implementation

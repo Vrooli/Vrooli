@@ -25,7 +25,7 @@ unstructured_io::process_directory() {
         return 1
     fi
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo "📁 Processing documents in: $dir" >&2
         echo >&2
     fi
@@ -56,14 +56,14 @@ unstructured_io::process_directory() {
     done < <(eval "$find_cmd")
     
     if [ ${#files[@]} -eq 0 ]; then
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo "No supported documents found in directory" >&2
         fi
         return 0
     fi
     
     # Process files individually to avoid batch processing issues
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo >&2
         echo "Processing ${#files[@]} documents..." >&2
         echo >&2
@@ -73,7 +73,7 @@ unstructured_io::process_directory() {
     local failed_files=()
     
     for file in "${files[@]}"; do
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo "Processing: $(basename "$file")" >&2
             echo "─────────────────" >&2
         fi
@@ -87,13 +87,13 @@ unstructured_io::process_directory() {
             failed_files+=("$file")
         fi
         QUIET="$saved_quiet"
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
         fi
     done
     
     # Summary
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo "Directory Processing Summary" >&2
         echo "===========================" >&2
         echo "Total files: ${#files[@]}" >&2
@@ -102,7 +102,7 @@ unstructured_io::process_directory() {
     fi
     
     if [ ${#failed_files[@]} -gt 0 ]; then
-        if [[ "$QUIET" != "yes" ]]; then
+        if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
             echo "Failed files:" >&2
             for file in "${failed_files[@]}"; do
@@ -121,7 +121,7 @@ unstructured_io::process_directory() {
 unstructured_io::extract_tables() {
     local file="$1"
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo "📊 Extracting tables from: $(basename "$file")" >&2
         echo >&2
     fi
@@ -209,7 +209,7 @@ unstructured_io::extract_tables() {
         fi
     fi
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo >&2
         echo "✅ Found $total_table_count table(s)" >&2
     fi
@@ -221,7 +221,7 @@ unstructured_io::extract_tables() {
 unstructured_io::extract_metadata() {
     local file="$1"
     
-    if [[ "$QUIET" != "yes" ]]; then
+    if [[ "${QUIET:-no}" != "yes" ]]; then
         echo "📋 Extracting metadata from: $(basename "$file")" >&2
         echo >&2
     fi

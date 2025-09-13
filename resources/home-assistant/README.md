@@ -102,13 +102,56 @@ curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
   http://localhost:8123/api/services/light/turn_on
 ```
 
+## 👥 Multi-User Support
+
+### Configuring Multiple Users
+
+Home Assistant supports multiple users with different access levels. To enable multi-user support:
+
+```bash
+# 1. Apply the multi-user configuration template
+vrooli resource home-assistant content add samples/multi-user-config.yaml
+
+# 2. Add user-specific automations
+vrooli resource home-assistant content add samples/user-automation.yaml
+
+# 3. Restart Home Assistant
+vrooli resource home-assistant manage restart
+
+# 4. Configure users in the UI
+# Navigate to: http://localhost:8123/config/users
+```
+
+### User Access Levels
+
+- **Administrator**: Full system access, can modify all settings
+- **User**: Standard access, can control devices but not system settings
+- **Guest**: Limited access, view-only or restricted device control
+
+### User-Specific Automations
+
+Create automations that respond differently based on which user triggers them:
+
+```yaml
+automation:
+  - alias: "User-specific welcome"
+    trigger:
+      - platform: state
+        entity_id: person.username
+        to: 'home'
+    action:
+      - service: notify.persistent_notification
+        data:
+          message: "Welcome home, {{ trigger.to_state.attributes.friendly_name }}!"
+```
+
 ## 💾 Backup & Restore
 
 ### Creating Backups
 
 ```bash
 # Create a backup of current configuration
-vrooli resource home-assistant backup
+vrooli resource home-assistant backup create
 
 # List available backups
 vrooli resource home-assistant backup list
@@ -119,11 +162,11 @@ vrooli resource home-assistant backup list
 ### Restoring Backups
 
 ```bash
-# List available backups to restore from
-vrooli resource home-assistant restore
+# Restore from a specific backup
+vrooli resource home-assistant backup restore /path/to/backup_20250912_190857.tar.gz
 
-# Restore a specific backup
-vrooli resource home-assistant restore /path/to/backup_20250912_190857.tar.gz
+# Interactive restore (shows list of available backups)
+vrooli resource home-assistant backup restore
 ```
 
 ## 🔗 Webhook Support

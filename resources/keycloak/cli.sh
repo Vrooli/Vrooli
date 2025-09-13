@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status inject content social-providers ldap-federation; do
+for lib in common install lifecycle status inject content social-providers ldap-federation multi-realm; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -50,17 +50,33 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="keycloak::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="keycloak::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="keycloak::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="keycloak::restart"
-# Test handlers - delegate to test runner
-CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::run_phase smoke"
-CLI_COMMAND_HANDLERS["test::integration"]="keycloak::test::run_phase integration"
-CLI_COMMAND_HANDLERS["test::unit"]="keycloak::test::run_phase unit"
-CLI_COMMAND_HANDLERS["test::all"]="keycloak::test::run_phase all"
-
-# Test runner function
-keycloak::test::run_phase() {
-    local phase="${1:-all}"
-    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" "$phase"
+# Test runner functions - must be defined before handler registration
+keycloak::test::smoke() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" smoke
 }
+
+keycloak::test::integration() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" integration
+}
+
+keycloak::test::unit() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" unit
+}
+
+keycloak::test::all() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" all
+}
+
+keycloak::test::multirealm() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" multi-realm
+}
+
+# Test handlers - delegate to test runner
+CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="keycloak::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="keycloak::test::unit"
+CLI_COMMAND_HANDLERS["test::multi-realm"]="keycloak::test::multirealm"
+CLI_COMMAND_HANDLERS["test::all"]="keycloak::test::all"
 
 # Override content handlers for Keycloak-specific realm/user management
 CLI_COMMAND_HANDLERS["content::add"]="keycloak::content::add"
@@ -109,6 +125,23 @@ cli::register_subcommand "ldap" "list" "List configured LDAP/AD providers" "keyc
 cli::register_subcommand "ldap" "remove" "Remove an LDAP/AD provider" "keycloak::ldap::remove"
 cli::register_subcommand "ldap" "test" "Test LDAP/AD connection" "keycloak::ldap::test"
 cli::register_subcommand "ldap" "sync" "Sync users from LDAP/AD" "keycloak::ldap::sync"
+
+# Register realm command group for multi-tenant management
+CLI_COMMAND_GROUPS["realm"]="true"
+CLI_GROUP_DESCRIPTIONS["realm"]="🏢 Multi-realm tenant isolation"
+
+# Realm management commands
+CLI_COMMAND_HANDLERS["realm::create-tenant"]="keycloak::realm::create_tenant"
+CLI_COMMAND_HANDLERS["realm::list-tenants"]="keycloak::realm::list_tenants"
+CLI_COMMAND_HANDLERS["realm::get-tenant"]="keycloak::realm::get_tenant"
+CLI_COMMAND_HANDLERS["realm::delete-tenant"]="keycloak::realm::delete_tenant"
+CLI_COMMAND_HANDLERS["realm::export-tenant"]="keycloak::realm::export_tenant"
+
+cli::register_subcommand "realm" "create-tenant" "Create isolated tenant realm" "keycloak::realm::create_tenant"
+cli::register_subcommand "realm" "list-tenants" "List all tenant realms" "keycloak::realm::list_tenants"
+cli::register_subcommand "realm" "get-tenant" "Get tenant realm details" "keycloak::realm::get_tenant"
+cli::register_subcommand "realm" "delete-tenant" "Delete tenant realm" "keycloak::realm::delete_tenant"
+cli::register_subcommand "realm" "export-tenant" "Export tenant realm configuration" "keycloak::realm::export_tenant"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "keycloak::status"
