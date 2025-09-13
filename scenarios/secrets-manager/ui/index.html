@@ -66,6 +66,18 @@
                             <span class="label">LAST SCAN</span>
                             <span class="value" id="last-scan">Never</span>
                         </div>
+                        <div class="status-item">
+                            <span class="label">SCAN TIME</span>
+                            <span class="value" id="scan-time">0ms</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">FILES SCANNED</span>
+                            <span class="value" id="files-scanned">0</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">SCAN ERRORS</span>
+                            <span class="value" id="scan-errors">0</span>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -85,28 +97,24 @@
                 <div class="panel-content">
                     <div class="health-stats">
                         <div class="stat-card valid">
-                            <div class="stat-value" id="valid-secrets">0</div>
+                            <div class="stat-value" id="configured-components">0</div>
                             <div class="stat-label">Configured</div>
-                        </div>
-                        <div class="stat-card total">
-                            <div class="stat-value" id="total-secrets">0</div>
-                            <div class="stat-label">Total</div>
                         </div>
                         <div class="stat-card missing">
                             <div class="stat-value" id="critical-vulns">0</div>
-                            <div class="stat-label">Critical Vulns</div>
+                            <div class="stat-label">Critical Risk</div>
                         </div>
                         <div class="stat-card invalid">
                             <div class="stat-value" id="high-vulns">0</div>
-                            <div class="stat-label">High Vulns</div>
+                            <div class="stat-label">High Risk</div>
                         </div>
                         <div class="stat-card discovered">
                             <div class="stat-value" id="medium-vulns">0</div>
-                            <div class="stat-label">Medium Vulns</div>
+                            <div class="stat-label">Medium Risk</div>
                         </div>
                         <div class="stat-card">
                             <div class="stat-value" id="low-vulns">0</div>
-                            <div class="stat-label">Low Vulns</div>
+                            <div class="stat-label">Low Risk</div>
                         </div>
                     </div>
                 </div>
@@ -115,11 +123,13 @@
             <!-- Resource Secrets Table -->
             <section class="panel secrets-panel" id="secrets-panel">
                 <div class="panel-header">
-                    <h2><span class="matrix-green">●</span> RESOURCE VAULT STATUS</h2>
+                    <h2><span class="matrix-green">●</span> COMPONENT SECURITY STATUS</h2>
                     <div class="panel-controls">
-                        <button class="chrome-btn" id="validate-btn">SECURITY SCAN</button>
-                        <select class="chrome-select" id="resource-filter">
-                            <option value="">ALL RESOURCES</option>
+                        <button class="chrome-btn primary-btn" id="fix-selected-btn" disabled>FIX SELECTED</button>
+                        <select class="chrome-select" id="component-filter">
+                            <option value="">ALL COMPONENTS</option>
+                            <option value="resource">RESOURCES ONLY</option>
+                            <option value="scenario">SCENARIOS ONLY</option>
                         </select>
                     </div>
                 </div>
@@ -128,7 +138,10 @@
                         <table class="secrets-table" id="secrets-table">
                             <thead>
                                 <tr>
-                                    <th>RESOURCE</th>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" id="select-all" title="Select all">
+                                    </th>
+                                    <th>COMPONENT</th>
                                     <th>VAULT INFO</th>
                                     <th>TYPE</th>
                                     <th>STATUS</th>
@@ -137,7 +150,7 @@
                             </thead>
                             <tbody id="secrets-table-body">
                                 <tr class="loading-row">
-                                    <td colspan="5">
+                                    <td colspan="6">
                                         <div class="loading-animation">
                                             <span>SCANNING SECURITY MATRIX</span>
                                             <div class="loading-dots">

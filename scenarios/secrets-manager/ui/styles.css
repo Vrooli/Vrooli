@@ -439,6 +439,18 @@ html, body {
     box-shadow: inset 3px 0 0 var(--matrix-green);
 }
 
+.secrets-table tbody tr.selected {
+    background: rgba(0, 255, 65, 0.1);
+    box-shadow: inset 3px 0 0 var(--matrix-green);
+}
+
+.secrets-table input[type="checkbox"] {
+    accent-color: var(--matrix-green);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
 .status-badge {
     padding: 3px 8px;
     border-radius: 12px;
@@ -544,6 +556,21 @@ html, body {
 .chrome-btn.primary-btn:hover {
     color: var(--bg-black);
     transform: translateY(-1px);
+}
+
+.chrome-btn:disabled {
+    background: var(--bg-medium);
+    border-color: var(--chrome-dark);
+    color: var(--chrome-dark);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.chrome-btn.primary-btn:disabled {
+    background: var(--bg-medium);
+    color: var(--chrome-dark);
+    box-shadow: none;
+    transform: none;
 }
 
 /* Removed btn-glow animation for cleaner UI */
@@ -852,4 +879,29 @@ html, body {
 
 .rotating {
     animation: rotate 1s linear infinite;
+}
+
+/* Component type badges */
+.component-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+    border: 1px solid;
+}
+
+.component-badge.resource {
+    background: rgba(0, 170, 255, 0.2);
+    color: var(--electric-blue);
+    border-color: var(--electric-blue);
+}
+
+.component-badge.scenario {
+    background: rgba(170, 0, 255, 0.2);
+    color: var(--cyber-purple);
+    border-color: var(--cyber-purple);
 }

@@ -9,7 +9,7 @@ class SecretsManager {
         this.securityScanResult = null;
         this.complianceData = null;
         this.isConnected = false;
-        this.currentView = 'vault'; // Track current view: 'vault', 'critical', 'high', 'medium', 'low', 'configured', 'total'
+        this.currentView = 'vault'; // Track current view: 'vault', 'critical', 'high', 'medium', 'low', 'configured'
         this.activeStatCard = null; // Track which stat card is active
         
         this.init();
@@ -40,37 +40,60 @@ class SecretsManager {
     
     bindEvents() {
         // Refresh button - now checks vault status
-        document.getElementById('scan-all-btn').addEventListener('click', () => {
-            this.loadVaultStatus();
-            this.loadComplianceData();
-            // After refresh, restore the current view if it's not vault
-            if (this.currentView !== 'vault') {
-                setTimeout(() => {
-                    this.restoreCurrentView();
-                }, 1000);
-            }
-        });
+        const scanBtn = document.getElementById('scan-all-btn');
+        if (scanBtn) {
+            scanBtn.addEventListener('click', () => {
+                this.loadVaultStatus();
+                this.loadComplianceData();
+                // After refresh, restore the current view if it's not vault
+                if (this.currentView !== 'vault') {
+                    setTimeout(() => {
+                        this.restoreCurrentView();
+                    }, 1000);
+                }
+            });
+        }
         
         // Vault info button - shows status details
-        document.getElementById('vault-info-btn').addEventListener('click', () => {
-            this.showVaultStatusInfo();
-        });
+        const vaultInfoBtn = document.getElementById('vault-info-btn');
+        if (vaultInfoBtn) {
+            vaultInfoBtn.addEventListener('click', () => {
+                this.showVaultStatusInfo();
+            });
+        }
         
         // Open vault UI button
-        document.getElementById('open-vault-btn').addEventListener('click', () => {
-            // Vault typically runs on port 8200
-            window.open('http://localhost:8200', '_blank');
-        });
+        const openVaultBtn = document.getElementById('open-vault-btn');
+        if (openVaultBtn) {
+            openVaultBtn.addEventListener('click', () => {
+                // Vault typically runs on port 8200
+                window.open('http://localhost:8200', '_blank');
+            });
+        }
         
-        // Validate button - now runs security scan
-        document.getElementById('validate-btn').addEventListener('click', () => {
-            this.performSecurityScan();
-        });
+        // Fix selected vulnerabilities button
+        const fixSelectedBtn = document.getElementById('fix-selected-btn');
+        if (fixSelectedBtn) {
+            fixSelectedBtn.addEventListener('click', () => {
+                this.fixSelectedVulnerabilities();
+            });
+        }
         
-        // Resource filter
-        document.getElementById('resource-filter').addEventListener('change', (e) => {
-            this.filterSecrets(e.target.value);
-        });
+        // Select all checkbox
+        const selectAllCheckbox = document.getElementById('select-all');
+        if (selectAllCheckbox) {
+            selectAllCheckbox.addEventListener('change', (e) => {
+                this.selectAll(e.target.checked);
+            });
+        }
+        
+        // Component filter
+        const componentFilter = document.getElementById('component-filter');
+        if (componentFilter) {
+            componentFilter.addEventListener('change', (e) => {
+                this.filterComponents(e.target.value);
+            });
+        }
         
         // Modal controls
         document.getElementById('modal-close').addEventListener('click', () => {
@@ -245,11 +268,36 @@ class SecretsManager {
             
             this.securityScanResult = await response.json();
             this.updateSecurityVulnerabilities();
+            this.updateScanMetrics();
             
             const vulnCount = this.securityScanResult.vulnerabilities ? this.securityScanResult.vulnerabilities.length : 0;
             const riskScore = this.securityScanResult.risk_score || 0;
+            const scanMetrics = this.securityScanResult.scan_metrics || {};
             
-            const message = `Security scan complete: ${vulnCount} vulnerabilities found (Risk: ${riskScore}/100)`;
+            // Update last scan time
+            document.getElementById('last-scan').textContent = new Date().toLocaleTimeString('en-US', { hour12: false }) + ' UTC';
+            
+            let message = `Security scan complete: ${vulnCount} vulnerabilities found (Risk: ${riskScore}/100)`;
+            
+            // Add scan performance info
+            if (scanMetrics.total_scan_time_ms) {
+                message += ` - Scanned ${scanMetrics.files_scanned || 0} files in ${scanMetrics.total_scan_time_ms}ms`;
+            }
+            
+            // Show scan errors if any
+            if (scanMetrics.scan_errors && scanMetrics.scan_errors.length > 0) {
+                this.showNotification(`Scan completed with ${scanMetrics.scan_errors.length} errors`, 'warning');
+                // Show first few errors as additional notifications
+                scanMetrics.scan_errors.slice(0, 3).forEach(error => {
+                    setTimeout(() => this.showNotification(`Scan error: ${error}`, 'error'), 500);
+                });
+            }
+            
+            // Show timeout warning if occurred
+            if (scanMetrics.timeout_occurred) {
+                this.showNotification('Scan timeout occurred - results may be incomplete', 'warning');
+            }
+            
             this.showNotification(message, riskScore > 50 ? 'error' : (riskScore > 20 ? 'warning' : 'success'));
             
         } catch (error) {
@@ -310,12 +358,9 @@ class SecretsManager {
     }
     
     updateHealthStats(data) {
-        // Update stats from compliance data
-        if (data.configured_resources !== undefined) {
-            document.getElementById('valid-secrets').textContent = data.configured_resources || 0;
-        }
-        if (data.total_resources !== undefined) {
-            document.getElementById('total-secrets').textContent = data.total_resources || 0;
+        // Update stats from compliance data - using new component-based approach
+        if (data.configured_components !== undefined) {
+            document.getElementById('configured-components').textContent = data.configured_components || 0;
         }
         if (data.vulnerability_summary) {
             // Store vulnerability counts for later use
@@ -365,12 +410,18 @@ class SecretsManager {
     
     updateVaultSecretsTable() {
         const tbody = document.getElementById('secrets-table-body');
+        if (!tbody) {
+            console.error('Table body element not found');
+            this.showNotification('UI elements not found - page may not be loaded correctly', 'error');
+            return;
+        }
+        
         tbody.innerHTML = '';
         
         if (!this.vaultStatus || !this.vaultStatus.resource_statuses) {
             tbody.innerHTML = `
                 <tr class="loading-row">
-                    <td colspan="5">
+                    <td colspan="6">
                         <div class="loading-animation">
                             <span>NO VAULT DATA - CLICK SCAN TO CHECK VAULT STATUS</span>
                         </div>
@@ -387,7 +438,10 @@ class SecretsManager {
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${resource.resource_name}</td>
+                <td>
+                    <input type="checkbox" class="row-checkbox">
+                </td>
+                <td><span class="component-badge resource">RES</span> ${resource.resource_name}</td>
                 <td><code>${resource.secrets_found}/${resource.secrets_total} secrets</code></td>
                 <td>VAULT STATUS</td>
                 <td><span class="status-badge ${statusBadge}">${resource.health_status.toUpperCase()}</span></td>
@@ -409,6 +463,19 @@ class SecretsManager {
                 });
             }
             
+            // Add checkbox event listener
+            const checkbox = row.querySelector('.row-checkbox');
+            if (checkbox) {
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        row.classList.add('selected');
+                    } else {
+                        row.classList.remove('selected');
+                    }
+                    this.updateFixButtonState();
+                });
+            }
+            
             tbody.appendChild(row);
         });
         
@@ -417,7 +484,10 @@ class SecretsManager {
             this.vaultStatus.missing_secrets.forEach(missing => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${missing.resource_name}</td>
+                    <td>
+                        <input type="checkbox" class="row-checkbox">
+                    </td>
+                    <td><span class="component-badge resource">RES</span> ${missing.resource_name}</td>
                     <td><code>${missing.secret_name}</code></td>
                     <td>MISSING SECRET</td>
                     <td><span class="status-badge missing">${missing.required ? 'REQUIRED' : 'OPTIONAL'}</span></td>
@@ -432,6 +502,19 @@ class SecretsManager {
                     this.showProvisionModal(missing.resource_name, true);
                 });
                 
+                // Add checkbox event listener
+                const checkbox = row.querySelector('.row-checkbox');
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        if (checkbox.checked) {
+                            row.classList.add('selected');
+                        } else {
+                            row.classList.remove('selected');
+                        }
+                        this.updateFixButtonState();
+                    });
+                }
+                
                 tbody.appendChild(row);
             });
         }
@@ -443,6 +526,54 @@ class SecretsManager {
             this.vulnerabilities = this.securityScanResult.vulnerabilities;
             console.log('Security vulnerabilities found:', this.vulnerabilities.length);
         }
+    }
+    
+    updateScanMetrics() {
+        if (!this.securityScanResult || !this.securityScanResult.scan_metrics) {
+            return;
+        }
+        
+        const metrics = this.securityScanResult.scan_metrics;
+        
+        // Update scan time
+        const scanTime = metrics.total_scan_time_ms || 0;
+        document.getElementById('scan-time').textContent = `${scanTime}ms`;
+        if (scanTime > 30000) { // Highlight slow scans (>30s)
+            document.getElementById('scan-time').style.color = '#ffaa00';
+        } else {
+            document.getElementById('scan-time').style.color = '';
+        }
+        
+        // Update files scanned
+        const filesScanned = metrics.files_scanned || 0;
+        document.getElementById('files-scanned').textContent = filesScanned.toString();
+        
+        // Update scan errors with color coding
+        const errorCount = metrics.scan_errors ? metrics.scan_errors.length : 0;
+        const errorElement = document.getElementById('scan-errors');
+        errorElement.textContent = errorCount.toString();
+        
+        if (errorCount > 0) {
+            errorElement.style.color = '#ff4444';
+            errorElement.title = `${errorCount} scan errors occurred:\n${metrics.scan_errors.slice(0, 3).join('\n')}${errorCount > 3 ? '\n... and more' : ''}`;
+        } else {
+            errorElement.style.color = '#00ff00';
+            errorElement.title = 'No scan errors';
+        }
+        
+        // Update other metrics if available
+        if (metrics.timeout_occurred) {
+            document.getElementById('scan-time').title = 'Scan timed out - results may be incomplete';
+            document.getElementById('scan-time').style.color = '#ff4444';
+        }
+        
+        console.log('Scan metrics updated:', {
+            scanTime: scanTime + 'ms',
+            filesScanned,
+            errorCount,
+            timeoutOccurred: metrics.timeout_occurred,
+            largeFilesSkipped: metrics.large_files_skipped || 0
+        });
     }
     
     filterTableByType(label) {
@@ -457,40 +588,58 @@ class SecretsManager {
             if (label.includes('Configured')) {
                 // Show configured resources
                 this.currentView = 'configured';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> CONFIGURED RESOURCES';
-                this.showConfiguredResources();
-            } else if (label.includes('Total')) {
-                // Show all resources
-                this.currentView = 'total';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> ALL RESOURCES';
-                this.updateVaultSecretsTable();
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> CONFIGURED COMPONENTS';
+                this.showConfiguredComponents();
             } else if (label.includes('Critical')) {
                 // Show critical vulnerabilities
                 this.currentView = 'critical';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> CRITICAL VULNERABILITIES';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> CRITICAL VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('critical');
             } else if (label.includes('High')) {
                 // Show high vulnerabilities
                 this.currentView = 'high';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> HIGH SEVERITY VULNERABILITIES';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> HIGH SEVERITY VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('high');
             } else if (label.includes('Medium')) {
                 // Show medium vulnerabilities
                 this.currentView = 'medium';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> MEDIUM SEVERITY VULNERABILITIES';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> MEDIUM SEVERITY VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('medium');
             } else if (label.includes('Low')) {
                 // Show low vulnerabilities
                 this.currentView = 'low';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> LOW SEVERITY VULNERABILITIES';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> LOW SEVERITY VULNERABILITIES';
                 this.showVulnerabilitiesBySeverity('low');
             } else {
                 // Default to showing vault status
                 this.currentView = 'vault';
-                sectionTitle.innerHTML = '<span class="matrix-green">●</span> RESOURCE VAULT STATUS';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> RESOURCE VAULT STATUS';
                 this.updateVaultSecretsTable();
             }
         }, 300); // 300ms delay to show skeleton animation
+    }
+    
+    filterComponents(componentType) {
+        // Filter table by component type (resource, scenario, or all)
+        this.showTableSkeleton();
+        
+        const sectionTitle = document.querySelector('.secrets-panel .panel-header h2');
+        
+        setTimeout(() => {
+            if (componentType === 'resource') {
+                this.currentView = 'resources';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> RESOURCE COMPONENTS';
+                this.showComponentsByType('resource');
+            } else if (componentType === 'scenario') {
+                this.currentView = 'scenarios';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> SCENARIO COMPONENTS';
+                this.showComponentsByType('scenario');
+            } else {
+                this.currentView = 'vault';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> COMPONENT SECURITY STATUS';
+                this.updateVaultSecretsTable();
+            }
+        }, 300);
     }
     
     restoreCurrentView() {
@@ -501,12 +650,12 @@ class SecretsManager {
         }
     }
     
-    showConfiguredResources() {
+    showConfiguredComponents() {
         const tbody = document.getElementById('secrets-table-body');
         
         if (!this.vaultStatus || !this.vaultStatus.resource_statuses) {
             tbody.innerHTML = `
-                <tr><td colspan="5" class="chrome-text">No vault data available. Click "CHECK VAULT" to scan.</td></tr>
+                <tr><td colspan="6" class="chrome-text">No vault data available. Click "CHECK VAULT" to scan.</td></tr>
             `;
             return;
         }
@@ -516,7 +665,7 @@ class SecretsManager {
         
         if (configuredResources.length === 0) {
             tbody.innerHTML = `
-                <tr><td colspan="5" class="chrome-text">No fully configured resources found.</td></tr>
+                <tr><td colspan="6" class="chrome-text">No fully configured resources found.</td></tr>
             `;
             return;
         }
@@ -524,14 +673,105 @@ class SecretsManager {
         configuredResources.forEach(resource => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${resource.resource_name}</td>
+                <td>
+                    <input type="checkbox" class="row-checkbox">
+                </td>
+                <td><span class="component-badge resource">RES</span> ${resource.resource_name}</td>
                 <td><code>${resource.secrets_found}/${resource.secrets_total} secrets</code></td>
                 <td>VAULT STATUS</td>
                 <td><span class="status-badge valid">CONFIGURED</span></td>
                 <td><span class="chrome-text">✓ ALL SECRETS SET</span></td>
             `;
+            // Add checkbox event listener
+            const checkbox = row.querySelector('.row-checkbox');
+            if (checkbox) {
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        row.classList.add('selected');
+                    } else {
+                        row.classList.remove('selected');
+                    }
+                    this.updateFixButtonState();
+                });
+            }
+
             tbody.appendChild(row);
         });
+    }
+    
+    async showComponentsByType(componentType) {
+        const tbody = document.getElementById('secrets-table-body');
+        
+        try {
+            // Fetch vulnerabilities filtered by component type
+            const response = await fetch(`/api/v1/vulnerabilities?component_type=${componentType}`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to fetch components');
+            }
+            
+            const vulnerabilities = data.vulnerabilities || [];
+            
+            if (vulnerabilities.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="6" class="chrome-text">No ${componentType} vulnerabilities found.</td></tr>
+                `;
+                return;
+            }
+            
+            // Clear table and show each component with vulnerabilities
+            tbody.innerHTML = '';
+            vulnerabilities.forEach(vuln => {
+                const row = document.createElement('tr');
+                const componentBadge = vuln.component_type === 'resource' ? 
+                    '<span class="component-badge resource">RES</span>' : 
+                    '<span class="component-badge scenario">APP</span>';
+                    
+                const severityBadge = vuln.severity === 'critical' ? 'missing' :
+                                      vuln.severity === 'high' ? 'invalid' :
+                                      vuln.severity === 'medium' ? 'discovered' : 'valid';
+                
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="row-checkbox">
+                    </td>
+                    <td>${componentBadge} ${vuln.component_name}</td>
+                    <td style="font-size: 0.9em;">
+                        <strong>${vuln.title}</strong><br>
+                        <code style="font-size: 0.85em;">${vuln.file_path}:${vuln.line_number}</code>
+                    </td>
+                    <td>${vuln.type.replace(/_/g, ' ').toUpperCase()}</td>
+                    <td><span class="status-badge ${severityBadge}">${vuln.severity.toUpperCase()}</span></td>
+                    <td>
+                        <button class="chrome-btn" style="padding: 2px 8px;" onclick="window.secretsManager.showVulnerabilityDetails('${vuln.id}')">
+                            DETAILS
+                        </button>
+                    </td>
+                `;
+                
+                // Add checkbox event listener
+                const checkbox = row.querySelector('.row-checkbox');
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        if (checkbox.checked) {
+                            row.classList.add('selected');
+                        } else {
+                            row.classList.remove('selected');
+                        }
+                        this.updateFixButtonState();
+                    });
+                }
+                
+                tbody.appendChild(row);
+            });
+            
+        } catch (error) {
+            console.error('Error fetching components:', error);
+            tbody.innerHTML = `
+                <tr><td colspan="6" class="chrome-text">Error loading ${componentType} components: ${error.message}</td></tr>
+            `;
+        }
     }
     
     async showVulnerabilitiesBySeverity(severity) {
@@ -550,7 +790,7 @@ class SecretsManager {
             
             if (vulnerabilities.length === 0) {
                 tbody.innerHTML = `
-                    <tr><td colspan="5" class="chrome-text">No ${severity} vulnerabilities found.</td></tr>
+                    <tr><td colspan="6" class="chrome-text">No ${severity} vulnerabilities found.</td></tr>
                 `;
                 return;
             }
@@ -559,12 +799,18 @@ class SecretsManager {
             tbody.innerHTML = '';
             vulnerabilities.forEach(vuln => {
                 const row = document.createElement('tr');
+                const componentBadge = vuln.component_type === 'resource' ? 
+                    '<span class="component-badge resource">RES</span>' : 
+                    '<span class="component-badge scenario">APP</span>';
                 const severityBadge = vuln.severity === 'critical' ? 'missing' :
                                       vuln.severity === 'high' ? 'invalid' :
                                       vuln.severity === 'medium' ? 'discovered' : 'valid';
                 
                 row.innerHTML = `
-                    <td>${vuln.scenario_name || 'Unknown'}</td>
+                    <td>
+                        <input type="checkbox" class="row-checkbox">
+                    </td>
+                    <td>${componentBadge} ${vuln.component_name || vuln.scenario_name || 'Unknown'}</td>
                     <td style="font-size: 0.9em;">
                         <strong>${vuln.title}</strong><br>
                         <code style="font-size: 0.85em;">${vuln.file_path}:${vuln.line_number}</code>
@@ -577,6 +823,19 @@ class SecretsManager {
                         </button>
                     </td>
                 `;
+                // Add checkbox event listener
+                const checkbox = row.querySelector('.row-checkbox');
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        if (checkbox.checked) {
+                            row.classList.add('selected');
+                        } else {
+                            row.classList.remove('selected');
+                        }
+                        this.updateFixButtonState();
+                    });
+                }
+                
                 tbody.appendChild(row);
             });
             
@@ -588,7 +847,7 @@ class SecretsManager {
             
             if (count === 0) {
                 tbody.innerHTML = `
-                    <tr><td colspan="5" class="chrome-text">No ${severity} vulnerabilities detected.</td></tr>
+                    <tr><td colspan="6" class="chrome-text">No ${severity} vulnerabilities detected.</td></tr>
                 `;
                 return;
             }
@@ -596,7 +855,7 @@ class SecretsManager {
             // Show summary message with call to action
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" class="chrome-text" style="text-align: center;">
+                    <td colspan="6" class="chrome-text" style="text-align: center;">
                         <div style="padding: 20px;">
                             <div style="font-size: 1.2em; color: ${severity === 'critical' ? '#ff0000' : severity === 'high' ? '#ff8800' : severity === 'medium' ? '#ffaa00' : '#ffff00'};">
                                 ${count} ${severity.toUpperCase()} VULNERABILITIES DETECTED
@@ -702,9 +961,9 @@ ${vuln.code}</pre>
     
     resetToVaultView() {
         // Reset section title
-        const sectionTitle = document.querySelector('.section-header h2');
+        const sectionTitle = document.querySelector('.secrets-panel .panel-header h2');
         if (sectionTitle) {
-            sectionTitle.textContent = 'RESOURCE VAULT STATUS';
+            sectionTitle.innerHTML = '<span class="matrix-green">●</span> RESOURCE VAULT STATUS';
         }
         
         // Remove active class from all stat cards
@@ -760,14 +1019,18 @@ ${vuln.code}</pre>
     }
     
     updateResourceFilter() {
-        const select = document.getElementById('resource-filter');
+        const select = document.getElementById('component-filter');
+        if (!select) {
+            console.error('Component filter element not found');
+            return;
+        }
         
         // Get resources from vault status
         const resources = this.vaultStatus && this.vaultStatus.resource_statuses ? 
             this.vaultStatus.resource_statuses.map(r => r.resource_name) : [];
         
-        // Clear existing options except "ALL RESOURCES"
-        select.innerHTML = '<option value="">ALL RESOURCES</option>';
+        // Clear existing options except "ALL COMPONENTS"
+        select.innerHTML = '<option value="">ALL COMPONENTS</option><option value="resource">RESOURCES ONLY</option><option value="scenario">SCENARIOS ONLY</option>';
         
         resources.forEach(resource => {
             const option = document.createElement('option');
@@ -995,6 +1258,11 @@ ${vuln.code}</pre>
     
     showTableSkeleton() {
         const tbody = document.getElementById('secrets-table-body');
+        if (!tbody) {
+            console.error('Table body element not found for skeleton');
+            return;
+        }
+        
         tbody.innerHTML = '';
         
         // Create skeleton rows
@@ -1002,6 +1270,9 @@ ${vuln.code}</pre>
             const row = document.createElement('tr');
             row.className = 'skeleton-row';
             row.innerHTML = `
+                <td>
+                    <div class="skeleton-line" style="width: 16px; height: 16px; background: linear-gradient(90deg, rgba(0,255,0,0.1) 25%, rgba(0,255,0,0.2) 50%, rgba(0,255,0,0.1) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite;"></div>
+                </td>
                 <td>
                     <div class="skeleton-line" style="width: 80%; height: 14px; background: linear-gradient(90deg, rgba(0,255,0,0.1) 25%, rgba(0,255,0,0.2) 50%, rgba(0,255,0,0.1) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite;"></div>
                 </td>
@@ -1084,6 +1355,118 @@ ${vuln.code}</pre>
             'info': 'ℹ️'
         };
         return icons[type] || 'ℹ️';
+    }
+
+    // Bulk selection functionality
+    selectAll(checked) {
+        const checkboxes = document.querySelectorAll('#secrets-table tbody input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = checked;
+            const row = checkbox.closest('tr');
+            if (row) {
+                if (checked) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            }
+        });
+        this.updateFixButtonState();
+    }
+
+    updateFixButtonState() {
+        const selectedCheckboxes = document.querySelectorAll('#secrets-table tbody input[type="checkbox"]:checked');
+        const fixButton = document.getElementById('fix-selected-btn');
+        
+        if (selectedCheckboxes.length > 0) {
+            fixButton.disabled = false;
+            fixButton.textContent = `FIX SELECTED (${selectedCheckboxes.length})`;
+        } else {
+            fixButton.disabled = true;
+            fixButton.textContent = 'FIX SELECTED';
+        }
+    }
+
+    async fixSelectedVulnerabilities() {
+        const selectedCheckboxes = document.querySelectorAll('#secrets-table tbody input[type="checkbox"]:checked');
+        
+        if (selectedCheckboxes.length === 0) {
+            this.showNotification('No vulnerabilities selected', 'error');
+            return;
+        }
+
+        // Collect selected vulnerabilities
+        const selectedVulnerabilities = [];
+        selectedCheckboxes.forEach(checkbox => {
+            const row = checkbox.closest('tr');
+            if (row) {
+                const resource = row.querySelector('td:nth-child(2)').textContent;
+                const secretKey = row.querySelector('td:nth-child(3)').textContent;
+                const type = row.querySelector('td:nth-child(4)').textContent;
+                const status = row.querySelector('td:nth-child(5)').textContent;
+                
+                // Build vulnerability object
+                const vulnerability = {
+                    id: `${resource}:${secretKey}`,
+                    resource_name: resource,
+                    secret_key: secretKey,
+                    secret_type: type.toLowerCase(),
+                    severity: status.includes('MISSING') || status.includes('CRITICAL') ? 'critical' : 
+                             status.includes('INVALID') || status.includes('HIGH') ? 'high' : 'medium',
+                    description: `Missing or misconfigured secret: ${secretKey} in resource ${resource}`,
+                    recommendation: `Store ${secretKey} securely in HashiCorp Vault and update resource configuration`,
+                    category: 'secrets_management'
+                };
+                
+                selectedVulnerabilities.push(vulnerability);
+            }
+        });
+
+        if (selectedVulnerabilities.length === 0) {
+            this.showNotification('Could not extract vulnerability details', 'error');
+            return;
+        }
+
+        this.showNotification(`Spawning Claude Code agent to fix ${selectedVulnerabilities.length} vulnerabilities...`, 'info');
+
+        try {
+            const response = await fetch(`${this.apiUrl}/api/v1/vulnerabilities/fix`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    vulnerabilities: selectedVulnerabilities
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Fix request failed: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            
+            this.showNotification(
+                `Claude Code vulnerability fixer agent has been spawned! Request ID: ${data.fix_request_id}`, 
+                'success'
+            );
+
+            // Clear selections
+            this.selectAll(false);
+            document.getElementById('select-all').checked = false;
+
+            // Show success notification with details
+            setTimeout(() => {
+                this.showNotification(
+                    'The agent is working in the background to fix your selected vulnerabilities. Check the console for progress updates.',
+                    'info'
+                );
+            }, 3000);
+
+        } catch (error) {
+            console.error('Fix vulnerabilities error:', error);
+            this.showNotification('Failed to spawn vulnerability fixer: ' + error.message, 'error');
+        }
     }
 }
 

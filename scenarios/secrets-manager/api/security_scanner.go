@@ -101,7 +101,7 @@ type VulnerabilityPattern struct {
 }
 
 // Scan a single Go file for security vulnerabilities
-func scanFileForVulnerabilities(filePath, scenarioName string) ([]SecurityVulnerability, error) {
+func scanFileForVulnerabilities(filePath, componentType, componentName string) ([]SecurityVulnerability, error) {
 	var vulnerabilities []SecurityVulnerability
 
 	// Read file content
@@ -130,7 +130,8 @@ func scanFileForVulnerabilities(filePath, scenarioName string) ([]SecurityVulner
 			
 			vulnerability := SecurityVulnerability{
 				ID:           uuid.New().String(),
-				ScenarioName: scenarioName,
+				ComponentType: componentType,
+				ComponentName: componentName,
 				FilePath:     filePath,
 				LineNumber:   lineNum,
 				Severity:     pattern.Severity,
@@ -148,7 +149,7 @@ func scanFileForVulnerabilities(filePath, scenarioName string) ([]SecurityVulner
 	}
 
 	// AST-based scanning for more sophisticated analysis
-	astVulns, err := scanFileWithAST(filePath, scenarioName, contentStr)
+	astVulns, err := scanFileWithAST(filePath, componentType, componentName, contentStr)
 	if err == nil {
 		vulnerabilities = append(vulnerabilities, astVulns...)
 	}
@@ -157,7 +158,7 @@ func scanFileForVulnerabilities(filePath, scenarioName string) ([]SecurityVulner
 }
 
 // AST-based vulnerability scanning
-func scanFileWithAST(filePath, scenarioName, content string) ([]SecurityVulnerability, error) {
+func scanFileWithAST(filePath, componentType, componentName, content string) ([]SecurityVulnerability, error) {
 	var vulnerabilities []SecurityVulnerability
 
 	fset := token.NewFileSet()
@@ -171,12 +172,12 @@ func scanFileWithAST(filePath, scenarioName, content string) ([]SecurityVulnerab
 		switch node := n.(type) {
 		case *ast.CallExpr:
 			// Check for HTTP calls without proper error handling
-			if vuln := checkHTTPCall(node, fset, scenarioName, filePath); vuln != nil {
+			if vuln := checkHTTPCall(node, fset, componentName, filePath); vuln != nil {
 				vulnerabilities = append(vulnerabilities, *vuln)
 			}
 		case *ast.AssignStmt:
 			// Check for hardcoded credentials in assignments
-			if vuln := checkHardcodedSecrets(node, fset, scenarioName, filePath); vuln != nil {
+			if vuln := checkHardcodedSecrets(node, fset, componentName, filePath); vuln != nil {
 				vulnerabilities = append(vulnerabilities, *vuln)
 			}
 		}
@@ -187,7 +188,7 @@ func scanFileWithAST(filePath, scenarioName, content string) ([]SecurityVulnerab
 }
 
 // Check for HTTP calls that might leak response bodies
-func checkHTTPCall(call *ast.CallExpr, fset *token.FileSet, scenarioName, filePath string) *SecurityVulnerability {
+func checkHTTPCall(call *ast.CallExpr, fset *token.FileSet, componentName, filePath string) *SecurityVulnerability {
 	if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
 		if ident, ok := sel.X.(*ast.Ident); ok {
 			if (ident.Name == "http" && isHTTPMethod(sel.Sel.Name)) || 
@@ -197,7 +198,8 @@ func checkHTTPCall(call *ast.CallExpr, fset *token.FileSet, scenarioName, filePa
 				
 				return &SecurityVulnerability{
 					ID:           uuid.New().String(),
-					ScenarioName: scenarioName,
+					ComponentType: "scenario",
+					ComponentName: componentName,
 					FilePath:     filePath,
 					LineNumber:   pos.Line,
 					Severity:     "critical",
@@ -216,7 +218,7 @@ func checkHTTPCall(call *ast.CallExpr, fset *token.FileSet, scenarioName, filePa
 }
 
 // Check for hardcoded secrets in variable assignments
-func checkHardcodedSecrets(assign *ast.AssignStmt, fset *token.FileSet, scenarioName, filePath string) *SecurityVulnerability {
+func checkHardcodedSecrets(assign *ast.AssignStmt, fset *token.FileSet, componentName, filePath string) *SecurityVulnerability {
 	for i, lhs := range assign.Lhs {
 		if ident, ok := lhs.(*ast.Ident); ok {
 			varName := strings.ToLower(ident.Name)
@@ -228,7 +230,8 @@ func checkHardcodedSecrets(assign *ast.AssignStmt, fset *token.FileSet, scenario
 						
 						return &SecurityVulnerability{
 							ID:           uuid.New().String(),
-							ScenarioName: scenarioName,
+							ComponentType: "scenario",
+					ComponentName: componentName,
 							FilePath:     filePath,
 							LineNumber:   pos.Line,
 							Severity:     "critical",

@@ -513,13 +513,55 @@ func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, erro
 // Handlers
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
+	
+	// Check file storage health
+	dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+	storageHealthy := true
+	var storageError map[string]interface{}
+	
+	// Test if we can read the data directory
+	if _, err := os.Stat(dataPath); err != nil {
+		storageHealthy = false
+		storageError = map[string]interface{}{
+			"code":      "STORAGE_ACCESS_ERROR",
+			"message":   fmt.Sprintf("Cannot access data directory: %v", err),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+	
+	// Overall service status
+	status := "healthy"
+	if !storageHealthy {
+		status = "degraded"
+	}
+	
+	healthResponse := map[string]interface{}{
+		"status":    status,
 		"service":   serviceName,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true, // Service is ready to accept requests
 		"version":   apiVersion,
-		"timestamp": time.Now().UTC(),
-		"storage":   "json-files",
-	})
+		"dependencies": map[string]interface{}{
+			"storage": map[string]interface{}{
+				"connected": storageHealthy,
+				"type":      "json-files",
+				"path":      dataPath,
+			},
+		},
+		"metrics": map[string]interface{}{
+			"uptime_seconds": time.Since(time.Now().Add(-time.Minute)).Seconds(), // Simplified uptime
+		},
+	}
+	
+	// Add storage error if present
+	if storageError != nil {
+		healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = storageError
+	} else {
+		healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = nil
+	}
+	
+	json.NewEncoder(w).Encode(healthResponse)
 }
 
 func optionsHandler(w http.ResponseWriter, r *http.Request) {

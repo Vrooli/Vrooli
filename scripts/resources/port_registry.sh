@@ -20,6 +20,7 @@ declare -g -A RESOURCE_PORTS=(
     ["deepstack"]="11453"      # DeepStack computer vision AI (object detection, face recognition)
     ["gazebo"]="11456"         # Gazebo robotics simulation platform (3D physics, sensors, robot modeling)
     ["godot"]="11457"          # Godot Engine game development platform (GDScript, 2D/3D engine)
+    ["mathlib"]="11458"        # Mathlib4 formal mathematical theorem proving with Lean 4
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
@@ -63,6 +64,7 @@ declare -g -A RESOURCE_PORTS=(
     ["llamaindex"]="8091"      # RAG and document processing
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
     ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
+    ["splink"]="8096"          # Probabilistic record linkage and deduplication at scale
     ["haystack"]="8075"        # End-to-end framework for question answering and search
     ["crewai"]="8084"          # Multi-agent AI framework for collaborative AI systems
     ["keycloak"]="8070"        # Enterprise identity and access management
@@ -74,8 +76,17 @@ declare -g -A RESOURCE_PORTS=(
     ["cncjs"]="8194"           # Web-based CNC controller for Grbl, Marlin, Smoothieware, TinyG
     ["esphome"]="6587"         # ESPHome IoT firmware framework for ESP32/ESP8266 microcontrollers
     ["freecad"]="8195"         # Parametric 3D CAD modeler with Python API for engineering design
+    ["octoprint"]="8197"       # Web-based 3D printer management platform with REST API
     ["ggwave"]="8196"          # Air-gapped data transmission via FSK-modulated audio signals
     ["lnbits"]="5001"          # Lightning Network Bitcoin micropayments and wallet system
+    ["strapi"]="1337"          # Strapi v5 headless CMS for structured content management
+    
+    # Payment Processing Services (230xx range)
+    ["btcpay"]="23000"         # BTCPay Server self-hosted cryptocurrency payment processor
+    
+    # Simulation Services (95xx range)
+    ["simpy"]="9510"           # SimPy discrete-event simulation framework (existing)
+    ["gridlabd"]="9511"        # GridLAB-D power distribution system simulator
     
     # Collaboration Services (80xx range)
     ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -102,27 +104,31 @@ type VaultValidationSummary struct {
 
 // Security scanning data structures
 type SecurityVulnerability struct {
-	ID          string    `json:"id"`
-	ScenarioName string   `json:"scenario_name"`
-	FilePath    string    `json:"file_path"`
-	LineNumber  int       `json:"line_number"`
-	Severity    string    `json:"severity"` // critical, high, medium, low
-	Type        string    `json:"type"`     // sql_injection, hardcoded_secret, etc.
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Code        string    `json:"code"`     // Affected code snippet
-	Recommendation string `json:"recommendation"`
-	CanAutoFix  bool      `json:"can_auto_fix"`
-	DiscoveredAt time.Time `json:"discovered_at"`
+	ID            string    `json:"id"`
+	ComponentType string    `json:"component_type"` // "resource" or "scenario"
+	ComponentName string    `json:"component_name"` // Name of resource or scenario
+	FilePath      string    `json:"file_path"`
+	LineNumber    int       `json:"line_number"`
+	Severity      string    `json:"severity"` // critical, high, medium, low
+	Type          string    `json:"type"`     // sql_injection, hardcoded_secret, etc.
+	Title         string    `json:"title"`
+	Description   string    `json:"description"`
+	Code          string    `json:"code"`     // Affected code snippet
+	Recommendation string   `json:"recommendation"`
+	CanAutoFix    bool      `json:"can_auto_fix"`
+	DiscoveredAt  time.Time `json:"discovered_at"`
 }
 
 type SecurityScanResult struct {
-	ScanID          string                  `json:"scan_id"`
-	ScenarioName    string                  `json:"scenario_name,omitempty"`
-	Vulnerabilities []SecurityVulnerability `json:"vulnerabilities"`
-	RiskScore       int                     `json:"risk_score"` // 0-100
-	ScanDurationMs  int                     `json:"scan_duration_ms"`
-	Recommendations []RemediationSuggestion `json:"recommendations"`
+	ScanID            string                  `json:"scan_id"`
+	ComponentFilter   string                  `json:"component_filter,omitempty"`   // Optional filter for specific component
+	ComponentType     string                  `json:"component_type,omitempty"`     // Filter by "resource" or "scenario"
+	Vulnerabilities   []SecurityVulnerability `json:"vulnerabilities"`
+	RiskScore         int                     `json:"risk_score"` // 0-100
+	ScanDurationMs    int                     `json:"scan_duration_ms"`
+	Recommendations   []RemediationSuggestion `json:"recommendations"`
+	ComponentsSummary ComponentScanSummary    `json:"components_summary"`
+	ScanMetrics       ScanMetrics             `json:"scan_metrics"`
 }
 
 type RemediationSuggestion struct {
@@ -136,10 +142,29 @@ type RemediationSuggestion struct {
 	EstimatedEffort  string   `json:"estimated_effort"`
 }
 
+type ComponentScanSummary struct {
+	ResourcesScanned int `json:"resources_scanned"`
+	ScenariosScanned int `json:"scenarios_scanned"`
+	TotalComponents  int `json:"total_components"`
+	ConfiguredCount  int `json:"configured_count"`
+}
+
+type ScanMetrics struct {
+	FilesScanned         int      `json:"files_scanned"`
+	FilesSkipped         int      `json:"files_skipped"`
+	LargeFilesSkipped    int      `json:"large_files_skipped"`
+	TimeoutOccurred      bool     `json:"timeout_occurred"`
+	ScanErrors           []string `json:"scan_errors,omitempty"`
+	ResourceScanTimeMs   int      `json:"resource_scan_time_ms"`
+	ScenarioScanTimeMs   int      `json:"scenario_scan_time_ms"`
+	TotalScanTimeMs      int      `json:"total_scan_time_ms"`
+}
+
 type ComplianceMetrics struct {
 	VaultSecretsHealth  int `json:"vault_secrets_health"`  // 0-100
 	SecurityScore       int `json:"security_score"`        // 0-100
 	OverallCompliance   int `json:"overall_compliance"`    // 0-100
+	ConfiguredComponents int `json:"configured_components"`
 	CriticalIssues      int `json:"critical_issues"`
 	HighIssues          int `json:"high_issues"`
 	MediumIssues        int `json:"medium_issues"`
@@ -183,6 +208,8 @@ type ProvisionResponse struct {
 	StorageLocation    string            `json:"storage_location"`
 	ValidationResult   SecretValidation  `json:"validation_result"`
 }
+
+
 
 // Database connection
 var db *sql.DB
@@ -384,8 +411,8 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 	return status
 }
 
-// Security vulnerability scanner - placeholder implementation
-func scanScenariosForVulnerabilities(scenarioFilter, severityFilter string) (*SecurityScanResult, error) {
+// Security vulnerability scanner - scans both resources and scenarios
+func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
 	startTime := time.Now()
 	scanID := uuid.New().String()
 	
@@ -399,56 +426,239 @@ func scanScenariosForVulnerabilities(scenarioFilter, severityFilter string) (*Se
 	}
 	
 	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
+	resourcesPath := filepath.Join(vrooliRoot, "resources")
 	var vulnerabilities []SecurityVulnerability
+	var resourcesScanned, scenariosScanned int
+	seenResources := make(map[string]bool)
+	seenScenarios := make(map[string]bool)
 	
-	// Walk through scenario directories
-	err := filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil // Skip files we can't read
-		}
-		
-		// Only scan Go files in api directories
-		if !strings.Contains(path, "/api/") || !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		
-		if d.IsDir() {
-			return nil
-		}
-		
-		// Extract scenario name from path
-		relPath, _ := filepath.Rel(scenariosPath, path)
-		pathParts := strings.Split(relPath, string(filepath.Separator))
-		if len(pathParts) == 0 {
-			return nil
-		}
-		scenarioName := pathParts[0]
-		
-		// Skip if filtering by specific scenario
-		if scenarioFilter != "" && scenarioFilter != scenarioName {
-			return nil
-		}
-		
-		// Scan file for vulnerabilities
-		fileVulns, err := scanFileForVulnerabilities(path, scenarioName)
-		if err != nil {
-			log.Printf("Warning: failed to scan file %s: %v", path, err)
-			return nil
-		}
-		
-		// Filter by severity if specified
-		for _, vuln := range fileVulns {
-			if severityFilter == "" || vuln.Severity == severityFilter {
-				vulnerabilities = append(vulnerabilities, vuln)
-			}
-		}
-		
-		return nil
-	})
-	
-	if err != nil {
-		return nil, fmt.Errorf("failed to walk scenarios directory: %w", err)
+	// Initialize scan metrics
+	metrics := ScanMetrics{
+		ScanErrors: []string{},
 	}
+	
+	// Scan scenarios if not filtering for resources only
+	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
+		scenarioStartTime := time.Now()
+		// Create timeout context for scenario scanning
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		
+		scenarioFilesScanned := 0
+		maxScenarioFiles := 1000 // Higher limit for scenarios as they're the main focus
+		filesPerScenario := make(map[string]int) // Track files per scenario to balance scanning
+		
+		err := filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
+			// Check timeout
+			select {
+			case <-ctx.Done():
+				log.Printf("Scenario scanning timed out after 45 seconds")
+				metrics.TimeoutOccurred = true
+				metrics.ScanErrors = append(metrics.ScanErrors, "Scenario scanning timeout after 45 seconds")
+				return filepath.SkipAll
+			default:
+			}
+			
+			if err != nil {
+				metrics.FilesSkipped++
+				return nil // Skip files we can't read
+			}
+			
+			// Only scan source files in scenarios
+			if d.IsDir() {
+				return nil
+			}
+			
+			// Extract scenario name first to apply per-scenario limits  
+			relPath, _ := filepath.Rel(scenariosPath, path)
+			pathParts := strings.Split(relPath, string(filepath.Separator))
+			if len(pathParts) == 0 {
+				return nil
+			}
+			scenarioName := pathParts[0]
+			
+			// Limit files scanned
+			if scenarioFilesScanned >= maxScenarioFiles {
+				log.Printf("Scenario scanning stopped after %d files (limit reached)", maxScenarioFiles)
+				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Scenario file limit reached (%d files)", maxScenarioFiles))
+				return filepath.SkipAll
+			}
+			
+			// Limit files per scenario to ensure we scan more scenarios
+			const maxFilesPerScenario = 20
+			if filesPerScenario[scenarioName] >= maxFilesPerScenario {
+				return nil // Skip additional files from this scenario
+			}
+			
+			// Check file size
+			info, err := d.Info()
+			if err == nil && info.Size() > 100*1024 { // Skip files larger than 100KB for scenarios
+				metrics.LargeFilesSkipped++
+				return nil
+			}
+			
+			// Check if it's a source file we should scan
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext != ".go" && ext != ".js" && ext != ".ts" && ext != ".py" && ext != ".sh" {
+				return nil
+			}
+			
+			// Skip if filtering by specific component
+			if componentFilter != "" && componentFilter != scenarioName {
+				return nil
+			}
+			
+			// Track unique scenarios scanned
+			if strings.Contains(path, "/"+scenarioName+"/") {
+				// Only count each scenario once per scan
+				if !seenScenarios[scenarioName] {
+					scenariosScanned++
+					seenScenarios[scenarioName] = true
+				}
+			}
+			
+			// Increment counters
+			scenarioFilesScanned++
+			filesPerScenario[scenarioName]++
+			metrics.FilesScanned++
+			
+			// Scan file for vulnerabilities
+			fileVulns, err := scanFileForVulnerabilities(path, "scenario", scenarioName)
+			if err != nil {
+				log.Printf("Warning: failed to scan scenario file %s: %v", path, err)
+				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to scan %s: %v", filepath.Base(path), err))
+				return nil
+			}
+			
+			// Filter by severity if specified
+			for _, vuln := range fileVulns {
+				if severityFilter == "" || vuln.Severity == severityFilter {
+					vulnerabilities = append(vulnerabilities, vuln)
+				}
+			}
+			
+			return nil
+		})
+		
+		metrics.ScenarioScanTimeMs = int(time.Since(scenarioStartTime).Milliseconds())
+		
+		if err != nil {
+			log.Printf("Warning: failed to walk scenarios directory: %v", err)
+			metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to walk scenarios directory: %v", err))
+		}
+	}
+	
+	// Scan resources if not filtering for scenarios only
+	if componentTypeFilter == "" || componentTypeFilter == "resource" {
+		resourceStartTime := time.Now()
+		// Create timeout context for resource scanning
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		resourceFilesScanned := 0
+		maxFiles := 500 // Increased limit to scan more resources
+		filesPerResource := make(map[string]int) // Track files per resource to balance scanning
+		
+		err := filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
+			// Check timeout
+			select {
+			case <-ctx.Done():
+				log.Printf("Resource scanning timed out after 30 seconds")
+				metrics.TimeoutOccurred = true
+				metrics.ScanErrors = append(metrics.ScanErrors, "Resource scanning timeout after 30 seconds")
+				return filepath.SkipAll
+			default:
+			}
+			
+			if err != nil {
+				metrics.FilesSkipped++
+				return nil // Skip files we can't read
+			}
+			
+			// Only scan config files in resources
+			if d.IsDir() {
+				return nil
+			}
+			
+			// Extract resource name first to apply per-resource limits
+			relPath, _ := filepath.Rel(resourcesPath, path)
+			pathParts := strings.Split(relPath, string(filepath.Separator))
+			if len(pathParts) == 0 {
+				return nil
+			}
+			resourceName := pathParts[0]
+			
+			// Limit number of files scanned to prevent runaway scanning
+			if resourceFilesScanned >= maxFiles {
+				log.Printf("Resource scanning stopped after %d files (limit reached)", maxFiles)
+				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Resource file limit reached (%d files)", maxFiles))
+				return filepath.SkipAll
+			}
+			
+			// Limit files per resource to ensure we scan more resources
+			const maxFilesPerResource = 10
+			if filesPerResource[resourceName] >= maxFilesPerResource {
+				return nil // Skip additional files from this resource
+			}
+			
+			// Check file size to prevent scanning huge files
+			info, err := d.Info()
+			if err == nil && info.Size() > 50*1024 { // Skip files larger than 50KB
+				metrics.LargeFilesSkipped++
+				return nil
+			}
+			
+			// Check if it's a config file we should scan  
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext != ".sh" && ext != ".yaml" && ext != ".yml" && ext != ".json" && ext != ".env" {
+				return nil
+			}
+			
+			// Skip if filtering by specific component
+			if componentFilter != "" && componentFilter != resourceName {
+				return nil
+			}
+			
+			// Track unique resources scanned
+			if strings.Contains(path, "/"+resourceName+"/") {
+				// Only count each resource once per scan
+				if !seenResources[resourceName] {
+					resourcesScanned++
+					seenResources[resourceName] = true
+				}
+			}
+			
+			// Increment counters
+			resourceFilesScanned++
+			filesPerResource[resourceName]++
+			metrics.FilesScanned++
+			
+			// Use optimized resource scanning with timeout
+			fileVulns, err := scanResourceFileForVulnerabilities(ctx, path, "resource", resourceName)
+			if err != nil {
+				log.Printf("Warning: failed to scan resource file %s: %v", path, err)
+				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to scan resource %s: %v", filepath.Base(path), err))
+				return nil
+			}
+			
+			// Filter by severity if specified
+			for _, vuln := range fileVulns {
+				if severityFilter == "" || vuln.Severity == severityFilter {
+					vulnerabilities = append(vulnerabilities, vuln)
+				}
+			}
+			
+			return nil
+		})
+		
+		metrics.ResourceScanTimeMs = int(time.Since(resourceStartTime).Milliseconds())
+		
+		if err != nil {
+			log.Printf("Warning: failed to walk resources directory: %v", err)
+			metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to walk resources directory: %v", err))
+		}
+	}
+	
 	
 	// Calculate risk score based on vulnerabilities
 	riskScore := calculateRiskScore(vulnerabilities)
@@ -456,15 +666,151 @@ func scanScenariosForVulnerabilities(scenarioFilter, severityFilter string) (*Se
 	// Generate remediation suggestions
 	recommendations := generateRemediationSuggestions(vulnerabilities)
 	
+	// Finalize scan metrics
+	totalScanTime := int(time.Since(startTime).Milliseconds())
+	metrics.TotalScanTimeMs = totalScanTime
+	
+	// Log scan summary
+	log.Printf("Vulnerability scan completed:")
+	log.Printf("  📊 Total scan time: %dms", totalScanTime)
+	log.Printf("  📁 Files scanned: %d", metrics.FilesScanned)
+	log.Printf("  ⏭️  Files skipped: %d", metrics.FilesSkipped)
+	log.Printf("  🔍 Vulnerabilities found: %d", len(vulnerabilities))
+	log.Printf("  ⚠️  Scan errors: %d", len(metrics.ScanErrors))
+	if metrics.TimeoutOccurred {
+		log.Printf("  ⏰ Timeout occurred during scanning")
+	}
+	
 	return &SecurityScanResult{
 		ScanID:          scanID,
-		ScenarioName:    scenarioFilter,
+		ComponentFilter: componentFilter,
+		ComponentType:   componentTypeFilter,
 		Vulnerabilities: vulnerabilities,
 		RiskScore:       riskScore,
-		ScanDurationMs:  int(time.Since(startTime).Milliseconds()),
+		ScanDurationMs:  totalScanTime,
 		Recommendations: recommendations,
+		ComponentsSummary: ComponentScanSummary{
+			ResourcesScanned: resourcesScanned,
+			ScenariosScanned: scenariosScanned,
+			TotalComponents:  resourcesScanned + scenariosScanned,
+			ConfiguredCount:  0, // TODO: Calculate from vault status
+		},
+		ScanMetrics: metrics,
 	}, nil
 }
+
+// Optimized resource scanning function with timeout protection
+func scanResourceFileForVulnerabilities(ctx context.Context, filePath, componentType, componentName string) ([]SecurityVulnerability, error) {
+	var vulnerabilities []SecurityVulnerability
+	
+	// Check timeout before starting
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("scanning timeout reached")
+	default:
+	}
+
+	// Read file content with size limit (50KB max)
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %w", err)
+	}
+	
+	if len(content) > 50*1024 {
+		return nil, fmt.Errorf("file too large: %d bytes", len(content))
+	}
+	
+	contentStr := string(content)
+	lines := strings.Split(contentStr, "\n")
+
+	// Resource-specific vulnerability patterns (simplified, no AST parsing)
+	resourcePatterns := []VulnerabilityPattern{
+		{
+			Type:        "hardcoded_secret_resource",
+			Severity:    "critical",
+			Pattern:     `(PASSWORD|SECRET|TOKEN|KEY|API_KEY)\s*=\s*[\"'](?!.*\$|.*env|.*getenv)[^\"']{8,}[\"']`,
+			Description: "Hardcoded secret found in resource configuration",
+			Title:       "Hardcoded Secret in Resource",
+			Recommendation: "Move secret to vault using resource-vault CLI",
+			CanAutoFix:  false,
+		},
+		{
+			Type:        "database_url_hardcoded",
+			Severity:    "critical", 
+			Pattern:     `(DATABASE_URL|DB_URL|POSTGRES_URL)\s*=\s*[\"'](?!.*\$)[^\"']*://[^\"']*:[^\"']*@[^\"']+`,
+			Description: "Database URL with hardcoded credentials",
+			Title:       "Hardcoded Database Credentials",
+			Recommendation: "Use environment variables or vault for database credentials",
+			CanAutoFix:  false,
+		},
+		{
+			Type:        "missing_env_var_validation",
+			Severity:    "medium",
+			Pattern:     `\$\{?([A-Z_]+[A-Z0-9_]*)\}?(?!\s*:-|\s*\|\|)`,
+			Description: "Environment variable used without fallback or validation",
+			Title:       "Missing Environment Variable Validation", 
+			Recommendation: "Add fallback values or validation for environment variables",
+			CanAutoFix:  true,
+		},
+		{
+			Type:        "weak_permissions",
+			Severity:    "medium",
+			Pattern:     `chmod\s+(777|666|755)`,
+			Description: "Potentially insecure file permissions",
+			Title:       "Weak File Permissions",
+			Recommendation: "Use more restrictive file permissions (644, 600, etc.)",
+			CanAutoFix:  true,
+		},
+	}
+
+	// Pattern-based scanning for resources
+	for _, pattern := range resourcePatterns {
+		// Check timeout during each pattern
+		select {
+		case <-ctx.Done():
+			return vulnerabilities, fmt.Errorf("scanning timeout during pattern matching")
+		default:
+		}
+		
+		regex, err := regexp.Compile(pattern.Pattern)
+		if err != nil {
+			continue
+		}
+
+		matches := regex.FindAllStringIndex(contentStr, -1)
+		for _, match := range matches {
+			// Find line number
+			lineNum := findLineNumber(contentStr, match[0])
+			
+			// Extract code snippet
+			codeSnippet := extractCodeSnippet(lines, lineNum-1, 2)
+			
+			vulnerability := SecurityVulnerability{
+				ID:           uuid.New().String(),
+				ComponentType: componentType,
+				ComponentName: componentName,
+				FilePath:     filePath,
+				LineNumber:   lineNum,
+				Severity:     pattern.Severity,
+				Type:         pattern.Type,
+				Title:        pattern.Title,
+				Description:  pattern.Description,
+				Code:         codeSnippet,
+				Recommendation: pattern.Recommendation,
+				CanAutoFix:   pattern.CanAutoFix,
+				DiscoveredAt: time.Now(),
+			}
+			
+			vulnerabilities = append(vulnerabilities, vulnerability)
+		}
+	}
+
+	return vulnerabilities, nil
+}
+
+
+
+
 
 func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, error) {
 	var secrets []ResourceSecret
@@ -786,10 +1132,17 @@ func vaultSecretsStatusHandler(w http.ResponseWriter, r *http.Request) {
 
 // Security scan handler
 func securityScanHandler(w http.ResponseWriter, r *http.Request) {
-	scenarioFilter := r.URL.Query().Get("scenario")
+	componentFilter := r.URL.Query().Get("component")
+	componentTypeFilter := r.URL.Query().Get("component_type")
 	severityFilter := r.URL.Query().Get("severity")
 	
-	result, err := scanScenariosForVulnerabilities(scenarioFilter, severityFilter)
+	// Support legacy scenario parameter
+	if scenarioFilter := r.URL.Query().Get("scenario"); scenarioFilter != "" && componentFilter == "" {
+		componentFilter = scenarioFilter
+		componentTypeFilter = "scenario"
+	}
+	
+	result, err := scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Security scan failed: %v", err), http.StatusInternalServerError)
 		return
@@ -846,8 +1199,8 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get security scan results
-	securityResults, err := scanScenariosForVulnerabilities("", "")
+	// Get security scan results for all components
+	securityResults, err := scanComponentsForVulnerabilities("", "", "")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to scan for vulnerabilities: %v", err), http.StatusInternalServerError)
 		return
@@ -885,14 +1238,21 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	
+	// Calculate configured components from vault status and scenarios
+	configuredComponents := vaultStatus.ConfiguredResources
+	if securityResults.ComponentsSummary.TotalComponents > 0 {
+		configuredComponents += securityResults.ComponentsSummary.ConfiguredCount
+	}
+	
 	compliance := ComplianceMetrics{
-		VaultSecretsHealth: vaultHealth,
-		SecurityScore:      securityScore,
-		OverallCompliance:  overallCompliance,
-		CriticalIssues:     criticalCount,
-		HighIssues:         highCount,
-		MediumIssues:       mediumCount,
-		LowIssues:          lowCount,
+		VaultSecretsHealth:   vaultHealth,
+		SecurityScore:        securityScore,
+		OverallCompliance:    overallCompliance,
+		ConfiguredComponents: configuredComponents,
+		CriticalIssues:       criticalCount,
+		HighIssues:           highCount,
+		MediumIssues:         mediumCount,
+		LowIssues:            lowCount,
 	}
 	
 	response := map[string]interface{}{
@@ -904,11 +1264,14 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 			"medium":   compliance.MediumIssues,
 			"low":      compliance.LowIssues,
 		},
-		"remediation_progress": compliance,
-		"total_resources":      vaultStatus.TotalResources,
-		"configured_resources": vaultStatus.ConfiguredResources,
-		"total_vulnerabilities": len(securityResults.Vulnerabilities),
-		"last_updated":         time.Now(),
+		"remediation_progress":     compliance,
+		"total_resources":          vaultStatus.TotalResources,
+		"configured_resources":     vaultStatus.ConfiguredResources,
+		"configured_components":    compliance.ConfiguredComponents,
+		"total_components":         securityResults.ComponentsSummary.TotalComponents,
+		"components_summary":       securityResults.ComponentsSummary,
+		"total_vulnerabilities":    len(securityResults.Vulnerabilities),
+		"last_updated":            time.Now(),
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
@@ -918,10 +1281,17 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 func vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	severity := r.URL.Query().Get("severity")
-	scenario := r.URL.Query().Get("scenario")
+	component := r.URL.Query().Get("component")
+	componentType := r.URL.Query().Get("component_type")
+	
+	// Support legacy scenario parameter
+	if scenario := r.URL.Query().Get("scenario"); scenario != "" && component == "" {
+		component = scenario
+		componentType = "scenario"
+	}
 	
 	// Get security scan results from real filesystem scan
-	securityResults, err := scanScenariosForVulnerabilities(scenario, severity)
+	securityResults, err := scanComponentsForVulnerabilities(component, componentType, severity)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to scan for vulnerabilities: %v", err), http.StatusInternalServerError)
 		return
@@ -1016,6 +1386,212 @@ func stringPtr(s string) *string {
 	return &s
 }
 
+// Fix vulnerabilities handler - spawns claude-code agent
+func fixVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Vulnerabilities []SecurityVulnerability `json:"vulnerabilities"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if len(req.Vulnerabilities) == 0 {
+		http.Error(w, "No vulnerabilities provided", http.StatusBadRequest)
+		return
+	}
+
+	fixRequestID := uuid.New().String()
+	log.Printf("Starting vulnerability fix request %s for %d vulnerabilities", fixRequestID, len(req.Vulnerabilities))
+
+	// Spawn claude-code agent to fix vulnerabilities
+	go func() {
+		err := spawnVulnerabilityFixerAgent(fixRequestID, req.Vulnerabilities)
+		if err != nil {
+			log.Printf("Failed to spawn vulnerability fixer agent: %v", err)
+		}
+	}()
+
+	response := map[string]interface{}{
+		"status":           "accepted",
+		"fix_request_id":   fixRequestID,
+		"vulnerabilities":  len(req.Vulnerabilities),
+		"message":          "Claude Code vulnerability fixer agent has been spawned",
+		"timestamp":        time.Now().Format(time.RFC3339),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// fixProgressHandler handles progress updates from the claude-code agent
+func fixProgressHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		FixRequestID     string `json:"fix_request_id"`
+		VulnerabilityID  string `json:"vulnerability_id"`
+		Status           string `json:"status"` // completed, failed, skipped
+		Message          string `json:"message"`
+		FilesModified    []string `json:"files_modified,omitempty"`
+		VaultPath        string `json:"vault_path,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.FixRequestID == "" || req.VulnerabilityID == "" || req.Status == "" {
+		http.Error(w, "Missing required fields: fix_request_id, vulnerability_id, status", http.StatusBadRequest)
+		return
+	}
+
+	// Log the progress update
+	log.Printf("Fix progress [%s]: %s - %s (%s)", req.FixRequestID, req.VulnerabilityID, req.Status, req.Message)
+	
+	if len(req.FilesModified) > 0 {
+		log.Printf("  Files modified: %v", req.FilesModified)
+	}
+	
+	if req.VaultPath != "" {
+		log.Printf("  Vault path: %s", req.VaultPath)
+	}
+
+	response := map[string]interface{}{
+		"status":    "acknowledged",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"message":   "Progress update received",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// validateEnvironmentForFixes checks that the environment is ready for vulnerability fixing
+func validateEnvironmentForFixes() error {
+	// Check if vault is accessible
+	cmd := exec.Command("resource-vault", "status")
+	if err := cmd.Run(); err != nil {
+		log.Printf("⚠️  Vault status check failed: %v", err)
+		log.Printf("    The agent will attempt to work without vault access")
+		// Don't fail completely - agent can still do code cleanup without vault
+	}
+
+	// Check if resource-claude-code is available
+	cmd = exec.Command("resource-claude-code", "--help")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("resource-claude-code not available: %w", err)
+	}
+
+	log.Printf("✅ Environment validation passed - ready to spawn vulnerability fixer agent")
+	return nil
+}
+
+// spawnVulnerabilityFixerAgent spawns a claude-code agent to fix vulnerabilities
+func spawnVulnerabilityFixerAgent(fixRequestID string, vulnerabilities []SecurityVulnerability) error {
+	// Get VROOLI_ROOT
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get user home directory: %w", err)
+		}
+		vrooliRoot = filepath.Join(home, "Vrooli")
+	}
+
+	// Validate environment before proceeding
+	if err := validateEnvironmentForFixes(); err != nil {
+		return fmt.Errorf("environment validation failed: %w", err)
+	}
+
+	// Load prompt template
+	promptPath := filepath.Join(vrooliRoot, "scenarios", "secrets-manager", "initialization", "claude-code", "vulnerability-fixer.md")
+	promptTemplate, err := os.ReadFile(promptPath)
+	if err != nil {
+		return fmt.Errorf("failed to read prompt template: %w", err)
+	}
+
+	// Build vulnerabilities JSON
+	vulnJSON, err := json.MarshalIndent(vulnerabilities, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal vulnerabilities: %w", err)
+	}
+
+	// Replace template variables
+	prompt := string(promptTemplate)
+	prompt = strings.ReplaceAll(prompt, "{{FIX_REQUEST_ID}}", fixRequestID)
+	prompt = strings.ReplaceAll(prompt, "{{TIMESTAMP}}", time.Now().Format(time.RFC3339))
+	prompt = strings.ReplaceAll(prompt, "{{VULNERABILITIES_COUNT}}", strconv.Itoa(len(vulnerabilities)))
+	prompt = strings.ReplaceAll(prompt, "{{SELECTED_VULNERABILITIES}}", string(vulnJSON))
+
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+
+	// Use resource-claude-code directly (following system-monitor pattern)
+	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-")
+	cmd.Dir = vrooliRoot
+
+	// Apply Claude execution settings and context via environment variables
+	cmd.Env = append(os.Environ(),
+		"MAX_TURNS=75",
+		"ANTHROPIC_BETA=computer-use-2024-10-22",
+		fmt.Sprintf("SCENARIO_CONTEXT=%s", "secrets-manager"),
+		fmt.Sprintf("WORKING_DIR=%s", vrooliRoot),
+		fmt.Sprintf("FIX_REQUEST_ID=%s", fixRequestID),
+	)
+
+	// Set up stdin with the prompt
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdin pipe: %w", err)
+	}
+
+	// Log the agent startup details
+	log.Printf("🤖 Spawning vulnerability fixer agent:")
+	log.Printf("   📁 Working directory: %s", vrooliRoot)
+	log.Printf("   🎯 Vulnerabilities to fix: %d", len(vulnerabilities))
+	log.Printf("   ⏱️  Timeout: 10 minutes")
+	log.Printf("   📄 Prompt template: %s", promptPath)
+
+	// Start the command
+	err = cmd.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start claude-code command: %w", err)
+	}
+
+	log.Printf("✅ Claude Code agent started successfully (PID: %d)", cmd.Process.Pid)
+
+	// Write prompt to stdin and close
+	go func() {
+		defer stdin.Close()
+		stdin.Write([]byte(prompt))
+	}()
+
+	// Wait for completion (non-blocking)
+	go func() {
+		err := cmd.Wait()
+		if err != nil {
+			log.Printf("Claude Code vulnerability fixer completed with error: %v", err)
+		} else {
+			log.Printf("Claude Code vulnerability fixer completed successfully for request %s", fixRequestID)
+		}
+	}()
+
+	log.Printf("Successfully spawned vulnerability fixer agent for request %s", fixRequestID)
+	return nil
+}
+
 func main() {
 	// Initialize database (skip if not available)
 	// initDB()
@@ -1039,6 +1615,8 @@ func main() {
 	api.HandleFunc("/security/scan", securityScanHandler).Methods("GET")
 	api.HandleFunc("/security/compliance", complianceHandler).Methods("GET")
 	api.HandleFunc("/vulnerabilities", vulnerabilitiesHandler).Methods("GET")
+	api.HandleFunc("/vulnerabilities/fix", fixVulnerabilitiesHandler).Methods("POST")
+	api.HandleFunc("/vulnerabilities/fix/progress", fixProgressHandler).Methods("POST")
 	
 	// Legacy routes (keep for backward compatibility)
 	api.HandleFunc("/secrets/scan", vaultSecretsStatusHandler).Methods("GET", "POST")

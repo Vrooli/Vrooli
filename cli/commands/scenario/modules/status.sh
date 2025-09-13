@@ -133,16 +133,26 @@ scenario::status::format_json_individual() {
     local response="$1"
     local scenario_name="$2"
     
-    # Create enhanced JSON response for individual scenario
-    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" '
+    # Extract status from response
+    local status
+    status=$(echo "$response" | jq -r '.data.status // "unknown"' 2>/dev/null)
+    
+    # Collect comprehensive diagnostic data
+    local diagnostic_data
+    diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
+    
+    # Create enhanced JSON response for individual scenario with diagnostics
+    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" '
     {
         "success": .success,
         "scenario_name": $scenario_name,
         "scenario_data": .data,
+        "diagnostics": $diagnostics,
         "raw_response": .,
         "metadata": {
             "query_type": "individual_scenario",
-            "timestamp": (now | strftime("%Y-%m-%d %H:%M:%S UTC"))
+            "timestamp": (now | strftime("%Y-%m-%d %H:%M:%S UTC")),
+            "diagnostics_included": true
         }
     }')
     echo "$enhanced_response"
@@ -248,8 +258,12 @@ scenario::status::format_display_individual() {
         echo "$port_status" | jq -r 'to_entries[] | "  \(.key): http://localhost:\(.value.port) - \(if .value.listening then "✓ listening" else "✗ not listening" end)"' 2>/dev/null
     fi
     
-    # Enhanced Health Checks with Schema Validation
-    scenario::health::check_scenario "$scenario_name" "$response" "$status"
+    # Enhanced Health Checks and Diagnostics using unified data collection
+    local diagnostic_data
+    diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
+    
+    # Display the diagnostic information in text format
+    scenario::status::display_diagnostic_data "$scenario_name" "$diagnostic_data" "$status"
     
     echo ""
     if [[ "$status" == "stopped" ]]; then
@@ -382,4 +396,247 @@ scenario::status::format_status() {
             echo "Status:        ❓ $status"
             ;;
     esac
+}
+
+# Display diagnostic data in text format (unified with JSON output)
+scenario::status::display_diagnostic_data() {
+    local scenario_name="$1"
+    local diagnostic_data="$2"
+    local status="$3"
+    
+    # For running scenarios, display health checks and enhanced diagnostics
+    if [[ "$status" == "running" ]]; then
+        scenario::status::display_health_checks "$diagnostic_data"
+        scenario::status::display_running_diagnostics "$diagnostic_data" "$scenario_name"
+    fi
+    
+    # For stopped scenarios, display failure diagnostics
+    if [[ "$status" == "stopped" ]]; then
+        scenario::status::display_failure_diagnostics "$diagnostic_data" "$scenario_name"
+    fi
+}
+
+# Display health check information for running scenarios
+scenario::status::display_health_checks() {
+    local diagnostic_data="$1"
+    
+    # Check if we have health check data
+    local has_ui_health=$(echo "$diagnostic_data" | jq '.health_checks.ui != null')
+    local has_api_health=$(echo "$diagnostic_data" | jq '.health_checks.api != null')
+    
+    if [[ "$has_ui_health" == "true" ]] || [[ "$has_api_health" == "true" ]]; then
+        echo ""
+        echo "Health Checks:"
+        
+        # Display UI health if available
+        if [[ "$has_ui_health" == "true" ]]; then
+            local ui_available=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.available // false')
+            local ui_port=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.port // null')
+            local ui_status=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.status // "unknown"')
+            
+            if [[ "$ui_available" == "true" ]]; then
+                echo "  UI Service (port $ui_port):"
+                
+                local schema_valid=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.schema_valid // false')
+                if [[ "$schema_valid" == "true" ]]; then
+                    case "$ui_status" in
+                        healthy)
+                            echo "    Status:      ✅ $ui_status"
+                            ;;
+                        degraded)
+                            echo "    Status:      ⚠️  $ui_status"
+                            ;;
+                        unhealthy)
+                            echo "    Status:      ❌ $ui_status"
+                            ;;
+                        *)
+                            echo "    Status:      ❓ $ui_status"
+                            ;;
+                    esac
+                    
+                    # Show API connectivity
+                    local api_connected=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.api_connectivity.connected // false')
+                    local api_url=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.api_connectivity.api_url // "unknown"')
+                    
+                    if [[ "$api_connected" == "true" ]]; then
+                        echo "    API Link:    ✅ Connected to $api_url"
+                        local latency=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.api_connectivity.latency_ms // null')
+                        [[ "$latency" != "null" ]] && echo "    Latency:     ${latency}ms"
+                    elif [[ "$api_connected" == "false" ]]; then
+                        echo "    API Link:    ❌ DISCONNECTED from $api_url"
+                        local api_error=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.api_connectivity.error // null')
+                        [[ "$api_error" != "null" ]] && echo "    Error:       $api_error"
+                    fi
+                else
+                    echo "    Status:      ⚠️  Invalid health response (not compliant with schema)"
+                    echo "    💡 UI health endpoint must include 'api_connectivity' field"
+                    echo "       See: ${SCENARIO_CMD_DIR}/schemas/health-ui.schema.json"
+                fi
+            else
+                echo "  UI Service:    ⚠️  Health endpoint not responding"
+            fi
+        fi
+        
+        # Display API health if available
+        if [[ "$has_api_health" == "true" ]]; then
+            local api_available=$(echo "$diagnostic_data" | jq -r '.health_checks.api.available // false')
+            local api_port=$(echo "$diagnostic_data" | jq -r '.health_checks.api.port // null')
+            local api_status=$(echo "$diagnostic_data" | jq -r '.health_checks.api.status // "unknown"')
+            
+            if [[ "$api_available" == "true" ]]; then
+                if [[ "$has_ui_health" != "true" ]]; then
+                    echo "  API Service (port $api_port):"
+                else
+                    echo "  API Service (port $api_port):"
+                fi
+                
+                local schema_valid=$(echo "$diagnostic_data" | jq -r '.health_checks.api.schema_valid // false')
+                if [[ "$schema_valid" == "true" ]]; then
+                    case "$api_status" in
+                        healthy)
+                            echo "    Status:      ✅ $api_status"
+                            ;;
+                        degraded)
+                            echo "    Status:      ⚠️  $api_status"
+                            ;;
+                        unhealthy)
+                            echo "    Status:      ❌ $api_status"
+                            ;;
+                        *)
+                            echo "    Status:      ❓ $api_status"
+                            ;;
+                    esac
+                    
+                    # Show dependencies if available
+                    local db_connected=$(echo "$diagnostic_data" | jq -r '.health_checks.api.dependencies.database.connected // null')
+                    if [[ "$db_connected" != "null" ]]; then
+                        if [[ "$db_connected" == "true" ]]; then
+                            echo "    Database:    ✅ Connected"
+                        else
+                            echo "    Database:    ❌ Disconnected"
+                        fi
+                    fi
+                else
+                    echo "    Status:      ⚠️  Invalid health response"
+                fi
+            else
+                if [[ "$has_ui_health" != "true" ]]; then
+                    echo "  API Service:   ⚠️  Health endpoint not responding"
+                else
+                    echo "  API Service:   ⚠️  Health endpoint not responding"
+                fi
+            fi
+        fi
+    fi
+}
+
+# Display running scenario diagnostics
+scenario::status::display_running_diagnostics() {
+    local diagnostic_data="$1"
+    local scenario_name="$2"
+    
+    # Check if there are any issues to display
+    local has_warnings=$(echo "$diagnostic_data" | jq '.log_analysis.recent_warnings | length > 0')
+    local has_resource_issues=$(echo "$diagnostic_data" | jq '.log_analysis.resource_issues | length > 0')
+    local has_performance_warnings=$(echo "$diagnostic_data" | jq '.log_analysis.performance_warnings | length > 0')
+    
+    # Check for slow response times
+    local api_slow=$(echo "$diagnostic_data" | jq '.responsiveness.api.response_time > 3.0')
+    local ui_slow=$(echo "$diagnostic_data" | jq '.responsiveness.ui.response_time > 3.0')
+    local api_timeout=$(echo "$diagnostic_data" | jq -r '.responsiveness.api.timeout // false')
+    local ui_timeout=$(echo "$diagnostic_data" | jq -r '.responsiveness.ui.timeout // false')
+    
+    local has_performance_issues=false
+    if [[ "$api_slow" == "true" ]] || [[ "$ui_slow" == "true" ]] || [[ "$api_timeout" == "true" ]] || [[ "$ui_timeout" == "true" ]]; then
+        has_performance_issues=true
+    fi
+    
+    # Display diagnostics if there are any issues
+    if [[ "$has_warnings" == "true" ]] || [[ "$has_resource_issues" == "true" ]] || [[ "$has_performance_warnings" == "true" ]] || [[ "$has_performance_issues" == "true" ]]; then
+        echo ""
+        echo "🔍 Running Scenario Analysis:"
+        
+        # Show recent warnings
+        if [[ "$has_warnings" == "true" ]]; then
+            echo "  Recent Warnings:"
+            echo "$diagnostic_data" | jq -r '.log_analysis.recent_warnings[] | "    ⚠️  " + .component + ": " + .message'
+        fi
+        
+        # Show resource issues
+        if [[ "$has_resource_issues" == "true" ]]; then
+            echo "  Resource Issues:"
+            echo "$diagnostic_data" | jq -r '.log_analysis.resource_issues[] | "    🔴 " + .component + ": " + .message'
+        fi
+        
+        # Show performance warnings from logs
+        if [[ "$has_performance_warnings" == "true" ]]; then
+            echo "  Performance Warnings:"
+            echo "$diagnostic_data" | jq -r '.log_analysis.performance_warnings[] | "    🟡 " + .component + ": " + .message'
+        fi
+        
+        # Show responsiveness issues
+        if [[ "$has_performance_issues" == "true" ]]; then
+            echo "  Response Time Issues:"
+            if [[ "$api_timeout" == "true" ]]; then
+                echo "    🔴 API health endpoint timing out (>10s)"
+            elif [[ "$api_slow" == "true" ]]; then
+                local api_time=$(echo "$diagnostic_data" | jq -r '.responsiveness.api.response_time')
+                echo "    🟡 API health endpoint slow (${api_time}s response)"
+            fi
+            
+            if [[ "$ui_timeout" == "true" ]]; then
+                echo "    🔴 UI health endpoint timing out (>10s)"
+            elif [[ "$ui_slow" == "true" ]]; then
+                local ui_time=$(echo "$diagnostic_data" | jq -r '.responsiveness.ui.response_time')
+                echo "    🟡 UI health endpoint slow (${ui_time}s response)"
+            fi
+        fi
+        
+        echo "  💡 Check detailed logs: vrooli scenario logs $scenario_name"
+        
+        # Show enhanced diagnostics
+        echo ""
+        echo "💡 Diagnostics:"
+        local api_connected=$(echo "$diagnostic_data" | jq -r '.health_checks.ui.api_connectivity.connected // null')
+        if [[ "$api_connected" == "false" ]]; then
+            echo "  • UI cannot reach API - check API logs and configuration"
+            echo "  • Verify API_URL environment variable in UI matches API port"
+        fi
+        echo "  • Check logs: vrooli scenario logs $scenario_name"
+        echo "  • Validate health endpoints comply with schemas in:"
+        echo "    ${SCENARIO_CMD_DIR}/schemas/"
+    fi
+}
+
+# Display failure diagnostics for stopped scenarios
+scenario::status::display_failure_diagnostics() {
+    local diagnostic_data="$1"
+    local scenario_name="$2"
+    
+    # Check if we have failure data
+    local has_api_failures=$(echo "$diagnostic_data" | jq '.log_analysis.api_failures | length > 0')
+    local has_ui_failures=$(echo "$diagnostic_data" | jq '.log_analysis.ui_failures | length > 0')
+    local has_general_recs=$(echo "$diagnostic_data" | jq '.log_analysis.general_recommendations | length > 0')
+    
+    if [[ "$has_api_failures" == "true" ]] || [[ "$has_ui_failures" == "true" ]] || [[ "$has_general_recs" == "true" ]]; then
+        echo ""
+        
+        # Display API failures
+        if [[ "$has_api_failures" == "true" ]]; then
+            echo "$diagnostic_data" | jq -r '.log_analysis.api_failures[] | 
+                "🔍 API Startup Failure:\n   " + .message + "\n   💡 " + .recommendation + "\n"'
+        fi
+        
+        # Display UI failures
+        if [[ "$has_ui_failures" == "true" ]]; then
+            echo "$diagnostic_data" | jq -r '.log_analysis.ui_failures[] | 
+                "🔍 UI Startup Failure:\n   " + .message + "\n   💡 " + .recommendation + "\n"'
+        fi
+        
+        # Display general recommendations if no specific failures found
+        if [[ "$has_general_recs" == "true" ]] && [[ "$has_api_failures" == "false" ]] && [[ "$has_ui_failures" == "false" ]]; then
+            echo "💡 Troubleshooting tips:"
+            echo "$diagnostic_data" | jq -r '.log_analysis.general_recommendations[] | "   • " + .'
+        fi
+    fi
 }

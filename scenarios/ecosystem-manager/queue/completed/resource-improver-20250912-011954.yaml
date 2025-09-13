@@ -1,0 +1,73 @@
+id: resource-improver-20250912-011954
+title: Improve cncjs
+type: resource
+operation: improver
+category: ""
+priority: medium
+effort_estimate: 16h+
+urgency: low
+impact_score: 5
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: completed
+progress_percentage: 100
+current_phase: completed
+started_at: ""
+completed_at: "2025-09-12T20:20:04-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-12T01:19:54-04:00"
+updated_at: "2025-09-12T20:20:04-04:00"
+tags: []
+notes: |-
+    Below are notes from last time. It looks like the key takeaway is that we need some sort of CNC machine mock for full testing.
+
+    ### What Was Accomplished
+    Successfully improved the cncjs resource with the following enhancements:
+
+    1. **Enhanced Health Checks**: Improved health check to validate actual CNCjs content in response
+    2. **Macro Support (P1 Requirement)**: Fully implemented macro automation system with:
+       - Create, list, run, and remove macros
+       - Support for both inline G-code and file-based macros
+       - Integration with watch directory for execution
+    3. **Improved Error Handling**: Better status reporting and error messages
+    4. **Comprehensive Testing**: Added macro management tests to integration suite
+    5. **Documentation**: Updated README with macro examples and created PROBLEMS.md
+
+    ### Current Status
+    - **Working**: All core functionality operational
+    - **Progress**: 30% → 45% (1 P1 requirement completed)
+    - **Tests**: All tests passing (smoke, integration, unit)
+
+    ### Validation Evidence
+    ```bash
+    vrooli resource cncjs test all  # All tests pass
+    vrooli resource cncjs macro list  # Macro commands work
+    vrooli resource cncjs status  # Service healthy
+    ```
+
+    ### Lessons Learned
+    - CNCjs requires actual hardware for full controller features
+    - Macro system provides valuable automation without hardware
+    - WebSocket API requires authentication setup for full access
+    - Docker privileged mode needed for serial port access
+
+    ### Recommendations for Future Improvements
+    1. Implement authentication token management for API access
+    2. Add virtual controller mode for testing without hardware
+    3. Implement 3D visualization wrapper
+    4. Add network controller support (ESP32, Raspberry Pi)
+results:
+    completed_at: "2025-09-12T20:20:04-04:00"
+    execution_time: 7m35s
+    message: Task completed successfully
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 2400 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 35745 chars)\n\nExcellent! The CNCjs resource has been successfully improved with two major P1 requirements:\n\n## Task Completion Summary\n\n### What Was Accomplished\nSuccessfully improved the cncjs resource by implementing two P1 requirements without requiring physical hardware:\n\n1. **Workflow Storage (P1)** - Complete multi-step job management system\n   - Create, manage, and execute CNC job sequences\n   - Export/import workflows for sharing and backup\n   - Automatic step queuing with metadata\n\n2. **Multi-Controller Support (P1)** - Profile-based controller configuration\n   - Support for all major CNC controller types (Grbl, Marlin, Smoothieware, TinyG, g2core)\n   - Controller-specific default settings\n   - Easy profile switching and testing\n\n### Current Status\n- **Working**: All functionality operational including new features\n- **Progress**: 45% → 65% (2 P1 requirements fully implemented)\n- **Tests**: All tests passing (smoke, integration, unit)\n\n### Validation Evidence\n```bash\nvrooli resource cncjs test all  # All tests pass including new features\nvrooli resource cncjs workflow list  # Workflow management working\nvrooli resource cncjs controller list  # Controller profiles working\n```\n\n### Lessons Learned\n- Workflow management provides significant value without hardware dependencies\n- Controller profiles enable better multi-machine support\n- Feature implementation without hardware is possible for management features\n- Export/import capabilities essential for production workflows\n\n### Recommendations for Future Improvements\n1. **3D Visualization wrapper** - WebGL G-code path preview (P1 remaining)\n2. **Authentication token management** - For secure API access\n3. **Virtual controller mode** - For testing without hardware\n4. **Network controller support** - ESP32/Raspberry Pi connections\n5. **Camera integration** - Real-time monitoring (P2)\n\nThe resource now provides 65% of planned functionality with significant improvements in workflow management and multi-controller support that will benefit manufacturing scenarios.\n"
+    prompt_size: 35908 chars (35.07 KB)
+    started_at: "2025-09-12T20:12:29-04:00"
+    success: true
+    timeout_allowed: 40m0s

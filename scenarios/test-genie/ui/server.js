@@ -38,12 +38,58 @@ app.use(express.json());
 app.use(express.static('.'));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
+app.get('/health', async (req, res) => {
+  const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    service: 'test-genie-ui'
-  });
+    service: 'test-genie-ui',
+    api_connectivity: {
+      connected: false,
+      api_url: apiBaseUrl,
+      last_check: new Date().toISOString(),
+      error: null,
+      latency_ms: null
+    }
+  };
+
+  // Check API connectivity
+  const startTime = Date.now();
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    const response = await fetch(`${apiBaseUrl}/health`, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'test-genie-ui-health-check'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    const latency = Date.now() - startTime;
+    
+    if (response.ok) {
+      health.api_connectivity.connected = true;
+      health.api_connectivity.latency_ms = latency;
+    } else {
+      health.api_connectivity.error = `API returned ${response.status}`;
+      health.status = 'degraded';
+    }
+  } catch (error) {
+    health.api_connectivity.error = error.message;
+    health.status = 'degraded';
+    
+    // Provide specific error context
+    if (error.name === 'AbortError') {
+      health.api_connectivity.error = 'API connection timeout (>5s)';
+    } else if (error.message.includes('ECONNREFUSED')) {
+      health.api_connectivity.error = `API not reachable at ${apiBaseUrl}`;
+    }
+  }
+  
+  // Set appropriate HTTP status code
+  const httpStatus = health.status === 'healthy' ? 200 : 503;
+  res.status(httpStatus).json(health);
 });
 
 // Remove this duplicate - the enhanced API proxy is below
