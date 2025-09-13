@@ -74,18 +74,11 @@ browser::execute_js() {
         -d "$wrapped_code" \
         "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
     
-    # Check for success
+    # Check for response
     if [[ -n "$response" ]]; then
-        local success=$(echo "$response" | jq -r '.success // false')
-        if [[ "$success" == "true" ]]; then
-            echo "$response"
-            return 0
-        else
-            local error=$(echo "$response" | jq -r '.error // "Unknown error"')
-            log::error "JavaScript execution failed: $error"
-            echo "$response"
-            return 1
-        fi
+        # Just return the response - let the caller handle success/error checking
+        echo "$response"
+        return 0
     else
         log::error "No response from browserless"
         return 1

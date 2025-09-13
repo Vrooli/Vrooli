@@ -38,10 +38,10 @@ run_test() {
     
     if eval "$test_cmd" &>/dev/null; then
         echo "$(format::success "✓")"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
     else
         echo "$(format::error "✗")"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED++)) || true
     fi
 }
 
@@ -53,27 +53,22 @@ main() {
     run_test "Install command" "resource-openrouter manage install --force"
     
     # Test 2: Info command shows runtime config
-    run_test "Info command" "resource-openrouter info | grep -q 'startup_order'"
+    run_test "Info command" "resource-openrouter info | grep -q 'Startup Order'"
     
     # Test 3: Content management - list
     run_test "Content list" "resource-openrouter content list"
     
     # Test 4: Test CLI framework integration
-    run_test "CLI framework v2.0" "resource-openrouter help | grep -q 'manage'"
+    run_test "CLI framework v2.0" "resource-openrouter help | grep 'manage' >/dev/null"
     
     # Test 5: Configuration commands
     run_test "Show config" "resource-openrouter show-config"
     
-    # Skip API-dependent tests if no key configured
-    if [[ -n "${OPENROUTER_API_KEY:-}" ]] || openrouter::init 2>/dev/null; then
-        # Test 6: List models
-        run_test "List models" "resource-openrouter content models | head -5"
-        
-        # Test 7: Test connection
-        run_test "Test connection" "resource-openrouter test smoke"
-    else
-        echo "Skipping API-dependent tests (no API key configured)"
-    fi
+    # Test 6: List models (works without API key - public endpoint)
+    run_test "List models" "resource-openrouter content models >/dev/null"
+    
+    # Test 7: Test connection (this will fail without API key but test the command exists)
+    run_test "Test connection" "resource-openrouter test smoke"
     
     # Test 8: Manage group commands
     run_test "Manage start (noop)" "resource-openrouter manage start"

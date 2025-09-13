@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${POSTGRES_CLI_DIR}/config/defaults.sh"
 
 # Source PostgreSQL libraries
-for lib in common docker install status backup database instance multi_instance migration; do
+for lib in core common docker install status backup database instance multi_instance migration test; do
     lib_file="${POSTGRES_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -52,7 +52,12 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="postgres::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="postgres::docker::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="postgres::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="postgres::docker::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="postgres::status::check"
+
+# Test handlers - delegate to test scripts per v2.0 contract
+CLI_COMMAND_HANDLERS["test::smoke"]="postgres::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="postgres::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="postgres::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="postgres::test::all"
 
 # Content handlers for database functionality
 CLI_COMMAND_HANDLERS["content::add"]="postgres::content::add"
@@ -64,6 +69,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="postgres::content::execute"
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
+cli::register_command "info" "Show resource information from runtime.json" "postgres::info"
+cli::register_command "help" "Show comprehensive help with examples" "postgres::help"
 cli::register_command "status" "Show detailed PostgreSQL status" "postgres::status::show"
 cli::register_command "logs" "Show PostgreSQL logs" "postgres::docker::logs"
 

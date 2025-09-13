@@ -1,5 +1,6 @@
 #!/bin/bash
 # Integration tests for Airbyte - End-to-end functionality (<120s)
+# Tests API endpoints, connector management, and sync monitoring
 
 set -euo pipefail
 
@@ -7,10 +8,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 source "${RESOURCE_DIR}/lib/core.sh"
+source "${RESOURCE_DIR}/config/defaults.sh"
 
 echo "Running Airbyte integration tests..."
 
-API_URL="http://localhost:${AIRBYTE_SERVER_PORT:-8001}/api/v1"
+API_URL="http://localhost:${AIRBYTE_SERVER_PORT}/api/v1"
 
 # Test 1: List source definitions
 echo -n "  Testing source definitions API... "
@@ -64,6 +66,44 @@ else
     echo "FAILED"
     echo "    Database not ready"
     exit 1
+fi
+
+# Test 6: Jobs API (sync history)
+echo -n "  Testing jobs API... "
+response=$(curl -sf "${API_URL}/jobs/list" 2>/dev/null || echo "FAILED")
+if [[ "$response" != "FAILED" ]]; then
+    echo "OK"
+else
+    echo "WARNING"
+    echo "    Jobs API not accessible (expected if no syncs have run)"
+fi
+
+# Test 7: Enhanced health monitoring
+echo -n "  Testing enhanced health monitoring... "
+if check_health true > /dev/null 2>&1; then
+    echo "OK"
+else
+    echo "WARNING"
+    echo "    Some services may not be fully healthy"
+fi
+
+# Test 8: CLI content management
+echo -n "  Testing CLI content commands... "
+if "${RESOURCE_DIR}/cli.sh" content list --type sources > /dev/null 2>&1; then
+    echo "OK"
+else
+    echo "FAILED"
+    echo "    CLI content management failed"
+    exit 1
+fi
+
+# Test 9: Sync status monitoring
+echo -n "  Testing sync status monitoring... "
+if check_sync_status > /dev/null 2>&1; then
+    echo "OK"
+else
+    echo "WARNING"
+    echo "    Sync monitoring returned warnings (expected if no syncs configured)"
 fi
 
 echo "Integration tests completed successfully"

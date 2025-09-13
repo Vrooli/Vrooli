@@ -51,15 +51,18 @@ session::create() {
     local session_file="${SESSION_STORE}/${session_id}.json"
     local created_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     
-    cat > "$session_file" <<EOF
-{
-    "id": "$session_id",
-    "created_at": "$created_at",
-    "status": "active",
-    "options": $options,
-    "browserless_port": $browserless_port
-}
-EOF
+    # Build proper JSON with jq to ensure correct formatting
+    echo "$options" | jq --arg id "$session_id" \
+        --arg created_at "$created_at" \
+        --arg status "active" \
+        --arg port "$browserless_port" \
+        '{
+            id: $id,
+            created_at: $created_at,
+            status: $status,
+            options: .,
+            browserless_port: ($port | tonumber)
+        }' > "$session_file"
     
     log::success "Session created: $session_id"
     return 0

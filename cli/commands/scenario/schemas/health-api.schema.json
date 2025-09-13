@@ -3,7 +3,39 @@
   "title": "API Health Check Response",
   "description": "Schema for API service health check responses. APIs should report their status and dependencies.",
   "type": "object",
-  "required": ["status"],
+  "required": ["status", "service", "timestamp", "readiness"],
+  "definitions": {
+    "errorObject": {
+      "type": "object",
+      "description": "Standardized error structure",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code (e.g., CONNECTION_REFUSED, TIMEOUT)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["network", "configuration", "authentication", "resource", "internal"],
+          "description": "Error category for automated handling"
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "Whether retrying the operation might succeed"
+        },
+        "details": {
+          "type": "object",
+          "description": "Optional additional error context",
+          "additionalProperties": true
+        }
+      },
+      "required": ["code", "message", "category", "retryable"],
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "status": {
       "type": "string",
@@ -12,12 +44,16 @@
     },
     "service": {
       "type": "string",
-      "description": "Name of the API service (e.g., 'test-genie-api')"
+      "description": "Name of the API service (e.g., 'test-genie-api') (REQUIRED)"
     },
     "timestamp": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO 8601 timestamp of the health check"
+      "description": "ISO 8601 timestamp of the health check (REQUIRED)"
+    },
+    "readiness": {
+      "type": "boolean",
+      "description": "Whether the service is ready to serve traffic (true) or still initializing/draining (false). Distinguishes startup state from operational health."
     },
     "version": {
       "type": "string",
@@ -38,7 +74,11 @@
               "minimum": 0
             },
             "error": {
-              "type": ["string", "null"]
+              "oneOf": [
+                {"$ref": "#/definitions/errorObject"},
+                {"type": "null"}
+              ],
+              "description": "Structured error information if connection failed, null if successful"
             }
           }
         },
@@ -53,7 +93,11 @@
               "minimum": 0
             },
             "error": {
-              "type": ["string", "null"]
+              "oneOf": [
+                {"$ref": "#/definitions/errorObject"},
+                {"type": "null"}
+              ],
+              "description": "Structured error information if connection failed, null if successful"
             }
           }
         },
@@ -69,7 +113,11 @@
                 "type": "boolean"
               },
               "error": {
-                "type": ["string", "null"]
+                "oneOf": [
+                  {"$ref": "#/definitions/errorObject"},
+                  {"type": "null"}
+                ],
+                "description": "Structured error information if connection failed, null if successful"
               }
             }
           }

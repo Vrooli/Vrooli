@@ -4,10 +4,19 @@
 # Version
 export AIRBYTE_VERSION="${AIRBYTE_VERSION:-0.50.0}"
 
-# Ports (from port registry)
-export AIRBYTE_WEBAPP_PORT="${AIRBYTE_WEBAPP_PORT:-8000}"
-export AIRBYTE_SERVER_PORT="${AIRBYTE_SERVER_PORT:-8001}"
-export AIRBYTE_TEMPORAL_PORT="${AIRBYTE_TEMPORAL_PORT:-8006}"
+# Load ports from registry
+PORT_REGISTRY="${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
+if [[ -f "$PORT_REGISTRY" ]]; then
+    source "$PORT_REGISTRY"
+    export AIRBYTE_WEBAPP_PORT="${RESOURCE_PORTS[airbyte]:-8002}"
+    export AIRBYTE_SERVER_PORT="${RESOURCE_PORTS[airbyte-server]:-8003}"
+    export AIRBYTE_TEMPORAL_PORT="${RESOURCE_PORTS[airbyte-temporal]:-8006}"
+else
+    # Fallback to registry-defined ports if file not found
+    export AIRBYTE_WEBAPP_PORT="${AIRBYTE_WEBAPP_PORT:-8002}"
+    export AIRBYTE_SERVER_PORT="${AIRBYTE_SERVER_PORT:-8003}"
+    export AIRBYTE_TEMPORAL_PORT="${AIRBYTE_TEMPORAL_PORT:-8006}"
+fi
 
 # Directories
 export AIRBYTE_DATA_DIR="${AIRBYTE_DATA_DIR:-${RESOURCE_DIR}/data}"

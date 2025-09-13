@@ -41,12 +41,18 @@ validate_health_response() {
     # Check required fields based on service type
     case "$service_type" in
         ui)
-            # UI must have status, service, and api_connectivity
+            # UI must have status, service, timestamp, readiness, and api_connectivity
             if ! echo "$response" | jq -e '.status' > /dev/null 2>&1; then
                 validation_errors="${validation_errors}Missing required field: status\n"
             fi
             if ! echo "$response" | jq -e '.service' > /dev/null 2>&1; then
                 validation_errors="${validation_errors}Missing required field: service\n"
+            fi
+            if ! echo "$response" | jq -e '.timestamp' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: timestamp\n"
+            fi
+            if ! echo "$response" | jq -e '.readiness' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: readiness\n"
             fi
             if ! echo "$response" | jq -e '.api_connectivity' > /dev/null 2>&1; then
                 validation_errors="${validation_errors}Missing required field: api_connectivity\n"
@@ -68,31 +74,85 @@ validate_health_response() {
             if [[ ! "$status" =~ ^(healthy|degraded|unhealthy)$ ]]; then
                 validation_errors="${validation_errors}Invalid status value: $status (must be healthy, degraded, or unhealthy)\n"
             fi
+            
+            # Check readiness boolean
+            local readiness=$(echo "$response" | jq -r '.readiness // null')
+            if [[ "$readiness" != "true" ]] && [[ "$readiness" != "false" ]]; then
+                validation_errors="${validation_errors}Invalid readiness value: $readiness (must be boolean true or false)\n"
+            fi
+            
+            # Check timestamp format (basic ISO 8601 check)
+            local timestamp=$(echo "$response" | jq -r '.timestamp // ""')
+            if [[ -n "$timestamp" ]] && ! echo "$timestamp" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'; then
+                validation_errors="${validation_errors}Invalid timestamp format: $timestamp (must be ISO 8601 format)\n"
+            fi
             ;;
             
         api)
-            # API must have status
+            # API must have status, service, timestamp, and readiness
             if ! echo "$response" | jq -e '.status' > /dev/null 2>&1; then
                 validation_errors="${validation_errors}Missing required field: status\n"
+            fi
+            if ! echo "$response" | jq -e '.service' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: service\n"
+            fi
+            if ! echo "$response" | jq -e '.timestamp' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: timestamp\n"
+            fi
+            if ! echo "$response" | jq -e '.readiness' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: readiness\n"
             fi
             
             # Check status enum
             local status=$(echo "$response" | jq -r '.status // ""')
             if [[ ! "$status" =~ ^(healthy|degraded|unhealthy)$ ]]; then
                 validation_errors="${validation_errors}Invalid status value: $status (must be healthy, degraded, or unhealthy)\n"
+            fi
+            
+            # Check readiness boolean
+            local readiness=$(echo "$response" | jq -r '.readiness // null')
+            if [[ "$readiness" != "true" ]] && [[ "$readiness" != "false" ]]; then
+                validation_errors="${validation_errors}Invalid readiness value: $readiness (must be boolean true or false)\n"
+            fi
+            
+            # Check timestamp format (basic ISO 8601 check)
+            local timestamp=$(echo "$response" | jq -r '.timestamp // ""')
+            if [[ -n "$timestamp" ]] && ! echo "$timestamp" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'; then
+                validation_errors="${validation_errors}Invalid timestamp format: $timestamp (must be ISO 8601 format)\n"
             fi
             ;;
             
         service)
-            # Generic service must have status
+            # Generic service must have status, service, timestamp, and readiness
             if ! echo "$response" | jq -e '.status' > /dev/null 2>&1; then
                 validation_errors="${validation_errors}Missing required field: status\n"
+            fi
+            if ! echo "$response" | jq -e '.service' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: service\n"
+            fi
+            if ! echo "$response" | jq -e '.timestamp' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: timestamp\n"
+            fi
+            if ! echo "$response" | jq -e '.readiness' > /dev/null 2>&1; then
+                validation_errors="${validation_errors}Missing required field: readiness\n"
             fi
             
             # Check status enum
             local status=$(echo "$response" | jq -r '.status // ""')
             if [[ ! "$status" =~ ^(healthy|degraded|unhealthy)$ ]]; then
                 validation_errors="${validation_errors}Invalid status value: $status (must be healthy, degraded, or unhealthy)\n"
+            fi
+            
+            # Check readiness boolean
+            local readiness=$(echo "$response" | jq -r '.readiness // null')
+            if [[ "$readiness" != "true" ]] && [[ "$readiness" != "false" ]]; then
+                validation_errors="${validation_errors}Invalid readiness value: $readiness (must be boolean true or false)\n"
+            fi
+            
+            # Check timestamp format (basic ISO 8601 check)
+            local timestamp=$(echo "$response" | jq -r '.timestamp // ""')
+            if [[ -n "$timestamp" ]] && ! echo "$timestamp" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}'; then
+                validation_errors="${validation_errors}Invalid timestamp format: $timestamp (must be ISO 8601 format)\n"
             fi
             ;;
     esac

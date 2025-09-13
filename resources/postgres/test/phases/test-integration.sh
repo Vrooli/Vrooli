@@ -15,12 +15,12 @@ TESTS_FAILED=0
 
 # Test helper functions
 test_pass() {
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
     log::success "✓ $1"
 }
 
 test_fail() {
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
     log::error "✗ $1"
     [[ -n "${2:-}" ]] && log::error "  Details: $2"
 }
@@ -33,10 +33,15 @@ test_create_table() {
     local instance_password=$(postgres::common::get_instance_config "main" "password" 2>/dev/null || echo "${POSTGRES_DEFAULT_PASSWORD:-}")
     local instance_database=$(postgres::common::get_instance_config "main" "database" 2>/dev/null || echo "${POSTGRES_DEFAULT_DB}")
     
+    # Drop table if exists to ensure clean test
+    PGPASSWORD="${instance_password}" docker exec "vrooli-postgres-main" \
+        psql -h localhost -U "${instance_user}" -d "${instance_database}" \
+        -c "DROP TABLE IF EXISTS test_table;" >/dev/null 2>&1
+    
     # Create test table
     if PGPASSWORD="${instance_password}" timeout 10 docker exec "vrooli-postgres-main" \
         psql -h localhost -U "${instance_user}" -d "${instance_database}" \
-        -c "CREATE TABLE IF NOT EXISTS test_table (id SERIAL PRIMARY KEY, name VARCHAR(100), created_at TIMESTAMP DEFAULT NOW());" >/dev/null 2>&1; then
+        -c "CREATE TABLE test_table (id SERIAL PRIMARY KEY, name VARCHAR(100), created_at TIMESTAMP DEFAULT NOW());" >/dev/null 2>&1; then
         
         # Insert test data
         if PGPASSWORD="${instance_password}" timeout 10 docker exec "vrooli-postgres-main" \
@@ -177,4 +182,7 @@ main() {
     fi
 }
 
-main "$@"
+# Only run main if script is executed directly, not sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

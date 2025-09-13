@@ -88,6 +88,17 @@ function start_browserless() {
         if [[ "$(check_health)" == "healthy" ]]; then
             log::success "Browserless is ready"
             log::info "Access at: http://localhost:${BROWSERLESS_PORT}"
+            
+            # Start auto-scaler if enabled
+            if [[ "${BROWSERLESS_ENABLE_AUTOSCALING:-false}" == "true" ]]; then
+                log::info "Starting browser pool auto-scaler..."
+                # Source pool manager if not already loaded
+                if ! declare -f pool::start_autoscaler >/dev/null 2>&1; then
+                    source "${BROWSERLESS_LIB_DIR}/pool-manager.sh"
+                fi
+                pool::start_autoscaler >/dev/null
+            fi
+            
             return 0
         fi
         sleep 2

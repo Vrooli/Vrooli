@@ -40,7 +40,7 @@ source "${N8N_CLI_DIR}/config/defaults.sh"
 n8n::export_config 2>/dev/null || true
 
 # Source n8n libraries (only what exists)
-for lib in core docker status health api inject auto-credentials credential-registry content recovery; do
+for lib in core docker status health api inject auto-credentials credential-registry content recovery test secrets; do
     lib_file="${N8N_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -61,7 +61,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="n8n::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="n8n::start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="n8n::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="n8n::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="n8n::status"
+CLI_COMMAND_HANDLERS["test::smoke"]="n8n::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="n8n::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="n8n::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="n8n::test::all"
 
 # Content handlers - n8n workflow/credential management
 CLI_COMMAND_HANDLERS["content::add"]="n8n::content::add"

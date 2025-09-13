@@ -13,11 +13,11 @@ get_port_for() {
 
 # Service configuration
 export NSFW_DETECTOR_PORT="${NSFW_DETECTOR_PORT:-$(get_port_for "nsfw-detector")}"
-export NSFW_DETECTOR_PORT="${NSFW_DETECTOR_PORT:-11451}"  # Fallback if registry not available
+# No fallback - port must come from environment or registry
 
 # Model configuration
 export NSFW_DETECTOR_DEFAULT_MODEL="${NSFW_DETECTOR_DEFAULT_MODEL:-nsfwjs}"
-export NSFW_DETECTOR_MODEL_PATH="${NSFW_DETECTOR_MODEL_PATH:-/var/lib/nsfw-detector/models}"
+export NSFW_DETECTOR_MODEL_PATH="${NSFW_DETECTOR_MODEL_PATH:-${HOME}/.local/share/nsfw-detector/models}"
 export NSFW_DETECTOR_MODEL_CACHE_SIZE="${NSFW_DETECTOR_MODEL_CACHE_SIZE:-3}"
 
 # Classification thresholds (0.0 - 1.0)
@@ -36,7 +36,7 @@ export NSFW_DETECTOR_WORKER_THREADS="${NSFW_DETECTOR_WORKER_THREADS:-4}"
 
 # Logging configuration
 export NSFW_DETECTOR_LOG_LEVEL="${NSFW_DETECTOR_LOG_LEVEL:-info}"
-export NSFW_DETECTOR_LOG_DIR="${NSFW_DETECTOR_LOG_DIR:-/var/log/nsfw-detector}"
+export NSFW_DETECTOR_LOG_DIR="${NSFW_DETECTOR_LOG_DIR:-${HOME}/.local/share/nsfw-detector/logs}"
 export NSFW_DETECTOR_AUDIT_LOG="${NSFW_DETECTOR_AUDIT_LOG:-false}"
 
 # Security settings
@@ -45,5 +45,5 @@ export NSFW_DETECTOR_ALLOWED_ORIGINS="${NSFW_DETECTOR_ALLOWED_ORIGINS:-*}"
 export NSFW_DETECTOR_RATE_LIMIT="${NSFW_DETECTOR_RATE_LIMIT:-100}"  # Requests per minute
 
 # Data paths
-export NSFW_DETECTOR_DATA_DIR="${NSFW_DETECTOR_DATA_DIR:-/var/lib/nsfw-detector}"
+export NSFW_DETECTOR_DATA_DIR="${NSFW_DETECTOR_DATA_DIR:-${HOME}/.local/share/nsfw-detector}"
 export NSFW_DETECTOR_TEMP_DIR="${NSFW_DETECTOR_TEMP_DIR:-/tmp/nsfw-detector}"

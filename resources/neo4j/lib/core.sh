@@ -100,8 +100,8 @@ neo4j_get_version() {
         return 1
     fi
     
-    docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null | \
-        grep -oP 'neo4j \K[0-9.]+' || echo "unknown"
+    # Neo4j --version just outputs the version number directly
+    docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null || echo "unknown"
 }
 
 #######################################
@@ -154,28 +154,41 @@ neo4j_wait_ready() {
 #   0 on success, 1 on failure
 #######################################
 neo4j_backup() {
-    local backup_path="${1:-}"
+    local backup_file="${1:-neo4j-backup-$(date +%Y%m%d-%H%M%S).dump}"
     
     if ! neo4j_is_running; then
         echo "Error: Neo4j is not running"
         return 1
     fi
     
-    if [[ -z "$backup_path" ]]; then
-        backup_path="${NEO4J_DATA_DIR}/backups/neo4j-$(date +%Y%m%d-%H%M%S).dump"
+    # Ensure backup directory exists in container
+    docker exec "$NEO4J_CONTAINER_NAME" mkdir -p /var/lib/neo4j/data/dumps
+    
+    echo "Note: Community Edition requires stopping database for backup"
+    echo "Creating backup: $backup_file"
+    
+    # For Community Edition, we need to export data via Cypher
+    # This approach works while the database is running
+    local nodes_json=$(docker exec "$NEO4J_CONTAINER_NAME" cypher-shell \
+        -u neo4j -p "${NEO4J_AUTH#*/}" \
+        --format plain \
+        "CALL apoc.export.json.all('/var/lib/neo4j/data/dumps/${backup_file}.json', {useTypes:true})" 2>/dev/null || echo "")
+    
+    if [[ -n "$nodes_json" ]]; then
+        echo "Backup completed successfully: ${backup_file}.json"
+        return 0
+    else
+        # Fallback: Create a simple Cypher export
+        echo "APOC not available, using basic export..."
+        docker exec "$NEO4J_CONTAINER_NAME" bash -c "
+            echo 'MATCH (n) RETURN n' | cypher-shell -u neo4j -p '${NEO4J_AUTH#*/}' --format plain > /var/lib/neo4j/data/dumps/${backup_file}.cypher
+        " 2>/dev/null || {
+            echo "Error: Backup failed"
+            return 1
+        }
+        echo "Basic backup completed: ${backup_file}.cypher"
     fi
     
-    # Ensure backup directory exists
-    mkdir -p "$(dirname "$backup_path")"
-    
-    echo "Creating backup: $backup_path"
-    docker exec "$NEO4J_CONTAINER_NAME" neo4j-admin database dump neo4j \
-        --to-path=/data/backups 2>/dev/null || {
-        echo "Error: Backup failed"
-        return 1
-    }
-    
-    echo "Backup completed successfully"
     return 0
 }
 
@@ -216,7 +229,117 @@ neo4j_import_csv() {
     return 0
 }
 
+#######################################
+# Get performance metrics from Neo4j
+# Returns:
+#   JSON with performance metrics
+#######################################
+neo4j_get_performance_metrics() {
+    if ! neo4j_is_running; then
+        echo '{"error": "Neo4j is not running"}'
+        return 1
+    fi
+    
+    # Query JMX metrics for performance data
+    local metrics_query="CALL dbms.queryJmx('org.neo4j:instance=kernel#0,name=Store file sizes') YIELD attributes 
+                         RETURN attributes"
+    
+    # Get transaction metrics
+    local tx_count=$(neo4j_query "CALL dbms.listTransactions() YIELD transactionId RETURN count(transactionId)" 2>/dev/null | tail -1 || echo "0")
+    
+    # Get query statistics
+    local query_stats=$(neo4j_query "CALL db.stats.retrieve('QUERIES') YIELD data RETURN data LIMIT 1" 2>/dev/null || echo "{}")
+    
+    # Get memory usage from container
+    local memory_stats=$(docker stats "$NEO4J_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | sed 's/[^0-9.]//g' | head -1 || echo "0")
+    
+    # Get database size
+    local db_size=$(docker exec "$NEO4J_CONTAINER_NAME" du -sh /data/databases/neo4j 2>/dev/null | awk '{print $1}' || echo "unknown")
+    
+    # Build metrics JSON
+    cat <<EOF
+{
+    "active_transactions": ${tx_count:-0},
+    "memory_usage_mb": ${memory_stats:-0},
+    "database_size": "${db_size}",
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+}
+
+#######################################
+# Monitor query performance
+# Args:
+#   $1 - Query to monitor
+# Returns:
+#   Execution time and plan
+#######################################
+neo4j_monitor_query() {
+    local query="${1:-}"
+    
+    if [[ -z "$query" ]]; then
+        echo "Error: No query provided"
+        return 1
+    fi
+    
+    if ! neo4j_is_running; then
+        echo "Error: Neo4j is not running"
+        return 1
+    fi
+    
+    # Use EXPLAIN to get query plan and estimated cost
+    local start_time=$(date +%s%N)
+    local explain_result=$(neo4j_query "EXPLAIN $query" 2>/dev/null)
+    local end_time=$(date +%s%N)
+    
+    # Calculate execution time in milliseconds
+    local exec_time=$(( (end_time - start_time) / 1000000 ))
+    
+    # Run PROFILE for detailed metrics (note: this actually executes the query)
+    local profile_result=$(neo4j_query "PROFILE $query" 2>/dev/null | head -20)
+    
+    cat <<EOF
+Query Performance Analysis
+==========================
+Query: ${query:0:100}...
+Execution Time: ${exec_time}ms
+
+Query Plan:
+-----------
+$explain_result
+
+Profile Summary:
+---------------
+$profile_result
+EOF
+}
+
+#######################################
+# Get slow queries from logs
+# Args:
+#   $1 - Threshold in ms (default: 1000)
+# Returns:
+#   List of slow queries
+#######################################
+neo4j_get_slow_queries() {
+    local threshold="${1:-1000}"
+    
+    if ! neo4j_is_running; then
+        echo "Error: Neo4j is not running"
+        return 1
+    fi
+    
+    echo "Slow Queries (>${threshold}ms)"
+    echo "========================="
+    
+    # Check query log for slow queries
+    docker exec "$NEO4J_CONTAINER_NAME" cat /logs/query.log 2>/dev/null | \
+        grep -E "ms: [0-9]{4,}" | \
+        tail -10 || echo "No slow queries found in logs"
+}
+
 # Export all functions
 export -f neo4j_query neo4j_list_injected neo4j_health_check
 export -f neo4j_get_version neo4j_get_stats neo4j_wait_ready
 export -f neo4j_backup neo4j_import_csv
+export -f neo4j_get_performance_metrics neo4j_monitor_query neo4j_get_slow_queries

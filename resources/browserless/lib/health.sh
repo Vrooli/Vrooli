@@ -48,9 +48,13 @@ browserless::check_basic_health() {
         return 1
     fi
     
-    # Check if port is responding
-    if ! http::check_endpoint "http://localhost:$BROWSERLESS_PORT/pressure"; then
-        return 1
+    # Check if port is responding with proper timeout
+    if ! timeout 5 bash -c "curl -sf http://localhost:$BROWSERLESS_PORT/pressure >/dev/null 2>&1"; then
+        # Retry once in case of cold start
+        sleep 2
+        if ! timeout 5 bash -c "curl -sf http://localhost:$BROWSERLESS_PORT/pressure >/dev/null 2>&1"; then
+            return 1
+        fi
     fi
     
     return 0
@@ -151,6 +155,53 @@ browserless::get_health_details() {
     fi
     
     echo "{\"status\": \"$health_status\", \"details\": \"$details\"}"
+}
+
+#######################################
+# Get performance metrics
+#######################################
+browserless::get_performance_metrics() {
+    local start_time=$(date +%s%3N)
+    local pressure_data
+    
+    # Measure response time
+    pressure_data=$(timeout 5 curl -sf "http://localhost:$BROWSERLESS_PORT/pressure" 2>/dev/null)
+    local end_time=$(date +%s%3N)
+    local response_time=$((end_time - start_time))
+    
+    if [[ -z "$pressure_data" ]]; then
+        echo '{"error": "Unable to fetch metrics"}'
+        return 1
+    fi
+    
+    # Extract key metrics
+    local cpu=$(echo "$pressure_data" | jq -r '.pressure.cpu // 0' 2>/dev/null || echo "0")
+    local memory=$(echo "$pressure_data" | jq -r '.pressure.memory // 0' 2>/dev/null || echo "0")
+    local running=$(echo "$pressure_data" | jq -r '.pressure.running // 0' 2>/dev/null || echo "0")
+    local queued=$(echo "$pressure_data" | jq -r '.pressure.queued // 0' 2>/dev/null || echo "0")
+    local max_concurrent=$(echo "$pressure_data" | jq -r '.pressure.maxConcurrent // 10' 2>/dev/null || echo "10")
+    local rejected=$(echo "$pressure_data" | jq -r '.pressure.recentlyRejected // 0' 2>/dev/null || echo "0")
+    
+    # Calculate utilization percentage
+    local utilization=0
+    if [[ "$max_concurrent" -gt 0 ]]; then
+        utilization=$((running * 100 / max_concurrent))
+    fi
+    
+    # Build metrics JSON
+    cat <<EOF
+{
+    "response_time_ms": $response_time,
+    "cpu_percent": $cpu,
+    "memory_percent": $memory,
+    "browsers_running": $running,
+    "browsers_queued": $queued,
+    "browsers_max": $max_concurrent,
+    "utilization_percent": $utilization,
+    "recently_rejected": $rejected,
+    "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
 }
 
 #######################################

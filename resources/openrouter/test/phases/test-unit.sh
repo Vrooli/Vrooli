@@ -37,11 +37,11 @@ run_test() {
     
     if eval "$test_cmd" &>/dev/null; then
         echo "$(format::success "✓")"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         echo "$(format::error "✗")"
-        ((TESTS_FAILED++))
+        ((TESTS_FAILED++)) || true
         return 1
     fi
 }

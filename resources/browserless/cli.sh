@@ -36,7 +36,7 @@ source "${BROWSERLESS_CLI_DIR}/config/defaults.sh"
 browserless::export_config
 
 # Source browserless libraries
-for lib in common core docker install start stop status uninstall test health actions api usage inject; do
+for lib in common core docker install start stop status uninstall test health actions api usage inject session-manager pool-manager benchmarks; do
     lib_file="${BROWSERLESS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -55,7 +55,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="uninstall_browserless"
 CLI_COMMAND_HANDLERS["manage::start"]="start_browserless"
 CLI_COMMAND_HANDLERS["manage::stop"]="stop_browserless"
 CLI_COMMAND_HANDLERS["manage::restart"]="browserless::docker::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="browserless::is_healthy"
+CLI_COMMAND_HANDLERS["test::smoke"]="browserless::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="browserless::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="browserless::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="browserless::test::all"
 
 # Content handlers - Browserless business functionality (browser automation)
 CLI_COMMAND_HANDLERS["content::add"]="browserless::content::add"
@@ -94,6 +97,22 @@ cli::register_subcommand "content" "api" "Test all browserless APIs" "browserles
 cli::register_subcommand "content" "session" "Manage persistent browser sessions" "session::list"
 cli::register_subcommand "content" "inject" "Inject scripts or functions" "browserless::inject"
 
+# Pool management commands
+cli::register_command "pool" "Manage browser pool (auto-scaling)" "browserless::pool"
+cli::register_subcommand "pool" "start" "Start auto-scaler" "pool::start_autoscaler"
+cli::register_subcommand "pool" "stop" "Stop auto-scaler" "pool::stop_autoscaler"
+cli::register_subcommand "pool" "status" "Show pool statistics" "pool::show_stats"
+cli::register_subcommand "pool" "metrics" "Get pool metrics" "pool::get_metrics"
+
+# Performance benchmark commands
+cli::register_command "benchmark" "Run performance benchmarks" "benchmark::run_all"
+cli::register_subcommand "benchmark" "navigation" "Benchmark navigation operations" "benchmark::navigation"
+cli::register_subcommand "benchmark" "screenshots" "Benchmark screenshot operations" "benchmark::screenshots"
+cli::register_subcommand "benchmark" "extraction" "Benchmark extraction operations" "benchmark::extraction"
+cli::register_subcommand "benchmark" "workflows" "Benchmark workflow operations" "benchmark::workflows"
+cli::register_subcommand "benchmark" "summary" "Show benchmark summary" "browserless::benchmark_summary"
+cli::register_subcommand "benchmark" "compare" "Compare two benchmark runs" "browserless::benchmark_compare"
+
 # Test subcommands for browserless health/connectivity testing
 cli::register_subcommand "test" "api" "Test all browserless APIs" "browserless::test_all_apis"
 cli::register_subcommand "test" "functional" "Test browser functionality" "browserless::check_functional_health"
@@ -131,6 +150,41 @@ browserless::adapter_dispatch() {
     else
         exit 1
     fi
+}
+
+# Pool management dispatcher
+browserless::pool() {
+    # If no subcommand, show pool status
+    if [[ $# -eq 0 ]]; then
+        pool::show_stats
+    else
+        echo "Usage: resource-browserless pool [start|stop|status|metrics]"
+        exit 1
+    fi
+}
+
+# Benchmark dispatchers
+browserless::benchmark_summary() {
+    local file="${1:-}"
+    if [[ -z "$file" ]]; then
+        # Find most recent benchmark
+        file=$(ls -t "${BROWSERLESS_DATA_DIR}/benchmarks"/benchmark_*.json 2>/dev/null | head -1)
+        if [[ -z "$file" ]]; then
+            echo "No benchmark files found. Run benchmarks first."
+            exit 1
+        fi
+    fi
+    benchmark::show_summary "$file"
+}
+
+browserless::benchmark_compare() {
+    local file1="${1:-}"
+    local file2="${2:-}"
+    if [[ -z "$file1" ]] || [[ -z "$file2" ]]; then
+        echo "Usage: resource-browserless benchmark compare <file1> <file2>"
+        exit 1
+    fi
+    benchmark::compare "$file1" "$file2"
 }
 
 # Minimal content handler functions  

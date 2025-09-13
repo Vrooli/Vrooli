@@ -68,6 +68,28 @@ services:
       timeout: 10s
       retries: 5
 
+  collabora:
+    image: collabora/code:latest
+    container_name: nextcloud_collabora
+    restart: unless-stopped
+    networks:
+      - nextcloud_network
+    ports:
+      - "9980:9980"
+    environment:
+      - domain=localhost:8086
+      - username=admin
+      - password=changeme
+      - extra_params=--o:ssl.enable=false --o:ssl.termination=false
+      - dictionaries=en_US
+    cap_add:
+      - MKNOD
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9980/hosting/discovery"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
 networks:
   nextcloud_network:
     external: true

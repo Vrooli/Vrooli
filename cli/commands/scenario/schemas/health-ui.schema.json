@@ -3,7 +3,39 @@
   "title": "UI Health Check Response",
   "description": "Schema for UI service health check responses. UI services MUST include api_connectivity to report their connection status to the backend API.",
   "type": "object",
-  "required": ["status", "service", "api_connectivity"],
+  "required": ["status", "service", "timestamp", "readiness", "api_connectivity"],
+  "definitions": {
+    "errorObject": {
+      "type": "object",
+      "description": "Standardized error structure",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Machine-readable error code (e.g., CONNECTION_REFUSED, TIMEOUT)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["network", "configuration", "authentication", "resource", "internal"],
+          "description": "Error category for automated handling"
+        },
+        "retryable": {
+          "type": "boolean",
+          "description": "Whether retrying the operation might succeed"
+        },
+        "details": {
+          "type": "object",
+          "description": "Optional additional error context",
+          "additionalProperties": true
+        }
+      },
+      "required": ["code", "message", "category", "retryable"],
+      "additionalProperties": false
+    }
+  },
   "properties": {
     "status": {
       "type": "string",
@@ -17,7 +49,11 @@
     "timestamp": {
       "type": "string",
       "format": "date-time",
-      "description": "ISO 8601 timestamp of the health check"
+      "description": "ISO 8601 timestamp of the health check (REQUIRED)"
+    },
+    "readiness": {
+      "type": "boolean",
+      "description": "Whether the service is ready to serve traffic (true) or still initializing/draining (false). Distinguishes startup state from operational health."
     },
     "api_connectivity": {
       "type": "object",
@@ -39,8 +75,11 @@
           "description": "ISO 8601 timestamp of the last connectivity check"
         },
         "error": {
-          "type": ["string", "null"],
-          "description": "Error message if connection failed, null if successful"
+          "oneOf": [
+            {"$ref": "#/definitions/errorObject"},
+            {"type": "null"}
+          ],
+          "description": "Structured error information if connection failed, null if successful"
         },
         "latency_ms": {
           "type": ["number", "null"],

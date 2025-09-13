@@ -2,6 +2,9 @@
 
 n8n is a powerful workflow automation platform that connects various services and automates business processes. This resource provides automated installation, configuration, and management of n8n with enhanced host system access for the Vrooli project.
 
+**v2.0 Contract Status**: ✅ Fully Compliant
+**Last Updated**: 2025-01-10
+
 ## 🎯 Quick Reference
 
 - **Category**: Automation
@@ -9,6 +12,7 @@ n8n is a powerful workflow automation platform that connects various services an
 - **Container**: n8n
 - **API Docs**: [Complete API Reference](docs/API.md)
 - **Status**: Production Ready
+- **v2.0 Features**: ✅ Full test suite, ✅ Secrets management, ✅ Content management
 
 ## 🚀 Quick Start
 
@@ -38,8 +42,11 @@ resource-n8n manage install --build-image yes --basic-auth yes --username admin 
 # Check service status with comprehensive information  
 resource-n8n
 
-# Test all functionality
-resource-n8n test smoke
+# Test functionality (v2.0 compliant)
+resource-n8n test all        # Run all tests
+resource-n8n test smoke      # Quick health check
+resource-n8n test integration # Full functionality test
+resource-n8n test unit       # Library function tests
 
 # Execute workflow by ID (recommended method)
 resource-n8n content execute --workflow-id WORKFLOW_ID
@@ -49,6 +56,9 @@ resource-n8n content list
 
 # View service logs
 resource-n8n logs
+
+# Display credentials for integration
+resource-n8n credentials --format json
 ```
 
 ### Verify Installation
@@ -224,17 +234,33 @@ n8n is used in these business scenarios:
 
 ```
 n8n/
-├── manage.sh                    # Management script with API workaround
-├── README.md                    # This overview
-├── docs/                        # Detailed documentation
+├── cli.sh                      # v2.0 CLI interface
+├── README.md                   # This overview
+├── PRD.md                      # Product Requirements Document
+├── docs/                       # Detailed documentation
 │   ├── API.md                  # Complete API reference
 │   ├── CONFIGURATION.md        # Setup and configuration
 │   └── TROUBLESHOOTING.md      # Issue resolution
 ├── lib/                        # Modular script components
+│   ├── core.sh                 # Core functionality
+│   ├── test.sh                 # Test orchestration
+│   ├── content.sh              # Content management
+│   ├── secrets.sh              # Secrets management
+│   └── ...                     # Other libraries
 ├── config/                     # Configuration and defaults
+│   ├── defaults.sh             # Default configuration
+│   ├── runtime.json            # v2.0 runtime configuration
+│   ├── schema.json             # Configuration schema
+│   └── secrets.yaml            # Secrets declaration
+├── test/                       # v2.0 test structure
+│   ├── run-tests.sh            # Main test runner
+│   └── phases/                 # Test phases
+│       ├── test-smoke.sh       # Quick health check
+│       ├── test-integration.sh # Full functionality
+│       └── test-unit.sh        # Library validation
 ├── docker/                     # Docker-related files
 │   ├── Dockerfile              # Custom n8n image definition
-│   └── docker-entrypoint.sh    # Enhanced entrypoint script
+│   └── docker-entrypoint.sh   # Enhanced entrypoint script
 ├── examples/                   # Example workflows
 │   ├── example-notification-workflow.json
 │   └── webhook-workflow.json

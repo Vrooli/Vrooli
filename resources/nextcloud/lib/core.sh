@@ -66,6 +66,7 @@ uninstall_nextcloud() {
     docker rm -f "${NEXTCLOUD_CONTAINER_NAME}" 2>/dev/null || true
     docker rm -f "nextcloud_postgres" 2>/dev/null || true
     docker rm -f "nextcloud_redis" 2>/dev/null || true
+    docker rm -f "nextcloud_collabora" 2>/dev/null || true
     
     # Remove volumes unless keeping data
     if [[ "$keep_data" != "--keep-data" ]]; then
@@ -358,9 +359,12 @@ execute_content() {
         mount-s3)
             execute_mount_s3 "$options"
             ;;
+        enable-office)
+            execute_enable_office "$options"
+            ;;
         *)
             echo "Error: Unknown operation: $name" >&2
-            echo "Available operations: share, backup, restore, mount-s3" >&2
+            echo "Available operations: share, backup, restore, mount-s3, enable-office" >&2
             return 1
             ;;
     esac
@@ -648,6 +652,57 @@ execute_mount_s3() {
         echo "Error: Failed to mount S3 bucket" >&2
         return 1
     fi
+}
+
+execute_enable_office() {
+    echo "Enabling Collabora Office integration..."
+    
+    # Wait for Collabora container to be ready
+    local max_attempts=30
+    local attempt=1
+    
+    echo "Waiting for Collabora to be ready..."
+    while [[ $attempt -le $max_attempts ]]; do
+        if timeout 5 curl -sf "http://localhost:9980/hosting/discovery" &>/dev/null; then
+            echo "Collabora is ready!"
+            break
+        fi
+        echo -n "."
+        sleep 2
+        ((attempt++))
+    done
+    
+    if [[ $attempt -gt $max_attempts ]]; then
+        echo "Error: Collabora failed to start" >&2
+        return 1
+    fi
+    
+    # Install and enable the richdocuments app
+    echo "Installing richdocuments app..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:install richdocuments 2>/dev/null || true
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:enable richdocuments
+    
+    # Configure the WOPI URL for Collabora
+    echo "Configuring Collabora integration..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set richdocuments wopi_url --value="http://nextcloud_collabora:9980"
+    
+    # Configure public WOPI URL (for client access)
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set richdocuments public_wopi_url --value="http://localhost:9980"
+    
+    # Set the allow list for WOPI requests
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set richdocuments wopi_allowlist --value="172.16.0.0/12,192.168.0.0/16,10.0.0.0/8"
+    
+    echo "Collabora Office integration enabled successfully!"
+    echo ""
+    echo "You can now:"
+    echo "  - Create new documents: Files → + → New document/spreadsheet/presentation"
+    echo "  - Edit existing Office files by clicking on them"
+    echo "  - Collaborate in real-time with other users"
+    echo ""
+    echo "Collabora Admin UI: http://localhost:9980/browser/dist/admin/admin.html"
+    echo "Username: admin, Password: changeme"
+    
+    return 0
 }
 
 get_status_json() {

@@ -6,18 +6,22 @@ Neo4j is a native property graph database providing powerful graph queries and a
 
 ```bash
 # Install and start Neo4j
-vrooli resource install neo4j
-vrooli resource start neo4j
+vrooli resource neo4j manage install
+vrooli resource neo4j manage start
 
 # Check status
 vrooli resource neo4j status
-resource-neo4j status
 
 # Run Cypher queries
-resource-neo4j query "MATCH (n) RETURN count(n)"
+vrooli resource neo4j content query "MATCH (n) RETURN count(n)"
 
-# Inject Cypher files
-resource-neo4j inject path/to/queries.cypher
+# Performance monitoring
+vrooli resource neo4j content metrics
+vrooli resource neo4j content monitor "MATCH (n) RETURN n LIMIT 10"
+
+# Backup and restore
+vrooli resource neo4j content backup
+vrooli resource neo4j content restore <backup-file>
 ```
 
 ## Features
@@ -27,6 +31,9 @@ resource-neo4j inject path/to/queries.cypher
 - **ACID Transactions**: Full transaction support with rollback
 - **Real-time Analysis**: Millisecond response for complex graph queries
 - **Flexible Schema**: Schema-optional with constraints when needed
+- **Performance Monitoring**: Track query performance and database metrics
+- **Backup/Restore**: Full database backup and restoration capabilities
+- **v2.0 Contract Compliant**: Follows Vrooli universal resource standards
 
 ## Documentation
 

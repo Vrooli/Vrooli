@@ -10,6 +10,7 @@ Nextcloud is a comprehensive collaboration platform that combines file storage, 
 
 - **File Storage & Sync**: WebDAV-compliant file storage with automatic synchronization
 - **Document Collaboration**: Share and collaborate on documents with version control
+- **Office Suite Integration**: Built-in Collabora Office for editing Word, Excel, and PowerPoint files
 - **Sharing & Permissions**: Granular sharing controls with password protection and expiration
 - **External Storage**: Mount S3, FTP, SMB/CIFS, and other storage backends (S3 implemented)
 - **Security**: Secure password storage, brute force protection, and session management
@@ -133,7 +134,7 @@ vrooli resource nextcloud content execute --name mount-s3 --options "bucket=data
 - `content list [--filter <pattern>]` - List files
 - `content get --name <file>` - Download file
 - `content remove --name <file>` - Delete file
-- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3)
+- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3, enable-office)
 
 ### Testing
 - `test smoke` - Quick health check
@@ -250,11 +251,21 @@ vrooli resource nextcloud occ files_external:create \
 ```
 
 ### Collabora Office Integration
-Enable document editing:
+Collabora Office is now included and can be enabled with a single command:
 ```bash
-vrooli resource nextcloud apps enable richdocuments
-vrooli resource nextcloud config app set richdocuments wopi_url http://collabora:9980
+# Enable Collabora Office integration
+vrooli resource nextcloud content execute --name enable-office
+
+# Access Collabora Admin UI
+# URL: http://localhost:9980/browser/dist/admin/admin.html
+# Username: admin, Password: changeme
 ```
+
+Once enabled, you can:
+- Create new documents directly in Nextcloud (Files → + → New document/spreadsheet/presentation)
+- Edit existing Office files by clicking on them
+- Collaborate in real-time with other users
+- Export documents in various formats
 
 ### Backup and Restore
 ```bash

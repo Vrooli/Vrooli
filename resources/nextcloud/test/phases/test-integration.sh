@@ -114,5 +114,22 @@ else
     exit 1
 fi
 
+# Test 8: Collabora Office integration (if available)
+echo -n "  Testing Collabora Office integration... "
+if docker ps --format "{{.Names}}" | grep -q "nextcloud_collabora"; then
+    if timeout 5 curl -sf "http://localhost:9980/hosting/discovery" &>/dev/null; then
+        # Check if richdocuments app is enabled
+        if docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:list | grep -q "richdocuments:"; then
+            echo "✓"
+        else
+            echo "(not configured)"
+        fi
+    else
+        echo "(Collabora not ready)"
+    fi
+else
+    echo "(Collabora not running)"
+fi
+
 echo "All integration tests passed!"
 exit 0

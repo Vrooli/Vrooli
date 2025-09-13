@@ -15,12 +15,12 @@ TESTS_FAILED=0
 
 # Test helper functions
 test_pass() {
-    ((TESTS_PASSED++))
+    TESTS_PASSED=$((TESTS_PASSED + 1))
     log::success "✓ $1"
 }
 
 test_fail() {
-    ((TESTS_FAILED++))
+    TESTS_FAILED=$((TESTS_FAILED + 1))
     log::error "✗ $1"
     [[ -n "${2:-}" ]] && log::error "  Details: $2"
 }
@@ -118,4 +118,7 @@ main() {
     fi
 }
 
-main "$@"
+# Only run main if script is executed directly, not sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

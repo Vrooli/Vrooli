@@ -26,6 +26,15 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load v
 source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library from ${var_LOG_FILE}" >&2; exit 1; }
 source "${BROWSERLESS_LIB_DIR}/browser-ops.sh" || { echo "FATAL: Failed to load browser operations library" >&2; exit 1; }
 source "${BROWSERLESS_LIB_DIR}/session-manager.sh" || { echo "FATAL: Failed to load session manager library" >&2; exit 1; }
+# Load enhanced workflow operations if available
+if [[ -f "${BROWSERLESS_LIB_DIR}/workflow-ops.sh" ]]; then
+    source "${BROWSERLESS_LIB_DIR}/workflow-ops.sh" || log::warning "Failed to load enhanced workflow operations"
+fi
+
+# Load conditional operations if available
+if [[ -f "${BROWSERLESS_LIB_DIR}/conditional-ops.sh" ]]; then
+    source "${BROWSERLESS_LIB_DIR}/conditional-ops.sh" || log::warning "Failed to load conditional operations"
+fi
 
 # Source stateful browser operations if available
 # TEMPORARILY DISABLED for testing combined workflow
@@ -268,33 +277,105 @@ workflow::execute_step() {
             
         if|condition)
             local condition=$(echo "$step" | jq -r '.condition // empty')
+            local condition_type=$(echo "$step" | jq -r '.condition_type // "javascript"')
             local then_action=$(echo "$step" | jq -r '.then // empty')
             local else_action=$(echo "$step" | jq -r '.else // empty')
+            local then_steps=$(echo "$step" | jq -r '.then_steps // empty')
+            local else_steps=$(echo "$step" | jq -r '.else_steps // empty')
             
-            # Evaluate condition
-            local result
-            if [[ "$condition" =~ ^selector: ]]; then
-                # Check if element exists
-                local selector="${condition#selector:}"
-                selector=$(workflow::substitute_variables "$selector")
-                if browser::element_exists "$selector" "$SESSION_ID"; then
-                    result="true"
-                else
-                    result="false"
-                fi
-            else
-                # Evaluate as JavaScript
-                condition=$(workflow::substitute_variables "$condition")
-                result=$(browser::evaluate "$condition" "$SESSION_ID")
-            fi
+            # Evaluate condition based on type
+            local result="false"
+            
+            case "$condition_type" in
+                "url")
+                    local pattern=$(echo "$step" | jq -r '.url_pattern // empty')
+                    pattern=$(workflow::substitute_variables "$pattern")
+                    if condition::url_matches "$pattern" "$SESSION_ID"; then
+                        result="true"
+                    fi
+                    ;;
+                    
+                "element_visible")
+                    local selector=$(echo "$step" | jq -r '.selector // empty')
+                    selector=$(workflow::substitute_variables "$selector")
+                    if condition::element_visible "$selector" "$SESSION_ID"; then
+                        result="true"
+                    fi
+                    ;;
+                    
+                "element_text")
+                    local selector=$(echo "$step" | jq -r '.selector // empty')
+                    local expected_text=$(echo "$step" | jq -r '.text // empty')
+                    local match_type=$(echo "$step" | jq -r '.match_type // "contains"')
+                    selector=$(workflow::substitute_variables "$selector")
+                    expected_text=$(workflow::substitute_variables "$expected_text")
+                    if condition::element_text "$selector" "$expected_text" "$match_type" "$SESSION_ID"; then
+                        result="true"
+                    fi
+                    ;;
+                    
+                "input_checked")
+                    local selector=$(echo "$step" | jq -r '.selector // empty')
+                    selector=$(workflow::substitute_variables "$selector")
+                    if condition::input_checked "$selector" "$SESSION_ID"; then
+                        result="true"
+                    fi
+                    ;;
+                    
+                "has_errors")
+                    local patterns=$(echo "$step" | jq -r '.error_patterns // ""')
+                    if condition::has_errors "$patterns" "$SESSION_ID"; then
+                        result="true"
+                    fi
+                    ;;
+                    
+                "selector"|"element_exists")
+                    # Legacy support for selector: prefix
+                    if [[ "$condition" =~ ^selector: ]]; then
+                        local selector="${condition#selector:}"
+                    else
+                        local selector=$(echo "$step" | jq -r '.selector // empty')
+                    fi
+                    selector=$(workflow::substitute_variables "$selector")
+                    if browser::element_exists "$selector" "$SESSION_ID"; then
+                        result="true"
+                    fi
+                    ;;
+                    
+                "javascript"|*)
+                    # Default to JavaScript evaluation
+                    condition=$(workflow::substitute_variables "$condition")
+                    result=$(browser::evaluate "$condition" "$SESSION_ID")
+                    ;;
+            esac
+            
+            log::debug "Condition result: $result"
             
             # Execute appropriate branch
             if [[ "$result" == "true" ]]; then
-                if [[ -n "$then_action" ]]; then
+                # Execute then branch
+                if [[ -n "$then_steps" ]] && [[ "$then_steps" != "empty" ]] && [[ "$then_steps" != "null" ]]; then
+                    # Execute inline steps
+                    local step_count=$(echo "$then_steps" | jq 'length')
+                    for ((i=0; i<step_count; i++)); do
+                        local sub_step=$(echo "$then_steps" | jq -r ".[$i]")
+                        workflow::execute_step "$sub_step" "${step_index}_then_$i"
+                    done
+                elif [[ -n "$then_action" ]] && [[ "$then_action" != "empty" ]]; then
+                    # Jump to label
                     workflow::goto_label "$then_action"
                 fi
             else
-                if [[ -n "$else_action" ]]; then
+                # Execute else branch
+                if [[ -n "$else_steps" ]] && [[ "$else_steps" != "empty" ]] && [[ "$else_steps" != "null" ]]; then
+                    # Execute inline steps
+                    local step_count=$(echo "$else_steps" | jq 'length')
+                    for ((i=0; i<step_count; i++)); do
+                        local sub_step=$(echo "$else_steps" | jq -r ".[$i]")
+                        workflow::execute_step "$sub_step" "${step_index}_else_$i"
+                    done
+                elif [[ -n "$else_action" ]] && [[ "$else_action" != "empty" ]]; then
+                    # Jump to label
                     workflow::goto_label "$else_action"
                 fi
             fi
@@ -463,6 +544,204 @@ workflow::execute_step() {
             fi
             
             log::debug "Navigate and evaluate result: $result"
+            ;;
+            
+        navigate_to_scenario)
+            local scenario_name=$(echo "$step" | jq -r '.scenario // empty')
+            local port_type=$(echo "$step" | jq -r '.port_type // "UI_PORT"')
+            scenario_name=$(workflow::substitute_variables "$scenario_name")
+            
+            if type browser::navigate_to_scenario &>/dev/null; then
+                browser::navigate_to_scenario "$scenario_name" "$port_type" "$SESSION_ID"
+            else
+                log::error "navigate_to_scenario function not available"
+                return 1
+            fi
+            ;;
+            
+        extract_text)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            local var_name=$(echo "$step" | jq -r '.variable // empty')
+            selector=$(workflow::substitute_variables "$selector")
+            
+            if type browser::extract_text &>/dev/null; then
+                local text
+                text=$(browser::extract_text "$selector" "$SESSION_ID")
+                
+                if [[ -n "$var_name" ]]; then
+                    VARIABLES["$var_name"]="$text"
+                    log::debug "Stored text in variable '$var_name'"
+                fi
+                
+                # Save output if specified
+                if [[ -n "$output_path" ]]; then
+                    local resolved_path
+                    resolved_path=$(workflow::substitute_variables "$output_path")
+                    mkdir -p "${resolved_path%/*}"
+                    echo "$text" > "$resolved_path"
+                    log::info "Text saved to: $resolved_path"
+                fi
+            else
+                # Fallback to browser::get_text if available
+                browser::get_text "$selector" "$SESSION_ID"
+            fi
+            ;;
+            
+        extract_attribute)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            local attribute=$(echo "$step" | jq -r '.attribute // empty')
+            local var_name=$(echo "$step" | jq -r '.variable // empty')
+            selector=$(workflow::substitute_variables "$selector")
+            
+            if type browser::extract_attribute &>/dev/null; then
+                local value
+                value=$(browser::extract_attribute "$selector" "$attribute" "$SESSION_ID")
+                
+                if [[ -n "$var_name" ]]; then
+                    VARIABLES["$var_name"]="$value"
+                    log::debug "Stored attribute in variable '$var_name'"
+                fi
+                
+                # Save output if specified
+                if [[ -n "$output_path" ]]; then
+                    local resolved_path
+                    resolved_path=$(workflow::substitute_variables "$output_path")
+                    mkdir -p "${resolved_path%/*}"
+                    echo "$value" > "$resolved_path"
+                    log::info "Attribute saved to: $resolved_path"
+                fi
+            else
+                # Fallback to browser::get_attribute if available
+                browser::get_attribute "$selector" "$attribute" "$SESSION_ID"
+            fi
+            ;;
+            
+        extract_html)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            local var_name=$(echo "$step" | jq -r '.variable // empty')
+            selector=$(workflow::substitute_variables "$selector")
+            
+            if type browser::extract_html &>/dev/null; then
+                local html
+                html=$(browser::extract_html "$selector" "$SESSION_ID")
+                
+                if [[ -n "$var_name" ]]; then
+                    VARIABLES["$var_name"]="$html"
+                    log::debug "Stored HTML in variable '$var_name'"
+                fi
+                
+                # Save output if specified
+                if [[ -n "$output_path" ]]; then
+                    local resolved_path
+                    resolved_path=$(workflow::substitute_variables "$output_path")
+                    mkdir -p "${resolved_path%/*}"
+                    echo "$html" > "$resolved_path"
+                    log::info "HTML saved to: $resolved_path"
+                fi
+            else
+                log::error "extract_html function not available"
+                return 1
+            fi
+            ;;
+            
+        extract_input_value)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            local var_name=$(echo "$step" | jq -r '.variable // empty')
+            selector=$(workflow::substitute_variables "$selector")
+            
+            if type browser::extract_input_value &>/dev/null; then
+                local value
+                value=$(browser::extract_input_value "$selector" "$SESSION_ID")
+                
+                if [[ -n "$var_name" ]]; then
+                    VARIABLES["$var_name"]="$value"
+                    log::debug "Stored input value in variable '$var_name'"
+                fi
+                
+                # Save output if specified
+                if [[ -n "$output_path" ]]; then
+                    local resolved_path
+                    resolved_path=$(workflow::substitute_variables "$output_path")
+                    mkdir -p "${resolved_path%/*}"
+                    echo "$value" > "$resolved_path"
+                    log::info "Input value saved to: $resolved_path"
+                fi
+            else
+                log::error "extract_input_value function not available"
+                return 1
+            fi
+            ;;
+            
+        screenshot_full_page)
+            local path=$(echo "$step" | jq -r '.path // "screenshot_full.png"')
+            path=$(workflow::substitute_variables "$path")
+            
+            if type browser::screenshot_full_page &>/dev/null; then
+                browser::screenshot_full_page "$path" "$SESSION_ID"
+            else
+                # Fallback to regular screenshot
+                browser::screenshot "$path" "$SESSION_ID"
+            fi
+            log::info "Full page screenshot saved to: $path"
+            ;;
+            
+        screenshot_element)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            local path=$(echo "$step" | jq -r '.path // "screenshot_element.png"')
+            selector=$(workflow::substitute_variables "$selector")
+            path=$(workflow::substitute_variables "$path")
+            
+            if type browser::screenshot_element &>/dev/null; then
+                browser::screenshot_element "$selector" "$path" "$SESSION_ID"
+            else
+                log::error "screenshot_element function not available"
+                return 1
+            fi
+            log::info "Element screenshot saved to: $path"
+            ;;
+            
+        wait_for_url_change)
+            local pattern=$(echo "$step" | jq -r '.pattern // empty')
+            local timeout=$(echo "$step" | jq -r '.timeout // 10')
+            pattern=$(workflow::substitute_variables "$pattern")
+            
+            if type browser::wait_for_url_change &>/dev/null; then
+                local new_url
+                new_url=$(browser::wait_for_url_change "$pattern" "$timeout" "$SESSION_ID")
+                VARIABLES["current_url"]="$new_url"
+                log::info "URL changed to: $new_url"
+            else
+                log::error "wait_for_url_change function not available"
+                return 1
+            fi
+            ;;
+            
+        click_and_wait)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            selector=$(workflow::substitute_variables "$selector")
+            
+            if type browser::click_and_wait &>/dev/null; then
+                browser::click_and_wait "$selector" "$SESSION_ID"
+            else
+                # Fallback to regular click
+                browser::click "$selector" "$SESSION_ID"
+                sleep 2
+            fi
+            ;;
+            
+        type_with_delay)
+            local selector=$(echo "$step" | jq -r '.selector // empty')
+            local text=$(echo "$step" | jq -r '.text // empty')
+            local delay=$(echo "$step" | jq -r '.delay // 100')
+            selector=$(workflow::substitute_variables "$selector")
+            text=$(workflow::substitute_variables "$text")
+            
+            if type browser::type_with_delay &>/dev/null; then
+                browser::type_with_delay "$selector" "$text" "$delay" "$SESSION_ID"
+            else
+                # Fallback to regular type
+                browser::type "$selector" "$text" "$SESSION_ID"
+            fi
             ;;
             
         *)

@@ -8,8 +8,8 @@ readonly RESOURCE_NAME="nsfw-detector"
 readonly RESOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly CONFIG_DIR="${RESOURCE_DIR}/config"
 readonly TEST_DIR="${RESOURCE_DIR}/test"
-readonly DATA_DIR="${DATA_DIR:-/var/lib/nsfw-detector}"
-readonly LOG_DIR="${LOG_DIR:-/var/log/nsfw-detector}"
+readonly DATA_DIR="${DATA_DIR:-${HOME}/.local/share/nsfw-detector}"
+readonly LOG_DIR="${LOG_DIR:-${HOME}/.local/share/nsfw-detector/logs}"
 
 # Load configuration
 if [[ -f "${CONFIG_DIR}/defaults.sh" ]]; then

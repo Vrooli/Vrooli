@@ -1249,3 +1249,114 @@ n8n::validate_injection() {
         return 1
     fi
 }
+
+################################################################################
+# Credentials command - Display n8n integration credentials
+################################################################################
+n8n::cli_credentials() {
+    local format="${1:-text}"
+    local show_secrets=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="${2:-text}"
+                shift 2
+                ;;
+            --show-secrets)
+                show_secrets=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Load secrets if available
+    if declare -f n8n::secrets::load > /dev/null 2>&1; then
+        n8n::secrets::load > /dev/null 2>&1
+    fi
+    
+    case "$format" in
+        json)
+            cat <<EOF
+{
+  "service": "n8n",
+  "url": "http://localhost:${N8N_PORT:-5678}",
+  "api_endpoint": "http://localhost:${N8N_PORT:-5678}/api",
+  "webhook_endpoint": "http://localhost:${N8N_PORT:-5678}/webhook",
+  "health_endpoint": "http://localhost:${N8N_PORT:-5678}/health",
+  "basic_auth_enabled": ${N8N_BASIC_AUTH_ACTIVE:-false},
+  "encryption_configured": $([ -n "${N8N_ENCRYPTION_KEY:-}" ] && echo "true" || echo "false")
+}
+EOF
+            ;;
+        env)
+            echo "N8N_URL=http://localhost:${N8N_PORT:-5678}"
+            echo "N8N_API_ENDPOINT=http://localhost:${N8N_PORT:-5678}/api"
+            echo "N8N_WEBHOOK_ENDPOINT=http://localhost:${N8N_PORT:-5678}/webhook"
+            echo "N8N_HEALTH_ENDPOINT=http://localhost:${N8N_PORT:-5678}/health"
+            if [[ -n "${N8N_BASIC_AUTH_USER:-}" ]]; then
+                echo "N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}"
+            fi
+            ;;
+        *)
+            log::info "n8n Integration Credentials"
+            echo ""
+            echo "Service URL:      http://localhost:${N8N_PORT:-5678}"
+            echo "API Endpoint:     http://localhost:${N8N_PORT:-5678}/api"
+            echo "Webhook Endpoint: http://localhost:${N8N_PORT:-5678}/webhook"
+            echo "Health Endpoint:  http://localhost:${N8N_PORT:-5678}/health"
+            echo ""
+            if [[ "${N8N_BASIC_AUTH_ACTIVE:-false}" == "true" ]]; then
+                echo "Basic Auth:       ENABLED"
+                if [[ -n "${N8N_BASIC_AUTH_USER:-}" ]]; then
+                    echo "Username:         ${N8N_BASIC_AUTH_USER}"
+                fi
+            else
+                echo "Basic Auth:       DISABLED"
+            fi
+            echo ""
+            if [[ -n "${N8N_ENCRYPTION_KEY:-}" ]]; then
+                echo "Encryption:       CONFIGURED"
+            else
+                echo "Encryption:       NOT CONFIGURED"
+            fi
+            ;;
+    esac
+}
+
+################################################################################
+# Logs command - View n8n container logs
+################################################################################
+n8n::logs() {
+    local tail_lines="${1:-50}"
+    local follow=false
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tail)
+                tail_lines="${2:-50}"
+                shift 2
+                ;;
+            --follow|-f)
+                follow=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    log::info "Showing n8n logs (last $tail_lines lines)..."
+    
+    if [[ "$follow" == true ]]; then
+        docker logs -f --tail "$tail_lines" vrooli-n8n
+    else
+        docker logs --tail "$tail_lines" vrooli-n8n
+    fi
+}

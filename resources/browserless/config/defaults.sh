@@ -126,6 +126,48 @@ browserless::export_config() {
         export BROWSERLESS_DOCKER_SECCOMP
     fi
 
+    # Auto-scaling configuration (only set if not already defined)
+    if [[ -z "${BROWSERLESS_ENABLE_AUTOSCALING:-}" ]]; then
+        BROWSERLESS_ENABLE_AUTOSCALING="false"
+        readonly BROWSERLESS_ENABLE_AUTOSCALING
+        export BROWSERLESS_ENABLE_AUTOSCALING
+    fi
+    if [[ -z "${BROWSERLESS_POOL_MIN_SIZE:-}" ]]; then
+        BROWSERLESS_POOL_MIN_SIZE="2"
+        readonly BROWSERLESS_POOL_MIN_SIZE
+        export BROWSERLESS_POOL_MIN_SIZE
+    fi
+    if [[ -z "${BROWSERLESS_POOL_MAX_SIZE:-}" ]]; then
+        BROWSERLESS_POOL_MAX_SIZE="20"
+        readonly BROWSERLESS_POOL_MAX_SIZE
+        export BROWSERLESS_POOL_MAX_SIZE
+    fi
+    if [[ -z "${BROWSERLESS_POOL_SCALE_UP_THRESHOLD:-}" ]]; then
+        BROWSERLESS_POOL_SCALE_UP_THRESHOLD="70"
+        readonly BROWSERLESS_POOL_SCALE_UP_THRESHOLD
+        export BROWSERLESS_POOL_SCALE_UP_THRESHOLD
+    fi
+    if [[ -z "${BROWSERLESS_POOL_SCALE_DOWN_THRESHOLD:-}" ]]; then
+        BROWSERLESS_POOL_SCALE_DOWN_THRESHOLD="30"
+        readonly BROWSERLESS_POOL_SCALE_DOWN_THRESHOLD
+        export BROWSERLESS_POOL_SCALE_DOWN_THRESHOLD
+    fi
+    if [[ -z "${BROWSERLESS_POOL_SCALE_STEP:-}" ]]; then
+        BROWSERLESS_POOL_SCALE_STEP="2"
+        readonly BROWSERLESS_POOL_SCALE_STEP
+        export BROWSERLESS_POOL_SCALE_STEP
+    fi
+    if [[ -z "${BROWSERLESS_POOL_MONITOR_INTERVAL:-}" ]]; then
+        BROWSERLESS_POOL_MONITOR_INTERVAL="10"
+        readonly BROWSERLESS_POOL_MONITOR_INTERVAL
+        export BROWSERLESS_POOL_MONITOR_INTERVAL
+    fi
+    if [[ -z "${BROWSERLESS_POOL_COOLDOWN_PERIOD:-}" ]]; then
+        BROWSERLESS_POOL_COOLDOWN_PERIOD="30"
+        readonly BROWSERLESS_POOL_COOLDOWN_PERIOD
+        export BROWSERLESS_POOL_COOLDOWN_PERIOD
+    fi
+    
     # Mark configuration as initialized to prevent re-running
     readonly BROWSERLESS_CONFIG_INITIALIZED=1
     export BROWSERLESS_CONFIG_INITIALIZED

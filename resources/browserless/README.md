@@ -52,6 +52,7 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - **Visual Testing** - Screenshot comparison and visual regression testing
 - **PDF Generation** - High-quality PDF conversion with browser rendering
 - **Complex Scraping** - Sites with dynamic content or anti-bot measures
+- **Conditional Workflows** - Intelligent automation with branching logic (NEW!)
 
 ### Alternatives to Consider:
 - **Simple HTTP Requests**: Use curl/wget for static content
@@ -83,6 +84,75 @@ resource-browserless for vault add-secret secret/myapp key=value
 resource-browserless for --help
 ```
 
+## Browser Pool Management (NEW!)
+
+Browserless now includes automatic browser pool scaling to handle varying loads efficiently:
+
+### Pool Management Commands
+
+```bash
+# Show pool statistics
+resource-browserless pool
+
+# Start auto-scaler
+resource-browserless pool start
+
+# Stop auto-scaler
+resource-browserless pool stop
+
+# Get pool metrics in JSON
+resource-browserless pool metrics
+
+# Enable auto-scaling on startup
+export BROWSERLESS_ENABLE_AUTOSCALING=true
+resource-browserless manage start
+```
+
+### Pool Configuration
+
+```bash
+# Auto-scaling configuration
+export BROWSERLESS_POOL_MIN_SIZE=2         # Minimum pool size
+export BROWSERLESS_POOL_MAX_SIZE=20        # Maximum pool size
+export BROWSERLESS_POOL_SCALE_UP_THRESHOLD=70    # Scale up at 70% utilization
+export BROWSERLESS_POOL_SCALE_DOWN_THRESHOLD=30  # Scale down at 30% utilization
+export BROWSERLESS_POOL_SCALE_STEP=2       # Add/remove 2 instances at a time
+export BROWSERLESS_POOL_MONITOR_INTERVAL=10      # Check every 10 seconds
+export BROWSERLESS_POOL_COOLDOWN_PERIOD=30       # Wait 30s between scaling
+```
+
+## Performance Benchmarks (NEW!)
+
+Track and compare performance over time with the new benchmark suite:
+
+### Running Benchmarks
+
+```bash
+# Run all benchmarks
+resource-browserless benchmark
+
+# Run specific benchmark categories
+resource-browserless benchmark navigation
+resource-browserless benchmark screenshots
+resource-browserless benchmark extraction
+resource-browserless benchmark workflows
+
+# Show benchmark summary
+resource-browserless benchmark summary
+
+# Compare two benchmark runs
+resource-browserless benchmark compare file1.json file2.json
+```
+
+### Benchmark Metrics
+
+- **Navigation**: Page load times for simple and complex pages
+- **Screenshots**: Time to capture regular and full-page screenshots  
+- **Extraction**: Text, attribute, and element detection performance
+- **Workflows**: End-to-end workflow execution times
+
+Benchmarks track min, max, average, median, and 95th percentile metrics.
+
 ### Why Use Adapters?
 
 - **Resilience**: Continue operations when APIs fail
@@ -91,6 +161,65 @@ resource-browserless for --help
 - **Emergency Access**: Bypass rate limits or authentication issues
 
 See [docs/ADAPTERS.md](docs/ADAPTERS.md) for complete documentation.
+
+## Conditional Workflows (NEW!)
+
+Browserless workflows now support sophisticated conditional branching for intelligent automation:
+
+### Condition Types
+- **URL Matching** - Branch based on current URL patterns
+- **Element Visibility** - Check if elements are present/visible
+- **Text Content** - Match element text with exact/contains/regex
+- **Error Detection** - Automatic error message detection
+- **Input States** - Check checkbox/radio button states
+- **JavaScript** - Custom JavaScript conditions
+
+### Example: Auto-Login Detection
+```yaml
+steps:
+  - action: "navigate"
+    url: "https://app.example.com/dashboard"
+    
+  - action: "condition"
+    condition_type: "url"
+    url_pattern: "/login"
+    then_steps:
+      # Automatically handle login
+      - action: "fill"
+        selector: "#username"
+        text: "${params.username}"
+      - action: "fill"
+        selector: "#password"
+        text: "${params.password}"
+      - action: "click"
+        selector: "button[type='submit']"
+    else_steps:
+      - action: "log"
+        message: "Already authenticated"
+```
+
+### Example: Error Recovery
+```yaml
+steps:
+  - action: "condition"
+    condition_type: "has_errors"
+    error_patterns: "error,failed,invalid"
+    then_steps:
+      - action: "screenshot"
+        path: "error-state.png"
+      - action: "wait"
+        duration: 2000
+      - action: "jump"
+        label: "retry_action"
+```
+
+### Documentation
+See [Conditional Branching Guide](docs/CONDITIONAL_BRANCHING.md) for:
+- Complete condition type reference
+- Advanced branching patterns
+- Login detection examples
+- Error recovery strategies
+- Performance considerations
 
 ## Integration Examples
 

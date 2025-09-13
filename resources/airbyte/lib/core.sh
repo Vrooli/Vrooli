@@ -297,9 +297,78 @@ manage_uninstall() {
     log_info "Airbyte uninstalled"
 }
 
-# Check health
+# Check health with detailed status
 check_health() {
-    timeout 5 curl -sf "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/health" > /dev/null 2>&1
+    local verbose="${1:-false}"
+    
+    # Basic health check
+    if ! timeout 5 curl -sf "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/health" > /dev/null 2>&1; then
+        [[ "$verbose" == "true" ]] && log_error "API health check failed"
+        return 1
+    fi
+    
+    # Check critical services if verbose
+    if [[ "$verbose" == "true" ]]; then
+        local services=("server" "worker" "scheduler" "temporal" "db")
+        local failed=0
+        
+        for service in "${services[@]}"; do
+            container="airbyte-${service}"
+            [[ "$service" == "db" ]] && container="airbyte-db"
+            
+            if ! docker ps --format "{{.Names}}" | grep -q "^${container}$"; then
+                log_error "Service ${service} is not running"
+                failed=$((failed + 1))
+            fi
+        done
+        
+        if [[ $failed -gt 0 ]]; then
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+# Check sync status
+check_sync_status() {
+    local connection_id="${1:-}"
+    
+    if [[ -z "$connection_id" ]]; then
+        # Get overall sync health
+        local result=$(curl -sf "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/jobs/list" 2>/dev/null)
+        if [[ $? -ne 0 ]]; then
+            log_error "Failed to retrieve job list"
+            return 1
+        fi
+        
+        # Check for failed jobs in last hour
+        local failed_count=$(echo "$result" | jq '[.jobs[] | select(.status == "failed" and (.updatedAt | fromdateiso8601) > (now - 3600))] | length' 2>/dev/null || echo "0")
+        
+        if [[ "$failed_count" -gt 0 ]]; then
+            log_error "Found $failed_count failed sync jobs in the last hour"
+            return 1
+        fi
+    else
+        # Check specific connection
+        local result=$(curl -sf -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"connectionId\":\"$connection_id\"}" \
+            "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/connections/get" 2>/dev/null)
+        
+        if [[ $? -ne 0 ]]; then
+            log_error "Failed to retrieve connection status"
+            return 1
+        fi
+        
+        local status=$(echo "$result" | jq -r '.status' 2>/dev/null)
+        if [[ "$status" != "active" ]]; then
+            log_error "Connection $connection_id is not active (status: $status)"
+            return 1
+        fi
+    fi
+    
+    return 0
 }
 
 # Command: test
@@ -523,15 +592,26 @@ content_remove() {
     exit 1
 }
 
-# Execute sync
+# Execute sync with retry logic
 content_execute() {
     local connection_id=""
+    local max_retries=3
+    local retry_delay=5
+    local wait_for_completion="false"
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --connection-id)
                 connection_id="$2"
                 shift 2
+                ;;
+            --max-retries)
+                max_retries="$2"
+                shift 2
+                ;;
+            --wait)
+                wait_for_completion="true"
+                shift
                 ;;
             *)
                 shift
@@ -544,18 +624,179 @@ content_execute() {
         exit 1
     fi
     
-    curl -X POST \
-        -H "Content-Type: application/json" \
-        -d "{\"connectionId\":\"$connection_id\"}" \
-        "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/connections/sync" | jq '.'
+    # Trigger sync with retry logic
+    local attempt=0
+    local job_id=""
+    
+    while [[ $attempt -lt $max_retries ]]; do
+        attempt=$((attempt + 1))
+        log_info "Triggering sync for connection $connection_id (attempt $attempt/$max_retries)..."
+        
+        local result=$(curl -sf -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"connectionId\":\"$connection_id\"}" \
+            "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/connections/sync" 2>/dev/null)
+        
+        if [[ $? -eq 0 ]]; then
+            job_id=$(echo "$result" | jq -r '.job.id' 2>/dev/null)
+            if [[ -n "$job_id" && "$job_id" != "null" ]]; then
+                echo "$result" | jq '.'
+                log_info "Sync job started successfully: $job_id"
+                break
+            fi
+        fi
+        
+        if [[ $attempt -lt $max_retries ]]; then
+            log_error "Failed to start sync, retrying in ${retry_delay} seconds..."
+            sleep "$retry_delay"
+            retry_delay=$((retry_delay * 2))  # Exponential backoff
+        else
+            log_error "Failed to start sync after $max_retries attempts"
+            exit 1
+        fi
+    done
+    
+    # Wait for completion if requested
+    if [[ "$wait_for_completion" == "true" && -n "$job_id" ]]; then
+        monitor_sync_job "$job_id"
+    fi
+}
+
+# Monitor sync job status
+monitor_sync_job() {
+    local job_id="$1"
+    local timeout="${2:-3600}"  # Default 1 hour timeout
+    local check_interval=10
+    local elapsed=0
+    
+    log_info "Monitoring sync job $job_id..."
+    
+    while [[ $elapsed -lt $timeout ]]; do
+        local result=$(curl -sf -X POST \
+            -H "Content-Type: application/json" \
+            -d "{\"id\":\"$job_id\"}" \
+            "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/jobs/get" 2>/dev/null)
+        
+        if [[ $? -ne 0 ]]; then
+            log_error "Failed to get job status"
+            return 1
+        fi
+        
+        local status=$(echo "$result" | jq -r '.job.status' 2>/dev/null)
+        
+        case "$status" in
+            "succeeded")
+                log_info "Sync job completed successfully"
+                echo "$result" | jq '.job'
+                return 0
+                ;;
+            "failed")
+                log_error "Sync job failed"
+                echo "$result" | jq '.job'
+                return 1
+                ;;
+            "cancelled")
+                log_error "Sync job was cancelled"
+                return 1
+                ;;
+            "running"|"pending")
+                # Still in progress
+                ;;
+            *)
+                log_error "Unknown job status: $status"
+                return 1
+                ;;
+        esac
+        
+        sleep "$check_interval"
+        elapsed=$((elapsed + check_interval))
+        
+        # Log progress every minute
+        if [[ $((elapsed % 60)) -eq 0 ]]; then
+            log_info "Job still running... (${elapsed}s elapsed)"
+        fi
+    done
+    
+    log_error "Sync job timed out after ${timeout} seconds"
+    return 1
 }
 
 # Command: status
 cmd_status() {
-    echo "Airbyte Service Status:"
-    echo ""
+    local format="${1:---text}"
+    local verbose="${2:---verbose}"
     
-    # Check each service
+    if [[ "$format" == "--json" ]]; then
+        status_json
+    else
+        echo "Airbyte Service Status:"
+        echo ""
+        
+        # Check each service
+        local services_running=0
+        local services_total=6
+        
+        for service in webapp server worker scheduler temporal db; do
+            container_name="airbyte-${service}"
+            if [[ "$service" == "db" ]]; then
+                container_name="airbyte-db"
+            fi
+            
+            if docker ps --format "table {{.Names}}" | grep -q "^${container_name}$"; then
+                echo "  ${service}: running ✓"
+                services_running=$((services_running + 1))
+            else
+                echo "  ${service}: stopped ✗"
+            fi
+        done
+        
+        echo ""
+        echo "Health Check:"
+        if check_health true; then
+            echo "  API: healthy ✓"
+        else
+            echo "  API: unhealthy ✗"
+        fi
+        
+        # Show sync status if services are running
+        if [[ $services_running -gt 0 && "$verbose" == "--verbose" ]]; then
+            echo ""
+            echo "Sync Status:"
+            show_sync_status
+        fi
+        
+        echo ""
+        echo "Summary: ${services_running}/${services_total} services running"
+    fi
+}
+
+# Show sync status summary
+show_sync_status() {
+    local result=$(curl -sf "http://localhost:${AIRBYTE_SERVER_PORT}/api/v1/jobs/list" 2>/dev/null)
+    
+    if [[ $? -ne 0 ]]; then
+        echo "  Unable to retrieve sync status"
+        return
+    fi
+    
+    # Count jobs by status
+    local running=$(echo "$result" | jq '[.jobs[] | select(.status == "running")] | length' 2>/dev/null || echo "0")
+    local succeeded=$(echo "$result" | jq '[.jobs[] | select(.status == "succeeded" and (.updatedAt | fromdateiso8601) > (now - 3600))] | length' 2>/dev/null || echo "0")
+    local failed=$(echo "$result" | jq '[.jobs[] | select(.status == "failed" and (.updatedAt | fromdateiso8601) > (now - 3600))] | length' 2>/dev/null || echo "0")
+    
+    echo "  Running syncs: $running"
+    echo "  Successful (last hour): $succeeded"
+    echo "  Failed (last hour): $failed"
+    
+    if [[ "$failed" -gt 0 ]]; then
+        echo "  ⚠️  Warning: Recent sync failures detected"
+    fi
+}
+
+# Status in JSON format
+status_json() {
+    local services_status="{}"
+    
     for service in webapp server worker scheduler temporal db; do
         container_name="airbyte-${service}"
         if [[ "$service" == "db" ]]; then
@@ -563,19 +804,24 @@ cmd_status() {
         fi
         
         if docker ps --format "table {{.Names}}" | grep -q "^${container_name}$"; then
-            echo "  ${service}: running"
+            services_status=$(echo "$services_status" | jq ". + {\"$service\": \"running\"}")
         else
-            echo "  ${service}: stopped"
+            services_status=$(echo "$services_status" | jq ". + {\"$service\": \"stopped\"}")
         fi
     done
     
-    echo ""
-    echo "Health Check:"
-    if check_health; then
-        echo "  API: healthy"
-    else
-        echo "  API: unhealthy"
-    fi
+    local health="unhealthy"
+    check_health && health="healthy"
+    
+    echo "{
+        \"services\": $services_status,
+        \"health\": \"$health\",
+        \"ports\": {
+            \"webapp\": ${AIRBYTE_WEBAPP_PORT},
+            \"server\": ${AIRBYTE_SERVER_PORT},
+            \"temporal\": ${AIRBYTE_TEMPORAL_PORT}
+        }
+    }" | jq '.'
 }
 
 # Command: logs
