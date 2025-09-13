@@ -3,12 +3,14 @@
 Splink is a Python library for probabilistic record linkage (entity resolution) and deduplication at scale, developed by the UK Ministry of Justice. It enables Vrooli scenarios to identify and link records that refer to the same entity across different datasets without requiring training data.
 
 ## Status
-✅ **FUNCTIONAL** - All P0 requirements implemented and tested
+✅ **ENHANCED** - All P0 requirements and 2 P1 requirements implemented
 - Health endpoint: ✅ Working
-- Deduplication API: ✅ Implemented  
-- Linkage API: ✅ Implemented
+- Deduplication API: ✅ Implemented with native Splink  
+- Linkage API: ✅ Implemented with fallback support
 - Parameter estimation: ✅ Implemented
 - DuckDB backend: ✅ Integrated
+- PostgreSQL integration: ✅ Added for data persistence
+- Batch processing: ✅ Implemented with priority queuing
 - All tests passing: ✅ Confirmed
 
 ## Features
@@ -16,8 +18,10 @@ Splink is a Python library for probabilistic record linkage (entity resolution) 
 - **Probabilistic Matching**: Uses Fellegi-Sunter model for sophisticated record linkage
 - **Scale**: Process 1M records in <1 minute on a laptop, 100M+ with Spark
 - **Unsupervised**: No training data required - uses EM algorithm
-- **Multiple Backends**: DuckDB (local), Spark, Athena, SQLite
-- **Interactive Visualizations**: Explore linkage results with built-in charts
+- **Multiple Backends**: DuckDB (local), PostgreSQL (persistent), Spark (coming soon)
+- **Batch Processing**: Submit multiple linkage jobs with priority queuing
+- **Data Persistence**: Save/load datasets and results to PostgreSQL or CSV
+- **Native Splink**: Uses actual Splink v3.9.14 library with automatic fallback
 
 ## Quick Start
 
@@ -62,6 +66,18 @@ curl -X POST http://localhost:8096/linkage/link \
       "link_type": "one_to_one",
       "threshold": 0.9
     }
+  }'
+```
+
+### Batch Processing
+```bash
+curl -X POST http://localhost:8096/linkage/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jobs": [
+      {"job_type": "deduplicate", "dataset1_id": "customers", "priority": 10},
+      {"job_type": "link", "dataset1_id": "orders", "dataset2_id": "customers", "priority": 5}
+    ]
   }'
 ```
 

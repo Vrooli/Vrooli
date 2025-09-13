@@ -10,6 +10,8 @@ The Twilio resource provides integration with Twilio's cloud communications API,
 - Message templates
 - Delivery tracking
 - Secure credential management via Vault
+- Comprehensive audit logging
+- Analytics dashboard with cost tracking
 
 ## Quick Start
 
@@ -172,6 +174,58 @@ resource-twilio content numbers
 cat ~/.vrooli/twilio/phone-numbers.json
 ```
 
+### Audit Logging
+
+Comprehensive audit trail for all operations:
+
+```bash
+# Search audit logs
+resource-twilio content audit-search "SMS_SEND"
+
+# View audit statistics
+resource-twilio content audit-stats
+
+# Archive old audit logs (older than 6 months)
+resource-twilio content audit-archive 6
+```
+
+**Features:**
+- Tracks who, what, when, where, and why for every operation
+- Tamper-resistant monthly audit files
+- Integration with system audit logs
+- Failed attempt logging for security monitoring
+
+### Analytics Dashboard
+
+Real-time analytics and cost tracking:
+
+```bash
+# Show dashboard for today
+resource-twilio content dashboard today
+
+# Show dashboard for last week
+resource-twilio content dashboard week
+
+# Show dashboard for last month  
+resource-twilio content dashboard month
+
+# Export analytics report
+resource-twilio content analytics-export report.txt month
+
+# Show daily cost breakdown
+resource-twilio content analytics-costs 7
+
+# Show performance metrics
+resource-twilio content analytics-performance
+```
+
+**Features:**
+- Message statistics with success/failure rates
+- Cost analysis with per-segment calculation
+- Top recipients and hourly distribution
+- Delivery status breakdown
+- Export capabilities for reports
+
 ### Testing
 
 Comprehensive test suite for validation:
@@ -239,6 +293,13 @@ resource-twilio content send-sms "$USER_PHONE" "Task completed successfully"
 | `content template-create` | Create message template |
 | `content template-list` | List all templates |
 | `content template-send` | Send SMS using template |
+| `content audit-search` | Search audit logs |
+| `content audit-stats` | Show audit statistics |
+| `content audit-archive` | Archive old audit logs |
+| `content dashboard` | Show analytics dashboard |
+| `content analytics-export` | Export analytics report |
+| `content analytics-costs` | Show daily cost breakdown |
+| `content analytics-performance` | Show performance metrics |
 | `status` | Show detailed status |
 | `info` | Show configuration information |
 

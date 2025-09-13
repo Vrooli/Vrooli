@@ -55,8 +55,22 @@ COMMANDS:
         add <name> <code>   Create new macro
         run <name>          Execute macro
         remove <name>       Delete macro
-        remove <name>       Delete G-code file
-        execute <name>      Execute G-code job
+    workflow                Manage CNC job workflows
+        list                List available workflows
+        create <name>       Create new workflow
+        add-step <wf> <file> Add G-code step to workflow
+        show <name>         Display workflow details
+        execute <name>      Execute workflow sequence
+        remove <name>       Delete workflow
+        export <name>       Export workflow as archive
+        import <archive>    Import workflow from archive
+    controller              Manage controller configurations
+        list                List supported controllers
+        configure <name>    Create controller profile
+        show <name>         Display profile details
+        apply <name>        Apply controller profile
+        remove <name>       Delete controller profile
+        test                Test controller connectivity
     status                  Show detailed service status
     logs                    View CNCjs logs
     credentials             Display connection information
@@ -185,6 +199,16 @@ main() {
             local subcommand="${1:-list}"
             shift || true
             cncjs::macro "$subcommand" "$@"
+            ;;
+        workflow)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::workflow "$subcommand" "$@"
+            ;;
+        controller)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::controller "$subcommand" "$@"
             ;;
         *)
             echo "Unknown command: $command" >&2

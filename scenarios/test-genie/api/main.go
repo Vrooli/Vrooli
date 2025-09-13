@@ -300,12 +300,20 @@ func initDB() {
 	dbName := os.Getenv("POSTGRES_DB")
 
 	// Validate required environment variables
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
-		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+	if dbHost == "" || dbPort == "" || dbUser == "" || dbName == "" {
+		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_DB")
 	}
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+	// Build connection string - password is optional for trust auth
+	var connStr string
+	if dbPassword != "" {
+		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbPassword, dbName)
+	} else {
+		log.Println("⚠️  No password provided, attempting trust authentication...")
+		connStr = fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable",
+			dbHost, dbPort, dbUser, dbName)
+	}
 
 	var err error
 	db, err = sql.Open("postgres", connStr)
@@ -1066,7 +1074,7 @@ func generateHealthTestCode(scenarioName string) string {
 	return fmt.Sprintf(`
 #!/bin/bash
 # Health test for %s
-API_PORT=${API_PORT:-8080}
+API_PORT=${API_PORT:-8250}
 response=$(curl -s -w "%%{http_code}" http://localhost:${API_PORT}/health)
 http_code=$(echo $response | tail -c 4)
 if [ "$http_code" = "200" ]; then
@@ -1084,7 +1092,7 @@ func generateDBTestCode(scenarioName string) string {
 #!/bin/bash
 # Database connection test for %s
 POSTGRES_HOST=${POSTGRES_HOST:-localhost}
-POSTGRES_PORT=${POSTGRES_PORT:-5432}
+POSTGRES_PORT=${POSTGRES_PORT:-5433}
 POSTGRES_USER=${POSTGRES_USER:-postgres}
 POSTGRES_DB=${POSTGRES_DB:-%s}
 
@@ -1103,7 +1111,7 @@ func generateWorkflowTestCode(scenarioName string) string {
 	return fmt.Sprintf(`
 #!/bin/bash
 # End-to-end workflow test for %s
-API_PORT=${API_PORT:-8080}
+API_PORT=${API_PORT:-8250}
 BASE_URL="http://localhost:${API_PORT}"
 
 # Test complete workflow
@@ -1145,7 +1153,7 @@ func generateLoadTestCode(scenarioName string) string {
 	return fmt.Sprintf(`
 #!/bin/bash
 # Load test for %s
-API_PORT=${API_PORT:-8080}
+API_PORT=${API_PORT:-8250}
 BASE_URL="http://localhost:${API_PORT}"
 CONCURRENT_REQUESTS=10
 TOTAL_REQUESTS=100
@@ -1225,7 +1233,7 @@ func generateRegressionTestCode(scenarioName string) string {
 	return fmt.Sprintf(`
 #!/bin/bash
 # Regression test for %s
-API_PORT=${API_PORT:-8080}
+API_PORT=${API_PORT:-8250}
 BASE_URL="http://localhost:${API_PORT}"
 
 echo "Running regression tests for %s..."

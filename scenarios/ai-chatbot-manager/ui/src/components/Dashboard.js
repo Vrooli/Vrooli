@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import apiClient from '../utils/api';
 
 function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,7 @@ function Dashboard() {
       setLoading(true);
       
       // Load chatbots
-      const chatbotsResponse = await fetch('/api/v1/chatbots');
+      const chatbotsResponse = await apiClient.get('/api/v1/chatbots');
       const chatbotsData = await chatbotsResponse.json();
       setChatbots(chatbotsData);
 

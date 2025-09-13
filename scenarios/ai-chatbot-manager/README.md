@@ -69,7 +69,8 @@ AI Chatbot Manager is a complete SaaS platform that enables businesses to create
 
 2. **Access the dashboard:**
    ```
-   http://localhost:3000
+   The dashboard URL will be displayed after startup
+   Typically: http://localhost:[dynamically-assigned-port]
    ```
 
 3. **Create your first chatbot:**
@@ -109,12 +110,12 @@ ai-chatbot-manager analytics <chatbot-id>
 
 ```bash
 # API Configuration
-API_PORT=8090                    # API server port
+API_PORT=[dynamically-assigned]  # API server port (15000-19999)
 DATABASE_URL=postgres://...      # PostgreSQL connection string
 OLLAMA_URL=http://localhost:11434 # Ollama API endpoint
 
 # UI Configuration  
-UI_PORT=3000                     # React dashboard port
+UI_PORT=[dynamically-assigned]   # React dashboard port (3000-8999)
 REACT_APP_API_URL=http://...     # API URL for frontend
 ```
 
@@ -168,7 +169,7 @@ GET    /api/v1/analytics/{id}/conversations # Get conversation history
 
 ### Example: Create Chatbot
 ```bash
-curl -X POST http://localhost:8090/api/v1/chatbots \
+curl -X POST http://localhost:${API_PORT}/api/v1/chatbots \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Support Bot",
@@ -183,7 +184,7 @@ curl -X POST http://localhost:8090/api/v1/chatbots \
 
 ### Example: Send Message
 ```bash
-curl -X POST http://localhost:8090/api/v1/chat/chatbot-id \
+curl -X POST http://localhost:${API_PORT}/api/v1/chat/chatbot-id \
   -H "Content-Type: application/json" \
   -d '{
     "message": "Hello, I need help with pricing",
@@ -382,7 +383,7 @@ FROM debian:bullseye-slim
 WORKDIR /app
 COPY --from=api-build /app/api/ai-chatbot-manager-api ./
 COPY --from=ui-build /app/ui/build ./ui/build
-EXPOSE 8090 3000
+EXPOSE ${API_PORT} ${UI_PORT}
 CMD ["./ai-chatbot-manager-api"]
 ```
 
@@ -407,7 +408,7 @@ spec:
       - name: api
         image: your-registry/ai-chatbot-manager:latest
         ports:
-        - containerPort: 8090
+        - containerPort: ${API_PORT}
         env:
         - name: DATABASE_URL
           valueFrom:
@@ -524,7 +525,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 **Issue: API health check fails**
 ```bash
 # Check if Ollama is running
-curl http://localhost:11434/api/tags
+curl http://localhost:${OLLAMA_PORT}/api/tags
 
 # Check if PostgreSQL is accessible
 psql $DATABASE_URL -c "SELECT 1;"

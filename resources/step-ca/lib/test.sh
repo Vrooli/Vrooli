@@ -38,7 +38,8 @@ test_smoke() {
     
     # Test 4: Configuration exists
     echo -n "  Checking configuration... "
-    if [[ -f "${DATA_DIR:-/tmp}/config/ca.json" ]]; then
+    DATA_DIR="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca"
+    if [[ -f "${DATA_DIR}/config/config/ca.json" ]]; then
         echo "✅"
     else
         echo "❌ Configuration not found"
@@ -71,7 +72,8 @@ test_integration() {
     
     # Test 2: Root certificate
     echo -n "  Checking root certificate... "
-    if [[ -f "${CERTS_DIR:-/tmp}/root_ca.crt" ]]; then
+    CERTS_DIR="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/certs"
+    if [[ -f "${CERTS_DIR}/root_ca.crt" ]]; then
         echo "✅"
     else
         echo "❌ Root certificate not found"
@@ -80,7 +82,8 @@ test_integration() {
     
     # Test 3: Provisioner configuration
     echo -n "  Checking provisioner config... "
-    if [[ -f "${CONFIG_DIR:-/tmp}/ca.json" ]] && grep -q "provisioners" "${CONFIG_DIR:-/tmp}/ca.json" 2>/dev/null; then
+    CONFIG_DIR="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config"
+    if [[ -f "${CONFIG_DIR}/ca.json" ]] && grep -q "provisioners" "${CONFIG_DIR}/ca.json" 2>/dev/null; then
         echo "✅"
     else
         echo "❌ Provisioner not configured"

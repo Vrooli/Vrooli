@@ -5,17 +5,28 @@
 
 setup() {
     # Set up test environment
-    export API_BASE_URL="${API_BASE_URL:-http://localhost:8090}"
+    # API_BASE_URL will be auto-discovered by the CLI if not set
     export CLI_PATH="./ai-chatbot-manager"
     
     # Skip tests if CLI is not executable
     if [[ ! -x "$CLI_PATH" ]]; then
         skip "CLI script is not executable: $CLI_PATH"
     fi
+    
+    # Get API URL for availability checks
+    if [[ -z "$API_BASE_URL" ]]; then
+        API_PORT=$(vrooli scenario port ai-chatbot-manager API_PORT 2>/dev/null)
+        if [[ -n "$API_PORT" ]]; then
+            export API_BASE_URL="http://localhost:${API_PORT}"
+        fi
+    fi
 }
 
 # Helper function to check if API is available
 is_api_available() {
+    if [[ -z "$API_BASE_URL" ]]; then
+        return 1
+    fi
     curl -s "$API_BASE_URL/health" >/dev/null 2>&1
 }
 
@@ -160,12 +171,10 @@ is_api_available() {
 }
 
 @test "CLI handles API connectivity issues gracefully" {
-    # Test with a non-existent API URL
-    export API_BASE_URL="http://localhost:9999"
-    
-    run "$CLI_PATH" status
+    # Test with a non-existent API URL by overriding the environment
+    API_BASE_URL="http://localhost:99999" run "$CLI_PATH" status
     [[ "$status" -eq 1 ]]
-    [[ "$output" =~ ("API server is not available" || "not responding") ]]
+    [[ "$output" =~ ("API server is not available" || "not responding" || "not running") ]]
 }
 
 @test "CLI handles invalid JSON responses gracefully" {

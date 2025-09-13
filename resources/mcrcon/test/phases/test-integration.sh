@@ -63,6 +63,18 @@ main() {
     # Test 8: Schema configuration is valid JSON
     run_test "schema.json validation" "jq -e '.properties.server' '${RESOURCE_DIR}/config/schema.json'"
     
+    # Test 9: Server discovery command exists
+    run_test "discover command" "'${RESOURCE_DIR}/cli.sh' help | grep -q 'discover'"
+    
+    # Test 10: Player management commands exist
+    run_test "player commands" "'${RESOURCE_DIR}/cli.sh' help | grep -q 'player'"
+    
+    # Test 11: Execute-all command exists
+    run_test "execute-all command" "'${RESOURCE_DIR}/cli.sh' help | grep -q 'execute-all'"
+    
+    # Test 12: Content discovery works
+    run_test "content discover" "'${RESOURCE_DIR}/cli.sh' content discover"
+    
     # Summary
     echo "=============================="
     echo "Integration Tests: ${TESTS_PASSED}/${TESTS_RUN} passed"

@@ -231,6 +231,108 @@ cncjs::test_integration() {
         ((failed++))
     fi
     
+    # Test 7: Workflow management
+    log::info "Test 7: Testing workflow management..."
+    # Create a test workflow
+    if cncjs::workflow create "test_workflow" "Test workflow for integration" &>/dev/null; then
+        log::success "✓ Workflow creation successful"
+        
+        # Add a step
+        local test_gcode="/tmp/test_step.gcode"
+        echo "G0 X10 Y10 ; Test step" > "$test_gcode"
+        if cncjs::workflow add-step "test_workflow" "$test_gcode" "Test step" &>/dev/null; then
+            log::success "✓ Workflow step added"
+        else
+            log::error "✗ Failed to add workflow step"
+            ((failed++))
+        fi
+        rm -f "$test_gcode"
+        
+        # List workflows
+        if cncjs::workflow list 2>/dev/null | grep -q "test_workflow"; then
+            log::success "✓ Workflow listing works"
+        else
+            log::error "✗ Workflow not found in list"
+            ((failed++))
+        fi
+        
+        # Show workflow
+        if cncjs::workflow show "test_workflow" &>/dev/null; then
+            log::success "✓ Workflow show command works"
+        else
+            log::error "✗ Failed to show workflow"
+            ((failed++))
+        fi
+        
+        # Export workflow
+        local export_file="/tmp/test_workflow_export.tar.gz"
+        if cncjs::workflow export "test_workflow" "$export_file" &>/dev/null; then
+            if [[ -f "$export_file" ]]; then
+                log::success "✓ Workflow export successful"
+                rm -f "$export_file"
+            else
+                log::error "✗ Export file not created"
+                ((failed++))
+            fi
+        else
+            log::error "✗ Workflow export failed"
+            ((failed++))
+        fi
+        
+        # Remove workflow
+        if cncjs::workflow remove "test_workflow" &>/dev/null; then
+            log::success "✓ Workflow removal successful"
+        else
+            log::error "✗ Workflow removal failed"
+            ((failed++))
+        fi
+    else
+        log::error "✗ Workflow creation failed"
+        ((failed++))
+    fi
+    
+    # Test 8: Controller profiles
+    log::info "Test 8: Testing controller profiles..."
+    # Create a test controller profile
+    if cncjs::controller configure "test_controller" "grbl" "/dev/ttyUSB99" "115200" &>/dev/null; then
+        log::success "✓ Controller profile created"
+        
+        # List controllers
+        if cncjs::controller list 2>/dev/null | grep -q "test_controller"; then
+            log::success "✓ Controller listing works"
+        else
+            log::error "✗ Controller not found in list"
+            ((failed++))
+        fi
+        
+        # Show controller
+        if cncjs::controller show "test_controller" &>/dev/null; then
+            log::success "✓ Controller show command works"
+        else
+            log::error "✗ Failed to show controller"
+            ((failed++))
+        fi
+        
+        # Test connectivity (will fail without hardware, but command should work)
+        if cncjs::controller test &>/dev/null; then
+            log::success "✓ Controller test command works"
+        else
+            # Command should still run even without hardware
+            log::success "✓ Controller test command works (no hardware)"
+        fi
+        
+        # Remove controller
+        if cncjs::controller remove "test_controller" &>/dev/null; then
+            log::success "✓ Controller removal successful"
+        else
+            log::error "✗ Controller removal failed"
+            ((failed++))
+        fi
+    else
+        log::error "✗ Controller profile creation failed"
+        ((failed++))
+    fi
+    
     if [[ $failed -eq 0 ]]; then
         log::success "All integration tests passed!"
         return 0

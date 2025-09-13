@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import apiClient from '../utils/api';
 
 function Analytics() {
   const { id } = useParams();
@@ -18,14 +19,14 @@ function Analytics() {
       setLoading(true);
       
       // Load chatbot info
-      const chatbotResponse = await fetch(`/api/v1/chatbots/${id}`);
+      const chatbotResponse = await apiClient.get(`/api/v1/chatbots/${id}`);
       if (chatbotResponse.ok) {
         const chatbotData = await chatbotResponse.json();
         setChatbot(chatbotData);
       }
 
       // Load analytics
-      const analyticsResponse = await fetch(`/api/v1/analytics/${id}?days=${timeRange}`);
+      const analyticsResponse = await apiClient.get(`/api/v1/analytics/${id}?days=${timeRange}`);
       if (analyticsResponse.ok) {
         const analyticsData = await analyticsResponse.json();
         setAnalytics(analyticsData);

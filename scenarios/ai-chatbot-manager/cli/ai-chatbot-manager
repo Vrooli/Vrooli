@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-API_BASE_URL="${API_BASE_URL:-http://localhost:8090}"
+SCENARIO_NAME="ai-chatbot-manager"
 CLI_VERSION="1.0.0"
 SCRIPT_NAME="ai-chatbot-manager"
 
@@ -34,11 +34,31 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Dynamic port discovery function
+get_api_url() {
+    # Use vrooli scenario port command for dynamic port lookup
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        log_error "${SCENARIO_NAME} is not running"
+        log_info "Start it with: vrooli scenario run ${SCENARIO_NAME}"
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+# Get API URL dynamically unless overridden
+if [[ -z "${API_BASE_URL}" ]]; then
+    API_BASE_URL=$(get_api_url)
+fi
+
 # Check if API is available
 check_api() {
     if ! curl -s "${API_BASE_URL}/health" >/dev/null 2>&1; then
         log_error "API server is not available at ${API_BASE_URL}"
-        log_info "Make sure the API server is running: 'vrooli scenario run ai-chatbot-manager'"
+        log_info "Make sure the API server is running: 'vrooli scenario run ${SCENARIO_NAME}'"
         exit 1
     fi
 }
@@ -499,7 +519,7 @@ cmd_help() {
             echo "  $SCRIPT_NAME chat 123e4567-e89b-12d3-a456-426614174000"
             echo ""
             echo "Environment Variables:"
-            echo "  API_BASE_URL              API server URL (default: http://localhost:8090)"
+            echo "  API_BASE_URL              API server URL (auto-discovered if not set)"
             echo ""
             echo "For more help on a specific command:"
             echo "  $SCRIPT_NAME help <command>"
@@ -528,7 +548,7 @@ cmd_version() {
         echo "{\"cli_version\": \"$CLI_VERSION\", \"api_base_url\": \"$API_BASE_URL\"}"
     else
         echo "AI Chatbot Manager CLI v$CLI_VERSION"
-        echo "API Base URL: $API_BASE_URL"
+        echo "API: $API_BASE_URL"
     fi
 }
 

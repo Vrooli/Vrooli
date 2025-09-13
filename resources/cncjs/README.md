@@ -63,6 +63,54 @@ vrooli resource cncjs macro run "home"
 vrooli resource cncjs macro remove "home"
 ```
 
+### Workflow Management
+
+```bash
+# Create a workflow for multi-step jobs
+vrooli resource cncjs workflow create "production_run" "Complete production sequence"
+
+# Add G-code steps to workflow
+vrooli resource cncjs workflow add-step production_run roughing.gcode "Rough cut"
+vrooli resource cncjs workflow add-step production_run finishing.gcode "Finish pass"
+vrooli resource cncjs workflow add-step production_run drilling.gcode "Drill holes"
+
+# List workflows
+vrooli resource cncjs workflow list
+
+# Execute workflow (queues all steps)
+vrooli resource cncjs workflow execute production_run
+
+# Export workflow for sharing
+vrooli resource cncjs workflow export production_run production.tar.gz
+
+# Import workflow from archive
+vrooli resource cncjs workflow import production.tar.gz
+```
+
+### Controller Configuration
+
+```bash
+# List supported controllers
+vrooli resource cncjs controller list
+
+# Create controller profiles
+vrooli resource cncjs controller configure "3d_printer" "marlin" "/dev/ttyUSB1" "250000"
+vrooli resource cncjs controller configure "laser_cutter" "grbl" "/dev/ttyUSB2" "115200"
+vrooli resource cncjs controller configure "mill" "tinyg" "/dev/ttyUSB3" "115200"
+
+# Show profile details
+vrooli resource cncjs controller show 3d_printer
+
+# Apply controller profile (updates CNCjs configuration)
+vrooli resource cncjs controller apply laser_cutter
+
+# Test connectivity
+vrooli resource cncjs controller test
+
+# Remove profile
+vrooli resource cncjs controller remove 3d_printer
+```
+
 ### Configuration
 
 Default configuration is stored in `~/.cncjs/.cncrc`. Key settings:
@@ -92,9 +140,9 @@ Default configuration is stored in `~/.cncjs/.cncrc`. Key settings:
 
 ### P1 Requirements (Implemented)
 - ✅ Macro automation system - Create and execute reusable G-code macros
-- ⏳ Multi-controller support
+- ✅ Multi-controller support - Configure profiles for different CNC controllers
+- ✅ Workflow storage - Save and manage multi-step CNC job sequences
 - ⏳ 3D visualization
-- ⏳ Workflow storage
 
 ### P2 Requirements (Future)
 - ⏳ Camera integration

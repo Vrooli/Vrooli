@@ -1,5 +1,25 @@
 # CNCjs Known Problems and Limitations
 
+## Update: 2025-09-12 Improvements
+
+### What Was Implemented
+- **Workflow Storage**: Full workflow management system for multi-step CNC jobs
+  - Create, manage, and execute job sequences
+  - Export/import workflows for sharing
+  - Automatic step queuing
+- **Multi-Controller Support**: Profile-based configuration for different CNC controllers
+  - Support for Grbl, Marlin, Smoothieware, TinyG, g2core
+  - Controller-specific default settings
+  - Easy profile switching
+- **Enhanced Testing**: Comprehensive test coverage for all new features
+
+### Key Improvements Made
+1. Added `workflow` command for managing job sequences
+2. Added `controller` command for configuring different CNC types
+3. Export/import capability for sharing workflows
+4. Controller profile system with type-specific defaults
+5. All tests passing without hardware requirements
+
 ## Hardware Requirements
 - **Serial Port Access**: Requires actual CNC hardware connected via USB/serial for controller features
 - **Docker Privileged Mode**: Needs --privileged flag for serial port access (security consideration)

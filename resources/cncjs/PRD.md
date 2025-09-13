@@ -20,9 +20,9 @@
 
 ### P1 Requirements (Should Have)
 - [x] **Macro Support**: Can define and execute automation macros (implemented 2025-01-12)
-- [ ] **Multi-Controller**: Support for Grbl, Marlin, Smoothieware, TinyG
+- [x] **Multi-Controller**: Support for Grbl, Marlin, Smoothieware, TinyG (implemented 2025-09-12)
 - [ ] **3D Visualization**: WebGL-based G-code path visualization
-- [ ] **Workflow Storage**: Save and manage CNC job workflows
+- [x] **Workflow Storage**: Save and manage CNC job workflows (implemented 2025-09-12)
 
 ### P2 Requirements (Nice to Have)
 - [ ] **Camera Integration**: Real-time machine monitoring via webcam
@@ -83,9 +83,9 @@ metrics:
 ## Success Metrics
 
 ### Completion Targets
-- **Phase 1**: 30% - Core structure and health checks
-- **Phase 2**: 60% - Serial connection and basic control
-- **Phase 3**: 80% - G-code execution and visualization  
+- **Phase 1**: 30% - Core structure and health checks ✅
+- **Phase 2**: 60% - Serial connection and basic control ✅
+- **Phase 3**: 80% - G-code execution and visualization (65% complete)
 - **Phase 4**: 100% - Full feature set with macros
 
 ### Quality Metrics
@@ -155,3 +155,4 @@ metrics:
 ## Progress History
 - 2025-01-11: Initial PRD creation (0% → 0%)
 - 2025-01-12: Improved health checks, implemented macro support (30% → 45%)
+- 2025-09-12: Implemented workflow storage and multi-controller support (45% → 65%)

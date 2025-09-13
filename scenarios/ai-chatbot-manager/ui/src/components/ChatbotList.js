@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import apiClient from '../utils/api';
 
 function ChatbotList() {
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,7 @@ function ChatbotList() {
   const loadChatbots = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/chatbots');
+      const response = await apiClient.get('/api/v1/chatbots');
       const data = await response.json();
       setChatbots(data);
     } catch (error) {

@@ -148,13 +148,14 @@ manage_install() {
         openssl rand -base64 32 > "$CONFIG_DIR/password.txt"
         chmod 600 "$CONFIG_DIR/password.txt"
         
-        # Run initialization
+        # Run initialization with ACME support
         docker run --rm \
             -v "$CONFIG_DIR:/home/step" \
             -e "DOCKER_STEPCA_INIT_NAME=Vrooli CA" \
             -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,vrooli-step-ca" \
             -e "DOCKER_STEPCA_INIT_PROVISIONER_NAME=admin" \
             -e "DOCKER_STEPCA_INIT_PASSWORD_FILE=/home/step/password.txt" \
+            -e "DOCKER_STEPCA_INIT_ACME=true" \
             "$DOCKER_IMAGE" step ca init --no-db
         
         # Copy root certificate
@@ -224,6 +225,9 @@ manage_start() {
         local retries=30
         while [[ $retries -gt 0 ]]; do
             if timeout 5 curl -sk "https://localhost:$STEPCA_PORT/health" >/dev/null 2>&1; then
+                # Ensure ACME provisioner is configured
+                sleep 2
+                add_acme_provisioner >/dev/null 2>&1 || true
                 echo "✅ Step-CA started successfully"
                 return 0
             fi
@@ -261,6 +265,48 @@ manage_restart() {
     manage_stop
     sleep 2
     manage_start --wait
+}
+
+# Add ACME provisioner to existing CA
+add_acme_provisioner() {
+    echo "🔐 Adding ACME provisioner..."
+    
+    # Check if ACME already exists
+    if docker exec "$CONTAINER_NAME" step ca provisioner list 2>/dev/null | grep -q "acme"; then
+        echo "  ACME provisioner already exists"
+        return 0
+    fi
+    
+    # Add ACME provisioner
+    docker exec "$CONTAINER_NAME" step ca provisioner add acme \
+        --type ACME \
+        --admin-subject admin \
+        --admin-password-file /home/step/password.txt \
+        2>/dev/null || {
+            echo "  Failed to add ACME provisioner, trying alternative method..."
+            # Try with direct config modification
+            local config_file="$CONFIG_DIR/ca.json"
+            if [[ -f "$config_file" ]]; then
+                # Create backup
+                cp "$config_file" "$config_file.bak"
+                
+                # Add ACME provisioner to config
+                jq '.authority.provisioners += [{
+                    "type": "ACME",
+                    "name": "acme",
+                    "forceCN": false,
+                    "requireEAB": false,
+                    "challenges": ["http-01", "dns-01", "tls-alpn-01"]
+                }]' "$config_file" > "$config_file.tmp" && mv "$config_file.tmp" "$config_file"
+                
+                # Restart to apply changes
+                manage_restart
+                echo "✅ ACME provisioner added via config"
+                return 0
+            fi
+        }
+    
+    echo "✅ ACME provisioner added successfully"
 }
 
 # Content Functions
@@ -304,12 +350,47 @@ content_add() {
     
     echo "📄 Issuing certificate for $cn..."
     
-    # TODO: Implement actual certificate issuance via Step CLI or API
-    echo "  Certificate issuance would be implemented here"
-    echo "  CN: $cn"
-    echo "  SANs: ${san:-none}"
-    echo "  Duration: $duration"
-    echo "  Type: $type"
+    # Generate a private key
+    local key_file="/tmp/${cn}-key.pem"
+    local cert_file="/tmp/${cn}-cert.pem"
+    
+    # Create CSR and get certificate from Step-CA
+    if [[ "$type" == "x509" ]]; then
+        # Generate private key
+        openssl genrsa -out "$key_file" 2048 2>/dev/null
+        
+        # Create CSR
+        local csr_file="/tmp/${cn}-csr.pem"
+        local san_ext=""
+        if [[ -n "$san" ]]; then
+            san_ext="-addext subjectAltName=DNS:${san//,/,DNS:}"
+        fi
+        
+        openssl req -new -key "$key_file" -out "$csr_file" \
+            -subj "/CN=$cn" $san_ext 2>/dev/null
+        
+        # Get certificate from Step-CA
+        local password=$(cat "$CONFIG_DIR/password.txt" 2>/dev/null || echo "changeme")
+        
+        docker exec "$CONTAINER_NAME" step ca certificate "$cn" \
+            "$cert_file" "$key_file" \
+            --provisioner admin \
+            --password-file /home/step/password.txt \
+            --not-after "$duration" \
+            --force 2>/dev/null || {
+                echo "  ⚠️  Failed to issue certificate via step CLI"
+                rm -f "$key_file" "$csr_file"
+                return 1
+            }
+        
+        echo "  ✅ Certificate issued successfully"
+        echo "  Private Key: $key_file"
+        echo "  Certificate: $cert_file"
+        echo "  Duration: $duration"
+    else
+        echo "  ⚠️  Certificate type '$type' not yet implemented"
+        return 1
+    fi
 }
 
 # List certificates

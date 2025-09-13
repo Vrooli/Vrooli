@@ -63,6 +63,51 @@
       ]
     }
   },
+  "environment": {
+    "VROOLI_LIFECYCLE_MANAGED": {
+      "description": "Indicates the service is managed by Vrooli lifecycle",
+      "default": "true",
+      "required": true
+    },
+    "API_BASE_URL": {
+      "description": "Public URL for the API server (used in widget embed code)",
+      "required": false
+    },
+    "OLLAMA_URL": {
+      "description": "URL for Ollama API server",
+      "default": "http://localhost:11434",
+      "required": true
+    },
+    "POSTGRES_HOST": {
+      "description": "PostgreSQL host address",
+      "default": "localhost",
+      "required": false
+    },
+    "POSTGRES_PORT": {
+      "description": "PostgreSQL port",
+      "default": "5432",
+      "required": false
+    },
+    "POSTGRES_USER": {
+      "description": "PostgreSQL username",
+      "default": "postgres",
+      "required": false
+    },
+    "POSTGRES_PASSWORD": {
+      "description": "PostgreSQL password",
+      "default": "postgres",
+      "required": false
+    },
+    "POSTGRES_DB": {
+      "description": "PostgreSQL database name",
+      "default": "ai_chatbot_manager",
+      "required": false
+    },
+    "POSTGRES_URL": {
+      "description": "Complete PostgreSQL connection URL (overrides individual settings)",
+      "required": false
+    }
+  },
   "lifecycle": {
     "version": "2.0.0",
     "health": {

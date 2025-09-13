@@ -24,10 +24,11 @@ vrooli resource mathlib test smoke
 
 ## Key Features
 
-- **Lean 4 Runtime**: Complete Lean 4 compiler and Lake build system
-- **Mathlib4 Library**: Comprehensive mathematical formalization library
-- **Proof Verification**: Execute and verify mathematical proofs
-- **Health Monitoring**: Robust health checks with timeout handling
+- **Lean 4 Runtime**: Complete Lean 4 compiler and Lake build system with elan version manager
+- **Mathlib4 Library**: Comprehensive mathematical formalization library with cached modules
+- **Proof Verification API**: REST endpoints for submitting and verifying mathematical proofs
+- **Content Management**: Add, list, execute, and manage proof files
+- **Health Monitoring**: Robust health checks with timeout handling and Lean version detection
 - **v2.0 Compliant**: Full universal resource contract implementation
 
 ## Usage Examples
@@ -50,14 +51,38 @@ vrooli resource mathlib manage restart
 vrooli resource mathlib test all
 ```
 
-### Proof Verification (Future)
+### Proof Verification
 
 ```bash
-# Submit a proof for verification
-vrooli resource mathlib content execute proof.lean
+# Add a proof file to the resource
+vrooli resource mathlib content add myproof.lean
 
-# List available tactics
+# List available proofs and tactics
 vrooli resource mathlib content list
+
+# Execute a proof for verification
+vrooli resource mathlib content execute myproof.lean
+
+# Get a stored proof
+vrooli resource mathlib content get myproof
+
+# Remove a proof
+vrooli resource mathlib content remove myproof
+```
+
+### API Usage
+
+```bash
+# Submit proof via API
+curl -X POST http://localhost:11458/prove \
+  -H "Content-Type: application/json" \
+  -d '{"proof": "theorem my_theorem : 2 + 2 = 4 := rfl"}'
+
+# Check proof status
+curl http://localhost:11458/status/{job_id}
+
+# Get available tactics
+curl http://localhost:11458/tactics
 ```
 
 ## Configuration
@@ -108,12 +133,16 @@ This resource enables scenarios to:
 
 ## Development Status
 
-Current implementation provides basic scaffolding with:
+Current implementation provides:
 - ✅ v2.0 contract structure
-- ✅ Basic lifecycle management
-- ✅ Health monitoring
-- ⏳ Lean 4 installation (minimal)
-- ⏳ Mathlib4 integration (pending)
-- ⏳ Proof verification API (future)
+- ✅ Complete lifecycle management
+- ✅ Health monitoring with Lean version detection
+- ✅ Lean 4 installation via elan
+- ✅ Mathlib4 integration with Lake
+- ✅ Proof verification API with async job processing
+- ✅ Content management for proof files
+- ✅ Error diagnostics and detailed reporting
+- ⏳ Batch processing (future)
+- ⏳ Interactive REPL mode (future)
 
 See [PRD.md](./PRD.md) for detailed requirements and progress tracking.

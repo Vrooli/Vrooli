@@ -8,6 +8,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="lucide.js"></script>
+    <script>
+        // Debug: Log when lucide loads
+        window.addEventListener('load', () => {
+            console.log('Lucide available:', typeof lucide !== 'undefined');
+            if (typeof lucide !== 'undefined') {
+                console.log('Creating lucide icons...');
+                lucide.createIcons();
+                console.log('Lucide icons created');
+            } else {
+                console.error('Lucide not loaded');
+            }
+        });
+    </script>
     <style>
         * {
             margin: 0;
@@ -85,11 +99,19 @@
         }
 
         .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-xs);
             font-family: var(--font-mono);
             font-size: 1.5rem;
             font-weight: 600;
             color: var(--accent-primary);
             text-shadow: 0 0 10px var(--glow-primary);
+        }
+        
+        .logo i {
+            width: 24px;
+            height: 24px;
         }
 
         .system-status {
@@ -200,8 +222,6 @@
         .nav-icon {
             width: 18px;
             height: 18px;
-            font-family: var(--font-mono);
-            font-size: 0.875rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -275,8 +295,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: var(--font-mono);
-            font-size: 1.25rem;
+        }
+        
+        .metric-icon i {
+            width: 20px;
+            height: 20px;
         }
 
         .metric-icon.primary {
@@ -449,6 +472,11 @@
         .btn:disabled:hover {
             background: transparent;
             box-shadow: none;
+        }
+        
+        .btn i {
+            width: 16px;
+            height: 16px;
         }
 
         /* Tables */
@@ -635,7 +663,10 @@
     <!-- Header -->
     <header class="header">
         <div class="header-left">
-            <div class="logo">🧪 TEST GENIE</div>
+            <div class="logo">
+                <i data-lucide="flask-conical"></i>
+                <span>TEST GENIE</span>
+            </div>
             <div class="system-status">
                 <div class="status-dot"></div>
                 <span>System Healthy</span>
@@ -666,19 +697,19 @@
             <div class="nav-section">
                 <h3 class="nav-title">Main</h3>
                 <div class="nav-item active" data-page="dashboard">
-                    <span class="nav-icon">📊</span>
+                    <i class="nav-icon" data-lucide="bar-chart-3"></i>
                     <span>Dashboard</span>
                 </div>
                 <div class="nav-item" data-page="generate">
-                    <span class="nav-icon">⚡</span>
+                    <i class="nav-icon" data-lucide="zap"></i>
                     <span>Generate Tests</span>
                 </div>
                 <div class="nav-item" data-page="suites">
-                    <span class="nav-icon">🧪</span>
+                    <i class="nav-icon" data-lucide="flask-conical"></i>
                     <span>Test Suites</span>
                 </div>
                 <div class="nav-item" data-page="executions">
-                    <span class="nav-icon">🚀</span>
+                    <i class="nav-icon" data-lucide="rocket"></i>
                     <span>Executions</span>
                 </div>
             </div>
@@ -686,15 +717,15 @@
             <div class="nav-section">
                 <h3 class="nav-title">Analysis</h3>
                 <div class="nav-item" data-page="coverage">
-                    <span class="nav-icon">📈</span>
+                    <i class="nav-icon" data-lucide="trending-up"></i>
                     <span>Coverage Analysis</span>
                 </div>
                 <div class="nav-item" data-page="vault">
-                    <span class="nav-icon">🏛️</span>
+                    <i class="nav-icon" data-lucide="building-2"></i>
                     <span>Test Vaults</span>
                 </div>
                 <div class="nav-item" data-page="reports">
-                    <span class="nav-icon">📋</span>
+                    <i class="nav-icon" data-lucide="clipboard"></i>
                     <span>Reports</span>
                 </div>
             </div>
@@ -702,11 +733,11 @@
             <div class="nav-section">
                 <h3 class="nav-title">System</h3>
                 <div class="nav-item" data-page="settings">
-                    <span class="nav-icon">⚙️</span>
+                    <i class="nav-icon" data-lucide="settings"></i>
                     <span>Settings</span>
                 </div>
                 <div class="nav-item" data-page="help">
-                    <span class="nav-icon">❓</span>
+                    <i class="nav-icon" data-lucide="help-circle"></i>
                     <span>Help</span>
                 </div>
             </div>
@@ -727,7 +758,9 @@
                 <div class="dashboard-grid">
                     <div class="metric-card">
                         <div class="metric-header">
-                            <div class="metric-icon primary">🧪</div>
+                            <div class="metric-icon primary">
+                                <i data-lucide="flask-conical"></i>
+                            </div>
                             <div class="metric-title">Total Test Suites</div>
                         </div>
                         <div class="metric-value" id="metric-total-suites">0</div>
@@ -738,7 +771,9 @@
 
                     <div class="metric-card">
                         <div class="metric-header">
-                            <div class="metric-icon secondary">⚡</div>
+                            <div class="metric-icon secondary">
+                                <i data-lucide="zap"></i>
+                            </div>
                             <div class="metric-title">Tests Generated</div>
                         </div>
                         <div class="metric-value" id="metric-tests-generated">0</div>
@@ -749,7 +784,9 @@
 
                     <div class="metric-card">
                         <div class="metric-header">
-                            <div class="metric-icon primary">📊</div>
+                            <div class="metric-icon primary">
+                                <i data-lucide="bar-chart-3"></i>
+                            </div>
                             <div class="metric-title">Average Coverage</div>
                         </div>
                         <div class="metric-value" id="metric-avg-coverage">0%</div>
@@ -760,7 +797,9 @@
 
                     <div class="metric-card">
                         <div class="metric-header">
-                            <div class="metric-icon warning">⚠️</div>
+                            <div class="metric-icon warning">
+                                <i data-lucide="triangle-alert"></i>
+                            </div>
                             <div class="metric-title">Failed Tests</div>
                         </div>
                         <div class="metric-value" id="metric-failed-tests">0</div>
@@ -774,7 +813,10 @@
                 <div class="panel">
                     <div class="panel-header">
                         <h2 class="panel-title">Recent Test Executions</h2>
-                        <button class="btn" onclick="refreshDashboard()">🔄 Refresh</button>
+                        <button class="btn" onclick="refreshDashboard()">
+                            <i data-lucide="refresh-cw"></i>
+                            Refresh
+                        </button>
                     </div>
                     <div class="panel-body">
                         <div id="recent-executions" class="loading">
@@ -837,7 +879,8 @@
 
                             <div class="form-group">
                                 <button type="submit" class="btn" id="generate-btn">
-                                    ⚡ Generate Test Suite
+                                    <i data-lucide="zap"></i>
+                                    Generate Test Suite
                                 </button>
                             </div>
                         </form>
@@ -854,7 +897,10 @@
                         <h1 class="page-title">Test Suites</h1>
                         <p class="page-subtitle">Manage and monitor all test suites</p>
                     </div>
-                    <button class="btn" onclick="loadTestSuites()">🔄 Refresh</button>
+                    <button class="btn" onclick="loadTestSuites()">
+                        <i data-lucide="refresh-cw"></i>
+                        Refresh
+                    </button>
                 </div>
 
                 <div class="panel">
@@ -874,7 +920,10 @@
                         <h1 class="page-title">Test Executions</h1>
                         <p class="page-subtitle">Monitor active and completed test runs</p>
                     </div>
-                    <button class="btn" onclick="loadExecutions()">🔄 Refresh</button>
+                    <button class="btn" onclick="loadExecutions()">
+                        <i data-lucide="refresh-cw"></i>
+                        Refresh
+                    </button>
                 </div>
 
                 <div class="panel">
@@ -919,7 +968,10 @@
                             </div>
 
                             <div class="form-group">
-                                <button type="submit" class="btn">📈 Analyze Coverage</button>
+                                <button type="submit" class="btn">
+                                    <i data-lucide="trending-up"></i>
+                                    Analyze Coverage
+                                </button>
                             </div>
                         </form>
 
@@ -967,7 +1019,10 @@
                             </div>
 
                             <div class="form-group">
-                                <button type="submit" class="btn">🏛️ Create Test Vault</button>
+                                <button type="submit" class="btn">
+                                    <i data-lucide="building-2"></i>
+                                    Create Test Vault
+                                </button>
                             </div>
                         </form>
 
@@ -1049,7 +1104,10 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <button class="btn">💾 Save Settings</button>
+                            <button class="btn">
+                                <i data-lucide="save"></i>
+                                Save Settings
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1114,5 +1172,28 @@ test-genie help
     </div>
 
     <script src="app.js"></script>
+    <script>
+        // Initialize Lucide icons with multiple fallbacks
+        function initLucideIcons() {
+            if (typeof lucide !== 'undefined') {
+                console.log('Initializing lucide icons...');
+                lucide.createIcons();
+                console.log('Lucide icons initialized');
+                return true;
+            }
+            return false;
+        }
+        
+        // Try multiple initialization methods
+        document.addEventListener('DOMContentLoaded', initLucideIcons);
+        window.addEventListener('load', initLucideIcons);
+        
+        // Fallback with timeout
+        setTimeout(() => {
+            if (!initLucideIcons()) {
+                console.error('Lucide failed to load after timeout');
+            }
+        }, 2000);
+    </script>
 </body>
 </html>

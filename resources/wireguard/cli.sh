@@ -44,6 +44,7 @@ COMMANDS:
       remove <name>     Remove a tunnel configuration
       execute <name>    Activate a tunnel configuration
     status              Show WireGuard service status
+    stats               Show detailed traffic statistics
     logs                View WireGuard logs
     credentials         Display connection information
 
@@ -123,6 +124,9 @@ main() {
             ;;
         status)
             show_status "$@"
+            ;;
+        stats)
+            show_traffic_stats "$@"
             ;;
         logs)
             show_logs "$@"

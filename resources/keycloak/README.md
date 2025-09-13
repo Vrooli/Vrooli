@@ -33,7 +33,7 @@ vrooli resource keycloak test all
 ## Architecture
 
 - **Port**: 8070 (HTTP), 8443 (HTTPS - when configured)
-- **Database**: H2 (development), PostgreSQL (production - planned)
+- **Database**: PostgreSQL (production), H2 (fallback)
 - **Container**: keycloak/keycloak:latest
 - **Network**: vrooli-network
 
@@ -57,6 +57,69 @@ vrooli resource keycloak content get --name test-realm --output realm-export.jso
 
 # Remove a realm
 vrooli resource keycloak content remove --name test-realm
+```
+
+## Social Login Providers
+
+```bash
+# Add GitHub provider
+vrooli resource keycloak social add-github \
+  --client-id <your-github-client-id> \
+  --client-secret <your-github-client-secret> \
+  --realm master
+
+# Add Google provider
+vrooli resource keycloak social add-google \
+  --client-id <your-google-client-id> \
+  --client-secret <your-google-client-secret> \
+  --realm master
+
+# List configured providers
+vrooli resource keycloak social list --realm master
+
+# Test provider configuration
+vrooli resource keycloak social test --alias github --realm master
+
+# Remove a provider
+vrooli resource keycloak social remove --alias github --realm master
+```
+
+## LDAP/AD Federation
+
+```bash
+# Add LDAP provider
+vrooli resource keycloak ldap add \
+  --url ldap://ldap.example.com:389 \
+  --users-dn ou=users,dc=example,dc=com \
+  --bind-dn cn=admin,dc=example,dc=com \
+  --bind-password admin-password \
+  --name my-ldap \
+  --realm master
+
+# Add Active Directory provider
+vrooli resource keycloak ldap add \
+  --url ldap://ad.example.com:389 \
+  --users-dn CN=Users,DC=example,DC=com \
+  --bind-dn admin@example.com \
+  --bind-password admin-password \
+  --name my-ad \
+  --type ad \
+  --realm master
+
+# List configured LDAP/AD providers
+vrooli resource keycloak ldap list --realm master
+
+# Test connection
+vrooli resource keycloak ldap test --name my-ldap --realm master
+
+# Sync users (incremental)
+vrooli resource keycloak ldap sync --name my-ldap --realm master
+
+# Sync users (full)
+vrooli resource keycloak ldap sync --name my-ldap --realm master --full
+
+# Remove provider
+vrooli resource keycloak ldap remove --name my-ldap --realm master
 ```
 
 ## Documentation

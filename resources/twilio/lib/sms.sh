@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -uo pipefail
 
 # Get the directory of this script
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
@@ -8,6 +8,8 @@ TWILIO_LIB_DIR="${APP_ROOT}/resources/twilio/lib"
 # Source common functions
 source "$TWILIO_LIB_DIR/common.sh"
 source "$TWILIO_LIB_DIR/history.sh"
+source "$TWILIO_LIB_DIR/rate-limiter.sh"
+source "$TWILIO_LIB_DIR/audit.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Send SMS
@@ -76,8 +78,13 @@ send_sms() {
                     twilio::history::log_message "$sid" "$from" "$to" "$message" "sent"
                 fi
                 
+                # Audit log the successful send
+                twilio::audit::log_sms "$from" "$to" "${#message}" "$sid" "SUCCESS"
+                
                 log::success "SMS sent successfully! (SID: $sid)"
             else
+                # Audit log the failed send
+                twilio::audit::log_sms "$from" "$to" "${#message}" "" "FAILURE" "Send failed"
                 log::error "Failed to send SMS"
                 return 1
             fi
@@ -85,6 +92,8 @@ send_sms() {
             log::warn "Could not update phone number settings"
         fi
     else
+        # Audit log authentication failure
+        twilio::audit::log_auth "sms_send" "FAILURE" "api_key" "Authentication failed"
         log::error "Authentication failed"
         return 1
     fi
@@ -145,6 +154,7 @@ send_bulk_sms() {
     
     # Set up auth once
     if ! twilio::setup_auth; then
+        twilio::audit::log_auth "bulk_sms_send" "FAILURE" "api_key" "Authentication failed"
         log::error "Authentication failed"
         return 1
     fi
@@ -188,9 +198,12 @@ send_bulk_sms() {
             twilio::history::log_message "$sid" "$from" "$recipient" "$message" "failed"
         fi
         
-        # Rate limiting: Wait 100ms between messages to avoid hitting API limits
-        sleep 0.1
+        # Apply rate limiting to prevent API throttling
+        twilio::rate_limiter::wait "sms"
     done
+    
+    # Audit log the bulk operation
+    twilio::audit::log_bulk_sms "$total" "$success_count" "$fail_count" "$from"
     
     log::info "📊 Bulk SMS Results:"
     log::success "   Successful: $success_count"
@@ -258,6 +271,7 @@ send_sms_from_file() {
     
     # Set up auth once
     if ! twilio::setup_auth; then
+        twilio::audit::log_auth "bulk_sms_send" "FAILURE" "api_key" "Authentication failed"
         log::error "Authentication failed"
         return 1
     fi

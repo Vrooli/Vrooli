@@ -7,7 +7,7 @@
 #
 ################################################################################
 
-set -uo pipefail
+set -euo pipefail
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,12 +34,12 @@ run_test() {
     local test_name="$1"
     local test_command="$2"
     
-    ((TESTS_RUN++))
+    ((TESTS_RUN++)) || true
     echo -n "  Testing ${test_name}... "
     
     if eval "$test_command" &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         echo -e "${RED}✗${NC}"
@@ -51,6 +51,7 @@ run_test() {
 main() {
     echo "KiCad Smoke Tests"
     echo "================="
+    echo "Starting tests..."
     
     # Test 1: Check if KiCad is installed or mocked
     run_test "KiCad installation" "kicad::is_installed"
@@ -74,10 +75,10 @@ main() {
     run_test "Python availability" "command -v \$KICAD_PYTHON_VERSION"
     
     # Test 8: Check CLI wrapper exists
-    run_test "CLI wrapper" "[[ -f \$KICAD_DIR/cli.sh ]]"
+    run_test "CLI wrapper" "[[ -f ${KICAD_DIR}/cli.sh ]]"
     
     # Test 9: Check configuration files
-    run_test "Config files" "[[ -f \$KICAD_DIR/config/defaults.sh && -f \$KICAD_DIR/config/runtime.json ]]"
+    run_test "Config files" "[[ -f ${KICAD_DIR}/config/defaults.sh && -f ${KICAD_DIR}/config/runtime.json ]]"
     
     # Test 10: Quick health status (simulated)
     run_test "Health status" "timeout 5 echo 'healthy' || true"
@@ -86,7 +87,7 @@ main() {
     echo
     echo "Results: ${TESTS_PASSED}/${TESTS_RUN} tests passed"
     
-    if [[ $TESTS_PASSED -eq $TESTS_RUN ]]; then
+    if [[ ${TESTS_PASSED:-0} -eq ${TESTS_RUN:-0} ]] && [[ ${TESTS_RUN:-0} -gt 0 ]]; then
         echo -e "${GREEN}✅ Smoke tests passed${NC}"
         exit 0
     else

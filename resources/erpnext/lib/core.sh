@@ -107,6 +107,15 @@ erpnext::start() {
     while [[ $waited -lt $max_wait ]]; do
         if erpnext::is_healthy; then
             log::success "ERPNext started successfully on port ${ERPNEXT_PORT}"
+            
+            # Initialize site if needed
+            if ! erpnext::site_exists; then
+                log::info "No site found, initializing..."
+                erpnext::initialize_site || {
+                    log::warn "Site initialization had issues, but service is running"
+                }
+            fi
+            
             return 0
         fi
         sleep 2
@@ -225,6 +234,23 @@ erpnext::status() {
         log::info "  Port: ${ERPNEXT_PORT}"
         log::info "  URL: http://localhost:${ERPNEXT_PORT}"
         
+        # Site status
+        local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
+        if erpnext::site_exists "$site_name"; then
+            log::success "  Site: ${site_name} (initialized)"
+        else
+            log::warn "  Site: Not initialized"
+        fi
+        
+        # API status
+        local api_status
+        api_status=$(erpnext::get_api_status 2>/dev/null || echo "Unknown")
+        if [[ "$api_status" == *"operational"* ]]; then
+            log::success "  API: $api_status"
+        else
+            log::warn "  API: $api_status"
+        fi
+        
         # Dependencies
         log::info "  Dependencies:"
         if timeout 5 nc -zv localhost "${RESOURCE_PORTS["postgres"]:-5432}" &>/dev/null; then
@@ -251,6 +277,115 @@ erpnext::status() {
 }
 
 ################################################################################
+# Site Management Functions
+################################################################################
+
+erpnext::site_exists() {
+    local site_name="${1:-${ERPNEXT_SITE_NAME:-vrooli.local}}"
+    
+    if ! erpnext::is_running; then
+        return 1
+    fi
+    
+    # Check if site exists in container
+    docker exec erpnext-app test -d "/home/frappe/frappe-bench/sites/${site_name}" 2>/dev/null
+}
+
+erpnext::initialize_site() {
+    local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
+    local admin_password="${ERPNEXT_ADMIN_PASSWORD:-admin}"
+    
+    log::info "Initializing ERPNext site: ${site_name}"
+    
+    if ! erpnext::is_running; then
+        log::error "ERPNext must be running to initialize site"
+        return 1
+    fi
+    
+    # Check if site already exists
+    if erpnext::site_exists "$site_name"; then
+        log::info "Site ${site_name} already exists"
+        
+        # Set as default site if not already
+        docker exec erpnext-app bash -c "echo '${site_name}' > /home/frappe/frappe-bench/sites/currentsite.txt" 2>/dev/null || true
+        return 0
+    fi
+    
+    log::info "Creating new site ${site_name}..."
+    
+    # Wait for database to be ready
+    local db_ready=false
+    local wait_count=0
+    while [[ $wait_count -lt 30 ]]; do
+        if docker exec erpnext-app bash -c "mysql -h erpnext-db -u root -p${admin_password} -e 'SELECT 1'" &>/dev/null; then
+            db_ready=true
+            break
+        fi
+        sleep 2
+        ((wait_count++))
+        echo -n "."
+    done
+    
+    if [[ "$db_ready" != "true" ]]; then
+        log::error "Database not ready after 60 seconds"
+        return 1
+    fi
+    
+    # Create the site with correct db-host
+    local create_cmd="bench new-site ${site_name} --db-host erpnext-db --admin-password '${admin_password}' --mariadb-root-password '${admin_password}' --mariadb-user-host-login-scope='%'"
+    
+    if ! docker exec erpnext-app bash -c "$create_cmd" 2>&1; then
+        log::error "Failed to create site ${site_name}"
+        return 1
+    fi
+    
+    # Install ERPNext app on the site
+    log::info "Installing ERPNext app on site..."
+    if ! docker exec erpnext-app bench --site "${site_name}" install-app erpnext 2>&1; then
+        log::warn "ERPNext app installation had issues, but continuing..."
+    fi
+    
+    # Set as default site
+    docker exec erpnext-app bench use "${site_name}" 2>&1 || true
+    docker exec erpnext-app bash -c "echo '${site_name}' > /home/frappe/frappe-bench/sites/currentsite.txt" 2>/dev/null || true
+    
+    log::success "Site ${site_name} initialized successfully"
+    return 0
+}
+
+erpnext::get_api_status() {
+    local timeout_seconds="${1:-5}"
+    
+    if ! erpnext::is_running; then
+        echo "Service not running"
+        return 1
+    fi
+    
+    # Check if API responds
+    local api_response
+    api_response=$(timeout "$timeout_seconds" curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${ERPNEXT_PORT}/api/method/frappe.auth.get_logged_user" 2>/dev/null || echo "000")
+    
+    case "$api_response" in
+        200|401|403)
+            echo "API operational (HTTP $api_response)"
+            return 0
+            ;;
+        404)
+            echo "API endpoint not found - site may not be initialized"
+            return 1
+            ;;
+        000)
+            echo "API not responding"
+            return 1
+            ;;
+        *)
+            echo "API returned HTTP $api_response"
+            return 1
+            ;;
+    esac
+}
+
+################################################################################
 # Export functions for use by other scripts
 ################################################################################
 
@@ -264,3 +399,6 @@ export -f erpnext::restart
 export -f erpnext::check_dependencies
 export -f erpnext::info
 export -f erpnext::status
+export -f erpnext::site_exists
+export -f erpnext::initialize_site
+export -f erpnext::get_api_status

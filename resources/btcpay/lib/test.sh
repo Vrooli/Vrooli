@@ -1,58 +1,53 @@
 #!/usr/bin/env bash
-# BTCPay Test Operations
+# BTCPay Test Operations - v2.0 Contract Compliant
+# Delegates to test phase scripts per universal contract
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESOURCE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 btcpay::test::smoke() {
-    log::info "Running BTCPay smoke test..."
-    
-    # Check if installed
-    if ! btcpay::is_installed; then
-        log::error "BTCPay is not installed"
+    # Delegate to test phase script per v2.0 contract
+    if [[ -f "${RESOURCE_DIR}/test/phases/test-smoke.sh" ]]; then
+        bash "${RESOURCE_DIR}/test/phases/test-smoke.sh"
+        return $?
+    else
+        log::error "Smoke test script not found: ${RESOURCE_DIR}/test/phases/test-smoke.sh"
         return 1
     fi
-    
-    # Check if running
-    if ! btcpay::is_running; then
-        log::error "BTCPay is not running"
-        return 1
-    fi
-    
-    # Check health
-    local health=$(btcpay::get_health)
-    if [[ "$health" != "healthy" ]]; then
-        log::error "BTCPay health check failed: $health"
-        return 1
-    fi
-    
-    log::success "BTCPay smoke test passed"
-    return 0
 }
 
 btcpay::test::integration() {
-    log::info "Running BTCPay integration tests..."
-    
-    # Run smoke test first
-    btcpay::test::smoke || return 1
-    
-    # Test API endpoint
-    log::info "Testing API endpoint..."
-    if curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
-        log::success "API endpoint accessible"
+    # Delegate to test phase script per v2.0 contract
+    if [[ -f "${RESOURCE_DIR}/test/phases/test-integration.sh" ]]; then
+        bash "${RESOURCE_DIR}/test/phases/test-integration.sh"
+        return $?
     else
-        log::error "API endpoint not accessible"
+        log::error "Integration test script not found: ${RESOURCE_DIR}/test/phases/test-integration.sh"
         return 1
     fi
-    
-    # Test database connection
-    log::info "Testing database connection..."
-    if docker exec "${BTCPAY_POSTGRES_CONTAINER}" pg_isready -U "${BTCPAY_POSTGRES_USER}" &>/dev/null; then
-        log::success "Database connection successful"
+}
+
+btcpay::test::unit() {
+    # Delegate to test phase script per v2.0 contract
+    if [[ -f "${RESOURCE_DIR}/test/phases/test-unit.sh" ]]; then
+        bash "${RESOURCE_DIR}/test/phases/test-unit.sh"
+        return $?
     else
-        log::error "Database connection failed"
+        log::error "Unit test script not found: ${RESOURCE_DIR}/test/phases/test-unit.sh"
+        return 2  # Return 2 for "not available" per contract
+    fi
+}
+
+btcpay::test::all() {
+    # Delegate to main test runner per v2.0 contract
+    if [[ -f "${RESOURCE_DIR}/test/run-tests.sh" ]]; then
+        bash "${RESOURCE_DIR}/test/run-tests.sh" all
+        return $?
+    else
+        log::error "Test runner not found: ${RESOURCE_DIR}/test/run-tests.sh"
         return 1
     fi
-    
-    log::success "BTCPay integration tests passed"
-    return 0
 }
 
 btcpay::test::performance() {
@@ -80,4 +75,6 @@ btcpay::test::performance() {
 
 export -f btcpay::test::smoke
 export -f btcpay::test::integration
+export -f btcpay::test::unit
+export -f btcpay::test::all
 export -f btcpay::test::performance

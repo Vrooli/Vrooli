@@ -13,6 +13,27 @@ import tempfile
 import hashlib
 import duckdb
 
+# Import actual Splink library
+try:
+    from splink.duckdb.linker import DuckDBLinker
+    from splink.settings import SettingsCreator
+    import splink.comparison_library as cl
+    SPLINK_AVAILABLE = True
+except ImportError as e:
+    SPLINK_AVAILABLE = False
+    import logging
+    logging.getLogger(__name__).debug(f"Splink import failed: {str(e)}")
+
+# Import PostgreSQL support
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    import sqlalchemy
+    from sqlalchemy import create_engine
+    POSTGRES_AVAILABLE = True
+except ImportError:
+    POSTGRES_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class SpinkEngine:
@@ -25,6 +46,7 @@ class SpinkEngine:
         """Initialize the Splink engine with specified backend"""
         self.backend = backend.lower()
         self.data_dir = data_dir
+        self.use_native_splink = SPLINK_AVAILABLE
         
         # Ensure data directory exists
         os.makedirs(data_dir, exist_ok=True)
@@ -34,14 +56,53 @@ class SpinkEngine:
         # Initialize DuckDB connection
         self.conn = duckdb.connect(":memory:")
         
-        logger.info(f"Initialized Splink engine with backend: {backend}")
+        # Initialize PostgreSQL connection if configured
+        self.pg_engine = None
+        if POSTGRES_AVAILABLE:
+            pg_host = os.getenv("POSTGRES_HOST", "localhost")
+            pg_port = os.getenv("POSTGRES_PORT", "5433")
+            pg_db = os.getenv("POSTGRES_DB", "splink")
+            pg_user = os.getenv("POSTGRES_USER", "splink")
+            pg_password = os.getenv("POSTGRES_PASSWORD", "")
+            
+            if pg_password:
+                try:
+                    pg_url = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
+                    self.pg_engine = create_engine(pg_url)
+                    logger.info("PostgreSQL connection established")
+                except Exception as e:
+                    logger.warning(f"PostgreSQL connection failed: {str(e)}")
+        
+        # Log Splink availability
+        if self.use_native_splink:
+            logger.info(f"Initialized Splink engine with native Splink library and {backend} backend")
+        else:
+            logger.info(f"Initialized Splink engine with simplified algorithms and {backend} backend")
     
     def _load_dataset(self, dataset_id: str) -> pd.DataFrame:
-        """Load dataset from storage"""
-        # For now, create sample data. In production, would load from MinIO/PostgreSQL
+        """Load dataset from storage (PostgreSQL if available, otherwise sample data)"""
         logger.info(f"Loading dataset: {dataset_id}")
         
-        # Generate sample data based on dataset_id hash for consistency
+        # Try loading from PostgreSQL first
+        if self.pg_engine:
+            try:
+                # Check if table exists
+                query = f"SELECT * FROM {dataset_id} LIMIT 10000"
+                df = pd.read_sql(query, self.pg_engine)
+                logger.info(f"Loaded {len(df)} records from PostgreSQL table: {dataset_id}")
+                return df
+            except Exception as e:
+                logger.debug(f"Could not load from PostgreSQL: {str(e)}")
+        
+        # Check for CSV file in data directory
+        csv_path = os.path.join(self.data_dir, "datasets", f"{dataset_id}.csv")
+        if os.path.exists(csv_path):
+            df = pd.read_csv(csv_path)
+            logger.info(f"Loaded {len(df)} records from CSV: {csv_path}")
+            return df
+        
+        # Generate sample data as fallback
+        logger.info("Generating sample data for testing")
         seed = int(hashlib.md5(dataset_id.encode()).hexdigest()[:8], 16) % 10000
         
         sample_data = pd.DataFrame({
@@ -58,6 +119,57 @@ class SpinkEngine:
         duplicates["unique_id"] = duplicates["unique_id"] + 1000
         
         return pd.concat([sample_data, duplicates], ignore_index=True)
+    
+    def save_dataset(self, df: pd.DataFrame, dataset_id: str) -> bool:
+        """Save dataset to storage (PostgreSQL if available, otherwise CSV)"""
+        try:
+            # Save to PostgreSQL if available
+            if self.pg_engine:
+                try:
+                    df.to_sql(dataset_id, self.pg_engine, if_exists='replace', index=False)
+                    logger.info(f"Saved {len(df)} records to PostgreSQL table: {dataset_id}")
+                    return True
+                except Exception as e:
+                    logger.warning(f"Could not save to PostgreSQL: {str(e)}")
+            
+            # Save to CSV as fallback
+            csv_path = os.path.join(self.data_dir, "datasets", f"{dataset_id}.csv")
+            df.to_csv(csv_path, index=False)
+            logger.info(f"Saved {len(df)} records to CSV: {csv_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to save dataset: {str(e)}")
+            return False
+    
+    def save_results(self, results: Dict[str, Any], job_id: str) -> bool:
+        """Save linkage results to storage"""
+        try:
+            # Save to PostgreSQL if available
+            if self.pg_engine and "dataframe" in results:
+                try:
+                    results["dataframe"].to_sql(
+                        f"results_{job_id}", 
+                        self.pg_engine, 
+                        if_exists='replace', 
+                        index=False
+                    )
+                    logger.info(f"Saved results to PostgreSQL: results_{job_id}")
+                except Exception as e:
+                    logger.warning(f"Could not save results to PostgreSQL: {str(e)}")
+            
+            # Save to JSON file
+            json_path = os.path.join(self.data_dir, "results", f"{job_id}.json")
+            # Remove dataframe from results for JSON serialization
+            json_results = {k: v for k, v in results.items() if k != "dataframe"}
+            with open(json_path, 'w') as f:
+                json.dump(json_results, f, indent=2)
+            logger.info(f"Saved results to JSON: {json_path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to save results: {str(e)}")
+            return False
     
     def _calculate_similarity(self, df1: pd.DataFrame, df2: pd.DataFrame, columns: List[str]) -> pd.DataFrame:
         """Calculate similarity scores between records"""
@@ -94,7 +206,7 @@ class SpinkEngine:
         progress_callback: Optional[callable] = None
     ) -> Dict[str, Any]:
         """
-        Perform deduplication on a single dataset using simplified approach
+        Perform deduplication on a single dataset using native Splink or simplified approach
         """
         start_time = datetime.utcnow()
         
@@ -113,51 +225,75 @@ class SpinkEngine:
             if progress_callback:
                 progress_callback(30, "Settings configured")
             
-            # Register dataframe with DuckDB
-            self.conn.register("dataset", df)
-            
-            # Find potential duplicates using SQL
-            duplicate_query = f"""
-            SELECT 
-                a.unique_id as id1,
-                b.unique_id as id2,
-                CASE 
-                    WHEN a.first_name = b.first_name THEN 1 ELSE 0 
-                END +
-                CASE 
-                    WHEN a.last_name = b.last_name THEN 1 ELSE 0 
-                END +
-                CASE 
-                    WHEN a.email = b.email THEN 1 ELSE 0 
-                END as match_score
-            FROM dataset a, dataset b
-            WHERE a.unique_id < b.unique_id
-                AND (a.first_name = b.first_name 
-                    OR a.last_name = b.last_name 
-                    OR a.email = b.email)
-            """
-            
-            if progress_callback:
-                progress_callback(50, "Finding duplicates")
-            
-            # Execute query
-            duplicates_df = self.conn.execute(duplicate_query).fetchdf()
-            
-            # Calculate match probability
-            if not duplicates_df.empty:
-                duplicates_df["match_probability"] = duplicates_df["match_score"] / 3.0
-                high_confidence_matches = duplicates_df[duplicates_df["match_probability"] >= threshold]
-                duplicates_found = len(high_confidence_matches)
-                confidence_scores = high_confidence_matches["match_probability"].head(10).tolist()
+            # Use native Splink if available
+            if self.use_native_splink and SPLINK_AVAILABLE:
+                try:
+                    # Create Splink settings
+                    splink_settings = {
+                        "link_type": "dedupe_only",
+                        "comparisons": [
+                            cl.exact_match("first_name"),
+                            cl.levenshtein_at_thresholds("last_name", [1, 2]),
+                            cl.exact_match("email"),
+                        ],
+                        "blocking_rules_to_generate_predictions": [
+                            "l.first_name = r.first_name",
+                            "l.last_name = r.last_name",
+                            "l.email = r.email",
+                        ],
+                    }
+                    
+                    if progress_callback:
+                        progress_callback(40, "Initializing Splink linker")
+                    
+                    # Initialize linker
+                    linker = DuckDBLinker(df, splink_settings)
+                    
+                    if progress_callback:
+                        progress_callback(50, "Training model")
+                    
+                    # Train the model using unsupervised learning
+                    linker.estimate_probability_two_random_records_match(
+                        deterministic_matching_rules=[
+                            "l.first_name = r.first_name AND l.last_name = r.last_name",
+                            "l.email = r.email"
+                        ],
+                        recall=0.7
+                    )
+                    
+                    linker.estimate_u_using_random_sampling(max_pairs=10000)
+                    
+                    if progress_callback:
+                        progress_callback(70, "Predicting matches")
+                    
+                    # Predict matches
+                    predictions = linker.predict(threshold_match_probability=threshold)
+                    
+                    # Get results
+                    predictions_df = predictions.as_pandas_dataframe()
+                    duplicates_found = len(predictions_df)
+                    
+                    if duplicates_found > 0:
+                        confidence_scores = predictions_df["match_probability"].head(10).tolist()
+                    else:
+                        confidence_scores = []
+                    
+                    # Calculate unique entities
+                    clusters = linker.cluster_pairwise_predictions_at_threshold(
+                        predictions, threshold_match_probability=threshold
+                    )
+                    clusters_df = clusters.as_pandas_dataframe()
+                    unique_entities = len(clusters_df["cluster_id"].unique())
+                    
+                    method_used = "native_splink"
+                    
+                except Exception as e:
+                    logger.warning(f"Native Splink failed, falling back to simplified method: {str(e)}")
+                    # Fall back to simplified method
+                    return self._simplified_deduplication(df, settings, progress_callback, start_time)
             else:
-                duplicates_found = 0
-                confidence_scores = []
-            
-            if progress_callback:
-                progress_callback(80, "Calculating statistics")
-            
-            # Calculate unique entities (approximate)
-            unique_entities = records_count - duplicates_found
+                # Use simplified method
+                return self._simplified_deduplication(df, settings, progress_callback, start_time)
             
             if progress_callback:
                 progress_callback(100, "Deduplication complete")
@@ -173,7 +309,8 @@ class SpinkEngine:
                 "confidence_scores": confidence_scores,
                 "processing_time": f"{processing_time:.2f}s",
                 "threshold_used": threshold,
-                "backend": self.backend
+                "backend": self.backend,
+                "method": method_used
             }
             
         except Exception as e:
@@ -183,6 +320,76 @@ class SpinkEngine:
                 "error": str(e),
                 "processing_time": f"{(datetime.utcnow() - start_time).total_seconds():.2f}s"
             }
+    
+    def _simplified_deduplication(self, df, settings, progress_callback, start_time):
+        """Fallback simplified deduplication method"""
+        records_count = len(df)
+        comparison_columns = settings.get("comparison_columns", ["first_name", "last_name", "email"])
+        threshold = settings.get("threshold", 0.9)
+        
+        # Register dataframe with DuckDB
+        self.conn.register("dataset", df)
+        
+        # Find potential duplicates using SQL
+        duplicate_query = f"""
+        SELECT 
+            a.unique_id as id1,
+            b.unique_id as id2,
+            CASE 
+                WHEN a.first_name = b.first_name THEN 1 ELSE 0 
+            END +
+            CASE 
+                WHEN a.last_name = b.last_name THEN 1 ELSE 0 
+            END +
+            CASE 
+                WHEN a.email = b.email THEN 1 ELSE 0 
+            END as match_score
+        FROM dataset a, dataset b
+        WHERE a.unique_id < b.unique_id
+            AND (a.first_name = b.first_name 
+                OR a.last_name = b.last_name 
+                OR a.email = b.email)
+        """
+        
+        if progress_callback:
+            progress_callback(50, "Finding duplicates")
+        
+        # Execute query
+        duplicates_df = self.conn.execute(duplicate_query).fetchdf()
+        
+        # Calculate match probability
+        if not duplicates_df.empty:
+            duplicates_df["match_probability"] = duplicates_df["match_score"] / 3.0
+            high_confidence_matches = duplicates_df[duplicates_df["match_probability"] >= threshold]
+            duplicates_found = len(high_confidence_matches)
+            confidence_scores = high_confidence_matches["match_probability"].head(10).tolist()
+        else:
+            duplicates_found = 0
+            confidence_scores = []
+        
+        if progress_callback:
+            progress_callback(80, "Calculating statistics")
+        
+        # Calculate unique entities (approximate)
+        unique_entities = records_count - duplicates_found
+        
+        if progress_callback:
+            progress_callback(100, "Deduplication complete")
+        
+        # Calculate processing time
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        
+        return {
+            "success": True,
+            "duplicates_found": duplicates_found,
+            "unique_entities": unique_entities,
+            "records_processed": records_count,
+            "confidence_scores": confidence_scores,
+            "processing_time": f"{processing_time:.2f}s",
+            "threshold_used": threshold,
+            "backend": self.backend,
+            "method": "simplified"
+        }
     
     def link_datasets(
         self,

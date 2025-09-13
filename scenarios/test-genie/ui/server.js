@@ -9,8 +9,13 @@ const http = require('http');
 
 const app = express();
 
-// Configure API base URL from environment
-const apiBaseUrl = process.env.TEST_GENIE_API_URL || 'http://localhost:8200';
+// Configure API base URL from environment - NO HARD-CODED FALLBACKS
+const apiPort = process.env.API_PORT;
+if (!apiPort) {
+  console.error('❌ API_PORT environment variable is required');
+  process.exit(1);
+}
+const apiBaseUrl = process.env.TEST_GENIE_API_URL || `http://localhost:${apiPort}`;
 
 // Security and performance middleware
 app.use(helmet({
@@ -53,7 +58,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-const port = process.env.PORT || 3000;
+// Configure UI port from environment - NO HARD-CODED FALLBACKS
+const port = process.env.UI_PORT;
+if (!port) {
+  console.error('❌ UI_PORT environment variable is required');
+  process.exit(1);
+}
 
 // Create HTTP server
 const server = http.createServer(app);

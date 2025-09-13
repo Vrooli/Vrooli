@@ -26,7 +26,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source config and libraries
 [[ -f "${MAILINABOX_CLI_DIR}/config/defaults.sh" ]] && source "${MAILINABOX_CLI_DIR}/config/defaults.sh"
-for lib in core install start stop status inject; do
+for lib in core install start stop status inject test; do
     lib_file="${MAILINABOX_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -41,8 +41,11 @@ CLI_COMMAND_HANDLERS["manage::start"]="mailinabox_start"
 CLI_COMMAND_HANDLERS["manage::stop"]="mailinabox_stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="{ mailinabox_stop; mailinabox_start; }"
 
-# Test handlers (REQUIRED) - health checks only
-CLI_COMMAND_HANDLERS["test::smoke"]="mailinabox_get_health"
+# Test handlers (REQUIRED) - comprehensive test suite
+CLI_COMMAND_HANDLERS["test::smoke"]="run_test_smoke"
+CLI_COMMAND_HANDLERS["test::unit"]="run_test_unit"
+CLI_COMMAND_HANDLERS["test::integration"]="run_test_integration"
+CLI_COMMAND_HANDLERS["test::all"]="run_test_all"
 
 # Content handlers (REQUIRED) - business functionality
 CLI_COMMAND_HANDLERS["content::add"]="mailinabox_add_account"
@@ -72,6 +75,23 @@ mailinabox_simple_status() {
 # Simple logs function
 mailinabox_show_logs() {
     mailinabox_is_running && docker logs "$MAILINABOX_CONTAINER_NAME" --tail 50 || echo "Mail-in-a-Box is not running"
+}
+
+# Test wrapper functions
+run_test_smoke() {
+    "${MAILINABOX_CLI_DIR}/test/run-tests.sh" smoke
+}
+
+run_test_unit() {
+    "${MAILINABOX_CLI_DIR}/test/run-tests.sh" unit
+}
+
+run_test_integration() {
+    "${MAILINABOX_CLI_DIR}/test/run-tests.sh" integration
+}
+
+run_test_all() {
+    "${MAILINABOX_CLI_DIR}/test/run-tests.sh" all
 }
 
 # Execute if run directly

@@ -190,6 +190,110 @@ else
     ((FAILED++))
 fi
 
+# Test 8: Performance Benchmarking
+log::info "Test 8: Performance benchmarking..."
+
+# Small file upload/download benchmark (1MB)
+PERF_TEST_FILE="/tmp/minio-perf-test-1mb.dat"
+dd if=/dev/urandom of="$PERF_TEST_FILE" bs=1M count=1 &>/dev/null 2>&1
+
+# Test using curl with timing
+START_TIME=$(date +%s%N)
+HTTP_CODE=$(timeout 10 curl -s -o /dev/null -w "%{http_code}" \
+    -X PUT \
+    -H "Content-Type: application/octet-stream" \
+    --data-binary "@${PERF_TEST_FILE}" \
+    "${ENDPOINT}/test-perf-bucket/1mb-test.dat" 2>/dev/null || echo "000")
+END_TIME=$(date +%s%N)
+
+if [[ "$HTTP_CODE" == "403" ]] || [[ "$HTTP_CODE" == "200" ]]; then
+    UPLOAD_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+    if [[ $UPLOAD_TIME -lt 1000 ]]; then
+        log::success "✓ Small file upload performance: ${UPLOAD_TIME}ms (<1s requirement)"
+    else
+        log::warning "⚠ Small file upload took ${UPLOAD_TIME}ms (>1s)"
+    fi
+else
+    log::warning "⚠ Performance test skipped (requires authentication)"
+fi
+
+# Large file test (10MB) - only if AWS CLI available
+if command -v aws &>/dev/null; then
+    PERF_TEST_LARGE="/tmp/minio-perf-test-10mb.dat"
+    dd if=/dev/urandom of="$PERF_TEST_LARGE" bs=1M count=10 &>/dev/null 2>&1
+    
+    export AWS_ACCESS_KEY_ID="$ACCESS_KEY"
+    export AWS_SECRET_ACCESS_KEY="$SECRET_KEY"
+    
+    # Create test bucket for performance
+    PERF_BUCKET="perf-test-$(date +%s)"
+    aws s3 mb "s3://${PERF_BUCKET}" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
+    
+    # Upload timing
+    START_TIME=$(date +%s%N)
+    if aws s3 cp "$PERF_TEST_LARGE" "s3://${PERF_BUCKET}/10mb-test.dat" \
+        --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
+        END_TIME=$(date +%s%N)
+        UPLOAD_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+        
+        # Calculate throughput (MB/s)
+        THROUGHPUT=$(( 10000 / UPLOAD_TIME ))
+        
+        if [[ $THROUGHPUT -gt 10 ]]; then
+            log::success "✓ Large file throughput: ~${THROUGHPUT}MB/s (>10MB/s requirement)"
+        else
+            log::warning "⚠ Large file throughput: ~${THROUGHPUT}MB/s (<10MB/s)"
+        fi
+    fi
+    
+    # Download timing
+    START_TIME=$(date +%s%N)
+    if aws s3 cp "s3://${PERF_BUCKET}/10mb-test.dat" "/tmp/download-test.dat" \
+        --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
+        END_TIME=$(date +%s%N)
+        DOWNLOAD_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+        
+        # Calculate throughput (MB/s)
+        THROUGHPUT=$(( 10000 / DOWNLOAD_TIME ))
+        
+        if [[ $THROUGHPUT -gt 10 ]]; then
+            log::success "✓ Download throughput: ~${THROUGHPUT}MB/s (>10MB/s requirement)"
+        else
+            log::warning "⚠ Download throughput: ~${THROUGHPUT}MB/s (<10MB/s)"
+        fi
+    fi
+    
+    # Cleanup performance test files
+    aws s3 rm "s3://${PERF_BUCKET}" --recursive --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
+    aws s3 rb "s3://${PERF_BUCKET}" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
+    rm -f "$PERF_TEST_LARGE" "/tmp/download-test.dat"
+else
+    log::warning "⚠ Skipping large file performance tests (AWS CLI required)"
+fi
+
+# Cleanup small test file
+rm -f "$PERF_TEST_FILE"
+
+# Test 9: Memory usage check
+log::info "Test 9: Resource usage check..."
+
+CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
+if docker stats --no-stream "$CONTAINER_NAME" 2>/dev/null | grep -v CONTAINER; then
+    MEM_USAGE=$(docker stats --no-stream --format "{{.MemUsage}}" "$CONTAINER_NAME" 2>/dev/null | cut -d'/' -f1 | sed 's/[^0-9.]//g' || echo "0")
+    
+    # Convert to MB if needed
+    if [[ "$MEM_USAGE" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        MEM_MB=$(echo "$MEM_USAGE" | awk '{printf "%.0f", $1}')
+        if [[ $MEM_MB -lt 2000 ]]; then
+            log::success "✓ Memory usage: ${MEM_MB}MB (<2GB requirement)"
+        else
+            log::warning "⚠ Memory usage: ${MEM_MB}MB (>2GB)"
+        fi
+    fi
+else
+    log::warning "⚠ Could not check resource usage"
+fi
+
 ################################################################################
 # Results
 ################################################################################

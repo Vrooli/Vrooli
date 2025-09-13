@@ -220,10 +220,25 @@ execute_command() {
         return 1
     fi
     
-    # Get server configuration
     local host="${MCRCON_HOST}"
     local port="${MCRCON_PORT}"
     local password="${MCRCON_PASSWORD}"
+    
+    # Check if using a named server from config
+    if [[ "$server" != "default" ]] && [[ -f "${MCRCON_CONFIG_FILE}" ]]; then
+        local server_config=$(jq -r --arg name "$server" '.servers[] | select(.name == $name)' "${MCRCON_CONFIG_FILE}")
+        if [[ -n "$server_config" ]]; then
+            host=$(echo "$server_config" | jq -r '.host')
+            port=$(echo "$server_config" | jq -r '.port')
+            password=$(echo "$server_config" | jq -r '.password')
+            log_debug "Using server config: $server"
+        else
+            log_error "Server '$server' not found in configuration"
+            echo "Available servers:"
+            list_servers
+            return 1
+        fi
+    fi
     
     if [[ -z "$password" ]]; then
         log_error "RCON password not configured"
@@ -231,15 +246,92 @@ execute_command() {
         return 1
     fi
     
-    # Execute command
+    # Execute command with retry logic
     log_debug "Executing command: $command on $host:$port"
     
-    if timeout "${MCRCON_TIMEOUT}" "${MCRCON_BINARY}" -H "$host" -P "$port" -p "$password" "$command"; then
-        return 0
-    else
-        log_error "Failed to execute command: $command"
+    local attempts=0
+    local max_attempts="${MCRCON_RETRY_ATTEMPTS:-3}"
+    local retry_delay=2
+    
+    while [[ $attempts -lt $max_attempts ]]; do
+        attempts=$((attempts + 1))
+        
+        if timeout "${MCRCON_TIMEOUT}" "${MCRCON_BINARY}" -H "$host" -P "$port" -p "$password" "$command" 2>/tmp/mcrcon_error.log; then
+            return 0
+        else
+            local error_msg=$(cat /tmp/mcrcon_error.log 2>/dev/null || echo "Unknown error")
+            
+            # Check for specific error types
+            if echo "$error_msg" | grep -q "Connection refused"; then
+                log_error "Connection refused - server may not be running or RCON not enabled"
+                return 1
+            elif echo "$error_msg" | grep -q "Authentication failed"; then
+                log_error "Authentication failed - check RCON password"
+                return 1
+            elif echo "$error_msg" | grep -q "timeout"; then
+                log_error "Command timed out (attempt $attempts/$max_attempts)"
+                if [[ $attempts -lt $max_attempts ]]; then
+                    log_info "Retrying in ${retry_delay} seconds..."
+                    sleep $retry_delay
+                    retry_delay=$((retry_delay * 2))  # Exponential backoff
+                    continue
+                fi
+            fi
+            
+            log_error "Failed to execute command: $command (attempt $attempts/$max_attempts)"
+            if [[ $attempts -lt $max_attempts ]]; then
+                sleep $retry_delay
+                continue
+            fi
+        fi
+    done
+    
+    log_error "Command failed after $max_attempts attempts"
+    return 1
+}
+
+# Execute command on all configured servers
+execute_all() {
+    local command="$1"
+    
+    if ! is_installed; then
+        log_error "mcrcon is not installed"
         return 1
     fi
+    
+    if [[ ! -f "${MCRCON_CONFIG_FILE}" ]]; then
+        log_error "No servers configured"
+        return 1
+    fi
+    
+    local server_count=$(jq -r '.servers | length' "${MCRCON_CONFIG_FILE}")
+    if [[ "$server_count" -eq 0 ]]; then
+        log_error "No servers configured"
+        return 1
+    fi
+    
+    echo "Executing command on all servers..."
+    echo "================================"
+    
+    local success_count=0
+    local fail_count=0
+    
+    # Execute on each server
+    while IFS= read -r server_name; do
+        echo ""
+        echo "Server: $server_name"
+        if execute_command "$command" "$server_name"; then
+            success_count=$((success_count + 1))
+        else
+            fail_count=$((fail_count + 1))
+        fi
+    done < <(jq -r '.servers[].name' "${MCRCON_CONFIG_FILE}")
+    
+    echo ""
+    echo "================================"
+    echo "Results: $success_count succeeded, $fail_count failed"
+    
+    return 0
 }
 
 # List configured servers
@@ -345,6 +437,191 @@ show_credentials() {
     echo "  export MCRCON_PASSWORD='your_password'"
 }
 
+# Auto-discover Minecraft servers on local network
+discover_servers() {
+    log_info "Scanning for Minecraft servers..."
+    
+    local discovered_count=0
+    local scan_ports="${1:-25565,25575}"  # Default MC port and RCON port
+    local scan_range="${2:-127.0.0.1}"    # Default to localhost
+    
+    echo "Discovering Minecraft servers..."
+    echo "================================"
+    
+    # Check common ports on localhost
+    for port in $(echo "$scan_ports" | tr ',' ' '); do
+        if timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/$port" 2>/dev/null; then
+            echo "Found server on 127.0.0.1:$port"
+            discovered_count=$((discovered_count + 1))
+            
+            # Check if it's RCON port (usually 25575)
+            if [[ "$port" == "25575" ]]; then
+                echo "  Type: RCON port (likely)"
+            elif [[ "$port" == "25565" ]]; then
+                echo "  Type: Game port (likely)"
+            fi
+        fi
+    done
+    
+    # Check Docker containers for Minecraft servers
+    if command -v docker &> /dev/null; then
+        log_debug "Checking Docker containers..."
+        local containers=$(docker ps --format "table {{.Names}}\t{{.Ports}}" 2>/dev/null | grep -E "25565|25575" || true)
+        if [[ -n "$containers" ]]; then
+            echo ""
+            echo "Docker Minecraft Containers:"
+            echo "$containers"
+            discovered_count=$((discovered_count + 1))
+        fi
+    fi
+    
+    # Check common Minecraft server process names
+    local mc_processes=$(ps aux 2>/dev/null | grep -E "minecraft|spigot|paper|forge|fabric" | grep -v grep || true)
+    if [[ -n "$mc_processes" ]]; then
+        echo ""
+        echo "Running Minecraft Processes:"
+        echo "$mc_processes" | awk '{print $11}' | head -5
+        discovered_count=$((discovered_count + 1))
+    fi
+    
+    echo ""
+    echo "================================"
+    echo "Discovered $discovered_count potential server(s)"
+    
+    if [[ $discovered_count -eq 0 ]]; then
+        echo ""
+        echo "No Minecraft servers found. To start a test server:"
+        echo "  docker run -d -p 25565:25565 -p 25575:25575 -e EULA=TRUE -e ENABLE_RCON=true -e RCON_PASSWORD=minecraft itzg/minecraft-server"
+    else
+        echo ""
+        echo "To add a discovered server:"
+        echo "  vrooli resource mcrcon content add <name> <host> <port> <password>"
+    fi
+    
+    return 0
+}
+
+# Test RCON connection to a server
+test_connection() {
+    local host="${1:-$MCRCON_HOST}"
+    local port="${2:-$MCRCON_PORT}"
+    local password="${3:-$MCRCON_PASSWORD}"
+    
+    if ! is_installed; then
+        log_error "mcrcon is not installed"
+        return 1
+    fi
+    
+    if [[ -z "$password" ]]; then
+        log_error "Password required for connection test"
+        return 1
+    fi
+    
+    echo "Testing connection to $host:$port..."
+    
+    # Try to execute a simple command
+    if timeout 5 "${MCRCON_BINARY}" -H "$host" -P "$port" -p "$password" "list" &>/dev/null; then
+        echo "✓ Connection successful"
+        return 0
+    else
+        echo "✗ Connection failed"
+        echo "  Verify server is running and RCON is enabled"
+        echo "  Check password is correct"
+        return 1
+    fi
+}
+
+# Player management functions
+list_players() {
+    local server="${1:-default}"
+    
+    echo "Online Players:"
+    echo "==============="
+    
+    local response=$(execute_command "list" "$server")
+    if [[ $? -eq 0 ]]; then
+        echo "$response"
+    else
+        log_error "Failed to list players"
+        return 1
+    fi
+}
+
+player_info() {
+    local player="$1"
+    local server="${2:-default}"
+    
+    if [[ -z "$player" ]]; then
+        log_error "Player name required"
+        return 1
+    fi
+    
+    echo "Player Information: $player"
+    echo "========================="
+    
+    # Get player data
+    execute_command "data get entity $player" "$server"
+}
+
+teleport_player() {
+    local player="$1"
+    local x="$2"
+    local y="$3"
+    local z="$4"
+    local server="${5:-default}"
+    
+    if [[ -z "$player" ]] || [[ -z "$x" ]] || [[ -z "$y" ]] || [[ -z "$z" ]]; then
+        log_error "Usage: teleport_player <player> <x> <y> <z> [server]"
+        return 1
+    fi
+    
+    echo "Teleporting $player to ($x, $y, $z)..."
+    execute_command "tp $player $x $y $z" "$server"
+}
+
+kick_player() {
+    local player="$1"
+    local reason="${2:-Kicked by administrator}"
+    local server="${3:-default}"
+    
+    if [[ -z "$player" ]]; then
+        log_error "Player name required"
+        return 1
+    fi
+    
+    echo "Kicking player: $player"
+    execute_command "kick $player $reason" "$server"
+}
+
+ban_player() {
+    local player="$1"
+    local reason="${2:-Banned by administrator}"
+    local server="${3:-default}"
+    
+    if [[ -z "$player" ]]; then
+        log_error "Player name required"
+        return 1
+    fi
+    
+    echo "Banning player: $player"
+    execute_command "ban $player $reason" "$server"
+}
+
+give_item() {
+    local player="$1"
+    local item="$2"
+    local count="${3:-1}"
+    local server="${4:-default}"
+    
+    if [[ -z "$player" ]] || [[ -z "$item" ]]; then
+        log_error "Usage: give_item <player> <item> [count] [server]"
+        return 1
+    fi
+    
+    echo "Giving $count x $item to $player..."
+    execute_command "give $player $item $count" "$server"
+}
+
 # Main command handler
 main() {
     local command="${1:-}"
@@ -390,6 +667,9 @@ main() {
                 execute)
                     execute_command "$@"
                     ;;
+                execute-all)
+                    execute_all "$@"
+                    ;;
                 list)
                     list_servers
                     ;;
@@ -399,8 +679,42 @@ main() {
                 remove)
                     remove_server "$@"
                     ;;
+                discover)
+                    discover_servers "$@"
+                    ;;
+                test)
+                    test_connection "$@"
+                    ;;
                 *)
                     echo "Unknown content subcommand: $subcommand" >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+        player)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                list)
+                    list_players "$@"
+                    ;;
+                info)
+                    player_info "$@"
+                    ;;
+                teleport)
+                    teleport_player "$@"
+                    ;;
+                kick)
+                    kick_player "$@"
+                    ;;
+                ban)
+                    ban_player "$@"
+                    ;;
+                give)
+                    give_item "$@"
+                    ;;
+                *)
+                    echo "Unknown player subcommand: $subcommand" >&2
                     exit 1
                     ;;
             esac

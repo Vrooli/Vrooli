@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KICAD_CLI_DIR}/config/defaults.sh"
 
 # Source KiCad libraries
-for lib in common install status inject test content desktop; do
+for lib in common core install status inject test content desktop; do
     lib_file="${KICAD_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -50,7 +50,10 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="kicad::desktop::uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="kicad::desktop::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="kicad::desktop::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="kicad::desktop::restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="kicad::is_installed"
+CLI_COMMAND_HANDLERS["test::smoke"]="kicad::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="kicad::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="kicad::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="kicad::test::all"
 
 # Content handlers for PCB design functionality
 CLI_COMMAND_HANDLERS["content::add"]="kicad::inject"
@@ -65,6 +68,7 @@ cli::register_subcommand "content" "projects" "List all KiCad projects" "kicad::
 cli::register_subcommand "content" "libraries" "List all KiCad libraries" "kicad::content::list_libraries"
 
 # Information commands
+cli::register_command "info" "Show resource runtime information" "kicad::info"
 cli::register_command "status" "Show detailed KiCad status" "kicad_status"
 cli::register_command "logs" "Show KiCad logs" "kicad::desktop::logs"
 

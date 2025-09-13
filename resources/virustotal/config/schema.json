@@ -1,0 +1,190 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "VirusTotal Resource Configuration Schema",
+  "description": "Configuration schema for the VirusTotal threat intelligence resource",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "description": "VirusTotal API key",
+      "minLength": 32,
+      "pattern": "^[a-fA-F0-9]+$"
+    },
+    "api_tier": {
+      "type": "string",
+      "description": "API tier level",
+      "enum": ["free", "premium"],
+      "default": "free"
+    },
+    "port": {
+      "type": "integer",
+      "description": "Service port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8290
+    },
+    "cache": {
+      "type": "object",
+      "description": "Caching configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable result caching",
+          "default": true
+        },
+        "ttl": {
+          "type": "integer",
+          "description": "Cache TTL in seconds",
+          "minimum": 60,
+          "maximum": 604800,
+          "default": 86400
+        },
+        "backend": {
+          "type": "string",
+          "description": "Cache backend",
+          "enum": ["memory", "redis", "sqlite"],
+          "default": "memory"
+        }
+      }
+    },
+    "rate_limiting": {
+      "type": "object",
+      "description": "Rate limiting configuration",
+      "properties": {
+        "requests_per_minute": {
+          "type": "integer",
+          "description": "Maximum requests per minute",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 4
+        },
+        "daily_limit": {
+          "type": "integer",
+          "description": "Maximum requests per day",
+          "minimum": 1,
+          "maximum": 999999,
+          "default": 500
+        },
+        "auto_retry": {
+          "type": "boolean",
+          "description": "Automatically retry on rate limit",
+          "default": true
+        }
+      }
+    },
+    "scanning": {
+      "type": "object",
+      "description": "Scanning behavior configuration",
+      "properties": {
+        "max_file_size": {
+          "type": "integer",
+          "description": "Maximum file size in bytes",
+          "minimum": 1,
+          "maximum": 650000000,
+          "default": 32000000
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Scan timeout in seconds",
+          "minimum": 30,
+          "maximum": 3600,
+          "default": 300
+        },
+        "batch_size": {
+          "type": "integer",
+          "description": "Files per batch",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10
+        },
+        "share_samples": {
+          "type": "boolean",
+          "description": "Share samples with VirusTotal community",
+          "default": false
+        }
+      }
+    },
+    "webhooks": {
+      "type": "object",
+      "description": "Webhook notification configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable webhook notifications",
+          "default": false
+        },
+        "url": {
+          "type": "string",
+          "description": "Webhook endpoint URL",
+          "format": "uri"
+        },
+        "secret": {
+          "type": "string",
+          "description": "Webhook signature secret",
+          "minLength": 16
+        },
+        "events": {
+          "type": "array",
+          "description": "Events to notify",
+          "items": {
+            "type": "string",
+            "enum": ["scan_complete", "threat_detected", "quota_warning"]
+          },
+          "default": ["scan_complete", "threat_detected"]
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "Log level",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "description": "Log format",
+          "enum": ["text", "json"],
+          "default": "json"
+        },
+        "sensitive": {
+          "type": "boolean",
+          "description": "Log sensitive information",
+          "default": false
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning",
+      "properties": {
+        "worker_threads": {
+          "type": "integer",
+          "description": "Number of worker threads",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 2
+        },
+        "connection_timeout": {
+          "type": "integer",
+          "description": "API connection timeout in seconds",
+          "minimum": 5,
+          "maximum": 60,
+          "default": 30
+        },
+        "read_timeout": {
+          "type": "integer",
+          "description": "API read timeout in seconds",
+          "minimum": 10,
+          "maximum": 300,
+          "default": 120
+        }
+      }
+    }
+  },
+  "required": ["api_key"],
+  "additionalProperties": false
+}

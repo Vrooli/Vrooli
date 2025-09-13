@@ -1,0 +1,235 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mail-in-a-Box Configuration Schema",
+  "description": "Configuration schema for Mail-in-a-Box email server resource",
+  "type": "object",
+  "properties": {
+    "primary_hostname": {
+      "type": "string",
+      "description": "Primary hostname for the mail server",
+      "default": "mail.local",
+      "pattern": "^[a-zA-Z0-9.-]+$",
+      "examples": ["mail.example.com", "mail.local"]
+    },
+    "admin_email": {
+      "type": "string",
+      "description": "Administrator email address",
+      "default": "admin@mail.local",
+      "format": "email",
+      "examples": ["admin@example.com", "postmaster@example.com"]
+    },
+    "admin_password": {
+      "type": "string",
+      "description": "Administrator password (minimum 8 characters)",
+      "minLength": 8,
+      "sensitive": true
+    },
+    "bind_address": {
+      "type": "string",
+      "description": "IP address to bind services to",
+      "default": "127.0.0.1",
+      "oneOf": [
+        { "format": "ipv4" },
+        { "format": "ipv6" },
+        { "const": "0.0.0.0" }
+      ]
+    },
+    "ports": {
+      "type": "object",
+      "description": "Port configuration for Mail-in-a-Box services",
+      "properties": {
+        "smtp": {
+          "type": "integer",
+          "description": "SMTP port",
+          "default": 25,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "submission": {
+          "type": "integer",
+          "description": "SMTP submission port",
+          "default": 587,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "imap": {
+          "type": "integer",
+          "description": "IMAP port",
+          "default": 143,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "imaps": {
+          "type": "integer",
+          "description": "IMAPS (secure IMAP) port",
+          "default": 993,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "pop3": {
+          "type": "integer",
+          "description": "POP3 port",
+          "default": 110,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "pop3s": {
+          "type": "integer",
+          "description": "POP3S (secure POP3) port",
+          "default": 995,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "admin": {
+          "type": "integer",
+          "description": "Admin panel port",
+          "default": 8543,
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "https": {
+          "type": "integer",
+          "description": "HTTPS port for webmail",
+          "default": 443,
+          "minimum": 1,
+          "maximum": 65535
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Data directory path",
+          "default": "~/.mailinabox",
+          "examples": ["/var/lib/mailinabox", "~/.mailinabox"]
+        },
+        "backup_dir": {
+          "type": "string",
+          "description": "Backup directory path",
+          "default": "~/.mailinabox/backup",
+          "examples": ["/var/backups/mailinabox", "~/.mailinabox/backup"]
+        },
+        "mail_quota": {
+          "type": "string",
+          "description": "Default mailbox quota",
+          "default": "0",
+          "pattern": "^[0-9]+(M|G)?$",
+          "examples": ["0", "1G", "500M"]
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "enable_spf": {
+          "type": "boolean",
+          "description": "Enable SPF checks",
+          "default": true
+        },
+        "enable_dkim": {
+          "type": "boolean",
+          "description": "Enable DKIM signing",
+          "default": true
+        },
+        "enable_dmarc": {
+          "type": "boolean",
+          "description": "Enable DMARC policy",
+          "default": true
+        },
+        "enable_greylisting": {
+          "type": "boolean",
+          "description": "Enable greylisting for spam prevention",
+          "default": true
+        },
+        "enable_fail2ban": {
+          "type": "boolean",
+          "description": "Enable fail2ban for brute force protection",
+          "default": true
+        },
+        "ssl_certificate": {
+          "type": "string",
+          "description": "Path to SSL certificate file",
+          "examples": ["/etc/ssl/certs/mail.pem"]
+        },
+        "ssl_key": {
+          "type": "string",
+          "description": "Path to SSL private key file",
+          "sensitive": true,
+          "examples": ["/etc/ssl/private/mail.key"]
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "description": "Docker container configuration",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image to use",
+          "default": "mailinabox/mailinabox:v68",
+          "pattern": "^[a-zA-Z0-9.-]+(/[a-zA-Z0-9.-]+)?(:[a-zA-Z0-9.-]+)?$"
+        },
+        "container_name": {
+          "type": "string",
+          "description": "Docker container name",
+          "default": "mailinabox",
+          "pattern": "^[a-zA-Z0-9_.-]+$"
+        },
+        "network_mode": {
+          "type": "string",
+          "description": "Docker network mode",
+          "default": "bridge",
+          "enum": ["bridge", "host", "none"]
+        },
+        "restart_policy": {
+          "type": "string",
+          "description": "Docker restart policy",
+          "default": "unless-stopped",
+          "enum": ["no", "always", "unless-stopped", "on-failure"]
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "Integration with other resources",
+      "properties": {
+        "postgres": {
+          "type": "object",
+          "description": "PostgreSQL integration for advanced storage",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "connection_url": {
+              "type": "string",
+              "format": "uri",
+              "examples": ["postgresql://user:pass@localhost/maildb"]
+            }
+          }
+        },
+        "redis": {
+          "type": "object",
+          "description": "Redis integration for caching",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "connection_url": {
+              "type": "string",
+              "format": "uri",
+              "examples": ["redis://localhost:6379"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["primary_hostname", "admin_email"],
+  "additionalProperties": false
+}

@@ -24,7 +24,10 @@ vrooli resource ggwave content execute --data "Hello World" --mode normal
   - DT (Dual-Tone): 64-500 bytes/sec (audible, highest speed)
   - Ultrasonic: 8-64 bytes/sec (inaudible to humans)
 
-- **Error Correction**: Reed-Solomon error correction for reliable transmission
+- **Reed-Solomon Error Correction**: 
+  - 10-byte redundancy for reliable transmission
+  - Corrects up to 5 byte errors automatically
+  - Optional per-transmission basis
 - **Cross-Platform**: Works on iOS, Android, Linux, Arduino
 - **Standard Hardware**: Uses any microphone/speaker - no special equipment needed
 - **Range**: 1-5 meters typical indoor range
@@ -40,15 +43,15 @@ vrooli resource ggwave content execute --data "Hello World" --mode normal
 ## API Endpoints
 
 ```bash
-# Encode data to audio
+# Encode data to audio (with error correction)
 curl -X POST http://localhost:8196/api/encode \
   -H "Content-Type: application/json" \
-  -d '{"data": "Hello World", "mode": "normal"}'
+  -d '{"data": "Hello World", "mode": "normal", "error_correction": true}'
 
-# Decode audio to data
+# Decode audio to data (auto-correct errors)
 curl -X POST http://localhost:8196/api/decode \
   -H "Content-Type: application/json" \
-  -d '{"audio": "<base64_audio>", "mode": "auto"}'
+  -d '{"audio": "<base64_audio>", "mode": "auto", "error_correction": true}'
 
 # Health check
 curl http://localhost:8196/health

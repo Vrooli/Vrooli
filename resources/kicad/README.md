@@ -151,6 +151,8 @@ resource-kicad inject examples/led-blinker.kicad_sch
 - **Export failures**: Check KiCad CLI is installed (`kicad-cli`)
 - **Permission errors**: Check data directory permissions
 
+For detailed troubleshooting and known limitations, see [PROBLEMS.md](./PROBLEMS.md)
+
 ## Related Resources
 
 - **Judge0**: For circuit simulation code

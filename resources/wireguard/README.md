@@ -34,6 +34,8 @@ vrooli resource wireguard content add my-tunnel
 - **Simple Configuration**: Public key-based authentication
 - **Cross-Platform**: Works across Linux, Windows, macOS, mobile devices
 - **Low Latency**: <1ms overhead for encrypted tunnels
+- **Traffic Monitoring**: Real-time bandwidth and packet statistics
+- **Content Management**: Store and retrieve tunnel configurations
 
 ### Security Features
 - End-to-end encryption for all traffic
@@ -41,6 +43,14 @@ vrooli resource wireguard content add my-tunnel
 - Resistance to key compromise impersonation
 - Built-in DoS protection
 - Minimal attack surface
+- Automatic key generation for tunnels
+
+### Monitoring & Statistics
+- Per-interface traffic statistics
+- Real-time bandwidth monitoring
+- Packet counts and error tracking
+- Container resource usage metrics
+- Peer connection status and handshake timing
 
 ## Configuration
 
@@ -124,11 +134,18 @@ vrooli resource wireguard test unit
 # View status and active tunnels
 vrooli resource wireguard status
 
+# View detailed traffic statistics
+vrooli resource wireguard stats
+
 # View logs
 vrooli resource wireguard logs --tail 50
 
 # Check tunnel statistics
 docker exec vrooli-wireguard wg show
+
+# Monitor bandwidth usage in real-time
+# Run stats command multiple times to see bandwidth rates
+vrooli resource wireguard stats
 ```
 
 ## Troubleshooting

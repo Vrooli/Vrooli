@@ -28,6 +28,7 @@ export MATHLIB_ENABLE_API="${MATHLIB_ENABLE_API:-true}"
 
 # Logging
 export MATHLIB_LOG_LEVEL="${MATHLIB_LOG_LEVEL:-info}"
+export MATHLIB_LOG_DIR="${MATHLIB_LOG_DIR:-/tmp/mathlib/logs}"
 export MATHLIB_LOG_FILE="${MATHLIB_LOG_FILE:-/tmp/mathlib.log}"
 
 # Health check

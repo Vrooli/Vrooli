@@ -36,12 +36,12 @@ run_test() {
     local test_name="$1"
     local test_command="$2"
     
-    ((TESTS_RUN++))
+    ((TESTS_RUN++)) || true
     echo -n "  Testing ${test_name}... "
     
     if eval "$test_command" &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         echo -e "${RED}✗${NC}"
@@ -55,14 +55,14 @@ run_test_with_output() {
     local test_command="$2"
     local expected_pattern="$3"
     
-    ((TESTS_RUN++))
+    ((TESTS_RUN++)) || true
     echo -n "  Testing ${test_name}... "
     
     local output
     if output=$(eval "$test_command" 2>&1); then
         if [[ -z "$expected_pattern" ]] || echo "$output" | grep -q "$expected_pattern"; then
             echo -e "${GREEN}✓${NC}"
-            ((TESTS_PASSED++))
+            ((TESTS_PASSED++)) || true
             return 0
         else
             echo -e "${RED}✗ (output mismatch)${NC}"
@@ -90,7 +90,7 @@ main() {
     run_test "Status command" "${KICAD_DIR}/cli.sh status"
     
     # Test 3: Info command
-    run_test_with_output "Info command" "${KICAD_DIR}/cli.sh info" "startup_order"
+    run_test_with_output "Info command" "${KICAD_DIR}/cli.sh info --json" "startup_order"
     
     # Test 4: Manage subcommands exist
     run_test_with_output "Manage help" "${KICAD_DIR}/cli.sh manage help 2>&1 || true" "install"
@@ -123,10 +123,10 @@ main() {
     fi
     
     # Test 11: Test directory structure
-    run_test "Templates directory" "[[ -d \$KICAD_TEMPLATES_DIR ]]"
+    run_test "Templates directory" "[[ -d ${KICAD_TEMPLATES_DIR} ]]"
     
     # Test 12: Test log directory
-    run_test "Logs directory" "[[ -d \$KICAD_LOGS_DIR ]]"
+    run_test "Logs directory" "[[ -d ${KICAD_LOGS_DIR} ]]"
     
     # Test 13: Configuration validation
     run_test "Runtime config valid" "jq '.' ${KICAD_DIR}/config/runtime.json"
@@ -150,10 +150,10 @@ main() {
     echo
     echo "Results: ${TESTS_PASSED}/${TESTS_RUN} tests passed"
     
-    if [[ $TESTS_PASSED -eq $TESTS_RUN ]]; then
+    if [[ ${TESTS_PASSED:-0} -eq ${TESTS_RUN:-0} ]] && [[ ${TESTS_RUN:-0} -gt 0 ]]; then
         echo -e "${GREEN}✅ Integration tests passed${NC}"
         exit 0
-    elif [[ $TESTS_PASSED -gt $((TESTS_RUN / 2)) ]]; then
+    elif [[ ${TESTS_PASSED:-0} -gt $((${TESTS_RUN:-1} / 2)) ]]; then
         echo -e "${YELLOW}⚠️  Some integration tests failed${NC}"
         exit 1
     else

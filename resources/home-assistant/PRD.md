@@ -15,14 +15,14 @@
 - [x] **Integration API**: REST API accessible for device control and automation
 - [x] **Automation Engine**: Supports loading custom automations and scripts
 - [x] **Data Persistence**: Configuration and state persist across restarts
-- [ ] **Secure Access**: Configurable authentication for API and web interface (partial - auth available but not enforced)
+- [x] **Secure Access**: Authentication required for API access (401 returned without auth)
 - [x] **v2.0 Contract**: Full compliance with universal resource contract
 
 ### P1 Requirements (Should Have)
 - [x] **Device Discovery**: Auto-discovers compatible devices on network (via host network mode)
-- [ ] **Webhook Support**: Receives webhooks for external triggers (structure in place, needs testing)
-- [ ] **Backup/Restore**: Configuration backup and restoration capabilities
-- [ ] **Multi-user Support**: Different access levels for users
+- [x] **Webhook Support**: Receives webhooks for external triggers (tested and working)
+- [x] **Backup/Restore**: Configuration backup and restoration capabilities (implemented with docker exec)
+- [ ] **Multi-user Support**: Different access levels for users (requires manual configuration)
 
 ### P2 Requirements (Nice to Have)
 - [ ] **Custom Components**: Support for community integrations
@@ -163,3 +163,11 @@ vrooli resource home-assistant content list
   - ✅ Automation injection system working
   - ⚠️ Authentication available but not enforced by default
   - 📝 Created complete documentation
+- 2025-09-12: 100% P0 complete (7/7), 75% P1 complete (3/4)
+  - ✅ Fixed authentication - API properly returns 401 without auth
+  - ✅ Implemented backup/restore functionality using docker exec for permissions
+  - ✅ Added webhook support - tested and confirmed working
+  - ✅ Enhanced integration tests with backup/restore and webhook validation
+  - ✅ Added CLI commands for backup/restore/list operations
+  - ⚠️ Multi-user support requires manual configuration in Home Assistant UI
+  - ⚠️ Port registry integration simplified due to registry limitations

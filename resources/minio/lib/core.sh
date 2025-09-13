@@ -131,17 +131,56 @@ minio::create_default_buckets() {
         "vrooli-temp-storage"
     )
     
-    for bucket in "${buckets[@]}"; do
-        if command -v minio::buckets::create_custom &>/dev/null; then
-            minio::buckets::create_custom "$bucket" "private" || true
-        elif command -v minio::api::create_bucket &>/dev/null; then
-            minio::api::create_bucket "$bucket" || true
-        else
-            log::warning "Cannot create bucket $bucket - no bucket creation function available"
-        fi
-    done
+    # First try using MC client inside container
+    local created_count=0
+    local container_name="${MINIO_CONTAINER_NAME:-minio}"
     
-    log::success "Default buckets created"
+    # Configure MC alias inside container
+    log::info "Configuring MinIO client in container..."
+    if docker exec "$container_name" mc alias set local http://localhost:9000 \
+        "${MINIO_ROOT_USER:-minioadmin}" "${MINIO_ROOT_PASSWORD:-minioadmin}" &>/dev/null; then
+        
+        # Create buckets using MC
+        for bucket in "${buckets[@]}"; do
+            log::info "Creating bucket: $bucket"
+            if docker exec "$container_name" mc mb "local/$bucket" &>/dev/null 2>&1 || \
+               docker exec "$container_name" mc ls "local/$bucket" &>/dev/null 2>&1; then
+                ((created_count++))
+                log::success "✓ Bucket ready: $bucket"
+                
+                # Set appropriate policies
+                case "$bucket" in
+                    "vrooli-user-uploads")
+                        docker exec "$container_name" mc anonymous set download "local/$bucket" &>/dev/null || true
+                        ;;
+                    "vrooli-temp-storage")
+                        # Set lifecycle policy for temp storage (24 hour expiry)
+                        docker exec "$container_name" mc ilm add "local/$bucket" \
+                            --expiry-days 1 &>/dev/null || true
+                        ;;
+                esac
+            else
+                log::warning "Could not create bucket: $bucket"
+            fi
+        done
+    else
+        # Fallback to existing methods
+        for bucket in "${buckets[@]}"; do
+            if command -v minio::buckets::create_custom &>/dev/null; then
+                minio::buckets::create_custom "$bucket" "private" || true
+            elif command -v minio::api::create_bucket &>/dev/null; then
+                minio::api::create_bucket "$bucket" || true
+            else
+                log::warning "Cannot create bucket $bucket - no bucket creation function available"
+            fi
+        done
+    fi
+    
+    if [[ $created_count -eq ${#buckets[@]} ]]; then
+        log::success "All default buckets created successfully"
+    else
+        log::warning "Some default buckets may not have been created"
+    fi
 }
 
 ################################################################################
@@ -215,6 +254,12 @@ EOF
     
     # Wait for ready
     if minio::wait_for_ready 30; then
+        # Ensure we have the right credentials loaded
+        if [[ -f "$creds_file" ]]; then
+            source "$creds_file"
+            export MINIO_ROOT_USER MINIO_ROOT_PASSWORD
+        fi
+        
         # Create default buckets
         minio::create_default_buckets
         log::success "MinIO installed successfully"

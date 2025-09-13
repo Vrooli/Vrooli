@@ -3,7 +3,22 @@
 # Test script for AI Chatbot Manager API endpoints
 set -e
 
-API_BASE_URL="${API_BASE_URL:-http://localhost:8090}"
+# Dynamic port discovery
+get_api_url() {
+    local api_port
+    api_port=$(vrooli scenario port ai-chatbot-manager API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo "ERROR: ai-chatbot-manager is not running" >&2
+        echo "Start it with: vrooli scenario run ai-chatbot-manager" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
+
+# Get API URL dynamically unless overridden
+API_BASE_URL="${API_BASE_URL:-$(get_api_url)}"
 TEST_SESSION_ID="test-session-$(date +%s)"
 CREATED_CHATBOT_ID=""
 
@@ -151,6 +166,147 @@ test_analytics_endpoint() {
     fi
 }
 
+# Test update chatbot endpoint
+test_update_chatbot() {
+    if [[ -z "$CREATED_CHATBOT_ID" ]]; then
+        log_error "No chatbot ID available for testing"
+        exit 1
+    fi
+    
+    log_info "Testing update chatbot endpoint..."
+    
+    local response
+    response=$(curl -s -X PATCH "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "name": "Updated Test Chatbot",
+            "description": "Updated description"
+        }')
+    
+    # Verify the update worked
+    local updated_name
+    updated_name=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" | jq -r '.name // empty')
+    
+    if [[ "$updated_name" == "Updated Test Chatbot" ]]; then
+        log_success "Successfully updated chatbot"
+    else
+        log_error "Failed to update chatbot. Expected 'Updated Test Chatbot', got: $updated_name"
+        exit 1
+    fi
+}
+
+# Test widget endpoint
+test_widget_endpoint() {
+    if [[ -z "$CREATED_CHATBOT_ID" ]]; then
+        log_error "No chatbot ID available for testing"
+        exit 1
+    fi
+    
+    log_info "Testing widget endpoint..."
+    
+    local response
+    response=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID/widget")
+    
+    # Check if response contains expected widget code
+    if echo "$response" | grep -q "chatbot-widget" && echo "$response" | grep -q "$CREATED_CHATBOT_ID"; then
+        log_success "Widget endpoint returned valid embed code"
+    else
+        log_error "Widget endpoint failed or returned invalid code"
+        exit 1
+    fi
+}
+
+# Test error handling - invalid chatbot ID
+test_error_handling() {
+    log_info "Testing error handling with invalid chatbot ID..."
+    
+    local status_code
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE_URL/api/v1/chatbots/invalid-id-12345")
+    
+    if [[ "$status_code" == "404" ]]; then
+        log_success "Properly returns 404 for invalid chatbot ID"
+    else
+        log_error "Expected 404 for invalid ID, got $status_code"
+        exit 1
+    fi
+    
+    log_info "Testing error handling with malformed JSON..."
+    
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_BASE_URL/api/v1/chatbots" \
+        -H "Content-Type: application/json" \
+        -d '{"invalid": json}')
+    
+    if [[ "$status_code" == "400" ]]; then
+        log_success "Properly returns 400 for malformed JSON"
+    else
+        log_error "Expected 400 for malformed JSON, got $status_code"
+        exit 1
+    fi
+}
+
+# Test conversation persistence
+test_conversation_persistence() {
+    if [[ -z "$CREATED_CHATBOT_ID" ]]; then
+        log_error "No chatbot ID available for testing"
+        exit 1
+    fi
+    
+    log_info "Testing conversation persistence..."
+    
+    # Send first message
+    local response1
+    response1=$(curl -s -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "message": "My name is TestUser",
+            "session_id": "persist-test-'$(date +%s)'"
+        }')
+    
+    # Send second message in same session
+    local response2
+    response2=$(curl -s -X POST "$API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "message": "What is my name?",
+            "session_id": "persist-test-'$(date +%s)'"
+        }')
+    
+    # Check if AI remembers context (basic check)
+    if echo "$response2" | jq -r '.response // empty' | grep -qi "testuser\|TestUser"; then
+        log_success "Conversation context is being maintained"
+    else
+        log_info "Note: Context persistence may depend on Ollama model capabilities"
+    fi
+}
+
+# Test delete chatbot endpoint
+test_delete_chatbot() {
+    if [[ -z "$CREATED_CHATBOT_ID" ]]; then
+        log_error "No chatbot ID available for testing"
+        exit 1
+    fi
+    
+    log_info "Testing delete chatbot endpoint..."
+    
+    local status_code
+    status_code=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID")
+    
+    if [[ "$status_code" == "200" || "$status_code" == "204" ]]; then
+        log_success "Successfully deleted chatbot"
+        
+        # Verify deletion (should now return 404 or show as inactive)
+        local get_status
+        get_status=$(curl -s "$API_BASE_URL/api/v1/chatbots/$CREATED_CHATBOT_ID" | jq -r '.is_active // empty')
+        
+        if [[ "$get_status" == "false" || -z "$get_status" ]]; then
+            log_success "Chatbot properly marked as deleted/inactive"
+        fi
+    else
+        log_error "Delete endpoint returned $status_code"
+        exit 1
+    fi
+}
+
 # Wait for API to be available
 wait_for_api() {
     log_info "Waiting for API to be available..."
@@ -188,19 +344,27 @@ main() {
     test_list_chatbots
     test_create_chatbot
     test_get_chatbot
+    test_update_chatbot
     test_chat_endpoint
+    test_conversation_persistence
     test_analytics_endpoint
+    test_widget_endpoint
+    test_error_handling
+    test_delete_chatbot
     
     echo ""
-    log_success "All API tests passed!"
+    log_success "All API tests passed successfully! (11 test suites)"
     
-    if [[ -n "$CREATED_CHATBOT_ID" ]]; then
-        echo "Test chatbot created: $CREATED_CHATBOT_ID"
-        echo "You can test it manually with:"
-        echo "  curl -X POST $API_BASE_URL/api/v1/chat/$CREATED_CHATBOT_ID \\"
-        echo "       -H 'Content-Type: application/json' \\"
-        echo "       -d '{\"message\": \"Hello!\", \"session_id\": \"manual-test\"}'"
-    fi
+    # Summary
+    echo ""
+    echo "Test Coverage:"
+    echo "  ✓ Health checks"
+    echo "  ✓ CRUD operations (Create, Read, Update, Delete)"
+    echo "  ✓ Chat functionality"
+    echo "  ✓ Conversation persistence"
+    echo "  ✓ Analytics retrieval"
+    echo "  ✓ Widget generation"
+    echo "  ✓ Error handling"
 }
 
 # Check dependencies

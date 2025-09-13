@@ -77,3 +77,52 @@ mailinabox_get_urls() {
     urls="${urls}, Webmail: https://${MAILINABOX_BIND_ADDRESS}/mail"
     echo "$urls"
 }
+
+# Validation functions for tests
+
+# Validate email address format
+validate_email() {
+    local email="$1"
+    # Updated regex to reject consecutive dots in local part
+    local regex="^[a-zA-Z0-9]+([._%-][a-zA-Z0-9]+)*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    
+    # Additional check for consecutive dots
+    if [[ "$email" == *".."* ]]; then
+        echo "Invalid email format: $email (consecutive dots not allowed)" >&2
+        return 1
+    fi
+    
+    if [[ "$email" =~ $regex ]]; then
+        return 0
+    else
+        echo "Invalid email format: $email" >&2
+        return 1
+    fi
+}
+
+# Validate password strength
+validate_password() {
+    local password="$1"
+    
+    if [[ ${#password} -lt 8 ]]; then
+        echo "Password must be at least 8 characters" >&2
+        return 1
+    fi
+    
+    return 0
+}
+
+# Check if Docker is available
+check_docker() {
+    if command -v docker &>/dev/null && docker info &>/dev/null; then
+        return 0
+    else
+        echo "Docker is not available or not running" >&2
+        return 1
+    fi
+}
+
+# Get container name
+get_container_name() {
+    echo "${MAILINABOX_CONTAINER_NAME:-mailinabox}"
+}

@@ -102,6 +102,43 @@ curl -X POST -H "Authorization: Bearer YOUR_TOKEN" \
   http://localhost:8123/api/services/light/turn_on
 ```
 
+## 💾 Backup & Restore
+
+### Creating Backups
+
+```bash
+# Create a backup of current configuration
+vrooli resource home-assistant backup
+
+# List available backups
+vrooli resource home-assistant backup list
+
+# Backups are automatically rotated (keeps last 5)
+```
+
+### Restoring Backups
+
+```bash
+# List available backups to restore from
+vrooli resource home-assistant restore
+
+# Restore a specific backup
+vrooli resource home-assistant restore /path/to/backup_20250912_190857.tar.gz
+```
+
+## 🔗 Webhook Support
+
+Home Assistant can receive webhooks for external integrations:
+
+```bash
+# Send a webhook (no auth required for webhook endpoints)
+curl -X POST http://localhost:8123/api/webhook/your_webhook_id \
+  -H "Content-Type: application/json" \
+  -d '{"event": "button_pressed", "data": {"button": "doorbell"}}'
+```
+
+Configure webhooks in automations to trigger actions from external systems.
+
 ## 🤖 Automation Management
 
 ### Adding Automations

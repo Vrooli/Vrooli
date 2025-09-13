@@ -268,7 +268,41 @@ ggwave::test::validate_mode() {
 
 # Helper function to validate error correction
 ggwave::test::validate_error_correction() {
-    # In production, this would test Reed-Solomon error correction
-    # For now, we just check the configuration
-    [[ "${GGWAVE_ERROR_CORRECTION}" == "true" ]]
+    # Test Reed-Solomon error correction by encoding/decoding with simulated errors
+    local test_data="Reed-Solomon test message"
+    
+    # Encode with error correction
+    local encode_result=$(curl -sf -X POST "http://localhost:${GGWAVE_PORT}/api/encode" \
+        -H "Content-Type: application/json" \
+        -d "{\"data\": \"$test_data\", \"mode\": \"normal\", \"error_correction\": true}" 2>/dev/null)
+    
+    if [[ -z "$encode_result" ]]; then
+        return 1
+    fi
+    
+    # Extract the encoded audio
+    local encoded_audio=$(echo "$encode_result" | grep -o '"audio":"[^"]*"' | cut -d'"' -f4)
+    
+    if [[ -z "$encoded_audio" ]]; then
+        return 1
+    fi
+    
+    # Decode with simulated errors to test error correction
+    local decode_result=$(curl -sf -X POST "http://localhost:${GGWAVE_PORT}/api/decode" \
+        -H "Content-Type: application/json" \
+        -d "{\"audio\": \"$encoded_audio\", \"mode\": \"auto\", \"error_correction\": true, \"simulate_errors\": true}" 2>/dev/null)
+    
+    if [[ -z "$decode_result" ]]; then
+        return 1
+    fi
+    
+    # Check if the data was correctly recovered despite errors
+    if echo "$decode_result" | grep -q "\"data\":\"$test_data\""; then
+        # Also verify that errors were actually corrected
+        if echo "$decode_result" | grep -q '"errors_corrected":[0-9]'; then
+            return 0
+        fi
+    fi
+    
+    return 1
 }

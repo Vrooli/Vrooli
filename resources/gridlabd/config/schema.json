@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GridLAB-D Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 9511,
+      "description": "API service port"
+    },
+    "host": {
+      "type": "string",
+      "default": "0.0.0.0",
+      "description": "API service host"
+    },
+    "data_dir": {
+      "type": "string",
+      "description": "Data directory for models and results"
+    },
+    "log_level": {
+      "type": "string",
+      "enum": ["DEBUG", "INFO", "WARNING", "ERROR"],
+      "default": "INFO",
+      "description": "Logging level"
+    },
+    "max_threads": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32,
+      "default": 4,
+      "description": "Maximum simulation threads"
+    },
+    "memory_limit": {
+      "type": "integer",
+      "minimum": 512,
+      "maximum": 16384,
+      "default": 2048,
+      "description": "Memory limit in MB"
+    },
+    "max_concurrent_sims": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "default": 5,
+      "description": "Maximum concurrent simulations"
+    },
+    "simulation_timeout": {
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 86400,
+      "default": 3600,
+      "description": "Simulation timeout in seconds"
+    },
+    "solver": {
+      "type": "string",
+      "enum": ["NR", "FBS", "GS"],
+      "default": "NR",
+      "description": "Power flow solver method"
+    },
+    "convergence_limit": {
+      "type": "number",
+      "minimum": 0.000001,
+      "maximum": 0.01,
+      "default": 0.0001,
+      "description": "Convergence tolerance"
+    },
+    "enable_mysql": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable MySQL database recording"
+    },
+    "enable_visualization": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable result visualization"
+    }
+  },
+  "required": ["port", "data_dir"],
+  "additionalProperties": false
+}

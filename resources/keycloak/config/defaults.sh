@@ -10,8 +10,22 @@
 [[ -z "${KEYCLOAK_ADMIN_USER:-}" ]] && KEYCLOAK_ADMIN_USER="admin"
 [[ -z "${KEYCLOAK_ADMIN_PASSWORD:-}" ]] && KEYCLOAK_ADMIN_PASSWORD="admin"
 
-# Database configuration (using H2 for development)
-[[ -z "${KEYCLOAK_DB:-}" ]] && KEYCLOAK_DB="dev-file"
+# Database configuration
+# Use PostgreSQL if available, otherwise fallback to H2 for development
+if [[ -z "${KEYCLOAK_DB:-}" ]]; then
+    # Check if PostgreSQL is available
+    if command -v psql &>/dev/null || docker ps --format "table {{.Names}}" 2>/dev/null | grep -q "vrooli-postgres"; then
+        KEYCLOAK_DB="postgres"
+    else
+        KEYCLOAK_DB="dev-file"
+    fi
+fi
+
+# PostgreSQL configuration (when using postgres)
+[[ -z "${KEYCLOAK_DB_URL:-}" ]] && KEYCLOAK_DB_URL="jdbc:postgresql://vrooli-postgres-main:5432/keycloak"
+[[ -z "${KEYCLOAK_DB_USERNAME:-}" ]] && KEYCLOAK_DB_USERNAME="keycloak"
+[[ -z "${KEYCLOAK_DB_PASSWORD:-}" ]] && KEYCLOAK_DB_PASSWORD="keycloak"
+[[ -z "${KEYCLOAK_DB_SCHEMA:-}" ]] && KEYCLOAK_DB_SCHEMA="public"
 
 # Keycloak configuration
 [[ -z "${KEYCLOAK_HOSTNAME_STRICT:-}" ]] && KEYCLOAK_HOSTNAME_STRICT="false"

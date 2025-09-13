@@ -60,6 +60,19 @@ class LinkageSettings(BaseModel):
     blocking_rules: List[str] = Field(default_factory=list)
     comparison_columns: List[str] = Field(default_factory=list)
 
+class BatchJob(BaseModel):
+    """Batch processing job definition"""
+    job_type: str = Field(pattern="^(deduplicate|link)$")
+    dataset1_id: str
+    dataset2_id: Optional[str] = None
+    settings: LinkageSettings = Field(default_factory=LinkageSettings)
+    priority: int = Field(default=5, ge=1, le=10)
+
+class BatchRequest(BaseModel):
+    """Request for batch processing"""
+    jobs: List[BatchJob]
+    callback_url: Optional[str] = None
+
 class DeduplicationRequest(BaseModel):
     """Request for deduplication operation"""
     dataset_id: str
@@ -282,6 +295,86 @@ async def delete_job(job_id: str):
     del jobs[job_id]
     
     return {"message": f"Job {job_id} deleted successfully"}
+
+# Batch processing endpoint
+@app.post("/linkage/batch")
+async def submit_batch(request: BatchRequest, background_tasks: BackgroundTasks):
+    """Submit multiple linkage jobs for batch processing"""
+    batch_id = str(uuid4())
+    job_ids = []
+    
+    for batch_job in request.jobs:
+        job_id = str(uuid4())
+        
+        # Create job record
+        job = {
+            "id": job_id,
+            "batch_id": batch_id,
+            "type": batch_job.job_type,
+            "dataset1_id": batch_job.dataset1_id,
+            "dataset2_id": batch_job.dataset2_id,
+            "settings": batch_job.settings.dict(),
+            "priority": batch_job.priority,
+            "status": "pending",
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+            "progress": 0,
+            "result": None,
+            "error": None
+        }
+        
+        jobs[job_id] = job
+        job_ids.append(job_id)
+        
+        # Queue job based on type
+        if batch_job.job_type == "deduplicate":
+            dedupe_request = DeduplicationRequest(
+                dataset_id=batch_job.dataset1_id,
+                settings=batch_job.settings
+            )
+            background_tasks.add_task(process_deduplication, job_id, dedupe_request)
+        else:  # link
+            link_request = LinkRequest(
+                dataset1_id=batch_job.dataset1_id,
+                dataset2_id=batch_job.dataset2_id,
+                settings=batch_job.settings
+            )
+            background_tasks.add_task(process_linkage, job_id, link_request)
+    
+    logger.info(f"Created batch {batch_id} with {len(job_ids)} jobs")
+    
+    return {
+        "batch_id": batch_id,
+        "job_ids": job_ids,
+        "total_jobs": len(job_ids),
+        "message": f"Batch processing started with {len(job_ids)} jobs"
+    }
+
+# Get batch status
+@app.get("/linkage/batch/{batch_id}")
+async def get_batch_status(batch_id: str):
+    """Get status of all jobs in a batch"""
+    batch_jobs = [job for job in jobs.values() if job.get("batch_id") == batch_id]
+    
+    if not batch_jobs:
+        raise HTTPException(status_code=404, detail=f"Batch {batch_id} not found")
+    
+    # Calculate batch statistics
+    total = len(batch_jobs)
+    completed = sum(1 for job in batch_jobs if job["status"] == "completed")
+    failed = sum(1 for job in batch_jobs if job["status"] == "failed")
+    processing = sum(1 for job in batch_jobs if job["status"] == "processing")
+    pending = sum(1 for job in batch_jobs if job["status"] == "pending")
+    
+    return {
+        "batch_id": batch_id,
+        "total_jobs": total,
+        "completed": completed,
+        "failed": failed,
+        "processing": processing,
+        "pending": pending,
+        "jobs": batch_jobs
+    }
 
 # Background processing functions using actual Splink engine
 

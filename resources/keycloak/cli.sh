@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status inject content; do
+for lib in common install lifecycle status inject content social-providers ldap-federation; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -73,6 +73,42 @@ CLI_COMMAND_HANDLERS["content::execute"]="keycloak::content::execute"
 cli::register_subcommand "content" "inject" "Inject realm configuration from JSON file" "keycloak::inject"
 cli::register_subcommand "content" "realms" "List configured realms and users" "keycloak::list_injected"
 cli::register_subcommand "content" "clear" "Clear all Keycloak data" "keycloak::clear_data"
+
+# Register social command group
+CLI_COMMAND_GROUPS["social"]="true"
+CLI_GROUP_DESCRIPTIONS["social"]="🔐 Social login providers"
+
+# Social provider management commands
+CLI_COMMAND_HANDLERS["social::add-github"]="keycloak::social::add_github"
+CLI_COMMAND_HANDLERS["social::add-google"]="keycloak::social::add_google"
+CLI_COMMAND_HANDLERS["social::add-facebook"]="keycloak::social::add_facebook"
+CLI_COMMAND_HANDLERS["social::list"]="keycloak::social::list"
+CLI_COMMAND_HANDLERS["social::remove"]="keycloak::social::remove"
+CLI_COMMAND_HANDLERS["social::test"]="keycloak::social::test"
+
+cli::register_subcommand "social" "add-github" "Add GitHub login provider" "keycloak::social::add_github"
+cli::register_subcommand "social" "add-google" "Add Google login provider" "keycloak::social::add_google"
+cli::register_subcommand "social" "add-facebook" "Add Facebook login provider" "keycloak::social::add_facebook"
+cli::register_subcommand "social" "list" "List configured social providers" "keycloak::social::list"
+cli::register_subcommand "social" "remove" "Remove a social provider" "keycloak::social::remove"
+cli::register_subcommand "social" "test" "Test social provider configuration" "keycloak::social::test"
+
+# Register ldap command group
+CLI_COMMAND_GROUPS["ldap"]="true"
+CLI_GROUP_DESCRIPTIONS["ldap"]="🏢 LDAP/AD federation"
+
+# LDAP/AD federation management commands
+CLI_COMMAND_HANDLERS["ldap::add"]="keycloak::ldap::add"
+CLI_COMMAND_HANDLERS["ldap::list"]="keycloak::ldap::list"
+CLI_COMMAND_HANDLERS["ldap::remove"]="keycloak::ldap::remove"
+CLI_COMMAND_HANDLERS["ldap::test"]="keycloak::ldap::test"
+CLI_COMMAND_HANDLERS["ldap::sync"]="keycloak::ldap::sync"
+
+cli::register_subcommand "ldap" "add" "Add LDAP/AD federation provider" "keycloak::ldap::add"
+cli::register_subcommand "ldap" "list" "List configured LDAP/AD providers" "keycloak::ldap::list"
+cli::register_subcommand "ldap" "remove" "Remove an LDAP/AD provider" "keycloak::ldap::remove"
+cli::register_subcommand "ldap" "test" "Test LDAP/AD connection" "keycloak::ldap::test"
+cli::register_subcommand "ldap" "sync" "Sync users from LDAP/AD" "keycloak::ldap::sync"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "keycloak::status"

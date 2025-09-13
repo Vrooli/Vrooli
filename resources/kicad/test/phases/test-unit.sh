@@ -39,12 +39,12 @@ run_test() {
     local test_name="$1"
     local test_command="$2"
     
-    ((TESTS_RUN++))
+    ((TESTS_RUN++)) || true
     echo -n "  Testing ${test_name}... "
     
     if eval "$test_command" &>/dev/null; then
         echo -e "${GREEN}✓${NC}"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         echo -e "${RED}✗${NC}"
@@ -56,12 +56,12 @@ run_test() {
 test_function_exists() {
     local func_name="$1"
     
-    ((TESTS_RUN++))
+    ((TESTS_RUN++)) || true
     echo -n "  Function ${func_name}... "
     
     if type -t "$func_name" &>/dev/null; then
         echo -e "${GREEN}✓ exists${NC}"
-        ((TESTS_PASSED++))
+        ((TESTS_PASSED++)) || true
         return 0
     else
         echo -e "${YELLOW}⚠ not found${NC}"
@@ -86,13 +86,13 @@ main() {
     echo
     echo "Testing directory initialization:"
     kicad::init_dirs
-    run_test "Data directory created" "[[ -d \$KICAD_DATA_DIR ]]"
-    run_test "Config directory created" "[[ -d \$KICAD_CONFIG_DIR ]]"
-    run_test "Projects directory created" "[[ -d \$KICAD_PROJECTS_DIR ]]"
-    run_test "Libraries directory created" "[[ -d \$KICAD_LIBRARIES_DIR ]]"
-    run_test "Templates directory created" "[[ -d \$KICAD_TEMPLATES_DIR ]]"
-    run_test "Outputs directory created" "[[ -d \$KICAD_OUTPUTS_DIR ]]"
-    run_test "Logs directory created" "[[ -d \$KICAD_LOGS_DIR ]]"
+    run_test "Data directory created" "[[ -d ${KICAD_DATA_DIR} ]]"
+    run_test "Config directory created" "[[ -d ${KICAD_CONFIG_DIR} ]]"
+    run_test "Projects directory created" "[[ -d ${KICAD_PROJECTS_DIR} ]]"
+    run_test "Libraries directory created" "[[ -d ${KICAD_LIBRARIES_DIR} ]]"
+    run_test "Templates directory created" "[[ -d ${KICAD_TEMPLATES_DIR} ]]"
+    run_test "Outputs directory created" "[[ -d ${KICAD_OUTPUTS_DIR} ]]"
+    run_test "Logs directory created" "[[ -d ${KICAD_LOGS_DIR} ]]"
     
     # Test installation detection
     echo
@@ -103,11 +103,11 @@ main() {
     # Test configuration exports
     echo
     echo "Testing configuration exports:"
-    run_test "KICAD_DATA_DIR is set" "[[ -n \$KICAD_DATA_DIR ]]"
-    run_test "KICAD_PORT is set" "[[ -n \$KICAD_PORT ]]"
-    run_test "KICAD_HOST is set" "[[ -n \$KICAD_HOST ]]"
-    run_test "KICAD_PYTHON_VERSION is set" "[[ -n \$KICAD_PYTHON_VERSION ]]"
-    run_test "KICAD_EXPORT_FORMATS is set" "[[ -n \$KICAD_EXPORT_FORMATS ]]"
+    run_test "KICAD_DATA_DIR is set" "[[ -n ${KICAD_DATA_DIR} ]]"
+    run_test "KICAD_PORT is set" "[[ -n ${KICAD_PORT} ]]"
+    run_test "KICAD_HOST is set" "[[ -n ${KICAD_HOST} ]]"
+    run_test "KICAD_PYTHON_VERSION is set" "[[ -n ${KICAD_PYTHON_VERSION} ]]"
+    run_test "KICAD_EXPORT_FORMATS is set" "[[ -n ${KICAD_EXPORT_FORMATS} ]]"
     
     # Test install.sh functions (if available)
     if [[ -f "${KICAD_DIR}/lib/install.sh" ]]; then
@@ -166,17 +166,17 @@ main() {
     # Test configuration validity
     echo
     echo "Testing configuration validity:"
-    run_test "Port number is valid" "[[ \$KICAD_PORT -ge 1024 && \$KICAD_PORT -le 65535 ]]"
-    run_test "Python command exists" "command -v \$KICAD_PYTHON_VERSION"
+    run_test "Port number is valid" "[[ ${KICAD_PORT} -ge 1024 && ${KICAD_PORT} -le 65535 ]]"
+    run_test "Python command exists" "command -v ${KICAD_PYTHON_VERSION}"
     
     # Summary
     echo
     echo "Results: ${TESTS_PASSED}/${TESTS_RUN} tests passed"
     
-    if [[ $TESTS_PASSED -eq $TESTS_RUN ]]; then
+    if [[ ${TESTS_PASSED:-0} -eq ${TESTS_RUN:-0} ]] && [[ ${TESTS_RUN:-0} -gt 0 ]]; then
         echo -e "${GREEN}✅ Unit tests passed${NC}"
         exit 0
-    elif [[ $TESTS_PASSED -gt $((TESTS_RUN * 3 / 4)) ]]; then
+    elif [[ ${TESTS_PASSED:-0} -gt $((${TESTS_RUN:-1} * 3 / 4)) ]]; then
         echo -e "${YELLOW}⚠️  Some unit tests failed${NC}"
         exit 0  # Allow partial success for unit tests
     else

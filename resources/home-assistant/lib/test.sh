@@ -145,6 +145,42 @@ home_assistant::test::integration() {
         log::warning "⚠ Discovery endpoint not accessible (may require auth)"
     fi
     
+    # Test 6: Backup functionality
+    log::info "Test: Backup functionality..."
+    local backup_output
+    backup_output=$(home_assistant::backup 2>&1)
+    local backup_file=$(echo "$backup_output" | grep -o "/.*backup_.*\.tar\.gz" | tail -1)
+    if [[ -f "$backup_file" ]]; then
+        log::success "✓ Backup created successfully: $(basename "$backup_file")"
+    else
+        log::error "✗ Failed to create backup"
+        ((failed++))
+    fi
+    
+    # Test 7: List backups
+    log::info "Test: List backups..."
+    local backup_list
+    backup_list=$(home_assistant::backup::list 2>&1)
+    if echo "$backup_list" | grep -q "backup_"; then
+        log::success "✓ Backup listing works"
+    else
+        log::error "✗ Failed to list backups"
+        ((failed++))
+    fi
+    
+    # Test 8: Webhook support
+    log::info "Test: Webhook endpoint..."
+    local webhook_response
+    webhook_response=$(timeout 5 curl -sf -X POST "http://localhost:${HOME_ASSISTANT_PORT}/api/webhook/test_webhook" \
+        -H "Content-Type: application/json" \
+        -d '{"test": "data"}' \
+        -w "%{http_code}" -o /dev/null 2>/dev/null || echo "000")
+    if [[ "$webhook_response" == "200" ]]; then
+        log::success "✓ Webhook endpoint responds correctly"
+    else
+        log::warning "⚠ Webhook endpoint returned: $webhook_response"
+    fi
+    
     # Summary
     if [[ $failed -eq 0 ]]; then
         log::success "All integration tests passed!"

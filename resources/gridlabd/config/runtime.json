@@ -1,0 +1,36 @@
+{
+  "startup_order": 550,
+  "dependencies": [],
+  "startup_timeout": 60,
+  "startup_time_estimate": "20-40s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "category": "simulation",
+  "description": "GridLAB-D power distribution system simulator",
+  "health_check_interval": 30,
+  "health_check_timeout": 5,
+  "resource_limits": {
+    "memory": "2048MB",
+    "cpu": "4 cores"
+  },
+  "capabilities": [
+    "power-flow-analysis",
+    "smart-grid-modeling",
+    "market-simulation",
+    "der-integration",
+    "resilience-planning"
+  ],
+  "api_endpoints": {
+    "health": "/health",
+    "simulate": "/simulate",
+    "powerflow": "/powerflow",
+    "results": "/results/{id}",
+    "validate": "/validate"
+  },
+  "supported_formats": [
+    "glm",
+    "json",
+    "csv",
+    "xml"
+  ]
+}

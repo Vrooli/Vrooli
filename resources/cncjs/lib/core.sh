@@ -477,3 +477,408 @@ cncjs::macro() {
             ;;
     esac
 }
+
+#######################################
+# Workflow management for job sequences
+#######################################
+cncjs::workflow() {
+    local action="${1:-list}"
+    shift || true
+    
+    local workflow_dir="${CNCJS_DATA_DIR}/workflows"
+    mkdir -p "$workflow_dir"
+    
+    case "$action" in
+        list)
+            log::info "Available workflows:"
+            if [[ -d "$workflow_dir" ]]; then
+                for workflow in "$workflow_dir"/*.workflow; do
+                    if [[ -f "$workflow" ]]; then
+                        local name=$(basename "$workflow" .workflow)
+                        local desc=$(grep "^description:" "$workflow" 2>/dev/null | cut -d: -f2- | xargs)
+                        local steps=$(grep -c "^  - " "$workflow" 2>/dev/null || echo "0")
+                        echo "  - $name: $desc (${steps} steps)"
+                    fi
+                done 2>/dev/null
+                if ! ls "$workflow_dir"/*.workflow &>/dev/null; then
+                    echo "  No workflows found"
+                fi
+            else
+                echo "  No workflows found"
+            fi
+            ;;
+        create)
+            local name="${1:-}"
+            local description="${2:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: workflow create <name> [description]"
+                return 1
+            fi
+            
+            local workflow_file="$workflow_dir/${name}.workflow"
+            cat > "$workflow_file" << EOF
+name: $name
+description: ${description:-CNC workflow for $name}
+created: $(date --iso-8601=seconds)
+version: 1.0
+steps: []
+settings:
+  controller: ${CNCJS_CONTROLLER}
+  baud_rate: ${CNCJS_BAUD_RATE}
+  serial_port: ${CNCJS_SERIAL_PORT}
+EOF
+            log::success "Workflow '$name' created"
+            ;;
+        add-step)
+            local workflow="${1:-}"
+            local gcode_file="${2:-}"
+            local description="${3:-}"
+            if [[ -z "$workflow" ]] || [[ -z "$gcode_file" ]]; then
+                log::error "Usage: workflow add-step <workflow> <gcode_file> [description]"
+                return 1
+            fi
+            
+            local workflow_file="$workflow_dir/${workflow}.workflow"
+            if [[ ! -f "$workflow_file" ]]; then
+                log::error "Workflow not found: $workflow"
+                return 1
+            fi
+            
+            # Add step to workflow
+            if ! grep -q "^steps:$" "$workflow_file"; then
+                echo "steps:" >> "$workflow_file"
+            fi
+            
+            cat >> "$workflow_file" << EOF
+  - file: $(basename "$gcode_file")
+    description: ${description:-Step $(grep -c "^  - " "$workflow_file" 2>/dev/null || echo "1")}
+    added: $(date --iso-8601=seconds)
+EOF
+            
+            # Copy G-code file to workflow directory
+            if [[ -f "$gcode_file" ]]; then
+                cp "$gcode_file" "$workflow_dir/$(basename "$gcode_file")"
+            fi
+            
+            log::success "Step added to workflow '$workflow'"
+            ;;
+        show)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: workflow show <name>"
+                return 1
+            fi
+            
+            local workflow_file="$workflow_dir/${name}.workflow"
+            if [[ ! -f "$workflow_file" ]]; then
+                log::error "Workflow not found: $name"
+                return 1
+            fi
+            
+            cat "$workflow_file"
+            ;;
+        execute)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: workflow execute <name>"
+                return 1
+            fi
+            
+            local workflow_file="$workflow_dir/${name}.workflow"
+            if [[ ! -f "$workflow_file" ]]; then
+                log::error "Workflow not found: $name"
+                return 1
+            fi
+            
+            log::info "Executing workflow: $name"
+            
+            # Extract and queue all steps
+            local step_count=0
+            while IFS= read -r line; do
+                if [[ "$line" =~ ^[[:space:]]*-[[:space:]]file:[[:space:]](.+)$ ]]; then
+                    local file="${BASH_REMATCH[1]}"
+                    local src_file="$workflow_dir/$file"
+                    if [[ -f "$src_file" ]]; then
+                        ((step_count++))
+                        cp "$src_file" "${CNCJS_WATCH_DIR}/workflow_${name}_step${step_count}_$(date +%s).gcode"
+                        log::info "  Queued step $step_count: $file"
+                    else
+                        log::warning "  Step file not found: $file"
+                    fi
+                fi
+            done < "$workflow_file"
+            
+            log::success "Workflow '$name' queued ($step_count steps)"
+            log::warning "Note: Actual execution requires CNC controller connection"
+            ;;
+        remove)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: workflow remove <name>"
+                return 1
+            fi
+            
+            local workflow_file="$workflow_dir/${name}.workflow"
+            if [[ ! -f "$workflow_file" ]]; then
+                log::error "Workflow not found: $name"
+                return 1
+            fi
+            
+            rm "$workflow_file"
+            log::success "Workflow '$name' removed"
+            ;;
+        export)
+            local name="${1:-}"
+            local output="${2:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: workflow export <name> [output.tar.gz]"
+                return 1
+            fi
+            
+            local workflow_file="$workflow_dir/${name}.workflow"
+            if [[ ! -f "$workflow_file" ]]; then
+                log::error "Workflow not found: $name"
+                return 1
+            fi
+            
+            output="${output:-${name}_workflow.tar.gz}"
+            
+            # Create temporary directory for export
+            local temp_dir=$(mktemp -d)
+            cp "$workflow_file" "$temp_dir/"
+            
+            # Copy all referenced files
+            while IFS= read -r line; do
+                if [[ "$line" =~ ^[[:space:]]*-[[:space:]]file:[[:space:]](.+)$ ]]; then
+                    local file="${BASH_REMATCH[1]}"
+                    if [[ -f "$workflow_dir/$file" ]]; then
+                        cp "$workflow_dir/$file" "$temp_dir/"
+                    fi
+                fi
+            done < "$workflow_file"
+            
+            # Create archive
+            tar -czf "$output" -C "$temp_dir" .
+            rm -rf "$temp_dir"
+            
+            log::success "Workflow exported to $output"
+            ;;
+        import)
+            local archive="${1:-}"
+            if [[ -z "$archive" ]] || [[ ! -f "$archive" ]]; then
+                log::error "Usage: workflow import <archive.tar.gz>"
+                return 1
+            fi
+            
+            # Extract to workflow directory
+            tar -xzf "$archive" -C "$workflow_dir"
+            log::success "Workflow imported from $archive"
+            ;;
+        *)
+            log::error "Unknown workflow action: $action"
+            echo "Valid actions: list, create, add-step, show, execute, remove, export, import"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Controller configuration management
+#######################################
+cncjs::controller() {
+    local action="${1:-list}"
+    shift || true
+    
+    local controllers_dir="${CNCJS_DATA_DIR}/controllers"
+    mkdir -p "$controllers_dir"
+    
+    case "$action" in
+        list)
+            log::info "Supported controllers:"
+            echo "  - grbl (0.9, 1.1) - Default 3-axis CNC controller"
+            echo "  - marlin (1.x, 2.x) - 3D printer firmware with CNC support"
+            echo "  - smoothieware - Modern 32-bit controller"
+            echo "  - tinyg - High-performance 6-axis controller"
+            echo "  - g2core - ARM-based evolution of TinyG"
+            echo ""
+            log::info "Configured controller profiles:"
+            if [[ -d "$controllers_dir" ]]; then
+                for profile in "$controllers_dir"/*.profile; do
+                    if [[ -f "$profile" ]]; then
+                        local name=$(basename "$profile" .profile)
+                        local type=$(grep "^type:" "$profile" 2>/dev/null | cut -d: -f2 | xargs)
+                        local port=$(grep "^port:" "$profile" 2>/dev/null | cut -d: -f2 | xargs)
+                        echo "  - $name: $type on $port"
+                    fi
+                done 2>/dev/null
+                if ! ls "$controllers_dir"/*.profile &>/dev/null; then
+                    echo "  No custom profiles configured"
+                fi
+            else
+                echo "  No custom profiles configured"
+            fi
+            ;;
+        configure)
+            local name="${1:-}"
+            local controller_type="${2:-}"
+            local serial_port="${3:-}"
+            local baud_rate="${4:-115200}"
+            
+            if [[ -z "$name" ]] || [[ -z "$controller_type" ]]; then
+                log::error "Usage: controller configure <name> <type> [serial_port] [baud_rate]"
+                echo "Types: grbl, marlin, smoothieware, tinyg, g2core"
+                return 1
+            fi
+            
+            # Validate controller type
+            case "$controller_type" in
+                grbl|marlin|smoothieware|tinyg|g2core)
+                    ;;
+                *)
+                    log::error "Invalid controller type: $controller_type"
+                    echo "Valid types: grbl, marlin, smoothieware, tinyg, g2core"
+                    return 1
+                    ;;
+            esac
+            
+            # Set defaults based on controller type
+            local default_settings=""
+            case "$controller_type" in
+                grbl)
+                    default_settings="work_offsets: G54-G59
+acceleration: 100
+max_feed_rate: 2000
+spindle_max: 10000"
+                    ;;
+                marlin)
+                    default_settings="work_offsets: G54-G59
+acceleration: 500
+max_feed_rate: 3000
+extruder_enabled: false"
+                    ;;
+                smoothieware)
+                    default_settings="work_offsets: G54-G59
+acceleration: 1000
+max_feed_rate: 5000
+laser_mode: false"
+                    ;;
+                tinyg)
+                    default_settings="work_offsets: G54-G59
+acceleration: 2000
+max_feed_rate: 10000
+axes: 6"
+                    ;;
+                g2core)
+                    default_settings="work_offsets: G54-G59
+acceleration: 3000
+max_feed_rate: 15000
+axes: 9"
+                    ;;
+            esac
+            
+            # Create controller profile
+            local profile_file="$controllers_dir/${name}.profile"
+            cat > "$profile_file" << EOF
+name: $name
+type: $controller_type
+port: ${serial_port:-/dev/ttyUSB0}
+baud_rate: $baud_rate
+created: $(date --iso-8601=seconds)
+$default_settings
+EOF
+            
+            log::success "Controller profile '$name' created"
+            echo "To use this profile, update CNCJS_CONTROLLER in config/defaults.sh"
+            ;;
+        show)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: controller show <name>"
+                return 1
+            fi
+            
+            local profile_file="$controllers_dir/${name}.profile"
+            if [[ ! -f "$profile_file" ]]; then
+                log::error "Profile not found: $name"
+                return 1
+            fi
+            
+            cat "$profile_file"
+            ;;
+        apply)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: controller apply <name>"
+                return 1
+            fi
+            
+            local profile_file="$controllers_dir/${name}.profile"
+            if [[ ! -f "$profile_file" ]]; then
+                log::error "Profile not found: $name"
+                return 1
+            fi
+            
+            # Extract settings from profile
+            local controller_type=$(grep "^type:" "$profile_file" | cut -d: -f2 | xargs)
+            local serial_port=$(grep "^port:" "$profile_file" | cut -d: -f2 | xargs)
+            local baud_rate=$(grep "^baud_rate:" "$profile_file" | cut -d: -f2 | xargs)
+            
+            # Update CNCjs configuration
+            local temp_config=$(mktemp)
+            jq --arg type "$controller_type" \
+               --arg port "$serial_port" \
+               --arg baud "$baud_rate" \
+               '.controller = $type | 
+                .ports[0].comName = $port | 
+                .baudRate = ($baud | tonumber)' \
+               "${CNCJS_CONFIG_FILE}" > "$temp_config"
+            
+            mv "$temp_config" "${CNCJS_CONFIG_FILE}"
+            
+            log::success "Applied controller profile '$name'"
+            log::info "Restart CNCjs for changes to take effect"
+            ;;
+        remove)
+            local name="${1:-}"
+            if [[ -z "$name" ]]; then
+                log::error "Usage: controller remove <name>"
+                return 1
+            fi
+            
+            local profile_file="$controllers_dir/${name}.profile"
+            if [[ ! -f "$profile_file" ]]; then
+                log::error "Profile not found: $name"
+                return 1
+            fi
+            
+            rm "$profile_file"
+            log::success "Controller profile '$name' removed"
+            ;;
+        test)
+            log::info "Testing controller connectivity..."
+            
+            # Check serial ports
+            log::info "Available serial ports:"
+            ls -la /dev/tty{USB,ACM}* 2>/dev/null || echo "  No USB serial ports found"
+            
+            # Check current configuration
+            echo ""
+            log::info "Current configuration:"
+            echo "  Controller: ${CNCJS_CONTROLLER}"
+            echo "  Serial Port: ${CNCJS_SERIAL_PORT}"
+            echo "  Baud Rate: ${CNCJS_BAUD_RATE}"
+            
+            # Test if port exists
+            if [[ -e "${CNCJS_SERIAL_PORT}" ]]; then
+                log::success "Serial port exists"
+            else
+                log::warning "Serial port not found: ${CNCJS_SERIAL_PORT}"
+            fi
+            ;;
+        *)
+            log::error "Unknown controller action: $action"
+            echo "Valid actions: list, configure, show, apply, remove, test"
+            return 1
+            ;;
+    esac
+}

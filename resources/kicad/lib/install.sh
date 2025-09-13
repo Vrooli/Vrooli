@@ -8,6 +8,15 @@ KICAD_INSTALL_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
 # Source common functions
 source "${KICAD_INSTALL_LIB_DIR}/common.sh"
 
+# Check if installation is possible
+kicad::can_install() {
+    # Check if we're on a supported platform
+    if [[ -f /etc/debian_version ]] || [[ -f /etc/redhat-release ]] || [[ "$OSTYPE" == "darwin"* ]]; then
+        return 0
+    fi
+    return 1
+}
+
 # Install KiCad
 kicad::install() {
     local force="${1:-false}"
@@ -181,6 +190,7 @@ EOF
     echo "Initial KiCad configuration created"
 }
 
-# Export function
+# Export functions
+export -f kicad::can_install
 export -f kicad::install
 export -f kicad::setup_initial_config

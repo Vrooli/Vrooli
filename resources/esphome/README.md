@@ -24,6 +24,21 @@ vrooli resource esphome status
 
 ## Usage
 
+### Using Templates
+
+```bash
+# List available device templates
+vrooli resource esphome template::list
+
+# Apply a template to create new device
+vrooli resource esphome template::apply temperature-sensor living-room "Living Room Sensor"
+
+# Available templates:
+# - temperature-sensor: DHT22 temperature/humidity sensor
+# - motion-sensor: PIR motion detection with LED indicator
+# - smart-switch: WiFi-controlled relay switch
+```
+
 ### Managing Configurations
 
 ```bash
@@ -109,6 +124,16 @@ api:
 web_server:
   port: 80
 ```
+
+## Features
+
+### Core Capabilities
+- **YAML-based Configuration**: Define devices using simple YAML files
+- **Firmware Compilation**: Build custom firmware for ESP32/ESP8266 devices
+- **OTA Updates**: Deploy firmware updates over the network
+- **Template System**: Quick-start templates for common IoT scenarios
+- **Web Dashboard**: Visual interface for device management at port 6587
+- **Device Discovery**: Automatic detection of ESP devices on network
 
 ## Supported Components
 

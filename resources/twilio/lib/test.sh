@@ -32,41 +32,41 @@ twilio::test::smoke() {
     log::info "Test 1: Twilio CLI installation..."
     if twilio::is_installed; then
         log::success "  ✅ Twilio CLI is installed"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Twilio CLI is not installed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 2: Check configuration directories
     log::info "Test 2: Configuration directories..."
     if [[ -d "$TWILIO_CONFIG_DIR" ]] && [[ -d "$TWILIO_DATA_DIR" ]]; then
         log::success "  ✅ Configuration directories exist"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Configuration directories missing"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 3: Check credentials configuration
     log::info "Test 3: Credentials configuration..."
     if twilio::core::has_valid_credentials; then
         log::success "  ✅ Valid credentials configured"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::warn "  ⚠️  No valid credentials configured"
         # Not a failure as credentials are optional for smoke test
-        ((passed++))
+        passed=$((passed + 1))
     fi
     
     # Test 4: Health check responds
     log::info "Test 4: Health check..."
     if twilio::core::health_check &>/dev/null; then
         log::success "  ✅ Health check responds"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Health check failed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Summary
@@ -92,20 +92,20 @@ twilio::test::integration() {
     log::info "Test 1: Resource initialization..."
     if twilio::core::init; then
         log::success "  ✅ Resource initialized successfully"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Resource initialization failed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 2: Load secrets (if Vault available)
     log::info "Test 2: Secrets loading..."
     if twilio::core::load_secrets; then
         log::success "  ✅ Secrets loaded successfully"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::warn "  ⚠️  Secrets not available (may be expected)"
-        ((passed++))
+        passed=$((passed + 1))
     fi
     
     # Test 3: API connection (if credentials available)
@@ -113,14 +113,14 @@ twilio::test::integration() {
     if twilio::core::has_valid_credentials; then
         if twilio::core::test_api_connection; then
             log::success "  ✅ API connection successful"
-            ((passed++))
+            passed=$((passed + 1))
         else
             log::error "  ❌ API connection failed"
-            ((failed++))
+            failed=$((failed + 1))
         fi
     else
         log::warn "  ⚠️  Skipping - no credentials"
-        ((passed++))
+        passed=$((passed + 1))
     fi
     
     # Test 4: Phone number retrieval (if configured)
@@ -129,14 +129,14 @@ twilio::test::integration() {
         local numbers=$(jq '.numbers | length' "$TWILIO_PHONE_NUMBERS_FILE" 2>/dev/null || echo "0")
         if [[ $numbers -gt 0 ]]; then
             log::success "  ✅ Phone numbers configured: $numbers"
-            ((passed++))
+            passed=$((passed + 1))
         else
             log::warn "  ⚠️  No phone numbers configured"
-            ((passed++))
+            passed=$((passed + 1))
         fi
     else
         log::warn "  ⚠️  Phone numbers file not found"
-        ((passed++))
+        passed=$((passed + 1))
     fi
     
     # Test 5: SMS sending capability (test mode only)
@@ -145,14 +145,14 @@ twilio::test::integration() {
         # Don't actually send SMS, just verify the function exists
         if declare -f twilio::send_sms &>/dev/null; then
             log::success "  ✅ SMS sending function available"
-            ((passed++))
+            passed=$((passed + 1))
         else
             log::error "  ❌ SMS sending function missing"
-            ((failed++))
+            failed=$((failed + 1))
         fi
     else
         log::warn "  ⚠️  Skipping - not configured"
-        ((passed++))
+        passed=$((passed + 1))
     fi
     
     # Test 6: Bulk SMS capability check
@@ -165,14 +165,14 @@ twilio::test::integration() {
         # Test bulk send in test mode
         if twilio::send_bulk_sms "Test message" "" "+15551234567" "+15551234568" 2>&1 | grep -q "Test mode detected"; then
             log::success "  ✅ Bulk SMS function works in test mode"
-            ((passed++))
+            passed=$((passed + 1))
         else
             log::error "  ❌ Bulk SMS function failed"
-            ((failed++))
+            failed=$((failed + 1))
         fi
     else
         log::error "  ❌ Bulk SMS function missing"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 7: CSV file SMS capability check
@@ -195,18 +195,18 @@ EOF
         
         if echo "$output" | grep -q "Test mode detected"; then
             log::success "  ✅ CSV SMS function works in test mode"
-            ((passed++))
+            passed=$((passed + 1))
         else
             log::error "  ❌ CSV SMS function failed"
             log::debug "Output was: $output"
-            ((failed++))
+            failed=$((failed + 1))
         fi
         
         # Clean up
         rm -f "$test_csv"
     else
         log::error "  ❌ CSV SMS function missing"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Summary
@@ -235,10 +235,10 @@ twilio::test::unit() {
     
     if [[ "$test_sid" =~ ^AC[a-f0-9x]{32}$ ]]; then
         log::success "  ✅ SID format validation works"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ SID format validation failed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 2: Phone number format validation
@@ -247,10 +247,10 @@ twilio::test::unit() {
     
     if [[ "$test_number" =~ ^\+[1-9][0-9]{1,14}$ ]]; then
         log::success "  ✅ Phone number format validation works"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Phone number format validation failed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 3: Directory creation
@@ -258,20 +258,20 @@ twilio::test::unit() {
     twilio::ensure_dirs
     if [[ -d "$TWILIO_CONFIG_DIR" ]] && [[ -d "$TWILIO_DATA_DIR" ]]; then
         log::success "  ✅ Directories created successfully"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Directory creation failed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 4: Command detection
     log::info "Test 4: Command detection..."
     if declare -f twilio::get_command &>/dev/null; then
         log::success "  ✅ Command detection function exists"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Command detection function missing"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Test 5: Version detection
@@ -279,10 +279,10 @@ twilio::test::unit() {
     local version=$(twilio::get_version)
     if [[ -n "$version" ]]; then
         log::success "  ✅ Version detection works: $version"
-        ((passed++))
+        passed=$((passed + 1))
     else
         log::error "  ❌ Version detection failed"
-        ((failed++))
+        failed=$((failed + 1))
     fi
     
     # Summary

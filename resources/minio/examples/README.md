@@ -80,6 +80,30 @@ Each example directory contains:
 
 ## 🔄 Available Examples
 
+### Integration Scripts (New!)
+Complete working examples for Vrooli resource integration:
+
+#### `postgres-backup.sh`
+PostgreSQL database backup to MinIO:
+- Automated compressed backups
+- Point-in-time recovery
+- Backup rotation management
+- Direct integration with `vrooli resource postgres`
+
+#### `n8n-workflow-storage.sh`
+N8n workflow file storage integration:
+- Store workflow execution results
+- Share files between workflows
+- Serve static assets with public URLs
+- Archive processed files
+
+#### `ollama-model-cache.sh`
+Ollama model caching and distribution:
+- Backup models to MinIO
+- Share models across instances
+- Version control for iterations
+- Reduce bandwidth usage
+
 ### python-boto3/
 Complete Python integration using the boto3 library with examples for:
 - Basic file operations

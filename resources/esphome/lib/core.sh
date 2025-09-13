@@ -400,13 +400,98 @@ esphome::compile() {
     
     log::info "Compiling firmware for: $config_name"
     
-    docker exec -it "${ESPHOME_CONTAINER_NAME}" \
+    docker exec "${ESPHOME_CONTAINER_NAME}" \
         esphome compile "/config/${config_name}" || {
         log::error "Compilation failed"
         return 1
     }
     
     log::success "Firmware compiled successfully"
+    return 0
+}
+
+# ==============================================================================
+# TEMPLATE MANAGEMENT
+# ==============================================================================
+
+esphome::list_templates() {
+    log::info "Available ESPHome templates:"
+    
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local template_dir="${script_dir}/../templates"
+    if [[ ! -d "$template_dir" ]]; then
+        log::warning "No templates directory found"
+        return 1
+    fi
+    
+    local templates=()
+    while IFS= read -r -d '' file; do
+        templates+=("$(basename "$file" .yaml)")
+    done < <(find "$template_dir" -name "*.yaml" -type f -print0)
+    
+    if [[ ${#templates[@]} -eq 0 ]]; then
+        echo "No templates available"
+        return 0
+    fi
+    
+    echo "Templates:"
+    echo "=========="
+    for template in "${templates[@]}"; do
+        echo "  - $template"
+    done
+    
+    return 0
+}
+
+esphome::apply_template() {
+    local template_name="${1:-}"
+    local device_name="${2:-}"
+    local friendly_name="${3:-${device_name}}"
+    
+    if [[ -z "$template_name" ]] || [[ -z "$device_name" ]]; then
+        log::error "Template name and device name required"
+        echo "Usage: resource-esphome template apply <template> <device_name> [friendly_name]"
+        return 1
+    fi
+    
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local template_file="${script_dir}/../templates/${template_name}.yaml"
+    if [[ ! -f "$template_file" ]]; then
+        log::error "Template not found: $template_name"
+        esphome::list_templates
+        return 1
+    fi
+    
+    local output_file="${ESPHOME_CONFIG_DIR}/${device_name}.yaml"
+    
+    log::info "Applying template: $template_name -> $device_name"
+    
+    # Substitute variables in template
+    sed -e "s/\${device_name}/$device_name/g" \
+        -e "s/\${friendly_name}/$friendly_name/g" \
+        "$template_file" > "$output_file"
+    
+    # Create secrets file if it doesn't exist
+    local secrets_file="${ESPHOME_CONFIG_DIR}/secrets.yaml"
+    if [[ ! -f "$secrets_file" ]]; then
+        cat > "$secrets_file" << 'EOF'
+# ESPHome Secrets File
+wifi_ssid: "YourWiFiSSID"
+wifi_password: "YourWiFiPassword"
+ap_password: "vrooli_fallback"
+ota_password: "vrooli_ota"
+api_encryption_key: "VGhpc0lzQVNlY3JldEtleUZvckVTUEhvbWVBUEk="
+EOF
+        log::info "Created secrets file with default values"
+        log::warning "Please update secrets.yaml with your actual values"
+    fi
+    
+    log::success "Template applied: $output_file"
+    echo "Next steps:"
+    echo "1. Edit secrets.yaml with your WiFi credentials"
+    echo "2. Compile: resource-esphome content execute ${device_name}.yaml"
+    echo "3. Flash to device via USB or OTA"
+    
     return 0
 }
 
@@ -465,7 +550,7 @@ esphome::upload_ota() {
     
     log::info "Uploading firmware to device at $device_ip..."
     
-    docker exec -it "${ESPHOME_CONTAINER_NAME}" \
+    docker exec "${ESPHOME_CONTAINER_NAME}" \
         esphome upload "/config/${config_name}" --device "$device_ip" || {
         log::error "Upload failed"
         return 1

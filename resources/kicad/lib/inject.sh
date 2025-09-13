@@ -8,6 +8,29 @@ KICAD_INJECT_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
 # Source common functions
 source "${KICAD_INJECT_LIB_DIR}/common.sh"
 
+# Validate a KiCad file
+kicad::inject::validate_file() {
+    local file_path="${1:-}"
+    
+    if [[ -z "$file_path" ]]; then
+        return 1
+    fi
+    
+    if [[ ! -f "$file_path" ]]; then
+        return 1
+    fi
+    
+    # Check for valid KiCad file extensions
+    case "$file_path" in
+        *.kicad_pro|*.kicad_pcb|*.kicad_sch|*.kicad_sym|*.kicad_mod|*.lib|*.dcm|*.kicad_wks)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 # Inject KiCad files (projects, libraries, templates)
 kicad::inject() {
     local source_path="${1:-}"
@@ -210,6 +233,7 @@ kicad::export::project() {
 }
 
 # Export functions
+export -f kicad::inject::validate_file
 export -f kicad::inject
 export -f kicad::inject::project
 export -f kicad::inject::library

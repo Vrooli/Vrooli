@@ -38,11 +38,21 @@ COMMANDS:
         integration         Full functionality test (<120s)
         unit                Library function tests (<60s)
         all                 Run all test suites
-    content <subcommand>    Execute Minecraft commands
+    content <subcommand>    Server and command management
         execute <cmd>       Execute RCON command
-        list                List available servers
+        execute-all <cmd>   Execute on all servers
+        list                List configured servers
         add <server>        Add server configuration
         remove <server>     Remove server configuration
+        discover            Auto-discover Minecraft servers
+        test <host> <port>  Test RCON connection
+    player <subcommand>     Player management
+        list [server]       List online players
+        info <player>       Get player information
+        teleport <p> <x> <y> <z>  Teleport player
+        kick <player>       Kick player from server
+        ban <player>        Ban player from server
+        give <p> <item> [n] Give items to player
     status                  Show resource status
     logs                    View resource logs
     credentials             Display connection credentials
@@ -115,6 +125,9 @@ main() {
             ;;
         content)
             "${SCRIPT_DIR}/lib/core.sh" content "$@"
+            ;;
+        player)
+            "${SCRIPT_DIR}/lib/core.sh" player "$@"
             ;;
         status)
             "${SCRIPT_DIR}/lib/core.sh" status

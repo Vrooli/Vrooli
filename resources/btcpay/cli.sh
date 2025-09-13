@@ -48,6 +48,9 @@ CLI_COMMAND_HANDLERS["manage::start"]="btcpay::docker::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="btcpay::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="btcpay::docker::restart"
 CLI_COMMAND_HANDLERS["test::smoke"]="btcpay::test::smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="btcpay::test::integration"
+CLI_COMMAND_HANDLERS["test::unit"]="btcpay::test::unit"
+CLI_COMMAND_HANDLERS["test::all"]="btcpay::test::all"
 
 # Content handlers
 CLI_COMMAND_HANDLERS["content::add"]="btcpay::content::add"

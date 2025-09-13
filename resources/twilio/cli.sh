@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${TWILIO_CLI_DIR}/config/defaults.sh"
 
 # Source Twilio libraries
-for lib in common core config inject install lifecycle logs numbers sms history templates start status stop test; do
+for lib in common core config inject install lifecycle logs numbers sms history templates audit analytics start status stop test; do
     lib_file="${TWILIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -83,6 +83,17 @@ cli::register_subcommand "content" "template-update" "Update a template" "twilio
 cli::register_subcommand "content" "template-delete" "Delete a template" "twilio::templates::delete"
 cli::register_subcommand "content" "template-send" "Send SMS using a template" "twilio::templates::send"
 cli::register_subcommand "content" "template-send-bulk" "Send bulk SMS using template and CSV" "twilio::templates::send_bulk"
+
+# Add audit commands
+cli::register_subcommand "content" "audit-search" "Search audit logs" "twilio::audit::search"
+cli::register_subcommand "content" "audit-stats" "Show audit statistics" "twilio::audit::stats"
+cli::register_subcommand "content" "audit-archive" "Archive old audit logs" "twilio::audit::archive"
+
+# Add analytics dashboard commands
+cli::register_subcommand "content" "dashboard" "Show analytics dashboard" "twilio::analytics::dashboard"
+cli::register_subcommand "content" "analytics-export" "Export analytics report" "twilio::analytics::export_report"
+cli::register_subcommand "content" "analytics-costs" "Show daily cost breakdown" "twilio::analytics::daily_costs"
+cli::register_subcommand "content" "analytics-performance" "Show performance metrics" "twilio::analytics::performance"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "twilio::status::new"

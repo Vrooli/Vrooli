@@ -7,7 +7,6 @@ btcpay::docker::start() {
     # Start PostgreSQL first
     if docker ps -a --format '{{.Names}}' | grep -q "^${BTCPAY_POSTGRES_CONTAINER}$"; then
         docker start "${BTCPAY_POSTGRES_CONTAINER}" || return 1
-        sleep 3
     else
         log::warning "PostgreSQL container not found, creating..."
         docker run -d \
@@ -18,6 +17,23 @@ btcpay::docker::start() {
             -e POSTGRES_DB="${BTCPAY_POSTGRES_DB}" \
             -v "${BTCPAY_POSTGRES_DATA}:/var/lib/postgresql/data" \
             "${BTCPAY_POSTGRES_IMAGE}" || return 1
+    fi
+    
+    # Wait for PostgreSQL to be ready
+    log::info "Waiting for PostgreSQL to be ready..."
+    local retries=30
+    while [[ $retries -gt 0 ]]; do
+        if docker exec "${BTCPAY_POSTGRES_CONTAINER}" pg_isready -U "${BTCPAY_POSTGRES_USER}" &>/dev/null; then
+            log::success "PostgreSQL is ready"
+            break
+        fi
+        ((retries--))
+        sleep 1
+    done
+    
+    if [[ $retries -eq 0 ]]; then
+        log::error "PostgreSQL failed to start"
+        return 1
     fi
     
     # Start BTCPay Server
@@ -31,7 +47,7 @@ btcpay::docker::start() {
             -p "${BTCPAY_PORT}:49392" \
             -v "${BTCPAY_DATA_DIR}:/datadir" \
             -v "${BTCPAY_CONFIG_DIR}:/root/.btcpayserver" \
-            -e BTCPAY_POSTGRES="User ID=${BTCPAY_POSTGRES_USER};Password=${BTCPAY_POSTGRES_PASSWORD};Host=${BTCPAY_POSTGRES_CONTAINER};Port=5432;Database=${BTCPAY_POSTGRES_DB};" \
+            -e BTCPAY_POSTGRES="Server=${BTCPAY_POSTGRES_CONTAINER};Port=5432;Database=${BTCPAY_POSTGRES_DB};User Id=${BTCPAY_POSTGRES_USER};Password=${BTCPAY_POSTGRES_PASSWORD};" \
             -e BTCPAY_ROOTPATH="/" \
             -e BTCPAY_PORT=49392 \
             "${BTCPAY_IMAGE}" || return 1

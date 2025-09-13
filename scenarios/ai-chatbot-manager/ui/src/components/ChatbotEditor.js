@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import apiClient from '../utils/api';
 
 function ChatbotEditor() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ function ChatbotEditor() {
   const loadChatbot = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/v1/chatbots/${id}`);
+      const response = await apiClient.get(`/api/v1/chatbots/${id}`);
       if (response.ok) {
         const chatbot = await response.json();
         setFormData({
@@ -109,13 +110,9 @@ function ChatbotEditor() {
       const method = isEditing ? 'PUT' : 'POST';
       const url = isEditing ? `/api/v1/chatbots/${id}` : '/api/v1/chatbots';
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData)
-      });
+      const response = isEditing 
+        ? await apiClient.put(`/api/v1/chatbots/${id}`, formData)
+        : await apiClient.post('/api/v1/chatbots', formData);
 
       if (response.ok) {
         const result = await response.json();

@@ -87,11 +87,6 @@ optional:
     fallback: In-memory caching
     access_method: CLI via scenario API
   
-  - resource_name: n8n
-    purpose: Automated test execution workflows
-    fallback: Direct shell execution
-    access_method: Webhook triggers
-  
   - resource_name: qdrant
     purpose: Semantic search for test case similarity
     fallback: Rule-based test generation
@@ -101,10 +96,10 @@ optional:
 ### Resource Integration Standards
 ```yaml
 integration_priorities:
-  1_shared_workflows:
-    - workflow: test-execution-pipeline.json
-      location: initialization/n8n/
-      purpose: Orchestrate multi-phase test execution
+  1_native_orchestration:
+    - component: go-test-orchestrator
+      location: api/orchestrator/
+      purpose: Native Go-based multi-phase test execution
   
   2_resource_cli:
     - command: resource-postgres query
@@ -683,7 +678,7 @@ structure:
 
 resources:
   required: [postgres, ollama]
-  optional: [redis, n8n, qdrant]
+  optional: [redis, qdrant]
   health_timeout: 120
 
 tests:

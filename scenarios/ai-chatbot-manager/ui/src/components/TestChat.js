@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
+import apiClient from '../utils/api';
 
 function TestChat() {
   const { id } = useParams();
@@ -22,7 +23,7 @@ function TestChat() {
 
   const loadChatbot = async () => {
     try {
-      const response = await fetch(`/api/v1/chatbots/${id}`);
+      const response = await apiClient.get(`/api/v1/chatbots/${id}`);
       if (response.ok) {
         const data = await response.json();
         setChatbot(data);
@@ -59,12 +60,7 @@ function TestChat() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`/api/v1/chat/${id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const response = await apiClient.post(`/api/v1/chat/${id}`, {
           message: userMessage,
           session_id: sessionId,
           context: { source: 'test-interface' }

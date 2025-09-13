@@ -5,6 +5,7 @@ import ChatbotList from './components/ChatbotList';
 import ChatbotEditor from './components/ChatbotEditor';
 import Analytics from './components/Analytics';
 import TestChat from './components/TestChat';
+import apiClient from './utils/api';
 import './App.css';
 
 function App() {
@@ -18,7 +19,7 @@ function App() {
 
   const checkApiHealth = async () => {
     try {
-      const response = await fetch('/health');
+      const response = await apiClient.get('/health');
       if (response.ok) {
         setApiStatus('healthy');
       } else {

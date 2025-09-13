@@ -9,9 +9,12 @@ mcrcon provides a command-line interface and library for connecting to Minecraft
 ## Features
 
 - **RCON Protocol Support**: Full implementation of Minecraft's remote console protocol
-- **Multi-Server Management**: Connect to and manage multiple Minecraft servers
+- **Multi-Server Management**: Connect to and manage multiple Minecraft servers simultaneously
+- **Server Auto-Discovery**: Automatically detect Minecraft servers on local network
 - **Command Execution**: Execute any Minecraft server command programmatically
+- **Player Management**: Comprehensive player control (list, teleport, kick, ban, give items)
 - **Health Monitoring**: Built-in health check endpoint for service monitoring
+- **Error Recovery**: Automatic retry logic with exponential backoff
 - **v2.0 Contract Compliant**: Follows Vrooli's universal resource contract
 
 ## Quick Start
@@ -58,6 +61,12 @@ vrooli resource mcrcon content execute "tp PlayerName 0 100 0"
 ### Server Management
 
 ```bash
+# Auto-discover Minecraft servers on local network
+vrooli resource mcrcon content discover
+
+# Test connection to a server
+vrooli resource mcrcon content test localhost 25575
+
 # List configured servers
 vrooli resource mcrcon content list
 
@@ -66,6 +75,31 @@ vrooli resource mcrcon content add "survival" "mc.example.com" "25575" "password
 
 # Remove a server
 vrooli resource mcrcon content remove "survival"
+
+# Execute command on all configured servers
+vrooli resource mcrcon content execute-all "say Server maintenance in 5 minutes"
+```
+
+### Player Management
+
+```bash
+# List online players
+vrooli resource mcrcon player list
+
+# Get player information
+vrooli resource mcrcon player info PlayerName
+
+# Teleport player to coordinates
+vrooli resource mcrcon player teleport PlayerName 100 64 200
+
+# Give items to a player
+vrooli resource mcrcon player give PlayerName minecraft:diamond 64
+
+# Kick a player
+vrooli resource mcrcon player kick PlayerName "Reason for kick"
+
+# Ban a player
+vrooli resource mcrcon player ban PlayerName "Reason for ban"
 ```
 
 ## Testing
@@ -90,7 +124,16 @@ vrooli resource mcrcon test all
 | `test smoke` | Quick validation tests |
 | `test all` | Run complete test suite |
 | `content execute` | Execute RCON command |
+| `content execute-all` | Execute on all servers |
 | `content list` | List configured servers |
+| `content discover` | Auto-discover servers |
+| `content test` | Test server connection |
+| `player list` | List online players |
+| `player info` | Get player information |
+| `player teleport` | Teleport player |
+| `player kick` | Kick player from server |
+| `player ban` | Ban player from server |
+| `player give` | Give items to player |
 | `status` | Show resource status |
 | `credentials` | Display connection info |
 

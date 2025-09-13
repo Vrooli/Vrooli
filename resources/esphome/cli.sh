@@ -78,6 +78,10 @@ cli::register_command "logs" "Show ESPHome logs" "esphome::view_logs"
 # ==============================================================================
 cli::register_command "credentials" "Show ESPHome dashboard credentials" "esphome::cli_credentials"
 
+# Template commands
+cli::register_command "template::list" "List available device templates" "esphome::list_templates"
+cli::register_command "template::apply" "Apply a template to create device config" "esphome::apply_template" "modifies-system"
+
 # Device management commands
 cli::register_command "discover" "Discover ESP devices on network" "esphome::discover_devices"
 cli::register_command "upload" "Upload firmware to device via OTA" "esphome::upload_ota" "modifies-system"
