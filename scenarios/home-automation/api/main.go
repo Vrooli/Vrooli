@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,10 @@ type App struct {
 	CalendarScheduler  *CalendarScheduler
 }
 
+var startTime time.Time
+
 func main() {
+	startTime = time.Now()
 	app := &App{}
 	
 	// Database connection - REQUIRED, no defaults
@@ -155,13 +159,350 @@ func getEnv(key, defaultValue string) string {
 }
 
 func (app *App) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	status := map[string]interface{}{
-		"status":             "healthy",
-		"device_controller":  "ready",
-		"safety_validator":   "ready", 
-		"calendar_scheduler": "ready",
+	overallStatus := "healthy"
+	var errors []map[string]interface{}
+	readiness := true
+
+	// Schema-compliant health response
+	healthResponse := map[string]interface{}{
+		"status":    overallStatus,
+		"service":   "home-automation-api",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true,
+		"dependencies": map[string]interface{}{},
 	}
-	json.NewEncoder(w).Encode(status)
+
+	// Check database connectivity and home automation tables
+	dbHealth := app.checkDatabaseHealth()
+	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
+	if dbHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if dbHealth["status"] == "unhealthy" {
+			readiness = false
+		}
+		if dbHealth["error"] != nil {
+			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check Device Controller functionality
+	deviceHealth := app.checkDeviceController()
+	healthResponse["dependencies"].(map[string]interface{})["device_controller"] = deviceHealth
+	if deviceHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if deviceHealth["error"] != nil {
+			errors = append(errors, deviceHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check Safety Validator system
+	safetyHealth := app.checkSafetyValidator()
+	healthResponse["dependencies"].(map[string]interface{})["safety_validator"] = safetyHealth
+	if safetyHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if safetyHealth["error"] != nil {
+			errors = append(errors, safetyHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check Calendar Scheduler functionality
+	calendarHealth := app.checkCalendarScheduler()
+	healthResponse["dependencies"].(map[string]interface{})["calendar_scheduler"] = calendarHealth
+	if calendarHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if calendarHealth["error"] != nil {
+			errors = append(errors, calendarHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Update final status
+	healthResponse["status"] = overallStatus
+	healthResponse["readiness"] = readiness
+
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse["errors"] = errors
+	}
+
+	// Add metrics
+	healthResponse["metrics"] = map[string]interface{}{
+		"total_dependencies": 4,
+		"healthy_dependencies": app.countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
+		"uptime_seconds": time.Now().Unix() - startTime.Unix(),
+	}
+
+	// Return appropriate HTTP status
+	statusCode := http.StatusOK
+	if overallStatus == "unhealthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(healthResponse)
+}
+
+// Health check helper methods
+func (app *App) checkDatabaseHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	// Test database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := app.DB.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_CONNECTION_FAILED",
+			"message": "Database connection failed: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+
+	// Test devices table query
+	var deviceCount int
+	deviceQuery := "SELECT COUNT(*) FROM devices"
+	if err := app.DB.QueryRowContext(ctx, deviceQuery).Scan(&deviceCount); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_DEVICES_TABLE_ERROR",
+			"message": "Failed to query devices table: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["devices_table"] = "ok"
+		health["checks"].(map[string]interface{})["device_count"] = deviceCount
+	}
+
+	// Test home_profiles table query
+	var profileCount int
+	profileQuery := "SELECT COUNT(*) FROM home_profiles"
+	if err := app.DB.QueryRowContext(ctx, profileQuery).Scan(&profileCount); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_PROFILES_TABLE_ERROR",
+				"message": "Failed to query home_profiles table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else {
+		health["checks"].(map[string]interface{})["profiles_table"] = "ok"
+		health["checks"].(map[string]interface{})["profile_count"] = profileCount
+	}
+
+	// Test automation_rules table query
+	var ruleCount int
+	ruleQuery := "SELECT COUNT(*) FROM automation_rules WHERE is_active = true"
+	if err := app.DB.QueryRowContext(ctx, ruleQuery).Scan(&ruleCount); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_RULES_TABLE_ERROR",
+				"message": "Failed to query automation_rules table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else {
+		health["checks"].(map[string]interface{})["automation_rules_table"] = "ok"
+		health["checks"].(map[string]interface{})["active_rules"] = ruleCount
+	}
+
+	return health
+}
+
+func (app *App) checkDeviceController() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	if app.DeviceController == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DEVICE_CONTROLLER_NOT_INITIALIZED",
+			"message": "Device controller not initialized",
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	health["checks"].(map[string]interface{})["initialized"] = "ok"
+
+	// Test device listing functionality
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	devices, err := app.DeviceController.ListDevices(ctx)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DEVICE_LISTING_FAILED",
+			"message": "Failed to list devices: " + err.Error(),
+			"category": "internal",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["device_listing"] = "ok"
+		health["checks"].(map[string]interface{})["total_devices"] = len(devices)
+		
+		// Count online devices by checking the Available field
+		onlineCount := 0
+		for _, device := range devices {
+			if device.Available {
+				onlineCount++
+			}
+		}
+		health["checks"].(map[string]interface{})["online_devices"] = onlineCount
+	}
+
+	return health
+}
+
+func (app *App) checkSafetyValidator() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	if app.SafetyValidator == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "SAFETY_VALIDATOR_NOT_INITIALIZED",
+			"message": "Safety validator not initialized",
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	health["checks"].(map[string]interface{})["initialized"] = "ok"
+
+	// Test safety rule validation by checking the rules table
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var safetyRuleCount int
+	safetyQuery := "SELECT COUNT(*) FROM safety_rules WHERE is_enabled = true"
+	if err := app.DB.QueryRowContext(ctx, safetyQuery).Scan(&safetyRuleCount); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "SAFETY_RULES_CHECK_FAILED",
+			"message": "Failed to check safety rules: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["safety_rules_check"] = "ok"
+		health["checks"].(map[string]interface{})["enabled_safety_rules"] = safetyRuleCount
+		
+		// Warning if no safety rules are enabled
+		if safetyRuleCount == 0 {
+			health["status"] = "degraded"
+			health["error"] = map[string]interface{}{
+				"code": "NO_SAFETY_RULES_ENABLED",
+				"message": "No safety rules are currently enabled - this may be unsafe",
+				"category": "configuration",
+				"retryable": false,
+			}
+		}
+	}
+
+	return health
+}
+
+func (app *App) checkCalendarScheduler() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	if app.CalendarScheduler == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "CALENDAR_SCHEDULER_NOT_INITIALIZED",
+			"message": "Calendar scheduler not initialized",
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	health["checks"].(map[string]interface{})["initialized"] = "ok"
+
+	// Test calendar events/contexts functionality
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Check current context
+	currentContext, err := app.CalendarScheduler.GetCurrentContext(ctx)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "CALENDAR_CONTEXT_CHECK_FAILED",
+			"message": "Failed to get current context: " + err.Error(),
+			"category": "internal",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["context_check"] = "ok"
+		if currentContext != nil {
+			health["checks"].(map[string]interface{})["current_context"] = currentContext.ContextName
+		}
+	}
+
+	// Check scheduled automation count
+	var scheduledCount int
+	scheduledQuery := "SELECT COUNT(*) FROM scheduled_automations WHERE is_active = true"
+	if err := app.DB.QueryRowContext(ctx, scheduledQuery).Scan(&scheduledCount); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "SCHEDULED_AUTOMATION_CHECK_FAILED",
+				"message": "Failed to check scheduled automations: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else {
+		health["checks"].(map[string]interface{})["scheduled_automations"] = scheduledCount
+	}
+
+	return health
+}
+
+func (app *App) countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && status == "healthy" {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 // Device Control handlers

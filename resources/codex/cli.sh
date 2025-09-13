@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${CODEX_CLI_DIR}/config/defaults.sh"
 
 # Source Codex libraries
-for lib in common core status install docker test content inject; do
+for lib in common core status install docker test content inject codex-cli; do
     lib_file="${CODEX_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -68,6 +68,17 @@ cli::register_subcommand "content" "inject" "Inject a script for Codex processin
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "codex::status"
 cli::register_command "logs" "Show Codex logs" "codex::docker::logs"
+
+# Codex CLI management commands
+cli::register_subcommand "manage" "install-cli" "Install OpenAI Codex CLI tool" "codex::cli::install"
+cli::register_subcommand "manage" "update-cli" "Update Codex CLI to latest version" "codex::cli::update"
+cli::register_subcommand "manage" "configure-cli" "Configure Codex CLI with API key" "codex::cli::configure"
+
+# Agent commands (using Codex CLI when available)
+cli::register_command "agent" "Run Codex agent on a task" "codex::cli::execute"
+cli::register_command "fix" "Fix code issues using agent" "codex::cli::fix"
+cli::register_command "generate-tests" "Generate tests for code" "codex::cli::test"
+cli::register_command "refactor" "Refactor code using agent" "codex::cli::refactor"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

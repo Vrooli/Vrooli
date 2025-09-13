@@ -145,22 +145,322 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 
 // Handler functions
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	health := map[string]interface{}{
-		"status":    "healthy",
-		"timestamp": time.Now().Unix(),
-		"service":   "SCENARIO_NAME_PLACEHOLDER API",
+	start := time.Now()
+	overallStatus := "healthy"
+	var errors []map[string]interface{}
+	readiness := true
+	
+	// Schema-compliant health response structure
+	healthResponse := map[string]interface{}{
+		"status":    overallStatus,
+		"service":   "crypto-tools-api",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true,
 		"version":   "1.0.0",
+		"dependencies": map[string]interface{}{},
 	}
+	
+	// Check database connectivity
+	dbHealth := s.checkDatabaseHealth()
+	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
+	if dbHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if dbHealth["status"] == "unhealthy" {
+			readiness = false
+			overallStatus = "unhealthy"
+		}
+		if dbHealth["error"] != nil {
+			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check Windmill integration
+	windmillHealth := s.checkWindmillHealth()
+	healthResponse["dependencies"].(map[string]interface{})["windmill"] = windmillHealth
+	if windmillHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if windmillHealth["error"] != nil {
+			errors = append(errors, windmillHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check N8N integration
+	n8nHealth := s.checkN8NHealth()
+	healthResponse["dependencies"].(map[string]interface{})["n8n"] = n8nHealth
+	if n8nHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if n8nHealth["error"] != nil {
+			errors = append(errors, n8nHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Update final status
+	healthResponse["status"] = overallStatus
+	healthResponse["readiness"] = readiness
+	
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse["errors"] = errors
+	}
+	
+	// Add metrics
+	healthResponse["metrics"] = map[string]interface{}{
+		"total_dependencies": 3,
+		"healthy_dependencies": s.countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
+		"response_time_ms": time.Since(start).Milliseconds(),
+	}
+	
+	// Add crypto-tools specific stats
+	cryptoStats := s.getCryptoStats()
+	healthResponse["crypto_stats"] = cryptoStats
+	
+	// Return appropriate HTTP status
+	statusCode := http.StatusOK
+	if overallStatus == "unhealthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+	
+	s.sendJSON(w, statusCode, healthResponse)
+}
 
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
+// Health check helper methods
+func (s *Server) checkDatabaseHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if s.db == nil {
 		health["status"] = "unhealthy"
-		health["database"] = "disconnected"
-	} else {
-		health["database"] = "connected"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_NOT_INITIALIZED",
+			"message": "Database connection not initialized",
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
 	}
+	
+	// Test database connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := s.db.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_CONNECTION_FAILED",
+			"message": "Failed to ping database: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+	
+	// Check crypto-tools tables
+	var tableCount int
+	tableQuery := `SELECT COUNT(*) FROM information_schema.tables 
+		WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
+	if err := s.db.QueryRowContext(ctx, tableQuery).Scan(&tableCount); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_SCHEMA_CHECK_FAILED",
+			"message": "Failed to verify database schema: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["table_count"] = tableCount
+		if tableCount == 0 {
+			health["status"] = "degraded"
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_SCHEMA_EMPTY",
+				"message": "No tables found in database",
+				"category": "configuration",
+				"retryable": false,
+			}
+		}
+	}
+	
+	// Check connection pool
+	stats := s.db.Stats()
+	health["checks"].(map[string]interface{})["open_connections"] = stats.OpenConnections
+	health["checks"].(map[string]interface{})["in_use"] = stats.InUse
+	health["checks"].(map[string]interface{})["idle"] = stats.Idle
+	
+	if stats.OpenConnections > stats.MaxOpenConnections * 9 / 10 {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_CONNECTION_POOL_HIGH",
+				"message": fmt.Sprintf("Connection pool usage high: %d/%d", stats.OpenConnections, stats.MaxOpenConnections),
+				"category": "resource",
+				"retryable": false,
+			}
+		}
+	}
+	
+	return health
+}
 
-	s.sendJSON(w, http.StatusOK, health)
+func (s *Server) checkWindmillHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if s.config.WindmillURL == "" {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["automation"] = "disabled"
+		return health
+	}
+	
+	// Test Windmill connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", s.config.WindmillURL+"/api/version", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "WINDMILL_REQUEST_FAILED",
+			"message": "Failed to create request to Windmill: " + err.Error(),
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "WINDMILL_CONNECTION_FAILED",
+			"message": "Failed to connect to Windmill: " + err.Error(),
+			"category": "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["automation"] = "enabled"
+	} else {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "WINDMILL_UNHEALTHY",
+			"message": fmt.Sprintf("Windmill returned status %d", resp.StatusCode),
+			"category": "resource",
+			"retryable": true,
+		}
+	}
+	
+	return health
+}
+
+func (s *Server) checkN8NHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if s.config.N8NURL == "" {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["workflows"] = "disabled"
+		return health
+	}
+	
+	// Test N8N connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", s.config.N8NURL+"/healthz", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "N8N_REQUEST_FAILED",
+			"message": "Failed to create request to N8N: " + err.Error(),
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "N8N_CONNECTION_FAILED",
+			"message": "Failed to connect to N8N: " + err.Error(),
+			"category": "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == http.StatusOK {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["workflows"] = "enabled"
+	} else {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "N8N_UNHEALTHY",
+			"message": fmt.Sprintf("N8N returned status %d", resp.StatusCode),
+			"category": "resource",
+			"retryable": true,
+		}
+	}
+	
+	return health
+}
+
+func (s *Server) countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && (status == "healthy" || status == "not_configured") {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func (s *Server) getCryptoStats() map[string]interface{} {
+	stats := map[string]interface{}{
+		"total_operations": 0,
+		"hash_operations": 0,
+		"encryption_operations": 0,
+		"signature_operations": 0,
+		"key_operations": 0,
+	}
+	
+	if s.db == nil {
+		return stats
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	// These are example queries - adjust based on actual crypto-tools schema
+	s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM crypto_operations").Scan(&stats["total_operations"])
+	s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM crypto_operations WHERE operation_type = 'hash'").Scan(&stats["hash_operations"])
+	s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM crypto_operations WHERE operation_type = 'encrypt'").Scan(&stats["encryption_operations"])
+	s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM crypto_operations WHERE operation_type = 'sign'").Scan(&stats["signature_operations"])
+	s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM crypto_keys").Scan(&stats["key_operations"])
+	
+	return stats
 }
 
 func (s *Server) handleListResources(w http.ResponseWriter, r *http.Request) {

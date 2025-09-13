@@ -2,8 +2,10 @@
 
 class DeviceSyncApp {
   constructor() {
-    this.apiUrl = 'http://localhost:3300';
-    this.wsUrl = 'ws://localhost:3300';
+    // Load configuration from environment or defaults
+    this.apiUrl = this.getApiUrl();
+    this.wsUrl = this.getWebSocketUrl();
+    this.authUrl = this.getAuthUrl();
     this.authToken = localStorage.getItem('auth_token');
     this.user = null;
     this.ws = null;
@@ -17,6 +19,75 @@ class DeviceSyncApp {
     };
 
     this.init();
+  }
+
+  // Configuration getters - dynamically determine URLs based on environment
+  getApiUrl() {
+    // Check for API_URL in meta tag (set by server)
+    const metaApiUrl = document.querySelector('meta[name="api-url"]');
+    if (metaApiUrl && metaApiUrl.content) {
+      return metaApiUrl.content;
+    }
+    
+    // Use relative URL to same host with different port
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    
+    // Check for API_PORT in meta tag or use relative path
+    const metaApiPort = document.querySelector('meta[name="api-port"]');
+    if (metaApiPort && metaApiPort.content) {
+      return `${protocol}//${hostname}:${metaApiPort.content}`;
+    }
+    
+    // Default to relative API path (assumes proxy or same server)
+    return '/api';
+  }
+
+  getWebSocketUrl() {
+    const apiUrl = this.apiUrl;
+    // Convert http/https to ws/wss
+    return apiUrl.replace(/^http/, 'ws');
+  }
+
+  getAuthUrl() {
+    // Check for AUTH_URL in meta tag
+    const metaAuthUrl = document.querySelector('meta[name="auth-url"]');
+    if (metaAuthUrl && metaAuthUrl.content) {
+      return metaAuthUrl.content;
+    }
+    
+    // Use relative URL pattern
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    
+    // Check for AUTH_PORT in meta tag
+    const metaAuthPort = document.querySelector('meta[name="auth-port"]');
+    if (metaAuthPort && metaAuthPort.content) {
+      return `${protocol}//${hostname}:${metaAuthPort.content}`;
+    }
+    
+    // Default to auth subdomain or path
+    return `${protocol}//auth.${hostname}`;
+  }
+
+  // Generate or get stored device ID
+  getDeviceId() {
+    let deviceId = localStorage.getItem('device_id');
+    if (!deviceId) {
+      deviceId = 'web-' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('device_id', deviceId);
+    }
+    return deviceId;
+  }
+
+  // Get device info for registration
+  getDeviceInfo() {
+    return {
+      platform: navigator.platform || 'web',
+      userAgent: navigator.userAgent,
+      screen: `${screen.width}x${screen.height}`,
+      language: navigator.language
+    };
   }
 
   async init() {
@@ -34,7 +105,7 @@ class DeviceSyncApp {
     }
 
     try {
-      const response = await fetch(`http://localhost:3250/api/v1/auth/validate`, {
+      const response = await fetch(`${this.authUrl}/api/v1/auth/validate`, {
         headers: {
           'Authorization': `Bearer ${this.authToken}`
         }
@@ -63,7 +134,7 @@ class DeviceSyncApp {
 
   async login(email, password) {
     try {
-      const response = await fetch(`http://localhost:3250/api/v1/auth/login`, {
+      const response = await fetch(`${this.authUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -116,19 +187,16 @@ class DeviceSyncApp {
 
     this.updateConnectionStatus('connecting');
     
-    this.ws = new WebSocket(this.wsUrl + '/api/v1/sync/websocket');
+    // Add authentication token and device ID as query parameters
+    const deviceId = this.getDeviceId();
+    const wsUrl = `${this.wsUrl}/api/v1/sync/websocket?token=${encodeURIComponent(this.authToken)}&device_id=${encodeURIComponent(deviceId)}`;
+    
+    this.ws = new WebSocket(wsUrl);
     
     this.ws.onopen = () => {
       console.log('WebSocket connected');
       this.updateConnectionStatus('online');
       this.reconnectAttempts = 0;
-      
-      // Authenticate the WebSocket connection
-      this.ws.send(JSON.stringify({
-        type: 'auth',
-        token: this.authToken,
-        device_info: this.getDeviceInfo()
-      }));
     };
 
     this.ws.onmessage = (event) => {
@@ -538,6 +606,15 @@ class DeviceSyncApp {
 
   // Event listeners
   setupEventListeners() {
+    // Set register link dynamically
+    const registerLink = document.getElementById('register-link');
+    if (registerLink) {
+      // Assume register UI is on next port after auth service
+      const authUrl = new URL(this.authUrl);
+      const registerPort = parseInt(authUrl.port) + 1;
+      registerLink.href = `${authUrl.protocol}//${authUrl.hostname}:${registerPort}/register`;
+    }
+
     // Auth form
     const loginBtn = document.getElementById('login-btn');
     const emailInput = document.getElementById('email');

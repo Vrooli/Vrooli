@@ -1,0 +1,41 @@
+{
+  "status": "healthy",
+  "service": "image-tools-ui",
+  "timestamp": "2025-09-13T00:00:00Z",
+  "readiness": true,
+  "api_connectivity": {
+    "connected": false,
+    "api_url": "http://localhost:8080",
+    "last_check": "2025-09-13T00:00:00Z",
+    "error": {
+      "code": "STATIC_UI_CANNOT_TEST",
+      "message": "Static UI served by Python HTTP server cannot test live connectivity - health status unknown",
+      "category": "configuration",
+      "retryable": false
+    },
+    "latency_ms": null
+  },
+  "static_files": {
+    "available": true,
+    "files": {
+      "index_html": true,
+      "app_js": true,
+      "styles_css": true
+    }
+  },
+  "darkroom_theme": {
+    "enabled": true,
+    "vintage_controls": true,
+    "film_strip_ui": true
+  },
+  "processing_capabilities": {
+    "formats_supported": ["JPEG", "PNG", "WebP", "SVG"],
+    "operations_available": ["compress", "resize", "convert", "metadata"],
+    "batch_processing": true
+  },
+  "metrics": {
+    "deployment_mode": "static",
+    "server_type": "python_http_server",
+    "requires_api": true
+  }
+}

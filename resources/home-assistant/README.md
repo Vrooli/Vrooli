@@ -25,9 +25,11 @@ vrooli resource home-assistant test all
 - **Privacy-Focused**: Your data stays on your local network
 - **Extensive Integrations**: 2000+ supported devices and services
 - **Automation Engine**: Powerful automation with triggers, conditions, and actions
-- **Energy Management**: Track and optimize energy consumption
+- **Energy Management**: Track and optimize energy consumption with templates
+- **Custom Components**: Support for HACS and community integrations
 - **Voice Control**: Compatible with various voice assistants
 - **Web Interface**: Modern, responsive UI accessible from any browser
+- **Backup/Restore**: Full configuration backup and recovery capabilities
 
 ## 🔧 Configuration
 
@@ -181,6 +183,56 @@ curl -X POST http://localhost:8123/api/webhook/your_webhook_id \
 ```
 
 Configure webhooks in automations to trigger actions from external systems.
+
+## 🧩 Custom Components Management
+
+### Installing HACS (Home Assistant Community Store)
+
+```bash
+# Install HACS for access to thousands of custom integrations
+vrooli resource home-assistant components install-hacs
+
+# After installation, restart Home Assistant
+vrooli resource home-assistant manage restart
+
+# Configure HACS through the UI at Settings > Devices & Services
+```
+
+### Managing Custom Components
+
+```bash
+# List installed custom components
+vrooli resource home-assistant components list
+
+# Install a custom component from GitHub
+vrooli resource home-assistant components add https://github.com/user/ha-component
+
+# Remove a custom component
+vrooli resource home-assistant components remove component_name
+```
+
+## ⚡ Energy Management
+
+### Using the Energy Dashboard Template
+
+```bash
+# Add the energy management template
+vrooli resource home-assistant content add samples/energy-dashboard.yaml
+
+# The template includes:
+# - Utility meters for tracking consumption
+# - Automations for off-peak optimization
+# - Solar production optimization
+# - Peak demand reduction
+# - Energy cost calculations
+# - Self-consumption metrics
+```
+
+### Energy Optimization Features
+- **Off-Peak Scheduling**: Automatically shift high-consumption devices to cheaper hours
+- **Solar Priority**: Maximize use of solar production when available
+- **Peak Reduction**: Reduce consumption during expensive peak hours
+- **Emergency Mode**: Quick power reduction for grid events
 
 ## 🤖 Automation Management
 

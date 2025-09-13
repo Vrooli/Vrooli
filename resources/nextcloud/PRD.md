@@ -287,32 +287,34 @@ curl -u admin:password -X PROPFIND \
 ## Progress Tracking
 - **Date**: 2025-01-10
 - **Status**: 0% → Planning phase
-- **Date**: 2025-09-12 (Previous Iteration)
-- **Status**: Planning → 90% Complete
-  - All P0 requirements (7/7) ✅
-  - Most P1 requirements (3/4) implemented
-  - Core functionality working and tested
-  - All tests passing (smoke, unit, integration)
-  - Documentation updated with examples
-- **Improvements Made**:
-  - Fixed user creation functionality
-  - Added S3 external storage mounting
-  - Enabled files_external app
-  - Fixed unit test compatibility
-  - Enhanced README with usage examples
-- **Date**: 2025-09-12 (Current Iteration)
-- **Status**: 90% → 100% Complete
+- **Date**: 2025-09-12 (Previous Iterations)
+- **Status**: Planning → 100% Complete
   - All P0 requirements (7/7) ✅
   - All P1 requirements (4/4) ✅
   - Collabora Office integration fully functional
   - All tests passing with new integration test
   - Documentation updated with Collabora usage
 - **Improvements Made**:
+  - Fixed user creation functionality
+  - Added S3 external storage mounting
+  - Enabled files_external app
   - Added Collabora container to docker-compose
   - Implemented enable-office command
   - Configured richdocuments app integration
   - Added integration test for Collabora
   - Updated README with complete instructions
+- **Date**: 2025-09-13 (Current Iteration - Maintenance)
+- **Status**: 100% → 100% Complete (Verified & Maintained)
+  - Fixed CLI script to resolve symlinks properly
+  - Fixed Redis container issue (recreated missing container)
+  - Removed deprecated version attribute from docker-compose.yml
+  - Verified all P0 and P1 requirements working
+  - All tests passing (smoke, unit, integration)
+- **Improvements Made**:
+  - Fixed SCRIPT_DIR resolution for symlinked CLI
+  - Recreated missing Redis container
+  - Removed docker-compose version deprecation warning
+  - Verified all functionality intact
 - **Next Steps**: P2 requirements (Talk, Calendar/Contacts) if needed
 - **Blockers**: None identified
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -83,6 +84,515 @@ type SchemaTemplate struct {
 }
 
 var db *sql.DB
+
+// HealthResponse represents the schema-compliant health check response
+type HealthResponse struct {
+	Status       string                 `json:"status"`
+	Service      string                 `json:"service"`
+	Timestamp    string                 `json:"timestamp"`
+	Readiness    bool                   `json:"readiness"`
+	Version      string                 `json:"version"`
+	Dependencies map[string]interface{} `json:"dependencies"`
+	Metrics      map[string]interface{} `json:"metrics,omitempty"`
+	DataStats    map[string]interface{} `json:"data_stats,omitempty"`
+	Errors       []map[string]interface{} `json:"errors,omitempty"`
+}
+
+// handleHealthCheck implements comprehensive health checking
+func handleHealthCheck(c *gin.Context, database *sql.DB) {
+	start := time.Now()
+	overallStatus := "healthy"
+	var errors []map[string]interface{}
+	readiness := true
+
+	// Schema-compliant health response structure
+	healthResponse := HealthResponse{
+		Status:       overallStatus,
+		Service:      "data-structurer-api",
+		Timestamp:    time.Now().UTC().Format(time.RFC3339),
+		Readiness:    true,
+		Version:      "1.0.0",
+		Dependencies: make(map[string]interface{}),
+	}
+
+	// Check PostgreSQL connectivity
+	dbHealth := checkDatabaseHealth(database)
+	healthResponse.Dependencies["postgres"] = dbHealth
+	if dbHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if dbHealth["status"] == "unhealthy" {
+			readiness = false
+			overallStatus = "unhealthy"
+		}
+		if dbHealth["error"] != nil {
+			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check Ollama AI service
+	ollamaHealth := checkOllamaHealth()
+	healthResponse.Dependencies["ollama"] = ollamaHealth
+	if ollamaHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if ollamaHealth["status"] == "unhealthy" {
+			readiness = false
+			overallStatus = "unhealthy"
+		}
+		if ollamaHealth["error"] != nil {
+			errors = append(errors, ollamaHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check Unstructured-io service
+	unstructuredHealth := checkUnstructuredIOHealth()
+	healthResponse.Dependencies["unstructured_io"] = unstructuredHealth
+	if unstructuredHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if unstructuredHealth["status"] == "unhealthy" {
+			readiness = false
+			overallStatus = "unhealthy"
+		}
+		if unstructuredHealth["error"] != nil {
+			errors = append(errors, unstructuredHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check N8N workflows
+	n8nHealth := checkN8NHealth()
+	healthResponse.Dependencies["n8n"] = n8nHealth
+	if n8nHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if n8nHealth["error"] != nil {
+			errors = append(errors, n8nHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check optional Qdrant vector database
+	qdrantHealth := checkQdrantHealth()
+	healthResponse.Dependencies["qdrant"] = qdrantHealth
+	if qdrantHealth["status"] == "unhealthy" {
+		// Qdrant is optional, so only degrade if configured but failing
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if qdrantHealth["error"] != nil {
+			errors = append(errors, qdrantHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Update final status
+	healthResponse.Status = overallStatus
+	healthResponse.Readiness = readiness
+
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse.Errors = errors
+	}
+
+	// Add metrics
+	healthResponse.Metrics = map[string]interface{}{
+		"total_dependencies":   5,
+		"healthy_dependencies": countHealthyDependencies(healthResponse.Dependencies),
+		"response_time_ms":     time.Since(start).Milliseconds(),
+	}
+
+	// Add data processing statistics
+	dataStats := getDataStatistics(database)
+	healthResponse.DataStats = dataStats
+
+	// Return appropriate HTTP status
+	statusCode := http.StatusOK
+	if overallStatus == "unhealthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+
+	c.JSON(statusCode, healthResponse)
+}
+
+// Health check helper methods
+func checkDatabaseHealth(database *sql.DB) map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	if database == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "DATABASE_NOT_INITIALIZED",
+			"message":   "Database connection not initialized",
+			"category":  "configuration",
+			"retryable": false,
+		}
+		return health
+	}
+
+	// Test database connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := database.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "DATABASE_CONNECTION_FAILED",
+			"message":   "Failed to ping database: " + err.Error(),
+			"category":  "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+
+	// Check data structurer tables exist
+	var tableCount int
+	tableQuery := `SELECT COUNT(*) FROM information_schema.tables 
+		WHERE table_schema = 'public' AND table_name IN ('schemas', 'processed_data', 'schema_templates')`
+	if err := database.QueryRowContext(ctx, tableQuery).Scan(&tableCount); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "DATABASE_SCHEMA_CHECK_FAILED",
+			"message":   "Failed to verify data structurer tables: " + err.Error(),
+			"category":  "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["structurer_tables"] = tableCount
+		if tableCount < 3 {
+			health["status"] = "degraded"
+			health["error"] = map[string]interface{}{
+				"code":      "DATABASE_SCHEMA_INCOMPLETE",
+				"message":   fmt.Sprintf("Missing data structurer tables. Found %d of 3 required tables", tableCount),
+				"category":  "configuration",
+				"retryable": false,
+			}
+		}
+	}
+
+	// Check connection pool
+	stats := database.Stats()
+	health["checks"].(map[string]interface{})["open_connections"] = stats.OpenConnections
+	health["checks"].(map[string]interface{})["in_use"] = stats.InUse
+	health["checks"].(map[string]interface{})["idle"] = stats.Idle
+
+	return health
+}
+
+func checkOllamaHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	ollamaURL := os.Getenv("OLLAMA_BASE_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
+	}
+
+	// Test Ollama connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", ollamaURL+"/api/tags", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "OLLAMA_REQUEST_FAILED",
+			"message":   "Failed to create request to Ollama: " + err.Error(),
+			"category":  "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "OLLAMA_CONNECTION_FAILED",
+			"message":   "Failed to connect to Ollama: " + err.Error(),
+			"category":  "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		
+		// Parse response to check available models
+		var response struct {
+			Models []struct {
+				Name string `json:"name"`
+			} `json:"models"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
+			health["checks"].(map[string]interface{})["available_models"] = len(response.Models)
+			
+			// Check for required models
+			requiredModels := []string{"llama3.2", "mistral", "nomic-embed-text"}
+			availableModels := make(map[string]bool)
+			for _, model := range response.Models {
+				availableModels[model.Name] = true
+			}
+			
+			missingModels := []string{}
+			for _, required := range requiredModels {
+				if !availableModels[required] {
+					missingModels = append(missingModels, required)
+				}
+			}
+			
+			if len(missingModels) > 0 {
+				health["status"] = "degraded"
+				health["error"] = map[string]interface{}{
+					"code":      "OLLAMA_MODELS_MISSING",
+					"message":   fmt.Sprintf("Missing required models: %v", missingModels),
+					"category":  "configuration",
+					"retryable": false,
+				}
+			} else {
+				health["checks"].(map[string]interface{})["required_models"] = "available"
+			}
+		}
+	} else {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "OLLAMA_UNHEALTHY",
+			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
+}
+
+func checkUnstructuredIOHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	unstructuredURL := os.Getenv("UNSTRUCTURED_IO_URL")
+	if unstructuredURL == "" {
+		unstructuredURL = "http://localhost:8000"
+	}
+
+	// Test Unstructured-io connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", unstructuredURL+"/general/v0/general", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "UNSTRUCTURED_REQUEST_FAILED",
+			"message":   "Failed to create request to Unstructured-io: " + err.Error(),
+			"category":  "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "UNSTRUCTURED_CONNECTION_FAILED",
+			"message":   "Failed to connect to Unstructured-io: " + err.Error(),
+			"category":  "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnprocessableEntity {
+		// 422 is expected when calling without a file
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["document_processing"] = "available"
+	} else {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "UNSTRUCTURED_UNHEALTHY",
+			"message":   fmt.Sprintf("Unstructured-io returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
+}
+
+func checkN8NHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	n8nURL := os.Getenv("N8N_BASE_URL")
+	if n8nURL == "" {
+		n8nURL = "http://localhost:5678"
+	}
+
+	// Test N8N connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", n8nURL+"/healthz", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "N8N_REQUEST_FAILED",
+			"message":   "Failed to create request to N8N: " + err.Error(),
+			"category":  "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "N8N_CONNECTION_FAILED",
+			"message":   "Failed to connect to N8N: " + err.Error(),
+			"category":  "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["workflows"] = "available"
+	} else {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code":      "N8N_UNHEALTHY",
+			"message":   fmt.Sprintf("N8N returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
+}
+
+func checkQdrantHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "not_configured",
+		"checks": map[string]interface{}{},
+	}
+
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		qdrantURL = "http://localhost:6333"
+	}
+
+	// Test Qdrant connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", qdrantURL+"/health", nil)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["vector_search"] = "disabled"
+		return health
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["vector_search"] = "disabled"
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["status"] = "healthy"
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["vector_search"] = "available"
+	} else {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "QDRANT_UNHEALTHY",
+			"message":   fmt.Sprintf("Qdrant returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
+}
+
+func countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && (status == "healthy" || status == "not_configured") {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func getDataStatistics(database *sql.DB) map[string]interface{} {
+	stats := map[string]interface{}{
+		"total_schemas":           0,
+		"active_schemas":          0,
+		"total_processed_items":   0,
+		"successful_processings":  0,
+		"failed_processings":      0,
+		"avg_confidence_score":    0.0,
+		"avg_processing_time_ms":  0,
+		"schema_templates":        0,
+	}
+
+	if database == nil {
+		return stats
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Get schema counts
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schemas").Scan(&stats["total_schemas"])
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schemas WHERE is_active = true").Scan(&stats["active_schemas"])
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_templates").Scan(&stats["schema_templates"])
+
+	// Get processing statistics
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data").Scan(&stats["total_processed_items"])
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data WHERE processing_status = 'completed'").Scan(&stats["successful_processings"])
+	database.QueryRowContext(ctx, "SELECT COUNT(*) FROM processed_data WHERE processing_status = 'failed'").Scan(&stats["failed_processings"])
+
+	// Get average confidence score
+	var avgConfidence sql.NullFloat64
+	if err := database.QueryRowContext(ctx, "SELECT AVG(confidence_score) FROM processed_data WHERE confidence_score IS NOT NULL").Scan(&avgConfidence); err == nil && avgConfidence.Valid {
+		stats["avg_confidence_score"] = math.Round(avgConfidence.Float64*100) / 100
+	}
+
+	// Get average processing time
+	var avgProcessingTime sql.NullFloat64
+	if err := database.QueryRowContext(ctx, "SELECT AVG(processing_time_ms) FROM processed_data WHERE processing_time_ms IS NOT NULL").Scan(&avgProcessingTime); err == nil && avgProcessingTime.Valid {
+		stats["avg_processing_time_ms"] = int(avgProcessingTime.Float64)
+	}
+
+	return stats
+}
 
 func main() {
 	// Load environment variables
@@ -196,12 +706,7 @@ func main() {
 
 	// Health check endpoint
 	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
-			"service": "data-structurer-api",
-			"timestamp": time.Now().Unix(),
-			"database": "connected",
-		})
+		handleHealthCheck(c, db)
 	})
 
 	// API routes

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -277,25 +278,519 @@ func initDB() (*sql.DB, error) {
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
+	start := time.Now()
+	overallStatus := "healthy"
+	var errors []map[string]interface{}
+	readiness := true
 	
-	health := map[string]interface{}{
-		"status":    "ok",
-		"service":   serviceName,
+	// Schema-compliant health response structure
+	healthResponse := map[string]interface{}{
+		"status":    overallStatus,
+		"service":   "api-manager-api",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true,
 		"version":   apiVersion,
-		"timestamp": time.Now().UTC(),
-		"database":  "connected",
+		"dependencies": map[string]interface{}{},
+	}
+	
+	// Check database connectivity
+	dbHealth := checkDatabaseHealth()
+	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
+	if dbHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if dbHealth["status"] == "unhealthy" {
+			readiness = false
+			overallStatus = "unhealthy"
+		}
+		if dbHealth["error"] != nil {
+			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check scanner functionality
+	scannerHealth := checkScannerHealth()
+	healthResponse["dependencies"].(map[string]interface{})["scanner"] = scannerHealth
+	if scannerHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if scannerHealth["error"] != nil {
+			errors = append(errors, scannerHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check filesystem access (scenarios directory)
+	fsHealth := checkFilesystemHealth()
+	healthResponse["dependencies"].(map[string]interface{})["filesystem"] = fsHealth
+	if fsHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if fsHealth["error"] != nil {
+			errors = append(errors, fsHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check optional Ollama AI service
+	ollamaHealth := checkOllamaHealth()
+	healthResponse["dependencies"].(map[string]interface{})["ollama"] = ollamaHealth
+	if ollamaHealth["status"] == "unhealthy" {
+		// Ollama is optional, so only degrade if configured but failing
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if ollamaHealth["error"] != nil {
+			errors = append(errors, ollamaHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check optional Qdrant vector database
+	qdrantHealth := checkQdrantHealth()
+	healthResponse["dependencies"].(map[string]interface{})["qdrant"] = qdrantHealth
+	if qdrantHealth["status"] == "unhealthy" {
+		// Qdrant is optional, so only degrade if configured but failing
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if qdrantHealth["error"] != nil {
+			errors = append(errors, qdrantHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Update final status
+	healthResponse["status"] = overallStatus
+	healthResponse["readiness"] = readiness
+	
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse["errors"] = errors
+	}
+	
+	// Add metrics
+	healthResponse["metrics"] = map[string]interface{}{
+		"total_dependencies":   5,
+		"healthy_dependencies": countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
+		"response_time_ms":     time.Since(start).Milliseconds(),
+	}
+	
+	// Add api-manager specific stats
+	var scenarioCount, vulnerabilityCount, endpointCount int
+	db.QueryRow("SELECT COUNT(*) FROM scenarios WHERE status = 'active'").Scan(&scenarioCount)
+	db.QueryRow("SELECT COUNT(*) FROM vulnerability_scans WHERE status = 'open'").Scan(&vulnerabilityCount)
+	db.QueryRow("SELECT COUNT(*) FROM api_endpoints").Scan(&endpointCount)
+	
+	healthResponse["api_manager_stats"] = map[string]interface{}{
+		"active_scenarios": scenarioCount,
+		"open_vulnerabilities": vulnerabilityCount,
+		"tracked_endpoints": endpointCount,
+	}
+	
+	// Return appropriate HTTP status
+	statusCode := http.StatusOK
+	if overallStatus == "unhealthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(healthResponse)
+}
+
+// Health check helper methods
+func checkDatabaseHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if db == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_NOT_INITIALIZED",
+			"message": "Database connection not initialized",
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	// Test database connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := db.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_CONNECTION_FAILED",
+			"message": "Failed to ping database: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+	
+	// Test scenarios table
+	var tableExists bool
+	tableQuery := `SELECT EXISTS(
+		SELECT 1 FROM information_schema.tables 
+		WHERE table_name = 'scenarios'
+	)`
+	if err := db.QueryRowContext(ctx, tableQuery).Scan(&tableExists); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_SCHEMA_CHECK_FAILED",
+			"message": "Failed to verify scenarios table: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else if !tableExists {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_SCHEMA_MISSING",
+			"message": "scenarios table does not exist",
+			"category": "configuration",
+			"retryable": false,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["scenarios_table"] = "ok"
+	}
+	
+	// Test vulnerability_scans table
+	tableQuery = `SELECT EXISTS(
+		SELECT 1 FROM information_schema.tables 
+		WHERE table_name = 'vulnerability_scans'
+	)`
+	if err := db.QueryRowContext(ctx, tableQuery).Scan(&tableExists); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_VULN_TABLE_CHECK_FAILED",
+				"message": "Failed to verify vulnerability_scans table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else if tableExists {
+		health["checks"].(map[string]interface{})["vulnerability_scans_table"] = "ok"
+	}
+	
+	// Test api_endpoints table
+	tableQuery = `SELECT EXISTS(
+		SELECT 1 FROM information_schema.tables 
+		WHERE table_name = 'api_endpoints'
+	)`
+	if err := db.QueryRowContext(ctx, tableQuery).Scan(&tableExists); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_ENDPOINTS_TABLE_CHECK_FAILED",
+				"message": "Failed to verify api_endpoints table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else if tableExists {
+		health["checks"].(map[string]interface{})["api_endpoints_table"] = "ok"
+	}
+	
+	// Check active connections
+	var openConnections int
+	openConnections = db.Stats().OpenConnections
+	health["checks"].(map[string]interface{})["open_connections"] = openConnections
+	health["checks"].(map[string]interface{})["max_connections"] = maxDBConnections
+	
+	if openConnections > maxDBConnections * 9 / 10 { // 90% threshold
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_CONNECTION_POOL_HIGH",
+				"message": fmt.Sprintf("Connection pool usage high: %d/%d", openConnections, maxDBConnections),
+				"category": "resource",
+				"retryable": false,
+			}
+		}
+	}
+	
+	return health
+}
+
+func checkScannerHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	// Check if scanner can be initialized
+	scanner := NewVulnerabilityScanner(db)
+	if scanner == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "SCANNER_INITIALIZATION_FAILED",
+			"message": "Failed to initialize vulnerability scanner",
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["scanner_initialized"] = "ok"
+	
+	// Check recent scan activity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	var lastScanTime *time.Time
+	scanQuery := `SELECT MAX(created_at) FROM vulnerability_scans`
+	db.QueryRowContext(ctx, scanQuery).Scan(&lastScanTime)
+	
+	if lastScanTime != nil {
+		health["checks"].(map[string]interface{})["last_scan"] = lastScanTime.Format(time.RFC3339)
+		hoursSinceLastScan := time.Since(*lastScanTime).Hours()
+		if hoursSinceLastScan > 24 {
+			health["checks"].(map[string]interface{})["scan_staleness_warning"] = fmt.Sprintf("No scans in %.0f hours", hoursSinceLastScan)
+		}
+	} else {
+		health["checks"].(map[string]interface{})["last_scan"] = "never"
+	}
+	
+	// Check open vulnerabilities count
+	var criticalCount, highCount int
+	db.QueryRowContext(ctx, `SELECT COUNT(*) FROM vulnerability_scans WHERE status = 'open' AND severity = 'CRITICAL'`).Scan(&criticalCount)
+	db.QueryRowContext(ctx, `SELECT COUNT(*) FROM vulnerability_scans WHERE status = 'open' AND severity = 'HIGH'`).Scan(&highCount)
+	
+	health["checks"].(map[string]interface{})["critical_vulnerabilities"] = criticalCount
+	health["checks"].(map[string]interface{})["high_vulnerabilities"] = highCount
+	
+	if criticalCount > 0 {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "CRITICAL_VULNERABILITIES_FOUND",
+			"message": fmt.Sprintf("%d critical vulnerabilities require immediate attention", criticalCount),
+			"category": "security",
+			"retryable": false,
+		}
+	}
+	
+	return health
+}
+
+func checkFilesystemHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	// Check VROOLI_ROOT
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+	
+	// Check scenarios directory
+	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
+	if info, err := os.Stat(scenariosDir); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "SCENARIOS_DIR_NOT_ACCESSIBLE",
+			"message": "Cannot access scenarios directory: " + err.Error(),
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	} else if !info.IsDir() {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "SCENARIOS_PATH_NOT_DIRECTORY",
+			"message": "Scenarios path exists but is not a directory",
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["scenarios_directory"] = "accessible"
+	
+	// Count scenarios
+	scenarioCount := 0
+	entries, err := os.ReadDir(scenariosDir)
+	if err == nil {
+		for _, entry := range entries {
+			if entry.IsDir() {
+				// Check if it has an api directory
+				apiDir := filepath.Join(scenariosDir, entry.Name(), "api")
+				if _, err := os.Stat(apiDir); err == nil {
+					scenarioCount++
+				}
+			}
+		}
+		health["checks"].(map[string]interface{})["discovered_scenarios"] = scenarioCount
+	}
+	
+	// Check write permissions
+	testFile := filepath.Join(scenariosDir, ".api-manager-health-check")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "SCENARIOS_DIR_NOT_WRITABLE",
+			"message": "Cannot write to scenarios directory: " + err.Error(),
+			"category": "permission",
+			"retryable": false,
+		}
+	} else {
+		os.Remove(testFile)
+		health["checks"].(map[string]interface{})["write_permission"] = "ok"
+	}
+	
+	return health
+}
+
+func countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && status == "healthy" {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func checkOllamaHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "not_configured",
+		"checks": map[string]interface{}{},
 	}
 
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		health["status"] = "error"
-		health["database"] = "disconnected"
-		health["error"] = err.Error()
-		w.WriteHeader(http.StatusServiceUnavailable)
+	ollamaURL := os.Getenv("OLLAMA_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
 	}
 
-	json.NewEncoder(w).Encode(health)
+	// Test Ollama connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", ollamaURL+"/api/tags", nil)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["ai_analysis"] = "disabled"
+		return health
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["ai_analysis"] = "disabled"
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["status"] = "healthy"
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		
+		// Parse response to check available models
+		var response struct {
+			Models []struct {
+				Name string `json:"name"`
+			} `json:"models"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
+			health["checks"].(map[string]interface{})["available_models"] = len(response.Models)
+			
+			// Check for required models for API analysis
+			requiredModels := []string{"llama3.1:8b", "nomic-embed-text"}
+			availableModels := make(map[string]bool)
+			for _, model := range response.Models {
+				availableModels[model.Name] = true
+			}
+			
+			missingModels := []string{}
+			for _, required := range requiredModels {
+				if !availableModels[required] {
+					missingModels = append(missingModels, required)
+				}
+			}
+			
+			if len(missingModels) > 0 {
+				health["status"] = "degraded"
+				health["error"] = map[string]interface{}{
+					"code":      "OLLAMA_MODELS_MISSING",
+					"message":   fmt.Sprintf("Missing required models for API analysis: %v", missingModels),
+					"category":  "configuration",
+					"retryable": false,
+				}
+			} else {
+				health["checks"].(map[string]interface{})["required_models"] = "available"
+				health["checks"].(map[string]interface{})["ai_analysis"] = "enabled"
+			}
+		}
+	} else {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "OLLAMA_UNHEALTHY",
+			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
+}
+
+func checkQdrantHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "not_configured",
+		"checks": map[string]interface{}{},
+	}
+
+	qdrantURL := os.Getenv("QDRANT_URL")
+	if qdrantURL == "" {
+		qdrantURL = "http://localhost:6333"
+	}
+
+	// Test Qdrant connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", qdrantURL+"/health", nil)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["vector_search"] = "disabled"
+		return health
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["vector_search"] = "disabled"
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["status"] = "healthy"
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["vector_search"] = "enabled"
+	} else {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "QDRANT_UNHEALTHY",
+			"message":   fmt.Sprintf("Qdrant returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
 }
 
 func getScenariosHandler(w http.ResponseWriter, r *http.Request) {

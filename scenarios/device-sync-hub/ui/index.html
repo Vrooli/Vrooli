@@ -19,8 +19,11 @@
     <!-- Styles -->
     <link rel="stylesheet" href="style.css">
     
-    <!-- Preconnect to API -->
-    <link rel="preconnect" href="http://localhost:3300">
+    <!-- Configuration meta tags (will be dynamically set by server or environment) -->
+    <meta name="api-url" content="">
+    <meta name="auth-url" content="">
+    <meta name="api-port" content="">
+    <meta name="auth-port" content="">
 </head>
 <body>
     <!-- Loading screen -->
@@ -53,7 +56,7 @@
             </div>
             
             <div class="auth-links">
-                <p>Don't have an account? <a href="http://localhost:3251/register" target="_blank">Sign up</a></p>
+                <p>Don't have an account? <a href="#" id="register-link" target="_blank">Sign up</a></p>
             </div>
             
             <div id="auth-error" class="error-message hidden"></div>
@@ -248,6 +251,12 @@
     <div id="toast-container" class="toast-container"></div>
 
     <!-- Scripts -->
-    <script src="app.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/device.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/app-new.js"></script>
+    <script src="js/handlers.js"></script>
 </body>
 </html>

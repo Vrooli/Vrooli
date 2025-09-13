@@ -85,26 +85,47 @@ codex::run() {
     local content
     content=$(cat "${script_path}")
     
-    # Create a completion request
+    # Create a chat completion request (modern API)
+    # Note: GPT-5 models have different parameters
+    local model="${CODEX_DEFAULT_MODEL}"
     local request_data
-    request_data=$(jq -n \
-        --arg model "${CODEX_DEFAULT_MODEL}" \
-        --arg prompt "${content}" \
-        --arg temperature "${CODEX_DEFAULT_TEMPERATURE}" \
-        --arg max_tokens "${CODEX_DEFAULT_MAX_TOKENS}" \
-        '{
-            model: $model,
-            prompt: $prompt,
-            temperature: ($temperature | tonumber),
-            max_tokens: ($max_tokens | tonumber),
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0
-        }')
     
-    # Make the API call
+    if [[ "$model" == gpt-5* ]]; then
+        # GPT-5 models: use max_completion_tokens and temperature must be 1
+        request_data=$(jq -n \
+            --arg model "$model" \
+            --arg prompt "${content}" \
+            --argjson max_tokens "${CODEX_DEFAULT_MAX_TOKENS:-8192}" \
+            '{
+                model: $model,
+                messages: [
+                    {role: "system", content: "You are an expert programmer. Process and improve the following code."},
+                    {role: "user", content: $prompt}
+                ],
+                temperature: 1,
+                max_completion_tokens: $max_tokens
+            }')
+    else
+        # GPT-4 and older models: use max_tokens and custom temperature
+        request_data=$(jq -n \
+            --arg model "$model" \
+            --arg prompt "${content}" \
+            --argjson temperature "${CODEX_DEFAULT_TEMPERATURE:-0.2}" \
+            --argjson max_tokens "${CODEX_DEFAULT_MAX_TOKENS:-4096}" \
+            '{
+                model: $model,
+                messages: [
+                    {role: "system", content: "You are an expert programmer. Process and improve the following code."},
+                    {role: "user", content: $prompt}
+                ],
+                temperature: $temperature,
+                max_tokens: $max_tokens
+            }')
+    fi
+    
+    # Make the API call (using chat completions endpoint)
     local response
-    response=$(curl -s -X POST "${CODEX_API_ENDPOINT}/completions" \
+    response=$(curl -s -X POST "${CODEX_API_ENDPOINT}/chat/completions" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer ${api_key}" \
         -d "${request_data}" \
@@ -118,9 +139,9 @@ codex::run() {
         return 1
     fi
     
-    # Extract completion
+    # Extract completion (from chat completions format)
     local completion
-    completion=$(echo "${response}" | jq -r '.choices[0].text')
+    completion=$(echo "${response}" | jq -r '.choices[0].message.content')
     
     if [[ -z "${completion}" || "${completion}" == "null" ]]; then
         log::error "No completion generated"

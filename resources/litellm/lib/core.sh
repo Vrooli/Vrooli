@@ -256,18 +256,11 @@ litellm::get_master_key() {
         return 0
     fi
     
-    # Try Vault
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
+    # Try resource-vault command (preferred method)
+    if command -v resource-vault >/dev/null 2>&1; then
         local vault_key
-        vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=master_key secret/vrooli/litellm 2>/dev/null" || true)
+        vault_key=$(resource-vault content get --path "vrooli/litellm" --key "master_key" --format raw 2>/dev/null || true)
         if [[ -n "$vault_key" && "$vault_key" != "No value found at secret/vrooli/litellm" ]]; then
-            echo "$vault_key"
-            return 0
-        fi
-    elif command -v vault >/dev/null 2>&1; then
-        local vault_key
-        vault_key=$(vault kv get -field=master_key secret/vrooli/litellm 2>/dev/null || true)
-        if [[ -n "$vault_key" ]]; then
             echo "$vault_key"
             return 0
         fi
@@ -312,12 +305,10 @@ litellm::load_provider_keys() {
                 continue
             fi
             
-            # Try to load from Vault
+            # Try to load from Vault using resource-vault
             local vault_key=""
-            if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
-                vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/$provider 2>/dev/null" || true)
-            elif command -v vault >/dev/null 2>&1; then
-                vault_key=$(vault kv get -field=api_key secret/vrooli/$provider 2>/dev/null || true)
+            if command -v resource-vault >/dev/null 2>&1; then
+                vault_key=$(resource-vault content get --path "vrooli/$provider" --key "api_key" --format raw 2>/dev/null || true)
             fi
             
             if [[ -n "$vault_key" && "$vault_key" != "No value found at secret/vrooli/$provider" ]]; then

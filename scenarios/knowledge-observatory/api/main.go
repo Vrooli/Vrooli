@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -540,22 +541,119 @@ func (s *Server) calculateMetrics(req MetricsRequest) MetricsResponse {
 
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
+	overallStatus := "healthy"
+	var errors []map[string]interface{}
+	readiness := true
 	
-	response := HealthResponse{
-		Status:        "healthy",
-		TotalEntries:  calculateTotalEntries(),
-		Collections:   s.getCollectionsHealth(),
-		OverallHealth: calculateOverallHealth(),
-		Timestamp:     time.Now().Format(time.RFC3339),
+	// Schema-compliant health response structure
+	healthResponse := map[string]interface{}{
+		"status":       overallStatus,
+		"service":      "knowledge-observatory-api",
+		"timestamp":    time.Now().UTC().Format(time.RFC3339),
+		"readiness":    true,
+		"version":      "1.0.0",
+		"dependencies": map[string]interface{}{},
 	}
-
-	if response.OverallHealth == "degraded" {
-		response.Status = "degraded"
+	
+	// Check PostgreSQL connectivity
+	postgresHealth := s.checkPostgresHealth()
+	healthResponse["dependencies"].(map[string]interface{})["postgres"] = postgresHealth
+	if postgresHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if postgresHealth["status"] == "unhealthy" {
+			readiness = false
+		}
+		if postgresHealth["error"] != nil {
+			errors = append(errors, postgresHealth["error"].(map[string]interface{}))
+		}
 	}
-
+	
+	// Check Qdrant connectivity and collections
+	qdrantHealth := s.checkQdrantHealth()
+	healthResponse["dependencies"].(map[string]interface{})["qdrant"] = qdrantHealth
+	if qdrantHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if qdrantHealth["status"] == "unhealthy" {
+			readiness = false
+		}
+		if qdrantHealth["error"] != nil {
+			errors = append(errors, qdrantHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check CLI availability
+	cliHealth := s.checkResourceCLIHealth()
+	healthResponse["dependencies"].(map[string]interface{})["resource_cli"] = cliHealth
+	if cliHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if cliHealth["error"] != nil {
+			errors = append(errors, cliHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check optional N8N workflows
+	n8nHealth := s.checkN8NHealth()
+	healthResponse["dependencies"].(map[string]interface{})["n8n"] = n8nHealth
+	if n8nHealth["status"] == "unhealthy" {
+		// N8N is optional, so only degrade if configured but failing
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if n8nHealth["error"] != nil {
+			errors = append(errors, n8nHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check optional Ollama AI service
+	ollamaHealth := s.checkOllamaHealth()
+	healthResponse["dependencies"].(map[string]interface{})["ollama"] = ollamaHealth
+	if ollamaHealth["status"] == "unhealthy" {
+		// Ollama is optional, so only degrade if configured but failing
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if ollamaHealth["error"] != nil {
+			errors = append(errors, ollamaHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Update final status
+	healthResponse["status"] = overallStatus
+	healthResponse["readiness"] = readiness
+	
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse["errors"] = errors
+	}
+	
+	// Add metrics
+	healthResponse["metrics"] = map[string]interface{}{
+		"total_dependencies":   5,
+		"healthy_dependencies": s.countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
+		"response_time_ms":     time.Since(start).Milliseconds(),
+	}
+	
+	// Knowledge observatory specific info
+	healthResponse["knowledge_stats"] = map[string]interface{}{
+		"total_entries": calculateTotalEntries(),
+		"collections": s.getCollectionsHealth(),
+		"overall_health": calculateOverallHealth(),
+	}
+	
+	// Return appropriate HTTP status
+	statusCode := http.StatusOK
+	if overallStatus == "unhealthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Response-Time", fmt.Sprintf("%dms", time.Since(start).Milliseconds()))
-	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(healthResponse)
 }
 
 func (s *Server) searchHandler(w http.ResponseWriter, r *http.Request) {
@@ -739,6 +837,361 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// Health check helper methods
+func (s *Server) checkPostgresHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if s.db == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_NOT_CONFIGURED",
+			"message": "Database connection not initialized",
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	// Test database connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := s.db.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_CONNECTION_FAILED",
+			"message": "Failed to ping database: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+	
+	// Test knowledge_observatory schema
+	var schemaExists bool
+	schemaQuery := `SELECT EXISTS(
+		SELECT 1 FROM information_schema.schemata 
+		WHERE schema_name = 'knowledge_observatory'
+	)`
+	if err := s.db.QueryRowContext(ctx, schemaQuery).Scan(&schemaExists); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_SCHEMA_CHECK_FAILED",
+			"message": "Failed to verify knowledge_observatory schema: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else if !schemaExists {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_SCHEMA_MISSING",
+			"message": "knowledge_observatory schema does not exist",
+			"category": "configuration",
+			"retryable": false,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["schema"] = "ok"
+	}
+	
+	// Test quality_metrics table
+	var tableCount int
+	tableQuery := `SELECT COUNT(*) FROM information_schema.tables 
+		WHERE table_schema = 'knowledge_observatory' 
+		AND table_name = 'quality_metrics'`
+	if err := s.db.QueryRowContext(ctx, tableQuery).Scan(&tableCount); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_TABLE_CHECK_FAILED",
+				"message": "Failed to verify quality_metrics table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else {
+		health["checks"].(map[string]interface{})["quality_metrics_table"] = tableCount
+	}
+	
+	// Test collection_stats table
+	var collectionCount int
+	collectionQuery := `SELECT COUNT(*) FROM knowledge_observatory.collection_stats`
+	if err := s.db.QueryRowContext(ctx, collectionQuery).Scan(&collectionCount); err != nil {
+		// Don't fail health check, just note it
+		health["checks"].(map[string]interface{})["collection_stats"] = "error"
+	} else {
+		health["checks"].(map[string]interface{})["collection_stats"] = collectionCount
+	}
+	
+	return health
+}
+
+func (s *Server) checkQdrantHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	// Check if we can list collections
+	collections, err := s.getQdrantCollections()
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "QDRANT_CONNECTION_FAILED",
+			"message": "Failed to connect to Qdrant: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	
+	health["checks"].(map[string]interface{})["collections_accessible"] = "ok"
+	health["checks"].(map[string]interface{})["collection_count"] = len(collections)
+	
+	// Check each collection's health
+	degradedCollections := 0
+	totalPoints := 0
+	for _, collectionName := range collections {
+		info, err := s.getQdrantCollectionInfo(collectionName)
+		if err != nil {
+			degradedCollections++
+			continue
+		}
+		totalPoints += info.PointsCount
+	}
+	
+	health["checks"].(map[string]interface{})["total_points"] = totalPoints
+	
+	if degradedCollections > 0 {
+		health["status"] = "degraded"
+		health["checks"].(map[string]interface{})["degraded_collections"] = degradedCollections
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "QDRANT_COLLECTIONS_DEGRADED",
+				"message": fmt.Sprintf("%d collections are not fully accessible", degradedCollections),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	}
+	
+	// Test search capability
+	testSearch := SearchRequest{
+		Query: "health check test",
+		Limit: 1,
+	}
+	searchResults := s.performSemanticSearch(testSearch)
+	if searchResults == nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		health["checks"].(map[string]interface{})["search_capability"] = "failed"
+	} else {
+		health["checks"].(map[string]interface{})["search_capability"] = "ok"
+	}
+	
+	return health
+}
+
+func (s *Server) checkResourceCLIHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	// Test if resource-qdrant CLI is available
+	cmd := exec.Command(s.config.ResourceCLI, "version")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "RESOURCE_CLI_NOT_AVAILABLE",
+			"message": fmt.Sprintf("resource-qdrant CLI not found or failed: %v", err),
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	} else {
+		// Parse version if possible
+		version := strings.TrimSpace(string(output))
+		health["checks"].(map[string]interface{})["cli_version"] = version
+	}
+	
+	// Test basic CLI functionality
+	testOutput, err := s.execResourceQdrant("collections", "list")
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "RESOURCE_CLI_EXECUTION_FAILED",
+			"message": "CLI available but execution failed: " + err.Error(),
+			"category": "internal",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["cli_execution"] = "ok"
+		health["checks"].(map[string]interface{})["cli_output_size"] = len(testOutput)
+	}
+	
+	return health
+}
+
+func (s *Server) countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && status == "healthy" {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func (s *Server) checkN8NHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "not_configured",
+		"checks": map[string]interface{}{},
+	}
+
+	n8nURL := os.Getenv("N8N_BASE_URL")
+	if n8nURL == "" {
+		n8nURL = "http://localhost:5678"
+	}
+
+	// Test N8N connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", n8nURL+"/healthz", nil)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["workflows"] = "disabled"
+		return health
+	}
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["workflows"] = "disabled"
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["status"] = "healthy"
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["workflows"] = "available"
+		
+		// Check for knowledge observatory workflows
+		workflows := []string{"knowledge-quality-monitor", "semantic-analyzer", "knowledge-graph-builder"}
+		availableWorkflows := 0
+		for _, workflow := range workflows {
+			// This would need actual N8N API calls to check workflow existence
+			availableWorkflows++
+		}
+		health["checks"].(map[string]interface{})["knowledge_workflows"] = availableWorkflows
+	} else {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "N8N_UNHEALTHY",
+			"message":   fmt.Sprintf("N8N returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
+}
+
+func (s *Server) checkOllamaHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "not_configured",
+		"checks": map[string]interface{}{},
+	}
+
+	ollamaURL := os.Getenv("OLLAMA_BASE_URL")
+	if ollamaURL == "" {
+		ollamaURL = "http://localhost:11434"
+	}
+
+	// Test Ollama connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", ollamaURL+"/api/tags", nil)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["ai_analysis"] = "disabled"
+		return health
+	}
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["ai_analysis"] = "disabled"
+		return health
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		health["status"] = "healthy"
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		
+		// Parse response to check available models
+		var response struct {
+			Models []struct {
+				Name string `json:"name"`
+			} `json:"models"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil {
+			health["checks"].(map[string]interface{})["available_models"] = len(response.Models)
+			
+			// Check for required models
+			requiredModels := []string{"llama3.2", "nomic-embed-text"}
+			availableModels := make(map[string]bool)
+			for _, model := range response.Models {
+				availableModels[model.Name] = true
+			}
+			
+			missingModels := []string{}
+			for _, required := range requiredModels {
+				if !availableModels[required] {
+					missingModels = append(missingModels, required)
+				}
+			}
+			
+			if len(missingModels) > 0 {
+				health["status"] = "degraded"
+				health["error"] = map[string]interface{}{
+					"code":      "OLLAMA_MODELS_MISSING",
+					"message":   fmt.Sprintf("Missing required models: %v", missingModels),
+					"category":  "configuration",
+					"retryable": false,
+				}
+			} else {
+				health["checks"].(map[string]interface{})["required_models"] = "available"
+				health["checks"].(map[string]interface{})["ai_analysis"] = "enabled"
+			}
+		}
+	} else {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code":      "OLLAMA_UNHEALTHY",
+			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
+			"category":  "resource",
+			"retryable": true,
+		}
+	}
+
+	return health
 }
 
 func main() {

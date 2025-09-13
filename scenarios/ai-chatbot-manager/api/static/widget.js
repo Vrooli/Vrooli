@@ -31,13 +31,21 @@
                 return metaApiUrl.content;
             }
             
-            // Default to same host with standard API port
-            const currentProtocol = window.location.protocol;
-            const currentHost = window.location.hostname;
-            const apiPort = window.CHATBOT_API_PORT || '15000';
+            // Try to get port from window global (set by embed code)
+            if (window.CHATBOT_API_PORT) {
+                const currentProtocol = window.location.protocol;
+                const currentHost = window.location.hostname;
+                return currentProtocol + '//' + currentHost + ':' + window.CHATBOT_API_PORT;
+            }
             
-            console.warn('CHATBOT_API_URL not configured. Set window.CHATBOT_API_URL or add <meta name="chatbot-api-url" content="YOUR_API_URL">');
-            return currentProtocol + '//' + currentHost + ':' + apiPort;
+            // No configuration found - show error
+            console.error('CHATBOT_API_URL not configured. Please set one of:');
+            console.error('1. window.CHATBOT_API_URL = "http://your-api-url"');
+            console.error('2. <meta name="chatbot-api-url" content="http://your-api-url">');
+            console.error('3. window.CHATBOT_API_PORT = "your-port-number"');
+            console.error('4. Pass apiUrl in options: AIChatbotWidget({apiUrl: "http://your-api-url", ...})');
+            
+            throw new Error('Chatbot API URL not configured. Widget cannot initialize.');
         })();
         
         const WS_URL = API_URL.replace('http', 'ws') + '/api/v1/ws/' + CHATBOT_ID;

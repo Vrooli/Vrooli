@@ -17,11 +17,21 @@ export CODEX_INJECTED_DIR="${CODEX_BASE_DIR}/injected"
 export CODEX_SCRIPTS_DIR="${HOME}/.codex/scripts"
 export CODEX_OUTPUT_DIR="${HOME}/.codex/outputs"
 
-# API configuration (Updated for modern GPT models - Codex deprecated March 2023)
+# API configuration (Updated with GPT-5 models - Released August 2025)
 export CODEX_API_ENDPOINT="${CODEX_API_ENDPOINT:-https://api.openai.com/v1}"
-export CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-3.5-turbo}"
+# Priority: codex-mini-latest (2025 CLI model) > gpt-5-nano > gpt-4o
+export CODEX_DEFAULT_MODEL="${CODEX_DEFAULT_MODEL:-gpt-5-nano}"
 export CODEX_DEFAULT_TEMPERATURE="${CODEX_DEFAULT_TEMPERATURE:-0.2}"
-export CODEX_DEFAULT_MAX_TOKENS="${CODEX_DEFAULT_MAX_TOKENS:-2048}"
+export CODEX_DEFAULT_MAX_TOKENS="${CODEX_DEFAULT_MAX_TOKENS:-8192}"
+
+# Codex CLI settings (2025 OpenAI agent)
+export CODEX_CLI_ENABLED="${CODEX_CLI_ENABLED:-auto}"  # auto|true|false
+export CODEX_CLI_MODE="${CODEX_CLI_MODE:-auto}"        # auto|approve|always
+export CODEX_WORKSPACE="${CODEX_WORKSPACE:-/tmp/codex-workspace}"
+export CODEX_PREFER_MODEL="${CODEX_PREFER_MODEL:-true}" # Prefer codex-mini-latest when available
+
+# Model selection priority (used by smart routing)
+export CODEX_MODEL_PRIORITY="${CODEX_MODEL_PRIORITY:-codex-mini-latest,gpt-5-nano,gpt-4o}"
 
 # Runtime configuration
 export CODEX_TIMEOUT="${CODEX_TIMEOUT:-30}"

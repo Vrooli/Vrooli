@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -163,15 +164,251 @@ func handleGetStatus(orchestrator *Orchestrator, startTime time.Time) http.Handl
 
 func healthHandler(startTime time.Time) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status":    "healthy",
+		overallStatus := "healthy"
+		
+		// Schema-compliant health response
+		healthResponse := map[string]interface{}{
+			"status":    overallStatus,
 			"service":   serviceName,
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"readiness": true, // Service is ready to accept requests
 			"version":   apiVersion,
-			"timestamp": time.Now().UTC(),
-			"uptime":    time.Since(startTime).Seconds(),
-		})
+			"dependencies": map[string]interface{}{},
+			"metrics": map[string]interface{}{
+				"uptime_seconds": time.Since(startTime).Seconds(),
+			},
+		}
+		
+		dependencies := healthResponse["dependencies"].(map[string]interface{})
+		
+		// 1. Check scenario discovery capability (critical for orchestrator)
+		discoveryHealth := checkScenarioDiscovery()
+		dependencies["scenario_discovery"] = discoveryHealth
+		if discoveryHealth["connected"] == false {
+			overallStatus = "unhealthy" // Discovery is critical
+		}
+		
+		// 2. Check preset management system
+		presetHealth := checkPresetManagement()
+		dependencies["preset_management"] = presetHealth
+		if presetHealth["connected"] == false {
+			if overallStatus == "healthy" {
+				overallStatus = "degraded"
+			}
+		}
+		
+		// 3. Check scenario state management
+		stateHealth := checkScenarioStateManagement()
+		dependencies["state_management"] = stateHealth
+		if stateHealth["connected"] == false {
+			if overallStatus == "healthy" {
+				overallStatus = "degraded"
+			}
+		}
+		
+		// 4. Check filesystem access for scenario management
+		filesystemHealth := checkFilesystemAccess()
+		dependencies["filesystem"] = filesystemHealth
+		if filesystemHealth["connected"] == false {
+			if overallStatus == "healthy" {
+				overallStatus = "degraded"
+			}
+		}
+		
+		// Update overall status
+		healthResponse["status"] = overallStatus
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(healthResponse)
 	}
+}
+
+// checkScenarioDiscovery tests the core scenario discovery functionality
+func checkScenarioDiscovery() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Check if we can access scenarios directory
+	scenariosDir := "scenarios"
+	if _, err := os.Stat(scenariosDir); err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "SCENARIOS_DIR_ACCESS_FAILED",
+			"message":   fmt.Sprintf("Cannot access scenarios directory: %v", err),
+			"category":  "resource",
+			"retryable": false,
+		}
+		return result
+	}
+	
+	// Try to read directory contents
+	entries, err := ioutil.ReadDir(scenariosDir)
+	if err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "SCENARIOS_DIR_READ_FAILED",
+			"message":   fmt.Sprintf("Cannot read scenarios directory: %v", err),
+			"category":  "resource",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Count valid scenario directories (those with Makefile)
+	validScenarios := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			makefilePath := fmt.Sprintf("%s/%s/Makefile", scenariosDir, entry.Name())
+			if _, err := os.Stat(makefilePath); err == nil {
+				validScenarios++
+			}
+		}
+	}
+	
+	result["connected"] = true
+	result["total_directories"] = len(entries)
+	result["valid_scenarios"] = validScenarios
+	
+	return result
+}
+
+// checkPresetManagement tests preset system functionality
+func checkPresetManagement() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Test preset creation and management
+	// This would typically involve checking if we can create, read, and modify presets
+	
+	// For now, test basic preset operations by creating a temporary orchestrator
+	tempOrchestrator := NewOrchestrator()
+	if tempOrchestrator == nil {
+		result["error"] = map[string]interface{}{
+			"code":      "ORCHESTRATOR_INIT_FAILED",
+			"message":   "Cannot initialize orchestrator for preset testing",
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Test preset functionality
+	presets := tempOrchestrator.GetPresets()
+	if presets == nil {
+		result["error"] = map[string]interface{}{
+			"code":      "PRESET_SYSTEM_FAILED",
+			"message":   "Preset system not functioning",
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	result["connected"] = true
+	result["available_presets"] = len(presets)
+	
+	return result
+}
+
+// checkScenarioStateManagement tests scenario activation/deactivation system
+func checkScenarioStateManagement() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Test scenario state tracking
+	tempOrchestrator := NewOrchestrator()
+	if tempOrchestrator == nil {
+		result["error"] = map[string]interface{}{
+			"code":      "ORCHESTRATOR_INIT_FAILED",
+			"message":   "Cannot initialize orchestrator for state testing",
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Test getting scenario states
+	scenarios := tempOrchestrator.GetScenarios()
+	if scenarios == nil {
+		result["error"] = map[string]interface{}{
+			"code":      "SCENARIO_STATE_SYSTEM_FAILED",
+			"message":   "Scenario state system not functioning",
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Count active/inactive scenarios
+	activeCount := 0
+	for _, scenario := range scenarios {
+		if scenario.IsActive {
+			activeCount++
+		}
+	}
+	
+	result["connected"] = true
+	result["total_scenarios"] = len(scenarios)
+	result["active_scenarios"] = activeCount
+	result["inactive_scenarios"] = len(scenarios) - activeCount
+	
+	return result
+}
+
+// checkFilesystemAccess tests filesystem operations needed for orchestration
+func checkFilesystemAccess() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Test write access in working directory
+	testFile := ".maintenance_orchestrator_health_test"
+	testContent := fmt.Sprintf("Health check test at %s", time.Now().Format(time.RFC3339))
+	
+	err := ioutil.WriteFile(testFile, []byte(testContent), 0644)
+	if err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "FILESYSTEM_WRITE_FAILED",
+			"message":   fmt.Sprintf("Cannot write test file: %v", err),
+			"category":  "resource",
+			"retryable": false,
+		}
+		return result
+	}
+	
+	// Test read access
+	_, err = ioutil.ReadFile(testFile)
+	if err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "FILESYSTEM_READ_FAILED",
+			"message":   fmt.Sprintf("Cannot read test file: %v", err),
+			"category":  "resource",
+			"retryable": false,
+		}
+		return result
+	}
+	
+	// Test delete access
+	err = os.Remove(testFile)
+	if err != nil {
+		log.Printf("Warning: Could not clean up test file %s: %v", testFile, err)
+		// Don't fail the health check for cleanup failure
+	}
+	
+	// Get working directory info
+	cwd, _ := os.Getwd()
+	
+	result["connected"] = true
+	result["working_directory"] = cwd
+	result["write_access"] = true
+	result["read_access"] = true
+	
+	return result
 }
 
 func handleStopAll(orchestrator *Orchestrator) http.HandlerFunc {

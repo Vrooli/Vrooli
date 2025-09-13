@@ -64,8 +64,7 @@ function TestChat() {
           message: userMessage,
           session_id: sessionId,
           context: { source: 'test-interface' }
-        })
-      });
+        });
 
       if (response.ok) {
         const data = await response.json();
@@ -93,7 +92,7 @@ function TestChat() {
   };
 
   const clearChat = () => {
-    if (confirm('Are you sure you want to clear the chat history?')) {
+    if (window.confirm('Are you sure you want to clear the chat history?')) {
       setMessages([]);
       addMessage('assistant', 'Chat cleared. How can I help you?');
     }

@@ -198,6 +198,87 @@ crewai::test::integration() {
         ((failed++))
     fi
     
+    # Test 6: Create agent API
+    ((test_count++))
+    log::info "Test $test_count: Create agent API"
+    local create_agent_response
+    create_agent_response=$(timeout 5 curl -sf -X POST "http://localhost:${CREWAI_PORT}/agents" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "test_agent", "role": "tester", "goal": "test system"}' 2>/dev/null || echo "{}")
+    if echo "$create_agent_response" | jq -e '.status == "created"' &>/dev/null; then
+        log::success "✅ Create agent API works"
+    else
+        log::error "❌ Create agent API failed"
+        ((failed++))
+    fi
+    
+    # Test 7: Create crew API
+    ((test_count++))
+    log::info "Test $test_count: Create crew API"
+    local create_crew_response
+    create_crew_response=$(timeout 5 curl -sf -X POST "http://localhost:${CREWAI_PORT}/crews" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "test_crew_integration", "agents": ["test_agent"], "tasks": ["test_task"]}' 2>/dev/null || echo "{}")
+    if echo "$create_crew_response" | jq -e '.status == "created"' &>/dev/null; then
+        log::success "✅ Create crew API works"
+    else
+        log::error "❌ Create crew API failed"
+        ((failed++))
+    fi
+    
+    # Test 8: Execute crew API
+    ((test_count++))
+    log::info "Test $test_count: Execute crew API"
+    local execute_response
+    execute_response=$(timeout 5 curl -sf -X POST "http://localhost:${CREWAI_PORT}/execute" \
+        -H "Content-Type: application/json" \
+        -d '{"crew": "test_crew_integration", "input": {"test": "data"}}' 2>/dev/null || echo "{}")
+    if echo "$execute_response" | jq -e '.status == "started"' &>/dev/null; then
+        log::success "✅ Execute crew API works"
+        
+        # Check task status
+        local task_id
+        task_id=$(echo "$execute_response" | jq -r '.task_id' 2>/dev/null || echo "")
+        if [[ -n "$task_id" ]]; then
+            sleep 2
+            local task_status
+            task_status=$(timeout 5 curl -sf "http://localhost:${CREWAI_PORT}/tasks/$task_id" 2>/dev/null || echo "{}")
+            if echo "$task_status" | jq -e '.status' &>/dev/null; then
+                log::success "  ✅ Task tracking works"
+            else
+                log::error "  ❌ Task tracking failed"
+                ((failed++))
+            fi
+        fi
+    else
+        log::error "❌ Execute crew API failed"
+        ((failed++))
+    fi
+    
+    # Test 9: Delete crew API
+    ((test_count++))
+    log::info "Test $test_count: Delete crew API"
+    local delete_response
+    delete_response=$(timeout 5 curl -sf -X DELETE "http://localhost:${CREWAI_PORT}/crews/test_crew_integration" 2>/dev/null || echo "{}")
+    if echo "$delete_response" | jq -e '.status == "deleted"' &>/dev/null; then
+        log::success "✅ Delete crew API works"
+    else
+        log::error "❌ Delete crew API failed"
+        ((failed++))
+    fi
+    
+    # Test 10: Delete agent API
+    ((test_count++))
+    log::info "Test $test_count: Delete agent API"
+    local delete_agent_response
+    delete_agent_response=$(timeout 5 curl -sf -X DELETE "http://localhost:${CREWAI_PORT}/agents/test_agent" 2>/dev/null || echo "{}")
+    if echo "$delete_agent_response" | jq -e '.status == "deleted"' &>/dev/null; then
+        log::success "✅ Delete agent API works"
+    else
+        log::error "❌ Delete agent API failed"
+        ((failed++))
+    fi
+    
     # Summary
     if [[ $failed -eq 0 ]]; then
         log::success "All $test_count integration tests passed!"

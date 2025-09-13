@@ -58,6 +58,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Infrastructure Services (80xx range)
     ["restic"]="8085"          # Encrypted backup and recovery service
+    ["pihole"]="8087"          # Pi-hole network-wide ad blocking and DNS management
     
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)

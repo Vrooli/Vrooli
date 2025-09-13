@@ -1477,6 +1477,142 @@ func fixProgressHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// fileContentHandler provides secure access to file content for vulnerability analysis
+func fileContentHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		http.Error(w, "Missing required parameter: path", http.StatusBadRequest)
+		return
+	}
+
+	// Security: Resolve to absolute path and ensure it's within allowed directories
+	vrooli_root := os.Getenv("VROOLI_ROOT")
+	if vrooli_root == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			http.Error(w, "Cannot determine home directory", http.StatusInternalServerError)
+			return
+		}
+		vrooli_root = filepath.Join(homeDir, "Vrooli")
+	}
+
+	// Clean and resolve the file path
+	cleanPath := filepath.Clean(filePath)
+	var fullPath string
+	
+	// Handle both absolute and relative paths
+	if filepath.IsAbs(cleanPath) {
+		fullPath = cleanPath
+	} else {
+		fullPath = filepath.Join(vrooli_root, cleanPath)
+	}
+
+	// Security check: ensure the resolved path is within the Vrooli directory
+	resolvedPath, err := filepath.Abs(fullPath)
+	if err != nil {
+		http.Error(w, "Invalid file path", http.StatusBadRequest)
+		return
+	}
+
+	allowedRoot, err := filepath.Abs(vrooli_root)
+	if err != nil {
+		http.Error(w, "Cannot resolve Vrooli root path", http.StatusInternalServerError)
+		return
+	}
+
+	if !strings.HasPrefix(resolvedPath, allowedRoot) {
+		http.Error(w, "Access denied: path outside allowed directory", http.StatusForbidden)
+		return
+	}
+
+	// Read the file content
+	content, err := os.ReadFile(resolvedPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "File not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "Error reading file", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Determine language based on file extension
+	language := getLanguageFromPath(resolvedPath)
+
+	// Create response
+	response := map[string]interface{}{
+		"path":     filePath,
+		"content":  string(content),
+		"language": language,
+		"size":     len(content),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// getLanguageFromPath determines the programming language based on file extension
+func getLanguageFromPath(filePath string) string {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	
+	// Map extensions to Prism.js language identifiers
+	languageMap := map[string]string{
+		".js":     "javascript",
+		".ts":     "typescript", 
+		".go":     "go",
+		".py":     "python",
+		".sh":     "bash",
+		".bash":   "bash",
+		".zsh":    "bash",
+		".fish":   "bash",
+		".json":   "json",
+		".yaml":   "yaml",
+		".yml":    "yaml",
+		".toml":   "toml",
+		".sql":    "sql",
+		".md":     "markdown",
+		".html":   "html",
+		".css":    "css",
+		".scss":   "scss",
+		".sass":   "sass",
+		".java":   "java",
+		".cpp":    "cpp",
+		".c":      "c",
+		".rs":     "rust",
+		".php":    "php",
+		".rb":     "ruby",
+		".swift":  "swift",
+		".kt":     "kotlin",
+		".dart":   "dart",
+		".r":      "r",
+		".dockerfile": "dockerfile",
+		".xml":    "xml",
+		".ini":    "ini",
+		".cfg":    "ini",
+		".conf":   "nginx", // Common for config files
+	}
+
+	if lang, exists := languageMap[ext]; exists {
+		return lang
+	}
+
+	// Check for files without extensions but with known names
+	filename := strings.ToLower(filepath.Base(filePath))
+	if strings.Contains(filename, "dockerfile") {
+		return "dockerfile"
+	}
+	if strings.Contains(filename, "makefile") {
+		return "makefile"
+	}
+
+	return "text" // Default to plain text
+}
+
 // validateEnvironmentForFixes checks that the environment is ready for vulnerability fixing
 func validateEnvironmentForFixes() error {
 	// Check if vault is accessible
@@ -1617,6 +1753,7 @@ func main() {
 	api.HandleFunc("/vulnerabilities", vulnerabilitiesHandler).Methods("GET")
 	api.HandleFunc("/vulnerabilities/fix", fixVulnerabilitiesHandler).Methods("POST")
 	api.HandleFunc("/vulnerabilities/fix/progress", fixProgressHandler).Methods("POST")
+	api.HandleFunc("/files/content", fileContentHandler).Methods("GET")
 	
 	// Legacy routes (keep for backward compatibility)
 	api.HandleFunc("/secrets/scan", vaultSecretsStatusHandler).Methods("GET", "POST")

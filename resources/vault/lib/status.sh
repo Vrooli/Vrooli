@@ -943,7 +943,14 @@ vault::status::collect_data() {
             local mounts_response
             mounts_response=$(timeout 2s vault::api_request "GET" "/v1/sys/mounts" 2>/dev/null)
             
-            if [[ $? -eq 0 ]]; then
+            # If vault::api_request failed, try direct curl as fallback
+            if [[ -z "$mounts_response" ]] || [[ "$mounts_response" == *"error"* ]]; then
+                local token
+                token=$(vault::get_root_token 2>/dev/null) || token="myroot"
+                mounts_response=$(timeout 2s curl -s -H "X-Vault-Token: $token" "${VAULT_BASE_URL:-http://localhost:8200}/v1/sys/mounts" 2>/dev/null)
+            fi
+            
+            if [[ -n "$mounts_response" ]]; then
                 local kv_engine_path="${VAULT_SECRET_ENGINE}/"
                 # Check both old format (direct) and new format (under .data)
                 if echo "$mounts_response" | jq -e ".\"$kv_engine_path\"" >/dev/null 2>&1 || \

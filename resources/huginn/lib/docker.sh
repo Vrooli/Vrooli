@@ -187,6 +187,7 @@ huginn::start_huginn_container() {
         "HUGINN_DATABASE_PASSWORD=$DEFAULT_DB_PASSWORD"
         "HUGINN_DATABASE_HOST=$DB_CONTAINER_NAME"
         "HUGINN_DATABASE_PORT=5432"
+        "DATABASE_ADAPTER=postgresql"
         "PORT=3000"
         "RAILS_ENV=production"
         "SEED_USERNAME=$DEFAULT_ADMIN_USERNAME"
@@ -195,6 +196,8 @@ huginn::start_huginn_container() {
         "APP_SECRET_TOKEN=$(openssl rand -hex 64)"
         "INVITATION_CODE="
         "REQUIRE_CONFIRMED_EMAIL=false"
+        "DO_NOT_CREATE_DATABASE=true"
+        "DO_NOT_MIGRATE=false"
     )
     
     # Volumes

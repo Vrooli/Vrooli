@@ -12,6 +12,14 @@ source "${CODEX_STATUS_DIR}/common.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/status-args.sh"
+# shellcheck disable=SC1091
+source "${CODEX_STATUS_DIR}/orchestrator.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_STATUS_DIR}/tools/registry.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_STATUS_DIR}/workspace/manager.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_STATUS_DIR}/models/model-selector.sh" 2>/dev/null || true
 
 #######################################
 # Collect Codex status data
@@ -106,6 +114,68 @@ codex::status::collect_data() {
         output_count="N/A"
     fi
     
+    # Check Codex CLI status
+    local cli_installed="false"
+    local cli_version="not installed"
+    if type -t codex::cli::is_installed &>/dev/null && codex::cli::is_installed; then
+        cli_installed="true"
+        cli_version=$(codex::cli::version 2>/dev/null || echo "unknown")
+        
+        # Update details to mention CLI availability
+        if [[ "$cli_installed" == "true" ]] && [[ "$api_configured" == "true" ]]; then
+            details="${details}. Codex CLI agent available (v${cli_version})"
+        fi
+    fi
+    
+    # Check new architecture components (skip in fast mode)
+    local orchestrator_available="false"
+    local tools_available="false" 
+    local tools_count=0
+    local workspace_available="false"
+    local workspaces_count=0
+    local models_available="false"
+    
+    if [[ "$fast" == "false" ]]; then
+        # Check orchestrator
+        if type -t orchestrator::execute &>/dev/null; then
+            orchestrator_available="true"
+        fi
+        
+        # Check tools registry
+        if type -t tool_registry::list_tools &>/dev/null; then
+            tools_available="true"
+            local tools_result
+            tools_result=$(tool_registry::list_tools 2>/dev/null || echo '[]')
+            tools_count=$(echo "$tools_result" | jq 'length' 2>/dev/null || echo "0")
+        fi
+        
+        # Check workspace manager
+        if type -t workspace_manager::list &>/dev/null; then
+            workspace_available="true"
+            local workspace_result
+            workspace_result=$(workspace_manager::list "active" 2>/dev/null || echo '[]')
+            workspaces_count=$(echo "$workspace_result" | jq 'length' 2>/dev/null || echo "0")
+        fi
+        
+        # Check model selector
+        if type -t model_selector::get_best_model &>/dev/null; then
+            models_available="true"
+        fi
+        
+        # Update details with architecture info
+        if [[ "$orchestrator_available" == "true" ]]; then
+            details="${details}. New orchestrator architecture available"
+        fi
+    elif [[ "$fast" == "true" ]]; then
+        # Fast mode - assume available if functions exist
+        orchestrator_available=$(type -t orchestrator::execute &>/dev/null && echo "true" || echo "false")
+        tools_available=$(type -t tool_registry::list_tools &>/dev/null && echo "true" || echo "false")
+        workspace_available=$(type -t workspace_manager::list &>/dev/null && echo "true" || echo "false")
+        models_available=$(type -t model_selector::get_best_model &>/dev/null && echo "true" || echo "false")
+        tools_count="N/A"
+        workspaces_count="N/A"
+    fi
+    
     # Output data as key-value pairs
     echo "name"
     echo "${CODEX_NAME}"
@@ -129,6 +199,22 @@ codex::status::collect_data() {
     echo "${script_count}"
     echo "outputs"
     echo "${output_count}"
+    echo "cli_installed"
+    echo "${cli_installed}"
+    echo "cli_version"
+    echo "${cli_version}"
+    echo "orchestrator_available"
+    echo "${orchestrator_available}"
+    echo "tools_available"
+    echo "${tools_available}"
+    echo "tools_count"
+    echo "${tools_count}"
+    echo "workspace_available"
+    echo "${workspace_available}"
+    echo "workspaces_count"
+    echo "${workspaces_count}"
+    echo "models_available" 
+    echo "${models_available}"
     echo "message"
     echo "${details}"
     echo "description"
@@ -162,6 +248,17 @@ codex::status::display_text() {
     echo "API Available: ${data[api_available]}"
     echo "Scripts: ${data[scripts]}"
     echo "Outputs: ${data[outputs]}"
+    echo "CLI Installed: ${data[cli_installed]}"
+    echo "CLI Version: ${data[cli_version]}"
+    echo ""
+    echo "=== New Architecture Status ==="
+    echo "Orchestrator Available: ${data[orchestrator_available]}"
+    echo "Tools Available: ${data[tools_available]}"
+    echo "Tools Count: ${data[tools_count]}"
+    echo "Workspace Available: ${data[workspace_available]}"
+    echo "Active Workspaces: ${data[workspaces_count]}"
+    echo "Models Available: ${data[models_available]}"
+    echo ""
     echo "Message: ${data[message]}"
     echo "Description: ${data[description]}"
     echo "Category: ${data[category]}"

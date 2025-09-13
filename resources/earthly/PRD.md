@@ -206,3 +206,6 @@ vrooli resource earthly configure --list
 - 2025-01-12: Fixed CLI symlink handling for proper script directory resolution
 - 2025-01-12: Fixed Earthly build execution by removing incorrect -f flag usage
 - 2025-01-12: Verified all builds work correctly with proper Earthfile handling
+- 2025-01-13: Improved integration test directory handling and error reporting
+- 2025-01-13: Enhanced test script to work in proper directory context
+- 2025-01-13: Verified earthly binary works correctly (v0.8.15 installed and functional)

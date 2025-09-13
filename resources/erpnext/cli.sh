@@ -71,6 +71,7 @@ cli::register_subcommand "test" "performance" "Run performance tests on ERPNext"
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "erpnext::status"
 cli::register_command "logs" "Show ERPNext logs" "erpnext::docker::logs"
+cli::register_command "credentials" "Show access credentials and instructions" "erpnext::show_credentials"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

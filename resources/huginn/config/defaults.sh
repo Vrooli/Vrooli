@@ -71,7 +71,8 @@ fi
 
 # Default credentials
 if [[ -z "${DEFAULT_DB_PASSWORD:-}" ]]; then
-    readonly DEFAULT_DB_PASSWORD="huginn_secure_password_$(date +%s)"
+    # Use a consistent password, not timestamp-based
+    readonly DEFAULT_DB_PASSWORD="huginn_secure_password_2025"
 fi
 if [[ -z "${DEFAULT_ADMIN_EMAIL:-}" ]]; then
     readonly DEFAULT_ADMIN_EMAIL="admin@huginn.local"

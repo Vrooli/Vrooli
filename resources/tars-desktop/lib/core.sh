@@ -35,9 +35,9 @@ tars_desktop::init() {
     # Check for API key from environment or Vault
     if [[ -z "$TARS_DESKTOP_API_KEY" ]]; then
         # Try to get OpenRouter key since TARS can use it
-        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
+        if command -v resource-vault >/dev/null 2>&1; then
             local vault_key
-            vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/openrouter 2>/dev/null" || true)
+            vault_key=$(resource-vault content get --path "vrooli/openrouter" --key "api_key" --format raw 2>/dev/null || true)
             if [[ -n "$vault_key" && "$vault_key" != "No value found at secret/vrooli/openrouter" && "$vault_key" != "sk-placeholder-key" ]]; then
                 export TARS_DESKTOP_API_KEY="$vault_key"
                 [[ "$verbose" == "true" ]] && log::info "Using OpenRouter API key from Vault for TARS"

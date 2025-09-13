@@ -2,13 +2,7 @@
 
 ## Current Issues
 
-### 1. HTTP Health Endpoint Not Implemented
-**Problem**: PostGIS uses pg_isready for health checks but lacks an HTTP endpoint at `/health`
-**Impact**: Low - Health checks work via Docker exec
-**Solution**: Would need to add a sidecar container or modify the PostGIS image to expose HTTP health endpoint
-**Workaround**: Current pg_isready check is sufficient for container health monitoring
-
-### 2. Limited Format Support for Spatial Data Import
+### 1. Limited Format Support for Spatial Data Import
 **Problem**: Only SQL file import is fully tested, shapefile/GeoJSON import needs more work
 **Impact**: Medium - Basic SQL import works but advanced GIS format support incomplete
 **Solution**: Implement ogr2ogr wrapper functions for full format support
@@ -30,6 +24,11 @@
 **Problem**: Install, start, stop, restart commands untested
 **Solution**: Implemented and tested all lifecycle commands
 **Status**: ✅ Resolved - All lifecycle operations working
+
+### 4. HTTP Health Endpoint (RESOLVED)
+**Problem**: PostGIS lacked an HTTP endpoint at `/health`
+**Solution**: Implemented HTTP health server using netcat on port 5435
+**Status**: ✅ Resolved - `timeout 5 curl -sf http://localhost:5435/health` returns JSON status
 
 ## Performance Considerations
 

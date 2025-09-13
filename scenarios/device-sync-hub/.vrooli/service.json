@@ -49,14 +49,14 @@
       "schema_files": [
         "initialization/postgres/schema.sql"
       ]
-    },
+    }
   },
   "cli": {
     "binary": "device-sync-hub",
     "install_script": "cli/install.sh"
   },
   "api": {
-    "base_url": "http://localhost:3300",
+    "base_url": "${API_BASE_URL}",
     "endpoints": [
       {
         "path": "/api/v1/sync/upload",
@@ -86,7 +86,7 @@
     ]
   },
   "ui_info": {
-    "url": "http://localhost:3301",
+    "url": "${UI_BASE_URL}",
     "mobile_optimized": true,
     "responsive": true,
     "style": "modern-mobile-first"
@@ -162,15 +162,19 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./device-sync-hub-api",
+          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./device-sync-hub-api",
           "description": "Start Go API server",
-          "background": true
+          "background": true,
+          "port": "${API_PORT}",
+          "health_check": "/health"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && python -m http.server 8080",
-          "description": "Start UI server",
-          "background": true
+          "run": "cd ui && node server.js",
+          "description": "Start UI server with configuration injection",
+          "background": true,
+          "port": "${UI_PORT}",
+          "health_check": "/"
         }
       ]
     }

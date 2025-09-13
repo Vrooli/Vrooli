@@ -26,9 +26,9 @@ codex::get_api_key() {
     # Try environment variable first
     if [[ -n "${OPENAI_API_KEY:-}" ]]; then
         api_key="${OPENAI_API_KEY}"
-    # Try Vault if available
-    elif command -v vault &>/dev/null; then
-        api_key=$(vault kv get -field=api_key secret/openai 2>/dev/null || echo "")
+    # Try Vault using resource-vault command
+    elif command -v resource-vault &>/dev/null; then
+        api_key=$(resource-vault content get --path "resources/codex/api/openai" --key "api_key" --format raw 2>/dev/null || echo "")
     # Try credentials file
     elif [[ -f "${HOME}/.openai/credentials" ]]; then
         api_key=$(grep "api_key=" "${HOME}/.openai/credentials" | cut -d= -f2)

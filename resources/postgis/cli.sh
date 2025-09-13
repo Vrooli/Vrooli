@@ -34,7 +34,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${POSTGIS_CLI_DIR}/config/defaults.sh"
 
 # Source resource libraries (only what exists)
-for lib in core common install status test inject; do
+for lib in core common install status test inject performance health integration; do
     lib_file="${POSTGIS_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -77,6 +77,33 @@ cli::register_subcommand "content" "disable-database" "Disable PostGIS in specif
 
 # Add spatial query examples command
 cli::register_command "examples" "Show example spatial queries" "postgis_show_examples"
+
+# ==============================================================================
+# PERFORMANCE OPTIMIZATION COMMANDS
+# ==============================================================================
+# Register performance command group
+cli::register_command_group "performance" "Performance optimization and tuning"
+
+# Performance subcommands
+cli::register_subcommand "performance" "analyze-indexes" "Analyze spatial indexes" "postgis::performance::analyze_indexes"
+cli::register_subcommand "performance" "analyze-query" "Analyze query performance" "postgis::performance::analyze_query"
+cli::register_subcommand "performance" "tune-config" "Show configuration tuning recommendations" "postgis::performance::tune_config"
+cli::register_subcommand "performance" "create-index" "Create optimized spatial index" "postgis::performance::create_spatial_index" "modifies-system"
+cli::register_subcommand "performance" "vacuum" "Vacuum and analyze spatial tables" "postgis::performance::vacuum_analyze" "modifies-system"
+cli::register_subcommand "performance" "stats" "Show performance statistics" "postgis::performance::show_stats"
+
+# ==============================================================================
+# CROSS-RESOURCE INTEGRATION COMMANDS
+# ==============================================================================
+# Register integration command group
+cli::register_command_group "integration" "Cross-resource integration"
+
+# Integration subcommands
+cli::register_subcommand "integration" "status" "Show integration status" "postgis::integration::status"
+cli::register_subcommand "integration" "export-n8n" "Export data for n8n workflows" "postgis::integration::export_for_n8n"
+cli::register_subcommand "integration" "setup-ollama" "Setup Ollama embeddings table" "postgis::integration::create_ollama_embeddings_table" "modifies-system"
+cli::register_subcommand "integration" "setup-questdb" "Setup QuestDB time-series sync" "postgis::integration::setup_questdb_sync" "modifies-system"
+cli::register_subcommand "integration" "setup-redis" "Setup Redis cache tables" "postgis::integration::create_redis_cache_tables" "modifies-system"
 
 # Only execute if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

@@ -1,0 +1,137 @@
+{
+  "status": "healthy",
+  "service": "data-structurer-ui",
+  "timestamp": "2025-09-13T00:00:00Z",
+  "readiness": true,
+  "version": "1.0.0",
+  "api_connectivity": {
+    "connected": false,
+    "api_url": "http://localhost:${API_PORT}/api/v1",
+    "last_check": "2025-09-13T00:00:00Z",
+    "error": {
+      "code": "STATIC_UI_HTML_CHECK",
+      "message": "Static health check - live API connectivity would be tested by UI application",
+      "category": "configuration",
+      "retryable": false
+    },
+    "latency_ms": null
+  },
+  "static_files": {
+    "available": true,
+    "files": {
+      "index_html": true,
+      "embedded_css": true,
+      "embedded_js": true
+    }
+  },
+  "data_processing_features": {
+    "schema_management": true,
+    "document_processing": true,
+    "ai_interpretation": true,
+    "unstructured_data_extraction": true,
+    "pdf_processing": true,
+    "image_processing": true,
+    "text_processing": true,
+    "batch_processing": true,
+    "schema_validation": true,
+    "template_management": true
+  },
+  "ui_framework": {
+    "type": "vanilla_html_css_js",
+    "responsive": true,
+    "dark_theme": true,
+    "monospace_font": true,
+    "schema_editor": true
+  },
+  "integrations": {
+    "postgres": {
+      "configured": true,
+      "schema_storage": true,
+      "data_storage": true
+    },
+    "ollama": {
+      "configured": true,
+      "url": "http://localhost:11434",
+      "ai_models": [
+        "llama3.2",
+        "mistral", 
+        "nomic-embed-text"
+      ],
+      "ai_interpretation_enabled": true
+    },
+    "unstructured_io": {
+      "configured": true,
+      "url": "http://localhost:8000",
+      "document_extraction_enabled": true,
+      "supported_formats": [
+        "pdf",
+        "docx",
+        "txt",
+        "html",
+        "images"
+      ]
+    },
+    "n8n": {
+      "configured": true,
+      "url": "http://localhost:5678",
+      "workflows_enabled": true,
+      "processing_workflows": [
+        "data-processing-pipeline",
+        "schema-validation"
+      ]
+    },
+    "qdrant": {
+      "configured": false,
+      "url": "http://localhost:6333",
+      "vector_search_enabled": false,
+      "optional": true
+    }
+  },
+  "processing_capabilities": {
+    "file_formats_supported": [
+      "pdf",
+      "docx",
+      "txt",
+      "html",
+      "json",
+      "csv",
+      "xml",
+      "png",
+      "jpg",
+      "jpeg"
+    ],
+    "ai_models_available": [
+      "llama3.2",
+      "mistral",
+      "nomic-embed-text"
+    ],
+    "schema_types": [
+      "contact",
+      "document",
+      "custom"
+    ],
+    "confidence_scoring": true,
+    "batch_processing": true,
+    "real_time_processing": true,
+    "validation_rules": true
+  },
+  "data_transformation": {
+    "unstructured_to_structured": true,
+    "ai_content_interpretation": true,
+    "semantic_field_mapping": true,
+    "schema_compliance_validation": true,
+    "data_quality_scoring": true,
+    "duplicate_detection": false,
+    "data_enrichment": true
+  },
+  "metrics": {
+    "deployment_mode": "development",
+    "server_type": "static_html",
+    "requires_api": true,
+    "foundational_capability": true,
+    "ai_powered": true,
+    "document_types_max": 100,
+    "schema_complexity": "high",
+    "processing_pipeline_stages": 5
+  }
+}

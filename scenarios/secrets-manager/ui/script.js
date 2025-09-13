@@ -763,6 +763,9 @@ class SecretsManager {
                     });
                 }
                 
+                // Add click handler for vulnerability code viewing
+                this.addVulnerabilityRowClickHandler(row, vuln);
+                
                 tbody.appendChild(row);
             });
             
@@ -835,6 +838,9 @@ class SecretsManager {
                         this.updateFixButtonState();
                     });
                 }
+
+                // Add click handler for vulnerability code viewing
+                this.addVulnerabilityRowClickHandler(row, vuln);
                 
                 tbody.appendChild(row);
             });
@@ -1468,6 +1474,222 @@ ${vuln.code}</pre>
             this.showNotification('Failed to spawn vulnerability fixer: ' + error.message, 'error');
         }
     }
+
+    // Helper function to add click handlers to vulnerability rows
+    addVulnerabilityRowClickHandler(row, vulnerability) {
+        if (!vulnerability || !vulnerability.file_path) {
+            // Not a vulnerability row, skip click handler
+            console.log('Skipping click handler - no vulnerability or file_path:', vulnerability);
+            return;
+        }
+
+        // Add row click handler to open code viewer
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', (e) => {
+            console.log('Row clicked! Vulnerability:', vulnerability.id, vulnerability.file_path);
+            // Don't trigger if clicking on checkbox or button
+            if (e.target.type === 'checkbox' || e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                console.log('Click on checkbox or button, ignoring');
+                return;
+            }
+            console.log('Opening code viewer for:', vulnerability.file_path);
+            this.openCodeViewer(vulnerability);
+        });
+        console.log('Added click handler for vulnerability:', vulnerability.id, vulnerability.file_path);
+    }
+
+    // Code viewer functionality
+    async openCodeViewer(vulnerability) {
+        console.log('openCodeViewer called with:', vulnerability);
+        const modal = document.getElementById('code-viewer-modal');
+        if (!modal) {
+            console.error('Code viewer modal not found');
+            return;
+        }
+
+        console.log('Modal found, showing...');
+        // Show loading state
+        this.showCodeViewerLoading();
+        modal.classList.add('show');
+        console.log('Modal show class added');
+
+        try {
+            // Fetch file content
+            const response = await fetch(`/api/v1/files/content?path=${encodeURIComponent(vulnerability.file_path)}`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Failed to fetch file content');
+            }
+
+            // Populate modal with content
+            this.displayCodeInViewer(vulnerability, data);
+
+        } catch (error) {
+            console.error('Error fetching file content:', error);
+            this.showCodeViewerError(error.message);
+        }
+    }
+
+    showCodeViewerLoading() {
+        document.getElementById('code-file-path').textContent = 'Loading...';
+        document.getElementById('code-language').textContent = 'Unknown';
+        document.getElementById('vuln-type-display').textContent = 'Loading...';
+        document.getElementById('vuln-severity-display').textContent = 'Unknown';
+        document.getElementById('vuln-description-display').textContent = 'Loading vulnerability details...';
+        document.getElementById('vuln-line-number').textContent = '?';
+        document.getElementById('code-content').textContent = 'Loading code...';
+        document.getElementById('code-content').className = 'language-text';
+    }
+
+    showCodeViewerError(message) {
+        document.getElementById('code-file-path').textContent = 'Error loading file';
+        document.getElementById('code-language').textContent = 'Error';
+        document.getElementById('vuln-type-display').textContent = 'Error';
+        document.getElementById('vuln-severity-display').textContent = 'Error';
+        document.getElementById('vuln-description-display').textContent = `Error: ${message}`;
+        document.getElementById('vuln-line-number').textContent = '?';
+        document.getElementById('code-content').textContent = `Error loading file: ${message}`;
+    }
+
+    displayCodeInViewer(vulnerability, fileData) {
+        // Update header info
+        document.getElementById('code-file-path').textContent = vulnerability.file_path;
+        document.getElementById('code-language').textContent = fileData.language;
+        
+        // Update vulnerability info
+        document.getElementById('vuln-type-display').textContent = vulnerability.type.replace(/_/g, ' ').toUpperCase();
+        const severityElement = document.getElementById('vuln-severity-display');
+        severityElement.textContent = vulnerability.severity.toUpperCase();
+        severityElement.setAttribute('data-severity', vulnerability.severity.toUpperCase());
+        document.getElementById('vuln-description-display').textContent = vulnerability.description || vulnerability.title || 'No description available';
+        document.getElementById('vuln-line-number').textContent = vulnerability.line_number || '?';
+
+        // Update code content
+        const codeElement = document.getElementById('code-content');
+        const preElement = codeElement.parentElement;
+        
+        // Clear any existing line highlighting
+        preElement.removeAttribute('data-line');
+        
+        // Set the code content and language
+        codeElement.textContent = fileData.content;
+        codeElement.className = `language-${fileData.language}`;
+        
+        // Ensure line-numbers class is present
+        preElement.className = 'code-block line-numbers';
+        preElement.style.position = 'relative';
+        preElement.style.paddingLeft = '3.8em';
+
+        // Apply syntax highlighting
+        if (window.Prism) {
+            console.log('Prism available, highlighting code...');
+            console.log('Pre element classes:', preElement.className);
+            console.log('Code element classes:', codeElement.className);
+            
+            // First highlight the code
+            Prism.highlightElement(codeElement);
+            
+            // Check if line numbers exist after highlighting
+            let lineNumbersExist = preElement.querySelector('.line-numbers-rows');
+            console.log('Line numbers exist after Prism highlight:', !!lineNumbersExist);
+            
+            // Force create line numbers every time for debugging
+            if (lineNumbersExist) {
+                lineNumbersExist.remove();
+                console.log('Removed existing line numbers');
+            }
+            
+            // Create line numbers manually
+            const lines = (codeElement.textContent.match(/\n/g) || []).length + 1;
+            console.log('Creating line numbers for', lines, 'lines');
+            
+            const lineNumbersWrapper = document.createElement('span');
+            lineNumbersWrapper.className = 'line-numbers-rows';
+            lineNumbersWrapper.setAttribute('aria-hidden', 'true');
+            lineNumbersWrapper.style.cssText = 'position: absolute; top: 1em; left: 0; width: 3.8em; border-right: 1px solid #00cc33; background: #1a1a1a; color: #808080; z-index: 10;';
+            
+            for (let i = 0; i < lines; i++) {
+                const span = document.createElement('span');
+                span.style.cssText = 'display: block; counter-increment: linenumber; text-align: right; padding-right: 0.8em; line-height: 1.5;';
+                span.setAttribute('data-line', i + 1);
+                lineNumbersWrapper.appendChild(span);
+            }
+            
+            preElement.appendChild(lineNumbersWrapper);
+            console.log('Line numbers wrapper added:', preElement.querySelector('.line-numbers-rows'));
+            
+            // Set the vulnerable line to highlight AFTER Prism processing
+            if (vulnerability.line_number) {
+                preElement.setAttribute('data-line', vulnerability.line_number.toString());
+                // Re-run line highlight plugin
+                if (Prism.plugins && Prism.plugins.lineHighlight) {
+                    Prism.plugins.lineHighlight.highlightLines(preElement)();
+                }
+                this.scrollToVulnerableLine(vulnerability.line_number);
+            }
+        }
+    }
+
+    scrollToVulnerableLine(lineNumber) {
+        // Scroll to the vulnerable line after Prism has rendered
+        setTimeout(() => {
+            // Find the highlighted line or line number element
+            const highlightedLine = document.querySelector('.code-block .line-highlight');
+            if (highlightedLine) {
+                highlightedLine.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                // Fallback: scroll based on line height estimation
+                const codeBlock = document.querySelector('.code-block');
+                if (codeBlock) {
+                    const lineHeight = 24; // Approximate line height in pixels
+                    const scrollPosition = (lineNumber - 5) * lineHeight; // Scroll to 5 lines before the target
+                    codeBlock.scrollTop = Math.max(0, scrollPosition);
+                }
+            }
+        }, 100); // Small delay to ensure Prism has finished rendering
+    }
+
+    setupCodeViewerEventListeners() {
+        // Close modal handlers
+        const modal = document.getElementById('code-viewer-modal');
+        const closeBtn = document.getElementById('code-modal-close');
+        const copyBtn = document.getElementById('copy-code-btn');
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('show');
+            });
+        }
+
+        // Click outside to close
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                }
+            });
+        }
+
+        // Copy code functionality
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const codeContent = document.getElementById('code-content').textContent;
+                navigator.clipboard.writeText(codeContent).then(() => {
+                    this.showNotification('Code copied to clipboard', 'success');
+                }).catch(() => {
+                    this.showNotification('Failed to copy code', 'error');
+                });
+            });
+        }
+
+        // ESC key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('show')) {
+                modal.classList.remove('show');
+            }
+        });
+    }
 }
 
 // CSS animation for slide-out
@@ -1488,6 +1710,7 @@ if (!document.getElementById('slide-out-styles')) {
 // Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.secretsManager = new SecretsManager();
+    window.secretsManager.setupCodeViewerEventListeners();
 });
 
 // Add some cyberpunk keyboard shortcuts

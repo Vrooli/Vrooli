@@ -5,14 +5,35 @@
 
 class APIClient {
   constructor() {
-    this.baseURL = this.getAPIBaseURL();
+    this.baseURL = null;
+    this.baseURLPromise = null;
   }
 
   /**
-   * Get the API base URL dynamically
-   * Priority: Environment variable -> Dynamic discovery -> Fallback
+   * Get the API base URL dynamically (memoized)
+   * Priority: Environment variable -> Config endpoint -> Error
    */
-  getAPIBaseURL() {
+  async getAPIBaseURL() {
+    // Return cached value if already resolved
+    if (this.baseURL) {
+      return this.baseURL;
+    }
+
+    // Return existing promise if in progress
+    if (this.baseURLPromise) {
+      return this.baseURLPromise;
+    }
+
+    // Create new promise for URL resolution
+    this.baseURLPromise = this._resolveAPIBaseURL();
+    this.baseURL = await this.baseURLPromise;
+    return this.baseURL;
+  }
+
+  /**
+   * Internal method to resolve the API base URL
+   */
+  async _resolveAPIBaseURL() {
     // First try: Check if API_URL is provided via environment
     if (process.env.REACT_APP_API_URL) {
       return process.env.REACT_APP_API_URL;
@@ -23,20 +44,27 @@ class APIClient {
       return `http://localhost:${process.env.REACT_APP_API_PORT}`;
     }
 
-    // Fallback: Use default port range midpoint for development
-    // In production, this should be configured properly via environment
-    const fallbackPort = 17000; // Middle of range 15000-19999
-    console.warn(`API URL not configured. Using fallback: http://localhost:${fallbackPort}`);
-    console.warn(`Set REACT_APP_API_URL or REACT_APP_API_PORT environment variable for proper configuration`);
-    
-    return `http://localhost:${fallbackPort}`;
+    // Third try: Fetch from UI server config endpoint
+    try {
+      const response = await fetch('/config');
+      if (response.ok) {
+        const config = await response.json();
+        return config.apiUrl;
+      }
+    } catch (error) {
+      console.error('Failed to fetch config from UI server:', error);
+    }
+
+    // No fallback - proper configuration required
+    throw new Error('API URL not configured. Ensure the scenario is running through Vrooli lifecycle system.');
   }
 
   /**
    * Make an API request with proper error handling
    */
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    const baseURL = await this.getAPIBaseURL();
+    const url = `${baseURL}${endpoint}`;
     
     const defaultOptions = {
       headers: {
@@ -96,4 +124,4 @@ const apiClient = new APIClient();
 export default apiClient;
 
 // Export the base URL for direct access if needed
-export const getAPIBaseURL = () => apiClient.baseURL;
+export const getAPIBaseURL = () => apiClient.getAPIBaseURL();

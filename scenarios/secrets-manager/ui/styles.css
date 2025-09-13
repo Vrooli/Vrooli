@@ -601,7 +601,7 @@ html, body {
     height: 100%;
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(5px);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     z-index: 1000;
@@ -611,6 +611,7 @@ html, body {
 }
 
 .modal-overlay.show {
+    display: flex;
     opacity: 1;
     pointer-events: all;
 }
@@ -688,6 +689,211 @@ html, body {
     gap: 10px;
     justify-content: flex-end;
     margin-top: 30px;
+}
+
+/* Code Viewer Modal Styles */
+.code-viewer-container {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 1200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.code-viewer-container .modal-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.code-viewer-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--chrome-dark);
+    font-size: 11px;
+    flex: 1;
+}
+
+.code-viewer-info .separator {
+    color: var(--matrix-dim);
+}
+
+.code-viewer-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.vulnerability-details {
+    background: var(--bg-medium);
+    border-bottom: 1px solid var(--matrix-dim);
+    padding: 15px 20px;
+    flex-shrink: 0;
+}
+
+.vuln-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.vuln-type {
+    background: var(--electric-blue);
+    color: var(--bg-black);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.vuln-severity {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+/* Severity-specific styling with attribute selectors instead of :contains() */
+.vuln-severity[data-severity="CRITICAL"] {
+    background: var(--error-red);
+    color: white;
+}
+
+.vuln-severity[data-severity="HIGH"] {
+    background: var(--warning-amber);
+    color: var(--bg-black);
+}
+
+.vuln-severity[data-severity="MEDIUM"] {
+    background: var(--matrix-green);
+    color: var(--bg-black);
+}
+
+.vuln-severity[data-severity="LOW"] {
+    background: var(--chrome-dark);
+    color: white;
+}
+
+.vuln-description {
+    color: var(--chrome-silver);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.code-display {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.code-toolbar {
+    background: var(--bg-medium);
+    border-bottom: 1px solid var(--matrix-dim);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+
+.line-info {
+    color: var(--chrome-dark);
+    font-size: 11px;
+}
+
+.code-block {
+    flex: 1;
+    overflow: auto;
+    background: var(--bg-black) !important;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+}
+
+.code-block code {
+    display: block;
+    padding: 1em;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--chrome-silver);
+    background: transparent;
+    white-space: pre;
+    overflow-wrap: normal;
+    overflow-x: auto;
+}
+
+/* Simplified line numbers styling */
+.code-block.line-numbers {
+    position: relative;
+    padding-left: 3.8em !important;
+    counter-reset: linenumber;
+}
+
+.code-block .line-numbers-rows {
+    /* Styles will be applied inline via JavaScript for debugging */
+}
+
+.code-block .line-numbers-rows > span:before {
+    content: counter(linenumber);
+}
+
+/* Prism line-highlight plugin styling - override default */
+.code-block .line-highlight {
+    background: rgba(255, 0, 0, 0.15) !important;
+    background: linear-gradient(to right, rgba(255, 0, 0, 0.2) 70%, rgba(255, 0, 0, 0.1)) !important;
+    margin-top: 0 !important;
+    display: block;
+}
+
+.code-block[data-line] .line-highlight:before,
+.code-block .line-highlight[data-end]:after {
+    content: none !important;
+}
+
+/* Animation for highlighted line */
+@keyframes pulse-danger {
+    0%, 100% { 
+        background: rgba(255, 0, 0, 0.15);
+        border-left-color: var(--error-red);
+    }
+    50% { 
+        background: rgba(255, 0, 0, 0.25);
+        border-left-color: #ff6666;
+    }
+}
+
+.code-block .line-highlight {
+    animation: pulse-danger 2s infinite;
+}
+
+/* Copy button styling */
+.code-toolbar .chrome-btn.secondary-btn {
+    background: var(--bg-dark);
+    border: 1px solid var(--chrome-dark);
+    color: var(--chrome-silver);
+    padding: 6px 12px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.code-toolbar .chrome-btn.secondary-btn:hover {
+    border-color: var(--matrix-green);
+    color: var(--matrix-green);
+}
+
+.code-toolbar .chrome-btn.secondary-btn svg {
+    width: 12px;
+    height: 12px;
 }
 
 /* Terminal Footer */

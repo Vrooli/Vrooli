@@ -65,8 +65,39 @@ home_assistant::docker::start() {
     home_assistant::init
     if docker::container_exists "$HOME_ASSISTANT_CONTAINER_NAME"; then
         log::info "Starting Home Assistant..."
-        docker start "$HOME_ASSISTANT_CONTAINER_NAME"
-        home_assistant::health::wait_for_healthy 60
+        
+        # Check if already running
+        if docker::is_running "$HOME_ASSISTANT_CONTAINER_NAME"; then
+            log::warning "Home Assistant is already running"
+            return 0
+        fi
+        
+        # Attempt to start with retry logic
+        local retries=3
+        local attempt=1
+        while [[ $attempt -le $retries ]]; do
+            if docker start "$HOME_ASSISTANT_CONTAINER_NAME" 2>/dev/null; then
+                # Wait for healthy with timeout
+                if home_assistant::health::wait_for_healthy 60; then
+                    log::success "Home Assistant started successfully"
+                    return 0
+                else
+                    log::warning "Home Assistant started but health check failed (attempt $attempt/$retries)"
+                fi
+            else
+                log::warning "Failed to start container (attempt $attempt/$retries)"
+            fi
+            
+            if [[ $attempt -lt $retries ]]; then
+                log::info "Retrying in 5 seconds..."
+                sleep 5
+            fi
+            ((attempt++))
+        done
+        
+        log::error "Failed to start Home Assistant after $retries attempts"
+        log::info "Check logs with: vrooli resource home-assistant logs --tail 100"
+        return 1
     else
         log::error "Home Assistant is not installed. Run 'manage install' first."
         return 1

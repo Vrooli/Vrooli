@@ -104,14 +104,18 @@ test_integration() {
     log_info "Running integration tests..."
     local failed=0
     
+    # Create a temporary test directory within Vrooli
+    local test_dir="${SCRIPT_DIR}/tmp/earthly-integration-test-$$"
+    mkdir -p "${test_dir}"
+    
     # Test 1: Create simple Earthfile
     echo -n "Testing Earthfile creation... "
-    cat > "${EARTHLY_HOME}/test.earth" << 'EOF'
+    cat > "${test_dir}/Earthfile" << 'EOF'
 VERSION 0.8
 FROM alpine:3.18
 
 test:
-    RUN echo "Integration test successful"
+    RUN echo "Integration test successful" > test.txt
     SAVE ARTIFACT test.txt AS LOCAL test-output.txt
 
 build:
@@ -119,7 +123,7 @@ build:
     SAVE ARTIFACT build.txt
 EOF
     
-    if [[ -f "${EARTHLY_HOME}/test.earth" ]]; then
+    if [[ -f "${test_dir}/Earthfile" ]]; then
         echo "✅ PASS"
     else
         echo "❌ FAIL"
@@ -130,14 +134,20 @@ EOF
     echo -n "Testing build execution... "
     # Check if earthly binary exists and Docker is running
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
-        # Copy Earthfile to current directory for proper execution
-        cp "${EARTHLY_HOME}/test.earth" ./Earthfile 2>/dev/null || true
-        if timeout 60 earthly +test &>/dev/null; then
+        # Try to run the build from the test directory
+        set +e  # Temporarily disable exit on error
+        (cd "${test_dir}" && timeout 60 earthly +test >/dev/null 2>&1)
+        local exit_code=$?
+        set -e  # Re-enable exit on error
+        
+        if [[ ${exit_code} -eq 0 ]]; then
             echo "✅ PASS"
-            rm -f ./Earthfile
+        elif [[ ${exit_code} -eq 124 ]]; then
+            echo "❌ FAIL: Build timed out"
+            ((failed++))
         else
-            echo "⚠️  SKIP: Build execution skipped (Docker/Earthly issue)"
-            rm -f ./Earthfile
+            echo "❌ FAIL: Build failed with exit code ${exit_code}"
+            ((failed++))
         fi
     else
         echo "⚠️  SKIP: Earthly or Docker not available"
@@ -145,13 +155,18 @@ EOF
     
     # Test 3: Check artifact creation
     echo -n "Testing artifact management... "
-    # Skip if previous test was skipped
+    # Check if earthly binary exists and Docker is running
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
-        if [[ -f "test-output.txt" ]]; then
+        if [[ -f "${test_dir}/test-output.txt" ]]; then
             echo "✅ PASS"
-            rm -f "test-output.txt"
         else
-            echo "⚠️  SKIP: Artifact test skipped (depends on build)"
+            # Only skip if earthly wasn't available, otherwise it's a failure
+            if command -v earthly &>/dev/null; then
+                echo "❌ FAIL: Artifact not created"
+                ((failed++))
+            else
+                echo "⚠️  SKIP: Artifact test skipped (earthly not available)"
+            fi
         fi
     else
         echo "⚠️  SKIP: Earthly or Docker not available"
@@ -159,27 +174,32 @@ EOF
     
     # Test 4: Cache functionality
     echo -n "Testing cache functionality... "
-    local first_run=$(date +%s)
-    cp "${EARTHLY_HOME}/test.earth" ./Earthfile 2>/dev/null || true
-    timeout 60 earthly +build &>/dev/null
-    local second_run=$(date +%s)
-    timeout 60 earthly +build &>/dev/null
-    local third_run=$(date +%s)
-    rm -f ./Earthfile
-    
-    local first_duration=$((second_run - first_run))
-    local second_duration=$((third_run - second_run))
-    
-    if [[ ${second_duration} -lt ${first_duration} ]]; then
-        echo "✅ PASS (cache working)"
+    if command -v earthly &>/dev/null && docker ps &>/dev/null; then
+        set +e  # Temporarily disable exit on error
+        local first_run=$(date +%s)
+        (cd "${test_dir}" && timeout 60 earthly +build >/dev/null 2>&1)
+        local second_run=$(date +%s)
+        (cd "${test_dir}" && timeout 60 earthly +build >/dev/null 2>&1)
+        local third_run=$(date +%s)
+        set -e  # Re-enable exit on error
+        
+        local first_duration=$((second_run - first_run))
+        local second_duration=$((third_run - second_run))
+        
+        # Cache is working if second run is faster
+        if [[ ${second_duration} -le ${first_duration} ]]; then
+            echo "✅ PASS (cache working)"
+        else
+            echo "⚠️  WARN: Cache may not be working optimally"
+        fi
     else
-        echo "⚠️  WARN: Cache may not be working optimally"
+        echo "⚠️  SKIP: Earthly or Docker not available"
     fi
     
     # Test 5: Parallel execution
     echo -n "Testing parallel execution... "
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
-        cat > "${EARTHLY_HOME}/parallel.earth" << 'EOF'
+        cat > "${test_dir}/ParallelEarthfile" << 'EOF'
 VERSION 0.8
 FROM alpine:3.18
 
@@ -194,20 +214,29 @@ all:
     BUILD +target2
 EOF
         
-        cp "${EARTHLY_HOME}/parallel.earth" ./Earthfile 2>/dev/null || true
-        if timeout 60 earthly +all &>/dev/null; then
+        # Create new Earthfile for parallel test
+        cp "${test_dir}/ParallelEarthfile" "${test_dir}/Earthfile" 2>/dev/null || true
+        
+        set +e  # Temporarily disable exit on error
+        (cd "${test_dir}" && timeout 60 earthly +all >/dev/null 2>&1)
+        local exit_code=$?
+        set -e  # Re-enable exit on error
+        
+        if [[ ${exit_code} -eq 0 ]]; then
             echo "✅ PASS"
-            rm -f ./Earthfile
+        elif [[ ${exit_code} -eq 124 ]]; then
+            echo "❌ FAIL: Parallel build timed out"
+            ((failed++))
         else
-            echo "⚠️  SKIP: Parallel test skipped (Docker/Earthly issue)"
-            rm -f ./Earthfile
+            echo "❌ FAIL: Parallel build failed with exit code ${exit_code}"
+            ((failed++))
         fi
     else
         echo "⚠️  SKIP: Earthly or Docker not available"
     fi
     
     # Cleanup
-    rm -f "${EARTHLY_HOME}/test.earth" "${EARTHLY_HOME}/parallel.earth"
+    rm -rf "${test_dir}"
     
     echo ""
     if [[ ${failed} -eq 0 ]]; then

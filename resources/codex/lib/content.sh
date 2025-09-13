@@ -10,6 +10,12 @@ CODEX_CONTENT_DIR="${APP_ROOT}/resources/codex/lib"
 source "${CODEX_CONTENT_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${CODEX_CONTENT_DIR}/core.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_CONTENT_DIR}/orchestrator.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_CONTENT_DIR}/tools/registry.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_CONTENT_DIR}/workspace/manager.sh" 2>/dev/null || true
 
 #######################################
 # Add content (Python script) to Codex
@@ -238,46 +244,298 @@ codex::content::remove() {
 #######################################
 # Execute content (run script with Codex)
 # Arguments:
-#   name - Name of the script to execute
+#   input - Prompt, file path, or script name
+#   operation - Operation type (generate, review, test, explain, complete)
+#   context - Execution context (optional: cli, sandbox, text)
 # Returns:
 #   0 on success, 1 on failure
 #######################################
 codex::content::execute() {
     local input="${1:-}"
     local operation="${2:-generate}"
+    local context="${3:-auto}"
     
     if [[ -z "${input}" ]]; then
         log::error "No input specified"
-        echo "Usage: content execute <prompt_or_file> [operation]"
-        echo "Operations: generate, review, test, explain, complete"
+        echo "Usage: content execute <prompt_or_file> [operation] [context]"
+        echo "Operations: generate, review, test, explain, complete, analyze"
+        echo "Contexts: auto, cli, sandbox, text"
         return 1
     fi
     
+    # Determine capability based on operation
+    local capability
+    case "$operation" in
+        generate|complete|explain)
+            capability="text-generation"
+            ;;
+        review|test|analyze)
+            capability="function-calling"
+            ;;
+        *)
+            capability="text-generation"
+            ;;
+    esac
+    
     # Check if input is a file or a prompt
+    local request_content
     if [[ -f "${input}" ]]; then
-        # It's a file - process it
-        if type -t codex::process_script &>/dev/null; then
-            codex::process_script "${input}" "${operation}"
-        else
-            log::error "Core functions not available. Is core.sh loaded?"
-            return 1
-        fi
+        # It's a file - read content and create appropriate request
+        request_content=$(cat "${input}")
+        case "$operation" in
+            review)
+                request_content="Review this code and provide feedback:\n\n$request_content"
+                ;;
+            test)
+                request_content="Create comprehensive tests for this code:\n\n$request_content"
+                ;;
+            explain)
+                request_content="Explain what this code does:\n\n$request_content"
+                ;;
+            analyze)
+                # Use code analysis tool
+                capability="function-calling"
+                request_content="Analyze this code for issues and improvements:\n\n$request_content"
+                ;;
+            *)
+                request_content="Complete or improve this code:\n\n$request_content"
+                ;;
+        esac
     elif [[ -f "${CODEX_SCRIPTS_DIR}/${input}" ]]; then
         # Check in scripts directory
-        if type -t codex::process_script &>/dev/null; then
-            codex::process_script "${CODEX_SCRIPTS_DIR}/${input}" "${operation}"
+        request_content=$(cat "${CODEX_SCRIPTS_DIR}/${input}")
+        case "$operation" in
+            review)
+                request_content="Review this code and provide feedback:\n\n$request_content"
+                ;;
+            test)
+                request_content="Create comprehensive tests for this code:\n\n$request_content"
+                ;;
+            explain)
+                request_content="Explain what this code does:\n\n$request_content"
+                ;;
+            analyze)
+                capability="function-calling"
+                request_content="Analyze this code for issues and improvements:\n\n$request_content"
+                ;;
+            *)
+                request_content="Complete or improve this code:\n\n$request_content"
+                ;;
+        esac
+    else
+        # It's a direct prompt
+        request_content="$input"
+    fi
+    
+    # Use new orchestrator system
+    if type -t orchestrator::execute &>/dev/null; then
+        log::info "Executing via orchestrator (capability: $capability, context: $context)"
+        
+        # Create workspace if using function calling
+        local workspace_id=""
+        if [[ "$capability" == "function-calling" || "$operation" == "analyze" ]]; then
+            if type -t workspace_manager::create &>/dev/null; then
+                local workspace_result
+                workspace_result=$(workspace_manager::create "" "moderate" '{"description": "Content execution workspace", "auto_cleanup": true}')
+                
+                if [[ $(echo "$workspace_result" | jq -r '.success // false') == "true" ]]; then
+                    workspace_id=$(echo "$workspace_result" | jq -r '.workspace_id')
+                    log::debug "Created workspace: $workspace_id"
+                fi
+            fi
+        fi
+        
+        # Execute via orchestrator
+        local result
+        result=$(orchestrator::execute "$request_content" "$capability" "$context")
+        
+        # Output result
+        echo "$result"
+        
+        # Cleanup workspace
+        if [[ -n "$workspace_id" ]] && type -t workspace_manager::delete &>/dev/null; then
+            workspace_manager::delete "$workspace_id" "true" >/dev/null 2>&1
+        fi
+        
+        return 0
+    else
+        # Fallback to legacy system
+        log::warn "Orchestrator not available, falling back to legacy system"
+        
+        if type -t codex::smart_execute &>/dev/null; then
+            codex::smart_execute "$request_content"
+        elif type -t codex::generate_code &>/dev/null; then
+            codex::generate_code "$request_content"
         else
-            log::error "Core functions not available. Is core.sh loaded?"
+            log::error "No execution system available"
+            return 1
+        fi
+    fi
+}
+
+#######################################
+# Analyze content using the new code analysis tools
+# Arguments:
+#   name_or_path - Name of script or file path
+#   analysis_type - Type of analysis (syntax, style, complexity, security, all)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+codex::content::analyze() {
+    local input="${1:-}"
+    local analysis_type="${2:-all}"
+    
+    if [[ -z "${input}" ]]; then
+        log::error "No input specified"
+        echo "Usage: content analyze <script_name_or_path> [analysis_type]"
+        echo "Analysis types: syntax, style, complexity, security, all"
+        return 1
+    fi
+    
+    # Determine file path
+    local file_path
+    if [[ -f "${input}" ]]; then
+        file_path="${input}"
+    elif [[ -f "${CODEX_SCRIPTS_DIR}/${input}" ]]; then
+        file_path="${CODEX_SCRIPTS_DIR}/${input}"
+    else
+        log::error "File not found: ${input}"
+        return 1
+    fi
+    
+    # Read file content
+    local code_content
+    code_content=$(cat "$file_path")
+    
+    # Use tools registry to analyze code
+    if type -t tool_registry::execute_tool &>/dev/null; then
+        local language
+        language=$(basename "$file_path" | sed 's/.*\.//')
+        
+        # Map common extensions to language names
+        case "$language" in
+            py) language="python" ;;
+            js) language="javascript" ;;
+            ts) language="typescript" ;;
+            go) language="go" ;;
+            sh) language="bash" ;;
+        esac
+        
+        local tool_args
+        tool_args=$(jq -n \
+            --arg code "$code_content" \
+            --arg lang "$language" \
+            --arg type "$analysis_type" \
+            '{code: $code, language: $lang, analysis_type: $type}')
+        
+        local result
+        result=$(tool_registry::execute_tool "analyze_code" "$tool_args" "sandbox")
+        
+        if [[ $(echo "$result" | jq -r '.success // false') == "true" ]]; then
+            # Format and display results nicely
+            echo "Code Analysis Results for: $(basename "$file_path")"
+            echo "================================================"
+            echo "$result" | jq -r 'if .analysis_type == "comprehensive" then
+                "Comprehensive Analysis:\n" +
+                "- Syntax errors: " + (.syntax.error_count | tostring) + "\n" +
+                "- Style score: " + (.style.style_score | tostring) + "\n" +
+                "- Complexity: " + .complexity.complexity_rating + "\n" +
+                "- Security risk: " + .security.risk_level + "\n"
+            else
+                "Analysis Type: " + .analysis_type + "\n" +
+                (if .error_count then "Errors: " + (.error_count | tostring) + "\n" else "" end) +
+                (if .issue_count then "Issues: " + (.issue_count | tostring) + "\n" else "" end) +
+                (if .vulnerability_count then "Vulnerabilities: " + (.vulnerability_count | tostring) + "\n" else "" end)
+            end'
+        else
+            log::error "Code analysis failed: $(echo "$result" | jq -r '.error // "Unknown error"')"
             return 1
         fi
     else
-        # It's a direct prompt - generate code
-        if type -t codex::generate_code &>/dev/null; then
-            codex::generate_code "${input}"
+        log::error "Code analysis tools not available"
+        return 1
+    fi
+}
+
+#######################################
+# Create a new workspace for content development
+# Arguments:
+#   workspace_name - Optional name for the workspace
+#   security_level - Security level (strict, moderate, relaxed)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+codex::content::create_workspace() {
+    local workspace_name="${1:-content-dev-$(date +%s)}"
+    local security_level="${2:-moderate}"
+    
+    if type -t workspace_manager::create &>/dev/null; then
+        local options
+        options=$(jq -n \
+            --arg desc "Content development workspace" \
+            --argjson cleanup true \
+            --argjson backup false \
+            --argjson monitoring false \
+            '{description: $desc, auto_cleanup: $cleanup, backup_on_delete: $backup, monitoring: $monitoring}')
+        
+        local result
+        result=$(workspace_manager::create "$workspace_name" "$security_level" "$options")
+        
+        if [[ $(echo "$result" | jq -r '.success // false') == "true" ]]; then
+            local workspace_id workspace_dir
+            workspace_id=$(echo "$result" | jq -r '.workspace_id')
+            workspace_dir=$(echo "$result" | jq -r '.workspace_dir')
+            
+            log::success "Workspace created: $workspace_id"
+            log::info "Workspace directory: $workspace_dir"
+            log::info "Data directory: $workspace_dir/data"
+            
+            # Export workspace info for easy access
+            export CODEX_CURRENT_WORKSPACE="$workspace_id"
+            export CODEX_CURRENT_WORKSPACE_DIR="$workspace_dir"
+            
+            echo "Workspace ID: $workspace_id"
+            echo "Export these variables to use:"
+            echo "export CODEX_CURRENT_WORKSPACE=\"$workspace_id\""
+            echo "export CODEX_CURRENT_WORKSPACE_DIR=\"$workspace_dir\""
         else
-            log::error "Core functions not available. Is core.sh loaded?"
+            log::error "Failed to create workspace: $(echo "$result" | jq -r '.error // "Unknown error"')"
             return 1
         fi
+    else
+        log::error "Workspace management not available"
+        return 1
+    fi
+}
+
+#######################################
+# List available workspaces
+# Arguments:
+#   filter - Filter workspaces (active, expired, all)
+# Returns:
+#   0 on success
+#######################################
+codex::content::list_workspaces() {
+    local filter="${1:-active}"
+    
+    if type -t workspace_manager::list &>/dev/null; then
+        local result
+        result=$(workspace_manager::list "$filter")
+        
+        local count
+        count=$(echo "$result" | jq 'length')
+        
+        if [[ $count -gt 0 ]]; then
+            log::header "Content Workspaces ($filter)"
+            echo "$result" | jq -r '.[] | "  " + .workspace_id + " (" + .security_level + ") - " + (.created_at // "unknown")'
+            echo ""
+            log::info "Total: $count workspace(s)"
+        else
+            log::info "No $filter workspaces found"
+        fi
+    else
+        log::error "Workspace management not available"
+        return 1
     fi
 }
 
@@ -304,8 +562,38 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             shift
             codex::content::execute "$@"
             ;;
+        analyze)
+            shift
+            codex::content::analyze "$@"
+            ;;
+        workspace)
+            case "$2" in
+                create)
+                    shift 2
+                    codex::content::create_workspace "$@"
+                    ;;
+                list)
+                    shift 2
+                    codex::content::list_workspaces "$@"
+                    ;;
+                *)
+                    echo "Usage: $0 workspace {create|list} [args...]"
+                    exit 1
+                    ;;
+            esac
+            ;;
         *)
-            echo "Usage: $0 {add|list|get|remove|execute} [args...]"
+            echo "Usage: $0 {add|list|get|remove|execute|analyze|workspace} [args...]"
+            echo ""
+            echo "Commands:"
+            echo "  add <file> [name]           - Add a script to Codex"
+            echo "  list [--format json]        - List all scripts"
+            echo "  get <name>                  - Show script details"
+            echo "  remove <name>               - Remove a script"
+            echo "  execute <input> [op] [ctx]  - Execute with Codex"
+            echo "  analyze <script> [type]     - Analyze code quality"
+            echo "  workspace create [name] [sec] - Create development workspace"
+            echo "  workspace list [filter]     - List workspaces"
             exit 1
             ;;
     esac

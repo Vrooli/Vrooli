@@ -5,11 +5,9 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log"
 	"math"
-	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -114,10 +112,13 @@ type Server struct {
 }
 
 // =============================================================================
-// SERVER INITIALIZATION
+// SERVER INITIALIZATION  
 // =============================================================================
 
+var startTime time.Time
+
 func main() {
+	startTime = time.Now()
 	server, err := NewServer()
 	if err != nil {
 		log.Fatalf("Failed to create server: %v", err)
@@ -358,12 +359,347 @@ func (s *Server) authenticateAPIKey() gin.HandlerFunc {
 // =============================================================================
 
 func (s *Server) healthCheck(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"status":    "healthy",
+	overallStatus := "healthy"
+	var errors []map[string]interface{}
+	readiness := true
+
+	// Schema-compliant health response
+	healthResponse := map[string]interface{}{
+		"status":    overallStatus,
 		"service":   "notification-hub-api",
-		"version":   "1.0.0",
-		"timestamp": time.Now().Format(time.RFC3339),
-	})
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true,
+		"dependencies": map[string]interface{}{},
+	}
+
+	// Check database connectivity and operations
+	dbHealth := s.checkDatabaseHealth()
+	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
+	if dbHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if dbHealth["status"] == "unhealthy" {
+			readiness = false
+		}
+		if dbHealth["error"] != nil {
+			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check Redis connectivity and cache operations
+	redisHealth := s.checkRedisHealth()
+	healthResponse["dependencies"].(map[string]interface{})["redis"] = redisHealth
+	if redisHealth["status"] != "healthy" {
+		overallStatus = "degraded"
+		if redisHealth["status"] == "unhealthy" {
+			readiness = false
+		}
+		if redisHealth["error"] != nil {
+			errors = append(errors, redisHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check notification processor system
+	processorHealth := s.checkNotificationProcessor()
+	healthResponse["dependencies"].(map[string]interface{})["notification_processor"] = processorHealth
+	if processorHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if processorHealth["error"] != nil {
+			errors = append(errors, processorHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check profile system functionality
+	profileHealth := s.checkProfileSystem()
+	healthResponse["dependencies"].(map[string]interface{})["profile_system"] = profileHealth
+	if profileHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded" 
+		}
+		if profileHealth["error"] != nil {
+			errors = append(errors, profileHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Check template management system
+	templateHealth := s.checkTemplateSystem()
+	healthResponse["dependencies"].(map[string]interface{})["template_system"] = templateHealth
+	if templateHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
+			overallStatus = "degraded"
+		}
+		if templateHealth["error"] != nil {
+			errors = append(errors, templateHealth["error"].(map[string]interface{}))
+		}
+	}
+
+	// Update final status
+	healthResponse["status"] = overallStatus
+	healthResponse["readiness"] = readiness
+
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse["errors"] = errors
+	}
+
+	// Add metrics
+	healthResponse["metrics"] = map[string]interface{}{
+		"total_dependencies": 5,
+		"healthy_dependencies": s.countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
+		"uptime_seconds": time.Now().Unix() - startTime.Unix(),
+	}
+
+	// Return appropriate HTTP status
+	statusCode := 200
+	if overallStatus == "unhealthy" {
+		statusCode = 503
+	} else if overallStatus == "degraded" {
+		statusCode = 200 // Still operational but with warnings
+	}
+
+	c.JSON(statusCode, healthResponse)
+}
+
+// Health check helper methods
+func (s *Server) checkDatabaseHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	// Test database connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := s.db.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_CONNECTION_FAILED",
+			"message": "Database connection failed: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+
+	// Test profiles table query
+	var profileCount int
+	query := "SELECT COUNT(*) FROM profiles WHERE status = 'active'"
+	if err := s.db.QueryRowContext(ctx, query).Scan(&profileCount); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_QUERY_FAILED",
+			"message": "Failed to query profiles table: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["profiles_query"] = "ok"
+		health["checks"].(map[string]interface{})["active_profiles"] = profileCount
+	}
+
+	// Test notifications table query
+	var notificationCount int
+	recentQuery := "SELECT COUNT(*) FROM notifications WHERE created_at > NOW() - INTERVAL '1 hour'"
+	if err := s.db.QueryRowContext(ctx, recentQuery).Scan(&notificationCount); err != nil {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_QUERY_FAILED", 
+				"message": "Failed to query notifications table: " + err.Error(),
+				"category": "resource",
+				"retryable": true,
+			}
+		}
+	} else {
+		health["checks"].(map[string]interface{})["notifications_query"] = "ok"
+		health["checks"].(map[string]interface{})["recent_notifications"] = notificationCount
+	}
+
+	return health
+}
+
+func (s *Server) checkRedisHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Test Redis connection
+	if err := s.redis.Ping(ctx).Err(); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "REDIS_CONNECTION_FAILED",
+			"message": "Redis connection failed: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+
+	// Test cache operations
+	testKey := "health_check:" + fmt.Sprintf("%d", time.Now().UnixNano())
+	testValue := "test_value"
+	
+	if err := s.redis.Set(ctx, testKey, testValue, time.Minute).Err(); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "REDIS_WRITE_FAILED",
+			"message": "Redis write operation failed: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["write"] = "ok"
+		
+		// Test read operation
+		if val, err := s.redis.Get(ctx, testKey).Result(); err != nil || val != testValue {
+			health["status"] = "degraded"
+			if health["error"] == nil {
+				health["error"] = map[string]interface{}{
+					"code": "REDIS_READ_FAILED",
+					"message": "Redis read operation failed",
+					"category": "resource",
+					"retryable": true,
+				}
+			}
+		} else {
+			health["checks"].(map[string]interface{})["read"] = "ok"
+		}
+		
+		// Clean up test key
+		s.redis.Del(ctx, testKey)
+	}
+
+	return health
+}
+
+func (s *Server) checkNotificationProcessor() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	if s.processor == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "PROCESSOR_NOT_INITIALIZED",
+			"message": "Notification processor not initialized",
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+
+	health["checks"].(map[string]interface{})["initialized"] = "ok"
+
+	// Check for pending notifications (this gives insight into processor workload)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	var pendingCount int
+	query := "SELECT COUNT(*) FROM notifications WHERE status = 'pending'"
+	if err := s.db.QueryRowContext(ctx, query).Scan(&pendingCount); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "PROCESSOR_STATUS_CHECK_FAILED",
+			"message": "Failed to check processor queue: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["queue_check"] = "ok"
+		health["checks"].(map[string]interface{})["pending_notifications"] = pendingCount
+		
+		// Warning if too many pending notifications
+		if pendingCount > 100 {
+			health["status"] = "degraded"
+			health["error"] = map[string]interface{}{
+				"code": "HIGH_QUEUE_BACKLOG",
+				"message": fmt.Sprintf("High number of pending notifications: %d", pendingCount),
+				"category": "resource", 
+				"retryable": true,
+			}
+		}
+	}
+
+	return health
+}
+
+func (s *Server) checkProfileSystem() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Check profiles table structure and basic operations
+	var totalProfiles, activeProfiles int
+	
+	// Count total profiles
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM profiles").Scan(&totalProfiles); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "PROFILE_TABLE_ACCESS_FAILED",
+			"message": "Cannot access profiles table: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+
+	// Count active profiles
+	if err := s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM profiles WHERE status = 'active'").Scan(&activeProfiles); err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "PROFILE_QUERY_FAILED", 
+			"message": "Failed to query active profiles: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["table_access"] = "ok"
+		health["checks"].(map[string]interface{})["total_profiles"] = totalProfiles
+		health["checks"].(map[string]interface{})["active_profiles"] = activeProfiles
+	}
+
+	return health
+}
+
+func (s *Server) checkTemplateSystem() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy", 
+		"checks": map[string]interface{}{},
+	}
+
+	// For now, this is a basic check since templates aren't fully implemented
+	// In a full implementation, this would check template storage, validation, etc.
+	health["checks"].(map[string]interface{})["placeholder"] = "ok"
+	health["checks"].(map[string]interface{})["note"] = "Template system checks not fully implemented"
+
+	return health
+}
+
+func (s *Server) countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && status == "healthy" {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func (s *Server) apiDocs(c *gin.Context) {

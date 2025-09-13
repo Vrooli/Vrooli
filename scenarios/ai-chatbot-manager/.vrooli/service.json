@@ -178,6 +178,14 @@
           }
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && npm run build",
+          "description": "Build React dashboard for production",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
           "name": "add-data",
           "run": "../../scripts/resources/populate/populate.sh .",
           "description": "Initialize database with schema and seed data"
@@ -204,7 +212,7 @@
         {
           "name": "start-ui",
           "run": "cd ui && npm start",
-          "description": "Start React development server",
+          "description": "Start UI server (serves built React app or development fallback)",
           "background": true,
           "condition": {
             "file_exists": "ui/package.json"

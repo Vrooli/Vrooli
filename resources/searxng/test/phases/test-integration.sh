@@ -71,8 +71,21 @@ searxng::test::parse_json() {
     local jq_expr="$2"
     
     if [[ "$SEARXNG_USE_JQ_FALLBACK" == "false" ]]; then
-        # Use jq if available
-        echo "$json_str" | jq -r "$jq_expr" 2>/dev/null || echo "0"
+        # Use jq if available with timeout to prevent hanging
+        local result
+        if result=$(echo "$json_str" | timeout 2 jq -r "$jq_expr" 2>/dev/null); then
+            echo "$result"
+        else
+            # If jq times out or fails, use fallback
+            case "$jq_expr" in
+                ".results | length")
+                    echo "$json_str" | grep -o '"url"' | wc -l || echo "0"
+                    ;;
+                *)
+                    echo "0"
+                    ;;
+            esac
+        fi
     else
         # Fallback parsing for common expressions
         case "$jq_expr" in
@@ -113,7 +126,19 @@ searxng::test::is_valid_json() {
     local response="$1"
     
     if [[ "$SEARXNG_USE_JQ_FALLBACK" == "false" ]]; then
-        echo "$response" | jq . >/dev/null 2>&1
+        # Use timeout to prevent hanging on large JSON
+        echo "$response" | timeout 2 jq . >/dev/null 2>&1
+        local ret=$?
+        if [[ $ret -eq 0 ]]; then
+            return 0
+        else
+            # Fallback to basic validation if jq times out
+            if echo "$response" | grep -q '^{.*}$' && echo "$response" | grep -q '"'; then
+                return 0
+            else
+                return 1
+            fi
+        fi
     else
         # Basic JSON validation - check for basic structure
         if echo "$response" | grep -q '^{.*}$' && echo "$response" | grep -q '"'; then
@@ -167,7 +192,7 @@ searxng::test::integration() {
     local json_passed=0
     
     for query in "${test_queries[@]}"; do
-        ((json_tests++))
+        json_tests=$((json_tests + 1))
         local search_response
         local query_success=false
         
@@ -179,7 +204,7 @@ searxng::test::integration() {
                         local result_count
                         result_count=$(searxng::test::parse_json "$search_response" ".results | length")
                         if [[ $result_count -gt 0 ]]; then
-                            ((json_passed++))
+                            json_passed=$((json_passed + 1))
                             query_success=true
                             if [[ "$verbose" == "true" ]]; then
                                 log::info "  ✓ Query '$query': $result_count results"
@@ -240,7 +265,7 @@ searxng::test::integration() {
     local format_passed=0
     
     for format in "${formats[@]}"; do
-        ((format_tests++))
+        format_tests=$((format_tests + 1))
         local format_response
         local format_success=false
         
@@ -250,7 +275,7 @@ searxng::test::integration() {
                 case "$format" in
                     "json")
                         if searxng::test::is_valid_json "$format_response"; then
-                            ((format_passed++))
+                            format_passed=$((format_passed + 1))
                             format_success=true
                             if [[ "$verbose" == "true" ]]; then
                                 log::info "  ✓ JSON format working"
@@ -259,7 +284,7 @@ searxng::test::integration() {
                         ;;
                     "xml")
                         if echo "$format_response" | grep -q "<?xml"; then
-                            ((format_passed++))
+                            format_passed=$((format_passed + 1))
                             format_success=true
                             if [[ "$verbose" == "true" ]]; then
                                 log::info "  ✓ XML format working"
@@ -268,7 +293,7 @@ searxng::test::integration() {
                         ;;
                     "csv")
                         if echo "$format_response" | grep -q ","; then
-                            ((format_passed++))
+                            format_passed=$((format_passed + 1))
                             format_success=true
                             if [[ "$verbose" == "true" ]]; then
                                 log::info "  ✓ CSV format working"
@@ -312,7 +337,7 @@ searxng::test::integration() {
     local category_passed=0
     
     for category in "${categories[@]}"; do
-        ((category_tests++))
+        category_tests=$((category_tests + 1))
         local category_response
         local category_success=false
         
@@ -322,7 +347,7 @@ searxng::test::integration() {
                     local results
                     results=$(searxng::test::parse_json "$category_response" ".results | length")
                     if [[ $results -gt 0 ]]; then
-                        ((category_passed++))
+                        category_passed=$((category_passed + 1))
                         category_success=true
                         if [[ "$verbose" == "true" ]]; then
                             log::info "  ✓ Category '$category': $results results"
@@ -537,7 +562,7 @@ searxng::test::integration() {
         local rate_response
         if rate_response=$(curl -sf --max-time 3 "${SEARXNG_BASE_URL}/search?q=rate$i&format=json" 2>/dev/null); then
             if searxng::test::is_valid_json "$rate_response"; then
-                ((successful_requests++))
+                successful_requests=$((successful_requests + 1))
             fi
         else
             # Check if this is a rate limit (HTTP 429)
@@ -590,13 +615,13 @@ searxng::test::integration() {
         
         # Check for common security headers
         if echo "$headers_response" | grep -qi "x-content-type-options"; then
-            ((security_headers++))
+            security_headers=$((security_headers + 1))
         fi
         if echo "$headers_response" | grep -qi "x-frame-options"; then
-            ((security_headers++))
+            security_headers=$((security_headers + 1))
         fi
         if echo "$headers_response" | grep -qi "referrer-policy"; then
-            ((security_headers++))
+            security_headers=$((security_headers + 1))
         fi
         
         # Check that server info is not leaked

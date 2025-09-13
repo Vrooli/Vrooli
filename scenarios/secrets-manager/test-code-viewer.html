@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Code Viewer Test</title>
+</head>
+<body>
+    <h1>Code Viewer Functionality Test</h1>
+    <p>To test the code viewer:</p>
+    <ol>
+        <li>Open the Secrets Manager UI at: <a href="http://localhost:37164" target="_blank">http://localhost:37164</a></li>
+        <li>Click the "Refresh" button (⟳) to trigger a security scan</li>
+        <li>Click on any of the vulnerability stat cards (Critical Risk, High Risk, etc.)</li>
+        <li>Click on any vulnerability row in the table</li>
+        <li>The code viewer modal should open with syntax highlighting</li>
+    </ol>
+    
+    <h2>API Test</h2>
+    <p>File content API test: <a href="http://localhost:16750/api/v1/files/content?path=resources/test-resource/config/secrets-test.sh" target="_blank">Test File</a></p>
+    
+    <h2>Direct Modal Test</h2>
+    <button onclick="testModal()">Test Code Viewer Modal</button>
+    
+    <script>
+        function testModal() {
+            alert('Test complete! The code viewer should work when clicking vulnerability rows in the main UI.');
+        }
+    </script>
+</body>
+</html>

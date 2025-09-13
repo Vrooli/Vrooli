@@ -456,36 +456,487 @@ func validateToken(token string) (*User, error) {
 
 // Health check endpoint
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	services := make(map[string]interface{})
+	start := time.Now()
 	overallStatus := "healthy"
-	statusCode := http.StatusOK
-
-	// Test database connection
-	if err := db.Ping(); err != nil {
-		services["database"] = map[string]interface{}{
-			"status": "unhealthy",
-			"error":  err.Error(),
-		}
+	var errors []map[string]interface{}
+	readiness := true
+	
+	// Schema-compliant health response structure
+	healthResponse := map[string]interface{}{
+		"status":    overallStatus,
+		"service":   "calendar-api",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true,
+		"version":   "1.0.0",
+		"dependencies": map[string]interface{}{},
+	}
+	
+	// Check database connectivity
+	dbHealth := checkDatabaseHealth()
+	healthResponse["dependencies"].(map[string]interface{})["database"] = dbHealth
+	if dbHealth["status"] != "healthy" {
 		overallStatus = "degraded"
-	} else {
-		// Check table existence
-		var tableCount int
-		tableQuery := `SELECT COUNT(*) FROM information_schema.tables 
-		               WHERE table_schema = 'public' 
-		               AND table_name IN ('events', 'event_reminders')`
-		if err := db.QueryRow(tableQuery).Scan(&tableCount); err != nil {
-			services["database"] = map[string]interface{}{
-				"status": "degraded",
-				"error":  "Schema check failed: " + err.Error(),
-			}
+		if dbHealth["status"] == "unhealthy" {
+			readiness = false
+			overallStatus = "unhealthy"
+		}
+		if dbHealth["error"] != nil {
+			errors = append(errors, dbHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check Qdrant vector database
+	qdrantHealth := checkQdrantHealth()
+	healthResponse["dependencies"].(map[string]interface{})["qdrant"] = qdrantHealth
+	if qdrantHealth["status"] != "healthy" {
+		if overallStatus != "unhealthy" {
 			overallStatus = "degraded"
-		} else {
-			services["database"] = map[string]interface{}{
-				"status": "healthy",
-				"tables": tableCount,
+		}
+		if qdrantHealth["error"] != nil {
+			errors = append(errors, qdrantHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check Auth service (optional)
+	authHealth := checkAuthServiceHealth()
+	healthResponse["dependencies"].(map[string]interface{})["auth_service"] = authHealth
+	if authHealth["status"] != "healthy" && authHealth["status"] != "not_configured" {
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
+		}
+		if authHealth["error"] != nil {
+			errors = append(errors, authHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check Notification service (optional)
+	notificationHealth := checkNotificationServiceHealth()
+	healthResponse["dependencies"].(map[string]interface{})["notification_service"] = notificationHealth
+	if notificationHealth["status"] != "healthy" && notificationHealth["status"] != "not_configured" {
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
+		}
+		if notificationHealth["error"] != nil {
+			errors = append(errors, notificationHealth["error"].(map[string]interface{}))
+		}
+	}
+	
+	// Check NLP processor (optional)
+	nlpHealth := checkNLPProcessorHealth()
+	healthResponse["dependencies"].(map[string]interface{})["nlp_processor"] = nlpHealth
+	if nlpHealth["status"] != "healthy" && nlpHealth["status"] != "not_configured" {
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
+		}
+	}
+	
+	// Update final status
+	healthResponse["status"] = overallStatus
+	healthResponse["readiness"] = readiness
+	
+	// Add errors if any
+	if len(errors) > 0 {
+		healthResponse["errors"] = errors
+	}
+	
+	// Add metrics
+	healthResponse["metrics"] = map[string]interface{}{
+		"total_dependencies": 5,
+		"healthy_dependencies": countHealthyDependencies(healthResponse["dependencies"].(map[string]interface{})),
+		"response_time_ms": time.Since(start).Milliseconds(),
+	}
+	
+	// Add calendar-specific stats
+	calendarStats := getCalendarStats()
+	healthResponse["calendar_stats"] = calendarStats
+	
+	// Return appropriate HTTP status
+	statusCode := http.StatusOK
+	if overallStatus == "unhealthy" {
+		statusCode = http.StatusServiceUnavailable
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(healthResponse)
+}
+
+// Health check helper methods
+func checkDatabaseHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if db == nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_NOT_INITIALIZED",
+			"message": "Database connection not initialized",
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	// Test database connection with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	if err := db.PingContext(ctx); err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_CONNECTION_FAILED",
+			"message": "Failed to ping database: " + err.Error(),
+			"category": "resource",
+			"retryable": true,
+		}
+		return health
+	}
+	health["checks"].(map[string]interface{})["ping"] = "ok"
+	
+	// Check calendar tables
+	requiredTables := []string{"events", "event_reminders", "recurring_patterns", "event_attendees", "calendar_permissions"}
+	var missingTables []string
+	
+	for _, tableName := range requiredTables {
+		var exists bool
+		query := fmt.Sprintf(`SELECT EXISTS(
+			SELECT 1 FROM information_schema.tables 
+			WHERE table_schema = 'public' AND table_name = '%s'
+		)`, tableName)
+		
+		if err := db.QueryRowContext(ctx, query).Scan(&exists); err != nil || !exists {
+			missingTables = append(missingTables, tableName)
+		}
+	}
+	
+	if len(missingTables) > 0 {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "DATABASE_SCHEMA_INCOMPLETE",
+			"message": fmt.Sprintf("Missing tables: %v", missingTables),
+			"category": "configuration",
+			"retryable": false,
+		}
+		health["checks"].(map[string]interface{})["missing_tables"] = missingTables
+	} else {
+		health["checks"].(map[string]interface{})["schema"] = "complete"
+	}
+	
+	// Check active events count
+	var eventCount int
+	eventQuery := `SELECT COUNT(*) FROM events WHERE status = 'active' AND start_time > NOW() - INTERVAL '30 days'`
+	if err := db.QueryRowContext(ctx, eventQuery).Scan(&eventCount); err == nil {
+		health["checks"].(map[string]interface{})["recent_events"] = eventCount
+	}
+	
+	// Check connection pool
+	stats := db.Stats()
+	health["checks"].(map[string]interface{})["open_connections"] = stats.OpenConnections
+	health["checks"].(map[string]interface{})["max_connections"] = stats.MaxOpenConnections
+	
+	if stats.OpenConnections > stats.MaxOpenConnections * 9 / 10 {
+		if health["status"] == "healthy" {
+			health["status"] = "degraded"
+		}
+		if health["error"] == nil {
+			health["error"] = map[string]interface{}{
+				"code": "DATABASE_CONNECTION_POOL_HIGH",
+				"message": fmt.Sprintf("Connection pool usage high: %d/%d", stats.OpenConnections, stats.MaxOpenConnections),
+				"category": "resource",
+				"retryable": false,
 			}
 		}
 	}
+	
+	return health
+}
+
+func checkQdrantHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	config := initConfig()
+	if config.QdrantURL == "" {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "QDRANT_NOT_CONFIGURED",
+			"message": "Qdrant URL not configured",
+			"category": "configuration",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	// Test Qdrant connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", config.QdrantURL+"/health", nil)
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "QDRANT_REQUEST_FAILED",
+			"message": "Failed to create request to Qdrant: " + err.Error(),
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "unhealthy"
+		health["error"] = map[string]interface{}{
+			"code": "QDRANT_CONNECTION_FAILED",
+			"message": "Failed to connect to Qdrant: " + err.Error(),
+			"category": "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "QDRANT_UNHEALTHY",
+			"message": fmt.Sprintf("Qdrant returned status %d", resp.StatusCode),
+			"category": "resource",
+			"retryable": true,
+		}
+	} else {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		
+		// Check calendar_events collection
+		collectionReq, _ := http.NewRequestWithContext(ctx, "GET", config.QdrantURL+"/collections/calendar_events", nil)
+		if collResp, err := client.Do(collectionReq); err == nil {
+			defer collResp.Body.Close()
+			if collResp.StatusCode == http.StatusOK {
+				health["checks"].(map[string]interface{})["calendar_events_collection"] = "exists"
+			} else {
+				health["checks"].(map[string]interface{})["calendar_events_collection"] = "missing"
+			}
+		}
+	}
+	
+	return health
+}
+
+func checkAuthServiceHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	config := initConfig()
+	if config.AuthServiceURL == "" {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["mode"] = "single_user"
+		return health
+	}
+	
+	// Test auth service connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", config.AuthServiceURL+"/health", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "AUTH_SERVICE_REQUEST_FAILED",
+			"message": "Failed to create request to auth service: " + err.Error(),
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "AUTH_SERVICE_CONNECTION_FAILED",
+			"message": "Failed to connect to auth service: " + err.Error(),
+			"category": "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == http.StatusOK {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["mode"] = "multi_user"
+	} else {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "AUTH_SERVICE_UNHEALTHY",
+			"message": fmt.Sprintf("Auth service returned status %d", resp.StatusCode),
+			"category": "resource",
+			"retryable": true,
+		}
+	}
+	
+	return health
+}
+
+func checkNotificationServiceHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	config := initConfig()
+	if config.NotificationServiceURL == "" {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["reminders"] = "disabled"
+		return health
+	}
+	
+	// Test notification service connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", config.NotificationServiceURL+"/health", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "NOTIFICATION_SERVICE_REQUEST_FAILED",
+			"message": "Failed to create request to notification service: " + err.Error(),
+			"category": "internal",
+			"retryable": false,
+		}
+		return health
+	}
+	
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "NOTIFICATION_SERVICE_CONNECTION_FAILED",
+			"message": "Failed to connect to notification service: " + err.Error(),
+			"category": "network",
+			"retryable": true,
+		}
+		return health
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == http.StatusOK {
+		health["checks"].(map[string]interface{})["connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["reminders"] = "enabled"
+	} else {
+		health["status"] = "degraded"
+		health["error"] = map[string]interface{}{
+			"code": "NOTIFICATION_SERVICE_UNHEALTHY",
+			"message": fmt.Sprintf("Notification service returned status %d", resp.StatusCode),
+			"category": "resource",
+			"retryable": true,
+		}
+	}
+	
+	return health
+}
+
+func checkNLPProcessorHealth() map[string]interface{} {
+	health := map[string]interface{}{
+		"status": "healthy",
+		"checks": map[string]interface{}{},
+	}
+	
+	if nlpProcessor == nil {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
+		return health
+	}
+	
+	// Check if Ollama is configured
+	config := initConfig()
+	if config.OllamaURL == "" {
+		health["status"] = "not_configured"
+		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
+		return health
+	}
+	
+	// Test Ollama connectivity
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", config.OllamaURL+"/api/tags", nil)
+	if err != nil {
+		health["status"] = "degraded"
+		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
+		return health
+	}
+	
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		health["status"] = "degraded"
+		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
+		return health
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode == http.StatusOK {
+		health["checks"].(map[string]interface{})["ollama_connectivity"] = "ok"
+		health["checks"].(map[string]interface{})["mode"] = "ai_powered"
+	} else {
+		health["status"] = "degraded"
+		health["checks"].(map[string]interface{})["mode"] = "rule_based_fallback"
+	}
+	
+	return health
+}
+
+func countHealthyDependencies(deps map[string]interface{}) int {
+	count := 0
+	for _, dep := range deps {
+		if depMap, ok := dep.(map[string]interface{}); ok {
+			if status, exists := depMap["status"]; exists && (status == "healthy" || status == "not_configured") {
+				count++
+			}
+		}
+	}
+	return count
+}
+
+func getCalendarStats() map[string]interface{} {
+	stats := map[string]interface{}{
+		"total_events": 0,
+		"upcoming_events": 0,
+		"active_reminders": 0,
+		"recurring_patterns": 0,
+	}
+	
+	if db == nil {
+		return stats
+	}
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	
+	// Get total events
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active'").Scan(&stats["total_events"])
+	
+	// Get upcoming events
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM events WHERE status = 'active' AND start_time > NOW()").Scan(&stats["upcoming_events"])
+	
+	// Get active reminders
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM event_reminders WHERE is_active = true").Scan(&stats["active_reminders"])
+	
+	// Get recurring patterns
+	db.QueryRowContext(ctx, "SELECT COUNT(*) FROM recurring_patterns WHERE is_active = true").Scan(&stats["recurring_patterns"])
+	
+	return stats
+}
 
 	// Test Qdrant connection (if configured)
 	config := initConfig()

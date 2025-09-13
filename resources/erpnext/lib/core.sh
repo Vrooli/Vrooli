@@ -37,9 +37,12 @@ erpnext::health_check() {
         return 1
     fi
     
-    # ERPNext doesn't have a /health endpoint, check root or API endpoint
-    # We'll check if the web server responds with any HTTP status (even 404 is OK, means it's up)
-    if timeout "$timeout_seconds" curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${ERPNEXT_PORT}/" | grep -q "^[234]"; then
+    # ERPNext requires proper Host header for multi-tenant setup
+    # Check if the service responds with the correct Host header
+    local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
+    if timeout "$timeout_seconds" curl -sf -o /dev/null -w "%{http_code}" \
+        -H "Host: ${site_name}" \
+        "http://localhost:${ERPNEXT_PORT}/" | grep -q "^[234]"; then
         return 0
     else
         log::error "Health check failed for ERPNext on port ${ERPNEXT_PORT}"
@@ -355,15 +358,18 @@ erpnext::initialize_site() {
 
 erpnext::get_api_status() {
     local timeout_seconds="${1:-5}"
+    local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
     
     if ! erpnext::is_running; then
         echo "Service not running"
         return 1
     fi
     
-    # Check if API responds
+    # Check if API responds with proper Host header
     local api_response
-    api_response=$(timeout "$timeout_seconds" curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${ERPNEXT_PORT}/api/method/frappe.auth.get_logged_user" 2>/dev/null || echo "000")
+    api_response=$(timeout "$timeout_seconds" curl -sf -o /dev/null -w "%{http_code}" \
+        -H "Host: ${site_name}" \
+        "http://localhost:${ERPNEXT_PORT}/api/method/frappe.auth.get_logged_user" 2>/dev/null || echo "000")
     
     case "$api_response" in
         200|401|403)
@@ -386,6 +392,65 @@ erpnext::get_api_status() {
 }
 
 ################################################################################
+# Credentials and Access Functions
+################################################################################
+
+erpnext::show_credentials() {
+    log::info "=== ERPNext Access Information ==="
+    echo ""
+    
+    if erpnext::is_running; then
+        log::success "Service Status: Running"
+        echo ""
+        log::info "Access Options:"
+        echo ""
+        
+        # Option 1: Direct access (may need hosts file update)
+        log::info "Option 1: Direct Access"
+        echo "  URL: http://localhost:${ERPNEXT_PORT}"
+        echo "  Note: If you see 'localhost does not exist', use Option 2"
+        echo ""
+        
+        # Option 2: Hosts file modification
+        log::info "Option 2: With Hosts File Update"
+        echo "  1. Add to /etc/hosts (requires sudo):"
+        echo "     127.0.0.1 vrooli.local"
+        echo "  2. Access at: http://vrooli.local:${ERPNEXT_PORT}"
+        echo ""
+        
+        # Login credentials
+        log::info "Login Credentials:"
+        echo "  Username: Administrator"
+        echo "  Password: ${ERPNEXT_ADMIN_PASSWORD:-admin}"
+        echo ""
+        
+        # API access
+        log::info "API Access:"
+        echo "  Endpoint: http://localhost:${ERPNEXT_PORT}/api"
+        echo "  Auth: Use login endpoint with above credentials"
+        echo "  Example:"
+        echo "    curl -X POST http://localhost:${ERPNEXT_PORT}/api/method/login \\"
+        echo "      -H 'Host: vrooli.local' \\"
+        echo "      -H 'Content-Type: application/json' \\"
+        echo "      -d '{\"usr\":\"Administrator\",\"pwd\":\"${ERPNEXT_ADMIN_PASSWORD:-admin}\"}'"
+        echo ""
+        
+        # Current site info
+        local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
+        if erpnext::site_exists "$site_name"; then
+            log::success "Site: ${site_name} (initialized)"
+        else
+            log::warn "Site: Not initialized - run 'vrooli resource erpnext manage start' to initialize"
+        fi
+    else
+        log::warn "Service Status: Not Running"
+        echo ""
+        echo "Start ERPNext first:"
+        echo "  vrooli resource erpnext manage start"
+    fi
+}
+
+################################################################################
 # Export functions for use by other scripts
 ################################################################################
 
@@ -402,3 +467,4 @@ export -f erpnext::status
 export -f erpnext::site_exists
 export -f erpnext::initialize_site
 export -f erpnext::get_api_status
+export -f erpnext::show_credentials

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -15,31 +17,317 @@ import (
 
 // HealthHandler handles health check requests
 func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
-	// Check database connection
-	if err := s.db.Ping(); err != nil {
-		s.logger.Printf("Database health check failed: %v", err)
-		http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
-		return
+	overallStatus := "healthy"
+	startTime := time.Now()
+	
+	// Schema-compliant health response
+	healthResponse := map[string]interface{}{
+		"status":    overallStatus,
+		"service":   serviceName,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"readiness": true, // Service is ready to accept requests
+		"version":   apiVersion,
+		"dependencies": map[string]interface{}{},
+		"metrics": map[string]interface{}{
+			"uptime_seconds": time.Since(startTime).Seconds(), // Simplified uptime
+		},
 	}
+	
+	dependencies := healthResponse["dependencies"].(map[string]interface{})
+	
+	// 1. Check database connection (critical for chatbot CRUD operations)
+	dbHealth := s.checkDatabase()
+	dependencies["database"] = dbHealth
+	if dbHealth["connected"] == false {
+		overallStatus = "unhealthy" // Database is critical
+	}
+	
+	// 2. Check Ollama connection (critical for AI chat responses)
+	ollamaHealth := s.checkOllama()
+	dependencies["ollama"] = ollamaHealth
+	if ollamaHealth["connected"] == false {
+		overallStatus = "unhealthy" // Ollama is critical for functionality
+	}
+	
+	// 3. Check widget file system (for generated widget files)
+	widgetHealth := s.checkWidgetFileSystem()
+	dependencies["widget_storage"] = widgetHealth
+	if widgetHealth["connected"] == false {
+		if overallStatus == "healthy" {
+			overallStatus = "degraded"
+		}
+	}
+	
+	// 4. Test basic AI inference capability (if Ollama is available)
+	if ollamaHealth["connected"] == true {
+		inferenceHealth := s.checkAIInference()
+		dependencies["ai_inference"] = inferenceHealth
+		if inferenceHealth["connected"] == false {
+			if overallStatus == "healthy" {
+				overallStatus = "degraded"
+			}
+		}
+	}
+	
+	// Update overall status
+	healthResponse["status"] = overallStatus
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(healthResponse)
+}
 
-	// Check Ollama connection
-	resp, err := http.Get(s.config.OllamaURL + "/api/tags")
-	if err != nil || resp.StatusCode != http.StatusOK {
-		s.logger.Printf("Ollama health check failed: %v", err)
-		http.Error(w, "Ollama unavailable", http.StatusServiceUnavailable)
-		return
+// checkDatabase tests PostgreSQL database connectivity and schema
+func (s *Server) checkDatabase() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Test database ping
+	if err := s.db.Ping(); err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "DATABASE_PING_FAILED",
+			"message":   fmt.Sprintf("Database connection failed: %v", err),
+			"category":  "resource",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Test basic schema by trying to count chatbots
+	chatbots, err := s.db.ListChatbots(false)
+	if err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "DATABASE_QUERY_FAILED",
+			"message":   fmt.Sprintf("Database query failed: %v", err),
+			"category":  "resource",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	result["connected"] = true
+	result["chatbot_count"] = len(chatbots)
+	return result
+}
+
+// checkOllama tests Ollama AI service connectivity and model availability
+func (s *Server) checkOllama() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	if s.config.OllamaURL == "" {
+		result["error"] = map[string]interface{}{
+			"code":      "OLLAMA_URL_MISSING",
+			"message":   "Ollama URL not configured",
+			"category":  "configuration",
+			"retryable": false,
+		}
+		return result
+	}
+	
+	// Test Ollama API availability
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(s.config.OllamaURL + "/api/tags")
+	if err != nil {
+		if strings.Contains(err.Error(), "connection refused") {
+			result["error"] = map[string]interface{}{
+				"code":      "CONNECTION_REFUSED",
+				"message":   "Ollama service not running",
+				"category":  "network",
+				"retryable": true,
+			}
+		} else {
+			result["error"] = map[string]interface{}{
+				"code":      "OLLAMA_CONNECTION_FAILED",
+				"message":   fmt.Sprintf("Cannot connect to Ollama: %v", err),
+				"category":  "network",
+				"retryable": true,
+			}
+		}
+		return result
 	}
 	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		result["error"] = map[string]interface{}{
+			"code":      fmt.Sprintf("HTTP_%d", resp.StatusCode),
+			"message":   fmt.Sprintf("Ollama returned status %d", resp.StatusCode),
+			"category":  "network",
+			"retryable": resp.StatusCode >= 500,
+		}
+		return result
+	}
+	
+	// Parse response to check available models
+	var tagsResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&tagsResponse); err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "OLLAMA_RESPONSE_INVALID",
+			"message":   fmt.Sprintf("Cannot parse Ollama response: %v", err),
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	result["connected"] = true
+	
+	// Check if models array exists and count models
+	if models, ok := tagsResponse["models"]; ok {
+		if modelsArray, ok := models.([]interface{}); ok {
+			result["available_models"] = len(modelsArray)
+		}
+	}
+	
+	return result
+}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
-		"version":   apiVersion,
-		"service":   serviceName,
-		"timestamp": time.Now().UTC(),
-		"database":  "connected",
-		"ollama":    "connected",
-	})
+// checkWidgetFileSystem tests widget file generation and storage
+func (s *Server) checkWidgetFileSystem() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Check if static directory exists for widget files
+	staticDir := "static"
+	if _, err := os.Stat(staticDir); err != nil {
+		if os.IsNotExist(err) {
+			// Try to create it
+			if err := os.MkdirAll(staticDir, 0755); err != nil {
+				result["error"] = map[string]interface{}{
+					"code":      "WIDGET_DIR_CREATE_FAILED",
+					"message":   fmt.Sprintf("Cannot create widget directory: %v", err),
+					"category":  "resource",
+					"retryable": false,
+				}
+				return result
+			}
+		} else {
+			result["error"] = map[string]interface{}{
+				"code":      "WIDGET_DIR_ACCESS_FAILED",
+				"message":   fmt.Sprintf("Cannot access widget directory: %v", err),
+				"category":  "resource",
+				"retryable": false,
+			}
+			return result
+		}
+	}
+	
+	// Test writing a small test file
+	testFile := filepath.Join(staticDir, ".health_check_test")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "WIDGET_WRITE_TEST_FAILED",
+			"message":   fmt.Sprintf("Cannot write widget test file: %v", err),
+			"category":  "resource",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Clean up test file
+	os.Remove(testFile)
+	
+	result["connected"] = true
+	return result
+}
+
+// checkAIInference tests basic AI model inference capability
+func (s *Server) checkAIInference() map[string]interface{} {
+	result := map[string]interface{}{
+		"connected": false,
+		"error":     nil,
+	}
+	
+	// Create a simple test request
+	testRequest := map[string]interface{}{
+		"model": "llama3.2", // Default model
+		"messages": []map[string]string{
+			{
+				"role":    "user",
+				"content": "Hello",
+			},
+		},
+		"stream": false,
+	}
+	
+	requestBody, err := json.Marshal(testRequest)
+	if err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "INFERENCE_REQUEST_MARSHAL_FAILED",
+			"message":   "Cannot marshal inference test request",
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Send inference request with short timeout
+	client := &http.Client{Timeout: 10 * time.Second}
+	inferenceStart := time.Now()
+	resp, err := client.Post(s.config.OllamaURL+"/api/chat", "application/json", bytes.NewBuffer(requestBody))
+	if err != nil {
+		if strings.Contains(err.Error(), "timeout") {
+			result["error"] = map[string]interface{}{
+				"code":      "INFERENCE_TIMEOUT",
+				"message":   "AI inference test timed out",
+				"category":  "network",
+				"retryable": true,
+			}
+		} else {
+			result["error"] = map[string]interface{}{
+				"code":      "INFERENCE_REQUEST_FAILED",
+				"message":   fmt.Sprintf("AI inference test failed: %v", err),
+				"category":  "network",
+				"retryable": true,
+			}
+		}
+		return result
+	}
+	defer resp.Body.Close()
+	
+	inferenceTime := time.Since(inferenceStart)
+	
+	if resp.StatusCode != http.StatusOK {
+		result["error"] = map[string]interface{}{
+			"code":      fmt.Sprintf("INFERENCE_HTTP_%d", resp.StatusCode),
+			"message":   fmt.Sprintf("AI inference returned status %d", resp.StatusCode),
+			"category":  "network",
+			"retryable": resp.StatusCode >= 500,
+		}
+		return result
+	}
+	
+	// Parse response
+	var inferenceResponse map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&inferenceResponse); err != nil {
+		result["error"] = map[string]interface{}{
+			"code":      "INFERENCE_RESPONSE_INVALID",
+			"message":   fmt.Sprintf("Cannot parse inference response: %v", err),
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	// Check if response has expected structure
+	if _, hasMessage := inferenceResponse["message"]; !hasMessage {
+		result["error"] = map[string]interface{}{
+			"code":      "INFERENCE_RESPONSE_MALFORMED",
+			"message":   "AI inference response missing message field",
+			"category":  "internal",
+			"retryable": true,
+		}
+		return result
+	}
+	
+	result["connected"] = true
+	result["latency_ms"] = float64(inferenceTime.Nanoseconds()) / 1e6 // Convert to milliseconds
+	return result
 }
 
 // CreateChatbotHandler handles chatbot creation

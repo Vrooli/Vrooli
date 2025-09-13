@@ -359,9 +359,9 @@ func main() {
 	api.HandleFunc("/schedules/{id}", handleScheduleDelete).Methods("DELETE")
 	
 	// Compliance endpoints
-	api.HandleFunc("/compliance/report", handleComplianceReport).Methods("GET")
-	api.HandleFunc("/compliance/scan", handleComplianceScan).Methods("POST")
-	api.HandleFunc("/compliance/issue/{id}/fix", handleComplianceFix).Methods("POST")
+	api.HandleFunc("/compliance/report", server.handleComplianceReport).Methods("GET")
+	api.HandleFunc("/compliance/scan", server.handleComplianceScan).Methods("POST")
+	api.HandleFunc("/compliance/issue/{id}/fix", server.handleComplianceFix).Methods("POST")
 	
 	// Visited tracker integration
 	api.HandleFunc("/visited/record", handleVisitedRecord).Methods("POST")

@@ -1,0 +1,257 @@
+# Home Assistant Energy Management Configuration Template
+# This template provides a foundation for energy monitoring and optimization
+
+# Energy configuration
+energy:
+  # Grid consumption sensor
+  grid_consumption:
+    - sensor.grid_energy_consumption
+  
+  # Grid production sensor (if you have solar/wind)
+  grid_production:
+    - sensor.grid_energy_production
+  
+  # Solar production sensor
+  solar_production:
+    - sensor.solar_energy_production
+  
+  # Battery systems
+  battery_systems:
+    - sensor.battery_energy_in
+    - sensor.battery_energy_out
+
+# Utility meters for tracking consumption
+utility_meter:
+  daily_energy:
+    source: sensor.grid_energy_consumption
+    cycle: daily
+    tariffs:
+      - peak
+      - offpeak
+  
+  monthly_energy:
+    source: sensor.grid_energy_consumption
+    cycle: monthly
+  
+  yearly_energy:
+    source: sensor.grid_energy_consumption
+    cycle: yearly
+
+# Automations for energy optimization
+automation:
+  # Switch to off-peak usage when possible
+  - alias: "Energy: Use Off-Peak Power"
+    description: "Shift high-consumption devices to off-peak hours"
+    trigger:
+      - platform: time
+        at: "23:00:00"  # Start of off-peak hours
+    condition:
+      - condition: state
+        entity_id: input_boolean.energy_optimization
+        state: "on"
+    action:
+      # Start dishwasher if loaded
+      - service: switch.turn_on
+        target:
+          entity_id: switch.dishwasher
+      # Start washing machine if loaded
+      - service: switch.turn_on
+        target:
+          entity_id: switch.washing_machine
+      # Charge electric vehicle
+      - service: switch.turn_on
+        target:
+          entity_id: switch.ev_charger
+  
+  # Solar optimization
+  - alias: "Energy: Maximize Solar Usage"
+    description: "Run high-consumption devices when solar production is high"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.solar_power
+        above: 3000  # Watts
+    condition:
+      - condition: sun
+        after: sunrise
+        before: sunset
+    action:
+      # Heat water with excess solar
+      - service: water_heater.set_temperature
+        target:
+          entity_id: water_heater.main
+        data:
+          temperature: 65  # Heat to higher temp when solar available
+      # Run pool pump
+      - service: switch.turn_on
+        target:
+          entity_id: switch.pool_pump
+  
+  # Peak demand reduction
+  - alias: "Energy: Reduce Peak Demand"
+    description: "Reduce consumption during peak hours"
+    trigger:
+      - platform: time
+        at: "16:00:00"  # Start of peak hours
+    condition:
+      - condition: state
+        entity_id: input_boolean.energy_optimization
+        state: "on"
+    action:
+      # Adjust thermostat
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.main
+        data:
+          temperature: 78  # Raise temp in summer to reduce AC
+      # Turn off non-essential devices
+      - service: switch.turn_off
+        target:
+          entity_id: 
+            - switch.pool_pump
+            - switch.decorative_lights
+      # Dim lights
+      - service: light.turn_on
+        target:
+          entity_id: group.all_lights
+        data:
+          brightness_pct: 70
+
+# Sensors for energy monitoring
+sensor:
+  # Calculate energy costs
+  - platform: template
+    sensors:
+      daily_energy_cost:
+        friendly_name: "Daily Energy Cost"
+        unit_of_measurement: "$"
+        value_template: >
+          {% set peak_rate = 0.28 %}
+          {% set offpeak_rate = 0.12 %}
+          {% set peak_kwh = states('sensor.daily_energy_peak') | float %}
+          {% set offpeak_kwh = states('sensor.daily_energy_offpeak') | float %}
+          {{ ((peak_kwh * peak_rate) + (offpeak_kwh * offpeak_rate)) | round(2) }}
+      
+      current_power_usage:
+        friendly_name: "Current Power Usage"
+        unit_of_measurement: "W"
+        value_template: >
+          {{ states('sensor.grid_power') | float }}
+      
+      solar_self_consumption:
+        friendly_name: "Solar Self Consumption"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set solar = states('sensor.solar_power') | float %}
+          {% set grid = states('sensor.grid_power') | float %}
+          {% if solar > 0 %}
+            {{ ((1 - (grid / solar)) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+      
+      energy_independence:
+        friendly_name: "Energy Independence"
+        unit_of_measurement: "%"
+        value_template: >
+          {% set consumed = states('sensor.total_energy_consumed') | float %}
+          {% set produced = states('sensor.total_energy_produced') | float %}
+          {% if consumed > 0 %}
+            {{ ((produced / consumed) * 100) | round(1) }}
+          {% else %}
+            0
+          {% endif %}
+
+# Input booleans for user control
+input_boolean:
+  energy_optimization:
+    name: "Energy Optimization"
+    initial: on
+    icon: mdi:leaf
+  
+  peak_reduction:
+    name: "Peak Demand Reduction"
+    initial: on
+    icon: mdi:transmission-tower
+  
+  solar_priority:
+    name: "Solar Priority Mode"
+    initial: on
+    icon: mdi:solar-power
+
+# Scripts for energy management
+script:
+  # Emergency power reduction
+  emergency_power_reduction:
+    alias: "Emergency Power Reduction"
+    sequence:
+      # Turn off all non-essential devices
+      - service: homeassistant.turn_off
+        target:
+          entity_id: 
+            - group.non_essential_devices
+            - group.decorative_lights
+      # Set all thermostats to eco mode
+      - service: climate.set_preset_mode
+        target:
+          entity_id: all
+        data:
+          preset_mode: "eco"
+      # Dim all lights to 50%
+      - service: light.turn_on
+        target:
+          entity_id: all
+        data:
+          brightness_pct: 50
+      # Send notification
+      - service: notify.all
+        data:
+          title: "Emergency Power Reduction"
+          message: "Non-essential devices turned off to reduce power consumption"
+  
+  # Optimize for solar
+  optimize_for_solar:
+    alias: "Optimize for Solar Production"
+    sequence:
+      # Check solar production
+      - condition: numeric_state
+        entity_id: sensor.solar_power
+        above: 1000
+      # Schedule high-consumption tasks
+      - service: script.schedule_high_consumption
+      # Charge batteries if available
+      - service: switch.turn_on
+        target:
+          entity_id: switch.battery_charge
+      # Pre-cool/heat house
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.main
+        data:
+          temperature: "{{ 72 if is_state('sensor.season', 'summer') else 68 }}"
+
+# Groups for energy management
+group:
+  high_consumption_devices:
+    name: "High Consumption Devices"
+    entities:
+      - switch.water_heater
+      - switch.ev_charger
+      - switch.pool_pump
+      - switch.dryer
+      - switch.washing_machine
+      - switch.dishwasher
+  
+  non_essential_devices:
+    name: "Non-Essential Devices"
+    entities:
+      - switch.decorative_lights
+      - switch.fountain_pump
+      - switch.guest_room_devices
+      - media_player.spare_tv
+  
+  renewable_sources:
+    name: "Renewable Energy Sources"
+    entities:
+      - sensor.solar_power
+      - sensor.wind_power
+      - sensor.battery_power

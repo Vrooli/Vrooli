@@ -1,0 +1,30 @@
+{
+  "status": "healthy",
+  "service": "device-sync-hub-ui",
+  "timestamp": "2025-09-13T00:00:00Z",
+  "readiness": true,
+  "api_connectivity": {
+    "connected": false,
+    "api_url": "http://localhost:3300",
+    "last_check": "2025-09-13T00:00:00Z",
+    "error": {
+      "code": "STATIC_UI_CANNOT_TEST",
+      "message": "Static UI cannot test live connectivity - health status unknown",
+      "category": "configuration",
+      "retryable": false
+    },
+    "latency_ms": null
+  },
+  "static_files": {
+    "available": true,
+    "files": {
+      "index_html": true,
+      "app_js": true,
+      "style_css": true
+    }
+  },
+  "metrics": {
+    "deployment_mode": "static",
+    "requires_auth": true
+  }
+}

@@ -189,12 +189,193 @@ async function processCommand(command) {
 // setInterval(broadcastLogEntry, 15000);   // DISABLED - should use real events
 
 // Health check endpoint (before static files)
-app.get('/health', (req, res) => {
-    res.json({
+app.get('/health', async (req, res) => {
+    const healthResponse = {
         status: 'healthy',
-        uptime: process.uptime(),
-        connections: wss.clients.size
-    });
+        service: 'app-monitor-ui',
+        timestamp: new Date().toISOString(),
+        readiness: true,
+        api_connectivity: {
+            connected: false,
+            api_url: `http://localhost:${API_PORT}`,
+            last_check: new Date().toISOString(),
+            error: null,
+            latency_ms: null
+        }
+    };
+    
+    // Test API connectivity
+    if (API_PORT) {
+        const startTime = Date.now();
+        
+        try {
+            await new Promise((resolve, reject) => {
+                const options = {
+                    hostname: 'localhost',
+                    port: API_PORT,
+                    path: '/health',
+                    method: 'GET',
+                    timeout: 5000,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                };
+                
+                const req = http.request(options, (res) => {
+                    const endTime = Date.now();
+                    healthResponse.api_connectivity.latency_ms = endTime - startTime;
+                    
+                    if (res.statusCode >= 200 && res.statusCode < 300) {
+                        healthResponse.api_connectivity.connected = true;
+                        healthResponse.api_connectivity.error = null;
+                    } else {
+                        healthResponse.api_connectivity.connected = false;
+                        healthResponse.api_connectivity.error = {
+                            code: `HTTP_${res.statusCode}`,
+                            message: `API returned status ${res.statusCode}: ${res.statusMessage}`,
+                            category: 'network',
+                            retryable: res.statusCode >= 500 && res.statusCode < 600
+                        };
+                        healthResponse.status = 'degraded';
+                    }
+                    resolve();
+                });
+                
+                req.on('error', (error) => {
+                    const endTime = Date.now();
+                    healthResponse.api_connectivity.latency_ms = endTime - startTime;
+                    healthResponse.api_connectivity.connected = false;
+                    
+                    let errorCode = 'CONNECTION_FAILED';
+                    let category = 'network';
+                    let retryable = true;
+                    
+                    if (error.code === 'ECONNREFUSED') {
+                        errorCode = 'CONNECTION_REFUSED';
+                    } else if (error.code === 'ENOTFOUND') {
+                        errorCode = 'HOST_NOT_FOUND';
+                        category = 'configuration';
+                    } else if (error.code === 'ETIMEOUT') {
+                        errorCode = 'TIMEOUT';
+                    }
+                    
+                    healthResponse.api_connectivity.error = {
+                        code: errorCode,
+                        message: `Failed to connect to API: ${error.message}`,
+                        category: category,
+                        retryable: retryable,
+                        details: {
+                            error_code: error.code
+                        }
+                    };
+                    healthResponse.status = 'unhealthy';
+                    resolve();
+                });
+                
+                req.on('timeout', () => {
+                    const endTime = Date.now();
+                    healthResponse.api_connectivity.latency_ms = endTime - startTime;
+                    healthResponse.api_connectivity.connected = false;
+                    healthResponse.api_connectivity.error = {
+                        code: 'TIMEOUT',
+                        message: 'API health check timed out after 5 seconds',
+                        category: 'network',
+                        retryable: true
+                    };
+                    healthResponse.status = 'unhealthy';
+                    req.destroy();
+                    resolve();
+                });
+                
+                req.end();
+            });
+        } catch (error) {
+            const endTime = Date.now();
+            healthResponse.api_connectivity.latency_ms = endTime - startTime;
+            healthResponse.api_connectivity.connected = false;
+            healthResponse.api_connectivity.error = {
+                code: 'UNEXPECTED_ERROR',
+                message: `Unexpected error: ${error.message}`,
+                category: 'internal',
+                retryable: true
+            };
+            healthResponse.status = 'unhealthy';
+        }
+    } else {
+        // No API_PORT configured
+        healthResponse.api_connectivity.connected = false;
+        healthResponse.api_connectivity.error = {
+            code: 'MISSING_CONFIG',
+            message: 'API_PORT environment variable not configured',
+            category: 'configuration',
+            retryable: false
+        };
+        healthResponse.status = 'degraded';
+    }
+    
+    // Check WebSocket server health
+    healthResponse.websocket = {
+        connected: true,
+        active_connections: wss.clients.size,
+        error: null
+    };
+    
+    // Verify WebSocket server is actually working
+    if (!wss || typeof wss.clients === 'undefined') {
+        healthResponse.websocket.connected = false;
+        healthResponse.websocket.error = {
+            code: 'WEBSOCKET_SERVER_DOWN',
+            message: 'WebSocket server not initialized',
+            category: 'internal',
+            retryable: false
+        };
+        if (healthResponse.status === 'healthy') {
+            healthResponse.status = 'degraded';
+        }
+    }
+    
+    // Check static file availability (in production)
+    if (process.env.NODE_ENV === 'production') {
+        const staticPath = path.join(__dirname, 'dist');
+        const indexPath = path.join(staticPath, 'index.html');
+        
+        healthResponse.static_files = {
+            available: false,
+            error: null
+        };
+        
+        try {
+            if (fs.existsSync(indexPath)) {
+                healthResponse.static_files.available = true;
+            } else {
+                healthResponse.static_files.error = {
+                    code: 'STATIC_FILES_MISSING',
+                    message: 'Production build files not found',
+                    category: 'resource',
+                    retryable: false
+                };
+                if (healthResponse.status === 'healthy') {
+                    healthResponse.status = 'degraded';
+                }
+            }
+        } catch (error) {
+            healthResponse.static_files.error = {
+                code: 'STATIC_FILES_CHECK_FAILED',
+                message: `Cannot check static files: ${error.message}`,
+                category: 'resource',
+                retryable: false
+            };
+        }
+    }
+    
+    // Add server metrics
+    healthResponse.metrics = {
+        uptime_seconds: process.uptime(),
+        memory_usage_mb: process.memoryUsage().heapUsed / 1024 / 1024,
+        websocket_clients: wss.clients.size
+    };
+    
+    res.json(healthResponse);
 });
 
 // In production, serve built React files

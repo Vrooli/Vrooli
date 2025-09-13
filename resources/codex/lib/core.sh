@@ -48,21 +48,42 @@ codex::generate_code() {
     fi
     
     # Prepare the API request
-    local request_body=$(jq -n \
-        --arg model "$model" \
-        --arg system "$system_message" \
-        --arg user "$prompt" \
-        --argjson temp "${CODEX_DEFAULT_TEMPERATURE:-0.2}" \
-        --argjson max_tokens "${CODEX_DEFAULT_MAX_TOKENS:-2048}" \
-        '{
-            model: $model,
-            messages: [
-                {role: "system", content: $system},
-                {role: "user", content: $user}
-            ],
-            temperature: $temp,
-            max_tokens: $max_tokens
-        }')
+    # Note: GPT-5 models have different parameters
+    local request_body
+    if [[ "$model" == gpt-5* ]]; then
+        # GPT-5 models: use max_completion_tokens and temperature must be 1
+        request_body=$(jq -n \
+            --arg model "$model" \
+            --arg system "$system_message" \
+            --arg user "$prompt" \
+            --argjson max_tokens "${CODEX_DEFAULT_MAX_TOKENS:-8192}" \
+            '{
+                model: $model,
+                messages: [
+                    {role: "system", content: $system},
+                    {role: "user", content: $user}
+                ],
+                temperature: 1,
+                max_completion_tokens: $max_tokens
+            }')
+    else
+        # GPT-4 and older models: use max_tokens and custom temperature
+        request_body=$(jq -n \
+            --arg model "$model" \
+            --arg system "$system_message" \
+            --arg user "$prompt" \
+            --argjson temp "${CODEX_DEFAULT_TEMPERATURE:-0.2}" \
+            --argjson max_tokens "${CODEX_DEFAULT_MAX_TOKENS:-4096}" \
+            '{
+                model: $model,
+                messages: [
+                    {role: "system", content: $system},
+                    {role: "user", content: $user}
+                ],
+                temperature: $temp,
+                max_tokens: $max_tokens
+            }')
+    fi
     
     # Make the API request
     local response

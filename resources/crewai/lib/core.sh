@@ -65,11 +65,14 @@ create_server_file() {
 
 import os
 import json
+import uuid
 from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 import shutil
 from urllib.parse import urlparse, parse_qs
+import threading
+import time
 
 # Configuration
 PORT = ${CREWAI_PORT:-8084}
@@ -79,14 +82,16 @@ CREWAI_DATA_DIR = Path.home() / ".crewai"
 CREWS_DIR = CREWAI_DATA_DIR / "crews"
 AGENTS_DIR = CREWAI_DATA_DIR / "agents"
 WORKSPACE_DIR = CREWAI_DATA_DIR / "workspace"
+TASKS_DIR = CREWAI_DATA_DIR / "tasks"
 
 # Ensure directories exist
-for dir_path in [CREWS_DIR, AGENTS_DIR, WORKSPACE_DIR]:
+for dir_path in [CREWS_DIR, AGENTS_DIR, WORKSPACE_DIR, TASKS_DIR]:
     dir_path.mkdir(parents=True, exist_ok=True)
 
 # Store loaded crews and agents
 loaded_crews = {}
 loaded_agents = {}
+task_executions = {}
 
 class CrewAIHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -101,35 +106,100 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                 "status": "running",
                 "crews": len(loaded_crews),
                 "agents": len(loaded_agents),
-                "workspace": str(WORKSPACE_DIR)
+                "workspace": str(WORKSPACE_DIR),
+                "capabilities": ["crews", "agents", "tasks", "inject", "execute"]
             })
         elif path == "/health":
             self.send_json_response(200, {
                 "status": "healthy",
                 "timestamp": datetime.utcnow().isoformat(),
                 "crews_loaded": len(loaded_crews),
-                "agents_loaded": len(loaded_agents)
+                "agents_loaded": len(loaded_agents),
+                "active_tasks": len([t for t in task_executions.values() if t["status"] == "running"])
             })
         elif path == "/crews":
             crews = []
             for crew_file in CREWS_DIR.glob("*.py"):
                 crew_name = crew_file.stem
+                crew_data = loaded_crews.get(crew_name, {})
                 crews.append({
                     "name": crew_name,
                     "loaded": crew_name in loaded_crews,
-                    "path": str(crew_file)
+                    "path": str(crew_file),
+                    "agents": crew_data.get("agents", []),
+                    "tasks": crew_data.get("tasks", [])
                 })
+            # Also include JSON crews
+            for crew_file in CREWS_DIR.glob("*.json"):
+                crew_name = crew_file.stem
+                try:
+                    with open(crew_file) as f:
+                        crew_data = json.load(f)
+                    crews.append({
+                        "name": crew_name,
+                        "loaded": True,
+                        "path": str(crew_file),
+                        "agents": crew_data.get("agents", []),
+                        "tasks": crew_data.get("tasks", [])
+                    })
+                except:
+                    pass
             self.send_json_response(200, {"crews": crews})
         elif path == "/agents":
             agents = []
             for agent_file in AGENTS_DIR.glob("*.py"):
                 agent_name = agent_file.stem
+                agent_data = loaded_agents.get(agent_name, {})
                 agents.append({
                     "name": agent_name,
                     "loaded": agent_name in loaded_agents,
-                    "path": str(agent_file)
+                    "path": str(agent_file),
+                    "role": agent_data.get("role", ""),
+                    "goal": agent_data.get("goal", "")
                 })
+            # Also include JSON agents
+            for agent_file in AGENTS_DIR.glob("*.json"):
+                agent_name = agent_file.stem
+                try:
+                    with open(agent_file) as f:
+                        agent_data = json.load(f)
+                    agents.append({
+                        "name": agent_name,
+                        "loaded": True,
+                        "path": str(agent_file),
+                        "role": agent_data.get("role", ""),
+                        "goal": agent_data.get("goal", "")
+                    })
+                except:
+                    pass
             self.send_json_response(200, {"agents": agents})
+        elif path == "/tasks":
+            tasks = list(task_executions.values())
+            self.send_json_response(200, {"tasks": tasks})
+        elif path.startswith("/tasks/"):
+            task_id = path.split("/")[-1]
+            if task_id in task_executions:
+                self.send_json_response(200, task_executions[task_id])
+            else:
+                self.send_json_response(404, {"error": "Task not found"})
+        elif path.startswith("/crews/"):
+            crew_name = path.split("/")[-1]
+            crew_file = CREWS_DIR / f"{crew_name}.json"
+            if crew_file.exists():
+                with open(crew_file) as f:
+                    crew_data = json.load(f)
+                self.send_json_response(200, crew_data)
+            else:
+                self.send_json_response(404, {"error": "Crew not found"})
+        elif path.startswith("/agents/"):
+            agent_name = path.split("/")[-1]
+            agent_file = AGENTS_DIR / f"{agent_name}.json"
+            if agent_file.exists():
+                with open(agent_file) as f:
+                    agent_data = json.load(f)
+                self.send_json_response(200, agent_data)
+            else:
+                self.send_json_response(404, {"error": "Agent not found"})
         else:
             self.send_json_response(404, {"error": "Not found"})
     
@@ -138,11 +208,17 @@ class CrewAIHandler(BaseHTTPRequestHandler):
         parsed_path = urlparse(self.path)
         path = parsed_path.path
         
-        if path == "/inject":
-            content_length = int(self.headers['Content-Length'])
+        content_length = int(self.headers.get('Content-Length', 0))
+        if content_length > 0:
             post_data = self.rfile.read(content_length)
-            data = json.loads(post_data)
-            
+            try:
+                data = json.loads(post_data)
+            except:
+                data = {}
+        else:
+            data = {}
+        
+        if path == "/inject":
             file_path = data.get('file_path')
             file_type = data.get('file_type')
             
@@ -175,6 +251,162 @@ class CrewAIHandler(BaseHTTPRequestHandler):
                 })
             except Exception as e:
                 self.send_json_response(500, {"error": str(e)})
+        
+        elif path == "/crews":
+            # Create a new crew
+            crew_name = data.get("name", f"crew_{int(time.time())}")
+            agents = data.get("agents", [])
+            tasks = data.get("tasks", [])
+            
+            crew_data = {
+                "name": crew_name,
+                "agents": agents,
+                "tasks": tasks,
+                "created": datetime.utcnow().isoformat()
+            }
+            
+            crew_file = CREWS_DIR / f"{crew_name}.json"
+            with open(crew_file, "w") as f:
+                json.dump(crew_data, f, indent=2)
+            
+            loaded_crews[crew_name] = crew_data
+            
+            self.send_json_response(201, {
+                "status": "created",
+                "crew": crew_data,
+                "path": str(crew_file)
+            })
+        
+        elif path == "/agents":
+            # Create a new agent
+            agent_name = data.get("name", f"agent_{int(time.time())}")
+            role = data.get("role", "assistant")
+            goal = data.get("goal", "help with tasks")
+            backstory = data.get("backstory", "")
+            
+            agent_data = {
+                "name": agent_name,
+                "role": role,
+                "goal": goal,
+                "backstory": backstory,
+                "created": datetime.utcnow().isoformat()
+            }
+            
+            agent_file = AGENTS_DIR / f"{agent_name}.json"
+            with open(agent_file, "w") as f:
+                json.dump(agent_data, f, indent=2)
+            
+            loaded_agents[agent_name] = agent_data
+            
+            self.send_json_response(201, {
+                "status": "created",
+                "agent": agent_data,
+                "path": str(agent_file)
+            })
+        
+        elif path == "/execute":
+            # Execute a crew (mock execution)
+            crew_name = data.get("crew")
+            input_data = data.get("input", {})
+            
+            if not crew_name:
+                self.send_json_response(400, {"error": "Missing crew name"})
+                return
+            
+            crew_file = CREWS_DIR / f"{crew_name}.json"
+            if not crew_file.exists():
+                self.send_json_response(404, {"error": "Crew not found"})
+                return
+            
+            # Create mock task execution
+            task_id = str(uuid.uuid4())
+            task_data = {
+                "id": task_id,
+                "crew": crew_name,
+                "input": input_data,
+                "status": "running",
+                "started": datetime.utcnow().isoformat(),
+                "progress": 0,
+                "result": None
+            }
+            
+            task_executions[task_id] = task_data
+            
+            # Simulate async execution
+            def mock_execute():
+                for i in range(1, 11):
+                    time.sleep(0.5)
+                    task_executions[task_id]["progress"] = i * 10
+                
+                task_executions[task_id]["status"] = "completed"
+                task_executions[task_id]["completed"] = datetime.utcnow().isoformat()
+                task_executions[task_id]["result"] = {
+                    "output": f"Mock execution of {crew_name} completed",
+                    "data": input_data
+                }
+            
+            thread = threading.Thread(target=mock_execute)
+            thread.daemon = True
+            thread.start()
+            
+            self.send_json_response(202, {
+                "status": "started",
+                "task_id": task_id,
+                "message": f"Crew {crew_name} execution started"
+            })
+        
+        elif path.startswith("/crews/") and path.endswith("/delete"):
+            crew_name = path.split("/")[-2]
+            crew_file = CREWS_DIR / f"{crew_name}.json"
+            if crew_file.exists():
+                crew_file.unlink()
+                if crew_name in loaded_crews:
+                    del loaded_crews[crew_name]
+                self.send_json_response(200, {"status": "deleted", "crew": crew_name})
+            else:
+                self.send_json_response(404, {"error": "Crew not found"})
+        
+        elif path.startswith("/agents/") and path.endswith("/delete"):
+            agent_name = path.split("/")[-2]
+            agent_file = AGENTS_DIR / f"{agent_name}.json"
+            if agent_file.exists():
+                agent_file.unlink()
+                if agent_name in loaded_agents:
+                    del loaded_agents[agent_name]
+                self.send_json_response(200, {"status": "deleted", "agent": agent_name})
+            else:
+                self.send_json_response(404, {"error": "Agent not found"})
+        
+        else:
+            self.send_json_response(404, {"error": "Not found"})
+    
+    def do_DELETE(self):
+        """Handle DELETE requests"""
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+        
+        if path.startswith("/crews/"):
+            crew_name = path.split("/")[-1]
+            crew_file = CREWS_DIR / f"{crew_name}.json"
+            if crew_file.exists():
+                crew_file.unlink()
+                if crew_name in loaded_crews:
+                    del loaded_crews[crew_name]
+                self.send_json_response(200, {"status": "deleted", "crew": crew_name})
+            else:
+                self.send_json_response(404, {"error": "Crew not found"})
+        
+        elif path.startswith("/agents/"):
+            agent_name = path.split("/")[-1]
+            agent_file = AGENTS_DIR / f"{agent_name}.json"
+            if agent_file.exists():
+                agent_file.unlink()
+                if agent_name in loaded_agents:
+                    del loaded_agents[agent_name]
+                self.send_json_response(200, {"status": "deleted", "agent": agent_name})
+            else:
+                self.send_json_response(404, {"error": "Agent not found"})
+        
         else:
             self.send_json_response(404, {"error": "Not found"})
     
@@ -190,6 +422,27 @@ class CrewAIHandler(BaseHTTPRequestHandler):
         pass
 
 if __name__ == "__main__":
+    # Create sample data if none exists
+    if not list(AGENTS_DIR.glob("*.json")):
+        sample_agent = {
+            "name": "researcher",
+            "role": "Senior Research Analyst",
+            "goal": "Gather and analyze information",
+            "backstory": "Expert at finding and synthesizing information"
+        }
+        with open(AGENTS_DIR / "researcher.json", "w") as f:
+            json.dump(sample_agent, f, indent=2)
+    
+    if not list(CREWS_DIR.glob("*.json")):
+        sample_crew = {
+            "name": "research_crew",
+            "agents": ["researcher"],
+            "tasks": ["gather_info", "analyze_data"],
+            "description": "Crew for research and analysis tasks"
+        }
+        with open(CREWS_DIR / "research_crew.json", "w") as f:
+            json.dump(sample_crew, f, indent=2)
+    
     server = HTTPServer(('0.0.0.0', PORT), CrewAIHandler)
     print(f"CrewAI Mock Server running on port {PORT}")
     server.serve_forever()

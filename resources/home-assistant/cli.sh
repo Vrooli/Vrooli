@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${HOME_ASSISTANT_CLI_DIR}/config/defaults.sh"
 
 # Source Home Assistant libraries
-for lib in core health install status inject test; do
+for lib in core health install status inject test components; do
     lib_file="${HOME_ASSISTANT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -80,6 +80,13 @@ cli::register_command_group "backup" "Backup and restore operations"
 cli::register_subcommand "backup" "create" "Create a new backup" "home_assistant::backup"
 cli::register_subcommand "backup" "list" "List available backups" "home_assistant::backup::list"
 cli::register_subcommand "backup" "restore" "Restore from a backup" "home_assistant::restore"
+
+# Custom components management commands
+cli::register_command_group "components" "Custom components management"
+cli::register_subcommand "components" "list" "List installed custom components" "home_assistant::components::list"
+cli::register_subcommand "components" "install-hacs" "Install Home Assistant Community Store" "home_assistant::components::install_hacs"
+cli::register_subcommand "components" "add" "Install component from GitHub" "home_assistant::components::install_from_github"
+cli::register_subcommand "components" "remove" "Remove a custom component" "home_assistant::components::remove"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

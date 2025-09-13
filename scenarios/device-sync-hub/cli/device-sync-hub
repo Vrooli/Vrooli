@@ -8,11 +8,33 @@ set -euo pipefail
 # Configuration
 CLI_NAME="device-sync-hub"
 CLI_VERSION="1.0.0"
-API_URL="${API_URL:-http://localhost:3300}"
-AUTH_URL="${AUTH_URL:-http://localhost:3250}"
 CONFIG_DIR="$HOME/.vrooli/$CLI_NAME"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 AUTH_TOKEN=""
+
+# Load URLs from environment or config file, no hardcoded defaults
+if [[ -f "$CONFIG_FILE" ]]; then
+    API_URL=$(jq -r '.api_url // empty' "$CONFIG_FILE" 2>/dev/null)
+    AUTH_URL=$(jq -r '.auth_url // empty' "$CONFIG_FILE" 2>/dev/null)
+fi
+
+# Override with environment variables if set
+API_URL="${API_URL:-}"
+AUTH_URL="${AUTH_URL:-}"
+
+# Validate required configuration
+validate_config() {
+    if [[ -z "$API_URL" ]]; then
+        log_error "API_URL not configured. Set environment variable or add to $CONFIG_FILE"
+        log_info "Example: export API_URL=http://localhost:\${API_PORT}"
+        exit 1
+    fi
+    if [[ -z "$AUTH_URL" ]]; then
+        log_error "AUTH_URL not configured. Set environment variable or add to $CONFIG_FILE"
+        log_info "Example: export AUTH_URL=http://localhost:\${AUTH_PORT}"
+        exit 1
+    fi
+}
 
 # Colors for output
 RED='\033[0;31m'
@@ -55,13 +77,19 @@ load_config() {
 
 # Save configuration
 save_config() {
-    local config="{\"auth_token\": \"$AUTH_TOKEN\"}"
+    local config=$(jq -n \
+        --arg token "$AUTH_TOKEN" \
+        --arg api "$API_URL" \
+        --arg auth "$AUTH_URL" \
+        '{auth_token: $token, api_url: $api, auth_url: $auth}')
     echo "$config" > "$CONFIG_FILE"
     chmod 600 "$CONFIG_FILE"
 }
 
 # API request wrapper
 api_request() {
+    validate_config  # Ensure URLs are configured
+    
     local method="$1"
     local endpoint="$2"
     local data="${3:-}"
@@ -88,6 +116,8 @@ api_request() {
 
 # Authentication
 authenticate() {
+    validate_config  # Ensure URLs are configured
+    
     if [[ -z "$AUTH_TOKEN" ]]; then
         log_error "No authentication token found. Please login first."
         log_info "Run: $CLI_NAME login"
@@ -173,8 +203,8 @@ CONFIGURATION:
     Config file:     ~/.vrooli/device-sync-hub/config.json
     
     Environment variables:
-    - API_URL:  API server URL (default: http://localhost:3300)
-    - AUTH_URL: Auth server URL (default: http://localhost:3250)
+    - API_URL:  API server URL (required, no default)
+    - AUTH_URL: Auth server URL (required, no default)
 
 AUTHENTICATION:
     This CLI integrates with scenario-authenticator for secure access.
@@ -208,6 +238,8 @@ cmd_version() {
 }
 
 cmd_login() {
+    validate_config  # Ensure URLs are configured
+    
     echo -n "Email: "
     read -r email
     echo -n "Password: "
@@ -275,6 +307,8 @@ cmd_status() {
                 ;;
         esac
     done
+    
+    validate_config  # Ensure URLs are configured
     
     # Check API health
     local api_status="offline"

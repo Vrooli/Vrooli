@@ -121,7 +121,7 @@ function ChatbotEditor() {
         if (!isEditing && result.chatbot) {
           // Show embed code for new chatbots
           const embedCode = `<script src="${window.location.origin}/widget.js" data-chatbot-id="${result.chatbot.id}"></script>`;
-          if (confirm('Chatbot created! Would you like to copy the embed code to clipboard?')) {
+          if (window.confirm('Chatbot created! Would you like to copy the embed code to clipboard?')) {
             navigator.clipboard.writeText(embedCode);
           }
         }

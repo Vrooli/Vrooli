@@ -19,32 +19,19 @@ source "${GEMINI_RESOURCE_DIR}/lib/tokens.sh"
 gemini::init() {
     local verbose="${1:-false}"
     
-    # Try to load API key from Vault first (per secrets.yaml specification)
-    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^vault$'; then
+    # Try resource-vault command (preferred method)
+    if command -v resource-vault >/dev/null 2>&1; then
         local vault_key
         # Use the path defined in secrets.yaml
-        vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=gemini_api_key secret/resources/gemini/api/key 2>/dev/null" || true)
+        vault_key=$(resource-vault content get --path "resources/gemini/api/key" --key "gemini_api_key" --format raw 2>/dev/null || true)
         if [[ -z "$vault_key" || "$vault_key" == "No value found"* ]]; then
             # Try legacy path for backwards compatibility
-            vault_key=$(docker exec vault sh -c "export VAULT_TOKEN=myroot && vault kv get -field=api_key secret/vrooli/gemini 2>/dev/null" || true)
+            vault_key=$(resource-vault content get --path "vrooli/gemini" --key "api_key" --format raw 2>/dev/null || true)
         fi
         
         if [[ -n "$vault_key" && "$vault_key" != "No value found"* ]]; then
             export GEMINI_API_KEY="$vault_key"
-            [[ "$verbose" == "true" ]] && log::info "Gemini API key loaded from Vault"
-        fi
-    elif command -v vault >/dev/null 2>&1; then
-        local vault_key
-        # Use the path defined in secrets.yaml
-        vault_key=$(vault kv get -field=gemini_api_key secret/resources/gemini/api/key 2>/dev/null || true)
-        if [[ -z "$vault_key" ]]; then
-            # Try legacy path
-            vault_key=$(vault kv get -field=api_key secret/vrooli/gemini 2>/dev/null || true)
-        fi
-        
-        if [[ -n "$vault_key" ]]; then
-            export GEMINI_API_KEY="$vault_key"
-            [[ "$verbose" == "true" ]] && log::info "Gemini API key loaded from Vault"
+            [[ "$verbose" == "true" ]] && log::info "Gemini API key loaded via resource-vault"
         fi
     fi
     

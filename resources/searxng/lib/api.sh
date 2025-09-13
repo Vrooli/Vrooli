@@ -609,25 +609,30 @@ searxng::benchmark() {
     echo
     echo "Running benchmark..."
     
-    for ((i=0; i<num_queries; i++)); do
+    local i=0
+    while [[ $i -lt $num_queries ]]; do
         local query="${test_queries[$((i % ${#test_queries[@]}))]}"
         local start_time
-        start_time=$(date +%s.%N)
+        start_time=$(date +%s)
         
-        if searxng::search "$query" "json" >/dev/null 2>&1; then
+        # Use direct curl instead of searxng::search to avoid output processing issues
+        local encoded_query
+        encoded_query=$(echo "$query" | sed 's/ /%20/g')
+        
+        if timeout 5 curl -sf "${SEARXNG_BASE_URL}/search?q=${encoded_query}&format=json" >/dev/null 2>&1; then
             local end_time
-            end_time=$(date +%s.%N)
-            local duration
-            duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "0")
+            end_time=$(date +%s)
+            local duration=$((end_time - start_time))
             
-            total_time=$(echo "$total_time + $duration" | bc -l 2>/dev/null || echo "$total_time")
-            ((successful_queries++))
+            total_time=$((total_time + duration))
+            ((successful_queries++)) || true
             
-            printf "  Query %2d: ✅ %.3fs - %s\n" $((i+1)) "$duration" "$query"
+            echo "  Query $((i+1)): ✅ ${duration}s - $query"
         else
-            ((failed_queries++))
-            printf "  Query %2d: ❌ Failed - %s\n" $((i+1)) "$query"
+            ((failed_queries++)) || true
+            echo "  Query $((i+1)): ❌ Failed - $query"
         fi
+        ((i++)) || true
     done
     
     echo
@@ -637,17 +642,16 @@ searxng::benchmark() {
     echo "  Failed: $failed_queries"
     
     if [[ $successful_queries -gt 0 ]]; then
-        local avg_time
-        avg_time=$(echo "scale=3; $total_time / $successful_queries" | bc -l 2>/dev/null || echo "0")
+        local avg_time=$((total_time / successful_queries))
         echo "  Average response time: ${avg_time}s"
         echo "  Total time: ${total_time}s"
         
         # Performance assessment
-        if (( $(echo "$avg_time < 1.0" | bc -l 2>/dev/null || echo 0) )); then
+        if [[ $avg_time -lt 1 ]]; then
             echo "  Performance: ✅ Excellent (< 1s average)"
-        elif (( $(echo "$avg_time < 3.0" | bc -l 2>/dev/null || echo 0) )); then
+        elif [[ $avg_time -lt 3 ]]; then
             echo "  Performance: ✅ Good (< 3s average)"
-        elif (( $(echo "$avg_time < 5.0" | bc -l 2>/dev/null || echo 0) )); then
+        elif [[ $avg_time -lt 5 ]]; then
             echo "  Performance: ⚠️  Acceptable (< 5s average)"
         else
             echo "  Performance: ❌ Poor (> 5s average)"

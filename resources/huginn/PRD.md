@@ -88,6 +88,15 @@
 - ✅ All tests passing (smoke, integration, unit)
 - ⚠️  Service not yet installed/running - lifecycle needs testing
 
+### 2025-09-13 Runtime Testing and Fixes
+- ✅ Fixed password generation to use consistent value instead of timestamp
+- ✅ Added missing database environment variables (DATABASE_ADAPTER, DO_NOT_CREATE_DATABASE)
+- ✅ Tested actual service lifecycle (install/start/stop commands work)
+- ❌ Service fails to start due to upstream image database initialization issues
+- ✅ Created PROBLEMS.md documenting runtime issues and solutions
+- ⚠️  Upstream huginn/huginn:latest has compatibility issues with PostgreSQL 15
+- ⚠️  Health checks fail due to Rails application crashes during startup
+
 ## Revenue Justification
 
 ### Direct Value ($15K-25K)
@@ -103,8 +112,10 @@
 - Foundation for business process automation
 
 ## Next Steps
-1. Verify current implementation actually works
-2. Add missing v2.0 test structure
-3. Implement comprehensive health checks
-4. Test agent creation and execution
-5. Document integration patterns
+1. Build and use custom Docker image from docker/Dockerfile
+2. Test with PostgreSQL 14 for better compatibility
+3. Implement proper /health endpoint
+4. Add retry logic for database connections
+5. Test agent creation and execution once service runs
+6. Implement Redis event bus integration
+7. Add backup/restore capabilities

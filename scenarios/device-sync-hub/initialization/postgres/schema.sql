@@ -4,17 +4,40 @@
 -- Extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Devices table - stores registered devices per user
+CREATE TABLE IF NOT EXISTS devices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    platform VARCHAR(100) NOT NULL,
+    capabilities TEXT,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Files table - stores file metadata for downloads
+CREATE TABLE IF NOT EXISTS files (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(255) NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    size BIGINT NOT NULL,
+    mime_type VARCHAR(100) NOT NULL,
+    path TEXT NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Sync items table - stores metadata for all synchronized files and text
 CREATE TABLE IF NOT EXISTS sync_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL,
-    filename VARCHAR(255) NOT NULL,
-    mime_type VARCHAR(100) NOT NULL,
-    file_size BIGINT NOT NULL,
-    content_type VARCHAR(20) NOT NULL CHECK (content_type IN ('file', 'text', 'clipboard')),
-    storage_path TEXT NOT NULL,
-    thumbnail_path TEXT,
-    metadata JSONB DEFAULT '{}',
+    user_id VARCHAR(255) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('file', 'text', 'clipboard', 'notification')),
+    content JSONB DEFAULT '{}',
+    source_device VARCHAR(255),
+    target_devices JSONB DEFAULT '[]',
+    status VARCHAR(20) DEFAULT 'pending',
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -31,9 +54,16 @@ CREATE TABLE IF NOT EXISTS device_sessions (
 );
 
 -- Indexes for performance optimization
+CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id);
+CREATE INDEX IF NOT EXISTS idx_devices_last_seen ON devices(last_seen);
+
+CREATE INDEX IF NOT EXISTS idx_files_user_id ON files(user_id);
+CREATE INDEX IF NOT EXISTS idx_files_expires_at ON files(expires_at);
+
 CREATE INDEX IF NOT EXISTS idx_sync_items_user_id ON sync_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_sync_items_expires_at ON sync_items(expires_at);
-CREATE INDEX IF NOT EXISTS idx_sync_items_content_type ON sync_items(content_type);
+CREATE INDEX IF NOT EXISTS idx_sync_items_type ON sync_items(type);
+CREATE INDEX IF NOT EXISTS idx_sync_items_status ON sync_items(status);
 CREATE INDEX IF NOT EXISTS idx_sync_items_created_at ON sync_items(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS idx_device_sessions_user_id ON device_sessions(user_id);
@@ -79,7 +109,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get user statistics
-CREATE OR REPLACE FUNCTION get_user_sync_stats(user_uuid UUID)
+CREATE OR REPLACE FUNCTION get_user_sync_stats(user_id_param VARCHAR)
 RETURNS TABLE(
     total_items INTEGER,
     total_size BIGINT,
@@ -92,13 +122,13 @@ BEGIN
     RETURN QUERY
     SELECT 
         COUNT(*)::INTEGER as total_items,
-        COALESCE(SUM(file_size), 0)::BIGINT as total_size,
-        COUNT(*) FILTER (WHERE content_type = 'file')::INTEGER as files_count,
-        COUNT(*) FILTER (WHERE content_type = 'text')::INTEGER as text_count,
-        COUNT(*) FILTER (WHERE content_type = 'clipboard')::INTEGER as clipboard_count,
+        COALESCE(SUM((content->>'file_size')::BIGINT), 0)::BIGINT as total_size,
+        COUNT(*) FILTER (WHERE type = 'file')::INTEGER as files_count,
+        COUNT(*) FILTER (WHERE type = 'text')::INTEGER as text_count,
+        COUNT(*) FILTER (WHERE type = 'clipboard')::INTEGER as clipboard_count,
         COUNT(*) FILTER (WHERE expires_at <= NOW() + INTERVAL '1 hour')::INTEGER as expires_soon_count
     FROM sync_items 
-    WHERE user_id = user_uuid AND expires_at > NOW();
+    WHERE user_id = user_id_param AND expires_at > NOW();
 END;
 $$ LANGUAGE plpgsql;
 
@@ -129,12 +159,12 @@ SELECT
         ELSE 'active'
     END as expiry_status,
     CASE 
-        WHEN s.content_type = 'file' AND s.mime_type LIKE 'image/%' THEN 'image'
-        WHEN s.content_type = 'file' AND s.mime_type LIKE 'video/%' THEN 'video'
-        WHEN s.content_type = 'file' AND s.mime_type LIKE 'audio/%' THEN 'audio'
-        WHEN s.content_type = 'file' AND s.mime_type LIKE 'text/%' THEN 'text_file'
-        WHEN s.content_type = 'file' THEN 'other_file'
-        ELSE s.content_type
+        WHEN s.type = 'file' AND (s.content->>'mime_type') LIKE 'image/%' THEN 'image'
+        WHEN s.type = 'file' AND (s.content->>'mime_type') LIKE 'video/%' THEN 'video'
+        WHEN s.type = 'file' AND (s.content->>'mime_type') LIKE 'audio/%' THEN 'audio'
+        WHEN s.type = 'file' AND (s.content->>'mime_type') LIKE 'text/%' THEN 'text_file'
+        WHEN s.type = 'file' THEN 'other_file'
+        ELSE s.type
     END as display_type
 FROM sync_items s
 WHERE s.expires_at > NOW();
@@ -152,13 +182,15 @@ WHERE last_seen > NOW() - INTERVAL '1 day'
 GROUP BY user_id;
 
 -- Insert some helpful comments for documentation
-COMMENT ON TABLE sync_items IS 'Stores metadata for all synchronized files and text content';
+COMMENT ON TABLE devices IS 'Stores registered devices for each user';
+COMMENT ON TABLE files IS 'Stores metadata for uploaded files';
+COMMENT ON TABLE sync_items IS 'Stores metadata for all synchronized content between devices';
 COMMENT ON TABLE device_sessions IS 'Tracks active WebSocket connections for real-time synchronization';
 
-COMMENT ON COLUMN sync_items.content_type IS 'Type of content: file, text, or clipboard';
-COMMENT ON COLUMN sync_items.storage_path IS 'Full filesystem path to the stored file';
-COMMENT ON COLUMN sync_items.thumbnail_path IS 'Path to generated thumbnail (for images only)';
-COMMENT ON COLUMN sync_items.metadata IS 'Additional metadata stored as JSON (original filename, upload info, etc.)';
+COMMENT ON COLUMN sync_items.type IS 'Type of content: file, text, clipboard, or notification';
+COMMENT ON COLUMN sync_items.content IS 'JSON content with type-specific data';
+COMMENT ON COLUMN sync_items.source_device IS 'ID of the device that created this sync item';
+COMMENT ON COLUMN sync_items.target_devices IS 'Array of target device IDs for this sync item';
 COMMENT ON COLUMN sync_items.expires_at IS 'When this item should be automatically deleted';
 
 COMMENT ON COLUMN device_sessions.device_info IS 'JSON containing device/browser information for identification';
