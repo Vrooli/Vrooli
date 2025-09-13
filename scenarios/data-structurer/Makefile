@@ -53,15 +53,7 @@ dev: ## Start in development mode
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@if [ -f test.sh ]; then \
-		./test.sh; \
-	elif [ -f api/go.mod ]; then \
-		cd api && go test ./... -v; \
-	elif [ -f ui/package.json ] && [ -f ui/package-lock.json ]; then \
-		cd ui && npm test; \
-	else \
-		vrooli test scenario $(SCENARIO_NAME); \
-	fi
+	@vrooli scenario test $(SCENARIO_NAME)
 
 logs: ## Show recent logs for this scenario
 	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"

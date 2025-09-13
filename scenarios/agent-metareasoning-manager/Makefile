@@ -91,9 +91,9 @@ status: ## Check if scenario is running
 # DEVELOPMENT COMMANDS - For testing and building
 # ============================================================================
 
-test: ## Run all tests
-	@echo "$(BLUE)🧪 Running all tests...$(RESET)"
-	@cd api && TEST_DATABASE_URL=$(TEST_DB_URL) go test -v -race ./...
+test: ## Run tests for this scenario
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 test-verbose: ## Run tests with verbose output
 	@echo "$(BLUE)🧪 Running tests (verbose)...$(RESET)"

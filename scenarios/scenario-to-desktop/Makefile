@@ -145,9 +145,9 @@ build-windows: ## Build for Windows (amd64)
 # DEVELOPMENT COMMANDS
 # ============================================================================
 
-test: ## Run all tests
-	@echo "$(BLUE)🧪 Running tests...$(RESET)"
-	@cd api && go test -v ./...
+test: ## Run tests for this scenario
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 deps: ## Install/update dependencies
 	@echo "$(BLUE)📦 Installing dependencies...$(RESET)"

@@ -302,7 +302,7 @@ class EcosystemManager {
     }
     
     async loadAllTasks() {
-        const statuses = ['pending', 'in-progress', 'review', 'completed', 'failed'];
+        const statuses = ['pending', 'in-progress', 'completed', 'failed'];
         
         for (const status of statuses) {
             await this.loadTasks(status);
@@ -601,7 +601,7 @@ class EcosystemManager {
     }
     
     renderAllColumns() {
-        const statuses = ['pending', 'in-progress', 'review', 'completed', 'failed'];
+        const statuses = ['pending', 'in-progress', 'completed', 'failed'];
         
         statuses.forEach(status => {
             this.renderColumn(status);
@@ -714,8 +714,6 @@ class EcosystemManager {
             if (!isBackwardsTransition && (cleanedTask.progress_percentage === 0 || cleanedTask.progress_percentage === 100)) {
                 cleanedTask.progress_percentage = 25;
             }
-        } else if (targetStatus === 'review') {
-            cleanedTask.current_phase = 'review';
             cleanedTask.progress_percentage = 75;
         } else if (targetStatus === 'completed') {
             cleanedTask.current_phase = 'completed';
@@ -1118,7 +1116,6 @@ class EcosystemManager {
         const phaseIconMap = {
             'pending': 'fa-clock',
             'in-progress': 'fa-spinner fa-spin',
-            'review': 'fa-eye',
             'completed': 'fa-check-circle',
             'failed': 'fa-exclamation-triangle',
             'cancelled': 'fa-times-circle'
@@ -1496,7 +1493,6 @@ class EcosystemManager {
                                 <select id="edit-task-status" name="status" required>
                                     <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
                                     <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
-                                    <option value="review" ${task.status === 'review' ? 'selected' : ''}>Review</option>
                                     <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
                                     <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
                                 </select>
@@ -2866,7 +2862,6 @@ class EcosystemManager {
                                 <select id="edit-task-status" name="status">
                                     <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
                                     <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
-                                    <option value="review" ${task.status === 'review' ? 'selected' : ''}>Review</option>
                                     <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
                                     <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
                                 </select>

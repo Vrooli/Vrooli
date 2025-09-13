@@ -1,0 +1,1396 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>visited-tracker-api: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">visited-tracker-api/main.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package main
+
+import (
+        "encoding/json"
+        "fmt"
+        "io/fs"
+        "log"
+        "math"
+        "net/http"
+        "os"
+        "path/filepath"
+        "sort"
+        "strconv"
+        "strings"
+        "sync"
+        "time"
+
+        "github.com/google/uuid"
+        "github.com/gorilla/mux"
+)
+
+const (
+        apiVersion  = "3.0.0"
+        serviceName = "visited-tracker"
+        dataDir     = "data/campaigns"
+)
+
+var (
+        logger    *log.Logger
+        fileLocks = make(map[string]*sync.RWMutex)
+        locksLock = sync.RWMutex{}
+)
+
+// Models with JSON file storage support
+type Campaign struct {
+        ID              uuid.UUID              `json:"id"`
+        Name            string                 `json:"name"`
+        FromAgent       string                 `json:"from_agent"`
+        Description     *string                `json:"description,omitempty"`
+        Patterns        []string               `json:"patterns"`
+        CreatedAt       time.Time              `json:"created_at"`
+        UpdatedAt       time.Time              `json:"updated_at"`
+        Status          string                 `json:"status"`
+        Metadata        map[string]interface{} `json:"metadata"`
+        TrackedFiles    []TrackedFile          `json:"tracked_files"`
+        Visits          []Visit                `json:"visits"`
+        StructureSnapshots []StructureSnapshot `json:"structure_snapshots"`
+        // Computed fields (not stored)
+        TotalFiles      int     `json:"total_files,omitempty"`
+        VisitedFiles    int     `json:"visited_files,omitempty"`  
+        CoveragePercent float64 `json:"coverage_percent,omitempty"`
+}
+
+type TrackedFile struct {
+        ID             uuid.UUID              `json:"id"`
+        FilePath       string                 `json:"file_path"`
+        AbsolutePath   string                 `json:"absolute_path"`
+        VisitCount     int                    `json:"visit_count"`
+        FirstSeen      time.Time              `json:"first_seen"`
+        LastVisited    *time.Time             `json:"last_visited,omitempty"`
+        LastModified   time.Time              `json:"last_modified"`
+        ContentHash    *string                `json:"content_hash,omitempty"`
+        SizeBytes      int64                  `json:"size_bytes"`
+        StalenessScore float64                `json:"staleness_score"`
+        Deleted        bool                   `json:"deleted"`
+        Metadata       map[string]interface{} `json:"metadata"`
+}
+
+type Visit struct {
+        ID             uuid.UUID              `json:"id"`
+        FileID         uuid.UUID              `json:"file_id"`
+        Timestamp      time.Time              `json:"timestamp"`
+        Context        *string                `json:"context,omitempty"`
+        Agent          *string                `json:"agent,omitempty"`
+        ConversationID *string                `json:"conversation_id,omitempty"`
+        DurationMs     *int                   `json:"duration_ms,omitempty"`
+        Findings       map[string]interface{} `json:"findings,omitempty"`
+}
+
+type StructureSnapshot struct {
+        ID           uuid.UUID              `json:"id"`
+        Timestamp    time.Time              `json:"timestamp"`
+        TotalFiles   int                    `json:"total_files"`
+        NewFiles     []string               `json:"new_files"`
+        DeletedFiles []string               `json:"deleted_files"`
+        MovedFiles   map[string]string      `json:"moved_files"`
+        SnapshotData map[string]interface{} `json:"snapshot_data"`
+}
+
+// Request/Response types
+type CreateCampaignRequest struct {
+        Name        string                 `json:"name"`
+        FromAgent   string                 `json:"from_agent"`
+        Description *string                `json:"description,omitempty"`
+        Patterns    []string               `json:"patterns"`
+        Metadata    map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type VisitRequest struct {
+        Files          interface{}            `json:"files"` // Can be []string or []FileVisit
+        Context        *string                `json:"context,omitempty"`
+        Agent          *string                `json:"agent,omitempty"`
+        ConversationID *string                `json:"conversation_id,omitempty"`
+        Metadata       map[string]interface{} `json:"metadata,omitempty"`
+}
+
+type FileVisit struct {
+        Path    string  `json:"path"`
+        Context *string `json:"context,omitempty"`
+}
+
+type StructureSyncRequest struct {
+        Files         []string               `json:"files,omitempty"`
+        Structure     map[string]interface{} `json:"structure,omitempty"`
+        Patterns      []string               `json:"patterns,omitempty"`
+        RemoveDeleted bool                   `json:"remove_deleted,omitempty"`
+}
+
+type SyncResult struct {
+        Added      int                    `json:"added"`
+        Moved      int                    `json:"moved"`
+        Removed    int                    `json:"removed"`
+        SnapshotID uuid.UUID              `json:"snapshot_id"`
+        Total      int                    `json:"total"`
+}
+
+type AdjustVisitRequest struct {
+        FileID string `json:"file_id"`
+        Action string `json:"action"` // "increment" or "decrement"
+}
+
+func main() <span class="cov0" title="0">{
+        // Protect against direct execution - must be run through lifecycle system
+        if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" </span><span class="cov0" title="0">{
+                fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start visited-tracker
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+                os.Exit(1)
+        }</span>
+
+        // Change working directory to project root for file pattern resolution
+        // API runs from scenarios/visited-tracker/api/, so go up 3 levels to project root
+        <span class="cov0" title="0">if err := os.Chdir("../../../"); err != nil </span><span class="cov0" title="0">{
+                fmt.Fprintf(os.Stderr, "❌ Failed to change to project root directory: %v\n", err)
+                os.Exit(1)
+        }</span>
+
+        // Initialize logger
+        <span class="cov0" title="0">logger = log.New(os.Stdout, "[visited-tracker] ", log.LstdFlags)
+
+        // Log current working directory for transparency
+        if cwd, err := os.Getwd(); err == nil </span><span class="cov0" title="0">{
+                logger.Printf("📁 Working directory: %s", cwd)
+                logger.Printf("💡 File patterns will be resolved relative to this directory")
+        }</span>
+
+        // Initialize JSON file storage
+        <span class="cov0" title="0">if err := initFileStorage(); err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("File storage initialization failed: %v", err)
+        }</span>
+
+        // Get port from environment
+        <span class="cov0" title="0">port := os.Getenv("API_PORT")
+        if port == "" </span><span class="cov0" title="0">{
+                logger.Fatal("❌ API_PORT environment variable is required")
+        }</span>
+
+        // Setup router
+        <span class="cov0" title="0">r := mux.NewRouter()
+        
+        // Apply CORS middleware first
+        r.Use(corsMiddleware)
+
+        // API v1 routes
+        v1 := r.PathPrefix("/api/v1").Subrouter()
+
+        // Health endpoint (outside versioning for simplicity)
+        r.HandleFunc("/health", healthHandler).Methods("GET")
+
+        // Campaign management endpoints
+        v1.HandleFunc("/campaigns", listCampaignsHandler).Methods("GET")
+        v1.HandleFunc("/campaigns", createCampaignHandler).Methods("POST")
+        v1.HandleFunc("/campaigns", optionsHandler).Methods("OPTIONS")
+        v1.HandleFunc("/campaigns/{id}", getCampaignHandler).Methods("GET")
+        v1.HandleFunc("/campaigns/{id}", deleteCampaignHandler).Methods("DELETE")
+        v1.HandleFunc("/campaigns/{id}", optionsHandler).Methods("OPTIONS")
+
+        // Campaign-specific visit tracking endpoints
+        v1.HandleFunc("/campaigns/{id}/visit", visitHandler).Methods("POST")
+        v1.HandleFunc("/campaigns/{id}/visit", optionsHandler).Methods("OPTIONS")
+        v1.HandleFunc("/campaigns/{id}/adjust-visit", adjustVisitHandler).Methods("POST")
+        v1.HandleFunc("/campaigns/{id}/adjust-visit", optionsHandler).Methods("OPTIONS")
+        v1.HandleFunc("/campaigns/{id}/structure/sync", structureSyncHandler).Methods("POST")
+        v1.HandleFunc("/campaigns/{id}/structure/sync", optionsHandler).Methods("OPTIONS")
+        v1.HandleFunc("/campaigns/{id}/prioritize/least-visited", leastVisitedHandler).Methods("GET")
+        v1.HandleFunc("/campaigns/{id}/prioritize/most-stale", mostStaleHandler).Methods("GET")
+        v1.HandleFunc("/campaigns/{id}/coverage", coverageHandler).Methods("GET")
+        v1.HandleFunc("/campaigns/{id}/export", exportHandler).Methods("GET")
+
+        logger.Printf("🚀 %s API v%s starting on port %s", serviceName, apiVersion, port)
+        logger.Printf("📊 Endpoints available at http://localhost:%s/api/v1", port)
+        logger.Printf("💾 Data stored in JSON files at: %s", filepath.Join("scenarios", "visited-tracker", dataDir))
+
+        if err := http.ListenAndServe(":"+port, r); err != nil </span><span class="cov0" title="0">{
+                logger.Fatalf("Server failed to start: %v", err)
+        }</span>
+}
+
+func corsMiddleware(next http.Handler) http.Handler <span class="cov0" title="0">{
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                w.Header().Set("Access-Control-Allow-Origin", "*")
+                w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+                w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+                if r.Method == "OPTIONS" </span><span class="cov0" title="0">{
+                        w.WriteHeader(http.StatusOK)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">next.ServeHTTP(w, r)</span>
+        })
+}
+
+func initFileStorage() error <span class="cov0" title="0">{
+        // Ensure data directory exists
+        dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+        if err := os.MkdirAll(dataPath, 0755); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create data directory: %w", err)
+        }</span>
+        
+        <span class="cov0" title="0">logger.Printf("✅ JSON file storage initialized at: %s", dataPath)
+        return nil</span>
+}
+
+// File locking utilities for concurrent access
+func getFileLock(filename string) *sync.RWMutex <span class="cov0" title="0">{
+        locksLock.Lock()
+        defer locksLock.Unlock()
+        
+        if lock, exists := fileLocks[filename]; exists </span><span class="cov0" title="0">{
+                return lock
+        }</span>
+        
+        <span class="cov0" title="0">lock := &amp;sync.RWMutex{}
+        fileLocks[filename] = lock
+        return lock</span>
+}
+
+func getCampaignPath(campaignID uuid.UUID) string <span class="cov0" title="0">{
+        return filepath.Join("scenarios", "visited-tracker", dataDir, campaignID.String()+".json")
+}</span>
+
+// Campaign storage operations
+func saveCampaign(campaign *Campaign) error <span class="cov0" title="0">{
+        campaign.UpdatedAt = time.Now().UTC()
+        filePath := getCampaignPath(campaign.ID)
+        
+        lock := getFileLock(filePath)
+        lock.Lock()
+        defer lock.Unlock()
+        
+        data, err := json.MarshalIndent(campaign, "", "  ")
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal campaign: %w", err)
+        }</span>
+        
+        <span class="cov0" title="0">if err := os.WriteFile(filePath, data, 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write campaign file: %w", err)
+        }</span>
+        
+        <span class="cov0" title="0">return nil</span>
+}
+
+func loadCampaign(campaignID uuid.UUID) (*Campaign, error) <span class="cov0" title="0">{
+        filePath := getCampaignPath(campaignID)
+        
+        lock := getFileLock(filePath)
+        lock.RLock()
+        defer lock.RUnlock()
+        
+        data, err := os.ReadFile(filePath)
+        if err != nil </span><span class="cov0" title="0">{
+                if os.IsNotExist(err) </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("campaign not found")
+                }</span>
+                <span class="cov0" title="0">return nil, fmt.Errorf("failed to read campaign file: %w", err)</span>
+        }
+        
+        <span class="cov0" title="0">var campaign Campaign
+        if err := json.Unmarshal(data, &amp;campaign); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to unmarshal campaign: %w", err)
+        }</span>
+        
+        <span class="cov0" title="0">return &amp;campaign, nil</span>
+}
+
+func loadAllCampaigns() ([]Campaign, error) <span class="cov0" title="0">{
+        dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+        
+        var campaigns []Campaign
+        
+        err := filepath.WalkDir(dataPath, func(path string, d fs.DirEntry, err error) error </span><span class="cov0" title="0">{
+                if err != nil </span><span class="cov0" title="0">{
+                        return err
+                }</span>
+                
+                <span class="cov0" title="0">if d.IsDir() || !strings.HasSuffix(d.Name(), ".json") </span><span class="cov0" title="0">{
+                        return nil
+                }</span>
+                
+                <span class="cov0" title="0">data, err := os.ReadFile(path)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Printf("⚠️ Failed to read campaign file %s: %v", path, err)
+                        return nil // Continue with other files
+                }</span>
+                
+                <span class="cov0" title="0">var campaign Campaign
+                if err := json.Unmarshal(data, &amp;campaign); err != nil </span><span class="cov0" title="0">{
+                        logger.Printf("⚠️ Failed to unmarshal campaign file %s: %v", path, err)
+                        return nil // Continue with other files
+                }</span>
+                
+                <span class="cov0" title="0">campaigns = append(campaigns, campaign)
+                return nil</span>
+        })
+        
+        <span class="cov0" title="0">return campaigns, err</span>
+}
+
+func deleteCampaignFile(campaignID uuid.UUID) error <span class="cov0" title="0">{
+        filePath := getCampaignPath(campaignID)
+        
+        lock := getFileLock(filePath)
+        lock.Lock()
+        defer lock.Unlock()
+        
+        if err := os.Remove(filePath); err != nil &amp;&amp; !os.IsNotExist(err) </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to delete campaign file: %w", err)
+        }</span>
+        
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Staleness calculation
+func calculateStalenessScore(file *TrackedFile) float64 <span class="cov0" title="0">{
+        if file.LastVisited == nil </span><span class="cov0" title="0">{
+                // Never visited files get high staleness based on age
+                daysSinceModified := time.Since(file.LastModified).Hours() / 24.0
+                return math.Min(100.0, daysSinceModified*2.0)
+        }</span>
+        
+        <span class="cov0" title="0">daysSinceVisit := time.Since(*file.LastVisited).Hours() / 24.0
+        daysSinceModified := math.Abs(file.LastVisited.Sub(file.LastModified).Hours() / 24.0)
+        
+        // Estimate modifications (simplified: assume 1 mod per week if modified after visit)
+        modificationsEstimate := 0.0
+        if file.LastModified.After(*file.LastVisited) </span><span class="cov0" title="0">{
+                modificationsEstimate = math.Max(1.0, math.Floor(daysSinceModified/7.0))
+        }</span>
+        
+        // Calculate staleness: (modifications × days_since_visit) / (visit_count + 1)
+        <span class="cov0" title="0">staleness := (modificationsEstimate * daysSinceVisit) / float64(file.VisitCount+1)
+        
+        return math.Min(100.0, staleness)</span>
+}
+
+// Update staleness scores for all files in campaign
+func updateStalenessScores(campaign *Campaign) <span class="cov0" title="0">{
+        for i := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                campaign.TrackedFiles[i].StalenessScore = calculateStalenessScore(&amp;campaign.TrackedFiles[i])
+        }</span>
+}
+
+// Sync files for a campaign using the specified patterns
+func syncCampaignFiles(campaign *Campaign, patterns []string) (*SyncResult, error) <span class="cov0" title="0">{
+        if len(patterns) == 0 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("no patterns specified")
+        }</span>
+        
+        // Log the current working directory and patterns for debugging
+        <span class="cov0" title="0">cwd, _ := os.Getwd()
+        logger.Printf("🔍 Syncing files for campaign '%s' from directory: %s", campaign.Name, cwd)
+        logger.Printf("🔍 Using patterns: %v", patterns)
+        
+        // Find files matching patterns
+        var foundFiles []string
+        
+        for _, pattern := range patterns </span><span class="cov0" title="0">{
+                logger.Printf("🔍 Processing pattern: %s", pattern)
+                matches, err := filepath.Glob(pattern)
+                if err != nil </span><span class="cov0" title="0">{
+                        logger.Printf("⚠️ Pattern glob failed for %s: %v", pattern, err)
+                        continue</span>
+                }
+                
+                <span class="cov0" title="0">logger.Printf("🔍 Pattern '%s' found %d matches: %v", pattern, len(matches), matches)
+                
+                for _, match := range matches </span><span class="cov0" title="0">{
+                        // Skip directories
+                        if info, err := os.Stat(match); err == nil &amp;&amp; !info.IsDir() </span><span class="cov0" title="0">{
+                                foundFiles = append(foundFiles, match)
+                                logger.Printf("✅ Added file: %s", match)
+                        }</span> else<span class="cov0" title="0"> if err == nil &amp;&amp; info.IsDir() </span><span class="cov0" title="0">{
+                                logger.Printf("⏭️ Skipped directory: %s", match)
+                        }</span> else<span class="cov0" title="0"> {
+                                logger.Printf("⚠️ Could not stat file %s: %v", match, err)
+                        }</span>
+                }
+        }
+        
+        <span class="cov0" title="0">logger.Printf("🔍 Total files found before deduplication: %d", len(foundFiles))
+        
+        // Deduplicate
+        fileSet := make(map[string]bool)
+        var uniqueFiles []string
+        for _, file := range foundFiles </span><span class="cov0" title="0">{
+                abs, _ := filepath.Abs(file)
+                if !fileSet[abs] </span><span class="cov0" title="0">{
+                        fileSet[abs] = true
+                        uniqueFiles = append(uniqueFiles, file)
+                }</span>
+        }
+        
+        <span class="cov0" title="0">logger.Printf("🔍 Unique files after deduplication: %d", len(uniqueFiles))
+        
+        addedCount := 0
+        
+        // Add new files to tracked files
+        for _, filePath := range uniqueFiles </span><span class="cov0" title="0">{
+                absolutePath, _ := filepath.Abs(filePath)
+                
+                // Check if already tracked
+                found := false
+                for _, tracked := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                        if tracked.AbsolutePath == absolutePath </span><span class="cov0" title="0">{
+                                found = true
+                                break</span>
+                        }
+                }
+                
+                <span class="cov0" title="0">if !found </span><span class="cov0" title="0">{
+                        // Get file info
+                        fileInfo, err := os.Stat(absolutePath)
+                        var size int64
+                        var modTime time.Time
+                        if err == nil </span><span class="cov0" title="0">{
+                                size = fileInfo.Size()
+                                modTime = fileInfo.ModTime()
+                        }</span> else<span class="cov0" title="0"> {
+                                modTime = time.Now()
+                                logger.Printf("⚠️ Could not get file info for %s: %v", absolutePath, err)
+                        }</span>
+                        
+                        // Calculate relative path from project root
+                        <span class="cov0" title="0">relPath, err := filepath.Rel(cwd, absolutePath)
+                        if err != nil </span><span class="cov0" title="0">{
+                                relPath = filePath
+                                logger.Printf("⚠️ Could not calculate relative path for %s: %v", absolutePath, err)
+                        }</span>
+                        
+                        <span class="cov0" title="0">newFile := TrackedFile{
+                                ID:           uuid.New(),
+                                FilePath:     relPath,
+                                AbsolutePath: absolutePath,
+                                VisitCount:   0,
+                                FirstSeen:    time.Now().UTC(),
+                                LastModified: modTime.UTC(),
+                                SizeBytes:    size,
+                                Deleted:      false,
+                                Metadata:     make(map[string]interface{}),
+                        }
+                        
+                        campaign.TrackedFiles = append(campaign.TrackedFiles, newFile)
+                        addedCount++
+                        logger.Printf("➕ Added tracked file: %s (rel: %s)", absolutePath, relPath)</span>
+                } else<span class="cov0" title="0"> {
+                        logger.Printf("⏭️ File already tracked: %s", absolutePath)
+                }</span>
+        }
+        
+        <span class="cov0" title="0">logger.Printf("📊 Sync results: %d files added, %d total tracked files", addedCount, len(campaign.TrackedFiles))
+        
+        // Create structure snapshot
+        snapshot := StructureSnapshot{
+                ID:           uuid.New(),
+                Timestamp:    time.Now().UTC(),
+                TotalFiles:   len(campaign.TrackedFiles),
+                NewFiles:     []string{}, // Could be enhanced to track what was added
+                DeletedFiles: []string{}, // Could be enhanced to track what was removed
+                MovedFiles:   make(map[string]string),
+                SnapshotData: make(map[string]interface{}),
+        }
+        
+        campaign.StructureSnapshots = append(campaign.StructureSnapshots, snapshot)
+        
+        // Update staleness scores
+        updateStalenessScores(campaign)
+        
+        return &amp;SyncResult{
+                Added:      addedCount,
+                Moved:      0,
+                Removed:    0,
+                SnapshotID: snapshot.ID,
+                Total:      len(campaign.TrackedFiles),
+        }, nil</span>
+}
+
+// Handlers
+func healthHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        w.Header().Set("Content-Type", "application/json")
+        
+        // Check file storage health
+        dataPath := filepath.Join("scenarios", "visited-tracker", dataDir)
+        storageHealthy := true
+        var storageError map[string]interface{}
+        
+        // Test if we can read the data directory
+        if _, err := os.Stat(dataPath); err != nil </span><span class="cov0" title="0">{
+                storageHealthy = false
+                storageError = map[string]interface{}{
+                        "code":      "STORAGE_ACCESS_ERROR",
+                        "message":   fmt.Sprintf("Cannot access data directory: %v", err),
+                        "category":  "resource",
+                        "retryable": true,
+                }
+        }</span>
+        
+        // Overall service status
+        <span class="cov0" title="0">status := "healthy"
+        if !storageHealthy </span><span class="cov0" title="0">{
+                status = "degraded"
+        }</span>
+        
+        <span class="cov0" title="0">healthResponse := map[string]interface{}{
+                "status":    status,
+                "service":   serviceName,
+                "timestamp": time.Now().UTC().Format(time.RFC3339),
+                "readiness": true, // Service is ready to accept requests
+                "version":   apiVersion,
+                "dependencies": map[string]interface{}{
+                        "storage": map[string]interface{}{
+                                "connected": storageHealthy,
+                                "type":      "json-files",
+                                "path":      dataPath,
+                        },
+                },
+                "metrics": map[string]interface{}{
+                        "uptime_seconds": time.Since(time.Now().Add(-time.Minute)).Seconds(), // Simplified uptime
+                },
+        }
+        
+        // Add storage error if present
+        if storageError != nil </span><span class="cov0" title="0">{
+                healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = storageError
+        }</span> else<span class="cov0" title="0"> {
+                healthResponse["dependencies"].(map[string]interface{})["storage"].(map[string]interface{})["error"] = nil
+        }</span>
+        
+        <span class="cov0" title="0">json.NewEncoder(w).Encode(healthResponse)</span>
+}
+
+func optionsHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        // CORS headers are already set by corsMiddleware
+        w.WriteHeader(http.StatusOK)
+}</span>
+
+// Campaign handlers
+func listCampaignsHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        campaigns, err := loadAllCampaigns()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaigns: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        // Calculate computed fields for each campaign
+        <span class="cov0" title="0">for i := range campaigns </span><span class="cov0" title="0">{
+                campaign := &amp;campaigns[i]
+                updateStalenessScores(campaign)
+                
+                totalFiles := len(campaign.TrackedFiles)
+                visitedFiles := 0
+                for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                        if !file.Deleted &amp;&amp; file.VisitCount &gt; 0 </span><span class="cov0" title="0">{
+                                visitedFiles++
+                        }</span>
+                }
+                
+                <span class="cov0" title="0">campaign.TotalFiles = totalFiles
+                campaign.VisitedFiles = visitedFiles
+                if totalFiles &gt; 0 </span><span class="cov0" title="0">{
+                        campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
+                }</span>
+        }
+        
+        // Sort by created_at desc
+        <span class="cov0" title="0">sort.Slice(campaigns, func(i, j int) bool </span><span class="cov0" title="0">{
+                return campaigns[i].CreatedAt.After(campaigns[j].CreatedAt)
+        }</span>)
+        
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "campaigns": campaigns,
+                "count":     len(campaigns),
+        })</span>
+}
+
+func createCampaignHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        var req CreateCampaignRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Validation
+        <span class="cov0" title="0">if req.Name == "" </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Campaign name is required"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">if len(req.Patterns) == 0 </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "At least one file pattern is required"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Check for duplicate names
+        <span class="cov0" title="0">campaigns, err := loadAllCampaigns()
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to check for duplicate names: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">for _, campaign := range campaigns </span><span class="cov0" title="0">{
+                if campaign.Name == req.Name </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign name already exists"}`, http.StatusConflict)
+                        return
+                }</span>
+        }
+        
+        // Create new campaign
+        <span class="cov0" title="0">campaign := Campaign{
+                ID:                 uuid.New(),
+                Name:               req.Name,
+                FromAgent:          req.FromAgent,
+                Description:        req.Description,
+                Patterns:           req.Patterns,
+                CreatedAt:          time.Now().UTC(),
+                UpdatedAt:          time.Now().UTC(),
+                Status:             "active",
+                Metadata:           req.Metadata,
+                TrackedFiles:       []TrackedFile{},
+                Visits:             []Visit{},
+                StructureSnapshots: []StructureSnapshot{},
+        }
+        
+        if campaign.Metadata == nil </span><span class="cov0" title="0">{
+                campaign.Metadata = make(map[string]interface{})
+        }</span>
+        
+        // Auto-sync files using campaign patterns
+        <span class="cov0" title="0">logger.Printf("🚀 Starting auto-sync for new campaign: %s", campaign.Name)
+        syncResult, err := syncCampaignFiles(&amp;campaign, campaign.Patterns)
+        if err != nil </span><span class="cov0" title="0">{
+                // Log the error but don't fail campaign creation
+                logger.Printf("⚠️ Failed to auto-sync files for campaign %s: %v", campaign.Name, err)
+                // Add metadata to indicate sync failed
+                campaign.Metadata["auto_sync_error"] = err.Error()
+                campaign.Metadata["auto_sync_attempted"] = true
+        }</span> else<span class="cov0" title="0"> {
+                logger.Printf("🔄 Auto-synced %d files for new campaign: %s", syncResult.Added, campaign.Name)
+                // Add metadata to track sync success
+                campaign.Metadata["auto_sync_files_added"] = syncResult.Added
+                campaign.Metadata["auto_sync_attempted"] = true
+                campaign.Metadata["auto_sync_success"] = true
+        }</span>
+        
+        // Save to file (includes any synced files)
+        <span class="cov0" title="0">if err := saveCampaign(&amp;campaign); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to save campaign: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">logger.Printf("✅ Created campaign: %s (ID: %s)", campaign.Name, campaign.ID)
+        
+        // Calculate computed fields for response
+        updateStalenessScores(&amp;campaign)
+        totalFiles := len(campaign.TrackedFiles)
+        visitedFiles := 0
+        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if !file.Deleted &amp;&amp; file.VisitCount &gt; 0 </span><span class="cov0" title="0">{
+                        visitedFiles++
+                }</span>
+        }
+        
+        <span class="cov0" title="0">campaign.TotalFiles = totalFiles
+        campaign.VisitedFiles = visitedFiles
+        if totalFiles &gt; 0 </span><span class="cov0" title="0">{
+                campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
+        }</span>
+        
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        w.WriteHeader(http.StatusCreated)
+        json.NewEncoder(w).Encode(campaign)</span>
+}
+
+func getCampaignHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Update computed fields
+        <span class="cov0" title="0">updateStalenessScores(campaign)
+        
+        totalFiles := len(campaign.TrackedFiles)
+        visitedFiles := 0
+        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if !file.Deleted &amp;&amp; file.VisitCount &gt; 0 </span><span class="cov0" title="0">{
+                        visitedFiles++
+                }</span>
+        }
+        
+        <span class="cov0" title="0">campaign.TotalFiles = totalFiles
+        campaign.VisitedFiles = visitedFiles
+        if totalFiles &gt; 0 </span><span class="cov0" title="0">{
+                campaign.CoveragePercent = float64(visitedFiles) / float64(totalFiles) * 100.0
+        }</span>
+        
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(campaign)</span>
+}
+
+func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Check if campaign exists
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Delete the campaign file
+        <span class="cov0" title="0">if err := deleteCampaignFile(campaignID); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to delete campaign: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">logger.Printf("🗑️ Deleted campaign: %s (ID: %s)", campaign.Name, campaign.ID)
+        
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "deleted": true,
+                "id":      campaignID,
+        })</span>
+}
+
+func visitHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">var req VisitRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Parse files from request
+        <span class="cov0" title="0">var filePaths []string
+        switch files := req.Files.(type) </span>{
+        case []interface{}:<span class="cov0" title="0">
+                for _, f := range files </span><span class="cov0" title="0">{
+                        if path, ok := f.(string); ok </span><span class="cov0" title="0">{
+                                filePaths = append(filePaths, path)
+                        }</span>
+                }
+        case []string:<span class="cov0" title="0">
+                filePaths = files</span>
+        default:<span class="cov0" title="0">
+                http.Error(w, `{"error": "Invalid files format"}`, http.StatusBadRequest)
+                return</span>
+        }
+        
+        <span class="cov0" title="0">if len(filePaths) == 0 </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "No files specified"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">recordedCount := 0
+        
+        // Record visits for each file
+        for _, filePath := range filePaths </span><span class="cov0" title="0">{
+                // Get absolute path
+                var absolutePath string
+                if filepath.IsAbs(filePath) </span><span class="cov0" title="0">{
+                        absolutePath = filePath
+                }</span> else<span class="cov0" title="0"> {
+                        cwd, _ := os.Getwd()
+                        absolutePath = filepath.Join(cwd, filePath)
+                }</span>
+                
+                // Find or create tracked file
+                <span class="cov0" title="0">var trackedFile *TrackedFile
+                for i := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                        if campaign.TrackedFiles[i].AbsolutePath == absolutePath </span><span class="cov0" title="0">{
+                                trackedFile = &amp;campaign.TrackedFiles[i]
+                                break</span>
+                        }
+                }
+                
+                <span class="cov0" title="0">if trackedFile == nil </span><span class="cov0" title="0">{
+                        // Create new tracked file
+                        fileInfo, err := os.Stat(absolutePath)
+                        var size int64
+                        var modTime time.Time
+                        if err == nil </span><span class="cov0" title="0">{
+                                size = fileInfo.Size()
+                                modTime = fileInfo.ModTime()
+                        }</span> else<span class="cov0" title="0"> {
+                                modTime = time.Now()
+                        }</span>
+                        
+                        <span class="cov0" title="0">newFile := TrackedFile{
+                                ID:           uuid.New(),
+                                FilePath:     filePath,
+                                AbsolutePath: absolutePath,
+                                VisitCount:   0,
+                                FirstSeen:    time.Now().UTC(),
+                                LastModified: modTime.UTC(),
+                                SizeBytes:    size,
+                                Deleted:      false,
+                                Metadata:     make(map[string]interface{}),
+                        }
+                        
+                        campaign.TrackedFiles = append(campaign.TrackedFiles, newFile)
+                        trackedFile = &amp;campaign.TrackedFiles[len(campaign.TrackedFiles)-1]</span>
+                }
+                
+                // Record the visit
+                <span class="cov0" title="0">now := time.Now().UTC()
+                visit := Visit{
+                        ID:             uuid.New(),
+                        FileID:         trackedFile.ID,
+                        Timestamp:      now,
+                        Context:        req.Context,
+                        Agent:          req.Agent,
+                        ConversationID: req.ConversationID,
+                        Findings:       req.Metadata,
+                }
+                
+                campaign.Visits = append(campaign.Visits, visit)
+                
+                // Update tracked file stats
+                trackedFile.VisitCount++
+                trackedFile.LastVisited = &amp;now
+                
+                recordedCount++</span>
+        }
+        
+        // Update staleness scores
+        <span class="cov0" title="0">updateStalenessScores(campaign)
+        
+        // Save campaign
+        if err := saveCampaign(campaign); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to save visits: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">logger.Printf("📝 Recorded %d visits for campaign: %s", recordedCount, campaign.Name)
+        
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "recorded": recordedCount,
+                "files":    filePaths,
+        })</span>
+}
+
+func adjustVisitHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">var req AdjustVisitRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">fileID, err := uuid.Parse(req.FileID)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid file ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">if req.Action != "increment" &amp;&amp; req.Action != "decrement" </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Action must be 'increment' or 'decrement'"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Find the file
+        <span class="cov0" title="0">var trackedFile *TrackedFile
+        for i := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if campaign.TrackedFiles[i].ID == fileID </span><span class="cov0" title="0">{
+                        trackedFile = &amp;campaign.TrackedFiles[i]
+                        break</span>
+                }
+        }
+        
+        <span class="cov0" title="0">if trackedFile == nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "File not found in campaign"}`, http.StatusNotFound)
+                return
+        }</span>
+        
+        // Perform the action
+        <span class="cov0" title="0">now := time.Now().UTC()
+        var actionSymbol string
+        
+        if req.Action == "increment" </span><span class="cov0" title="0">{
+                trackedFile.VisitCount++
+                trackedFile.LastVisited = &amp;now
+                actionSymbol = "➕"
+        }</span> else<span class="cov0" title="0"> { // decrement
+                if trackedFile.VisitCount &gt; 0 </span><span class="cov0" title="0">{
+                        trackedFile.VisitCount--
+                        // If count becomes 0, reset last visited
+                        if trackedFile.VisitCount == 0 </span><span class="cov0" title="0">{
+                                trackedFile.LastVisited = nil
+                        }</span>
+                }
+                <span class="cov0" title="0">actionSymbol = "➖"</span>
+        }
+        
+        // Record a manual visit entry
+        <span class="cov0" title="0">visit := Visit{
+                ID:             uuid.New(),
+                FileID:         trackedFile.ID,
+                Timestamp:      now,
+                Context:        strPtr(fmt.Sprintf("manual-%s", req.Action)),
+                Agent:          strPtr("web-ui"),
+                ConversationID: nil,
+                Findings:       map[string]interface{}{"type": fmt.Sprintf("manual-%s", req.Action)},
+        }
+        
+        campaign.Visits = append(campaign.Visits, visit)
+        
+        // Update staleness scores
+        updateStalenessScores(campaign)
+        
+        // Save campaign
+        if err := saveCampaign(campaign); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to save visit adjustment: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">logger.Printf("%s %sed visit count for file %s in campaign: %s", actionSymbol, req.Action, trackedFile.FilePath, campaign.Name)
+        
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "file_id":     fileID,
+                "visit_count": trackedFile.VisitCount,
+                "action":      req.Action,
+        })</span>
+}
+
+// Helper function to create string pointers
+func strPtr(s string) *string <span class="cov0" title="0">{
+        return &amp;s
+}</span>
+
+func structureSyncHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">var req StructureSyncRequest
+        if err := json.NewDecoder(r.Body).Decode(&amp;req); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid JSON"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Use campaign patterns if none provided
+        <span class="cov0" title="0">patterns := req.Patterns
+        if len(patterns) == 0 </span><span class="cov0" title="0">{
+                patterns = campaign.Patterns
+        }</span>
+        
+        <span class="cov0" title="0">if len(patterns) == 0 </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "No patterns specified"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Use shared sync function
+        <span class="cov0" title="0">syncResult, err := syncCampaignFiles(campaign, patterns)
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Sync failed: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        // Save campaign
+        <span class="cov0" title="0">if err := saveCampaign(campaign); err != nil </span><span class="cov0" title="0">{
+                http.Error(w, fmt.Sprintf(`{"error": "Failed to save sync results: %v"}`, err), http.StatusInternalServerError)
+                return
+        }</span>
+        
+        <span class="cov0" title="0">logger.Printf("🔄 Synced %d files for campaign: %s", syncResult.Added, campaign.Name)
+        
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(syncResult)</span>
+}
+
+func leastVisitedHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Parse query parameters
+        <span class="cov0" title="0">limitStr := r.URL.Query().Get("limit")
+        limit := 10
+        if limitStr != "" </span><span class="cov0" title="0">{
+                if parsed, err := strconv.Atoi(limitStr); err == nil &amp;&amp; parsed &gt; 0 </span><span class="cov0" title="0">{
+                        limit = parsed
+                }</span>
+        }
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Update staleness scores
+        <span class="cov0" title="0">updateStalenessScores(campaign)
+        
+        // Filter and sort files
+        var files []TrackedFile
+        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if !file.Deleted </span><span class="cov0" title="0">{
+                        files = append(files, file)
+                }</span>
+        }
+        
+        // Sort by visit count (ascending), then staleness (descending)
+        <span class="cov0" title="0">sort.Slice(files, func(i, j int) bool </span><span class="cov0" title="0">{
+                if files[i].VisitCount == files[j].VisitCount </span><span class="cov0" title="0">{
+                        return files[i].StalenessScore &gt; files[j].StalenessScore
+                }</span>
+                <span class="cov0" title="0">return files[i].VisitCount &lt; files[j].VisitCount</span>
+        })
+        
+        // Limit results
+        <span class="cov0" title="0">if len(files) &gt; limit </span><span class="cov0" title="0">{
+                files = files[:limit]
+        }</span>
+        
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "files": files,
+        })</span>
+}
+
+func mostStaleHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Parse query parameters
+        <span class="cov0" title="0">limitStr := r.URL.Query().Get("limit")
+        limit := 10
+        if limitStr != "" </span><span class="cov0" title="0">{
+                if parsed, err := strconv.Atoi(limitStr); err == nil &amp;&amp; parsed &gt; 0 </span><span class="cov0" title="0">{
+                        limit = parsed
+                }</span>
+        }
+        
+        <span class="cov0" title="0">thresholdStr := r.URL.Query().Get("threshold")
+        threshold := 0.0
+        if thresholdStr != "" </span><span class="cov0" title="0">{
+                if parsed, err := strconv.ParseFloat(thresholdStr, 64); err == nil </span><span class="cov0" title="0">{
+                        threshold = parsed
+                }</span>
+        }
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Update staleness scores
+        <span class="cov0" title="0">updateStalenessScores(campaign)
+        
+        // Filter and sort files
+        var files []TrackedFile
+        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if !file.Deleted &amp;&amp; file.StalenessScore &gt;= threshold </span><span class="cov0" title="0">{
+                        files = append(files, file)
+                }</span>
+        }
+        
+        // Sort by staleness score (descending)
+        <span class="cov0" title="0">sort.Slice(files, func(i, j int) bool </span><span class="cov0" title="0">{
+                return files[i].StalenessScore &gt; files[j].StalenessScore
+        }</span>)
+        
+        // Limit results
+        <span class="cov0" title="0">if len(files) &gt; limit </span><span class="cov0" title="0">{
+                files = files[:limit]
+        }</span>
+        
+        // Calculate critical count (staleness &gt; 50)
+        <span class="cov0" title="0">criticalCount := 0
+        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if !file.Deleted &amp;&amp; file.StalenessScore &gt; 50 </span><span class="cov0" title="0">{
+                        criticalCount++
+                }</span>
+        }
+        
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "files":          files,
+                "critical_count": criticalCount,
+        })</span>
+}
+
+func coverageHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Update staleness scores
+        <span class="cov0" title="0">updateStalenessScores(campaign)
+        
+        // Calculate coverage stats
+        totalFiles := 0
+        visitedFiles := 0
+        totalVisits := 0
+        totalStaleness := 0.0
+        
+        for _, file := range campaign.TrackedFiles </span><span class="cov0" title="0">{
+                if !file.Deleted </span><span class="cov0" title="0">{
+                        totalFiles++
+                        totalVisits += file.VisitCount
+                        totalStaleness += file.StalenessScore
+                        
+                        if file.VisitCount &gt; 0 </span><span class="cov0" title="0">{
+                                visitedFiles++
+                        }</span>
+                }
+        }
+        
+        <span class="cov0" title="0">var averageVisits float64
+        var averageStaleness float64
+        var coveragePercentage float64
+        
+        if totalFiles &gt; 0 </span><span class="cov0" title="0">{
+                averageVisits = float64(totalVisits) / float64(totalFiles)
+                averageStaleness = totalStaleness / float64(totalFiles)
+                coveragePercentage = float64(visitedFiles) / float64(totalFiles) * 100.0
+        }</span>
+        
+        <span class="cov0" title="0">w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "total_files":        totalFiles,
+                "visited_files":      visitedFiles,
+                "unvisited_files":    totalFiles - visitedFiles,
+                "coverage_percentage": math.Round(coveragePercentage*100) / 100,
+                "average_visits":     math.Round(averageVisits*100) / 100,
+                "average_staleness":  math.Round(averageStaleness*100) / 100,
+        })</span>
+}
+
+func exportHandler(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        vars := mux.Vars(r)
+        campaignID, err := uuid.Parse(vars["id"])
+        if err != nil </span><span class="cov0" title="0">{
+                http.Error(w, `{"error": "Invalid campaign ID"}`, http.StatusBadRequest)
+                return
+        }</span>
+        
+        // Load campaign
+        <span class="cov0" title="0">campaign, err := loadCampaign(campaignID)
+        if err != nil </span><span class="cov0" title="0">{
+                if err.Error() == "campaign not found" </span><span class="cov0" title="0">{
+                        http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+                        return
+                }</span>
+                <span class="cov0" title="0">http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
+                return</span>
+        }
+        
+        // Update staleness scores
+        <span class="cov0" title="0">updateStalenessScores(campaign)
+        
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(campaign)</span>
+}</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

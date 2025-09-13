@@ -53,17 +53,7 @@ dev: ## Start in development mode
 
 test: ## Run tests for this scenario
 	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
-	@if [ -f test/run-tests.sh ]; then \
-		chmod +x test/run-tests.sh && ./test/run-tests.sh; \
-	elif [ -f scenario-test.yaml ]; then \
-		vrooli test scenario $(SCENARIO_NAME); \
-	elif [ -f api/go.mod ]; then \
-		cd api && go test ./... -v; \
-	elif [ -f ui/package.json ] && [ -f ui/package-lock.json ]; then \
-		cd ui && npm test; \
-	else \
-		echo "$(YELLOW)No tests configured yet$(RESET)"; \
-	fi
+	@vrooli scenario test $(SCENARIO_NAME)
 
 logs: ## Show recent logs for this scenario
 	@echo "$(BLUE)📜 Logs for $(SCENARIO_NAME):$(RESET)"

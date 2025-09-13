@@ -71,9 +71,9 @@ logs: ## View scenario logs
 	@$(VROOLI_CMD) logs $(SCENARIO_NAME)
 
 .PHONY: test
-test: ## Run tests
-	@echo "$(GREEN)🧪 Running Prompt Manager tests...$(NC)"
-	@$(VROOLI_CMD) test $(SCENARIO_NAME)
+test: ## Run tests for this scenario
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 .PHONY: clean
 clean: ## Clean build artifacts and data

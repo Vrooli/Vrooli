@@ -1,0 +1,53 @@
+id: resource-improver-20250912-011954
+title: Improve cncjs
+type: resource
+operation: improver
+category: ""
+priority: medium
+effort_estimate: 16h+
+urgency: low
+impact_score: 5
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-12T01:19:54-04:00"
+updated_at: "2025-09-13T09:41:30-04:00"
+tags: []
+notes: |-
+    Notes from last time:
+    ### Current Status
+    - **Working**: All functionality operational including new features
+    - **Progress**: 45% → 65% (2 P1 requirements fully implemented)
+    - **Tests**: All tests passing (smoke, integration, unit)
+
+    ### Validation Evidence
+    ```bash
+    vrooli resource cncjs test all  # All tests pass including new features
+    vrooli resource cncjs workflow list  # Workflow management working
+    vrooli resource cncjs controller list  # Controller profiles working
+    ```
+
+    ### Lessons Learned
+    - Workflow management provides significant value without hardware dependencies
+    - Controller profiles enable better multi-machine support
+    - Feature implementation without hardware is possible for management features
+    - Export/import capabilities essential for production workflows
+
+    ### Recommendations for Future Improvements
+    1. **3D Visualization wrapper** - WebGL G-code path preview (P1 remaining)
+    2. **Authentication token management** - For secure API access
+    3. **Virtual controller mode** - For testing without hardware
+    4. **Network controller support** - ESP32/Raspberry Pi connections
+    5. **Camera integration** - Real-time monitoring (P2)
+results: {}

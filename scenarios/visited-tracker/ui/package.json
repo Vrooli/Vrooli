@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
-    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'"
+    "dev": "bash -c '${VROOLI_ROOT:-$(git rev-parse --show-toplevel)}/scripts/lib/ui-guard.sh node server.js'",
+    "test": "jest --passWithNoTests --coverage --testTimeout=30000"
   },
   "dependencies": {
     "express": "^4.18.2"
@@ -15,5 +16,9 @@
     "campaign-tracking",
     "file-operations",
     "developer-tools"
-  ]
+  ],
+  "devDependencies": {
+    "jest": "^30.1.3",
+    "supertest": "^7.1.4"
+  }
 }

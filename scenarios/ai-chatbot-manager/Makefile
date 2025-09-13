@@ -52,12 +52,9 @@ dev: ## Start in development mode
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-test: ## Run comprehensive test suite
-	@echo "$(BLUE)🧪 Running comprehensive test suite for $(SCENARIO_NAME)...$(RESET)"
-	@$(MAKE) api-test
-	@$(MAKE) ws-test
-	@$(MAKE) widget-test
-	@$(MAKE) cli-test
+test: ## Run tests for this scenario
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 	@echo "$(GREEN)✅ All tests completed successfully!$(RESET)"
 
 api-test: ## Test API endpoints

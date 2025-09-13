@@ -60,11 +60,9 @@ dev: ## Start in development mode with hot reload
 	@echo "$(BLUE)🔧 Starting $(SCENARIO_NAME) in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-test: ## Run all tests (API, UI, CLI)
-	@echo "$(BLUE)🧪 Running all tests for $(SCENARIO_NAME)...$(RESET)"
-	@$(MAKE) test-api
-	@$(MAKE) test-ui
-	@$(MAKE) test-cli
+test: ## Run tests for this scenario
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 test-api: ## Run API tests
 	@echo "$(BLUE)🧪 Testing API...$(RESET)"

@@ -60,10 +60,9 @@ dev: ## Start in development mode with hot reload
 	@echo "$(BLUE)🔧 Starting Ecosystem Manager in development mode...$(RESET)"
 	@vrooli scenario run $(SCENARIO_NAME) --dev
 
-test: ## Run all tests
-	@echo "$(BLUE)🧪 Running all Ecosystem Manager tests...$(RESET)"
-	@$(MAKE) test-api
-	@$(MAKE) test-integration
+test: ## Run tests for this scenario
+	@echo "$(BLUE)🧪 Testing $(SCENARIO_NAME) scenario...$(RESET)"
+	@vrooli scenario test $(SCENARIO_NAME)
 
 test-api: ## Run API tests
 	@echo "$(BLUE)🧪 Testing API...$(RESET)"

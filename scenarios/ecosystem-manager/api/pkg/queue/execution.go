@@ -67,6 +67,10 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	}
 
 	// Process the result
+	// Debug: always log the execution result for debugging
+	log.Printf("🔍 Task %s execution result: Success=%v, RateLimited=%v, Error=%q", 
+		task.ID, result.Success, result.RateLimited, result.Error)
+	
 	if result.Success {
 		log.Printf("Task %s completed successfully in %v (timeout was %v)", task.ID, executionTime.Round(time.Second), timeoutDuration)
 
@@ -341,18 +345,63 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			}, nil
 		}
 
-		// Extract exit code
+		// Extract exit code and check for rate limits in the error path too
+		combinedOutput := string(output)
+		if len(stderrOutput) > 0 {
+			combinedOutput += "\n\nSTDERR:\n" + string(stderrOutput)
+		}
+		
+		// Check for rate limits in error path
+		lowerOutput := strings.ToLower(combinedOutput)
+		isRateLimit := strings.Contains(lowerOutput, "usage limit") ||
+					   strings.Contains(lowerOutput, "rate limit") ||
+					   strings.Contains(lowerOutput, "ai usage limit reached") ||
+					   strings.Contains(lowerOutput, "rate/usage limit reached") ||
+					   strings.Contains(lowerOutput, "usage limit reached") ||
+					   strings.Contains(lowerOutput, "claude ai usage limit reached") ||
+					   strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
+					   strings.Contains(lowerOutput, "429") ||
+					   strings.Contains(lowerOutput, "too many requests") ||
+					   strings.Contains(lowerOutput, "quota exceeded") ||
+					   strings.Contains(lowerOutput, "rate limits are critical")
+		
 		if exitError, ok := waitErr.(*exec.ExitError); ok {
-			combinedOutput := string(output)
-			if len(stderrOutput) > 0 {
-				combinedOutput += "\n\nSTDERR:\n" + string(stderrOutput)
+			// Exit code 429 is often used for rate limits
+			if exitError.ExitCode() == 429 {
+				isRateLimit = true
 			}
+			
+			if isRateLimit {
+				log.Printf("🚫 Rate limit detected in error path for task %s (exit code %d)", task.ID, exitError.ExitCode())
+				log.Printf("Rate limit output: %s", combinedOutput)
+				return &tasks.ClaudeCodeResponse{
+					Success:       false,
+					Error:        "RATE_LIMIT: API rate limit reached",
+					RateLimited:  true,
+					RetryAfter:   qp.extractRetryAfter(combinedOutput),
+					Output:       string(output),
+				}, nil
+			}
+			
 			log.Printf("Claude Code failed with exit code %d: %s", exitError.ExitCode(), combinedOutput)
 			return &tasks.ClaudeCodeResponse{
 				Success: false,
 				Error:   fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitError.ExitCode(), combinedOutput),
 			}, nil
 		}
+		
+		if isRateLimit {
+			log.Printf("🚫 Rate limit detected in error path for task %s", task.ID)
+			log.Printf("Rate limit output: %s", combinedOutput)
+			return &tasks.ClaudeCodeResponse{
+				Success:       false,
+				Error:        "RATE_LIMIT: API rate limit reached",
+				RateLimited:  true,
+				RetryAfter:   qp.extractRetryAfter(combinedOutput),
+				Output:       string(output),
+			}, nil
+		}
+		
 		return &tasks.ClaudeCodeResponse{
 			Success: false,
 			Error:   fmt.Sprintf("Failed to execute Claude Code: %v", waitErr),
@@ -364,11 +413,33 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	stderrStr := string(stderrOutput)
 	combinedOutput := outputStr + "\n" + stderrStr
 
-	// Check for rate limit errors FIRST
-	if strings.Contains(combinedOutput, "usage limit") || strings.Contains(combinedOutput, "rate limit") || 
-	   strings.Contains(combinedOutput, "Rate/Usage limit reached") || strings.Contains(combinedOutput, "429") ||
-	   strings.Contains(combinedOutput, "Usage limit reached") {
+	// Check for rate limit errors FIRST - be more comprehensive
+	lowerOutput := strings.ToLower(combinedOutput)
+	isRateLimit := strings.Contains(lowerOutput, "usage limit") ||
+				   strings.Contains(lowerOutput, "rate limit") ||
+				   strings.Contains(lowerOutput, "ai usage limit reached") ||
+				   strings.Contains(lowerOutput, "rate/usage limit reached") ||
+				   strings.Contains(lowerOutput, "usage limit reached") ||
+				   strings.Contains(lowerOutput, "claude ai usage limit reached") ||
+				   strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
+				   strings.Contains(lowerOutput, "429") ||
+				   strings.Contains(lowerOutput, "too many requests") ||
+				   strings.Contains(lowerOutput, "quota exceeded") ||
+				   strings.Contains(lowerOutput, "rate limits are critical")
+	
+	// Also check for exit code patterns that indicate rate limiting
+	if waitErr != nil {
+		if exitError, ok := waitErr.(*exec.ExitError); ok {
+			// Exit code 429 is often used for rate limits
+			if exitError.ExitCode() == 429 {
+				isRateLimit = true
+			}
+		}
+	}
+	
+	if isRateLimit {
 		log.Printf("🚫 Rate limit detected for task %s", task.ID)
+		log.Printf("Rate limit output: %s", combinedOutput)
 		return &tasks.ClaudeCodeResponse{
 			Success:       false,
 			Error:        "RATE_LIMIT: API rate limit reached",
@@ -411,33 +482,49 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 func (qp *Processor) extractRetryAfter(output string) int {
 	// Default to 30 minutes if we can't parse
 	defaultRetry := 1800 // 30 minutes in seconds
+	lowerOutput := strings.ToLower(output)
 	
-	// Look for patterns like "retry_after: 300" or "5 hours"
-	if strings.Contains(output, "5 hour") || strings.Contains(output, "5-hour") {
+	// Look for common time patterns
+	if strings.Contains(lowerOutput, "5 hour") || strings.Contains(lowerOutput, "5-hour") || 
+	   strings.Contains(lowerOutput, "every 5 hours") {
 		return 5 * 3600 // 5 hours
 	}
-	if strings.Contains(output, "retry_after") {
-		// Try to extract number after retry_after
-		parts := strings.Split(output, "retry_after")
-		if len(parts) > 1 {
-			// Look for a number in the next part
-			var seconds int
-			if _, err := fmt.Sscanf(parts[1], ": \"%d\"", &seconds); err == nil && seconds > 0 {
-				// Cap at 4 hours maximum
-				if seconds > 14400 {
-					return 14400
+	
+	if strings.Contains(lowerOutput, "4 hour") || strings.Contains(lowerOutput, "4-hour") {
+		return 4 * 3600 // 4 hours  
+	}
+	
+	if strings.Contains(lowerOutput, "1 hour") || strings.Contains(lowerOutput, "1-hour") {
+		return 3600 // 1 hour
+	}
+	
+	// Look for "retry_after" or "retry-after" patterns
+	if strings.Contains(lowerOutput, "retry") && (strings.Contains(lowerOutput, "after") || strings.Contains(lowerOutput, "_after")) {
+		// Try to extract number after retry_after or retry-after
+		parts := strings.FieldsFunc(output, func(r rune) bool {
+			return r == ':' || r == '=' || r == ' ' || r == '\t' || r == '\n'
+		})
+		
+		for i, part := range parts {
+			if strings.Contains(strings.ToLower(part), "retry") && i+1 < len(parts) {
+				if seconds, err := strconv.Atoi(strings.Trim(parts[i+1], "\"'")); err == nil && seconds > 0 {
+					// Cap at 4 hours maximum
+					if seconds > 14400 {
+						return 14400
+					}
+					// Minimum 5 minutes
+					if seconds < 300 {
+						return 300 
+					}
+					return seconds
 				}
-				return seconds
-			}
-			// Try without quotes
-			if _, err := fmt.Sscanf(parts[1], ": %d", &seconds); err == nil && seconds > 0 {
-				// Cap at 4 hours maximum
-				if seconds > 14400 {
-					return 14400
-				}
-				return seconds
 			}
 		}
+	}
+	
+	// If we see "critical" rate limits, use a longer default
+	if strings.Contains(lowerOutput, "critical") {
+		return 3600 // 1 hour for critical rate limits
 	}
 	
 	return defaultRetry

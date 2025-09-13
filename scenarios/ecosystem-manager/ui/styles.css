@@ -333,7 +333,7 @@ main {
 /* Kanban Board */
 .kanban-board {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 1.5rem;
     max-width: 1400px;
     margin: 0 auto;
@@ -1025,11 +1025,11 @@ body.dark-mode .toggle-input:checked + .toggle-btn {
 /* Responsive Design */
 @media (max-width: 1200px) {
     .kanban-board {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(2, 1fr);
     }
     
-    .kanban-column:nth-child(4),
-    .kanban-column:nth-child(5) {
+    .kanban-column:nth-child(3),
+    .kanban-column:nth-child(4) {
         grid-column: span 1;
     }
 }
