@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Generic Service Health Check Response",
+  "description": "Schema for generic service health check responses (workers, background services, etc.)",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "unhealthy"],
+      "description": "Overall health status of the service"
+    },
+    "service": {
+      "type": "string",
+      "description": "Name of the service"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the health check"
+    },
+    "uptime_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Service uptime in seconds"
+    },
+    "metrics": {
+      "type": "object",
+      "description": "Optional performance metrics",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

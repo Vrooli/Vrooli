@@ -164,7 +164,7 @@ main() {
 		scenario)
 			# Clear source guards to allow scenario-commands.sh to load functions properly
 			unset _VAR_SH_SOURCED _LOG_SH_SOURCED _JSON_SH_SOURCED _SYSTEM_COMMANDS_SH_SOURCED
-			exec "${VROOLI_ROOT}/cli/commands/scenario-commands.sh" "$@"
+			exec "${VROOLI_ROOT}/cli/commands/scenario/scenario-commands.sh" "$@"
 			;;
 			
 		# Resource commands
