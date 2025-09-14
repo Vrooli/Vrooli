@@ -1,21 +1,18 @@
 # BTCPay Server Known Issues
 
-## Critical Issues
+## Current Limitations
 
-### 1. NBXplorer Dependency
-**Problem**: BTCPay Server requires NBXplorer (Bitcoin blockchain explorer) to function
-**Symptoms**: 
-- Container crashes with exit code 139
-- Warning in logs: "Using cookie auth against NBXplorer, but /root/.nbxplorer/Main/.cookie is not found"
-- BTCPay expects NBXplorer at http://127.0.0.1:24444/
-**Solution**: Need to add NBXplorer container to the Docker setup
-**Status**: Not resolved - requires additional container implementation
+### 1. API Key Requirements
+**Problem**: Most BTCPay API operations require an API key
+**Impact**: Store management and advanced features need manual key generation
+**Workaround**: Generate API key through web interface at http://localhost:23000
+**Status**: By design - security requirement
 
 ### 2. Bitcoin Core Requirement
 **Problem**: Full BTCPay operation requires Bitcoin Core or equivalent blockchain node
 **Impact**: Cannot process actual Bitcoin transactions without blockchain access
 **Solution**: Either connect to external node or run Bitcoin Core container
-**Status**: Not implemented
+**Status**: Not implemented - would require significant resources
 
 ## Resolved Issues
 
@@ -39,6 +36,11 @@
 **Problem**: BTCPay started before PostgreSQL was ready
 **Solution**: Added pg_isready wait loop with 30-second timeout
 **Status**: Resolved
+
+### 5. NBXplorer Integration
+**Problem**: BTCPay Server requires NBXplorer for blockchain synchronization
+**Solution**: Added NBXplorer container with PostgreSQL configuration
+**Status**: Resolved - NBXplorer now starts automatically with BTCPay
 
 ## Configuration Notes
 

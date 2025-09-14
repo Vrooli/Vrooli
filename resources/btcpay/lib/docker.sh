@@ -36,6 +36,40 @@ btcpay::docker::start() {
         return 1
     fi
     
+    # Start NBXplorer for blockchain synchronization
+    if docker ps -a --format '{{.Names}}' | grep -q "^${BTCPAY_NBXPLORER_CONTAINER}$"; then
+        docker start "${BTCPAY_NBXPLORER_CONTAINER}" || return 1
+    else
+        log::warning "NBXplorer container not found, creating..."
+        docker run -d \
+            --name "${BTCPAY_NBXPLORER_CONTAINER}" \
+            --network "${BTCPAY_NETWORK}" \
+            -p "24444:32838" \
+            -v "${BTCPAY_NBXPLORER_DATA}:/datadir" \
+            -e NBXPLORER_NETWORK="regtest" \
+            -e NBXPLORER_BIND="0.0.0.0:32838" \
+            -e NBXPLORER_CHAINS="btc" \
+            -e NBXPLORER_SIGNALFILESDIR="/datadir" \
+            -e NBXPLORER_POSTGRES="Server=${BTCPAY_POSTGRES_CONTAINER};Port=5432;Database=${BTCPAY_POSTGRES_DB};User Id=${BTCPAY_POSTGRES_USER};Password=${BTCPAY_POSTGRES_PASSWORD};" \
+            "${BTCPAY_NBXPLORER_IMAGE}" || return 1
+    fi
+    
+    # Wait for NBXplorer to be ready
+    log::info "Waiting for NBXplorer to be ready (may take up to 60 seconds)..."
+    retries=30
+    while [[ $retries -gt 0 ]]; do
+        # Check if NBXplorer is responding to health check
+        if docker exec "${BTCPAY_NBXPLORER_CONTAINER}" test -f /datadir/RegTest/settings.config 2>/dev/null; then
+            log::success "NBXplorer is ready"
+            break
+        fi
+        ((retries--))
+        sleep 2
+    done
+    
+    # Give NBXplorer a bit more time to fully initialize
+    sleep 3
+    
     # Start BTCPay Server
     if docker ps -a --format '{{.Names}}' | grep -q "^${BTCPAY_CONTAINER_NAME}$"; then
         docker start "${BTCPAY_CONTAINER_NAME}" || return 1
@@ -48,17 +82,20 @@ btcpay::docker::start() {
             -v "${BTCPAY_DATA_DIR}:/datadir" \
             -v "${BTCPAY_CONFIG_DIR}:/root/.btcpayserver" \
             -e BTCPAY_POSTGRES="Server=${BTCPAY_POSTGRES_CONTAINER};Port=5432;Database=${BTCPAY_POSTGRES_DB};User Id=${BTCPAY_POSTGRES_USER};Password=${BTCPAY_POSTGRES_PASSWORD};" \
+            -e BTCPAY_EXPLORERURL="http://${BTCPAY_NBXPLORER_CONTAINER}:32838/" \
+            -e BTCPAY_CHAINS="btc" \
             -e BTCPAY_ROOTPATH="/" \
             -e BTCPAY_PORT=49392 \
             "${BTCPAY_IMAGE}" || return 1
     fi
     
-    log::success "BTCPay Server started"
+    log::success "BTCPay Server started with NBXplorer blockchain support"
 }
 
 btcpay::docker::stop() {
     log::info "Stopping BTCPay Server containers..."
     docker stop "${BTCPAY_CONTAINER_NAME}" 2>/dev/null || true
+    docker stop "${BTCPAY_NBXPLORER_CONTAINER}" 2>/dev/null || true
     docker stop "${BTCPAY_POSTGRES_CONTAINER}" 2>/dev/null || true
     log::success "BTCPay Server stopped"
 }

@@ -1445,6 +1445,25 @@ actions::extract_forms() {
 # Dispatch function for CLI routing
 #######################################
 actions::dispatch() {
+    # Validate at least one argument provided
+    if [[ $# -eq 0 ]]; then
+        echo "Error: No action specified" >&2
+        echo "Usage: browserless <action> [arguments] [options]" >&2
+        echo "" >&2
+        echo "Available actions:" >&2
+        echo "  screenshot     - Take screenshots of URLs" >&2
+        echo "  navigate       - Navigate to URLs and get basic info" >&2
+        echo "  health-check   - Check if URLs load successfully" >&2
+        echo "  element-exists - Check if elements exist on pages" >&2
+        echo "  extract-text   - Extract text content from elements" >&2
+        echo "  extract        - Extract structured data with custom scripts" >&2
+        echo "  extract-forms  - Extract form data and input fields" >&2
+        echo "  interact       - Perform form fills, clicks, and wait operations" >&2
+        echo "  console        - Capture console logs from pages" >&2
+        echo "  performance    - Measure page performance metrics" >&2
+        return 1
+    fi
+    
     local action="$1"
     shift
     

@@ -2,7 +2,7 @@
 
 Complete open-source ERP with accounting, inventory, HR, CRM, and project management capabilities.
 
-**Status**: ✅ v2.0 Contract Compliant | 50% PRD Complete
+**Status**: ✅ v2.0 Contract Compliant | 64% PRD Complete | All Tests Passing
 
 ## Overview
 
@@ -69,10 +69,28 @@ vrooli resource erpnext inject --type script custom_workflow.py
 
 ## API Access
 
-ERPNext provides REST APIs at:
-- Main API: http://localhost:8020/api (requires authentication)
-- Auth: http://localhost:8020/api/method/login
-- Status: Service responds on port 8020 with HTTP 404 (expected without site configuration)
+### Multi-Tenant Architecture
+ERPNext uses a multi-tenant architecture where the `Host` header determines which site to serve. All API requests must include:
+```bash
+-H "Host: vrooli.local"
+```
+
+### API Endpoints
+- **Ping**: `curl -H "Host: vrooli.local" http://localhost:8020/api/method/frappe.ping`
+- **Login**: `curl -X POST -H "Host: vrooli.local" -H "Content-Type: application/json" -d '{"usr":"Administrator","pwd":"admin"}' http://localhost:8020/api/method/login`
+- **Resources**: `curl -H "Host: vrooli.local" -H "Cookie: sid=SESSION_ID" http://localhost:8020/api/resource/DocType`
+
+### Using the API Helper
+```bash
+# Source the API helper
+source /path/to/erpnext/lib/api.sh
+
+# Login and get session
+SESSION_ID=$(erpnext::api::login "Administrator" "admin")
+
+# Make API calls
+erpnext::api::get "/api/resource/User" "$SESSION_ID"
+```
 
 ## Documentation
 
@@ -101,23 +119,42 @@ This resource fully implements the Vrooli v2.0 Universal Contract:
 
 ## Known Issues
 
-- Web interface routing needs configuration for full module access
-- Site initialization completes but web UI shows "localhost does not exist"
-- API endpoints respond but require authentication setup
-- Content management commands need full implementation
+### Multi-Tenant Routing
+ERPNext's multi-tenant architecture requires special handling:
+
+**For Browser Access:**
+Add to `/etc/hosts`:
+```
+127.0.0.1 vrooli.local
+```
+Then access: http://vrooli.local:8020
+
+**For API Access:**
+Always include the Host header:
+```bash
+curl -H "Host: vrooli.local" http://localhost:8020/api/method/frappe.ping
+```
+
+This is a fundamental design aspect of Frappe/ERPNext and ensures proper site isolation in multi-tenant deployments.
 
 ## Troubleshooting
 
-### Site Not Found Error
-If you see "localhost does not exist" when accessing the web interface:
-1. The site is created but routing needs configuration
-2. Site data exists at `/home/frappe/frappe-bench/sites/vrooli.local`
-3. Database and Redis connections are functional
+### Browser Access Setup
+1. Add `127.0.0.1 vrooli.local` to `/etc/hosts`
+2. Access http://vrooli.local:8020 in browser
+3. Login with Administrator/admin
 
-### API Access
-- Health check: `curl http://localhost:8020/` (returns 404 which is expected)
-- API methods require proper authentication setup
-- Site configuration is stored in the container
+### API Testing
+```bash
+# Test API endpoint (with required Host header)
+curl -H "Host: vrooli.local" http://localhost:8020/api/method/frappe.ping
+
+# Authenticate
+curl -X POST -H "Host: vrooli.local" \
+  -H "Content-Type: application/json" \
+  -d '{"usr":"Administrator","pwd":"admin"}' \
+  http://localhost:8020/api/method/login
+```
 
 ### Container Management
 - Uses Docker Compose with MariaDB, Redis, and ERPNext containers

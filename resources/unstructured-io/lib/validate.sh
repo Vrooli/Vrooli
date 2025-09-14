@@ -6,7 +6,7 @@
 # Source var.sh for directory variables
 # shellcheck disable=SC1091
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
-source "${APP_ROOT}/lib/utils/var.sh"
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 

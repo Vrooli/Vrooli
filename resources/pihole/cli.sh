@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESOURCE_DIR="${SCRIPT_DIR}"  # Store original resource directory
 source "${SCRIPT_DIR}/lib/core.sh"
 source "${SCRIPT_DIR}/lib/test.sh"
 
@@ -112,7 +113,7 @@ EOF
 # Show resource info from runtime.json
 show_info() {
     local format="${1:-text}"
-    local runtime_file="${SCRIPT_DIR}/config/runtime.json"
+    local runtime_file="${RESOURCE_DIR}/config/runtime.json"
     
     if [[ ! -f "$runtime_file" ]]; then
         echo "Error: runtime.json not found" >&2

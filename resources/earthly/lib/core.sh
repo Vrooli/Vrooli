@@ -470,7 +470,8 @@ execute_build() {
                 shift
                 ;;
             --parallel)
-                parallel_opt="--max-parallel=${EARTHLY_PARALLEL_LIMIT}"
+                # Earthly handles parallelism automatically
+                parallel_opt=""
                 shift
                 ;;
             --metrics)
@@ -539,15 +540,13 @@ execute_build() {
     # Run with optimized settings
     # Copy Earthfile to current directory as earthly expects it there
     local temp_earthfile=""
-    if [[ "${earthfile}" != "./Earthfile" ]]; then
+    if [[ "${earthfile}" != "./Earthfile" ]] && [[ "$(readlink -f "${earthfile}")" != "$(readlink -f ./Earthfile)" ]]; then
         cp "${earthfile}" ./Earthfile
         temp_earthfile="./Earthfile"
     fi
     
     if earthly ${platform} ${cache_opt} ${no_cache_opt} ${parallel_opt} ${metrics_opt} ${satellite_opt} \
             --config "${EARTHLY_CONFIG_DIR}/config.yml" \
-            --buildkit-cache-size-mb "${EARTHLY_CACHE_SIZE_MB}" \
-            --conversion-parallelism "${EARTHLY_PARALLEL_LIMIT}" \
             "${target}" 2>&1 | tee "${build_log}"; then
         
         local end_time=$(date +%s)

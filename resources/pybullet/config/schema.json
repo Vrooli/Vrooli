@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PyBullet Configuration Schema",
+  "type": "object",
+  "properties": {
+    "physics": {
+      "type": "object",
+      "properties": {
+        "timestep": {
+          "type": "number",
+          "minimum": 0.0001,
+          "maximum": 0.1,
+          "default": 0.004167,
+          "description": "Physics simulation timestep in seconds"
+        },
+        "gravity": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [0, 0, -9.81],
+          "description": "Gravity vector [x, y, z]"
+        },
+        "solver_iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 10,
+          "description": "Number of constraint solver iterations"
+        },
+        "collision_margin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.001,
+          "description": "Collision detection margin in meters"
+        }
+      }
+    },
+    "rendering": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable GUI rendering"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 320,
+          "maximum": 3840,
+          "default": 1024,
+          "description": "Render window width"
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 240,
+          "maximum": 2160,
+          "default": 768,
+          "description": "Render window height"
+        },
+        "fov": {
+          "type": "number",
+          "minimum": 30,
+          "maximum": 120,
+          "default": 60,
+          "description": "Field of view in degrees"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "API server port"
+        },
+        "max_simulations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 10,
+          "description": "Maximum concurrent simulations"
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 3600,
+          "default": 300,
+          "description": "Simulation timeout in seconds"
+        }
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "properties": {
+        "max_bodies": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 10000,
+          "default": 1000,
+          "description": "Maximum bodies per simulation"
+        },
+        "max_memory_mb": {
+          "type": "integer",
+          "minimum": 128,
+          "maximum": 8192,
+          "default": 512,
+          "description": "Maximum memory usage in MB"
+        }
+      }
+    }
+  },
+  "required": ["physics", "api"]
+}

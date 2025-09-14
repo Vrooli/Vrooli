@@ -21,6 +21,7 @@ declare -g -A RESOURCE_PORTS=(
     ["gazebo"]="11456"         # Gazebo robotics simulation platform (3D physics, sensors, robot modeling)
     ["godot"]="11457"          # Godot Engine game development platform (GDScript, 2D/3D engine)
     ["mathlib"]="11458"        # Mathlib4 formal mathematical theorem proving with Lean 4
+    ["ros2"]="11501"           # ROS2 Robot Operating System middleware for distributed robotics
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation

@@ -47,6 +47,10 @@ COMMANDS:
     stats               Show detailed traffic statistics
     logs                View WireGuard logs
     credentials         Display connection information
+    rotate              Key rotation management
+      keys <name>       Rotate keys for a tunnel immediately
+      schedule <name>   Schedule automatic key rotation
+      status            Show rotation status and history
 
 EXAMPLES:
     # Install and start WireGuard
@@ -133,6 +137,9 @@ main() {
             ;;
         credentials)
             show_credentials "$@"
+            ;;
+        rotate)
+            handle_rotate_command "$@"
             ;;
         *)
             echo "Error: Unknown command: $command" >&2

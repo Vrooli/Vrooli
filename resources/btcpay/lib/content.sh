@@ -140,9 +140,18 @@ btcpay::content::execute() {
         generate-address)
             btcpay::generate_address "$@"
             ;;
+        create-store)
+            btcpay::create_store "$@"
+            ;;
+        list-stores)
+            btcpay::list_stores "$@"
+            ;;
+        configure-webhook)
+            btcpay::configure_webhook "$@"
+            ;;
         *)
             log::error "Unknown execute action: $action"
-            log::info "Available actions: create-invoice, check-payment, generate-address"
+            log::info "Available actions: create-invoice, check-payment, generate-address, create-store, list-stores, configure-webhook"
             return 1
             ;;
     esac
@@ -159,3 +168,6 @@ export -f btcpay::content::execute
 export -f btcpay::create_invoice
 export -f btcpay::check_payment
 export -f btcpay::generate_address
+export -f btcpay::create_store
+export -f btcpay::list_stores
+export -f btcpay::configure_webhook

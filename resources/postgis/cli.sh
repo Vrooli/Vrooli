@@ -34,7 +34,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${POSTGIS_CLI_DIR}/config/defaults.sh"
 
 # Source resource libraries (only what exists)
-for lib in core common install status test inject performance health integration; do
+for lib in core common install status test inject performance health integration visualization geocoding spatial_analysis; do
     lib_file="${POSTGIS_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -104,6 +104,34 @@ cli::register_subcommand "integration" "export-n8n" "Export data for n8n workflo
 cli::register_subcommand "integration" "setup-ollama" "Setup Ollama embeddings table" "postgis::integration::create_ollama_embeddings_table" "modifies-system"
 cli::register_subcommand "integration" "setup-questdb" "Setup QuestDB time-series sync" "postgis::integration::setup_questdb_sync" "modifies-system"
 cli::register_subcommand "integration" "setup-redis" "Setup Redis cache tables" "postgis::integration::create_redis_cache_tables" "modifies-system"
+
+# Visualization subcommands (P2 feature)
+cli::register_command "visualization" "Generate map visualizations" "postgis::visualization::main"
+cli::register_subcommand "visualization" "geojson" "Generate GeoJSON from query" "postgis::visualization::generate_geojson"
+cli::register_subcommand "visualization" "heatmap" "Generate heat map" "postgis::visualization::generate_heatmap"
+cli::register_subcommand "visualization" "choropleth" "Generate choropleth map" "postgis::visualization::generate_choropleth"
+cli::register_subcommand "visualization" "tiles" "Generate map tiles" "postgis::visualization::generate_tiles"
+cli::register_subcommand "visualization" "viewer" "Generate HTML viewer" "postgis::visualization::generate_viewer"
+
+# Geocoding subcommands (P2 feature)
+cli::register_command "geocoding" "Address geocoding services" "postgis::geocoding::main"
+cli::register_subcommand "geocoding" "init" "Initialize geocoding tables" "postgis::geocoding::init" "modifies-system"
+cli::register_subcommand "geocoding" "geocode" "Convert address to coordinates" "postgis::geocoding::geocode"
+cli::register_subcommand "geocoding" "reverse" "Convert coordinates to address" "postgis::geocoding::reverse"
+cli::register_subcommand "geocoding" "batch" "Batch geocode addresses" "postgis::geocoding::batch"
+cli::register_subcommand "geocoding" "import" "Import places data" "postgis::geocoding::import_places" "modifies-system"
+cli::register_subcommand "geocoding" "stats" "Show geocoding statistics" "postgis::geocoding::stats"
+
+# Spatial analysis subcommands (P2 feature)
+cli::register_command "spatial" "Advanced spatial analysis" "postgis::spatial::main"
+cli::register_subcommand "spatial" "init-routing" "Initialize routing tables" "postgis::spatial::init_routing" "modifies-system"
+cli::register_subcommand "spatial" "shortest-path" "Find shortest path" "postgis::spatial::shortest_path"
+cli::register_subcommand "spatial" "proximity" "Find nearby features" "postgis::spatial::proximity"
+cli::register_subcommand "spatial" "service-area" "Calculate service area" "postgis::spatial::service_area"
+cli::register_subcommand "spatial" "watershed" "Perform watershed analysis" "postgis::spatial::watershed"
+cli::register_subcommand "spatial" "viewshed" "Calculate viewshed" "postgis::spatial::viewshed"
+cli::register_subcommand "spatial" "cluster" "Perform spatial clustering" "postgis::spatial::cluster"
+cli::register_subcommand "spatial" "statistics" "Calculate spatial statistics" "postgis::spatial::statistics"
 
 # Only execute if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

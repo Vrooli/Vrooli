@@ -91,12 +91,22 @@ cli::register_subcommand "gpu" "enable" "Enable GPU acceleration" "sagemath::gpu
 cli::register_subcommand "gpu" "compute" "Run GPU-accelerated computation" "sagemath::gpu::compute"
 cli::register_subcommand "gpu" "benchmark" "Benchmark GPU vs CPU" "sagemath::gpu::benchmark"
 
+# Register GPU handlers
+CLI_COMMAND_HANDLERS["gpu::check"]="sagemath::gpu::check"
+CLI_COMMAND_HANDLERS["gpu::enable"]="sagemath::gpu::enable"
+CLI_COMMAND_HANDLERS["gpu::compute"]="sagemath::gpu::compute"
+CLI_COMMAND_HANDLERS["gpu::benchmark"]="sagemath::gpu::benchmark"
+
 # ==============================================================================
 # PARALLEL COMPUTING COMMANDS
 # ==============================================================================
 cli::register_command "parallel" "Parallel computing operations" "sagemath::parallel"
 cli::register_subcommand "parallel" "compute" "Run parallel computation" "sagemath::parallel::compute"
 cli::register_subcommand "parallel" "status" "Check parallel computing status" "sagemath::parallel::status"
+
+# Register parallel handlers
+CLI_COMMAND_HANDLERS["parallel::compute"]="sagemath::parallel::compute"
+CLI_COMMAND_HANDLERS["parallel::status"]="sagemath::parallel::status"
 
 # ==============================================================================
 # MATHEMATICAL OPERATIONS AS DIRECT COMMANDS

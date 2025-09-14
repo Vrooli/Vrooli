@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status inject content social-providers ldap-federation multi-realm; do
+for lib in common install lifecycle status inject content social-providers ldap-federation multi-realm backup monitor; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -142,6 +142,40 @@ cli::register_subcommand "realm" "list-tenants" "List all tenant realms" "keyclo
 cli::register_subcommand "realm" "get-tenant" "Get tenant realm details" "keycloak::realm::get_tenant"
 cli::register_subcommand "realm" "delete-tenant" "Delete tenant realm" "keycloak::realm::delete_tenant"
 cli::register_subcommand "realm" "export-tenant" "Export tenant realm configuration" "keycloak::realm::export_tenant"
+
+# Register backup command group for backup and restore operations
+CLI_COMMAND_GROUPS["backup"]="true"
+CLI_GROUP_DESCRIPTIONS["backup"]="💾 Backup and restore operations"
+
+# Backup management commands
+CLI_COMMAND_HANDLERS["backup::create"]="backup::create"
+CLI_COMMAND_HANDLERS["backup::list"]="backup::list"
+CLI_COMMAND_HANDLERS["backup::restore"]="backup::restore"
+CLI_COMMAND_HANDLERS["backup::cleanup"]="backup::cleanup"
+CLI_COMMAND_HANDLERS["backup::schedule"]="backup::schedule"
+
+cli::register_subcommand "backup" "create" "Create backup of a realm" "backup::create"
+cli::register_subcommand "backup" "list" "List available backups" "backup::list"
+cli::register_subcommand "backup" "restore" "Restore realm from backup" "backup::restore"
+cli::register_subcommand "backup" "cleanup" "Remove old backups" "backup::cleanup"
+cli::register_subcommand "backup" "schedule" "Schedule automatic backups" "backup::schedule"
+
+# Register monitor command group for performance monitoring
+CLI_COMMAND_GROUPS["monitor"]="true"
+CLI_GROUP_DESCRIPTIONS["monitor"]="📊 Performance monitoring and metrics"
+
+# Monitor commands
+CLI_COMMAND_HANDLERS["monitor::health"]="monitor::health"
+CLI_COMMAND_HANDLERS["monitor::metrics"]="monitor::metrics"
+CLI_COMMAND_HANDLERS["monitor::performance"]="monitor::performance"
+CLI_COMMAND_HANDLERS["monitor::realms"]="monitor::realms"
+CLI_COMMAND_HANDLERS["monitor::dashboard"]="monitor::dashboard"
+
+cli::register_subcommand "monitor" "health" "Check health status" "monitor::health"
+cli::register_subcommand "monitor" "metrics" "Show performance metrics" "monitor::metrics"
+cli::register_subcommand "monitor" "performance" "Analyze performance" "monitor::performance"
+cli::register_subcommand "monitor" "realms" "Show realm statistics" "monitor::realms"
+cli::register_subcommand "monitor" "dashboard" "Full monitoring dashboard" "monitor::dashboard"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "keycloak::status"

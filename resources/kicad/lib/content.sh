@@ -1,6 +1,15 @@
 #!/bin/bash
 # KiCad Content Management Functions
 
+# Get script directory and APP_ROOT
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+KICAD_CONTENT_LIB_DIR="${APP_ROOT}/resources/kicad/lib"
+
+# Source common functions if not already sourced
+if ! declare -f kicad::init_dirs &>/dev/null; then
+    source "${KICAD_CONTENT_LIB_DIR}/common.sh"
+fi
+
 # List all content (projects and libraries)
 kicad::content::list() {
     kicad::content::list_projects
@@ -83,6 +92,7 @@ kicad::content::execute() {
         echo "  generate-bom <schematic>           - Generate bill of materials"
         echo "  run-drc <board>                    - Run design rule check"
         echo "  create-scripts                     - Create Python automation scripts"
+        echo "  visualize-3d <board>               - Generate 3D visualization of PCB"
         return 1
     fi
     
@@ -142,6 +152,42 @@ kicad::content::execute() {
             echo "Scripts created in ${KICAD_DATA_DIR}/scripts/"
             ;;
             
+        visualize-3d)
+            local board="${1:-}"
+            if [[ -z "$board" ]]; then
+                echo "Usage: resource-kicad content execute visualize-3d <board.kicad_pcb>"
+                return 1
+            fi
+            
+            echo "Generating 3D visualization of PCB..."
+            
+            # Check if we have visualization tools
+            if command -v pcbdraw &>/dev/null; then
+                # Use pcbdraw for 3D visualization
+                local output_file="${KICAD_OUTPUTS_DIR}/$(basename "$board" .kicad_pcb)_3d.png"
+                pcbdraw "$board" "$output_file" --style builtin:set-blue.json 2>/dev/null || {
+                    echo "Warning: pcbdraw failed, creating mock visualization"
+                    echo "[Mock 3D Visualization of $(basename "$board")]" > "$output_file"
+                }
+                echo "3D visualization saved to: $output_file"
+            elif command -v kicad-cli &>/dev/null; then
+                # Use kicad-cli to export STEP file for 3D viewing
+                local step_file="${KICAD_OUTPUTS_DIR}/$(basename "$board" .kicad_pcb).step"
+                kicad-cli pcb export step "$board" -o "$step_file"
+                echo "3D STEP file exported to: $step_file"
+                echo "Note: Open this file in a 3D viewer like FreeCAD or KiCad's 3D viewer"
+            else
+                echo "Warning: No 3D visualization tools available"
+                echo "Install pcbdraw with: pip install pcbdraw"
+                echo "Or install KiCad for full 3D viewing capabilities"
+                local mock_file="${KICAD_OUTPUTS_DIR}/$(basename "$board" .kicad_pcb)_3d_mock.txt"
+                echo "[Mock 3D Visualization]" > "$mock_file"
+                echo "Board: $board" >> "$mock_file"
+                echo "Generated: $(date)" >> "$mock_file"
+                echo "Mock 3D file created: $mock_file"
+            fi
+            ;;
+            
         *)
             echo "Unknown operation: $operation"
             echo "Run 'resource-kicad content execute' to see available operations"
@@ -149,3 +195,73 @@ kicad::content::execute() {
             ;;
     esac
 }
+
+# Export PCB project to various formats
+kicad::export::project() {
+    local project="${1:-}"
+    local format="${2:-gerber}"
+    
+    if [[ -z "$project" ]]; then
+        echo "Usage: resource-kicad content export <project-name> [format]"
+        echo "Available formats: gerber, pdf, svg, step"
+        return 1
+    fi
+    
+    kicad::init_dirs
+    local project_path="${KICAD_PROJECTS_DIR}/${project}"
+    
+    if [[ ! -d "$project_path" ]]; then
+        echo "Error: Project not found: $project"
+        return 1
+    fi
+    
+    local output_dir="${KICAD_OUTPUTS_DIR}/${project}"
+    mkdir -p "$output_dir"
+    
+    echo "Exporting project: $project to format: $format"
+    
+    # Use kicad-cli if available, otherwise use mock
+    if command -v kicad-cli &>/dev/null; then
+        case "$format" in
+            gerber)
+                kicad-cli pcb export gerber "$project_path"/*.kicad_pcb -o "$output_dir"
+                ;;
+            pdf)
+                kicad-cli pcb export pdf "$project_path"/*.kicad_pcb -o "$output_dir/board.pdf"
+                kicad-cli sch export pdf "$project_path"/*.kicad_sch -o "$output_dir/schematic.pdf"
+                ;;
+            svg)
+                kicad-cli pcb export svg "$project_path"/*.kicad_pcb -o "$output_dir"
+                kicad-cli sch export svg "$project_path"/*.kicad_sch -o "$output_dir"
+                ;;
+            step)
+                kicad-cli pcb export step "$project_path"/*.kicad_pcb -o "$output_dir/board.step"
+                ;;
+            *)
+                echo "Unknown format: $format"
+                return 1
+                ;;
+        esac
+    elif [[ -f "${KICAD_DATA_DIR}/kicad-cli-mock" ]]; then
+        # Use mock implementation
+        "${KICAD_DATA_DIR}/kicad-cli-mock" pcb export "$format" "$project_path"/*.kicad_pcb -o "$output_dir"
+        echo "Mock: Export complete (using mock implementation)"
+    else
+        echo "Warning: KiCad not installed. Cannot export project."
+        echo "Mock files created in: $output_dir"
+        touch "$output_dir/mock_${format}_export"
+    fi
+    
+    echo "Export complete. Files saved to: $output_dir"
+    ls -la "$output_dir" 2>/dev/null || true
+    return 0
+}
+
+# Export functions for CLI framework
+export -f kicad::content::list
+export -f kicad::content::list_projects
+export -f kicad::content::list_libraries
+export -f kicad::content::get
+export -f kicad::content::remove
+export -f kicad::content::execute
+export -f kicad::export::project

@@ -29,6 +29,9 @@ services:
       - SITE_NAME=vrooli.local
       - DB_HOST=erpnext-db
       - DB_PORT=3306
+      - DB_NAME=erpnext
+      - DB_USER=erpnext
+      - DB_PASSWORD=admin
       - REDIS_CACHE=redis://erpnext-redis:6379/0
       - REDIS_QUEUE=redis://erpnext-redis:6379/1
       - REDIS_SOCKETIO=redis://erpnext-redis:6379/2

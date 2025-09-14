@@ -33,7 +33,9 @@ TESTS_FAILED=0
 test_api_endpoint() {
     log::info "Testing: API endpoint availability..."
     
-    if timeout 10 curl -sf "${ERPNEXT_URL}/api" &>/dev/null; then
+    # ERPNext requires Host header for multi-tenant routing
+    # Test the actual API ping endpoint, not just /api
+    if timeout 10 curl -sf -H "Host: vrooli.local" "${ERPNEXT_URL}/api/method/frappe.ping" &>/dev/null; then
         log::success "  ✓ API endpoint is available"
         ((TESTS_PASSED++))
         return 0
@@ -47,19 +49,21 @@ test_api_endpoint() {
 test_authentication_endpoint() {
     log::info "Testing: Authentication endpoint..."
     
-    # Test login endpoint exists (will return error without credentials, but that's OK)
-    local response
-    response=$(timeout 10 curl -sf -X POST "${ERPNEXT_URL}/api/method/login" \
+    # Test login endpoint exists (will return 401 without valid credentials, but that's OK)
+    # We just want to verify the endpoint exists and responds
+    local http_code
+    http_code=$(timeout 10 curl -s -o /dev/null -w "%{http_code}" -X POST "${ERPNEXT_URL}/api/method/login" \
+        -H "Host: vrooli.local" \
         -H "Content-Type: application/json" \
-        -d '{"usr":"test","pwd":"test"}' 2>&1 || true)
+        -d '{"usr":"test","pwd":"test"}' 2>&1 || echo "000")
     
-    # Check if we got any response (even an error response is OK for this test)
-    if [[ -n "$response" ]]; then
+    # Check if we got any HTTP response (401 is expected for invalid credentials)
+    if [[ "$http_code" == "401" ]] || [[ "$http_code" == "200" ]]; then
         log::success "  ✓ Authentication endpoint responds"
         ((TESTS_PASSED++))
         return 0
     else
-        log::error "  ✗ Authentication endpoint not responding"
+        log::error "  ✗ Authentication endpoint not responding (HTTP $http_code)"
         ((TESTS_FAILED++))
         return 1
     fi
@@ -85,7 +89,7 @@ test_database_connectivity() {
     
     # Check if ERPNext can connect to its database
     # This is indirect - if API responds, database is likely connected
-    if timeout 10 curl -sf "${ERPNEXT_URL}/api/method/frappe.ping" &>/dev/null; then
+    if timeout 10 curl -sf -H "Host: vrooli.local" "${ERPNEXT_URL}/api/method/frappe.ping" &>/dev/null; then
         log::success "  ✓ Database connectivity appears functional"
         ((TESTS_PASSED++))
         return 0
@@ -140,7 +144,7 @@ test_api_response_format() {
     
     # Test a simple API call returns JSON
     local response
-    response=$(timeout 10 curl -sf "${ERPNEXT_URL}/api/method/frappe.ping" 2>&1 || true)
+    response=$(timeout 10 curl -sf -H "Host: vrooli.local" "${ERPNEXT_URL}/api/method/frappe.ping" 2>&1 || true)
     
     if echo "$response" | jq . &>/dev/null 2>&1; then
         log::success "  ✓ API returns valid JSON"

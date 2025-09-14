@@ -104,6 +104,9 @@ test_integration() {
     log_info "Running integration tests..."
     local failed=0
     
+    # Ensure earthly is in PATH
+    export PATH="${HOME}/.local/bin:${PATH}"
+    
     # Create a temporary test directory within Vrooli
     local test_dir="${SCRIPT_DIR}/tmp/earthly-integration-test-$$"
     mkdir -p "${test_dir}"
@@ -135,8 +138,9 @@ EOF
     # Check if earthly binary exists and Docker is running
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
         # Try to run the build from the test directory
+        # Use explicit PATH to ensure earthly is found
         set +e  # Temporarily disable exit on error
-        (cd "${test_dir}" && timeout 60 earthly +test >/dev/null 2>&1)
+        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +test >/dev/null 2>&1)
         local exit_code=$?
         set -e  # Re-enable exit on error
         
@@ -177,9 +181,9 @@ EOF
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
         set +e  # Temporarily disable exit on error
         local first_run=$(date +%s)
-        (cd "${test_dir}" && timeout 60 earthly +build >/dev/null 2>&1)
+        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +build >/dev/null 2>&1)
         local second_run=$(date +%s)
-        (cd "${test_dir}" && timeout 60 earthly +build >/dev/null 2>&1)
+        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +build >/dev/null 2>&1)
         local third_run=$(date +%s)
         set -e  # Re-enable exit on error
         
@@ -217,8 +221,9 @@ EOF
         # Create new Earthfile for parallel test
         cp "${test_dir}/ParallelEarthfile" "${test_dir}/Earthfile" 2>/dev/null || true
         
+        # Use explicit PATH to ensure earthly is found
         set +e  # Temporarily disable exit on error
-        (cd "${test_dir}" && timeout 60 earthly +all >/dev/null 2>&1)
+        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +all >/dev/null 2>&1)
         local exit_code=$?
         set -e  # Re-enable exit on error
         

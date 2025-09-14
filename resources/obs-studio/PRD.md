@@ -57,9 +57,10 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - [x] Scene configuration management
 - [x] Recording management
 - [x] Content management (add/list/get/remove/execute)
-- [ ] Streaming control (basic stub, not fully implemented)
-- [ ] Source management (cameras, screens, media)
-- [ ] Audio mixer control
+- [x] Streaming control (start/stop/status/configure/profiles/test)
+- [x] Source management (add/remove/list/configure/visibility)
+- [x] Device discovery (cameras/audio devices)
+- [ ] Audio mixer control (advanced)
 - [ ] Transition effects
 
 ### Testing
@@ -164,6 +165,18 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - Documentation complete and accurate
 
 ## Progress History
+
+### 2025-09-14: Streaming & Source Management Implementation (90% → 95%)
+**Improvements Made:**
+- ✅ Implemented complete streaming control module (lib/streaming.sh)
+- ✅ Added streaming commands: start/stop/status/configure/profiles/test
+- ✅ Implemented source management module (lib/sources.sh)
+- ✅ Added source commands: add/remove/list/configure/cameras/audio/preview/visibility
+- ✅ Created comprehensive example scripts for streaming and source management
+- ✅ Updated tests to cover new functionality
+- ✅ Enhanced documentation with new command examples
+
+**Net Progress:** +2 major features implemented, 0 regressions = +2 net
 
 ### 2025-09-13: Content Management Verification (85% → 90%)
 **Improvements Made:**

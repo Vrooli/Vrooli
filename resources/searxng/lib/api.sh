@@ -411,6 +411,141 @@ searxng::format_output() {
 }
 
 #######################################
+# Advanced search with comprehensive filtering
+# Arguments:
+#   Named arguments for all filter options
+#######################################
+searxng::advanced_search() {
+    local query=""
+    local category="general"
+    local language="$SEARXNG_DEFAULT_LANG"
+    local time_range=""
+    local engines=""
+    local exclude_engines=""
+    local pageno="1"
+    local safesearch="1"
+    local output_format="json"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --query|-q)
+                query="$2"
+                shift 2
+                ;;
+            --category|-c)
+                category="$2"
+                shift 2
+                ;;
+            --language|-l)
+                language="$2"
+                shift 2
+                ;;
+            --time|-t)
+                time_range="$2"
+                shift 2
+                ;;
+            --engines|-e)
+                engines="$2"
+                shift 2
+                ;;
+            --exclude|-x)
+                exclude_engines="$2"
+                shift 2
+                ;;
+            --page|-p)
+                pageno="$2"
+                shift 2
+                ;;
+            --safe|-s)
+                safesearch="$2"
+                shift 2
+                ;;
+            --format|-f)
+                output_format="$2"
+                shift 2
+                ;;
+            --help|-h)
+                echo "Advanced SearXNG Search"
+                echo
+                echo "Usage: resource-searxng content advanced-search [options]"
+                echo
+                echo "Options:"
+                echo "  --query, -q <text>       Search query (required)"
+                echo "  --category, -c <cat>     Category: general, images, videos, news, music, files, science, social, map"
+                echo "  --language, -l <lang>    Language code: en, de, fr, es, it, pt, ru, zh, ja, etc."
+                echo "  --time, -t <range>       Time range: hour, day, week, month, year"
+                echo "  --engines, -e <list>     Comma-separated list of engines to use"
+                echo "  --exclude, -x <list>     Comma-separated list of engines to exclude"
+                echo "  --page, -p <num>         Page number (default: 1)"
+                echo "  --safe, -s <0|1|2>       Safe search: 0=off, 1=moderate, 2=strict"
+                echo "  --format, -f <fmt>       Output format: json, csv, html, rss"
+                echo
+                echo "Examples:"
+                echo "  # Search for recent AI news in English"
+                echo "  resource-searxng content advanced-search -q 'artificial intelligence' -c news -t week -l en"
+                echo
+                echo "  # Search for images using specific engines"
+                echo "  resource-searxng content advanced-search -q 'cats' -c images -e 'google,bing'"
+                echo
+                echo "  # Search excluding certain engines"
+                echo "  resource-searxng content advanced-search -q 'privacy' -x 'google,bing' -s 2"
+                return 0
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$query" ]]; then
+        log::error "Search query required. Use --help for usage information."
+        return 1
+    fi
+    
+    # Build the search URL with all filters
+    local search_url="${SEARXNG_BASE_URL}/search"
+    local encoded_query
+    encoded_query=$(printf '%s' "$query" | sed 's/ /%20/g; s/&/%26/g; s/#/%23/g; s/+/%2B/g')
+    
+    search_url+="?q=${encoded_query}"
+    search_url+="&format=${output_format}"
+    search_url+="&categories=${category}"
+    search_url+="&language=${language}"
+    search_url+="&pageno=${pageno}"
+    search_url+="&safesearch=${safesearch}"
+    
+    [[ -n "$time_range" ]] && search_url+="&time_range=${time_range}"
+    [[ -n "$engines" ]] && search_url+="&engines=${engines}"
+    [[ -n "$exclude_engines" ]] && search_url+="&disabled_engines=${exclude_engines}"
+    
+    log::info "Advanced search for: $query"
+    log::info "Filters:"
+    echo "  Category: $category"
+    echo "  Language: $language"
+    [[ -n "$time_range" ]] && echo "  Time range: $time_range"
+    [[ -n "$engines" ]] && echo "  Using engines: $engines"
+    [[ -n "$exclude_engines" ]] && echo "  Excluding: $exclude_engines"
+    echo "  Safe search: $safesearch"
+    echo "  Page: $pageno"
+    
+    # Execute search
+    local result
+    if result=$(curl -sf --max-time "$SEARXNG_API_TIMEOUT" "$search_url"); then
+        if [[ "$output_format" == "json" ]] && command -v jq >/dev/null 2>&1; then
+            echo "$result" | jq '.'
+        else
+            echo "$result"
+        fi
+        return 0
+    else
+        log::error "Search failed"
+        return 1
+    fi
+}
+
+#######################################
 # Get SearXNG statistics
 #######################################
 searxng::get_stats() {

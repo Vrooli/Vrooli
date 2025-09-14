@@ -43,6 +43,28 @@ octoprint_install() {
         OCTOPRINT_API_KEY="$(openssl rand -hex 32 2>/dev/null || date +%s | sha256sum | cut -d' ' -f1)"
         echo "Generated API key: ${OCTOPRINT_API_KEY}"
         echo "${OCTOPRINT_API_KEY}" > "${OCTOPRINT_CONFIG_DIR}/api_key"
+        
+        # Create OctoPrint config.yaml with API key for Docker container
+        # Write to data directory - container will read from mounted volume
+        cat > "${OCTOPRINT_DATA_DIR}/config.yaml" <<EOF
+api:
+  enabled: true
+  key: ${OCTOPRINT_API_KEY}
+  allowCrossOrigin: true
+accessControl:
+  autologinAs: admin
+  autologinLocal: true
+server:
+  host: 0.0.0.0
+  port: 5000
+  commands:
+    serverRestartCommand: false
+    systemRestartCommand: false
+    systemShutdownCommand: false
+devel:
+  virtualPrinter:
+    enabled: ${OCTOPRINT_VIRTUAL_PRINTER}
+EOF
     fi
     
     echo "OctoPrint installation complete"
@@ -360,5 +382,109 @@ content_execute() {
     else
         echo "Error: API key not configured"
         exit 1
+    fi
+}
+
+# Helper function to get API key
+get_api_key() {
+    local api_key="${OCTOPRINT_API_KEY}"
+    if [[ -f "${OCTOPRINT_CONFIG_DIR}/api_key" ]]; then
+        api_key=$(cat "${OCTOPRINT_CONFIG_DIR}/api_key")
+    fi
+    echo "${api_key}"
+}
+
+# Temperature monitoring
+octoprint_temperature() {
+    echo "Temperature Status"
+    echo "=================="
+    
+    local api_key=$(get_api_key)
+    if [[ -z "${api_key}" ]] || [[ "${api_key}" == "auto" ]]; then
+        echo "Error: API key not configured"
+        return 1
+    fi
+    
+    local temp_data=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \
+        "http://localhost:${OCTOPRINT_PORT}/api/printer/tool" 2>/dev/null)
+    
+    if [[ -n "${temp_data}" ]]; then
+        echo "${temp_data}" | python3 -m json.tool 2>/dev/null || echo "${temp_data}"
+    else
+        echo "Unable to fetch temperature data"
+        echo "Note: Temperature monitoring requires an active printer connection"
+    fi
+}
+
+# Print control commands
+octoprint_print_control() {
+    local command="${1:-}"
+    
+    if [[ -z "${command}" ]]; then
+        echo "Error: Command required"
+        echo "Usage: print-control <start|pause|cancel|resume>"
+        return 1
+    fi
+    
+    local api_key=$(get_api_key)
+    if [[ -z "${api_key}" ]] || [[ "${api_key}" == "auto" ]]; then
+        echo "Error: API key not configured"
+        return 1
+    fi
+    
+    case "${command}" in
+        start)
+            echo "Starting print..."
+            curl -X POST -H "X-Api-Key: ${api_key}" \
+                "http://localhost:${OCTOPRINT_PORT}/api/job" \
+                -d '{"command":"start"}'
+            ;;
+        pause)
+            echo "Pausing print..."
+            curl -X POST -H "X-Api-Key: ${api_key}" \
+                "http://localhost:${OCTOPRINT_PORT}/api/job" \
+                -d '{"command":"pause","action":"pause"}'
+            ;;
+        resume)
+            echo "Resuming print..."
+            curl -X POST -H "X-Api-Key: ${api_key}" \
+                "http://localhost:${OCTOPRINT_PORT}/api/job" \
+                -d '{"command":"pause","action":"resume"}'
+            ;;
+        cancel)
+            echo "Cancelling print..."
+            curl -X POST -H "X-Api-Key: ${api_key}" \
+                "http://localhost:${OCTOPRINT_PORT}/api/job" \
+                -d '{"command":"cancel"}'
+            ;;
+        *)
+            echo "Error: Invalid command: ${command}"
+            echo "Valid commands: start, pause, resume, cancel"
+            return 1
+            ;;
+    esac
+    
+    echo ""
+    echo "Command sent: ${command}"
+}
+
+# Job status
+octoprint_job_status() {
+    echo "Print Job Status"
+    echo "================"
+    
+    local api_key=$(get_api_key)
+    if [[ -z "${api_key}" ]] || [[ "${api_key}" == "auto" ]]; then
+        echo "Error: API key not configured"
+        return 1
+    fi
+    
+    local job_data=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \
+        "http://localhost:${OCTOPRINT_PORT}/api/job" 2>/dev/null)
+    
+    if [[ -n "${job_data}" ]]; then
+        echo "${job_data}" | python3 -m json.tool 2>/dev/null || echo "${job_data}"
+    else
+        echo "Unable to fetch job data"
     fi
 }

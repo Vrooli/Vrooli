@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KICAD_CLI_DIR}/config/defaults.sh"
 
 # Source KiCad libraries
-for lib in common core install status inject test content desktop; do
+for lib in common core install status inject test content desktop version; do
     lib_file="${KICAD_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -66,6 +66,24 @@ CLI_COMMAND_HANDLERS["content::execute"]="kicad::content::execute"
 cli::register_subcommand "content" "export" "Export PCB project to various formats" "kicad::export::project"
 cli::register_subcommand "content" "projects" "List all KiCad projects" "kicad::content::list_projects"
 cli::register_subcommand "content" "libraries" "List all KiCad libraries" "kicad::content::list_libraries"
+
+# Add version control commands as a regular command with subcommands
+cli::register_command "version" "Git version control for KiCad projects" "kicad::version::help"
+CLI_COMMAND_HANDLERS["version::init"]="kicad::git::init"
+CLI_COMMAND_HANDLERS["version::status"]="kicad::git::status"
+CLI_COMMAND_HANDLERS["version::commit"]="kicad::git::commit"
+CLI_COMMAND_HANDLERS["version::log"]="kicad::git::log"
+CLI_COMMAND_HANDLERS["version::backup"]="kicad::git::backup"
+
+# Version help function
+kicad::version::help() {
+    echo "KiCad Version Control Commands:"
+    echo "  init <project>     - Initialize git repository for project"
+    echo "  status <project>   - Show git status for project"
+    echo "  commit <project>   - Commit project changes"
+    echo "  log <project>      - Show commit history"
+    echo "  backup <project>   - Create backup branch"
+}
 
 # Information commands
 cli::register_command "info" "Show resource runtime information" "kicad::info"

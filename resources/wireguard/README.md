@@ -44,6 +44,7 @@ vrooli resource wireguard content add my-tunnel
 - Built-in DoS protection
 - Minimal attack surface
 - Automatic key generation for tunnels
+- **Key rotation system** for enhanced security
 
 ### Monitoring & Statistics
 - Per-interface traffic statistics
@@ -202,9 +203,45 @@ export WIREGUARD_KEEPALIVE=10
 export WIREGUARD_DNS=192.168.1.1
 ```
 
+## Key Rotation
+
+WireGuard now includes a comprehensive key rotation system for enhanced security:
+
+### Manual Key Rotation
+```bash
+# Rotate keys for a specific tunnel immediately
+vrooli resource wireguard rotate keys my-tunnel
+
+# Rotate without backup (not recommended)
+vrooli resource wireguard rotate keys my-tunnel --no-backup
+```
+
+### Scheduled Key Rotation
+```bash
+# Schedule automatic rotation every 30 days
+vrooli resource wireguard rotate schedule my-tunnel --interval 30d
+
+# Schedule with different intervals
+vrooli resource wireguard rotate schedule my-tunnel --interval 7d   # Weekly
+vrooli resource wireguard rotate schedule my-tunnel --interval 720h # 30 days in hours
+```
+
+### Rotation Status
+```bash
+# Check rotation history and schedules
+vrooli resource wireguard rotate status
+```
+
+Key rotation automatically:
+- Backs up old configurations
+- Generates new key pairs
+- Preserves peer configurations
+- Tracks rotation history
+- Provides fallback mechanisms
+
 ## Security Best Practices
 
-1. **Regular key rotation**: Rotate keys every 90 days
+1. **Regular key rotation**: Use the rotation scheduler for automatic key updates
 2. **Limit allowed IPs**: Restrict peer access to required subnets only
 3. **Monitor logs**: Check for unauthorized connection attempts
 4. **Firewall rules**: Only allow WireGuard port through firewall

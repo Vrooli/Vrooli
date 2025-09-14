@@ -94,17 +94,127 @@ test_performance() {
     fi
 }
 
+# Test 5: P1 Feature - Visualization generation
+test_visualization() {
+    log::info "Testing visualization generation..."
+    
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/analyze" \
+        -H "Content-Type: application/json" \
+        -d '{"query": "describe", "data": {"x": [1,2,3,4,5], "y": [2,4,6,8,10]}, "visualization": true, "viz_type": "scatter"}' 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q "visualization" && echo "${response}" | grep -q "success.*true"; then
+        log::success "Visualization generation works"
+        return 0
+    else
+        log::error "Visualization generation failed"
+        return 1
+    fi
+}
+
+# Test 6: P1 Feature - Data cleaning suggestions
+test_data_cleaning() {
+    log::info "Testing data cleaning suggestions..."
+    
+    # Test with data that has missing values and duplicates
+    local dirty_data='{"col1": [1, 2, null, 4, 5, 5], "col2": [10, 20, 30, 40, 50, 50]}'
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/analyze" \
+        -H "Content-Type: application/json" \
+        -d "{\"query\": \"describe\", \"data\": ${dirty_data}, \"clean_data\": true}" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q "cleaning_suggestions" && echo "${response}" | grep -q "missing_values\|duplicates"; then
+        log::success "Data cleaning suggestions work"
+        return 0
+    else
+        log::error "Data cleaning suggestions failed"
+        return 1
+    fi
+}
+
+# Test 7: P1 Feature - Multi-dataframe operations
+test_multi_dataframe() {
+    log::info "Testing multi-dataframe operations..."
+    
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/analyze/multi" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "dataframes": [
+                {"name": "df1", "data": {"id": [1, 2, 3], "value1": [10, 20, 30]}},
+                {"name": "df2", "data": {"id": [2, 3, 4], "value2": [200, 300, 400]}}
+            ],
+            "operation": "merge",
+            "query": "preview",
+            "join_keys": ["id"],
+            "how": "inner"
+        }' 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q "success.*true" && echo "${response}" | grep -q "rows.*2"; then
+        log::success "Multi-dataframe operations work"
+        return 0
+    else
+        log::error "Multi-dataframe operations failed"
+        return 1
+    fi
+}
+
+# Test 8: P1 Feature - Performance optimization (chunking)
+test_performance_optimization() {
+    log::info "Testing performance optimization features..."
+    
+    # Test with max_rows override
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/analyze" \
+        -H "Content-Type: application/json" \
+        -d '{"query": "describe", "data": {"values": [1,2,3,4,5]}, "max_rows": 3}' 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q "performance_metrics" && echo "${response}" | grep -q "processing_time"; then
+        log::success "Performance optimization features work"
+        return 0
+    else
+        log::error "Performance optimization features failed"
+        return 1
+    fi
+}
+
+# Test 9: P1 Feature - Advanced configuration
+test_advanced_configuration() {
+    log::info "Testing advanced configuration..."
+    
+    # Check if configuration is exposed in root endpoint
+    local response
+    response=$(timeout 5 curl -s "${PANDAS_AI_URL}/" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q "configuration" && echo "${response}" | grep -q "max_rows\|max_workers\|chunk_size"; then
+        log::success "Advanced configuration exposed correctly"
+        return 0
+    else
+        log::error "Advanced configuration not properly exposed"
+        return 1
+    fi
+}
+
 # Main integration test execution
 main() {
     log::header "Pandas-AI Integration Tests"
     
     local failed=0
     
-    # Run all integration tests
+    # Run basic integration tests
+    log::info "Running basic integration tests..."
     test_query_types || failed=1
     test_data_structures || failed=1
     test_error_handling || failed=1
     test_performance || failed=1
+    
+    # Run P1 feature tests
+    log::info "Running P1 feature tests..."
+    test_visualization || failed=1
+    test_data_cleaning || failed=1
+    test_multi_dataframe || failed=1
+    test_performance_optimization || failed=1
+    test_advanced_configuration || failed=1
     
     if [[ ${failed} -eq 0 ]]; then
         log::success "All integration tests passed!"

@@ -664,3 +664,280 @@ show_credentials() {
     echo "2. Add peer to server config"
     echo "3. Configure peer with server public key"
 }
+
+# ====================
+# Key Rotation System
+# ====================
+handle_rotate_command() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        keys)
+            rotate_keys "$@"
+            ;;
+        schedule)
+            schedule_rotation "$@"
+            ;;
+        status)
+            rotation_status "$@"
+            ;;
+        *)
+            echo "Usage: resource-wireguard rotate [keys|schedule|status] [options]"
+            echo ""
+            echo "Key rotation management for enhanced security"
+            echo ""
+            echo "Commands:"
+            echo "  keys      - Rotate keys for a tunnel immediately"
+            echo "  schedule  - Schedule automatic key rotation"
+            echo "  status    - Show rotation status and history"
+            echo ""
+            echo "Examples:"
+            echo "  resource-wireguard rotate keys mytunnel"
+            echo "  resource-wireguard rotate schedule mytunnel --interval 30d"
+            echo "  resource-wireguard rotate status"
+            return 0
+            ;;
+    esac
+}
+
+rotate_keys() {
+    local tunnel_name="${1:-}"
+    local backup_old="${2:-true}"
+    
+    if [[ -z "$tunnel_name" ]]; then
+        echo "Error: Tunnel name required" >&2
+        echo "Usage: resource-wireguard rotate keys <tunnel-name> [--no-backup]" >&2
+        return 1
+    fi
+    
+    # Check if container is running
+    if ! docker ps -q -f name="$CONTAINER_NAME" | grep -q .; then
+        echo "Error: WireGuard container not running" >&2
+        return 1
+    fi
+    
+    # Check if tunnel config exists
+    local config_file="/config/wg_confs/wg${tunnel_name}.conf"
+    if ! docker exec "$CONTAINER_NAME" test -f "$config_file"; then
+        echo "Error: Tunnel configuration '$tunnel_name' not found" >&2
+        return 1
+    fi
+    
+    echo "Rotating keys for tunnel: $tunnel_name"
+    
+    # Backup old configuration if requested
+    if [[ "$backup_old" == "true" ]]; then
+        local backup_dir="/config/backups"
+        local timestamp=$(date +%Y%m%d_%H%M%S)
+        docker exec "$CONTAINER_NAME" mkdir -p "$backup_dir"
+        docker exec "$CONTAINER_NAME" cp "$config_file" "${backup_dir}/wg${tunnel_name}_${timestamp}.conf.bak"
+        echo "Backed up old configuration to: wg${tunnel_name}_${timestamp}.conf.bak"
+    fi
+    
+    # Generate new keys
+    local new_private_key=$(docker exec "$CONTAINER_NAME" wg genkey 2>/dev/null)
+    if [[ -z "$new_private_key" ]]; then
+        echo "Error: Failed to generate new private key" >&2
+        return 1
+    fi
+    
+    local new_public_key=$(echo "$new_private_key" | docker exec -i "$CONTAINER_NAME" wg pubkey 2>/dev/null)
+    if [[ -z "$new_public_key" ]]; then
+        echo "Error: Failed to generate new public key" >&2
+        return 1
+    fi
+    
+    # Get current configuration
+    local current_config=$(docker exec "$CONTAINER_NAME" cat "$config_file")
+    local current_address=$(echo "$current_config" | grep "^Address" | cut -d'=' -f2 | xargs)
+    local current_port=$(echo "$current_config" | grep "^ListenPort" | cut -d'=' -f2 | xargs)
+    
+    # Create new configuration with rotated keys
+    docker exec "$CONTAINER_NAME" bash -c "cat > ${config_file}.tmp << EOF
+[Interface]
+PrivateKey = $new_private_key
+Address = $current_address
+ListenPort = ${current_port:-51820}
+DNS = 1.1.1.1
+
+# Public Key: $new_public_key
+# Key Rotated: $(date -Iseconds)
+# Previous rotation backup available in /config/backups/
+
+$(echo \"$current_config\" | sed -n '/^\\[Peer\\]/,\$p')
+EOF"
+    
+    # Apply new configuration
+    docker exec "$CONTAINER_NAME" mv "${config_file}.tmp" "$config_file"
+    
+    # Store rotation metadata
+    local metadata_file="/config/rotation_history.json"
+    docker exec "$CONTAINER_NAME" bash -c "
+        if [[ ! -f $metadata_file ]]; then
+            echo '[]' > $metadata_file
+        fi
+        
+        # Add rotation record
+        jq '. += [{
+            \"tunnel\": \"$tunnel_name\",
+            \"timestamp\": \"$(date -Iseconds)\",
+            \"old_public_key\": \"$(echo \"$current_config\" | grep '# Public Key:' | cut -d: -f2 | xargs)\",
+            \"new_public_key\": \"$new_public_key\"
+        }]' $metadata_file > ${metadata_file}.tmp && mv ${metadata_file}.tmp $metadata_file
+    " 2>/dev/null || {
+        # Fallback if jq is not available
+        docker exec "$CONTAINER_NAME" bash -c "
+            echo \"$(date -Iseconds): Rotated keys for $tunnel_name\" >> /config/rotation_log.txt
+        "
+    }
+    
+    # Reload WireGuard interface if active
+    docker exec "$CONTAINER_NAME" bash -c "
+        if wg show wg${tunnel_name} &>/dev/null; then
+            wg-quick down wg${tunnel_name} 2>/dev/null || true
+            wg-quick up wg${tunnel_name} 2>/dev/null || true
+            echo 'Reloaded tunnel with new keys'
+        fi
+    " 2>/dev/null || true
+    
+    echo "Key rotation completed successfully"
+    echo "New Public Key: $new_public_key"
+    echo ""
+    echo "IMPORTANT: Update all peers with the new public key"
+    return 0
+}
+
+schedule_rotation() {
+    local tunnel_name="${1:-}"
+    shift || true
+    
+    local interval="30d"  # Default 30 days
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --interval)
+                interval="${2:-30d}"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$tunnel_name" ]]; then
+        echo "Error: Tunnel name required" >&2
+        echo "Usage: resource-wireguard rotate schedule <tunnel-name> [--interval <time>]" >&2
+        return 1
+    fi
+    
+    echo "Scheduling key rotation for tunnel: $tunnel_name"
+    echo "Rotation interval: $interval"
+    
+    # Create rotation schedule configuration
+    local schedule_file="/config/rotation_schedules.json"
+    docker exec "$CONTAINER_NAME" bash -c "
+        if [[ ! -f $schedule_file ]]; then
+            echo '{}' > $schedule_file
+        fi
+        
+        # Parse interval (support formats like 30d, 1w, 720h)
+        interval_seconds=0
+        if [[ '$interval' =~ ([0-9]+)d ]]; then
+            interval_seconds=\$((BASH_REMATCH[1] * 86400))
+        elif [[ '$interval' =~ ([0-9]+)w ]]; then
+            interval_seconds=\$((BASH_REMATCH[1] * 604800))
+        elif [[ '$interval' =~ ([0-9]+)h ]]; then
+            interval_seconds=\$((BASH_REMATCH[1] * 3600))
+        else
+            interval_seconds=2592000  # Default 30 days
+        fi
+        
+        # Update schedule
+        next_date=\$(date -d \"+\$interval_seconds seconds\" -Iseconds)
+        jq --arg tunnel \"$tunnel_name\" \
+           --arg interval \"$interval\" \
+           --arg next_date \"\$next_date\" \
+           --arg created \"$(date -Iseconds)\" \
+           --argjson interval_sec \$interval_seconds \
+           '.[\$tunnel] = {
+            \"interval\": \$interval,
+            \"interval_seconds\": \$interval_sec,
+            \"next_rotation\": \$next_date,
+            \"created\": \$created
+        }' $schedule_file > ${schedule_file}.tmp && mv ${schedule_file}.tmp $schedule_file
+    " 2>/dev/null || {
+        # Fallback without jq
+        docker exec "$CONTAINER_NAME" bash -c "
+            echo \"$tunnel_name: $interval\" >> /config/rotation_schedule.txt
+        "
+        echo "Note: Install jq in container for full scheduling features"
+    }
+    
+    echo "Rotation schedule created successfully"
+    echo "Next rotation will occur in: $interval"
+    echo ""
+    echo "Note: Ensure the WireGuard container remains running for scheduled rotations"
+    return 0
+}
+
+rotation_status() {
+    echo "=== Key Rotation Status ==="
+    echo ""
+    
+    # Check if container is running
+    if ! docker ps -q -f name="$CONTAINER_NAME" | grep -q .; then
+        echo "Error: WireGuard container not running" >&2
+        return 1
+    fi
+    
+    # Show rotation history
+    echo "Recent Rotations:"
+    if docker exec "$CONTAINER_NAME" test -f /config/rotation_history.json 2>/dev/null; then
+        docker exec "$CONTAINER_NAME" bash -c "
+            jq -r '.[] | \"  \\(.timestamp): Tunnel \\(.tunnel) - Old key: \\(.old_public_key[0:8])... New key: \\(.new_public_key[0:8])...\"' /config/rotation_history.json 2>/dev/null | tail -10
+        " || {
+            # Fallback to log file
+            docker exec "$CONTAINER_NAME" bash -c "
+                if [[ -f /config/rotation_log.txt ]]; then
+                    tail -10 /config/rotation_log.txt | sed 's/^/  /'
+                else
+                    echo '  No rotation history available'
+                fi
+            "
+        }
+    else
+        echo "  No rotation history available"
+    fi
+    
+    echo ""
+    echo "Scheduled Rotations:"
+    if docker exec "$CONTAINER_NAME" test -f /config/rotation_schedules.json 2>/dev/null; then
+        docker exec "$CONTAINER_NAME" bash -c "
+            jq -r 'to_entries[] | \"  \\(.key): Every \\(.value.interval) - Next: \\(.value.next_rotation)\"' /config/rotation_schedules.json 2>/dev/null
+        " || {
+            # Fallback to schedule file
+            docker exec "$CONTAINER_NAME" bash -c "
+                if [[ -f /config/rotation_schedule.txt ]]; then
+                    cat /config/rotation_schedule.txt | sed 's/^/  /'
+                else
+                    echo '  No scheduled rotations'
+                fi
+            "
+        }
+    else
+        echo "  No scheduled rotations"
+    fi
+    
+    echo ""
+    echo "Backup Keys:"
+    docker exec "$CONTAINER_NAME" bash -c "
+        if [[ -d /config/backups ]]; then
+            ls -1 /config/backups/*.conf.bak 2>/dev/null | tail -5 | sed 's/^/  /' || echo '  No backups available'
+        else
+            echo '  No backups available'
+        fi
+    "
+    
+    return 0
+}

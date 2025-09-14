@@ -27,36 +27,51 @@ openfoam::docker::start() {
     openfoam::docker::ensure_network
     
     # Pull image if not exists
-    if ! docker images | grep -q "opencfd/openfoam"; then
+    if ! docker images | grep -q "openfoam/openfoam11-paraview510"; then
         echo "Pulling OpenFOAM Docker image..."
-        docker pull opencfd/openfoam:v2312 || {
+        docker pull openfoam/openfoam11-paraview510 || {
             echo "Error: Failed to pull OpenFOAM image"
             return 1
         }
     fi
     
     # Start container with proper volumes and settings
+    # Override entrypoint to keep container running
     docker run -d \
         --name openfoam \
         --network openfoam-net \
-        -p "${port}:8080" \
+        --entrypoint bash \
+        -p "${port}:${port}" \
         -v "${OPENFOAM_DATA_DIR}:/data" \
         -v "${OPENFOAM_CASES_DIR}:/cases" \
+        -v "${OPENFOAM_RESULTS_DIR}:/results" \
         -e OPENFOAM_PORT="${port}" \
+        -e OPENFOAM_CASES_DIR="/cases" \
+        -e OPENFOAM_RESULTS_DIR="/results" \
         --memory="${OPENFOAM_MEMORY_LIMIT:-4g}" \
         --cpus="${OPENFOAM_CPU_LIMIT:-2}" \
-        opencfd/openfoam:v2312 \
-        tail -f /dev/null || {
+        openfoam/openfoam11-paraview510 \
+        -c "sleep infinity" || {
             echo "Error: Failed to start OpenFOAM container"
             return 1
         }
     
-    # Start API server inside container
-    echo "Starting API server..."
-    docker exec openfoam bash -c "
-        apt-get update && apt-get install -y python3-pip python3-flask &>/dev/null
-        cd /opt && python3 /data/api_server.py &
-    " &>/dev/null || true
+    # Install Python dependencies and start API server inside container
+    echo "Installing dependencies and starting API server..."
+    
+    # Copy API server to container
+    docker cp "$RESOURCE_DIR/lib/api_server.py" openfoam:/opt/api_server.py
+    
+    # Install Flask and start server
+    docker exec -d openfoam bash -c "
+        apt-get update &>/dev/null && \
+        apt-get install -y python3-pip &>/dev/null && \
+        pip3 install flask &>/dev/null && \
+        cd /opt && \
+        python3 api_server.py
+    " || {
+        echo "Warning: Failed to start API server inside container"
+    }
     
     echo "OpenFOAM started on port ${port}"
     return 0
@@ -90,7 +105,7 @@ openfoam::health::check() {
         # Check if container is running
         if openfoam::docker::is_running; then
             # Try basic OpenFOAM command
-            if docker exec openfoam bash -c "source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc && foamVersion" &>/dev/null; then
+            if docker exec openfoam bash -c "source /opt/openfoam11/etc/bashrc && foamVersion" &>/dev/null; then
                 return 0
             fi
         fi
@@ -114,11 +129,11 @@ openfoam::case::create() {
         return 1
     fi
     
-    # Copy tutorial case as template
+    # Copy tutorial case as template  
     docker exec openfoam bash -c "
-        source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
-        cp -r \$FOAM_TUTORIALS/${case_type}/cavity /cases/${case_name} 2>/dev/null || \
-        cp -r \$FOAM_TUTORIALS/incompressible/simpleFoam/pitzDaily /cases/${case_name}
+        source /opt/openfoam11/etc/bashrc
+        cp -r \$FOAM_TUTORIALS/fluid/cavity /cases/${case_name} 2>/dev/null || \
+        cp -r \$FOAM_TUTORIALS/fluid/pitzDaily /cases/${case_name}
     " || {
         echo "Error: Failed to create case"
         return 1
@@ -140,7 +155,7 @@ openfoam::mesh::generate() {
     fi
     
     docker exec openfoam bash -c "
-        source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
+        source /opt/openfoam11/etc/bashrc
         cd /cases/${case_name}
         blockMesh &>/dev/null
     " || {
@@ -165,7 +180,7 @@ openfoam::solver::run() {
     fi
     
     docker exec openfoam bash -c "
-        source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
+        source /opt/openfoam11/etc/bashrc
         cd /cases/${case_name}
         ${solver} &>/dev/null
     " || {
@@ -192,7 +207,7 @@ openfoam::results::export() {
     case "$format" in
         vtk)
             docker exec openfoam bash -c "
-                source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
+                source /opt/openfoam11/etc/bashrc
                 cd /cases/${case_name}
                 foamToVTK &>/dev/null
             " || {
@@ -236,10 +251,10 @@ def health():
         return jsonify({
             'status': 'healthy',
             'service': 'openfoam',
-            'version': version or 'v2312'
+            'version': version or 'v11'
         })
     except:
-        return jsonify({'status': 'healthy', 'service': 'openfoam', 'version': 'v2312'})
+        return jsonify({'status': 'healthy', 'service': 'openfoam', 'version': 'v11'})
 
 @app.route('/api/status')
 def status():

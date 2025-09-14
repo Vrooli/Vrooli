@@ -10,6 +10,9 @@ GridLAB-D provides comprehensive power system simulation capabilities:
 - **Market Simulation**: Transactive energy and real-time pricing models
 - **Resilience Planning**: Outage analysis and restoration strategies
 - **DER Integration**: Solar PV, batteries, electric vehicles, microgrids
+- **Time-series Integration**: Export results to QuestDB and Redis for analysis
+- **Real-time Simulation**: Support for real-time and faster-than-real-time modes
+- **REST API**: Full-featured API with Flask for programmatic access
 
 ## Installation
 

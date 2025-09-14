@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # Unstructured.io Core Functions
 
+# Get the directory of this script
+UNSTRUCTURED_IO_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source all library files
+for lib in common api cache-simple process validate status install content; do
+    lib_file="${UNSTRUCTURED_IO_LIB_DIR}/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        source "$lib_file"
+    fi
+done
+
 # Initialize Unstructured.io environment
 unstructured_io::core::init() {
     local data_dir="${UNSTRUCTURED_DATA_DIR:-$HOME/.unstructured}"

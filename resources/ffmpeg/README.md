@@ -91,6 +91,62 @@ resource-ffmpeg stream capture https://stream.example.com/live.m3u8 output.mp4 6
 resource-ffmpeg stream transcode rtmp://input.com/live rtmp://output.com/live web-720p
 ```
 
+### Web Interface
+Access FFmpeg through a browser-based UI:
+```bash
+# Start web interface on port 8080
+resource-ffmpeg web start
+
+# Check web server status
+resource-ffmpeg web status
+
+# Stop web interface
+resource-ffmpeg web stop
+```
+
+The web interface provides:
+- Drag-and-drop file upload
+- Visual preset selection
+- Real-time progress tracking
+- Stream processing controls
+- Performance metrics dashboard
+
+### RESTful API
+Integrate FFmpeg with external applications:
+```bash
+# Start API server
+resource-ffmpeg web start
+
+# API endpoints available:
+# POST /api/convert - Convert media format
+# POST /api/extract - Extract audio/video/frames
+# GET /api/info/{file} - Get media information
+# POST /api/stream - Process streams
+# GET /api/stats - Get performance metrics
+```
+
+### Performance Monitoring
+Track resource usage and conversion metrics:
+```bash
+# Start performance monitoring
+resource-ffmpeg monitor start
+
+# Get current metrics
+resource-ffmpeg monitor status
+
+# Generate performance report
+resource-ffmpeg monitor report
+
+# Stop monitoring
+resource-ffmpeg monitor stop
+```
+
+Metrics tracked:
+- Conversion speed and success rate
+- CPU/GPU/Memory utilization
+- Frames and bytes processed
+- Average FPS and bitrate
+
 ## Configuration
 
 Configuration is stored in `config/defaults.sh` and can be customized via environment variables:

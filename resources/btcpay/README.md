@@ -31,11 +31,24 @@ vrooli resource btcpay credentials
 
 ## Usage
 
+### Store Management
+
+```bash
+# Create a new store
+vrooli resource btcpay content create-store \
+  --name "My Store" \
+  --currency BTC
+
+# List all stores
+vrooli resource btcpay content list-stores
+```
+
 ### Creating an Invoice
 
 ```bash
 # Create a payment invoice
 vrooli resource btcpay content create-invoice \
+  --store-id <store_id> \
   --amount 10.00 \
   --currency USD \
   --description "Product purchase"
@@ -45,7 +58,19 @@ vrooli resource btcpay content create-invoice \
 
 ```bash
 # Check if payment was received
-vrooli resource btcpay content check-payment --invoice-id <id>
+vrooli resource btcpay content check-payment \
+  --store-id <store_id> \
+  --invoice-id <invoice_id>
+```
+
+### Webhook Configuration
+
+```bash
+# Configure webhook for payment notifications
+vrooli resource btcpay content configure-webhook \
+  --store-id <store_id> \
+  --url https://your-site.com/webhook \
+  --events "InvoiceCreated,InvoiceSettled"
 ```
 
 ### Managing Stores

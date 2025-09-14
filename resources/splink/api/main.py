@@ -14,11 +14,14 @@ import time
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 import uvicorn
 
 # Import Splink engine
 from api.splink_engine import get_splink_engine
+# Import visualization module
+from api.visualization import SpinklinkVisualization
 
 # Configure logging
 logging.basicConfig(
@@ -504,6 +507,142 @@ async def process_estimation(job_id: str, request: EstimationRequest):
         jobs[job_id]["error"] = str(e)
         jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
         logger.error(f"Failed estimation job {job_id}: {e}")
+
+# Visualization endpoints
+
+# Initialize visualization module
+viz = SpinklinkVisualization(DATA_DIR)
+
+@app.get("/visualization/job/{job_id}", response_class=HTMLResponse)
+async def visualize_job_results(job_id: str, chart_type: str = "dashboard"):
+    """
+    Generate interactive visualization for job results
+    
+    Chart types:
+    - dashboard: Full dashboard with all visualizations
+    - network: Match network graph
+    - confidence: Confidence score distribution
+    - metrics: Processing metrics
+    """
+    if job_id not in jobs:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    job = jobs[job_id]
+    
+    if job["status"] != "completed":
+        return viz._error_page(f"Job {job_id} is not completed. Status: {job['status']}")
+    
+    # Generate appropriate visualization
+    if chart_type == "network":
+        return viz.generate_match_network(job_id, job)
+    elif chart_type == "confidence":
+        return viz.generate_confidence_distribution(job_id, job)
+    elif chart_type == "metrics":
+        return viz.generate_processing_metrics(job_id, job)
+    else:  # dashboard
+        return viz.generate_full_dashboard(job_id, job)
+
+@app.get("/visualization/jobs", response_class=HTMLResponse)
+async def visualize_all_jobs():
+    """Generate visualization showing all jobs"""
+    try:
+        # Create summary visualization
+        completed_jobs = [j for j in jobs.values() if j["status"] == "completed"]
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Splink Jobs Overview</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }}
+                h1 {{ color: #333; }}
+                .job-card {{ 
+                    background: white; 
+                    padding: 15px; 
+                    margin: 10px 0; 
+                    border-radius: 8px; 
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    cursor: pointer;
+                    transition: transform 0.2s;
+                }}
+                .job-card:hover {{ transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }}
+                .job-header {{ display: flex; justify-content: space-between; align-items: center; }}
+                .job-id {{ font-weight: bold; color: #007bff; }}
+                .job-status {{ padding: 4px 8px; border-radius: 4px; font-size: 0.9em; }}
+                .status-completed {{ background: #d4edda; color: #155724; }}
+                .status-processing {{ background: #fff3cd; color: #856404; }}
+                .status-failed {{ background: #f8d7da; color: #721c24; }}
+                .job-details {{ margin-top: 10px; color: #666; }}
+                .stats {{ text-align: center; padding: 20px; }}
+                .stat {{ display: inline-block; margin: 0 20px; }}
+                .stat-value {{ font-size: 2em; color: #007bff; }}
+                .stat-label {{ color: #666; }}
+            </style>
+        </head>
+        <body>
+            <h1>Splink Jobs Overview</h1>
+            
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value">{len(jobs)}</div>
+                    <div class="stat-label">Total Jobs</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{len(completed_jobs)}</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">{sum(1 for j in jobs.values() if j["status"] == "processing")}</div>
+                    <div class="stat-label">Processing</div>
+                </div>
+            </div>
+            
+            <h2>Recent Jobs</h2>
+        """
+        
+        # Add job cards
+        for job in sorted(jobs.values(), key=lambda x: x["created_at"], reverse=True)[:20]:
+            status_class = f"status-{job['status']}"
+            job_id = job["id"]
+            
+            onclick = f"window.location.href='/visualization/job/{job_id}'" if job["status"] == "completed" else ""
+            
+            result_summary = ""
+            if job["status"] == "completed" and job.get("result"):
+                result = job["result"]
+                result_summary = f"""
+                <div class="job-details">
+                    Records: {result.get('records_processed', 'N/A')} | 
+                    Duplicates: {result.get('duplicates_found', 'N/A')} | 
+                    Time: {result.get('processing_time', 'N/A')}
+                </div>
+                """
+            
+            html += f"""
+            <div class="job-card" onclick="{onclick}">
+                <div class="job-header">
+                    <span class="job-id">{job_id[:8]}</span>
+                    <span class="job-status {status_class}">{job['status'].upper()}</span>
+                </div>
+                <div class="job-details">
+                    Type: {job['type']} | Dataset: {job.get('dataset_id', job.get('dataset1_id', 'N/A'))} | 
+                    Created: {job['created_at'][:19]}
+                </div>
+                {result_summary}
+            </div>
+            """
+        
+        html += """
+        </body>
+        </html>
+        """
+        
+        return html
+        
+    except Exception as e:
+        logger.error(f"Failed to generate jobs overview: {str(e)}")
+        return viz._error_page(str(e))
 
 # Main entry point
 if __name__ == "__main__":

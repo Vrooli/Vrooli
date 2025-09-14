@@ -132,6 +132,65 @@ vrooli resource cncjs controller test
 vrooli resource cncjs controller remove 3d_printer
 ```
 
+### Camera Monitoring
+
+```bash
+# List available camera devices
+vrooli resource cncjs camera list
+
+# Enable camera monitoring
+vrooli resource cncjs camera enable /dev/video0
+
+# Capture a snapshot
+vrooli resource cncjs camera snapshot snapshot.jpg
+
+# Start live video stream
+vrooli resource cncjs camera stream start
+# View stream at http://localhost:8195/feed.mjpg
+
+# Stop video stream
+vrooli resource cncjs camera stream stop
+
+# Start timelapse capture (10 second intervals)
+vrooli resource cncjs camera timelapse start 10
+
+# Stop timelapse and compile video
+vrooli resource cncjs camera timelapse stop
+vrooli resource cncjs camera timelapse compile
+```
+
+### Custom Widgets
+
+```bash
+# List available widgets
+vrooli resource cncjs widget list
+
+# Create custom widgets
+vrooli resource cncjs widget create spindle-speed gauge
+vrooli resource cncjs widget create emergency-stop button
+vrooli resource cncjs widget create temperature-graph chart
+vrooli resource cncjs widget create gcode-terminal terminal
+vrooli resource cncjs widget create machine-status status
+
+# Show widget definition
+vrooli resource cncjs widget show spindle-speed
+
+# Install widget to CNCjs interface
+vrooli resource cncjs widget install spindle-speed
+
+# Export widget for sharing
+vrooli resource cncjs widget export spindle-speed spindle-widget.tar.gz
+
+# Import widget from package
+vrooli resource cncjs widget import spindle-widget.tar.gz
+
+# Uninstall widget
+vrooli resource cncjs widget uninstall spindle-speed
+
+# Remove widget definition
+vrooli resource cncjs widget remove spindle-speed
+```
+
 ### Configuration
 
 Default configuration is stored in `~/.cncjs/.cncrc`. Key settings:
@@ -163,11 +222,11 @@ Default configuration is stored in `~/.cncjs/.cncrc`. Key settings:
 - ✅ Macro automation system - Create and execute reusable G-code macros
 - ✅ Multi-controller support - Configure profiles for different CNC controllers
 - ✅ Workflow storage - Save and manage multi-step CNC job sequences
-- ⏳ 3D visualization
+- ✅ 3D visualization - Interactive WebGL-based G-code preview and analysis
 
-### P2 Requirements (Future)
-- ⏳ Camera integration
-- ⏳ Custom widgets
+### P2 Requirements (Implemented)
+- ✅ Camera integration - Real-time monitoring via webcam with timelapse capture
+- ✅ Custom widgets - Extensible UI with gauges, buttons, charts, and terminals
 - ⏳ Job queue management
 
 ## Testing

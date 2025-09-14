@@ -70,19 +70,24 @@ resource-minio manage start
 resource-minio manage stop
 resource-minio manage restart
 
-# Monitoring and maintenance
+# Monitoring and metrics
 resource-minio logs --tail 100
+resource-minio metrics                  # NEW: Show storage statistics
 resource-minio content execute --name monitor --interval 5
-resource-minio content execute --name diagnose
 
 # Bucket management
 resource-minio content list
-resource-minio content execute --name create-bucket --bucket my-bucket --policy download
-resource-minio content execute --name remove-bucket --bucket my-bucket
+resource-minio content add my-bucket    # Create bucket
+resource-minio content policy my-bucket download  # NEW: Set access policy
+resource-minio content remove my-bucket
+
+# File operations
+resource-minio content upload my-bucket /path/to/file.txt
+resource-minio content download my-bucket file.txt /local/path
 
 # Credentials
 resource-minio credentials
-resource-minio content execute --name reset-credentials
+resource-minio content configure        # Configure MC client
 ```
 
 ## Custom Installation
@@ -140,12 +145,19 @@ curl -X PUT --data-binary @screenshot.png \
   http://localhost:9000/vrooli-agent-artifacts/task-screenshot.png
 ```
 
+## New Features (v2.1)
+
+- **Storage Metrics**: `metrics` command shows per-bucket usage statistics
+- **Bucket Policies**: `content policy` command for public/private access control
+- **Multi-part Upload**: Automatic for files >100MB with resume capability
+- **MC Client Integration**: Updated to latest MinIO client syntax
+
 ## Security Features
 
 - **Secure Credentials**: Auto-generated secure passwords on first install
 - **Network Isolation**: Runs in isolated Docker network
 - **File Permissions**: Credentials stored with 600 permissions
-- **Access Policies**: Configurable bucket-level access control
+- **Access Policies**: Configurable bucket-level access control (public/download/upload/private)
 - **Health Monitoring**: Built-in health checks and diagnostics
 
 ## Architecture

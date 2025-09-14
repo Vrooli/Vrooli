@@ -38,7 +38,7 @@ WireGuard provides modern, high-performance VPN networking that creates secure, 
   - [ ] **Auto-Discovery**: Automatic peer discovery via DNS/mDNS
   - [ ] **Network Namespaces**: Isolated network spaces for containers
   - [x] **Traffic Statistics**: Monitor bandwidth usage and connection metrics ✅ 2025-09-12
-  - [ ] **Key Rotation**: Automatic key rotation for enhanced security
+  - [x] **Key Rotation**: Automatic key rotation for enhanced security ✅ 2025-09-14
   - [ ] **Multi-Interface**: Support multiple tunnel interfaces
   - [ ] **NAT Traversal**: Automatic hole-punching for NAT/firewall traversal
   - [x] **Content Management**: Store/retrieve tunnel configurations ✅ 2025-09-12
@@ -173,12 +173,23 @@ networking:
 - Enhanced content management for store/retrieve operations
 - All tests passing (100% success rate)
 
+### 2025-09-14: v0.3.0 Key Rotation Implementation
+- Implemented comprehensive key rotation system with manual and scheduled options
+- Added `rotate keys` command for immediate key rotation with automatic backup
+- Added `rotate schedule` command for automated rotation intervals (days/weeks/hours)
+- Added `rotate status` command to track rotation history and schedules
+- Implemented configuration backup system in /config/backups/
+- Added rotation metadata tracking with JSON and fallback text logging
+- Enhanced security posture with regular key refresh capability
+- Updated tests to include key rotation validation
+- All tests passing (100% success rate)
+
 ## ✅ Completion Status
 
-**Overall Progress: 68%**
+**Overall Progress: 74%**
 
 - P0 Requirements: 100% (7/7 completed) ✅
-- P1 Requirements: 29% (2/7 completed)  
+- P1 Requirements: 43% (3/7 completed)  
 - P2 Requirements: 0% (0/3 completed)
 - Documentation: 100% (PRD, README, inline docs) ✅
 - Testing: 100% (all test suites passing) ✅

@@ -259,7 +259,7 @@ cncjs::status() {
     if [[ "$json_output" == "--json" ]]; then
         cat << EOF
 {
-  "service": "${CLI_NAME}",
+  "service": "cncjs",
   "status": "${status}",
   "health": "${health}",
   "uptime": "${uptime}",
@@ -1390,4 +1390,661 @@ INDEXEOF
     echo "Stop with: kill ${server_pid}"
     
     return 0
+}
+
+#######################################
+# Camera integration for real-time monitoring
+#######################################
+cncjs::camera() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    case "$subcommand" in
+        list)
+            log::info "Available camera devices:"
+            
+            # Check for video devices
+            if ls /dev/video* &>/dev/null; then
+                for device in /dev/video*; do
+                    if [[ -c "$device" ]]; then
+                        local name=$(v4l2-ctl --device="$device" --info 2>/dev/null | grep "Card" | cut -d: -f2 | xargs || echo "Unknown")
+                        echo "  $device: $name"
+                    fi
+                done
+            else
+                echo "  No camera devices found"
+            fi
+            
+            # Check if ffmpeg is available
+            echo ""
+            if command -v ffmpeg &>/dev/null; then
+                log::success "FFmpeg is available for video processing"
+            else
+                log::warning "FFmpeg not installed - required for camera streaming"
+            fi
+            ;;
+            
+        enable)
+            local device="${1:-/dev/video0}"
+            local output_dir="${CNCJS_DATA_DIR}/camera"
+            
+            # Create camera directory
+            mkdir -p "$output_dir"
+            
+            # Test camera device
+            if [[ ! -c "$device" ]]; then
+                log::error "Camera device not found: $device"
+                return 1
+            fi
+            
+            log::info "Enabling camera monitoring on $device..."
+            
+            # Create camera configuration
+            cat > "${output_dir}/camera.conf" << EOF
+# CNCjs Camera Configuration
+CAMERA_DEVICE=$device
+CAMERA_RESOLUTION=1280x720
+CAMERA_FPS=30
+CAMERA_FORMAT=mjpeg
+STREAM_PORT=$((CNCJS_PORT + 1))
+SNAPSHOT_INTERVAL=5
+OUTPUT_DIR=$output_dir
+EOF
+            
+            log::success "Camera configuration created"
+            log::info "Stream will be available at http://localhost:$((CNCJS_PORT + 1))/stream"
+            ;;
+            
+        disable)
+            local camera_dir="${CNCJS_DATA_DIR}/camera"
+            
+            # Stop any running camera processes
+            pkill -f "ffmpeg.*cncjs.*camera" || true
+            
+            # Remove configuration
+            rm -f "${camera_dir}/camera.conf"
+            
+            log::success "Camera monitoring disabled"
+            ;;
+            
+        snapshot)
+            local output="${1:-${CNCJS_DATA_DIR}/camera/snapshot.jpg}"
+            local device="${2:-/dev/video0}"
+            
+            if [[ ! -c "$device" ]]; then
+                log::error "Camera device not found: $device"
+                return 1
+            fi
+            
+            if ! command -v ffmpeg &>/dev/null; then
+                log::error "FFmpeg is required for snapshots"
+                return 1
+            fi
+            
+            log::info "Capturing snapshot from $device..."
+            
+            # Create output directory
+            mkdir -p "$(dirname "$output")"
+            
+            # Capture single frame
+            if ffmpeg -f v4l2 -i "$device" -frames:v 1 "$output" -y &>/dev/null; then
+                log::success "Snapshot saved to $output"
+                echo "$output"
+            else
+                log::error "Failed to capture snapshot"
+                return 1
+            fi
+            ;;
+            
+        stream)
+            local action="${1:-start}"
+            local device="${2:-/dev/video0}"
+            local port=$((CNCJS_PORT + 1))
+            
+            case "$action" in
+                start)
+                    if [[ ! -c "$device" ]]; then
+                        log::error "Camera device not found: $device"
+                        return 1
+                    fi
+                    
+                    if ! command -v ffmpeg &>/dev/null; then
+                        log::error "FFmpeg is required for streaming"
+                        return 1
+                    fi
+                    
+                    log::info "Starting camera stream on port $port..."
+                    
+                    # Start MJPEG stream
+                    nohup ffmpeg -f v4l2 -i "$device" \
+                        -r 30 -s 1280x720 \
+                        -f mjpeg -q:v 10 \
+                        "http://localhost:${port}/feed.mjpg" \
+                        &> "${CNCJS_DATA_DIR}/camera/stream.log" &
+                    
+                    local pid=$!
+                    echo $pid > "${CNCJS_DATA_DIR}/camera/stream.pid"
+                    
+                    log::success "Camera stream started (PID: $pid)"
+                    log::info "View stream at http://localhost:${port}/feed.mjpg"
+                    ;;
+                    
+                stop)
+                    local pid_file="${CNCJS_DATA_DIR}/camera/stream.pid"
+                    
+                    if [[ -f "$pid_file" ]]; then
+                        local pid=$(cat "$pid_file")
+                        if kill -0 "$pid" 2>/dev/null; then
+                            kill "$pid"
+                            rm "$pid_file"
+                            log::success "Camera stream stopped"
+                        else
+                            rm "$pid_file"
+                            log::warning "Stream process not running"
+                        fi
+                    else
+                        log::warning "No stream process found"
+                    fi
+                    ;;
+                    
+                status)
+                    local pid_file="${CNCJS_DATA_DIR}/camera/stream.pid"
+                    
+                    if [[ -f "$pid_file" ]]; then
+                        local pid=$(cat "$pid_file")
+                        if kill -0 "$pid" 2>/dev/null; then
+                            log::success "Camera stream is running (PID: $pid)"
+                            echo "Stream URL: http://localhost:${port}/feed.mjpg"
+                        else
+                            log::warning "Stream process not running (stale PID file)"
+                        fi
+                    else
+                        log::info "Camera stream is not running"
+                    fi
+                    ;;
+                    
+                *)
+                    log::error "Unknown stream action: $action"
+                    echo "Available actions: start, stop, status"
+                    return 1
+                    ;;
+            esac
+            ;;
+            
+        timelapse)
+            local action="${1:-start}"
+            local interval="${2:-10}"
+            local output_dir="${CNCJS_DATA_DIR}/camera/timelapse"
+            
+            case "$action" in
+                start)
+                    mkdir -p "$output_dir"
+                    
+                    log::info "Starting timelapse capture (interval: ${interval}s)..."
+                    
+                    # Create timelapse script
+                    cat > "${output_dir}/timelapse.sh" << 'EOF'
+#!/usr/bin/env bash
+INTERVAL=$1
+OUTPUT_DIR=$2
+DEVICE=${3:-/dev/video0}
+COUNTER=0
+
+while true; do
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    FILENAME="${OUTPUT_DIR}/frame_${TIMESTAMP}.jpg"
+    
+    ffmpeg -f v4l2 -i "$DEVICE" -frames:v 1 "$FILENAME" -y &>/dev/null
+    
+    if [[ $? -eq 0 ]]; then
+        ((COUNTER++))
+        echo "Captured frame $COUNTER: $FILENAME"
+    fi
+    
+    sleep "$INTERVAL"
+done
+EOF
+                    chmod +x "${output_dir}/timelapse.sh"
+                    
+                    # Start timelapse capture
+                    nohup "${output_dir}/timelapse.sh" "$interval" "$output_dir" \
+                        &> "${output_dir}/timelapse.log" &
+                    
+                    local pid=$!
+                    echo $pid > "${output_dir}/timelapse.pid"
+                    
+                    log::success "Timelapse started (PID: $pid)"
+                    log::info "Frames saved to $output_dir"
+                    ;;
+                    
+                stop)
+                    local pid_file="${output_dir}/timelapse.pid"
+                    
+                    if [[ -f "$pid_file" ]]; then
+                        local pid=$(cat "$pid_file")
+                        if kill -0 "$pid" 2>/dev/null; then
+                            kill "$pid"
+                            rm "$pid_file"
+                            log::success "Timelapse stopped"
+                        else
+                            rm "$pid_file"
+                            log::warning "Timelapse process not running"
+                        fi
+                    else
+                        log::warning "No timelapse process found"
+                    fi
+                    ;;
+                    
+                compile)
+                    if [[ ! -d "$output_dir" ]]; then
+                        log::error "No timelapse frames found"
+                        return 1
+                    fi
+                    
+                    local frame_count=$(ls -1 "${output_dir}"/frame_*.jpg 2>/dev/null | wc -l)
+                    if [[ $frame_count -eq 0 ]]; then
+                        log::error "No frames to compile"
+                        return 1
+                    fi
+                    
+                    log::info "Compiling $frame_count frames into video..."
+                    
+                    local output_video="${output_dir}/timelapse_$(date +%Y%m%d_%H%M%S).mp4"
+                    
+                    ffmpeg -framerate 30 -pattern_type glob -i "${output_dir}/frame_*.jpg" \
+                        -c:v libx264 -pix_fmt yuv420p "$output_video" &>/dev/null
+                    
+                    if [[ $? -eq 0 ]]; then
+                        log::success "Timelapse video created: $output_video"
+                        echo "$output_video"
+                    else
+                        log::error "Failed to compile timelapse"
+                        return 1
+                    fi
+                    ;;
+                    
+                *)
+                    log::error "Unknown timelapse action: $action"
+                    echo "Available actions: start, stop, compile"
+                    return 1
+                    ;;
+            esac
+            ;;
+            
+        *)
+            log::error "Unknown camera subcommand: $subcommand"
+            echo "Available subcommands: list, enable, disable, snapshot, stream, timelapse"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Custom widget management system
+#######################################
+cncjs::widget() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    local widgets_dir="${CNCJS_DATA_DIR}/widgets"
+    mkdir -p "$widgets_dir"
+    
+    case "$subcommand" in
+        list)
+            log::info "Available custom widgets:"
+            
+            if ls "${widgets_dir}"/*.widget &>/dev/null; then
+                for widget_file in "${widgets_dir}"/*.widget; do
+                    local widget_name=$(basename "$widget_file" .widget)
+                    local widget_type=$(grep "^type:" "$widget_file" | cut -d: -f2 | xargs)
+                    local widget_desc=$(grep "^description:" "$widget_file" | cut -d: -f2- | xargs)
+                    echo "  • $widget_name ($widget_type): $widget_desc"
+                done
+            else
+                echo "  No custom widgets installed"
+            fi
+            
+            echo ""
+            log::info "Built-in widget types:"
+            echo "  • gauge: Display numeric values"
+            echo "  • button: Trigger commands"
+            echo "  • chart: Display time series data"
+            echo "  • terminal: Command output display"
+            echo "  • status: State indicator"
+            ;;
+            
+        create)
+            local name="${1:-}"
+            local type="${2:-gauge}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: widget create <name> [type]"
+                echo "Available types: gauge, button, chart, terminal, status"
+                return 1
+            fi
+            
+            local widget_file="${widgets_dir}/${name}.widget"
+            
+            log::info "Creating widget '$name' of type '$type'..."
+            
+            case "$type" in
+                gauge)
+                    cat > "$widget_file" << EOF
+# CNCjs Custom Widget Definition
+name: $name
+type: gauge
+description: Custom gauge widget
+created: $(date -Iseconds)
+config:
+  min: 0
+  max: 100
+  unit: "%"
+  color_ranges:
+    - range: [0, 30]
+      color: green
+    - range: [30, 70]
+      color: yellow
+    - range: [70, 100]
+      color: red
+  refresh_interval: 1000
+  data_source: "api/widgets/data/$name"
+EOF
+                    ;;
+                    
+                button)
+                    cat > "$widget_file" << EOF
+# CNCjs Custom Widget Definition
+name: $name
+type: button
+description: Custom button widget
+created: $(date -Iseconds)
+config:
+  label: "Custom Action"
+  icon: "play"
+  color: "primary"
+  action:
+    type: "gcode"
+    commands:
+      - "G28 ; Home all axes"
+  confirmation: true
+  confirmation_message: "Execute custom action?"
+EOF
+                    ;;
+                    
+                chart)
+                    cat > "$widget_file" << EOF
+# CNCjs Custom Widget Definition
+name: $name
+type: chart
+description: Custom chart widget
+created: $(date -Iseconds)
+config:
+  chart_type: "line"
+  x_axis:
+    label: "Time"
+    type: "datetime"
+  y_axis:
+    label: "Value"
+    min: 0
+    max: 100
+  series:
+    - name: "Temperature"
+      color: "#FF6B6B"
+    - name: "Speed"
+      color: "#4ECDC4"
+  refresh_interval: 5000
+  max_points: 100
+  data_source: "api/widgets/data/$name"
+EOF
+                    ;;
+                    
+                terminal)
+                    cat > "$widget_file" << EOF
+# CNCjs Custom Widget Definition
+name: $name
+type: terminal
+description: Custom terminal widget
+created: $(date -Iseconds)
+config:
+  height: 200
+  max_lines: 100
+  font_size: 12
+  background_color: "#1e1e1e"
+  text_color: "#00ff00"
+  auto_scroll: true
+  command_history: true
+  data_source: "api/widgets/terminal/$name"
+EOF
+                    ;;
+                    
+                status)
+                    cat > "$widget_file" << EOF
+# CNCjs Custom Widget Definition
+name: $name
+type: status
+description: Custom status widget
+created: $(date -Iseconds)
+config:
+  indicators:
+    - name: "Machine State"
+      states:
+        - value: "idle"
+          color: "green"
+          icon: "check"
+        - value: "running"
+          color: "blue"
+          icon: "play"
+        - value: "error"
+          color: "red"
+          icon: "alert"
+    - name: "Connection"
+      states:
+        - value: "connected"
+          color: "green"
+        - value: "disconnected"
+          color: "gray"
+  refresh_interval: 2000
+  data_source: "api/widgets/status/$name"
+EOF
+                    ;;
+                    
+                *)
+                    log::error "Unknown widget type: $type"
+                    echo "Available types: gauge, button, chart, terminal, status"
+                    return 1
+                    ;;
+            esac
+            
+            log::success "Widget '$name' created successfully"
+            echo "Widget file: $widget_file"
+            ;;
+            
+        show)
+            local name="${1:-}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: widget show <name>"
+                return 1
+            fi
+            
+            local widget_file="${widgets_dir}/${name}.widget"
+            
+            if [[ ! -f "$widget_file" ]]; then
+                log::error "Widget not found: $name"
+                return 1
+            fi
+            
+            log::info "Widget: $name"
+            cat "$widget_file"
+            ;;
+            
+        install)
+            local name="${1:-}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: widget install <name>"
+                return 1
+            fi
+            
+            local widget_file="${widgets_dir}/${name}.widget"
+            
+            if [[ ! -f "$widget_file" ]]; then
+                log::error "Widget not found: $name"
+                return 1
+            fi
+            
+            # Create installation package
+            local install_dir="${CNCJS_DATA_DIR}/installed-widgets"
+            mkdir -p "$install_dir"
+            
+            cp "$widget_file" "$install_dir/"
+            
+            # Register widget with CNCjs
+            local registry_file="${install_dir}/registry.json"
+            if [[ ! -f "$registry_file" ]]; then
+                echo '{"widgets": []}' > "$registry_file"
+            fi
+            
+            # Add widget to registry
+            local temp_registry=$(mktemp)
+            jq --arg name "$name" \
+               --arg file "${name}.widget" \
+               '.widgets += [{"name": $name, "definition": $file, "installed": now}]' \
+               "$registry_file" > "$temp_registry"
+            
+            mv "$temp_registry" "$registry_file"
+            
+            log::success "Widget '$name' installed successfully"
+            log::info "Restart CNCjs to load the widget"
+            ;;
+            
+        uninstall)
+            local name="${1:-}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: widget uninstall <name>"
+                return 1
+            fi
+            
+            local install_dir="${CNCJS_DATA_DIR}/installed-widgets"
+            local registry_file="${install_dir}/registry.json"
+            
+            if [[ ! -f "$registry_file" ]]; then
+                log::error "No widgets installed"
+                return 1
+            fi
+            
+            # Remove from registry
+            local temp_registry=$(mktemp)
+            jq --arg name "$name" \
+               '.widgets = [.widgets[] | select(.name != $name)]' \
+               "$registry_file" > "$temp_registry"
+            
+            mv "$temp_registry" "$registry_file"
+            
+            # Remove files
+            rm -f "${install_dir}/${name}.widget"
+            
+            log::success "Widget '$name' uninstalled"
+            ;;
+            
+        export)
+            local name="${1:-}"
+            local output="${2:-${name}.tar.gz}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: widget export <name> [output-file]"
+                return 1
+            fi
+            
+            local widget_file="${widgets_dir}/${name}.widget"
+            
+            if [[ ! -f "$widget_file" ]]; then
+                log::error "Widget not found: $name"
+                return 1
+            fi
+            
+            log::info "Exporting widget '$name'..."
+            
+            # Create temporary directory
+            local temp_dir=$(mktemp -d)
+            mkdir -p "${temp_dir}/${name}"
+            
+            cp "$widget_file" "${temp_dir}/${name}/"
+            
+            # Create metadata
+            cat > "${temp_dir}/${name}/metadata.json" << EOF
+{
+    "name": "$name",
+    "exported": "$(date -Iseconds)",
+    "version": "1.0.0",
+    "cncjs_version": "4.0.0"
+}
+EOF
+            
+            # Create archive
+            tar -czf "$output" -C "$temp_dir" "$name"
+            rm -rf "$temp_dir"
+            
+            log::success "Widget exported to $output"
+            ;;
+            
+        import)
+            local archive="${1:-}"
+            
+            if [[ -z "$archive" ]]; then
+                log::error "Usage: widget import <archive-file>"
+                return 1
+            fi
+            
+            if [[ ! -f "$archive" ]]; then
+                log::error "Archive not found: $archive"
+                return 1
+            fi
+            
+            log::info "Importing widget from $archive..."
+            
+            # Extract to temporary directory
+            local temp_dir=$(mktemp -d)
+            tar -xzf "$archive" -C "$temp_dir"
+            
+            # Find widget directory
+            local widget_dir=$(find "$temp_dir" -maxdepth 1 -type d | tail -n 1)
+            local widget_name=$(basename "$widget_dir")
+            
+            # Copy files
+            cp "${widget_dir}"/*.widget "$widgets_dir/" 2>/dev/null || true
+            
+            rm -rf "$temp_dir"
+            
+            log::success "Widget '$widget_name' imported successfully"
+            echo "Use 'widget install $widget_name' to activate it"
+            ;;
+            
+        remove)
+            local name="${1:-}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: widget remove <name>"
+                return 1
+            fi
+            
+            local widget_file="${widgets_dir}/${name}.widget"
+            
+            if [[ ! -f "$widget_file" ]]; then
+                log::error "Widget not found: $name"
+                return 1
+            fi
+            
+            rm -f "$widget_file"
+            
+            log::success "Widget '$name' removed"
+            ;;
+            
+        *)
+            log::error "Unknown widget subcommand: $subcommand"
+            echo "Available subcommands: list, create, show, install, uninstall, export, import, remove"
+            return 1
+            ;;
+    esac
 }

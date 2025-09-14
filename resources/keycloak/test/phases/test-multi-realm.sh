@@ -32,7 +32,7 @@ main() {
     log::info "Starting Keycloak multi-realm tenant isolation tests..."
     
     # Ensure Keycloak is running
-    if ! docker ps --format "table {{.Names}}" | grep -q "${KEYCLOAK_CONTAINER_NAME:-vrooli-keycloak}"; then
+    if ! docker ps --format "{{.Names}}" | grep -q "^${KEYCLOAK_CONTAINER_NAME:-vrooli-keycloak}$"; then
         log::error "Keycloak container is not running"
         return 1
     fi

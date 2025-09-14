@@ -362,9 +362,12 @@ execute_content() {
         enable-office)
             execute_enable_office "$options"
             ;;
+        configure-security)
+            execute_configure_security "$options"
+            ;;
         *)
             echo "Error: Unknown operation: $name" >&2
-            echo "Available operations: share, backup, restore, mount-s3, enable-office" >&2
+            echo "Available operations: share, backup, restore, mount-s3, enable-office, configure-security" >&2
             return 1
             ;;
     esac
@@ -701,6 +704,67 @@ execute_enable_office() {
     echo ""
     echo "Collabora Admin UI: http://localhost:9980/browser/dist/admin/admin.html"
     echo "Username: admin, Password: changeme"
+    
+    return 0
+}
+
+execute_configure_security() {
+    echo "Configuring Nextcloud security settings..."
+    
+    # Enable security headers
+    echo "Setting security headers..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set overwriteprotocol --value="https"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set overwrite.cli.url --value="https://localhost:${NEXTCLOUD_PORT}"
+    
+    # Configure CSP headers
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set 'trusted_proxies' 0 --value="127.0.0.1"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set 'forwarded_for_headers' 0 --value="HTTP_X_FORWARDED_FOR"
+    
+    # Enable brute force protection (already enabled by default with bruteforcesettings app)
+    echo "Verifying brute force protection..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:enable bruteforcesettings 2>/dev/null || true
+    
+    # Configure password policy
+    echo "Configuring password policy..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set password_policy minLength --value="10"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set password_policy enforceHaveIBeenPwned --value="1"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set password_policy enforceNumericCharacters --value="1"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set password_policy enforceSpecialCharacters --value="1"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set password_policy enforceUpperLowerCase --value="1"
+    
+    # Enable server-side encryption (optional, disabled by default for performance)
+    local enable_encryption="${1:-false}"
+    if [[ "$enable_encryption" == "encrypt=true" ]]; then
+        echo "Enabling server-side encryption..."
+        docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:enable encryption
+        docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ encryption:enable
+        echo "Note: Encryption will apply to new files. Run 'occ encryption:encrypt-all' to encrypt existing files."
+    fi
+    
+    # Configure session security
+    echo "Configuring session security..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set session_lifetime --value="3600"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set session_relaxed_expiry --value="false"
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:system:set remember_login_cookie_lifetime --value="1296000"
+    
+    # Enable two-factor authentication backup codes
+    echo "Enabling two-factor authentication support..."
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:enable twofactor_backupcodes
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:enable twofactor_totp 2>/dev/null || true
+    
+    echo "Security configuration completed!"
+    echo ""
+    echo "Security features enabled:"
+    echo "  ✓ HTTPS headers configured (requires reverse proxy for full HTTPS)"
+    echo "  ✓ Brute force protection active"
+    echo "  ✓ Strong password policy enforced"
+    echo "  ✓ Session security hardened"
+    echo "  ✓ Two-factor authentication available"
+    if [[ "$enable_encryption" == "encrypt=true" ]]; then
+        echo "  ✓ Server-side encryption enabled"
+    fi
+    echo ""
+    echo "For production use, configure a reverse proxy with HTTPS termination."
     
     return 0
 }

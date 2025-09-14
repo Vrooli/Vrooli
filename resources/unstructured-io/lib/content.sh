@@ -83,8 +83,13 @@ unstructured_io::content::process_directory() {
         return 1
     fi
     
+    # Pass arguments with proper defaults, avoiding empty strings
+    local strategy="${2:-$UNSTRUCTURED_IO_DEFAULT_STRATEGY}"
+    local format="${3:-json}"
+    local recursive="${4:-no}"
+    
     # Call the actual process_directory function with proper arguments
-    unstructured_io::process_directory "$dir" "${2:-}" "${3:-}" "${4:-}"
+    unstructured_io::process_directory "$dir" "$strategy" "$format" "$recursive"
 }
 
 # Clear processing cache

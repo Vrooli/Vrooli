@@ -118,7 +118,7 @@ openfoam::cli::info() {
 OpenFOAM Runtime Configuration
 ==============================
 Service:     openfoam
-Version:     v2312 (ESI OpenCFD)
+Version:     v11 (OpenFOAM Foundation)
 Category:    simulation
 Port:        ${OPENFOAM_PORT:-8090}
 Status:      $(openfoam::docker::is_running && echo "Running" || echo "Stopped")

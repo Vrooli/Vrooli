@@ -73,16 +73,30 @@ vrooli resource mathlib content remove myproof
 ### API Usage
 
 ```bash
-# Submit proof via API
+# Submit single proof
 curl -X POST http://localhost:11458/prove \
   -H "Content-Type: application/json" \
   -d '{"proof": "theorem my_theorem : 2 + 2 = 4 := rfl"}'
 
+# Submit batch of proofs
+curl -X POST http://localhost:11458/batch \
+  -H "Content-Type: application/json" \
+  -d '{"proofs": [
+    {"name": "theorem1", "proof": "theorem add_comm (a b : Nat) : a + b = b + a := sorry"},
+    {"name": "theorem2", "proof": "theorem mul_comm (a b : Nat) : a * b = b * a := sorry"}
+  ]}'
+
 # Check proof status
 curl http://localhost:11458/status/{job_id}
 
+# Check batch status
+curl http://localhost:11458/batch/status/{batch_id}
+
 # Get available tactics
 curl http://localhost:11458/tactics
+
+# View performance metrics
+curl http://localhost:11458/metrics
 ```
 
 ## Configuration
@@ -142,7 +156,9 @@ Current implementation provides:
 - ✅ Proof verification API with async job processing
 - ✅ Content management for proof files
 - ✅ Error diagnostics and detailed reporting
-- ⏳ Batch processing (future)
+- ✅ Batch processing for parallel proof verification
+- ✅ Performance metrics tracking and reporting
 - ⏳ Interactive REPL mode (future)
+- ⏳ Custom tactics loading (future)
 
 See [PRD.md](./PRD.md) for detailed requirements and progress tracking.

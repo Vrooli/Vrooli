@@ -8,17 +8,18 @@ CrewAI enables the creation of autonomous AI agents that work together to accomp
 
 ## Features
 
-### Current (Mock Mode)
-- **API Server**: REST API for crew and agent management
-- **Health Monitoring**: Standard health endpoint for service status
-- **Crew Management**: Create and list AI crews
-- **Agent Management**: Create and list AI agents
+### Current
+- **Dual-Mode Operation**: Supports both real CrewAI and mock mode
+- **Flask API Server**: Modern REST API with CORS support
+- **Health Monitoring**: Standard health endpoint with CrewAI status
+- **Crew Management**: Full CRUD operations for AI crews
+- **Agent Management**: Full CRUD operations for AI agents
+- **Task Execution**: Run tasks with progress tracking
 - **Content Injection**: Import crews and agents from external files
+- **Auto-Detection**: Automatically detects if CrewAI library is available
 - **v2.0 Compliant**: Follows Vrooli resource standards
 
 ### Planned
-- **Real CrewAI Integration**: Full CrewAI library integration
-- **Task Execution**: Run tasks through crews with progress tracking
 - **Tool Integration**: Agents can use external tools and APIs
 - **Memory System**: Persistent memory via Qdrant integration
 - **UI Dashboard**: Web interface for visual management
@@ -28,8 +29,11 @@ CrewAI enables the creation of autonomous AI agents that work together to accomp
 
 ### Installation
 ```bash
-# Install CrewAI resource
+# Install CrewAI resource (with real library support)
 vrooli resource crewai manage install
+
+# For mock-only mode (no dependencies)
+CREWAI_MOCK_MODE=true vrooli resource crewai manage install
 
 # Start the service
 vrooli resource crewai manage start --wait
@@ -57,11 +61,29 @@ vrooli resource crewai test smoke
 
 The CrewAI server provides the following REST API endpoints:
 
-- `GET /` - Server information
-- `GET /health` - Health check endpoint
-- `GET /crews` - List all crews
-- `GET /agents` - List all agents
-- `POST /inject` - Inject crew or agent file
+### Core Endpoints
+- `GET /` - API info and capabilities (shows CrewAI library status)
+- `GET /health` - Health check with active task count
+
+### Agent Management
+- `GET /agents` - List all agents with metadata
+- `POST /agents` - Create new agent with role/goal/backstory
+- `GET /agents/{name}` - Get specific agent details
+- `DELETE /agents/{name}` - Delete agent
+
+### Crew Management
+- `GET /crews` - List all crews with agents/tasks
+- `POST /crews` - Create new crew with agent assignments
+- `GET /crews/{name}` - Get specific crew details
+- `DELETE /crews/{name}` - Delete crew
+
+### Task Execution
+- `POST /execute` - Execute crew with input data
+- `GET /tasks` - List all task executions
+- `GET /tasks/{id}` - Get task execution status
+
+### Content Management
+- `POST /inject` - Inject crew/agent from file
 
 ### Example API Calls
 ```bash

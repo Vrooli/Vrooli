@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OPENROUTER_CLI_DIR}/config/defaults.sh"
 
 # Source OpenRouter libraries
-for lib in core status install configure content test info models usage ratelimit benchmark agents; do
+for lib in core status install configure content test info models usage ratelimit benchmark agents routing; do
     lib_file="${OPENROUTER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -104,6 +104,9 @@ cli::register_command "benchmark" "Run model performance benchmarks" "openrouter
 
 # Add agent management commands
 cli::register_command "agents" "Manage running openrouter agents" "openrouter::agents::command"
+
+# Add routing rules commands
+cli::register_command "routing" "Manage custom model routing rules" "openrouter::routing::cli"
 
 # API service helper functions for manage group (compact)
 openrouter::service::noop_start() { echo "OpenRouter is an API service (no start needed)"; }

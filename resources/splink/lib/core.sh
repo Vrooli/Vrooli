@@ -389,3 +389,46 @@ remove_job() {
     curl -X DELETE "http://localhost:${SPLINK_PORT}/linkage/jobs/${job_id}" 2>/dev/null
     echo "Job $job_id removed"
 }
+
+# Visualize results - Interactive web UI for exploring linkage results
+visualize_results() {
+    local job_id="${1:-}"
+    local chart_type="${2:-dashboard}"
+    
+    if ! check_service_health; then
+        echo "Error: Splink service is not running"
+        echo "Start the service with: vrooli resource splink manage start"
+        return 1
+    fi
+    
+    if [[ -z "$job_id" ]]; then
+        echo "Opening job overview visualization..."
+        echo "URL: http://localhost:${SPLINK_PORT}/visualization/jobs"
+        echo ""
+        echo "You can view this in your browser to see all jobs and their status."
+        
+        # Try to open in browser if available
+        if command -v xdg-open &> /dev/null; then
+            xdg-open "http://localhost:${SPLINK_PORT}/visualization/jobs" 2>/dev/null &
+        elif command -v open &> /dev/null; then
+            open "http://localhost:${SPLINK_PORT}/visualization/jobs" 2>/dev/null &
+        else
+            echo "Open the URL above in your browser to view the visualization."
+        fi
+    else
+        echo "Opening visualization for job: $job_id"
+        echo "Chart type: $chart_type"
+        echo "URL: http://localhost:${SPLINK_PORT}/visualization/job/$job_id?chart_type=$chart_type"
+        echo ""
+        echo "Available chart types: dashboard, network, confidence, metrics"
+        
+        # Try to open in browser if available
+        if command -v xdg-open &> /dev/null; then
+            xdg-open "http://localhost:${SPLINK_PORT}/visualization/job/$job_id?chart_type=$chart_type" 2>/dev/null &
+        elif command -v open &> /dev/null; then
+            open "http://localhost:${SPLINK_PORT}/visualization/job/$job_id?chart_type=$chart_type" 2>/dev/null &
+        else
+            echo "Open the URL above in your browser to view the visualization."
+        fi
+    fi
+}

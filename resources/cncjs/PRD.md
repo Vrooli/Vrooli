@@ -25,8 +25,8 @@
 - [x] **Workflow Storage**: Save and manage CNC job workflows (implemented 2025-09-12)
 
 ### P2 Requirements (Nice to Have)
-- [ ] **Camera Integration**: Real-time machine monitoring via webcam
-- [ ] **Custom Widgets**: Extensible UI with custom control widgets
+- [x] **Camera Integration**: Real-time machine monitoring via webcam (implemented 2025-01-14)
+- [x] **Custom Widgets**: Extensible UI with custom control widgets (implemented 2025-01-14)
 - [ ] **Job Queue**: Automated job scheduling and execution
 
 ## Technical Specifications
@@ -86,7 +86,8 @@ metrics:
 - **Phase 1**: 30% - Core structure and health checks ✅
 - **Phase 2**: 60% - Serial connection and basic control ✅
 - **Phase 3**: 80% - G-code execution and visualization ✅
-- **Phase 4**: 100% - Full feature set with P2 requirements
+- **Phase 4**: 93% - Camera integration and custom widgets ✅
+- **Phase 5**: 100% - Job queue implementation
 
 ### Quality Metrics
 - First-time connection success rate >90%
@@ -157,3 +158,4 @@ metrics:
 - 2025-01-12: Improved health checks, implemented macro support (30% → 45%)
 - 2025-09-12: Implemented workflow storage and multi-controller support (45% → 65%)
 - 2025-09-13: Implemented 3D visualization with WebGL G-code preview (65% → 80%)
+- 2025-01-14: Implemented camera integration and custom widgets (80% → 93%)

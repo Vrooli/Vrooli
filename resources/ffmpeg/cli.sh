@@ -95,6 +95,19 @@ cli::register_subcommand "stream" "capture" "Capture stream to file" "ffmpeg::st
 cli::register_subcommand "stream" "transcode" "Transcode live stream" "ffmpeg::stream::transcode"
 cli::register_subcommand "stream" "info" "Get stream information" "ffmpeg::stream::info"
 
+# Web interface and API commands group
+cli::register_command_group "web" "Web interface and API server"
+cli::register_subcommand "web" "start" "Start web interface server" "ffmpeg::web::start"
+cli::register_subcommand "web" "stop" "Stop web interface server" "ffmpeg::web::stop"
+cli::register_subcommand "web" "status" "Check web server status" "ffmpeg::web::status"
+
+# Performance monitoring commands group
+cli::register_command_group "monitor" "Performance monitoring and metrics"
+cli::register_subcommand "monitor" "start" "Start performance monitoring" "ffmpeg::monitor::start"
+cli::register_subcommand "monitor" "stop" "Stop performance monitoring" "ffmpeg::monitor::stop"
+cli::register_subcommand "monitor" "status" "Get current metrics" "ffmpeg::monitor::status"
+cli::register_subcommand "monitor" "report" "Generate performance report" "ffmpeg::monitor::report"
+
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"

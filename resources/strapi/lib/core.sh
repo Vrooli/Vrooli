@@ -4,8 +4,12 @@
 
 set -euo pipefail
 
+# Prevent multiple sourcing
+[[ -n "${STRAPI_CORE_LOADED:-}" ]] && return 0
+readonly STRAPI_CORE_LOADED=1
+
 # Resource configuration
-readonly STRAPI_VERSION="5.0"
+readonly STRAPI_CORE_VERSION="5.0"
 readonly STRAPI_PORT="${STRAPI_PORT:-1337}"
 readonly STRAPI_HOST="${STRAPI_HOST:-0.0.0.0}"
 readonly STRAPI_DATA_DIR="${STRAPI_DATA_DIR:-${HOME}/.vrooli/strapi}"
@@ -84,7 +88,7 @@ core::manage_install() {
         return 2
     fi
     
-    core::info "Installing Strapi v${STRAPI_VERSION}..."
+    core::info "Installing Strapi v${STRAPI_CORE_VERSION}..."
     
     # Check Node.js
     if ! command -v node >/dev/null 2>&1; then
@@ -494,4 +498,80 @@ core::content_execute() {
         -H "Content-Type: application/json" \
         -d "{\"query\":\"$query\"}" \
         "http://localhost:${STRAPI_PORT}/graphql" | jq '.'
+}
+
+#######################################
+# Create admin user automatically
+#######################################
+core::create_admin() {
+    local email="${1:-${STRAPI_ADMIN_EMAIL}}"
+    local password="${2:-${STRAPI_ADMIN_PASSWORD}}"
+    local firstname="${3:-Admin}"
+    local lastname="${4:-User}"
+    
+    if ! core::is_running; then
+        core::error "Strapi must be running to create admin user"
+        return 1
+    fi
+    
+    core::info "Creating admin user..."
+    
+    # Create admin user via Strapi's admin registration endpoint
+    local response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"email\": \"${email}\",
+            \"password\": \"${password}\",
+            \"firstname\": \"${firstname}\",
+            \"lastname\": \"${lastname}\"
+        }" \
+        "http://localhost:${STRAPI_PORT}/admin/register-admin")
+    
+    if echo "$response" | grep -q "error"; then
+        # Check if admin already exists
+        if echo "$response" | grep -q "already exists"; then
+            core::info "Admin user already exists"
+            return 0
+        else
+            core::error "Failed to create admin user: $response"
+            return 1
+        fi
+    fi
+    
+    # Save updated credentials
+    cat > "${STRAPI_DATA_DIR}/credentials.json" << EOF
+{
+  "admin_email": "${email}",
+  "admin_password": "${password}",
+  "admin_url": "http://localhost:${STRAPI_PORT}/admin",
+  "api_url": "http://localhost:${STRAPI_PORT}/api",
+  "graphql_url": "http://localhost:${STRAPI_PORT}/graphql",
+  "admin_firstname": "${firstname}",
+  "admin_lastname": "${lastname}"
+}
+EOF
+    
+    core::success "Admin user created successfully"
+    core::info "Email: ${email}"
+    core::info "Password has been saved to credentials.json"
+    return 0
+}
+
+#######################################
+# Setup initial content types
+#######################################
+core::setup_content_types() {
+    if ! core::is_running; then
+        core::error "Strapi must be running to setup content types"
+        return 1
+    fi
+    
+    core::info "Setting up example content types..."
+    
+    # This would typically be done through the admin panel
+    # or by adding content type definitions to the project
+    core::info "Please use the admin panel to create content types"
+    core::info "Admin URL: http://localhost:${STRAPI_PORT}/admin"
+    
+    return 0
 }

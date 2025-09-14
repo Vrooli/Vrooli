@@ -177,6 +177,111 @@ The resource includes automatic model selection for cost optimization:
 - Fallback chains for failed requests
 - Usage analytics to track spending
 
+## Custom Routing Rules (NEW - v1.2.0)
+
+Define custom rules to automatically select models based on prompt characteristics:
+
+### Managing Routing Rules
+```bash
+# List all routing rules
+vrooli resource openrouter routing list
+
+# Show routing rule template
+vrooli resource openrouter routing template
+
+# Add a new routing rule from JSON file
+vrooli resource openrouter routing add my-rule rule.json
+
+# Enable/disable rules
+vrooli resource openrouter routing enable code-specialist
+vrooli resource openrouter routing disable fast-response
+
+# Remove a rule
+vrooli resource openrouter routing remove my-rule
+
+# Test routing with a prompt
+vrooli resource openrouter routing test "Write a Python function"
+
+# Evaluate routing for a prompt (returns selected model)
+vrooli resource openrouter routing evaluate "Analyze this data"
+
+# View routing history
+vrooli resource openrouter routing history 20
+```
+
+### Example Routing Rules
+
+#### Cost Optimizer (Default Enabled)
+```json
+{
+  "name": "cost-optimizer",
+  "description": "Select cheapest model for simple tasks",
+  "priority": 100,
+  "conditions": {
+    "max_cost_per_million": 5.0
+  },
+  "action": {
+    "type": "select_cheapest",
+    "fallback": "openai/gpt-3.5-turbo"
+  },
+  "enabled": true
+}
+```
+
+#### Code Specialist
+```json
+{
+  "name": "code-specialist",
+  "description": "Use specialized models for coding tasks",
+  "priority": 90,
+  "conditions": {
+    "prompt_contains": ["code", "function", "debug", "implement", "algorithm"]
+  },
+  "action": {
+    "type": "select_model",
+    "model": "anthropic/claude-3-opus",
+    "fallback": "openai/gpt-4-turbo"
+  },
+  "enabled": true
+}
+```
+
+#### Fast Response for Short Prompts
+```json
+{
+  "name": "quick-answers",
+  "description": "Use fast models for simple questions",
+  "priority": 80,
+  "conditions": {
+    "prompt_length_less_than": 100,
+    "response_time_target": 1000
+  },
+  "action": {
+    "type": "select_fastest",
+    "candidates": ["mistralai/mistral-7b", "openai/gpt-3.5-turbo"],
+    "fallback": "openai/gpt-3.5-turbo"
+  },
+  "enabled": true
+}
+```
+
+### How Routing Works
+1. Rules are evaluated in priority order (highest first)
+2. First matching rule determines model selection
+3. If no rules match, default model is used
+4. Routing decisions are logged for analytics
+
+### Action Types
+- **select_model**: Use a specific model
+- **select_cheapest**: Choose most cost-effective model
+- **select_fastest**: Pick fastest responding model from candidates
+
+### Condition Types
+- **prompt_contains**: Keywords to match (case-insensitive)
+- **prompt_length_less_than**: Maximum prompt length
+- **max_cost_per_million**: Cost limit per million tokens
+- **response_time_target**: Target response time in ms
+
 ## Troubleshooting
 
 ### Common Issues

@@ -10,7 +10,7 @@ export CREWAI_NAME="crewai"
 export CREWAI_DISPLAY_NAME="CrewAI"
 export CREWAI_DATA_DIR="${HOME}/.crewai"
 export CREWAI_PORT="${CREWAI_PORT:-8084}"
-export CREWAI_MOCK_MODE="true"
+export CREWAI_MOCK_MODE="false"
 
 # Directories
 export CREWAI_WORKSPACE_DIR="${CREWAI_DATA_DIR}/workspace"

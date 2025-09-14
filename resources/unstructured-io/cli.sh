@@ -32,6 +32,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source resource configuration
 source "${UNSTRUCTURED_IO_CLI_DIR}/config/defaults.sh"
+source "${UNSTRUCTURED_IO_CLI_DIR}/lib/core.sh"
 
 # Source resource libraries (only what exists)
 for lib in common core install status api process cache-simple validate test content; do

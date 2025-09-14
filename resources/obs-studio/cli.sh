@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OBS_CLI_DIR}/config/defaults.sh"
 
 # Source OBS Studio libraries
-for lib in common core install status start stop content test; do
+for lib in common core install status start stop content test streaming sources; do
     lib_file="${OBS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -71,6 +71,26 @@ CLI_COMMAND_HANDLERS["content::execute"]="obs::content::execute"
 cli::register_subcommand "content" "scenes" "Manage OBS scenes" "obs::content::scenes"
 cli::register_subcommand "content" "record" "Control recording" "obs::content::record"
 cli::register_subcommand "content" "stream" "Control streaming" "obs::content::stream"
+
+# Register streaming command group
+cli::register_command_group "streaming" "Streaming control and configuration"
+cli::register_subcommand "streaming" "start" "Start streaming" "obs::streaming::start"
+cli::register_subcommand "streaming" "stop" "Stop streaming" "obs::streaming::stop"
+cli::register_subcommand "streaming" "status" "Show streaming status" "obs::streaming::status"
+cli::register_subcommand "streaming" "configure" "Configure streaming settings" "obs::streaming::configure"
+cli::register_subcommand "streaming" "profiles" "List streaming profiles" "obs::streaming::profiles"
+cli::register_subcommand "streaming" "test" "Test streaming connectivity" "obs::streaming::test"
+
+# Register sources command group
+cli::register_command_group "sources" "Manage video/audio sources"
+cli::register_subcommand "sources" "add" "Add a source" "obs::sources::add"
+cli::register_subcommand "sources" "remove" "Remove a source" "obs::sources::remove"
+cli::register_subcommand "sources" "list" "List all sources" "obs::sources::list"
+cli::register_subcommand "sources" "configure" "Configure source properties" "obs::sources::configure"
+cli::register_subcommand "sources" "cameras" "List available cameras" "obs::sources::cameras"
+cli::register_subcommand "sources" "audio" "List audio devices" "obs::sources::audio_devices"
+cli::register_subcommand "sources" "preview" "Preview a source" "obs::sources::preview"
+cli::register_subcommand "sources" "visibility" "Set source visibility" "obs::sources::visibility"
 
 # Additional information commands
 cli::register_command "status" "Show detailed OBS Studio status" "obs::get_status"

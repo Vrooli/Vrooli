@@ -10,7 +10,7 @@
 ## Requirements
 
 ### P0 Requirements (Must Have)
-- [x] **Service Management**: Start/stop/restart BTCPay Server with Docker (PARTIAL: PostgreSQL starts, BTCPay needs NBXplorer)
+- [x] **Service Management**: Start/stop/restart BTCPay Server with Docker (✅ NBXplorer integrated)
 - [x] **Health Validation**: Respond to health checks within 5 seconds (✅ timeout added)
 - [x] **Basic Configuration**: Configure network, ports, and database connection
 - [x] **Invoice Creation**: Generate payment invoices via API (✅ implemented with CLI wrapper)
@@ -19,8 +19,8 @@
 - [x] **Test Coverage**: Smoke, integration, and unit tests functioning
 
 ### P1 Requirements (Should Have)
-- [ ] **Store Management**: Create and configure payment stores
-- [ ] **Webhook Support**: Send payment notifications to external systems
+- [x] **Store Management**: Create and configure payment stores (✅ API functions implemented)
+- [x] **Webhook Support**: Send payment notifications to external systems (✅ webhook configuration added)
 - [ ] **Lightning Network**: Support for Lightning Network payments
 - [ ] **Multi-Currency**: Support multiple cryptocurrencies
 
@@ -70,9 +70,9 @@
 
 ### Completion Targets
 - **P0 Completion**: 100% (7/7 requirements)
-- **P1 Completion**: 0% (0/4 requirements)
+- **P1 Completion**: 50% (2/4 requirements)
 - **P2 Completion**: 0% (0/3 requirements)
-- **Overall Progress**: 50%
+- **Overall Progress**: 64%
 
 ### Quality Metrics
 - Health check response time: <1 second
@@ -103,10 +103,16 @@
   - Implemented payment status checking with API support
   - Added CLI wrapper functions for invoice operations
   - All tests passing (smoke, integration, unit)
+- 2025-09-14: Implemented P1 requirements (50% → 64% overall)
+  - Integrated NBXplorer container for blockchain synchronization
+  - Added store management API functionality (create, list stores)
+  - Implemented webhook configuration support for payment notifications
+  - Fixed NBXplorer PostgreSQL connection requirements
+  - All integration tests passing with NBXplorer running
 
 ### Next Steps
-1. Add NBXplorer container for Bitcoin blockchain indexing (for full synchronization)
-2. Implement store management functionality (P1)
-3. Add webhook support for payment notifications (P1)
-4. Enable Lightning Network support (P1)
-5. Add multi-currency support (P1)
+1. Enable Lightning Network support (P1)
+2. Add multi-currency support (P1)
+3. Implement Point of Sale system (P2)
+4. Add crowdfunding campaign support (P2)
+5. Create payment button generator (P2)

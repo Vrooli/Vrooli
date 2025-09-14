@@ -78,6 +78,15 @@ haystack::install() {
         return 1
     }
     
+    # Install Qdrant integration if Qdrant is available
+    log::info "Installing Qdrant integration..."
+    "${HAYSTACK_VENV_DIR}/bin/pip" install -q \
+        "qdrant-haystack>=1.0.0" \
+        "qdrant-client>=1.7.0" \
+        "aiohttp>=3.8.0" > /dev/null 2>&1 || {
+        log::warning "Failed to install Qdrant integration, will use InMemory store"
+    }
+    
     # Create the server script
     cat > "${HAYSTACK_SCRIPTS_DIR}/server.py" << 'EOF'
 #!/usr/bin/env python3

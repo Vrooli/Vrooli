@@ -1,0 +1,125 @@
+{
+  "resource": "zigbee2mqtt",
+  "version": "1.0.0",
+  "description": "Zigbee to MQTT bridge supporting 3000+ devices",
+  
+  "lifecycle": {
+    "startup_order": 600,
+    "startup_timeout": 60,
+    "startup_time_estimate": "30-60s",
+    "shutdown_timeout": 30,
+    "shutdown_grace_period": 10,
+    "recovery_attempts": 3,
+    "recovery_delay": 10,
+    "priority": "medium"
+  },
+  
+  "dependencies": {
+    "required": [],
+    "optional": ["mosquitto", "home-assistant", "node-red"],
+    "conflicts": [],
+    "hardware": ["zigbee-adapter"]
+  },
+  
+  "resources": {
+    "cpu": {
+      "min": "0.5",
+      "recommended": "1.0",
+      "max": "2.0"
+    },
+    "memory": {
+      "min": "256MB",
+      "recommended": "512MB",
+      "max": "1GB"
+    },
+    "storage": {
+      "min": "100MB",
+      "recommended": "500MB",
+      "max": "2GB"
+    }
+  },
+  
+  "ports": {
+    "api": {
+      "port": 8090,
+      "protocol": "http",
+      "description": "Web UI and API"
+    }
+  },
+  
+  "volumes": {
+    "data": {
+      "path": "/app/data",
+      "description": "Configuration and device database",
+      "persistent": true
+    }
+  },
+  
+  "health_checks": {
+    "primary": {
+      "type": "http",
+      "endpoint": "/api/health",
+      "interval": 30,
+      "timeout": 5,
+      "retries": 3
+    },
+    "secondary": {
+      "type": "log",
+      "pattern": "Zigbee2MQTT started",
+      "timeout": 60
+    }
+  },
+  
+  "capabilities": [
+    "device-pairing",
+    "mqtt-bridge",
+    "home-assistant-discovery",
+    "ota-updates",
+    "network-map",
+    "web-ui"
+  ],
+  
+  "integrations": {
+    "mqtt": {
+      "enabled": true,
+      "required": true,
+      "auto_discover": true
+    },
+    "home-assistant": {
+      "enabled": true,
+      "required": false,
+      "auto_discover": true
+    },
+    "node-red": {
+      "enabled": true,
+      "required": false,
+      "node_package": "node-red-contrib-zigbee2mqtt"
+    }
+  },
+  
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "endpoint": "/api/metrics",
+      "format": "prometheus"
+    },
+    "logging": {
+      "enabled": true,
+      "level": "info",
+      "format": "json"
+    }
+  },
+  
+  "security": {
+    "authentication": {
+      "enabled": false,
+      "type": "basic",
+      "configurable": true
+    },
+    "encryption": {
+      "mqtt": true,
+      "zigbee": true
+    },
+    "network_isolation": true
+  }
+}

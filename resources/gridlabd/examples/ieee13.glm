@@ -1,191 +1,31 @@
-// IEEE 13-bus test feeder
-// Simplified example for GridLAB-D resource
-
-#set profiler=1
-#set relax_naming_rules=1
-#set savefile="ieee13_out.xml"
-
+// IEEE 13 Node Test Feeder - Simplified version
 clock {
-    timezone PST+8PDT;
+    timezone EST+5EDT;
     starttime '2024-01-01 00:00:00';
     stoptime '2024-01-02 00:00:00';
 }
 
 module powerflow {
     solver_method NR;
-    convergence_limit 1e-6;
 }
 
-module tape;
-
-// Transformer configuration
-object transformer_configuration {
-    name xfmr_config;
-    connect_type WYE_WYE;
-    power_rating 5000;
-    primary_voltage 115000;
-    secondary_voltage 4160;
-    resistance 0.01;
-    reactance 0.06;
-}
-
-// Source node
-object node {
-    name sourcebus;
-    bustype SWING;
-    phases ABCN;
-    nominal_voltage 115000;
-}
-
-// Substation transformer
-object transformer {
-    name substation_xfmr;
-    phases ABCN;
-    from sourcebus;
-    to node_650;
-    configuration xfmr_config;
-}
-
-// IEEE 13 bus nodes
 object node {
     name node_650;
+    bustype SWING;
     phases ABCN;
-    nominal_voltage 2401.777;
+    voltage_A 2401.7771+0j;
+    voltage_B -1200.8886-2080.776j;
+    voltage_C -1200.8886+2080.776j;
+    nominal_voltage 2401.7771;
 }
 
-object node {
-    name node_632;
-    phases ABCN;
-    nominal_voltage 2401.777;
-}
-
-object node {
-    name node_633;
-    phases ABCN;
-    nominal_voltage 2401.777;
-}
-
-object node {
-    name node_634;
-    phases ABCN;
-    nominal_voltage 480;
-}
-
-object node {
-    name node_645;
-    phases BCN;
-    nominal_voltage 2401.777;
-}
-
-object node {
-    name node_646;
-    phases BCN;
-    nominal_voltage 2401.777;
-}
-
-// Lines
-object overhead_line {
-    name line_650_632;
-    phases ABCN;
-    from node_650;
-    to node_632;
-    length 2000;
-    configuration line_config_601;
-}
-
-object overhead_line {
-    name line_632_633;
-    phases ABCN;
-    from node_632;
-    to node_633;
-    length 500;
-    configuration line_config_602;
-}
-
-// Line configurations
-object line_configuration {
-    name line_config_601;
-    conductor_A overhead_line_conductor_100;
-    conductor_B overhead_line_conductor_100;
-    conductor_C overhead_line_conductor_100;
-    conductor_N overhead_line_conductor_101;
-    spacing line_spacing_500;
-}
-
-object line_configuration {
-    name line_config_602;
-    conductor_A overhead_line_conductor_100;
-    conductor_B overhead_line_conductor_100;
-    conductor_C overhead_line_conductor_100;
-    conductor_N overhead_line_conductor_101;
-    spacing line_spacing_500;
-}
-
-// Conductors
-object overhead_line_conductor {
-    name overhead_line_conductor_100;
-    geometric_mean_radius 0.0244;
-    resistance 0.306;
-}
-
-object overhead_line_conductor {
-    name overhead_line_conductor_101;
-    geometric_mean_radius 0.00814;
-    resistance 0.592;
-}
-
-// Line spacing
-object line_spacing {
-    name line_spacing_500;
-    distance_AB 2.5;
-    distance_BC 4.5;
-    distance_AC 7.0;
-    distance_AN 5.656854;
-    distance_BN 4.272002;
-    distance_CN 5.0;
-}
-
-// Loads
 object load {
     name load_634;
+    parent node_650;
     phases ABCN;
-    parent node_634;
     constant_power_A 160000+110000j;
     constant_power_B 120000+90000j;
     constant_power_C 120000+90000j;
-    nominal_voltage 480;
+    nominal_voltage 2401.7771;
 }
-
-object load {
-    name load_645;
-    phases BCN;
-    parent node_645;
-    constant_power_B 170000+125000j;
-    constant_power_C 170000+125000j;
-    nominal_voltage 2401.777;
-}
-
-object load {
-    name load_646;
-    phases BCN;
-    parent node_646;
-    constant_power_B 230000+132000j;
-    constant_power_C 230000+132000j;
-    nominal_voltage 2401.777;
-}
-
-// Voltage recorder
-object recorder {
-    parent node_650;
-    property voltage_A,voltage_B,voltage_C;
-    file voltage_650.csv;
-    interval 3600;
-}
-
-// Power recorder
-object recorder {
-    parent substation_xfmr;
-    property power_in;
-    file power_substation.csv;
-    interval 3600;
-}
+EOF < /dev/null

@@ -11,6 +11,11 @@ readonly SCRIPT_DIR
 # Source core library
 source "${SCRIPT_DIR}/lib/core.sh"
 
+# Source Docker library if available
+if [[ -f "${SCRIPT_DIR}/lib/docker.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/docker.sh"
+fi
+
 # Resource metadata
 readonly RESOURCE_NAME="strapi"
 readonly RESOURCE_VERSION="5.0"
@@ -46,6 +51,13 @@ COMMANDS:
       get <type> <id>   Retrieve content by ID
       remove <type> <id> Delete content
       execute <query>   Execute custom query
+    docker              Docker deployment commands
+      start             Start with Docker Compose
+      stop              Stop Docker containers
+      status            Show Docker status
+      logs              View Docker logs
+    admin               Admin management
+      create            Create admin user
     status              Show service status
     logs                View service logs
     credentials         Display admin credentials
@@ -215,6 +227,47 @@ main() {
                 *)
                     core::error "Unknown content operation: $operation"
                     echo "Available: list, add, get, remove, execute"
+                    exit 1
+                    ;;
+            esac
+            ;;
+            
+        docker)
+            local subcommand="${1:-}"
+            shift || true
+            
+            case "$subcommand" in
+                start)
+                    docker::start "$@"
+                    ;;
+                stop)
+                    docker::stop "$@"
+                    ;;
+                status)
+                    docker::status "$@"
+                    ;;
+                logs)
+                    docker::logs "$@"
+                    ;;
+                *)
+                    core::error "Unknown docker subcommand: $subcommand"
+                    echo "Available: start, stop, status, logs"
+                    exit 1
+                    ;;
+            esac
+            ;;
+            
+        admin)
+            local subcommand="${1:-}"
+            shift || true
+            
+            case "$subcommand" in
+                create)
+                    core::create_admin "$@"
+                    ;;
+                *)
+                    core::error "Unknown admin subcommand: $subcommand"
+                    echo "Available: create"
                     exit 1
                     ;;
             esac

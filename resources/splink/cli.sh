@@ -164,9 +164,12 @@ handle_content() {
         remove)
             remove_job "$@"
             ;;
+        visualize)
+            visualize_results "$@"
+            ;;
         *)
             echo "Error: Unknown content operation: $operation"
-            echo "Available operations: execute, list, get, remove"
+            echo "Available operations: execute, list, get, remove, visualize"
             exit 1
             ;;
     esac

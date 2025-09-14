@@ -3,7 +3,7 @@
 Splink is a Python library for probabilistic record linkage (entity resolution) and deduplication at scale, developed by the UK Ministry of Justice. It enables Vrooli scenarios to identify and link records that refer to the same entity across different datasets without requiring training data.
 
 ## Status
-✅ **ENHANCED** - All P0 requirements and 2 P1 requirements implemented
+✅ **ENHANCED** - All P0 requirements and 3 P1 requirements implemented
 - Health endpoint: ✅ Working
 - Deduplication API: ✅ Implemented with native Splink  
 - Linkage API: ✅ Implemented with fallback support
@@ -11,6 +11,7 @@ Splink is a Python library for probabilistic record linkage (entity resolution) 
 - DuckDB backend: ✅ Integrated
 - PostgreSQL integration: ✅ Added for data persistence
 - Batch processing: ✅ Implemented with priority queuing
+- Interactive Visualization: ✅ Web UI with Plotly charts
 - All tests passing: ✅ Confirmed
 
 ## Features
@@ -22,6 +23,7 @@ Splink is a Python library for probabilistic record linkage (entity resolution) 
 - **Batch Processing**: Submit multiple linkage jobs with priority queuing
 - **Data Persistence**: Save/load datasets and results to PostgreSQL or CSV
 - **Native Splink**: Uses actual Splink v3.9.14 library with automatic fallback
+- **Interactive Visualization**: Web-based UI with network graphs, confidence distributions, and processing metrics
 
 ## Quick Start
 
@@ -38,6 +40,11 @@ vrooli resource splink content execute deduplicate --dataset customers.csv
 
 # Link two datasets
 vrooli resource splink content execute link --dataset1 orders.csv --dataset2 customers.csv
+
+# View interactive visualizations
+vrooli resource splink content visualize  # Show all jobs overview
+vrooli resource splink content visualize JOB_ID  # View job dashboard
+vrooli resource splink content visualize JOB_ID network  # View match network
 ```
 
 ## API Usage
@@ -80,6 +87,26 @@ curl -X POST http://localhost:8096/linkage/batch \
     ]
   }'
 ```
+
+### Interactive Visualization
+
+View results through the web UI:
+```bash
+# View all jobs overview
+curl http://localhost:8096/visualization/jobs
+
+# View specific job dashboard  
+curl "http://localhost:8096/visualization/job/{job_id}"
+
+# View specific chart type
+curl "http://localhost:8096/visualization/job/{job_id}?chart_type=network"
+```
+
+Available visualization types:
+- **dashboard**: Complete dashboard with all visualizations
+- **network**: Interactive network graph of matched records
+- **confidence**: Confidence score distribution histogram
+- **metrics**: Processing metrics and performance indicators
 
 ## Use Cases
 

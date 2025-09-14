@@ -36,7 +36,7 @@ source "${MINIO_CLI_DIR}/config/defaults.sh"
 minio::export_config 2>/dev/null || true
 
 # Source MinIO libraries
-for lib in common docker install status api buckets inject; do
+for lib in common docker install status api buckets inject core; do
     lib_file="${MINIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -77,11 +77,13 @@ cli::register_command "logs" "Show MinIO logs" "minio::logs"
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS
 # ==============================================================================
 cli::register_command "credentials" "Show MinIO credentials for integration" "minio::credentials"
+cli::register_command "metrics" "Show storage metrics and statistics" "minio::metrics"
 
 # Add custom content subcommands for MinIO-specific operations
 cli::register_subcommand "content" "upload" "Upload file to bucket" "minio::content::upload_file" "modifies-system"
 cli::register_subcommand "content" "download" "Download file from bucket" "minio::content::download_file"
 cli::register_subcommand "content" "configure" "Configure MinIO client" "minio::content::configure"
+cli::register_subcommand "content" "policy" "Set bucket access policy" "minio::content::set_policy" "modifies-system"
 
 # ==============================================================================
 # CONTENT COMMAND IMPLEMENTATIONS
@@ -229,11 +231,25 @@ minio::content::upload_file() {
         object_name=$(basename "$file_path")
     fi
     
-    if command -v minio::api::upload_file &>/dev/null; then
-        minio::api::upload_file "$bucket" "$file_path" "$object_name"
+    # Check file size to determine upload method
+    local file_size=$(stat -c%s "$file_path" 2>/dev/null || stat -f%z "$file_path" 2>/dev/null || echo "0")
+    local file_size_mb=$((file_size / 1024 / 1024))
+    
+    # Use multi-part upload for files >100MB
+    if [[ $file_size_mb -gt 100 ]]; then
+        if command -v minio::api::upload_large_file &>/dev/null; then
+            minio::api::upload_large_file "$file_path" "$bucket" "$object_name"
+        else
+            log::error "Large file upload functionality not available"
+            return 1
+        fi
     else
-        log::error "File upload functionality not available"
-        return 1
+        if command -v minio::api::upload_file &>/dev/null; then
+            minio::api::upload_file "$file_path" "$bucket" "$object_name"
+        else
+            log::error "File upload functionality not available"
+            return 1
+        fi
     fi
 }
 
@@ -248,6 +264,52 @@ minio::content::configure() {
         minio::api::configure_mc
     else
         log::error "MinIO client configuration not available"
+        return 1
+    fi
+}
+
+# Set bucket policy
+minio::content::set_policy() {
+    local bucket="${1:-}"
+    local policy="${2:-}"
+    
+    if [[ -z "$bucket" || -z "$policy" ]]; then
+        log::error "Bucket name and policy type required"
+        echo "Usage: resource-minio content policy <bucket-name> <policy-type>"
+        echo ""
+        echo "Policy types:"
+        echo "  public    - Public read and write access"
+        echo "  download  - Public read-only access"
+        echo "  upload    - Public write-only access (no listing)"
+        echo "  private   - Private access (authentication required)"
+        echo ""
+        echo "Examples:"
+        echo "  resource-minio content policy my-public-files download"
+        echo "  resource-minio content policy my-uploads upload"
+        echo "  resource-minio content policy secure-data private"
+        return 1
+    fi
+    
+    # Validate policy type
+    case "$policy" in
+        public|download|upload|private)
+            ;;
+        *)
+            log::error "Invalid policy type: $policy"
+            echo "Valid policy types: public, download, upload, private"
+            return 1
+            ;;
+    esac
+    
+    if command -v minio::api::set_bucket_policy &>/dev/null; then
+        if minio::api::set_bucket_policy "$bucket" "$policy"; then
+            log::success "Policy '$policy' set for bucket '$bucket'"
+            return 0
+        else
+            return 1
+        fi
+    else
+        log::error "Bucket policy functionality not available"
         return 1
     fi
 }
@@ -287,6 +349,27 @@ minio::status_wrapper() {
         echo "⏸️  MinIO is installed but not running"
     else
         echo "❌ MinIO is not installed"
+    fi
+}
+
+# ==============================================================================
+# METRICS IMPLEMENTATION  
+# ==============================================================================
+minio::metrics() {
+    local format="${1:-text}"
+    
+    # Check if MinIO is running
+    if ! minio::is_running 2>/dev/null; then
+        log::error "MinIO is not running"
+        return 1
+    fi
+    
+    # Delegate to API metrics function
+    if command -v minio::api::get_metrics &>/dev/null; then
+        minio::api::get_metrics "$format"
+    else
+        log::error "Metrics functionality not available"
+        return 1
     fi
 }
 

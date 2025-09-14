@@ -4,9 +4,13 @@
 
 set -euo pipefail
 
+# Prevent multiple sourcing
+[[ -n "${STRAPI_TEST_LOADED:-}" ]] && return 0
+readonly STRAPI_TEST_LOADED=1
+
 # Source core library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source "${SCRIPT_DIR}/lib/core.sh"
+TEST_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "${TEST_SCRIPT_DIR}/lib/core.sh"
 
 #######################################
 # Run smoke tests (quick health check)

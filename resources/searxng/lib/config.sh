@@ -418,3 +418,223 @@ searxng::reset_config() {
         return 1
     fi
 }
+
+#######################################
+# List available search engines
+#######################################
+searxng::list_engines() {
+    local config_file="$SEARXNG_DATA_DIR/settings.yml"
+    
+    if [[ ! -f "$config_file" ]]; then
+        log::error "Configuration file not found. Run 'manage start' first."
+        return 1
+    fi
+    
+    log::header "Available Search Engines"
+    
+    # Parse engines from config file (simplified approach)
+    echo "Currently configured engines:"
+    grep -E "^  - name:" "$config_file" 2>/dev/null | sed 's/.*name: /  - /' || {
+        echo "  - google"
+        echo "  - bing"
+        echo "  - duckduckgo"
+        echo "  - startpage"
+        echo "  - wikipedia"
+    }
+    
+    echo
+    echo "Additional engines available to add:"
+    echo "  - qwant"
+    echo "  - yahoo"
+    echo "  - brave"
+    echo "  - searx"
+    echo "  - yandex"
+    echo "  - arxiv"
+    echo "  - github"
+    echo "  - stackoverflow"
+    echo "  - wolframalpha"
+    echo "  - youtube"
+    
+    return 0
+}
+
+#######################################
+# Add a search engine to configuration
+#######################################
+searxng::add_engine() {
+    local engine_name="${1:-}"
+    
+    if [[ -z "$engine_name" ]]; then
+        log::error "Engine name required. Usage: content add-engine <engine-name>"
+        return 1
+    fi
+    
+    local config_file="$SEARXNG_DATA_DIR/settings.yml"
+    
+    if [[ ! -f "$config_file" ]]; then
+        log::error "Configuration file not found. Run 'manage start' first."
+        return 1
+    fi
+    
+    # Check if engine already exists
+    if grep -q "name: $engine_name" "$config_file" 2>/dev/null; then
+        log::warning "Engine '$engine_name' is already configured"
+        return 0
+    fi
+    
+    log::info "Adding engine: $engine_name"
+    
+    # Add engine to config (simplified - adds to end of engines section)
+    # In production, this would use a proper YAML parser
+    local engine_config="  - name: $engine_name
+    disabled: false
+    weight: 1.0"
+    
+    # Find engines section and append
+    if grep -q "^engines:" "$config_file"; then
+        # Use temp file for modifications
+        local temp_file
+        temp_file=$(mktemp)
+        
+        # Find the line before "ui:" section and insert engine config there
+        awk -v engine="$engine_config" '
+            /^ui:/ && !inserted { print engine; inserted=1 }
+            { print }
+            END { if (!inserted) print engine }
+        ' "$config_file" > "$temp_file"
+        
+        if [[ -s "$temp_file" ]]; then
+            cp "$temp_file" "$config_file"
+            rm -f "$temp_file"
+            log::success "Engine '$engine_name' added successfully"
+            log::info "Restart SearXNG for changes to take effect: resource-searxng manage restart"
+            return 0
+        else
+            rm -f "$temp_file"
+            log::error "Failed to add engine '$engine_name'"
+            return 1
+        fi
+    else
+        log::error "Could not find engines section in configuration"
+        return 1
+    fi
+}
+
+#######################################
+# Remove a search engine from configuration
+#######################################
+searxng::remove_engine() {
+    local engine_name="${1:-}"
+    
+    if [[ -z "$engine_name" ]]; then
+        log::error "Engine name required. Usage: content remove-engine <engine-name>"
+        return 1
+    fi
+    
+    # Protect default engines
+    if [[ "$engine_name" =~ ^(google|bing|duckduckgo|startpage|wikipedia)$ ]]; then
+        log::error "Cannot remove default engine: $engine_name"
+        return 1
+    fi
+    
+    local config_file="$SEARXNG_DATA_DIR/settings.yml"
+    
+    if [[ ! -f "$config_file" ]]; then
+        log::error "Configuration file not found. Run 'manage start' first."
+        return 1
+    fi
+    
+    # Check if engine exists
+    if ! grep -q "name: $engine_name" "$config_file" 2>/dev/null; then
+        log::warning "Engine '$engine_name' is not configured"
+        return 0
+    fi
+    
+    log::info "Removing engine: $engine_name"
+    
+    # Remove engine entry (3 lines: name, disabled, weight)
+    # Use temp file to handle permission issues
+    local temp_file
+    temp_file=$(mktemp)
+    sed "/name: $engine_name/,+2d" "$config_file" > "$temp_file" 2>/dev/null
+    
+    if [[ -s "$temp_file" ]]; then
+        cp "$temp_file" "$config_file"
+        rm -f "$temp_file"
+        log::success "Engine '$engine_name' removed successfully"
+    else
+        rm -f "$temp_file"
+        log::error "Failed to remove engine '$engine_name'"
+        return 1
+    fi
+    log::info "Restart SearXNG for changes to take effect: resource-searxng manage restart"
+    return 0
+}
+
+#######################################
+# Toggle engine enabled/disabled status
+#######################################
+searxng::toggle_engine() {
+    local engine_name="${1:-}"
+    local action="${2:-toggle}" # enable, disable, or toggle
+    
+    if [[ -z "$engine_name" ]]; then
+        log::error "Engine name required. Usage: content toggle-engine <engine-name> [enable|disable]"
+        return 1
+    fi
+    
+    local config_file="$SEARXNG_DATA_DIR/settings.yml"
+    
+    if [[ ! -f "$config_file" ]]; then
+        log::error "Configuration file not found. Run 'manage start' first."
+        return 1
+    fi
+    
+    # Check if engine exists
+    if ! grep -q "name: $engine_name" "$config_file" 2>/dev/null; then
+        log::error "Engine '$engine_name' is not configured"
+        return 1
+    fi
+    
+    # Use temp file for modifications
+    local temp_file
+    temp_file=$(mktemp)
+    
+    case "$action" in
+        enable)
+            sed "/name: $engine_name/,+2 s/disabled: true/disabled: false/" "$config_file" > "$temp_file"
+            if [[ -s "$temp_file" ]]; then
+                cp "$temp_file" "$config_file"
+                log::success "Engine '$engine_name' enabled"
+            fi
+            ;;
+        disable)
+            sed "/name: $engine_name/,+2 s/disabled: false/disabled: true/" "$config_file" > "$temp_file"
+            if [[ -s "$temp_file" ]]; then
+                cp "$temp_file" "$config_file"
+                log::success "Engine '$engine_name' disabled"
+            fi
+            ;;
+        toggle|*)
+            # Check current state and toggle
+            if grep -A2 "name: $engine_name" "$config_file" | grep -q "disabled: false"; then
+                sed "/name: $engine_name/,+2 s/disabled: false/disabled: true/" "$config_file" > "$temp_file"
+                if [[ -s "$temp_file" ]]; then
+                    cp "$temp_file" "$config_file"
+                    log::success "Engine '$engine_name' disabled"
+                fi
+            else
+                sed "/name: $engine_name/,+2 s/disabled: true/disabled: false/" "$config_file" > "$temp_file"
+                if [[ -s "$temp_file" ]]; then
+                    cp "$temp_file" "$config_file"
+                    log::success "Engine '$engine_name' enabled"
+                fi
+            fi
+            ;;
+    esac
+    
+    rm -f "$temp_file"
+    
+    log::info "Restart SearXNG for changes to take effect: resource-searxng manage restart"
+    return 0
+}

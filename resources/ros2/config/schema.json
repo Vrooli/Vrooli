@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ROS2 Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "domain_id": {
+      "type": "integer",
+      "description": "ROS2 domain ID for network isolation",
+      "minimum": 0,
+      "maximum": 232,
+      "default": 0
+    },
+    "middleware": {
+      "type": "string",
+      "description": "DDS middleware implementation",
+      "enum": ["fastdds", "cyclonedds", "connextdds"],
+      "default": "fastdds"
+    },
+    "discovery": {
+      "type": "object",
+      "properties": {
+        "multicast": {
+          "type": "boolean",
+          "description": "Enable multicast discovery",
+          "default": true
+        },
+        "port": {
+          "type": "integer",
+          "description": "Discovery port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 7400
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable DDS security",
+          "default": false
+        },
+        "keystore": {
+          "type": "string",
+          "description": "Path to security keystore"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "description": "API server port",
+          "minimum": 1024,
+          "maximum": 65535
+        },
+        "max_connections": {
+          "type": "integer",
+          "description": "Maximum concurrent connections",
+          "minimum": 1,
+          "default": 100
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "max_nodes": {
+          "type": "integer",
+          "description": "Maximum number of nodes",
+          "minimum": 1,
+          "default": 100
+        },
+        "buffer_size": {
+          "type": "integer",
+          "description": "Message buffer size in bytes",
+          "minimum": 1024,
+          "default": 65536
+        }
+      }
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

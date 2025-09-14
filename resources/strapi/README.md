@@ -4,6 +4,7 @@ Open-source headless CMS built on Node.js that provides a customizable API and a
 
 ## Quick Start
 
+### Option 1: Node.js Installation (Requires Node.js 20+)
 ```bash
 # Install Strapi
 vrooli resource strapi manage install
@@ -11,11 +12,29 @@ vrooli resource strapi manage install
 # Start the service
 vrooli resource strapi manage start --wait
 
+# Create admin user
+vrooli resource strapi admin create
+
 # Check status
 vrooli resource strapi status
 
 # View admin credentials
 vrooli resource strapi credentials
+```
+
+### Option 2: Docker Deployment (Recommended)
+```bash
+# Start with Docker Compose
+vrooli resource strapi docker start
+
+# Check Docker status
+vrooli resource strapi docker status
+
+# View Docker logs
+vrooli resource strapi docker logs
+
+# Stop Docker containers
+vrooli resource strapi docker stop
 ```
 
 ## Features
@@ -28,6 +47,8 @@ vrooli resource strapi credentials
 - **Plugin System**: Extend functionality with plugins
 - **Multi-Database**: PostgreSQL, MySQL, SQLite support
 - **Internationalization**: Multi-language content support
+- **Docker Support**: Full Docker Compose deployment option
+- **Automated Admin Creation**: Programmatic admin user setup
 
 ## Configuration
 

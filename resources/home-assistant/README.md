@@ -27,7 +27,7 @@ vrooli resource home-assistant test all
 - **Automation Engine**: Powerful automation with triggers, conditions, and actions
 - **Energy Management**: Track and optimize energy consumption with templates
 - **Custom Components**: Support for HACS and community integrations
-- **Voice Control**: Compatible with various voice assistants
+- **Voice Control**: Alexa, Google Assistant, and local voice assistant support
 - **Web Interface**: Modern, responsive UI accessible from any browser
 - **Backup/Restore**: Full configuration backup and recovery capabilities
 
@@ -146,6 +146,48 @@ automation:
         data:
           message: "Welcome home, {{ trigger.to_state.attributes.friendly_name }}!"
 ```
+
+## 🎤 Voice Control
+
+### Configure Voice Assistants
+
+Home Assistant supports multiple voice assistant integrations:
+
+```bash
+# Configure Alexa integration
+vrooli resource home-assistant voice configure alexa
+
+# Configure Google Assistant integration
+vrooli resource home-assistant voice configure google
+
+# Configure local voice assistant (Whisper + Piper)
+vrooli resource home-assistant voice configure custom
+
+# Check voice control status
+vrooli resource home-assistant voice status
+
+# Test voice configuration
+vrooli resource home-assistant voice test
+```
+
+### Alexa Integration
+- Enables control through Amazon Echo devices
+- Requires Amazon Developer account
+- Supports smart home skills
+- Update secrets.yaml with credentials after configuration
+
+### Google Assistant Integration
+- Works with Google Home devices and Assistant app
+- Requires Google Cloud project
+- Supports HomeGraph API
+- Configure OAuth 2.0 in Actions Console
+
+### Custom/Local Voice Assistant
+- Uses Whisper for speech-to-text
+- Uses Piper for text-to-speech
+- Supports wake word detection ("Ok Nabu")
+- Fully local processing for privacy
+- Configurable intent handlers
 
 ## 💾 Backup & Restore
 

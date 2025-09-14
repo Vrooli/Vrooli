@@ -69,6 +69,27 @@ vrooli resource kicad content execute generate-bom schematic.kicad_sch
 
 # Run Design Rule Check
 vrooli resource kicad content execute run-drc board.kicad_pcb
+
+# Generate 3D visualization
+vrooli resource kicad content execute visualize-3d board.kicad_pcb
+```
+
+### Version Control
+```bash
+# Initialize git repository for a project
+vrooli resource kicad version init my-project
+
+# Check git status
+vrooli resource kicad version status my-project
+
+# Commit changes
+vrooli resource kicad version commit my-project "Added power supply circuit"
+
+# View commit history
+vrooli resource kicad version log my-project
+
+# Create backup branch
+vrooli resource kicad version backup my-project
 ```
 
 ## Architecture

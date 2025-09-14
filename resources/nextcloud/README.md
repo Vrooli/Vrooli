@@ -134,7 +134,7 @@ vrooli resource nextcloud content execute --name mount-s3 --options "bucket=data
 - `content list [--filter <pattern>]` - List files
 - `content get --name <file>` - Download file
 - `content remove --name <file>` - Delete file
-- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3, enable-office)
+- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3, enable-office, configure-security)
 
 ### Testing
 - `test smoke` - Quick health check
@@ -266,6 +266,38 @@ Once enabled, you can:
 - Edit existing Office files by clicking on them
 - Collaborate in real-time with other users
 - Export documents in various formats
+
+### Calendar and Contacts (CalDAV/CardDAV)
+Nextcloud now includes full calendar and contacts support:
+```bash
+# CalDAV endpoint for calendars
+http://localhost:8086/remote.php/dav/calendars/[username]/
+
+# CardDAV endpoint for contacts  
+http://localhost:8086/remote.php/dav/addressbooks/users/[username]/
+
+# Access via web interface
+# Calendar: Apps → Calendar
+# Contacts: Apps → Contacts
+```
+
+### Security Configuration
+Harden your Nextcloud installation with security best practices:
+```bash
+# Apply security configuration
+vrooli resource nextcloud content execute --name configure-security
+
+# Enable encryption (optional, affects performance)
+vrooli resource nextcloud content execute --name configure-security --options "encrypt=true"
+```
+
+This configures:
+- HTTPS headers (requires reverse proxy for full HTTPS)
+- CSP and security headers
+- Brute force protection
+- Strong password policy (10+ chars, special, numeric, mixed case)
+- Session security hardening
+- Two-factor authentication support
 
 ### Backup and Restore
 ```bash

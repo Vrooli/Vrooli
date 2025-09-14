@@ -48,6 +48,15 @@ main() {
         credentials)
             show_credentials
             ;;
+        temperature)
+            octoprint_temperature
+            ;;
+        print-control)
+            octoprint_print_control "$@"
+            ;;
+        job-status)
+            octoprint_job_status
+            ;;
         *)
             echo "Error: Unknown command '${command}'"
             show_help
@@ -86,6 +95,13 @@ Commands:
   status              Show detailed status
   logs [--tail N]     View service logs
   credentials         Display API credentials
+  temperature         Show current temperature readings
+  print-control       Control print jobs
+    start             Start current print job
+    pause             Pause active print
+    resume            Resume paused print
+    cancel            Cancel print job
+  job-status          Show current print job status
 
 Environment Variables:
   OCTOPRINT_PORT              Web interface port (default: 8197)

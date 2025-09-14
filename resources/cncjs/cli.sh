@@ -77,6 +77,21 @@ COMMANDS:
         render <file>       Render static visualization image
         export <file>       Export visualization as HTML
         server              Start visualization server
+    camera                  Camera monitoring and control
+        list                List available camera devices
+        enable [device]     Enable camera monitoring
+        disable             Disable camera monitoring
+        snapshot [file]     Capture snapshot image
+        stream start|stop   Start/stop live video stream
+        timelapse start|stop Manage timelapse capture
+    widget                  Custom widget management
+        list                List available widgets
+        create <name> [type] Create new widget
+        show <name>         Display widget definition
+        install <name>      Install widget to CNCjs
+        uninstall <name>    Remove widget from CNCjs
+        export <name>       Export widget package
+        import <file>       Import widget package
     status                  Show detailed service status
     logs                    View CNCjs logs
     credentials             Display connection information
@@ -220,6 +235,16 @@ main() {
             local subcommand="${1:-}"
             shift || true
             cncjs::visualization "$subcommand" "$@"
+            ;;
+        camera)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::camera "$subcommand" "$@"
+            ;;
+        widget)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::widget "$subcommand" "$@"
             ;;
         *)
             echo "Unknown command: $command" >&2

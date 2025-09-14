@@ -16,12 +16,28 @@ if [[ -f "${OPENROUTER_LIB_DIR}/ratelimit.sh" ]]; then
     source "${OPENROUTER_LIB_DIR}/ratelimit.sh"
 fi
 
+# Source routing rules if available
+if [[ -f "${OPENROUTER_LIB_DIR}/routing.sh" ]]; then
+    source "${OPENROUTER_LIB_DIR}/routing.sh"
+fi
+
 # Model selection strategies
 openrouter::models::select_auto() {
     local task_type="${1:-general}"
     local budget="${2:-0.10}"
+    local prompt="${3:-}"
     
-    # Auto-select based on task type
+    # Check if routing rules should be used
+    if [[ -n "$prompt" ]] && command -v openrouter::routing::evaluate >/dev/null 2>&1; then
+        # Use routing rules to select model
+        local selected_model=$(openrouter::routing::evaluate "$prompt")
+        if [[ -n "$selected_model" ]]; then
+            echo "$selected_model"
+            return 0
+        fi
+    fi
+    
+    # Fall back to original auto-select based on task type
     case "$task_type" in
         code|programming)
             echo "anthropic/claude-3-sonnet"

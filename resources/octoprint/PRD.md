@@ -14,8 +14,8 @@
 - [x] **Lifecycle Management**: setup/develop/test/stop commands work reliably
 - [ ] **Printer Connection**: Can connect to 3D printers via USB serial ports (requires physical printer)
 - [x] **G-Code Upload**: Accept and manage G-code files for printing
-- [ ] **Print Control**: Start, pause, cancel print jobs via API (requires API key config)
-- [ ] **Temperature Monitoring**: Report hotend and bed temperatures in real-time (requires printer)
+- [x] **Print Control**: Start, pause, cancel print jobs via CLI commands (API has auth issues)
+- [x] **Temperature Monitoring**: Temperature monitoring command implemented (requires printer for data)
 - [x] **Web Interface**: Accessible browser-based control panel on configured port
 
 ### P1 Requirements (Should Have)
@@ -87,7 +87,7 @@ metrics:
 
 ### Completion Targets
 - **Phase 1**: 30% - Core structure and health checks ✅
-- **Phase 2**: 60% - Printer connection and basic control (40% complete)
+- **Phase 2**: 60% - Printer connection and basic control (55% complete - commands work, API auth issues)
 - **Phase 3**: 80% - Full print management and monitoring
 - **Phase 4**: 100% - Webcam integration and plugins
 
@@ -171,16 +171,20 @@ metrics:
 - Stress test with large files
 - Security audit API endpoints
 
-## Current Implementation Status (2025-09-13)
+## Current Implementation Status (2025-09-14)
 
-Successfully scaffolded with:
+Successfully improved with:
 - ✅ Docker-based deployment working
-- ✅ Virtual printer support for testing
+- ✅ Virtual printer support for testing  
 - ✅ Web interface accessible on port 8197
 - ✅ G-code file management (upload/list/remove)
 - ✅ v2.0 contract compliance
 - ✅ Smoke and unit tests passing
-- ⚠️ API authentication needs configuration
+- ✅ Temperature monitoring command added
+- ✅ Print control commands implemented (start/pause/resume/cancel)
+- ✅ Job status command added
+- ✅ API key generation improved
+- ⚠️ API authentication has configuration issues (see PROBLEMS.md)
 - ⚠️ Physical printer support untested
 
 ## Success Indicators

@@ -78,6 +78,7 @@ cli::register_command "credentials" "Show n8n integration credentials" "searxng:
 
 # Custom content subcommands for SearXNG-specific search operations  
 cli::register_subcommand "content" "search" "Perform search query" "searxng::execute_search"
+cli::register_subcommand "content" "advanced-search" "Advanced search with filters" "searxng::advanced_search"
 cli::register_subcommand "content" "lucky" "I'm Feeling Lucky search" "searxng::execute_lucky"
 cli::register_subcommand "content" "headlines" "Get news headlines" "searxng::execute_headlines"
 cli::register_subcommand "content" "batch" "Batch search from file" "searxng::execute_batch"
@@ -88,6 +89,12 @@ cli::register_subcommand "content" "benchmark" "Run performance benchmark" "sear
 cli::register_subcommand "content" "config" "Show configuration" "searxng::show_config"
 cli::register_subcommand "content" "backup" "Backup configuration" "searxng::backup"
 cli::register_subcommand "content" "restore" "Restore from backup" "searxng::restore"
+
+# Custom engine configuration management
+cli::register_subcommand "content" "list-engines" "List available search engines" "searxng::list_engines"
+cli::register_subcommand "content" "add-engine" "Add a search engine" "searxng::add_engine"
+cli::register_subcommand "content" "remove-engine" "Remove a search engine" "searxng::remove_engine"
+cli::register_subcommand "content" "toggle-engine" "Toggle engine enabled/disabled" "searxng::toggle_engine"
 
 # Redis caching management
 cli::register_subcommand "content" "enable-redis" "Enable Redis caching" "searxng::enable_redis"

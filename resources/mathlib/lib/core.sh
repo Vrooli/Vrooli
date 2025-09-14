@@ -204,6 +204,20 @@ CACHE_DIR = os.environ.get('MATHLIB_CACHE_DIR', '/tmp/mathlib/cache')
 proof_jobs = {}
 proof_lock = threading.Lock()
 
+# Performance metrics
+metrics = {
+    'total_requests': 0,
+    'successful_proofs': 0,
+    'failed_proofs': 0,
+    'total_execution_time': 0,
+    'average_execution_time': 0,
+    'min_execution_time': float('inf'),
+    'max_execution_time': 0,
+    'active_jobs': 0,
+    'queued_jobs': 0
+}
+metrics_lock = threading.Lock()
+
 def check_lean_installation():
     """Check if Lean is properly installed"""
     try:
@@ -216,6 +230,12 @@ def check_lean_installation():
 
 def execute_lean_proof(proof_code, job_id):
     """Execute a Lean proof and update job status"""
+    # Update metrics
+    with metrics_lock:
+        metrics['total_requests'] += 1
+        metrics['active_jobs'] += 1
+        metrics['queued_jobs'] = max(0, metrics['queued_jobs'] - 1)
+    
     try:
         # Create temporary file for proof
         with tempfile.NamedTemporaryFile(mode='w', suffix='.lean', dir=WORK_DIR, delete=False) as f:
@@ -240,6 +260,22 @@ def execute_lean_proof(proof_code, job_id):
         with proof_lock:
             proof_jobs[job_id]['end_time'] = time.time()
             proof_jobs[job_id]['duration'] = proof_jobs[job_id]['end_time'] - proof_jobs[job_id]['start_time']
+            
+            # Update metrics
+            duration = proof_jobs[job_id]['duration']
+            with metrics_lock:
+                metrics['total_execution_time'] += duration
+                metrics['min_execution_time'] = min(metrics['min_execution_time'], duration)
+                metrics['max_execution_time'] = max(metrics['max_execution_time'], duration)
+                
+                if result.returncode == 0:
+                    metrics['successful_proofs'] += 1
+                else:
+                    metrics['failed_proofs'] += 1
+                
+                total_completed = metrics['successful_proofs'] + metrics['failed_proofs']
+                if total_completed > 0:
+                    metrics['average_execution_time'] = metrics['total_execution_time'] / total_completed
             
             if result.returncode == 0:
                 proof_jobs[job_id]['status'] = 'success'
@@ -267,6 +303,8 @@ def execute_lean_proof(proof_code, job_id):
                 'valid': False,
                 'message': 'Proof execution timed out after 60 seconds'
             }
+        with metrics_lock:
+            metrics['failed_proofs'] += 1
     except Exception as e:
         with proof_lock:
             proof_jobs[job_id]['status'] = 'error'
@@ -274,6 +312,11 @@ def execute_lean_proof(proof_code, job_id):
                 'valid': False,
                 'message': f'Internal error: {str(e)}'
             }
+        with metrics_lock:
+            metrics['failed_proofs'] += 1
+    finally:
+        with metrics_lock:
+            metrics['active_jobs'] = max(0, metrics['active_jobs'] - 1)
 
 class MathlibHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -288,7 +331,7 @@ class MathlibHandler(BaseHTTPRequestHandler):
                 'version': '1.0.0',
                 'lean': lean_version if lean_version else 'not-installed',
                 'mathlib': 'available' if lean_version else 'not-available',
-                'endpoints': ['/health', '/prove', '/status/{id}', '/tactics']
+                'endpoints': ['/health', '/prove', '/status/{id}', '/tactics', '/batch', '/batch/status/{batch_id}', '/metrics']
             }
             self.send_json_response(200, response)
             
@@ -308,6 +351,59 @@ class MathlibHandler(BaseHTTPRequestHandler):
                 'advanced': ['omega', 'interval_cases', 'field_simp', 'polyrith']
             }
             self.send_json_response(200, tactics)
+            
+        elif path.startswith('/batch/status/'):
+            # Get status of all jobs in a batch
+            batch_id = path.replace('/batch/status/', '')
+            with proof_lock:
+                batch_jobs = [job for job in proof_jobs.values() if job.get('batch_id') == batch_id]
+                
+            if batch_jobs:
+                completed = sum(1 for job in batch_jobs if job['status'] in ['success', 'failed', 'timeout', 'error'])
+                total = len(batch_jobs)
+                batch_status = 'completed' if completed == total else 'processing'
+                
+                response = {
+                    'batch_id': batch_id,
+                    'status': batch_status,
+                    'completed': completed,
+                    'total': total,
+                    'jobs': batch_jobs
+                }
+                self.send_json_response(200, response)
+            else:
+                self.send_json_response(404, {'error': 'Batch not found'})
+        
+        elif path == '/metrics':
+            # Return performance metrics
+            with metrics_lock:
+                # Calculate current queue size
+                with proof_lock:
+                    queued_count = sum(1 for job in proof_jobs.values() if job['status'] == 'queued')
+                    running_count = sum(1 for job in proof_jobs.values() if job['status'] == 'running')
+                
+                response = {
+                    'performance': {
+                        'total_requests': metrics['total_requests'],
+                        'successful_proofs': metrics['successful_proofs'],
+                        'failed_proofs': metrics['failed_proofs'],
+                        'success_rate': metrics['successful_proofs'] / max(1, metrics['total_requests']) * 100,
+                        'average_execution_time': round(metrics['average_execution_time'], 3),
+                        'min_execution_time': round(metrics['min_execution_time'], 3) if metrics['min_execution_time'] != float('inf') else 0,
+                        'max_execution_time': round(metrics['max_execution_time'], 3),
+                    },
+                    'current_status': {
+                        'active_jobs': running_count,
+                        'queued_jobs': queued_count,
+                        'total_jobs_processed': len(proof_jobs)
+                    },
+                    'system': {
+                        'lean_installed': bool(check_lean_installation()),
+                        'work_dir': WORK_DIR,
+                        'cache_dir': CACHE_DIR
+                    }
+                }
+            self.send_json_response(200, response)
             
         else:
             self.send_json_response(404, {'error': 'Not found'})
@@ -334,6 +430,9 @@ class MathlibHandler(BaseHTTPRequestHandler):
                         'created': time.time()
                     }
                 
+                with metrics_lock:
+                    metrics['queued_jobs'] += 1
+                
                 # Start proof execution in background
                 thread = threading.Thread(target=execute_lean_proof, args=(proof_code, job_id))
                 thread.daemon = True
@@ -345,6 +444,69 @@ class MathlibHandler(BaseHTTPRequestHandler):
                 self.send_json_response(400, {'error': 'Invalid JSON'})
             except Exception as e:
                 self.send_json_response(500, {'error': str(e)})
+                
+        elif self.path == '/batch':
+            # Batch processing endpoint for multiple proofs
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            
+            try:
+                data = json.loads(post_data.decode('utf-8'))
+                proofs = data.get('proofs', [])
+                
+                if not proofs or not isinstance(proofs, list):
+                    self.send_json_response(400, {'error': 'No proofs array provided'})
+                    return
+                
+                batch_id = str(uuid.uuid4())
+                job_ids = []
+                
+                # Create jobs for all proofs
+                for i, proof_item in enumerate(proofs):
+                    if isinstance(proof_item, str):
+                        proof_code = proof_item
+                        proof_name = f"proof_{i}"
+                    elif isinstance(proof_item, dict):
+                        proof_code = proof_item.get('proof', '')
+                        proof_name = proof_item.get('name', f"proof_{i}")
+                    else:
+                        continue
+                    
+                    if not proof_code:
+                        continue
+                    
+                    job_id = str(uuid.uuid4())
+                    with proof_lock:
+                        proof_jobs[job_id] = {
+                            'id': job_id,
+                            'batch_id': batch_id,
+                            'name': proof_name,
+                            'status': 'queued',
+                            'created': time.time()
+                        }
+                    
+                    with metrics_lock:
+                        metrics['queued_jobs'] += 1
+                    
+                    # Start proof execution in background
+                    thread = threading.Thread(target=execute_lean_proof, args=(proof_code, job_id))
+                    thread.daemon = True
+                    thread.start()
+                    
+                    job_ids.append(job_id)
+                
+                self.send_json_response(202, {
+                    'batch_id': batch_id,
+                    'job_ids': job_ids,
+                    'total': len(job_ids),
+                    'status': 'processing'
+                })
+                
+            except json.JSONDecodeError:
+                self.send_json_response(400, {'error': 'Invalid JSON'})
+            except Exception as e:
+                self.send_json_response(500, {'error': str(e)})
+                
         else:
             self.send_json_response(404, {'error': 'Not found'})
     

@@ -26,6 +26,13 @@ This document tracks active issues and unresolved problems with the Browserless 
 **Workaround**: Most functionality works through the available endpoints.  
 **Fix Required**: Update documentation to clearly indicate which endpoints are available.
 
+### 4. Health Endpoint Clarification
+**Severity**: Documentation  
+**Impact**: Potential confusion about health checks  
+**Description**: The browserless service doesn't provide a traditional `/health` endpoint. The `/pressure` endpoint serves as the comprehensive health and metrics endpoint, providing CPU, memory, browser pool status, and service availability.  
+**Workaround**: None needed - `/pressure` endpoint provides all required health information.  
+**Fix Required**: Documentation update to clarify that `/pressure` is the standard health endpoint for browserless.
+
 ## Resolved Problems
 
 ### 1. Missing schema.json (RESOLVED 2025-01-13)

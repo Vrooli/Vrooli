@@ -33,12 +33,13 @@ curl -X POST http://localhost:9510/simulate \
 
 ## Architecture
 
-SimPy runs as a Python-based REST API service that:
+SimPy runs as an enhanced Python-based REST API service with:
 - **Discrete-Event Simulation**: Models complex workflows and resource allocation
 - **Physics Modeling**: Simulates rigid body dynamics, collisions, and physical constraints
 - **Process Optimization**: Multi-objective optimization with bottleneck analysis
 - **Supply Chain Modeling**: Multi-echelon networks with inventory management
-- **Real-time Monitoring**: Track simulation progress and metrics
+- **Real-time Monitoring**: WebSocket support for live simulation progress tracking
+- **Pattern Storage**: Qdrant integration for storing and searching simulation patterns
 
 ## Core Capabilities
 
@@ -75,12 +76,24 @@ SimPy runs as a Python-based REST API service that:
 - **physics_rigid_body.py**: Rigid body physics with collisions and gravity
 - **process_optimization.py**: Complex workflow optimization with resource constraints
 - **supply_chain_network.py**: Multi-echelon supply chain with inventory management
+- **real_time_monitoring.py**: Factory simulation with real-time progress tracking
+- **qdrant_integration.py**: Pattern storage and similarity search demonstration
 
 ## API Endpoints
 
-- `GET /health` - Service health check
+### Core Endpoints
+- `GET /health` - Service health check with feature status
+- `GET /version` - Version information and capabilities
 - `POST /simulate` - Run a simulation with custom code
 - `GET /examples` - List available example simulations
+
+### Monitoring Endpoints
+- `GET /simulations` - List active simulations
+- `GET /progress/{sim_id}` - Get simulation progress events
+- `WS /monitor/{sim_id}` - WebSocket connection for real-time monitoring
+
+### Pattern Storage (when Qdrant available)
+- `POST /search` - Search for similar simulation patterns
 
 ## Documentation
 

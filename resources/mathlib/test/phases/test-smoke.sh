@@ -4,8 +4,14 @@
 
 set -euo pipefail
 
-# Source test library
-TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Execute test with timeout
+exec timeout 30 bash << 'SCRIPT'
+set -euo pipefail
+
+# Get test directory
+TEST_DIR="/home/matthalloran8/Vrooli/resources/mathlib/test"
+
+# Source libraries
 source "${TEST_DIR}/../lib/test.sh"
 source "${TEST_DIR}/../lib/core.sh"
 
@@ -29,43 +35,35 @@ run_test() {
     fi
 }
 
-# Main smoke test
-main() {
-    echo "Mathlib Smoke Tests"
-    echo "==================="
-    
-    # Ensure service is started for tests
-    echo "Starting service for tests..."
-    mathlib::stop > /dev/null 2>&1 || true
-    if ! mathlib::start --wait > /dev/null 2>&1; then
-        echo "Failed to start service"
-        exit 1
-    fi
-    
-    # Run smoke tests
-    run_test "Health endpoint" mathlib::test::health
-    run_test "Configuration valid" mathlib::test::config
-    run_test "CLI help works" "${TEST_DIR}/../cli.sh" help
-    run_test "CLI info works" "${TEST_DIR}/../cli.sh" info
-    run_test "CLI status works" "${TEST_DIR}/../cli.sh" status
-    
-    # Stop service
-    echo "Stopping service..."
-    mathlib::stop > /dev/null 2>&1 || true
-    
-    # Summary
-    echo ""
-    echo "Smoke Tests: ${TESTS_PASSED}/${TESTS_RUN} passed"
-    
-    if [[ ${TESTS_PASSED} -eq ${TESTS_RUN} ]]; then
-        exit 0
-    else
-        exit 1
-    fi
-}
+echo "Mathlib Smoke Tests"
+echo "==================="
 
-# Execute with timeout
-timeout 30 bash -c "$(declare -f main); main" || {
-    echo "Smoke tests timed out (>30s)"
+# Ensure service is started for tests
+echo "Starting service for tests..."
+mathlib::stop > /dev/null 2>&1 || true
+if ! mathlib::start --wait > /dev/null 2>&1; then
+    echo "Failed to start service"
     exit 1
-}
+fi
+
+# Run smoke tests
+run_test "Health endpoint" mathlib::test::health
+run_test "Configuration valid" mathlib::test::config
+run_test "CLI help works" "${TEST_DIR}/../cli.sh" help
+run_test "CLI info works" "${TEST_DIR}/../cli.sh" info
+run_test "CLI status works" "${TEST_DIR}/../cli.sh" status
+
+# Stop service
+echo "Stopping service..."
+mathlib::stop > /dev/null 2>&1 || true
+
+# Summary
+echo ""
+echo "Smoke Tests: ${TESTS_PASSED}/${TESTS_RUN} passed"
+
+if [[ ${TESTS_PASSED} -eq ${TESTS_RUN} ]]; then
+    exit 0
+else
+    exit 1
+fi
+SCRIPT

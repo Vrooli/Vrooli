@@ -24,6 +24,7 @@ declare -A TEST_PHASES=(
     ["smoke"]="Quick health validation"
     ["integration"]="End-to-end functionality"
     ["unit"]="Library function validation"
+    ["voice"]="Voice control configuration tests"
     ["all"]="Run all test phases"
 )
 
@@ -54,7 +55,7 @@ run_phase() {
     if [[ "$phase" == "all" ]]; then
         # Run all phases in sequence
         local failed=0
-        for test_phase in smoke integration unit; do
+        for test_phase in smoke integration unit voice; do
             if ! run_phase "$test_phase"; then
                 ((failed++))
             fi

@@ -87,15 +87,15 @@ pandas_ai::test::smoke() {
 pandas_ai::test::integration() {
     log::header "Running Pandas AI integration test"
     
-    # Run smoke test first
-    if ! pandas_ai::test::smoke; then
-        log::error "INTEGRATION TEST FAILED: Smoke test failed"
+    # Run the actual integration test script
+    local test_script="${APP_ROOT}/resources/pandas-ai/test/phases/test-integration.sh"
+    if [[ -f "${test_script}" ]]; then
+        bash "${test_script}"
+        return $?
+    else
+        log::error "Integration test script not found: ${test_script}"
         return 1
     fi
-    
-    log::info "Basic smoke tests passed, integration specific tests would go here"
-    log::success "🎉 Integration tests completed successfully!"
-    return 0
 }
 
 # All tests - delegate to test runner

@@ -77,6 +77,24 @@ obs::test::integration() {
         ((failed++))
     fi
     
+    # Test 5: Streaming control
+    log::info "Testing streaming control..."
+    if obs::test::streaming; then
+        log::success "✅ Streaming control functional"
+    else
+        log::error "❌ Streaming control failed"
+        ((failed++))
+    fi
+    
+    # Test 6: Source management
+    log::info "Testing source management..."
+    if obs::test::sources; then
+        log::success "✅ Source management functional"
+    else
+        log::error "❌ Source management failed"
+        ((failed++))
+    fi
+    
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
@@ -258,4 +276,62 @@ obs::websocket::test_connection() {
     
     # Real mode would test actual WebSocket connection
     return 0
+}
+
+obs::test::streaming() {
+    # Test streaming functionality
+    local test_profile="test-stream-profile"
+    local test_config_file="/tmp/obs-test-stream.json"
+    
+    # Create a test streaming profile
+    cat > "$test_config_file" <<EOF
+{
+    "platform": "custom",
+    "server_url": "rtmp://test.example.com/live",
+    "stream_key": "test-key-12345",
+    "bitrate": 2500,
+    "audio_bitrate": 128
+}
+EOF
+    
+    # Test adding a streaming profile
+    if obs::content::add --file "$test_config_file" --type streaming --name "$test_profile" &>/dev/null; then
+        # Test listing profiles
+        if obs::streaming::profiles 2>&1 | grep -q "$test_profile"; then
+            # Test streaming status when not streaming
+            local status=$(obs::streaming::status 2>&1)
+            if echo "$status" | grep -q "Not streaming"; then
+                # Clean up
+                obs::content::remove --name "$test_profile" --type streaming &>/dev/null
+                rm -f "$test_config_file"
+                return 0
+            fi
+        fi
+    fi
+    
+    rm -f "$test_config_file"
+    return 1
+}
+
+obs::test::sources() {
+    # Test source management functionality
+    local test_source="test-camera-source"
+    
+    # Test adding a source
+    if obs::sources::add --name "$test_source" --type camera &>/dev/null; then
+        # Test listing sources
+        if obs::sources::list 2>&1 | grep -q "$test_source"; then
+            # Test configuring source
+            if obs::sources::configure --name "$test_source" --property "fps" --value "30" &>/dev/null; then
+                # Test source visibility
+                if obs::sources::visibility --name "$test_source" --visible false &>/dev/null; then
+                    # Clean up
+                    obs::sources::remove --name "$test_source" &>/dev/null
+                    return 0
+                fi
+            fi
+        fi
+    fi
+    
+    return 1
 }

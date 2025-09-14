@@ -43,8 +43,8 @@ OpenRouter provides a unified AI model gateway that enables access to 100+ model
   
 - **Nice to Have (P2)**
   - [x] Model performance benchmarking (2025-09-13)
-  - [ ] Custom routing rules
-  - [ ] Integration with Cloudflare AI Gateway
+  - [x] Custom routing rules (2025-09-14)
+  - [ ] Integration with Cloudflare AI Gateway (fallback)
 
 ### Performance Criteria
 | Metric | Target | Measurement Method |
@@ -684,3 +684,17 @@ release_management:
   - P0 Requirements: 100% complete
   - P1 Requirements: 100% complete
   - P2 Requirements: 33% complete (1/3 implemented)
+
+- **2025-09-14**: Implemented custom routing rules (P2 requirement)
+  - Added lib/routing.sh for dynamic model selection based on custom rules
+  - Implemented routing command with add/list/remove/enable/disable/test/evaluate functions
+  - Rules support multiple condition types (prompt_contains, length, cost, response time)
+  - Rules support multiple action types (select_model, select_cheapest, select_fastest)
+  - Integrated routing with automatic model selection in lib/models.sh
+  - Routing decisions are logged for analytics
+  - Default rules include cost-optimizer, code-specialist, and fast-response
+  - Updated README with comprehensive routing documentation
+  - All existing tests continue to pass with no regressions
+  - P0 Requirements: 100% complete
+  - P1 Requirements: 100% complete
+  - P2 Requirements: 67% complete (2/3 implemented)

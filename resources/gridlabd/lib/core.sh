@@ -48,30 +48,41 @@ gridlabd_install() {
         echo "Python3 found, proceeding with installation..."
     fi
     
-    # Python environment setup (simplified for scaffolding)
+    # Python environment setup
     echo "Setting up Python environment..."
-    echo "Note: In production, this would create a virtual environment and install dependencies"
-    echo "Dependencies required: flask, flask-cors, numpy, pandas, matplotlib, plotly"
-    
-    # For scaffolding, just check if Python exists
-    if command -v python3 &> /dev/null; then
-        echo "Python3 available for API service"
+    if [ -f "${SCRIPT_DIR}/lib/setup_venv.sh" ]; then
+        source "${SCRIPT_DIR}/lib/setup_venv.sh"
+        setup_python_venv || {
+            echo "Warning: Virtual environment setup failed, using system Python"
+        }
     else
-        echo "Warning: Python3 not available, API service may not work"
+        echo "Note: In production, this would create a virtual environment and install dependencies"
+        echo "Dependencies required: flask, flask-cors, numpy, pandas, matplotlib, plotly"
+        
+        # For scaffolding, just check if Python exists
+        if command -v python3 &> /dev/null; then
+            echo "Python3 available for API service"
+        else
+            echo "Warning: Python3 not available, API service may not work"
+        fi
     fi
     
-    # Install GridLAB-D from source (simplified for scaffolding)
-    echo "Note: GridLAB-D core installation would be completed here"
-    echo "For now, creating mock binary for testing"
-    
-    # Create mock binary for testing (in user directory to avoid sudo)
-    mkdir -p "${HOME}/.local/bin"
-    cat > "${HOME}/.local/bin/gridlabd" << 'EOF'
+    # Install GridLAB-D from source or binary
+    if [ -f "${SCRIPT_DIR}/lib/install.sh" ]; then
+        source "${SCRIPT_DIR}/lib/install.sh"
+        install_gridlabd_from_source
+    else
+        echo "Warning: install.sh not found, using simplified installation"
+        # Create mock binary for testing (in user directory to avoid sudo)
+        mkdir -p "${HOME}/.local/bin"
+        cat > "${HOME}/.local/bin/gridlabd" << 'EOF'
 #!/bin/bash
 echo "GridLAB-D 5.3.0 (mock)"
 exit 0
 EOF
-    chmod +x "${HOME}/.local/bin/gridlabd"
+        chmod +x "${HOME}/.local/bin/gridlabd"
+    fi
+    
     export PATH="${HOME}/.local/bin:${PATH}"
     
     # Create API service script
@@ -153,9 +164,17 @@ gridlabd_start() {
         return 0
     fi
     
-    # Start API service (without venv for scaffolding)
-    nohup python3 "${SCRIPT_DIR}/lib/api_server.py" \
-        > "${GRIDLABD_API_LOG_FILE}" 2>&1 &
+    # Start API service (prefer Flask server, fallback to basic)
+    if [ -f "${SCRIPT_DIR}/lib/run_api.sh" ]; then
+        nohup "${SCRIPT_DIR}/lib/run_api.sh" \
+            > "${GRIDLABD_API_LOG_FILE}" 2>&1 &
+    elif [ -f "${SCRIPT_DIR}/lib/flask_server.py" ]; then
+        nohup python3 "${SCRIPT_DIR}/lib/flask_server.py" \
+            > "${GRIDLABD_API_LOG_FILE}" 2>&1 &
+    else
+        nohup python3 "${SCRIPT_DIR}/lib/api_server.py" \
+            > "${GRIDLABD_API_LOG_FILE}" 2>&1 &
+    fi
     local pid=$!
     echo $pid > "${GRIDLABD_DATA_DIR}/api.pid"
     
@@ -405,74 +424,12 @@ gridlabd_validate_install() {
 }
 
 create_api_service() {
-    # Create simple API server (using basic Python HTTP server for scaffolding)
-    cat > "${SCRIPT_DIR}/lib/api_server.py" << 'EOF'
-#!/usr/bin/env python3
-"""GridLAB-D API Server - Minimal implementation for scaffolding"""
-
-import os
-import json
-import http.server
-import socketserver
-from datetime import datetime
-from urllib.parse import urlparse
-
-PORT = int(os.environ.get('GRIDLABD_PORT', 9511))
-
-@app.route('/health', methods=['GET'])
-def health():
-    """Health check endpoint"""
-    return jsonify({
-        'status': 'healthy',
-        'timestamp': datetime.now().isoformat(),
-        'version': '5.3.0',
-        'service': 'gridlabd'
-    })
-
-@app.route('/version', methods=['GET'])
-def version():
-    """Version information endpoint"""
-    return jsonify({
-        'gridlabd': '5.3.0',
-        'api': '1.0.0',
-        'python': '3.12'
-    })
-
-@app.route('/simulate', methods=['POST'])
-def simulate():
-    """Execute simulation - placeholder"""
-    return jsonify({
-        'status': 'queued',
-        'id': 'sim_' + datetime.now().strftime('%Y%m%d_%H%M%S'),
-        'message': 'Simulation queued for execution'
-    })
-
-@app.route('/powerflow', methods=['POST'])
-def powerflow():
-    """Run power flow analysis - placeholder"""
-    return jsonify({
-        'status': 'success',
-        'convergence': True,
-        'iterations': 5,
-        'max_voltage': 1.05,
-        'min_voltage': 0.95
-    })
-
-@app.route('/examples', methods=['GET'])
-def examples():
-    """List available examples"""
-    return jsonify({
-        'examples': [
-            'ieee13',
-            'ieee34',
-            'residential_feeder',
-            'commercial_campus',
-            'microgrid_islanded'
-        ]
-    })
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=PORT, debug=False)
-EOF
-    chmod +x "${SCRIPT_DIR}/lib/api_server.py"
+    # Keep existing api_server.py if it exists and is working
+    if [ -f "${SCRIPT_DIR}/lib/api_server.py" ]; then
+        echo "API server already exists, skipping creation"
+        return 0
+    fi
+    
+    echo "Warning: api_server.py not found, this should have been created already"
+    return 1
 }

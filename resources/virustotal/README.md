@@ -17,9 +17,15 @@ The VirusTotal resource provides comprehensive threat detection capabilities by 
 - **Rate Limiting**: Intelligent queue management for API quotas
 - **Result Caching**: Local SQLite caching to minimize API calls
 - **Health Monitoring**: Service health and quota tracking
+- **Mock Mode**: Test and develop without API key using simulated responses
+
+### New Features (This Update)
+- **Batch Processing**: Bulk file/URL submission with rate limiting
+- **Export Formats**: CSV and summary report formats for compliance
+- **URL Report Retrieval**: Fetch analysis results for previously scanned URLs
+- **Mock Mode Support**: Full functionality testing without API key
 
 ### Planned
-- **Batch Processing**: Bulk file/URL submission
 - **YARA Rules**: Custom threat hunting rules (premium feature)
 - **Historical Analysis**: Track threat evolution over time
 
@@ -40,7 +46,7 @@ vrooli resource virustotal manage start --wait
 
 ### Required Environment Variables
 
-- `VIRUSTOTAL_API_KEY`: Your VirusTotal API key (required)
+- `VIRUSTOTAL_API_KEY`: Your VirusTotal API key (or omit for mock mode)
 
 ### Optional Environment Variables
 
@@ -50,6 +56,27 @@ vrooli resource virustotal manage start --wait
 - `VIRUSTOTAL_CACHE_TTL`: Cache TTL in seconds (default: 86400)
 - `VIRUSTOTAL_WEBHOOK_URL`: Webhook endpoint for notifications
 - `VIRUSTOTAL_LOG_LEVEL`: Logging level (default: INFO)
+
+### Mock Mode (Testing Without API Key)
+
+The resource supports full mock mode for testing and development:
+
+```bash
+# Start in mock mode (no API key required)
+unset VIRUSTOTAL_API_KEY
+vrooli resource virustotal manage start
+
+# All endpoints work with simulated responses
+curl http://localhost:8290/api/health  # Returns healthy status
+curl -X POST http://localhost:8290/api/scan/file -F "file=@test.txt"  # Returns mock scan results
+curl -X POST http://localhost:8290/api/scan/url -H "Content-Type: application/json" -d '{"url": "http://example.com"}'
+```
+
+Mock mode features:
+- All API endpoints return realistic mock data
+- EICAR test strings trigger "malicious" detections  
+- Rate limiting still enforced for realistic testing
+- Perfect for CI/CD pipelines and local development
 
 ### API Limits
 
@@ -89,8 +116,14 @@ vrooli resource virustotal credentials
 # Submit a file for scanning
 vrooli resource virustotal content add --file /path/to/suspicious.exe
 
-# Get scan results by hash
+# Get scan results by hash (JSON format)
 vrooli resource virustotal content get --hash SHA256_HASH
+
+# Export scan results as CSV
+vrooli resource virustotal content get --hash SHA256_HASH --format csv --output report.csv
+
+# Get human-readable summary
+vrooli resource virustotal content get --hash SHA256_HASH --format summary
 
 # List cached results
 vrooli resource virustotal content list
@@ -107,8 +140,17 @@ curl -X POST http://localhost:8290/api/scan/url \
   -H "Content-Type: application/json" \
   -d '{"url": "http://suspicious-site.com", "webhook": "http://localhost:3000/webhook"}'
 
-# Batch URL scanning (planned)
-vrooli resource virustotal content execute --url-list urls.txt
+# Batch URL scanning
+vrooli resource virustotal content execute --batch-file urls.txt --type url
+
+# Batch file scanning with CSV output
+vrooli resource virustotal content execute --batch-file files.txt --type file --format csv
+
+# Batch scanning with webhook notifications
+vrooli resource virustotal content execute --batch-file urls.txt --type url --webhook http://localhost:3000/callback
+
+# Wait for all batch results
+vrooli resource virustotal content execute --batch-file files.txt --type file --wait
 ```
 
 ### IP and Domain Reputation

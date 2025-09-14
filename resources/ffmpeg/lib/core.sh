@@ -428,6 +428,113 @@ ffmpeg::preset::apply() {
     fi
 }
 
+################################################################################
+# START: Web Interface Functions
+################################################################################
+
+# Web interface PID file
+WEB_PID_FILE="/tmp/ffmpeg-web.pid"
+
+# Start web interface server
+ffmpeg::web::start() {
+    local port="${1:-${FFMPEG_API_PORT:-8080}}"
+    
+    if [[ -f "$WEB_PID_FILE" ]]; then
+        local pid=$(cat "$WEB_PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            log::info "Web interface already running on port $port (PID: $pid)"
+            return 0
+        fi
+    fi
+    
+    log::info "Starting FFmpeg web interface on port $port"
+    
+    # Start the API server in background
+    nohup "${FFMPEG_CLI_DIR}/lib/api.sh" start > /tmp/ffmpeg-web.log 2>&1 &
+    local pid=$!
+    echo "$pid" > "$WEB_PID_FILE"
+    
+    # Wait for server to start
+    local max_wait=10
+    local waited=0
+    while [[ $waited -lt $max_wait ]]; do
+        if timeout 1 curl -sf "http://localhost:$port" >/dev/null 2>&1; then
+            log::success "Web interface started successfully on http://localhost:$port"
+            return 0
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    
+    log::error "Failed to start web interface"
+    return 1
+}
+
+# Stop web interface server
+ffmpeg::web::stop() {
+    if [[ -f "$WEB_PID_FILE" ]]; then
+        local pid=$(cat "$WEB_PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill "$pid"
+            rm -f "$WEB_PID_FILE"
+            log::success "Web interface stopped"
+        else
+            log::warn "Web interface not running"
+        fi
+    else
+        log::warn "No web interface PID file found"
+    fi
+}
+
+# Check web interface status
+ffmpeg::web::status() {
+    local port="${FFMPEG_API_PORT:-8080}"
+    
+    if [[ -f "$WEB_PID_FILE" ]]; then
+        local pid=$(cat "$WEB_PID_FILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            log::success "Web interface running on port $port (PID: $pid)"
+            echo "URL: http://localhost:$port"
+            return 0
+        fi
+    fi
+    
+    log::info "Web interface not running"
+    return 1
+}
+
+################################################################################
+# END: Web Interface Functions
+################################################################################
+
+################################################################################
+# START: Performance Monitoring Functions
+################################################################################
+
+# Start performance monitoring
+ffmpeg::monitor::start() {
+    "${FFMPEG_CLI_DIR}/lib/monitor.sh" start
+}
+
+# Stop performance monitoring
+ffmpeg::monitor::stop() {
+    "${FFMPEG_CLI_DIR}/lib/monitor.sh" stop
+}
+
+# Get current metrics
+ffmpeg::monitor::status() {
+    "${FFMPEG_CLI_DIR}/lib/monitor.sh" status
+}
+
+# Generate performance report
+ffmpeg::monitor::report() {
+    "${FFMPEG_CLI_DIR}/lib/monitor.sh" report
+}
+
+################################################################################
+# END: Performance Monitoring Functions
+################################################################################
+
 # Export functions
 export -f ffmpeg::init
 export -f ffmpeg::test_installation
@@ -441,3 +548,10 @@ export -f ffmpeg::preset::apply
 export -f ffmpeg::stream::capture
 export -f ffmpeg::stream::transcode
 export -f ffmpeg::stream::info
+export -f ffmpeg::web::start
+export -f ffmpeg::web::stop
+export -f ffmpeg::web::status
+export -f ffmpeg::monitor::start
+export -f ffmpeg::monitor::stop
+export -f ffmpeg::monitor::status
+export -f ffmpeg::monitor::report
