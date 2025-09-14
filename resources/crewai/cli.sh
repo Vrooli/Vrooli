@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${CREWAI_CLI_DIR}/config/defaults.sh"
 
 # Source CrewAI libraries
-for lib in core install status inject content manage test; do
+for lib in core install status inject content manage test agents; do
     lib_file="${CREWAI_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -69,6 +69,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="crewai::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed CrewAI status" "crewai::status"
 cli::register_command "logs" "Show CrewAI logs" "crewai::logs"
+cli::register_command "agents" "Manage running crewai agents" "crewai::agents::command"
 
 # ==============================================================================
 # CUSTOM CrewAI COMMANDS

@@ -254,8 +254,6 @@ content_remove() {
 }
 
 content_execute() {
-    echo "Executing NSFW detection..."
-    
     local file=""
     while [[ $# -gt 0 ]]; do
         case "$1" in

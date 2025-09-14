@@ -28,7 +28,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${AGENT_S2_CLI_DIR}/config/defaults.sh"
 
 # Source agent-s2 libraries
-for lib in common docker install status api usage modes stealth; do
+for lib in common docker install status api usage modes stealth agents; do
     lib_file="${AGENT_S2_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -79,6 +79,7 @@ cli::register_command "logs" "Show Agent-S2 logs" "agents2::docker_logs"
 # ==============================================================================
 cli::register_command "credentials" "Show integration credentials" "agents2_credentials"
 cli::register_command "show-mode" "Show current operation mode" "agents2_show_mode"
+cli::register_command "agents" "Manage running agent-s2 agents" "agent_s2::agents::command"
 
 ################################################################################
 # Resource-specific command implementations

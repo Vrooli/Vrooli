@@ -289,6 +289,20 @@ autogen_create_agent() {
         return 1
     fi
     
+    # Register agent for tracking when creating
+    local agent_id
+    agent_id=$(agents::generate_id)
+    
+    if command -v agents::register >/dev/null 2>&1; then
+        local command_string="resource-autogen-studio create agent ${name}"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent creation: $agent_id"
+            
+            # Set up signal handler for cleanup
+            autogen_studio::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     local agent_file="${AUTOGEN_AGENTS_DIR}/${name}.json"
     
     cat > "${agent_file}" << EOF
@@ -303,6 +317,12 @@ autogen_create_agent() {
 EOF
     
     log::success "Created agent: ${name}"
+    
+    # Unregister agent after successful creation
+    if command -v agents::unregister >/dev/null 2>&1; then
+        agents::unregister "$agent_id" 2>/dev/null || true
+    fi
+    
     return 0
 }
 
@@ -416,6 +436,20 @@ EOF
         return 1
     fi
     
+    # Register agent for tracking injection process
+    local agent_id
+    agent_id=$(agents::generate_id)
+    
+    if command -v agents::register >/dev/null 2>&1; then
+        local command_string="resource-autogen-studio inject ${file}"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent injection: $agent_id"
+            
+            # Set up signal handler for cleanup
+            autogen_studio::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     local filename=$(basename "${file}")
     local type=""
     local dest_dir=""
@@ -454,9 +488,20 @@ EOF
                 docker restart "${AUTOGEN_NAME}" 2>/dev/null || true
         fi
         
+        # Unregister agent after successful injection
+        if command -v agents::unregister >/dev/null 2>&1; then
+            agents::unregister "$agent_id" 2>/dev/null || true
+        fi
+        
         return 0
     else
         log::error "Failed to inject ${type}"
+        
+        # Unregister agent after failed injection
+        if command -v agents::unregister >/dev/null 2>&1; then
+            agents::unregister "$agent_id" 2>/dev/null || true
+        fi
+        
         return 1
     fi
 }
@@ -668,6 +713,20 @@ autogen::content::remove() {
 
 autogen::content::execute() {
     # Business functionality - execute agents/workflows
+    local agent_id
+    agent_id=$(agents::generate_id)
+    
+    # Register agent for tracking
+    if command -v agents::register >/dev/null 2>&1; then
+        local command_string="resource-autogen-studio content execute $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            autogen_studio::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     log::error "Content execution not yet implemented for AutoGen Studio"
     log::info "Use the web UI at http://localhost:${AUTOGEN_PORT} to run agent conversations"
     return 1

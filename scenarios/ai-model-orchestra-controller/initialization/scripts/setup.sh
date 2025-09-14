@@ -170,49 +170,44 @@ EOF
 create_configurations() {
     log_header "Creating Configuration Files"
     
-    # Create resource-urls.json
-    local resource_urls="$CONFIG_DIR/resource-urls.json"
-    if [ ! -f "$resource_urls" ]; then
-        log_info "Creating resource-urls.json..."
+    # Generate resource-urls.json using the dynamic script
+    log_info "Generating resource-urls.json using port registry..."
+    
+    if [ -f "$SCRIPT_DIR/create-resource-urls.sh" ]; then
+        bash "$SCRIPT_DIR/create-resource-urls.sh"
+        log_success "resource-urls.json generated dynamically"
+    else
+        log_warn "create-resource-urls.sh not found, creating fallback configuration"
+        local resource_urls="$CONFIG_DIR/resource-urls.json"
         cat > "$resource_urls" << 'EOF'
 {
+  "version": "1.0.0",
+  "generated_at": "fallback",
   "resources": {
-    "storage": {
-      "postgres": {
-        "url": "postgresql://postgres:password@localhost:5432/vrooli",
-        "maxConnections": 20
-      },
-      "redis": {
-        "url": "redis://localhost:6379",
-        "maxConnections": 10
-      }
-    },
     "ai": {
       "ollama": {
-        "url": "http://localhost:11434",
-        "healthEndpoint": "/api/tags"
+        "url": "http://${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS_OLLAMA:-11434}",
+        "api_base": "http://${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS_OLLAMA:-11434}/api"
+      }
+    },
+    "storage": {
+      "postgres": {
+        "url": "postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS_POSTGRES:-5432}/${POSTGRES_DB:-orchestrator}?sslmode=disable",
+        "maxConnections": 25
+      },
+      "redis": {
+        "url": "redis://${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS_REDIS:-6379}"
       }
     },
     "docker": {
       "api": {
         "socketPath": "/var/run/docker.sock"
       }
-    },
-    "monitoring": {
-      "node_red": {
-        "url": "http://localhost:1881",
-        "flows": [
-          "/flow/select-model",
-          "/flow/route-request"
-        ]
-      }
     }
   }
 }
 EOF
-        log_success "resource-urls.json created"
-    else
-        log_info "resource-urls.json already exists"
+        log_success "Fallback resource-urls.json created"
     fi
 }
 
@@ -306,14 +301,19 @@ EOF
     
     # Try to create database tables if PostgreSQL is available
     if command_exists psql && command_exists pg_isready; then
-        if pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+        local pg_host="${ORCHESTRATOR_HOST:-localhost}"
+        local pg_port="${RESOURCE_PORTS_POSTGRES:-5432}"
+        local pg_user="${POSTGRES_USER:-postgres}"
+        local pg_db="${POSTGRES_DB:-orchestrator}"
+        
+        if pg_isready -h "$pg_host" -p "$pg_port" >/dev/null 2>&1; then
             log_info "PostgreSQL is running, attempting to create tables..."
-            # Note: This assumes default connection. In production, use proper credentials.
-            if psql -h localhost -p 5432 -U postgres -d vrooli -f "$schema_file" >/dev/null 2>&1; then
+            # Note: This assumes proper credentials are configured via environment or .pgpass
+            if PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql -h "$pg_host" -p "$pg_port" -U "$pg_user" -d "$pg_db" -f "$schema_file" >/dev/null 2>&1; then
                 log_success "Database tables created successfully"
             else
                 log_warn "Could not create database tables. Please run the schema manually:"
-                log_warn "psql -h localhost -p 5432 -U postgres -d vrooli -f $schema_file"
+                log_warn "PGPASSWORD=\$POSTGRES_PASSWORD psql -h $pg_host -p $pg_port -U $pg_user -d $pg_db -f $schema_file"
             fi
         else
             log_warn "PostgreSQL not running. Database tables will be created when service starts."
@@ -356,7 +356,7 @@ The AI Model Orchestra Controller includes two main Node-RED flows:
    ```
 
 2. **Access Node-RED Interface:**
-   Open http://localhost:1881 in your browser
+   Open http://\${ORCHESTRATOR_HOST:-localhost}:\${RESOURCE_PORTS_NODE_RED:-1881} in your browser
 
 3. **Import Flows:**
    - Click the hamburger menu (☰) in the top right
@@ -372,8 +372,8 @@ The AI Model Orchestra Controller includes two main Node-RED flows:
 
 After import and deployment, the flows will be available at:
 
-- **Model Selection:** POST http://localhost:1881/flow/select-model
-- **Request Routing:** POST http://localhost:1881/flow/route-request
+- **Model Selection:** POST http://\${ORCHESTRATOR_HOST:-localhost}:\${RESOURCE_PORTS_NODE_RED:-1881}/flow/select-model
+- **Request Routing:** POST http://\${ORCHESTRATOR_HOST:-localhost}:\${RESOURCE_PORTS_NODE_RED:-1881}/flow/route-request
 
 ## Testing
 
@@ -381,13 +381,13 @@ Test the flows with curl:
 
 ```bash
 # Test model selection
-curl -X POST http://localhost:1881/flow/select-model \
-  -H "Content-Type: application/json" \
+curl -X POST http://\${ORCHESTRATOR_HOST:-localhost}:\${RESOURCE_PORTS_NODE_RED:-1881}/flow/select-model \\
+  -H "Content-Type: application/json" \\
   -d '{"taskType": "completion", "requirements": {"priority": "normal"}}'
 
 # Test request routing
-curl -X POST http://localhost:1881/flow/route-request \
-  -H "Content-Type: application/json" \
+curl -X POST http://\${ORCHESTRATOR_HOST:-localhost}:\${RESOURCE_PORTS_NODE_RED:-1881}/flow/route-request \\
+  -H "Content-Type: application/json" \\
   -d '{"taskType": "completion", "prompt": "Hello, world!"}'
 ```
 EOF
@@ -418,9 +418,9 @@ node initialization/configuration/api-server.js &
 API_PID=$!
 
 echo "✅ API server started (PID: $API_PID)"
-echo "📊 Dashboard: http://localhost:8082/dashboard"
-echo "🔀 Model selection API: http://localhost:8082/api/ai/select-model"
-echo "🚦 Request routing API: http://localhost:8082/api/ai/route-request"
+echo "📊 Dashboard: http://\${ORCHESTRATOR_HOST:-localhost}:\${API_PORT:-8082}/dashboard"
+echo "🔀 Model selection API: http://\${ORCHESTRATOR_HOST:-localhost}:\${API_PORT:-8082}/api/ai/select-model"
+echo "🚦 Request routing API: http://\${ORCHESTRATOR_HOST:-localhost}:\${API_PORT:-8082}/api/ai/route-request"
 
 # Save PID for stop script
 echo $API_PID > "$SCENARIO_DIR/.api_pid"
@@ -429,7 +429,7 @@ echo $API_PID > "$SCENARIO_DIR/.api_pid"
 sleep 2
 
 # Health check
-if curl -s http://localhost:8082/health >/dev/null; then
+if curl -s "http://\${ORCHESTRATOR_HOST:-localhost}:\${API_PORT:-8082}/health" >/dev/null; then
     echo "✅ Health check passed"
 else
     echo "⚠️  Health check failed - service may still be starting"
@@ -493,25 +493,32 @@ run_health_checks() {
     # Check if required services are running
     local services_status=()
     
+    local pg_host="${ORCHESTRATOR_HOST:-localhost}"
+    local pg_port="${RESOURCE_PORTS_POSTGRES:-5432}"
+    local redis_host="${ORCHESTRATOR_HOST:-localhost}"
+    local redis_port="${RESOURCE_PORTS_REDIS:-6379}"
+    local ollama_host="${ORCHESTRATOR_HOST:-localhost}"
+    local ollama_port="${RESOURCE_PORTS_OLLAMA:-11434}"
+    
     # Check PostgreSQL
-    if command_exists pg_isready && pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
-        services_status+=("✅ PostgreSQL: Running")
+    if command_exists pg_isready && pg_isready -h "$pg_host" -p "$pg_port" >/dev/null 2>&1; then
+        services_status+=("✅ PostgreSQL: Running ($pg_host:$pg_port)")
     else
-        services_status+=("⚠️  PostgreSQL: Not running")
+        services_status+=("⚠️  PostgreSQL: Not running ($pg_host:$pg_port)")
     fi
     
     # Check Redis
-    if command_exists redis-cli && redis-cli ping >/dev/null 2>&1; then
-        services_status+=("✅ Redis: Running")
+    if command_exists redis-cli && redis-cli -h "$redis_host" -p "$redis_port" ping >/dev/null 2>&1; then
+        services_status+=("✅ Redis: Running ($redis_host:$redis_port)")
     else
-        services_status+=("⚠️  Redis: Not running")
+        services_status+=("⚠️  Redis: Not running ($redis_host:$redis_port)")
     fi
     
     # Check Ollama
-    if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
-        services_status+=("✅ Ollama: Running")
+    if curl -s "http://$ollama_host:$ollama_port/api/tags" >/dev/null 2>&1; then
+        services_status+=("✅ Ollama: Running ($ollama_host:$ollama_port)")
     else
-        services_status+=("⚠️  Ollama: Not running")
+        services_status+=("⚠️  Ollama: Not running ($ollama_host:$ollama_port)")
     fi
     
     # Display status
@@ -550,7 +557,7 @@ main() {
     echo "📁 Scenario Location: $SCENARIO_DIR"
     echo "🚀 Start Service: ./start.sh"
     echo "🛑 Stop Service: ./stop.sh"
-    echo "📊 Dashboard: http://localhost:8082/dashboard (when running)"
+    echo "📊 Dashboard: http://\${ORCHESTRATOR_HOST:-localhost}:\${API_PORT:-8082}/dashboard (when running)"
     echo "📋 Flow Instructions: ./FLOW_IMPORT_INSTRUCTIONS.md"
     echo
     echo "Next Steps:"

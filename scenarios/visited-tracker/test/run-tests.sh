@@ -3,15 +3,9 @@
 # Runs phased testing with support for individual phases and test types
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-PURPLE='\033[0;35m'
-BOLD='\033[1m'
-NC='\033[0m'
+# Setup paths and utilities
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Test configuration
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,12 +44,12 @@ TIMEOUT_MULTIPLIER=1
 # Show usage
 show_usage() {
     cat << EOF
-${BOLD}🧪 Visited Tracker Test Runner${NC}
+🧪 Visited Tracker Test Runner
 
-${BOLD}USAGE:${NC}
+USAGE:
     $0 [phases/types] [options]
 
-${BOLD}PHASES:${NC}
+PHASES:
     structure      Structure validation (<15s)
     dependencies   Resource and dependency checks (<30s)  
     unit          Unit tests for all languages (<60s)
@@ -64,19 +58,19 @@ ${BOLD}PHASES:${NC}
     performance   Performance and load testing (<60s)
     all           All phases in sequence
 
-${BOLD}TEST TYPES:${NC}
+TEST TYPES:
     go            Go unit tests only
     node          Node.js unit tests only
     python        Python unit tests only
     bats          CLI BATS tests only
     ui            UI automation tests only
 
-${BOLD}QUICK MODES:${NC}
+QUICK MODES:
     quick         structure + dependencies + unit
     smoke         structure + dependencies only
     core          structure + dependencies + unit + integration
 
-${BOLD}OPTIONS:${NC}
+OPTIONS:
     --verbose, -v          Show detailed output for all phases
     --parallel, -p         Run tests in parallel where possible
     --timeout N            Multiply phase timeouts by N (default: 1)
@@ -86,7 +80,7 @@ ${BOLD}OPTIONS:${NC}
     --coverage             Generate coverage reports where applicable
     --help, -h             Show this help message
 
-${BOLD}EXAMPLES:${NC}
+EXAMPLES:
     $0                     # Run all phases sequentially
     $0 structure           # Run only structure validation
     $0 unit integration    # Run unit and integration tests
@@ -96,7 +90,7 @@ ${BOLD}EXAMPLES:${NC}
     $0 --parallel core    # Core phases in parallel
     $0 --dry-run all      # See what would be executed
 
-${BOLD}PHASE TIME LIMITS:${NC}
+PHASE TIME LIMITS:
 $(for phase in "${PHASE_ORDER[@]}"; do
     printf "    %-12s %3ds\n" "$phase" "${PHASES[$phase]}"
 done)
@@ -167,7 +161,7 @@ parse_args() {
                 shift
                 ;;
             *)
-                echo -e "${RED}❌ Unknown argument: $1${NC}"
+                log::error "❌ Unknown argument: $1"
                 echo ""
                 show_usage
                 exit 1
@@ -190,22 +184,22 @@ run_phase() {
     local timeout_seconds="${PHASES[$phase]}"
     local actual_timeout=$((timeout_seconds * TIMEOUT_MULTIPLIER))
     
-    echo -e "${CYAN}🚀 Running Phase: $phase${NC}"
-    echo -e "${BLUE}   Script: $phase_script${NC}"
-    echo -e "${BLUE}   Timeout: ${actual_timeout}s${NC}"
+    log::info "🚀 Running Phase: $phase"
+    log::info "   Script: $phase_script"
+    log::info "   Timeout: ${actual_timeout}s"
     
     if [ "$DRY_RUN" = "true" ]; then
-        echo -e "${YELLOW}   [DRY RUN] Would execute: $phase_script${NC}"
+        log::warning "   [DRY RUN] Would execute: $phase_script"
         return 0
     fi
     
     if [ ! -f "$phase_script" ]; then
-        echo -e "${RED}❌ Phase script not found: $phase_script${NC}"
+        log::error "❌ Phase script not found: $phase_script"
         return 1
     fi
     
     if [ ! -x "$phase_script" ]; then
-        echo -e "${RED}❌ Phase script not executable: $phase_script${NC}"
+        log::error "❌ Phase script not executable: $phase_script"
         return 1
     fi
     
@@ -227,15 +221,15 @@ run_phase() {
     # Analyze results
     case $phase_result in
         0)
-            echo -e "${GREEN}✅ Phase '$phase' passed in ${phase_duration}s${NC}"
+            log::success "✅ Phase '$phase' passed in ${phase_duration}s"
             ((passed_phases++))
             ;;
         124)
-            echo -e "${RED}❌ Phase '$phase' timed out after ${actual_timeout}s${NC}"
+            log::error "❌ Phase '$phase' timed out after ${actual_timeout}s"
             ((failed_phases++))
             ;;
         *)
-            echo -e "${RED}❌ Phase '$phase' failed with exit code $phase_result in ${phase_duration}s${NC}"
+            log::error "❌ Phase '$phase' failed with exit code $phase_result in ${phase_duration}s"
             ((failed_phases++))
             ;;
     esac
@@ -251,57 +245,57 @@ run_phase() {
 run_test_type() {
     local test_type="$1"
     
-    echo -e "${CYAN}🎯 Running Test Type: $test_type${NC}"
+    log::info "🎯 Running Test Type: $test_type"
     
     case $test_type in
         go)
             if [ -x "$TEST_DIR/unit/go.sh" ]; then
-                echo -e "${BLUE}   Executing: $TEST_DIR/unit/go.sh${NC}"
+                log::info "   Executing: $TEST_DIR/unit/go.sh"
                 [ "$DRY_RUN" = "true" ] || "$TEST_DIR/unit/go.sh"
             else
-                echo -e "${YELLOW}⚠️  Go test runner not found or not executable${NC}"
+                log::warning "⚠️  Go test runner not found or not executable"
                 return 1
             fi
             ;;
         node)
             if [ -x "$TEST_DIR/unit/node.sh" ]; then
-                echo -e "${BLUE}   Executing: $TEST_DIR/unit/node.sh${NC}"
+                log::info "   Executing: $TEST_DIR/unit/node.sh"
                 [ "$DRY_RUN" = "true" ] || "$TEST_DIR/unit/node.sh"
             else
-                echo -e "${YELLOW}⚠️  Node.js test runner not found or not executable${NC}"
+                log::warning "⚠️  Node.js test runner not found or not executable"
                 return 1
             fi
             ;;
         python)
             if [ -x "$TEST_DIR/unit/python.sh" ]; then
-                echo -e "${BLUE}   Executing: $TEST_DIR/unit/python.sh${NC}"
+                log::info "   Executing: $TEST_DIR/unit/python.sh"
                 [ "$DRY_RUN" = "true" ] || "$TEST_DIR/unit/python.sh"
             else
-                echo -e "${YELLOW}⚠️  Python test runner not found or not executable${NC}"
+                log::warning "⚠️  Python test runner not found or not executable"
                 return 1
             fi
             ;;
         bats)
             if [ -x "$TEST_DIR/cli/run-cli-tests.sh" ]; then
-                echo -e "${BLUE}   Executing: $TEST_DIR/cli/run-cli-tests.sh${NC}"
+                log::info "   Executing: $TEST_DIR/cli/run-cli-tests.sh"
                 [ "$DRY_RUN" = "true" ] || "$TEST_DIR/cli/run-cli-tests.sh"
             else
-                echo -e "${YELLOW}⚠️  BATS test runner not found or not executable${NC}"
+                log::warning "⚠️  BATS test runner not found or not executable"
                 return 1
             fi
             ;;
         ui)
             if [ -x "$TEST_DIR/ui/run-ui-tests.sh" ]; then
-                echo -e "${BLUE}   Executing: $TEST_DIR/ui/run-ui-tests.sh${NC}"
+                log::info "   Executing: $TEST_DIR/ui/run-ui-tests.sh"
                 [ "$DRY_RUN" = "true" ] || "$TEST_DIR/ui/run-ui-tests.sh"
             else
-                echo -e "${YELLOW}⚠️  UI test runner not found${NC}"
-                echo -e "${BLUE}💡 Consider adding UI automation tests using browser-automation-studio${NC}"
+                log::warning "⚠️  UI test runner not found"
+                log::info "💡 Consider adding UI automation tests using browser-automation-studio"
                 return 1
             fi
             ;;
         *)
-            echo -e "${RED}❌ Unknown test type: $test_type${NC}"
+            log::error "❌ Unknown test type: $test_type"
             return 1
             ;;
     esac
@@ -316,7 +310,7 @@ run_parallel() {
     local pids=()
     local results=()
     
-    echo -e "${CYAN}🚀 Running ${#items[@]} items in parallel...${NC}"
+    log::info "🚀 Running ${#items[@]} items in parallel..."
     
     for item in "${items[@]}"; do
         (
@@ -336,9 +330,9 @@ run_parallel() {
         local item="${items[$i]}"
         
         if wait "$pid"; then
-            echo -e "${GREEN}✅ Parallel item '$item' completed${NC}"
+            log::success "✅ Parallel item '$item' completed"
         else
-            echo -e "${RED}❌ Parallel item '$item' failed${NC}"
+            log::error "❌ Parallel item '$item' failed"
             overall_result=1
         fi
     done
@@ -370,7 +364,7 @@ EOF
 </testsuite>
 EOF
     
-    echo -e "${BLUE}📄 JUnit results written to: $junit_file${NC}"
+    log::info "📄 JUnit results written to: $junit_file"
 }
 
 # Main execution function
@@ -378,15 +372,15 @@ main() {
     local overall_start_time
     overall_start_time=$(date +%s)
     
-    echo -e "${BOLD}${PURPLE}🧪 Visited Tracker Comprehensive Test Suite${NC}"
-    echo -e "${BLUE}   Test directory: $TEST_DIR${NC}"
-    echo -e "${BLUE}   Selected phases/types: ${SELECTED_PHASES[*]}${NC}"
-    echo -e "${BLUE}   Options: verbose=$VERBOSE, parallel=$PARALLEL, dry-run=$DRY_RUN${NC}"
+    log::header "🧪 Visited Tracker Comprehensive Test Suite"
+    log::info "   Test directory: $TEST_DIR"
+    log::info "   Selected phases/types: ${SELECTED_PHASES[*]}"
+    log::info "   Options: verbose=$VERBOSE, parallel=$PARALLEL, dry-run=$DRY_RUN"
     echo ""
     
     # Validate test infrastructure
     if [ ! -d "$PHASES_DIR" ]; then
-        echo -e "${RED}❌ Phases directory not found: $PHASES_DIR${NC}"
+        log::error "❌ Phases directory not found: $PHASES_DIR"
         exit 1
     fi
     
@@ -417,10 +411,10 @@ main() {
             if [ $item_result -ne 0 ]; then
                 execution_result=1
                 if [ "$CONTINUE_ON_FAILURE" = "false" ]; then
-                    echo -e "${RED}❌ Stopping execution due to failure in: $item${NC}"
+                    log::error "❌ Stopping execution due to failure in: $item"
                     break
                 else
-                    echo -e "${YELLOW}⚠️  Continuing despite failure in: $item${NC}"
+                    log::warning "⚠️  Continuing despite failure in: $item"
                 fi
             fi
         done
@@ -432,12 +426,12 @@ main() {
     overall_duration=$((overall_end_time - overall_start_time))
     
     echo ""
-    echo -e "${BOLD}📊 Test Execution Summary${NC}"
+    echo -e "📊 Test Execution Summary"
     echo "═══════════════════════════════════════════"
     echo -e "   Total phases run: $total_phases"
-    echo -e "   Phases passed: ${GREEN}$passed_phases${NC}"
-    echo -e "   Phases failed: ${RED}$failed_phases${NC}"
-    echo -e "   Phases skipped: ${YELLOW}$skipped_phases${NC}"
+    echo -e "   Phases passed: $passed_phases"
+    echo -e "   Phases failed: $failed_phases"
+    echo -e "   Phases skipped: $skipped_phases"
     echo -e "   Total duration: ${overall_duration}s"
     echo ""
     
@@ -447,7 +441,7 @@ main() {
     fi
     
     if [ "$COVERAGE" = "true" ]; then
-        echo -e "${BLUE}📈 Coverage reports may be available in:${NC}"
+        log::info "📈 Coverage reports may be available in:"
         echo "   • Go: api/coverage.html"
         echo "   • Node.js: ui/coverage/lcov-report/index.html"
         echo "   • Python: htmlcov/index.html"
@@ -455,15 +449,15 @@ main() {
     
     # Final status
     if [ $execution_result -eq 0 ] && [ $failed_phases -eq 0 ]; then
-        echo -e "${BOLD}${GREEN}🎉 All tests passed successfully!${NC}"
-        echo -e "${GREEN}✅ Visited Tracker testing infrastructure is working correctly${NC}"
+        log::success "🎉 All tests passed successfully!"
+        log::success "✅ Visited Tracker testing infrastructure is working correctly"
     elif [ $failed_phases -eq 0 ]; then
-        echo -e "${BOLD}${GREEN}✅ Test execution completed (with some skipped)${NC}"
+        log::success "✅ Test execution completed (with some skipped)"
     else
-        echo -e "${BOLD}${RED}❌ Test execution completed with failures${NC}"
-        echo -e "${RED}   $failed_phases out of $total_phases phases failed${NC}"
+        log::error "❌ Test execution completed with failures"
+        log::error "   $failed_phases out of $total_phases phases failed"
         echo ""
-        echo -e "${BLUE}💡 Troubleshooting tips:${NC}"
+        log::info "💡 Troubleshooting tips:"
         echo "   • Ensure visited-tracker scenario is running: vrooli scenario start visited-tracker"
         echo "   • Check dependencies: vrooli resource start postgres"
         echo "   • Install CLI: cd cli && ./install.sh"
@@ -471,7 +465,7 @@ main() {
     fi
     
     echo ""
-    echo -e "${BLUE}📚 For more information, see:${NC}"
+    log::info "📚 For more information, see:"
     echo "   • docs/scenarios/PHASED_TESTING_ARCHITECTURE.md"
     echo "   • Test files in: $TEST_DIR"
     

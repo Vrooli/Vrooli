@@ -2,14 +2,16 @@
 # Unit tests for NSFW Detector resource
 # Library function validation - must complete in <60s
 
-set -euo pipefail
+set -uo pipefail
 
 # Script directory
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 readonly LIB_DIR="${SCRIPT_DIR}/lib"
 
-# Source the library
+# Source the library (temporarily disable error exit)
+set +e
 source "${LIB_DIR}/core.sh"
+set -e
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -29,10 +31,10 @@ run_test() {
     
     if eval "$test_command" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC}"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
     else
         echo -e "${RED}✗${NC}"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
 }
 

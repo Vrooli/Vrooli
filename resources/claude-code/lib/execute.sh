@@ -5,6 +5,29 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 #######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+claude_code::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export CLAUDE_CODE_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    claude_code::agent_cleanup() {
+        if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'claude_code::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
+#######################################
 # Run Claude with a single prompt
 #######################################
 claude_code::run() {
@@ -13,6 +36,19 @@ claude_code::run() {
     if ! claude_code::is_installed; then
         log::error "Claude Code is not installed. Run: $0 --action install"
         return 1
+    fi
+    
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="resource-claude-code run $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            claude_code::setup_agent_cleanup "$agent_id"
+        fi
     fi
     
     # Read prompt from file or environment variable (file takes precedence for large prompts)
@@ -379,6 +415,11 @@ claude_code::run() {
     
     # Cleanup temp files on success
     rm -f "$temp_output_file" "${temp_output_file}.exit"
+    
+    # Unregister agent on success
+    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$agent_id" >/dev/null 2>&1
+    fi
 }
 
 #######################################

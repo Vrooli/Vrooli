@@ -25,7 +25,7 @@ source "${var_RESOURCES_COMMON_FILE}"
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${COMFYUI_CLI_DIR}/config/defaults.sh"
 
-for lib in common docker install status gpu models workflows; do
+for lib in common docker install status gpu models workflows agents; do
     lib_file="${COMFYUI_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -52,6 +52,7 @@ cli::register_command "status" "Show detailed resource status" "comfyui::status"
 cli::register_command "logs" "Show ComfyUI logs" "comfyui::docker::logs"
 cli::register_command "credentials" "Show ComfyUI credentials for integration" "comfyui::credentials"
 cli::register_command "gpu-info" "Show GPU information for AI workloads" "gpu::get_gpu_info"
+cli::register_command "agents" "Manage running comfyui agents" "comfyui::agents::command"
 
 comfyui::test::integration() {
     if ! command -v curl &> /dev/null; then log::error "curl required"; return 1; fi

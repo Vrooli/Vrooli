@@ -6,6 +6,8 @@ import (
     "log"
     "net/http"
     "os"
+    "os/exec"
+    "strings"
     "time"
 )
 
@@ -18,6 +20,19 @@ type Agent struct {
     LastHeartbeat time.Time            `json:"last_heartbeat"`
     Capabilities []string              `json:"capabilities"`
     Metrics      map[string]interface{} `json:"metrics"`
+}
+
+type ResourceAgentData struct {
+    Agents map[string]ResourceAgent `json:"agents"`
+}
+
+type ResourceAgent struct {
+    ID        string `json:"id"`
+    PID       int    `json:"pid"`
+    Status    string `json:"status"`
+    StartTime string `json:"start_time"`
+    LastSeen  string `json:"last_seen"`
+    Command   string `json:"command"`
 }
 
 type APIResponse struct {
@@ -132,22 +147,123 @@ func orchestrateHandler(w http.ResponseWriter, r *http.Request) {
     jsonResponse(w, response, http.StatusOK)
 }
 
+// List of all resources that support agent tracking
+var supportedResources = []string{
+    "codex", "claude-code", "cline", "ollama", "agent-s2", "autogen-studio",
+    "autogpt", "crewai", "gemini", "langchain", "litellm", "openrouter",
+    "whisper", "comfyui", "pandas-ai", "parlant", "huginn", "opencode",
+}
+
 func getAgents() []Agent {
-    // In production, this would query the database
-    return []Agent{
-        {
-            ID:            "agent-001",
-            Name:          "Huginn Scraper",
-            Type:          "huginn",
-            Status:        "active",
-            Description:   "Web scraping and monitoring",
-            LastHeartbeat: time.Now(),
-            Capabilities:  []string{"scraping", "monitoring"},
+    var allAgents []Agent
+    
+    for _, resource := range supportedResources {
+        agents := getResourceAgents(resource)
+        allAgents = append(allAgents, agents...)
+    }
+    
+    return allAgents
+}
+
+func getResourceAgents(resourceName string) []Agent {
+    // Call resource CLI to get agent data
+    cmd := exec.Command("resource-" + resourceName, "agents", "list", "--json")
+    output, err := cmd.Output()
+    if err != nil {
+        log.Printf("Failed to get agents for resource %s: %v", resourceName, err)
+        return []Agent{}
+    }
+    
+    var resourceData ResourceAgentData
+    if err := json.Unmarshal(output, &resourceData); err != nil {
+        log.Printf("Failed to parse agent data for resource %s: %v", resourceName, err)
+        return []Agent{}
+    }
+    
+    var agents []Agent
+    for _, resourceAgent := range resourceData.Agents {
+        // Parse timestamps
+        startTime, _ := time.Parse(time.RFC3339, resourceAgent.StartTime)
+        lastSeen, _ := time.Parse(time.RFC3339, resourceAgent.LastSeen)
+        
+        agent := Agent{
+            ID:           resourceAgent.ID,
+            Name:         fmt.Sprintf("%s Agent", strings.Title(resourceName)),
+            Type:         resourceName,
+            Status:       mapStatus(resourceAgent.Status),
+            Description:  fmt.Sprintf("%s agent running: %s", strings.Title(resourceName), resourceAgent.Command),
+            LastHeartbeat: lastSeen,
+            Capabilities: getResourceCapabilities(resourceName),
             Metrics: map[string]interface{}{
-                "cpu":    23,
-                "memory": 512,
+                "pid":       resourceAgent.PID,
+                "start_time": startTime.Format("2006-01-02 15:04:05"),
+                "uptime":    getUptimeString(startTime),
+                "command":   resourceAgent.Command,
             },
-        },
+        }
+        agents = append(agents, agent)
+    }
+    
+    return agents
+}
+
+func mapStatus(resourceStatus string) string {
+    switch resourceStatus {
+    case "running":
+        return "active"
+    case "stopped":
+        return "inactive"
+    case "crashed":
+        return "error"
+    default:
+        return resourceStatus
+    }
+}
+
+func getResourceCapabilities(resourceName string) []string {
+    capabilities := map[string][]string{
+        "codex":         {"code-generation", "ai-assistance", "reasoning"},
+        "claude-code":   {"code-generation", "debugging", "refactoring", "analysis"},
+        "cline":         {"terminal-ai", "command-execution", "automation"},
+        "ollama":        {"local-llm", "inference", "model-serving"},
+        "agent-s2":      {"browser-automation", "web-interaction", "testing"},
+        "autogen-studio": {"multi-agent", "orchestration", "collaboration"},
+        "autogpt":       {"autonomous-planning", "goal-execution", "reasoning"},
+        "crewai":        {"crew-coordination", "task-delegation", "collaboration"},
+        "gemini":        {"multimodal-ai", "vision", "reasoning"},
+        "langchain":     {"llm-chaining", "document-processing", "rag"},
+        "litellm":       {"llm-proxy", "api-unification", "model-routing"},
+        "openrouter":    {"llm-routing", "api-proxy", "model-selection"},
+        "whisper":       {"speech-to-text", "transcription", "audio-processing"},
+        "comfyui":       {"image-generation", "workflow-automation", "diffusion"},
+        "pandas-ai":     {"data-analysis", "dataframe-processing", "ai-querying"},
+        "parlant":       {"conversational-ai", "dialog-management", "nlp"},
+        "huginn":        {"web-scraping", "monitoring", "automation", "alerts"},
+        "opencode":      {"code-editing", "ide-integration", "development"},
+    }
+    
+    if caps, exists := capabilities[resourceName]; exists {
+        return caps
+    }
+    return []string{"general-ai", "task-execution"}
+}
+
+func getUptimeString(startTime time.Time) string {
+    if startTime.IsZero() {
+        return "0h"
+    }
+    
+    duration := time.Since(startTime)
+    days := int(duration.Hours()) / 24
+    hours := int(duration.Hours()) % 24
+    minutes := int(duration.Minutes()) % 60
+    
+    if days > 0 {
+        return fmt.Sprintf("%dd %dh", days, hours)
+    } else if hours > 0 {
+        return fmt.Sprintf("%dh %dm", hours, minutes)
+    } else {
+        return fmt.Sprintf("%dm", minutes)
     }
 }
 

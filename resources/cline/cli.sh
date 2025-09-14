@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${CLINE_CLI_DIR}/config/defaults.sh"
 
 # Source Cline libraries
-for lib in common status install start stop logs config inject test content; do
+for lib in common status install start stop logs config inject test content agents; do
     lib_file="${CLINE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -69,6 +69,9 @@ cli::register_subcommand "content" "provider" "Manage API provider settings" "cl
 cli::register_command "status" "Show detailed resource status" "cline::status"
 cli::register_command "logs" "Show Cline logs" "cline::logs"
 cli::register_command "config" "View/update configuration" "cline::config"
+
+# Agent management commands
+cli::register_command "agents" "Manage running Cline agents" "cline::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

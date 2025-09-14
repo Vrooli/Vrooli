@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${CODEX_CLI_DIR}/config/defaults.sh"
 
 # Source Codex libraries
-for lib in common core status install docker test content inject codex-cli; do
+for lib in common core status install docker test content inject codex-cli agents; do
     lib_file="${CODEX_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -79,6 +79,9 @@ cli::register_command "agent" "Run Codex agent on a task" "codex::cli::execute"
 cli::register_command "fix" "Fix code issues using agent" "codex::cli::fix"
 cli::register_command "generate-tests" "Generate tests for code" "codex::cli::test"
 cli::register_command "refactor" "Refactor code using agent" "codex::cli::refactor"
+
+# Agent management commands
+cli::register_command "agents" "Manage running Codex agents" "codex::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

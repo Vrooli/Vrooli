@@ -8,6 +8,8 @@ CLINE_LIB_DIR="${APP_ROOT}/resources/cline/lib"
 # Source required utilities
 # shellcheck disable=SC1091
 source "${CLINE_LIB_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${CLINE_LIB_DIR}/agents.sh" 2>/dev/null || true
 
 #######################################
 # Add content to Cline (templates, configs, etc.)
@@ -229,6 +231,29 @@ cline::content::remove() {
 }
 
 #######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+cline::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export CLINE_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    cline::agent_cleanup() {
+        if [[ -n "${CLINE_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${CLINE_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'cline::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
+#######################################
 # Execute content using Cline (business functionality)
 # Args: <action> [args...]
 # Returns:
@@ -237,6 +262,19 @@ cline::content::remove() {
 cline::content::execute() {
     local action="${1:-}"
     shift || true
+    
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="resource-cline content execute $action $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            cline::setup_agent_cleanup "$agent_id"
+        fi
+    fi
     
     case "$action" in
         open|launch)
@@ -322,6 +360,11 @@ cline::content::execute() {
             return 1
             ;;
     esac
+    
+    # Unregister agent on success
+    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$agent_id" >/dev/null 2>&1
+    fi
     
     return 0
 }

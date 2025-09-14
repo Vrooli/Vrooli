@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${AUTOGEN_CLI_DIR}/config/defaults.sh"
 
 # Source AutoGen Studio libraries
-for lib in core docker install status content test; do
+for lib in core agents docker install status content test; do
     lib_file="${AUTOGEN_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -65,6 +65,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="autogen::content::execute"
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "autogen::status"
 cli::register_command "logs" "Show AutoGen Studio logs" "autogen::docker::logs"
+cli::register_command "agents" "Manage running autogen-studio agents" "autogen_studio::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

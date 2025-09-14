@@ -16,6 +16,10 @@ source "${CODEX_CONTENT_DIR}/orchestrator.sh" 2>/dev/null || true
 source "${CODEX_CONTENT_DIR}/tools/registry.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${CODEX_CONTENT_DIR}/workspace/manager.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_CONTENT_DIR}/settings.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${CODEX_CONTENT_DIR}/agents.sh" 2>/dev/null || true
 
 #######################################
 # Add content (Python script) to Codex
@@ -242,25 +246,193 @@ codex::content::remove() {
 }
 
 #######################################
-# Execute content (run script with Codex)
+# Show usage information for content execute command
+#######################################
+codex::content::show_usage() {
+    echo "Usage: content execute [OPTIONS] <prompt_or_file>"
+    echo
+    echo "Execute prompts or analyze files using Codex AI with permission controls."
+    echo
+    echo "ARGUMENTS:"
+    echo "  <prompt_or_file>     Text prompt or path to file for processing"
+    echo
+    echo "OPTIONS:"
+    echo "  --allowed-tools TOOLS    Comma-separated list of allowed tools"
+    echo "                          Example: 'read_file,write_file,execute_command(git *)'"
+    echo "  --profile PROFILE       Permission profile: safe, development, admin"
+    echo "  --max-turns NUMBER      Maximum conversation turns (default: 10)"
+    echo "  --timeout SECONDS       Timeout in seconds (default: 1800)"
+    echo "  --skip-permissions      Skip confirmation prompts (DANGEROUS)"
+    echo "  --operation TYPE        Operation type: generate, review, test, explain, analyze"
+    echo "  --context CONTEXT       Execution context: auto, cli, direct, sandbox, text"
+    echo "  -h, --help             Show this help message"
+    echo
+    echo "PERMISSION PROFILES:"
+    echo "  safe         Read-only operations, no confirmations (read_file, list_files)"
+    echo "  development  Common dev tools with confirmations (files + git + npm)"
+    echo "  admin        Full access with confirmations for dangerous operations"
+    echo
+    echo "EXAMPLES:"
+    echo "  # Safe read-only analysis"
+    echo "  content execute 'Analyze this project structure' --profile safe"
+    echo
+    echo "  # Development work with specific tools"
+    echo "  content execute 'Fix the auth bug' --allowed-tools 'read_file,write_file,execute_command(git *)'"
+    echo
+    echo "  # Code review with file operations"
+    echo "  content execute 'Review main.py' --operation review --profile development"
+    echo
+    echo "  # Admin access for system operations (use with caution)"
+    echo "  content execute 'Update dependencies' --profile admin"
+    echo
+    echo "SECURITY:"
+    echo "  - All tool executions are logged for audit"
+    echo "  - High-risk operations require confirmation"
+    echo "  - Use --profile safe for untrusted prompts"
+    echo "  - Review permissions before using --skip-permissions"
+}
+
+#######################################
+# Setup agent cleanup on signals
 # Arguments:
-#   input - Prompt, file path, or script name
-#   operation - Operation type (generate, review, test, explain, complete)
-#   context - Execution context (optional: cli, sandbox, text)
+#   $1 - Agent ID
+#######################################
+codex::content::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export CODEX_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    codex::content::agent_cleanup() {
+        if [[ -n "${CODEX_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${CODEX_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'codex::content::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
+#######################################
+# Execute content (run script with Codex)
+# Enhanced with permission system and CLI flags
+# Arguments:
+#   All arguments parsed as flags and positional parameters
 # Returns:
 #   0 on success, 1 on failure
 #######################################
 codex::content::execute() {
-    local input="${1:-}"
-    local operation="${2:-generate}"
-    local context="${3:-auto}"
+    # Initialize settings
+    codex_settings::init
+    
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="resource-codex content $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            codex::content::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
+    # Parse command line arguments
+    local input=""
+    local operation="generate"
+    local context="auto"
+    local allowed_tools=""
+    local profile=""
+    local max_turns=""
+    local timeout=""
+    local skip_permissions=false
+    
+    # Parse flags and positional arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --allowed-tools)
+                allowed_tools="$2"
+                shift 2
+                ;;
+            --profile)
+                profile="$2"
+                shift 2
+                ;;
+            --max-turns)
+                max_turns="$2"
+                shift 2
+                ;;
+            --timeout)
+                timeout="$2"
+                shift 2
+                ;;
+            --skip-permissions)
+                skip_permissions=true
+                shift
+                ;;
+            --operation)
+                operation="$2"
+                shift 2
+                ;;
+            --context)
+                context="$2"
+                shift 2
+                ;;
+            --help|-h)
+                codex::content::show_usage
+                return 0
+                ;;
+            -*)
+                log::error "Unknown option: $1"
+                codex::content::show_usage
+                return 1
+                ;;
+            *)
+                if [[ -z "$input" ]]; then
+                    input="$1"
+                elif [[ -z "$operation" || "$operation" == "generate" ]]; then
+                    operation="$1"
+                elif [[ -z "$context" || "$context" == "auto" ]]; then
+                    context="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
     
     if [[ -z "${input}" ]]; then
         log::error "No input specified"
-        echo "Usage: content execute <prompt_or_file> [operation] [context]"
-        echo "Operations: generate, review, test, explain, complete, analyze"
-        echo "Contexts: auto, cli, direct, sandbox, text"
+        codex::content::show_usage
         return 1
+    fi
+    
+    # Apply permission profile if specified
+    if [[ -n "$profile" ]]; then
+        if ! codex_settings::apply_profile "$profile"; then
+            log::error "Failed to apply profile: $profile"
+            return 1
+        fi
+    fi
+    
+    # Set permission overrides from command line
+    if [[ -n "$allowed_tools" ]]; then
+        export CODEX_ALLOWED_TOOLS="$allowed_tools"
+    fi
+    
+    if [[ -n "$max_turns" ]]; then
+        export CODEX_MAX_TURNS="$max_turns"
+    fi
+    
+    if [[ -n "$timeout" ]]; then
+        export CODEX_TIMEOUT="$timeout"
+    fi
+    
+    if [[ "$skip_permissions" == true ]]; then
+        export CODEX_SKIP_CONFIRMATIONS="true"
+        log::warn "⚠️  WARNING: Permission checks are disabled!"
     fi
     
     # Determine capability based on operation
@@ -369,6 +541,11 @@ codex::content::execute() {
             workspace_manager::delete "$workspace_id" "true" >/dev/null 2>&1
         fi
         
+        # Unregister agent
+        if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "$agent_id" >/dev/null 2>&1
+        fi
+        
         return 0
     else
         # Fallback to legacy system
@@ -380,7 +557,16 @@ codex::content::execute() {
             codex::generate_code "$request_content"
         else
             log::error "No execution system available"
+            # Unregister agent before error return
+            if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+                agents::unregister "$agent_id" >/dev/null 2>&1
+            fi
             return 1
+        fi
+        
+        # Unregister agent after successful legacy execution
+        if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "$agent_id" >/dev/null 2>&1
         fi
     fi
 }

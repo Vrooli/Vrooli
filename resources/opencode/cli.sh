@@ -30,11 +30,34 @@ source "${var_RESOURCES_COMMON_FILE}"
 # Source v2.0 CLI Command Framework
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
+#######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+opencode::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export OPENCODE_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    opencode::agent_cleanup() {
+        if [[ -n "${OPENCODE_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${OPENCODE_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'opencode::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
 # Source resource configuration
 source "${OPENCODE_CLI_DIR}/config/defaults.sh"
 
 # Source resource libraries
-for lib in common install status docker content test; do
+for lib in common install status docker content test agents; do
     lib_file="${OPENCODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -68,6 +91,7 @@ CLI_COMMAND_HANDLERS["content::remove"]="opencode::content::remove"
 # ==============================================================================
 cli::register_command "status" "Show detailed OpenCode status" "opencode::status"
 cli::register_command "logs" "Show VS Code and extension logs" "opencode::docker::logs"
+cli::register_command "agents" "Manage running opencode agents" "opencode::agents::command"
 
 # ==============================================================================
 # OPENCODE-SPECIFIC CUSTOM COMMANDS

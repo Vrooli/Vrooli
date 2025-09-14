@@ -21,7 +21,7 @@ source "${var_RESOURCES_COMMON_FILE}"
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source AutoGPT libraries
-for lib in common install start stop status inject; do
+for lib in common install start stop status inject agents; do
     [[ -f "${AUTOGPT_CLI_DIR}/lib/${lib}.sh" ]] && source "${AUTOGPT_CLI_DIR}/lib/${lib}.sh"
 done
 
@@ -60,6 +60,7 @@ CLI_COMMAND_HANDLERS["content::remove"]="autogpt::content::remove"
 
 # Required information commands
 cli::register_command "status" "Show detailed resource status" "autogpt_status"
+cli::register_command "agents" "Manage running autogpt agents" "autogpt::agents::command"
 
 # Logs handler
 autogpt::logs() {

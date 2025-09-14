@@ -106,42 +106,8 @@ vrooli scenario run <scenario-name>          # ✅ ALTERNATIVE - CLI management
 - **gofumpt**: Stricter Go formatting (superset of gofmt) - use `gofumpt -w .` to format Go code
 - **golangci-lint**: Comprehensive Go linting - use `golangci-lint run` to check Go code quality and catch issues
 
-## 🎯 Task Management Commands
-These commands can be invoked by using the keywords listed for each:
-
-### **Organize Next Task**
-**Keywords:** _"organize next task," "structure task," "clarify next task," "organize backlog," "prepare next task"_
-- Process the first unstructured task in `/docs/tasks/backlog.md`
-- Explore codebase, clarify requirements, split complex tasks
-- Follow task template and move to staged tasks when ready
-
-### **Start Next Task**
-**Keywords:** _"start next task," "pick task," "begin task," "go," "work next," "start working"_
-- Select highest-priority task from backlog
-- Draft implementation plan and wait for confirmation
-- Set status to IN_PROGRESS, mark DONE only after explicit confirmation
-
-### **Update Task Status**
-**Keywords:** _"update task statuses," "refresh tasks," "task progress update," "update backlog"_
-- Review and update task statuses (TODO/IN_PROGRESS/BLOCKED/DONE)
-- Update progress indicators and identify blockers
-
-### **Research**
-**Keywords:** _"research," "investigate," "explore topic," "find info on," "deep dive"_
-- Perform in-depth research on specified topics
-- Document findings in `/docs/scratch/` for reference
-- Present summarized results with key links
-
-### **Suggest New Tasks**
-**Keywords:** _"suggest new tasks," "find new tasks," "discover tasks," "analyze for tasks," "task discovery"_
-- Analyze `/README.md`, `/docs/tasks/backlog.md`, and `/docs/tasks/active.md`
-- Identify gaps, improvements, and opportunities
-- Suggest 10 potential tasks with brief descriptions
-- Wait for user selection before adding to backlog
-
 ## 📚 Session Start Checklist
 1. [ ] Read `/docs/context.md` for project overview
-2. [ ] Read `/docs/tasks/active.md` for current work
 3. [ ] Check git status for uncommitted changes
 4. [ ] Review `/docs/scratch/` for previous session notes
 

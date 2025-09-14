@@ -15,8 +15,32 @@ opencode::docker::start() {
         # Optionally launch VS Code if --launch flag is provided
         if [[ "${1:-}" == "--launch" ]]; then
             log::info "Launching VS Code..."
+            
+            # Register agent if agent management is available
+            local agent_id=""
+            if type -t agents::register &>/dev/null; then
+                agent_id=$(agents::generate_id)
+                local command_string="resource-opencode manage start --launch"
+                if agents::register "$agent_id" $$ "$command_string"; then
+                    log::debug "Registered agent: $agent_id"
+                    
+                    # Set up signal handler for cleanup
+                    opencode::setup_agent_cleanup "$agent_id"
+                fi
+            fi
+            
             ${VSCODE_COMMAND} &
-            log::success "VS Code launched in background"
+            local vscode_pid=$!
+            
+            # Update agent with VS Code process if registered
+            if [[ -n "$agent_id" ]] && type -t agents::register &>/dev/null; then
+                # Re-register with the actual VS Code PID
+                agents::unregister "$agent_id" >/dev/null 2>&1
+                local updated_command="resource-opencode manage start --launch (VS Code PID: $vscode_pid)"
+                agents::register "$agent_id" "$vscode_pid" "$updated_command" >/dev/null 2>&1
+            fi
+            
+            log::success "VS Code launched in background (PID: $vscode_pid)"
         fi
     else
         log::error "VS Code is not available. Please install VS Code first."

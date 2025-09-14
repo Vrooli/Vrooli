@@ -276,6 +276,10 @@ func (s *Server) setupRoutes() {
 	api.HandleFunc("/files/upload", s.uploadFileHandler).Methods("POST")
 	api.HandleFunc("/files/{id}/download", s.downloadFileHandler).Methods("GET")
 	api.HandleFunc("/files/{id}/thumbnail", s.getThumbnailHandler).Methods("GET")
+
+	// Settings endpoint
+	api.HandleFunc("/sync/settings", s.getSettingsHandler).Methods("GET")
+	api.HandleFunc("/sync/settings", s.updateSettingsHandler).Methods("POST")
 }
 
 // Authentication middleware
@@ -1555,9 +1559,167 @@ func (s *Server) downloadFileHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getThumbnailHandler(w http.ResponseWriter, r *http.Request) {
-	// Thumbnail generation would be implemented here
-	// For now, return a placeholder
-	http.Error(w, "Not implemented", http.StatusNotImplemented)
+	user := r.Context().Value("user").(*User)
+	vars := mux.Vars(r)
+	fileID := vars["id"]
+
+	// Get file metadata
+	var filePath, mimeType string
+	var fileSize int64
+	query := "SELECT path, mime_type, size FROM files WHERE id = $1 AND user_id = $2"
+	err := s.db.QueryRow(query, fileID, user.ID).Scan(&filePath, &mimeType, &fileSize)
+	
+	if err == sql.ErrNoRows {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		http.Error(w, "Failed to fetch file metadata", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if file is an image
+	if !strings.HasPrefix(mimeType, "image/") {
+		// Return a default "file" icon for non-images
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="200" height="200">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+		</svg>`))
+		return
+	}
+
+	// Generate thumbnail path
+	thumbnailDir := filepath.Join(s.config.StoragePath, "thumbnails")
+	thumbnailPath := filepath.Join(thumbnailDir, fileID + "_thumb.jpg")
+
+	// Check if thumbnail already exists
+	if _, err := os.Stat(thumbnailPath); err == nil {
+		// Serve existing thumbnail
+		http.ServeFile(w, r, thumbnailPath)
+		return
+	}
+
+	// Generate thumbnail (simplified version - in production would use proper image processing)
+	err = s.generateThumbnail(filePath, thumbnailPath, s.config.ThumbnailSize)
+	if err != nil {
+		log.Printf("Failed to generate thumbnail for %s: %v", fileID, err)
+		// Return a placeholder image icon
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="200" height="200">
+			<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+		</svg>`))
+		return
+	}
+
+	// Serve generated thumbnail
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Cache-Control", "public, max-age=86400") // Cache for 24 hours
+	http.ServeFile(w, r, thumbnailPath)
+}
+
+// generateThumbnail creates a thumbnail from an image file
+// This is a basic implementation - in production, would use proper image processing library
+func (s *Server) generateThumbnail(sourcePath, thumbnailPath string, size int) error {
+	// For now, just copy the original file (placeholder implementation)
+	// In production, this would resize the image to the specified size
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	// Ensure thumbnails directory exists
+	thumbnailDir := filepath.Dir(thumbnailPath)
+	if err := os.MkdirAll(thumbnailDir, 0755); err != nil {
+		return err
+	}
+
+	destFile, err := os.Create(thumbnailPath)
+	if err != nil {
+		return err
+	}
+	defer destFile.Close()
+
+	// Simple copy for now - in production would resize image
+	_, err = io.Copy(destFile, sourceFile)
+	return err
+}
+
+// Settings handlers
+
+func (s *Server) getSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value("user").(*User)
+	
+	// Get user statistics
+	var totalItems, totalSize, filesCount, textCount, clipboardCount, expiresSoonCount int
+	err := s.db.QueryRow(`
+		SELECT 
+			COUNT(*)::INTEGER as total_items,
+			COALESCE(SUM((content->>'file_size')::BIGINT), 0)::BIGINT as total_size,
+			COUNT(*) FILTER (WHERE type = 'file')::INTEGER as files_count,
+			COUNT(*) FILTER (WHERE type = 'text')::INTEGER as text_count,
+			COUNT(*) FILTER (WHERE type = 'clipboard')::INTEGER as clipboard_count,
+			COUNT(*) FILTER (WHERE expires_at <= NOW() + INTERVAL '1 hour')::INTEGER as expires_soon_count
+		FROM sync_items 
+		WHERE user_id = $1 AND expires_at > NOW()
+	`, user.ID).Scan(&totalItems, &totalSize, &filesCount, &textCount, &clipboardCount, &expiresSoonCount)
+	
+	if err != nil {
+		log.Printf("Error getting user stats: %v", err)
+		// Continue with default values
+	}
+
+	settings := map[string]interface{}{
+		"max_file_size":           s.config.MaxFileSize,
+		"max_file_size_mb":        float64(s.config.MaxFileSize) / 1024 / 1024,
+		"default_expiry_hours":    s.config.DefaultExpiryHours,
+		"thumbnail_size":          s.config.ThumbnailSize,
+		"storage_path":            s.config.StoragePath,
+		"api_version":             "1.0.0",
+		"websocket_endpoint":      "/api/v1/sync/websocket",
+		"supported_file_types":    []string{"*/*"},
+		"features": map[string]interface{}{
+			"thumbnails":           true,
+			"websocket_sync":       true,
+			"automatic_cleanup":    true,
+			"file_versioning":      false,
+			"cloud_integration":    false,
+		},
+		"user_stats": map[string]interface{}{
+			"total_items":          totalItems,
+			"total_size":           totalSize,
+			"total_size_mb":        float64(totalSize) / 1024 / 1024,
+			"files_count":          filesCount,
+			"text_count":           textCount,
+			"clipboard_count":      clipboardCount,
+			"expires_soon_count":   expiresSoonCount,
+		},
+		"limits": map[string]interface{}{
+			"max_concurrent_uploads": 5,
+			"max_websocket_connections": 10,
+			"rate_limit_per_minute": 60,
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(settings)
+}
+
+func (s *Server) updateSettingsHandler(w http.ResponseWriter, r *http.Request) {
+	// For now, settings are read-only (configured via environment variables)
+	// In a production system, some settings might be user-configurable
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"error": "Settings are read-only",
+		"message": "Settings are configured via environment variables and cannot be modified at runtime",
+		"configurable_settings": []string{},
+		"environment_settings": []string{
+			"MAX_FILE_SIZE", 
+			"DEFAULT_EXPIRY_HOURS", 
+			"THUMBNAIL_SIZE",
+		},
+	})
 }
 
 // WebSocket methods
@@ -1653,8 +1815,153 @@ func (s *Server) handleBroadcast() {
 }
 
 func (s *Server) handleSyncRequest(conn *WebSocketConnection, msg map[string]interface{}) {
-	// Handle sync request from device
-	// This would process the request and broadcast to appropriate devices
+	// Handle sync request from device - broadcast sync events to other devices
+	
+	action, ok := msg["action"].(string)
+	if !ok {
+		log.Printf("Invalid sync request - missing action")
+		return
+	}
+	
+	switch action {
+	case "sync_item_created":
+		// When a new sync item is created, notify other devices
+		itemID, ok := msg["item_id"].(string)
+		if !ok {
+			log.Printf("Invalid sync request - missing item_id")
+			return
+		}
+		
+		// Get sync item details from database
+		var syncItem SyncItem
+		query := `SELECT id, type, content, expires_at, created_at FROM sync_items 
+				 WHERE id = $1 AND user_id = $2`
+		err := s.db.QueryRow(query, itemID, conn.UserID).Scan(
+			&syncItem.ID, &syncItem.Type, &syncItem.Content, 
+			&syncItem.ExpiresAt, &syncItem.CreatedAt)
+		
+		if err != nil {
+			log.Printf("Error fetching sync item %s: %v", itemID, err)
+			return
+		}
+		
+		// Prepare broadcast message
+		broadcastMsg := map[string]interface{}{
+			"type": "sync_item_created",
+			"item": map[string]interface{}{
+				"id":         syncItem.ID,
+				"type":       syncItem.Type,
+				"content":    syncItem.Content,
+				"expires_at": syncItem.ExpiresAt,
+				"created_at": syncItem.CreatedAt,
+			},
+			"source_device": conn.DeviceID,
+		}
+		
+		jsonData, _ := json.Marshal(broadcastMsg)
+		
+		// Broadcast to all other devices for this user (excluding source device)
+		s.broadcast <- BroadcastMessage{
+			UserID:    conn.UserID,
+			Message:   jsonData,
+			DeviceIDs: []string{}, // Empty means all devices
+		}
+		
+	case "sync_item_deleted":
+		// When a sync item is deleted, notify other devices
+		itemID, ok := msg["item_id"].(string)
+		if !ok {
+			return
+		}
+		
+		broadcastMsg := map[string]interface{}{
+			"type":          "sync_item_deleted",
+			"item_id":       itemID,
+			"source_device": conn.DeviceID,
+		}
+		
+		jsonData, _ := json.Marshal(broadcastMsg)
+		
+		s.broadcast <- BroadcastMessage{
+			UserID:    conn.UserID,
+			Message:   jsonData,
+			DeviceIDs: []string{},
+		}
+		
+	case "device_status":
+		// Device status update (e.g., coming online/offline)
+		status, ok := msg["status"].(string)
+		if !ok {
+			return
+		}
+		
+		broadcastMsg := map[string]interface{}{
+			"type":      "device_status_changed",
+			"device_id": conn.DeviceID,
+			"status":    status,
+			"timestamp": time.Now(),
+		}
+		
+		jsonData, _ := json.Marshal(broadcastMsg)
+		
+		s.broadcast <- BroadcastMessage{
+			UserID:    conn.UserID,
+			Message:   jsonData,
+			DeviceIDs: []string{},
+		}
+		
+	case "request_sync":
+		// Request full sync of all items
+		// Get all active sync items for this user
+		rows, err := s.db.Query(`
+			SELECT id, type, content, expires_at, created_at 
+			FROM sync_items 
+			WHERE user_id = $1 AND expires_at > NOW() 
+			ORDER BY created_at DESC
+			LIMIT 100`, conn.UserID)
+		
+		if err != nil {
+			log.Printf("Error fetching sync items for full sync: %v", err)
+			return
+		}
+		defer rows.Close()
+		
+		var items []map[string]interface{}
+		for rows.Next() {
+			var item SyncItem
+			err := rows.Scan(&item.ID, &item.Type, &item.Content, 
+						   &item.ExpiresAt, &item.CreatedAt)
+			if err != nil {
+				continue
+			}
+			
+			items = append(items, map[string]interface{}{
+				"id":         item.ID,
+				"type":       item.Type,
+				"content":    item.Content,
+				"expires_at": item.ExpiresAt,
+				"created_at": item.CreatedAt,
+			})
+		}
+		
+		responseMsg := map[string]interface{}{
+			"type":  "full_sync",
+			"items": items,
+			"count": len(items),
+		}
+		
+		jsonData, _ := json.Marshal(responseMsg)
+		
+		// Send only to the requesting device
+		select {
+		case conn.Send <- jsonData:
+		default:
+			log.Printf("Failed to send full sync to device %s", conn.DeviceID)
+		}
+		
+	default:
+		log.Printf("Unknown sync action: %s", action)
+	}
 }
 
 func (s *Server) updateDeviceStatus(deviceID, userID string, isOnline bool) {

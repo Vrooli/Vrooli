@@ -732,3 +732,23 @@ func (qp *Processor) IsRateLimitPaused() (bool, time.Time) {
 	}
 	return false, time.Time{}
 }
+
+// ResetRateLimitPause manually resets the rate limit pause
+func (qp *Processor) ResetRateLimitPause() {
+	qp.pauseMutex.Lock()
+	defer qp.pauseMutex.Unlock()
+	
+	wasRateLimited := qp.rateLimitPaused
+	qp.rateLimitPaused = false
+	qp.pauseUntil = time.Time{}
+	
+	if wasRateLimited {
+		log.Printf("✅ Rate limit pause manually reset. Queue processing resumed.")
+		
+		// Broadcast the resume event
+		qp.broadcastUpdate("rate_limit_manual_reset", map[string]interface{}{
+			"paused": false,
+			"manual": true,
+		})
+	}
+}

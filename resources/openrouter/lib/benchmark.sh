@@ -14,6 +14,11 @@ source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${OPENROUTER_LIB_DIR}/models.sh"
 source "${OPENROUTER_RESOURCE_DIR}/config/defaults.sh"
 
+# Source agents library if available
+if [[ -f "${OPENROUTER_LIB_DIR}/agents.sh" ]]; then
+    source "${OPENROUTER_LIB_DIR}/agents.sh"
+fi
+
 # Initialize benchmark directory
 openrouter::benchmark::init() {
     mkdir -p "${BENCHMARK_DIR}"
@@ -27,6 +32,17 @@ openrouter::benchmark::test_model() {
     if [[ -z "$model" ]]; then
         log::error "Model name required"
         return 1
+    fi
+    
+    # Register agent if agent tracking is available
+    local agent_id=""
+    if declare -f agents::generate_id >/dev/null 2>&1 && declare -f agents::register >/dev/null 2>&1; then
+        agent_id=$(agents::generate_id)
+        local command="benchmark test --model $model"
+        agents::register "$agent_id" "$$" "$command" || {
+            log::warn "Failed to register agent, continuing without tracking"
+        }
+        openrouter::setup_agent_cleanup "$agent_id" 2>/dev/null || true
     fi
     
     # Check for placeholder API key

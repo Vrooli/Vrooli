@@ -71,6 +71,19 @@ pandas_ai::analyze() {
         return 1
     fi
     
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="resource-pandas-ai analyze $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            pandas_ai::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     # Check if Pandas AI is running
     if ! pandas_ai::is_running; then
         log::error "Pandas AI is not running"
@@ -122,6 +135,11 @@ pandas_ai::analyze() {
             echo "${response}" | jq -r '.error // "Unknown error"' 2>/dev/null || echo "${response}"
             return 1
         fi
+    fi
+    
+    # Unregister agent on successful completion
+    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$agent_id" >/dev/null 2>&1
     fi
     
     return 0

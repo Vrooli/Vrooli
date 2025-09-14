@@ -8,6 +8,7 @@ INJECT_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
 # Source utilities and core
 source "${INJECT_LIB_DIR}/core.sh"
 source "${INJECT_LIB_DIR}/status.sh"
+source "${INJECT_LIB_DIR}/agents.sh"
 
 # Show usage
 show_usage() {
@@ -43,6 +44,12 @@ inject_crew_file() {
         return 1
     fi
     
+    # Register agent tracking for crew injection
+    local agent_id
+    agent_id=$(agents::generate_id)
+    agents::register "$agent_id" "$$" "inject_crew_file $crew_file" || log::debug "Failed to register agent"
+    crewai::setup_agent_cleanup "$agent_id" || log::debug "Failed to setup cleanup"
+    
     log::info "Injecting crew: ${crew_name}"
     cp "$crew_file" "$dest_file"
     
@@ -77,6 +84,12 @@ inject_agent_file() {
         return 1
     fi
     
+    # Register agent tracking for agent injection
+    local agent_id
+    agent_id=$(agents::generate_id)
+    agents::register "$agent_id" "$$" "inject_agent_file $agent_file" || log::debug "Failed to register agent"
+    crewai::setup_agent_cleanup "$agent_id" || log::debug "Failed to setup cleanup"
+    
     log::info "Injecting agent: ${agent_name}"
     cp "$agent_file" "$dest_file"
     
@@ -108,6 +121,12 @@ inject_from_directory() {
         log::error "Directory not found: $source_dir"
         return 1
     fi
+    
+    # Register agent tracking for directory injection
+    local agent_id
+    agent_id=$(agents::generate_id)
+    agents::register "$agent_id" "$$" "inject_from_directory $source_dir" || log::debug "Failed to register agent"
+    crewai::setup_agent_cleanup "$agent_id" || log::debug "Failed to setup cleanup"
     
     log::header "Injecting from: $source_dir"
     

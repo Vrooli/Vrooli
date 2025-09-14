@@ -61,6 +61,19 @@ pandas_ai::analyze() {
         return 1
     fi
     
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="pandas_ai::analyze $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            pandas_ai::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     local payload
     if [[ -n "$data" ]]; then
         payload=$(jq -n --arg q "$query" --argjson d "$data" '{query: $q, data: $d}')
@@ -75,6 +88,11 @@ pandas_ai::analyze() {
     
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result // .error // "No result"'
+        
+        # Unregister agent on successful completion
+        if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "$agent_id" >/dev/null 2>&1
+        fi
         return 0
     else
         log::error "Analysis request failed: $response"

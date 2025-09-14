@@ -4,12 +4,12 @@
 set -euo pipefail
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
+# Colors removed - using log.sh
+
+
+
 CYAN='\033[0;36m'
-NC='\033[0m'
+
 
 echo "🌐 Running UI automation tests for Visited Tracker..."
 
@@ -22,7 +22,7 @@ VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$TEST_DIR/../../.." && pwd)}"
 BROWSER_AUTOMATION_CLI="$VROOLI_ROOT/scenarios/browser-automation-studio/cli/browser-automation-studio"
 
 if [ ! -x "$BROWSER_AUTOMATION_CLI" ]; then
-    echo -e "${YELLOW}⚠️  Browser automation studio not available at:${NC}"
+    log::warning "⚠️  Browser automation studio not available at:"
     echo "   $BROWSER_AUTOMATION_CLI"
     echo ""
     echo -e "${BLUE}💡 To enable UI testing:${NC}"
@@ -30,7 +30,7 @@ if [ ! -x "$BROWSER_AUTOMATION_CLI" ]; then
     echo "   2. Ensure CLI is installed and executable"
     echo "   3. Create UI workflows in $WORKFLOWS_DIR"
     echo ""
-    echo -e "${YELLOW}ℹ️  Skipping UI automation tests${NC}"
+    log::warning "ℹ️  Skipping UI automation tests"
     exit 0
 fi
 
@@ -50,7 +50,7 @@ echo "🎯 UI automation target: $UI_URL"
 
 # Check if UI is running
 if ! timeout 3 nc -z localhost "$UI_PORT" 2>/dev/null; then
-    echo -e "${RED}❌ Visited Tracker UI is not running on port $UI_PORT${NC}"
+    log::error "❌ Visited Tracker UI is not running on port $UI_PORT"
     echo "   Start with: vrooli scenario start visited-tracker"
     exit 1
 fi
@@ -104,7 +104,7 @@ if [ ! -f "$WORKFLOWS_DIR/smoke-test.json" ]; then
   ]
 }
 EOF
-    echo -e "${GREEN}✅ Created smoke test workflow${NC}"
+    log::success "✅ Created smoke test workflow"
 fi
 
 # Create user journey workflow
@@ -151,7 +151,7 @@ if [ ! -f "$WORKFLOWS_DIR/user-journey.json" ]; then
   ]
 }
 EOF
-    echo -e "${GREEN}✅ Created user journey workflow${NC}"
+    log::success "✅ Created user journey workflow"
 fi
 
 # Find and execute all workflow files
@@ -163,7 +163,7 @@ if [ -d "$WORKFLOWS_DIR" ]; then
 fi
 
 if [ ${#workflow_files[@]} -eq 0 ]; then
-    echo -e "${YELLOW}⚠️  No workflow files found in $WORKFLOWS_DIR${NC}"
+    log::warning "⚠️  No workflow files found in $WORKFLOWS_DIR"
     echo -e "${BLUE}💡 Create workflow JSON files in the workflows directory${NC}"
     exit 1
 fi
@@ -181,10 +181,10 @@ for workflow in "${workflow_files[@]}"; do
     echo -e "${CYAN}🚀 Executing workflow: $workflow_name${NC}"
     
     if "$BROWSER_AUTOMATION_CLI" execute "$workflow"; then
-        echo -e "${GREEN}✅ Workflow passed: $workflow_name${NC}"
+        log::success "✅ Workflow passed: $workflow_name"
         ((workflow_count++))
     else
-        echo -e "${RED}❌ Workflow failed: $workflow_name${NC}"
+        log::error "❌ Workflow failed: $workflow_name"
         ((failed_count++))
         ((workflow_count++))
     fi
@@ -207,8 +207,8 @@ fi
 
 if [ $failed_count -eq 0 ]; then
     echo ""
-    echo -e "${GREEN}✅ All $workflow_count UI automation workflows passed${NC}"
-    echo -e "${GREEN}🎉 UI functionality validated successfully!${NC}"
+    log::success "✅ All $workflow_count UI automation workflows passed"
+    log::success "🎉 UI functionality validated successfully!"
     
     if [ $workflow_count -gt 0 ]; then
         echo ""
@@ -221,7 +221,7 @@ if [ $failed_count -eq 0 ]; then
     exit 0
 else
     echo ""
-    echo -e "${RED}❌ $failed_count of $workflow_count UI workflows failed${NC}"
+    log::error "❌ $failed_count of $workflow_count UI workflows failed"
     
     echo ""
     echo -e "${BLUE}💡 UI testing troubleshooting:${NC}"

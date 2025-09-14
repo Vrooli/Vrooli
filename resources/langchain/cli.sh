@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${LANGCHAIN_CLI_DIR}/config/defaults.sh"
 
 # Source LangChain libraries
-for lib in core install status content; do
+for lib in core install status content agents; do
     lib_file="${LANGCHAIN_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -43,6 +43,29 @@ done
 
 # Initialize CLI framework in v2.0 mode (auto-creates manage/test/content groups)
 cli::init "langchain" "LangChain LLM application framework" "v2"
+
+#######################################
+# Setup agent cleanup trap
+# Arguments:
+#   $1 - Agent ID
+#######################################
+langchain::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export LANGCHAIN_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    langchain::agent_cleanup() {
+        if [[ -n "${LANGCHAIN_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${LANGCHAIN_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'langchain::agent_cleanup' EXIT SIGTERM SIGINT
+}
 
 # ==============================================================================
 # REQUIRED HANDLERS - These MUST be mapped for v2.0 compliance
@@ -66,6 +89,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="langchain::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed resource status" "langchain::status"
 cli::register_command "logs" "Show LangChain logs" "langchain::logs"
+cli::register_command "agents" "Manage running langchain agents" "langchain::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

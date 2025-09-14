@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "category": "git",
+  "function": {
+    "name": "git_status",
+    "description": "Get git repository status with structured output",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string", 
+          "description": "Repository path",
+          "default": "."
+        },
+        "porcelain": {
+          "type": "boolean",
+          "description": "Use porcelain output format for parsing",
+          "default": true
+        }
+      }
+    }
+  }
+}

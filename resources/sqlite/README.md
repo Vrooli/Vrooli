@@ -131,6 +131,50 @@ Configuration is managed through environment variables. Default values are defin
 | `SQLITE_CACHE_SIZE` | `2000` | Cache size in pages |
 | `SQLITE_FILE_PERMISSIONS` | `600` | Unix permissions for database files |
 
+## Advanced Features
+
+### Database Migrations
+
+```bash
+# Initialize migration tracking
+vrooli resource sqlite migrate init myapp
+
+# Create a new migration
+vrooli resource sqlite migrate create "add users table"
+
+# Apply pending migrations
+vrooli resource sqlite migrate up myapp
+
+# Check migration status
+vrooli resource sqlite migrate status myapp
+```
+
+### Query Builder
+
+```bash
+# SELECT with conditions
+vrooli resource sqlite query select myapp users --where "active=1" --order "created_at DESC" --limit 10
+
+# INSERT with automatic escaping
+vrooli resource sqlite query insert myapp users "name=John Doe" "email=john@example.com"
+
+# UPDATE with conditions
+vrooli resource sqlite query update myapp users "id=1" "name=Jane Doe" "updated_at=CURRENT_TIMESTAMP"
+```
+
+### Performance Monitoring
+
+```bash
+# Enable query statistics
+vrooli resource sqlite stats enable myapp
+
+# Show performance statistics
+vrooli resource sqlite stats show myapp
+
+# Analyze database for optimization
+vrooli resource sqlite stats analyze myapp
+```
+
 ## Usage Examples
 
 ### Basic CRUD Operations

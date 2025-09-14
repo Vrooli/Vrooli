@@ -426,8 +426,20 @@ ports::allocate_scenario() {
 # Check if scenario processes are currently running (ultra-fast one-liner)
 _check_scenario_processes_running() {
     local scenario_name="$1"
-    # Simply check for any process with .<scenario_name>. in its command line
-    pgrep -f "\.${scenario_name}\." >/dev/null 2>&1
+    
+    # First try: Check process tracking files (most reliable)
+    local process_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
+    if [[ -d "$process_dir" ]]; then
+        for pid_file in "$process_dir"/*.pid; do
+            [[ -f "$pid_file" ]] || continue
+            local pid
+            pid=$(cat "$pid_file" 2>/dev/null)
+            [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null && return 0
+        done
+    fi
+    
+    # Fallback: Check for processes with various scenario name patterns
+    pgrep -f "\.${scenario_name}\." >/dev/null 2>&1 || pgrep -f "\.${scenario_name}-" >/dev/null 2>&1 || pgrep -f "${scenario_name}-api" >/dev/null 2>&1
 }
 
 # Discover actual ports being used by running scenario processes
@@ -435,18 +447,40 @@ _discover_scenario_ports() {
     local scenario_name="$1"
     local service_json_path="$2"
     
-    # Get PIDs of scenario processes
-    local pids
-    pids=$(pgrep -f "\.${scenario_name}\." 2>/dev/null | xargs)
+    # Get PIDs of scenario processes (prefer process tracking files, fallback to pattern matching)
+    local pids=()
+    local process_dir="$HOME/.vrooli/processes/scenarios/$scenario_name"
     
-    [[ -z "$pids" ]] && echo "{}" && return 0
+    # First: Get PIDs from process tracking files (most reliable)
+    if [[ -d "$process_dir" ]]; then
+        for pid_file in "$process_dir"/*.pid; do
+            [[ -f "$pid_file" ]] || continue
+            local pid
+            pid=$(cat "$pid_file" 2>/dev/null)
+            if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+                pids+=("$pid")
+            fi
+        done
+    fi
+    
+    # Fallback: Pattern matching if no tracking files found
+    if [[ ${#pids[@]} -eq 0 ]]; then
+        local pattern_pids
+        pattern_pids=$({ pgrep -f "\.${scenario_name}\." 2>/dev/null || true; pgrep -f "\.${scenario_name}-" 2>/dev/null || true; pgrep -f "${scenario_name}-api" 2>/dev/null || true; } | sort -u)
+        [[ -n "$pattern_pids" ]] && pids=($(echo "$pattern_pids" | xargs))
+    fi
+    
+    local pids_str
+    pids_str=$(printf "%s " "${pids[@]}" | xargs)
+    
+    [[ -z "$pids_str" ]] && echo "{}" && return 0
     
     # Get all listening ports for these PIDs
     local ports_data="{}"
     
     # Use lsof to find listening ports for our PIDs
     local lsof_output
-    lsof_output=$(lsof -iTCP -sTCP:LISTEN -P 2>/dev/null | grep -E "$(echo $pids | tr ' ' '|')" 2>/dev/null || true)
+    lsof_output=$(lsof -iTCP -sTCP:LISTEN -P 2>/dev/null | grep -E "$(echo $pids_str | tr ' ' '|')" 2>/dev/null || true)
     
     if [[ -n "$lsof_output" ]]; then
         # Parse service.json to understand expected ports

@@ -40,7 +40,7 @@ setup() {
 @test "CLI version shows correct format" {
     run visited-tracker version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "v[0-9]+\.[0-9]+\.[0-9]+" ]]
+    [[ "$output" =~ v[0-9]+\.[0-9]+\.[0-9]+ ]]
 }
 
 @test "CLI handles unknown command gracefully" {

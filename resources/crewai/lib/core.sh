@@ -470,6 +470,11 @@ start_crewai() {
     local pid=$!
     echo $pid > "${CREWAI_PID_FILE}"
     
+    # Register the server process as an agent
+    local agent_id
+    agent_id=$(agents::generate_id)
+    agents::register "$agent_id" "$pid" "crewai_server python3 ${CREWAI_SERVER_FILE}" || log::debug "Failed to register server agent"
+    
     sleep 2
     
     if is_running; then
@@ -486,6 +491,18 @@ stop_crewai() {
         local pid=$(cat "${CREWAI_PID_FILE}")
         if kill -0 "$pid" 2>/dev/null; then
             log::info "Stopping CrewAI..."
+            
+            # Clean up any agents with this PID
+            if [[ -f "${APP_ROOT}/.vrooli/crewai-agents.json" ]]; then
+                local agent_ids
+                agent_ids=$(jq -r --arg pid "$pid" '.agents | to_entries[] | select(.value.pid == ($pid | tonumber)) | .key' "${APP_ROOT}/.vrooli/crewai-agents.json" 2>/dev/null || echo "")
+                if [[ -n "$agent_ids" ]]; then
+                    while IFS= read -r agent_id; do
+                        [[ -n "$agent_id" ]] && agents::unregister "$agent_id" 2>/dev/null || true
+                    done <<< "$agent_ids"
+                fi
+            fi
+            
             kill "$pid"
             rm -f "${CREWAI_PID_FILE}"
             log::success "CrewAI stopped"
@@ -496,6 +513,9 @@ stop_crewai() {
     else
         log::info "CrewAI is not running"
     fi
+    
+    # Clean up any remaining dead agents
+    agents::cleanup &>/dev/null || true
 }
 
 # Check if running

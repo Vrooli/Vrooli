@@ -89,6 +89,16 @@ litellm::start() {
         return 1
     fi
     
+    # Register container as agent
+    local container_pid
+    container_pid=$(docker inspect --format '{{.State.Pid}}' "$LITELLM_CONTAINER_NAME" 2>/dev/null)
+    if [[ -n "$container_pid" && "$container_pid" != "0" ]]; then
+        local agent_id
+        agent_id=$(agents::generate_id)
+        agents::register "$agent_id" "$container_pid" "litellm proxy server (docker: $LITELLM_CONTAINER_NAME)"
+        [[ "$verbose" == "true" ]] && log::debug "Registered container as agent: $agent_id"
+    fi
+    
     # Wait for startup if requested
     if [[ "$wait" == "true" ]]; then
         [[ "$verbose" == "true" ]] && log::info "Waiting for LiteLLM to start..."
@@ -134,8 +144,14 @@ litellm::stop() {
     # Check if running
     if ! litellm::is_running; then
         [[ "$verbose" == "true" ]] && log::info "LiteLLM is not running"
+        # Clean up any dead agents
+        agents::cleanup >/dev/null 2>&1 || true
         return 0
     fi
+    
+    # Get container PID for agent cleanup
+    local container_pid
+    container_pid=$(docker inspect --format '{{.State.Pid}}' "$LITELLM_CONTAINER_NAME" 2>/dev/null)
     
     # Stop the container
     if [[ "$force" == "true" ]]; then
@@ -148,6 +164,22 @@ litellm::stop() {
     
     # Remove the container
     docker rm "$LITELLM_CONTAINER_NAME" >/dev/null 2>&1
+    
+    # Clean up agent registry for this container
+    if [[ -n "$container_pid" ]]; then
+        # Find and remove agents with this PID
+        if [[ -f "${APP_ROOT}/.vrooli/litellm-agents.json" ]]; then
+            local agent_ids
+            agent_ids=$(jq -r --arg pid "$container_pid" '.agents | to_entries | map(select(.value.pid == ($pid | tonumber))) | .[].key' "${APP_ROOT}/.vrooli/litellm-agents.json" 2>/dev/null || echo "")
+            
+            while IFS= read -r agent_id; do
+                [[ -n "$agent_id" ]] && agents::unregister "$agent_id" >/dev/null 2>&1 || true
+            done <<< "$agent_ids"
+        fi
+    fi
+    
+    # General cleanup of dead agents
+    agents::cleanup >/dev/null 2>&1 || true
     
     [[ "$verbose" == "true" ]] && log::info "LiteLLM stopped"
     return 0

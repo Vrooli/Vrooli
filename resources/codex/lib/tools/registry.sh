@@ -10,6 +10,9 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
+# Source permission system
+source "${APP_ROOT}/resources/codex/lib/permissions.sh"
+
 # Tool directories
 TOOL_DEFINITIONS_DIR="${APP_ROOT}/resources/codex/lib/tools/definitions"
 TOOL_EXECUTORS_DIR="${APP_ROOT}/resources/codex/lib/tools/executors"
@@ -127,6 +130,12 @@ tool_registry::execute_tool() {
     local context="${3:-sandbox}"
     
     log::debug "Executing tool: $tool_name in $context context"
+    
+    # SECURITY CHECK: Validate permissions before execution
+    if ! permissions::check_and_confirm "$tool_name" "$arguments"; then
+        echo '{"success": false, "error": "Permission denied: tool not allowed by current security policy"}'
+        return 1
+    fi
     
     # Check if tool exists
     local tool_def

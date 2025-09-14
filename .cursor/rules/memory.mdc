@@ -48,7 +48,6 @@ Use keywords to trigger commands:
 Core files to read at session start:
 - `/CLAUDE.md` - Primary instructions (this overrides defaults!)
 - `/docs/context.md` - Project overview
-- `/docs/tasks/active.md` - Current work
 - `/docs/scratch/` - Previous session notes
 
 ## 🎯 Remember The Mission

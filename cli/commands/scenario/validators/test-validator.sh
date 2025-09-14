@@ -68,6 +68,13 @@ scenario::test::check_test_lifecycle() {
     local scenario_path="$1"
     local service_json="$scenario_path/.vrooli/service.json"
     
+    # First check for legacy test format
+    if [[ -f "$scenario_path/scenario-test.yaml" ]]; then
+        # This is a legacy format scenario
+        echo '{"status": "legacy", "message": "⚠️  Legacy test format (scenario-test.yaml)", "recommendation": "Migrate to new phased testing architecture", "format": "legacy"}'
+        return
+    fi
+    
     if [[ ! -f "$service_json" ]]; then
         echo '{"status": "missing", "message": "service.json not found"}'
         return
@@ -75,13 +82,29 @@ scenario::test::check_test_lifecycle() {
     
     # Check if test lifecycle event exists
     local test_event
-    test_event=$(jq -r '.spec.lifecycle.test // null' "$service_json" 2>/dev/null || echo "null")
+    test_event=$(jq -r '.lifecycle.test // null' "$service_json" 2>/dev/null || echo "null")
     
     if [[ "$test_event" == "null" ]] || [[ -z "$test_event" ]]; then
         echo '{"status": "missing", "message": "No test lifecycle event defined", "recommendation": "Add test lifecycle event to .vrooli/service.json"}'
     else
-        # Check if it's a valid command
-        local test_script=$(echo "$test_event" | jq -r '.script // .command // null' 2>/dev/null || echo "null")
+        # Check if it's a valid command (could be a simple command string or steps array)
+        local test_script=""
+        
+        # First check if it's a simple string (legacy format)
+        if [[ "$(echo "$test_event" | jq -r 'type')" == "string" ]]; then
+            test_script="$test_event"
+        else
+            # Check for steps array (new v2 format)
+            local has_steps=$(echo "$test_event" | jq 'has("steps")' 2>/dev/null || echo "false")
+            if [[ "$has_steps" == "true" ]]; then
+                # Get the first step's run command as representative
+                test_script=$(echo "$test_event" | jq -r '.steps[0].run // null' 2>/dev/null || echo "null")
+            else
+                # Legacy format with script/command field
+                test_script=$(echo "$test_event" | jq -r '.script // .command // null' 2>/dev/null || echo "null")
+            fi
+        fi
+        
         if [[ "$test_script" != "null" && -n "$test_script" ]]; then
             echo '{"status": "present", "message": "Test lifecycle event defined", "script": "'"$test_script"'"}'
         else
@@ -297,6 +320,11 @@ scenario::test::calculate_overall_status() {
     local lifecycle_status=$(echo "$test_lifecycle" | jq -r '.status')
     if [[ "$lifecycle_status" == "present" ]]; then
         ((score++))
+    elif [[ "$lifecycle_status" == "legacy" ]]; then
+        # Give partial credit for legacy format but recommend migration
+        score=$((score + 0))  # No credit for legacy format
+        recommendations+=("⚠️  Migrate from legacy scenario-test.yaml to new phased testing architecture")
+        recommendations+=("See docs/scenarios/PHASED_TESTING_ARCHITECTURE.md for migration guide")
     else
         recommendations+=("Define test lifecycle event in .vrooli/service.json")
     fi
@@ -390,6 +418,9 @@ scenario::test::display_validation() {
     case "$lifecycle_status" in
         present)
             echo "├── Test Lifecycle: ✅ $lifecycle_message"
+            ;;
+        legacy)
+            echo "├── Test Lifecycle: ⚠️  $lifecycle_message"
             ;;
         *)
             echo "├── Test Lifecycle: ❌ $lifecycle_message"

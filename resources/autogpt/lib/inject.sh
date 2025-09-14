@@ -133,11 +133,38 @@ autogpt_run_agent() {
     
     echo "[INFO]    Running agent: $agent_name"
     
-    # Execute agent in container
-    docker exec -it "$AUTOGPT_CONTAINER_NAME" python -m autogpt.agent \
-        --config "/app/agents/${agent_name}.yaml" \
-        --workspace "/workspace" \
-        --continuous
+    # Register agent for tracking
+    local agent_id
+    agent_id=$(agents::generate_id)
+    local command="autogpt_run_agent $agent_name"
     
-    return $?
+    # Start agent in background and get PID
+    (
+        # Setup cleanup trap
+        autogpt::setup_agent_cleanup "$agent_id"
+        
+        # Execute agent in container
+        docker exec -it "$AUTOGPT_CONTAINER_NAME" python -m autogpt.agent \
+            --config "/app/agents/${agent_name}.yaml" \
+            --workspace "/workspace" \
+            --continuous
+    ) &
+    
+    local agent_pid=$!
+    
+    # Register the agent
+    if agents::register "$agent_id" "$agent_pid" "$command"; then
+        echo "[INFO]    Agent registered: $agent_id (PID: $agent_pid)"
+    else
+        echo "[WARN]    Failed to register agent in tracking system"
+    fi
+    
+    # Wait for the agent to complete
+    wait $agent_pid
+    local exit_code=$?
+    
+    # Clean up agent from registry
+    agents::unregister "$agent_id" 2>/dev/null || true
+    
+    return $exit_code
 }

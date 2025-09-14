@@ -3,6 +3,10 @@
 # Ollama API Functions
 # This file contains API interaction functions and information display
 
+# Source agents library if available
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/resources/ollama/lib/agents.sh" 2>/dev/null || true
+
 #######################################
 # Send a prompt to Ollama with model selection and advanced parameters
 # Arguments:

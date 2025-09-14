@@ -34,52 +34,64 @@ The Orchestra Controller provides:
 
 ## 🚀 Quick Start
 
-### 1. Setup
+### 1. Setup & Build
 
 ```bash
 # Navigate to scenario directory
 cd scenarios/ai-model-orchestra-controller
 
-# Run setup script
-./initialization/scripts/setup.sh
+# Build the Go API
+make build
+
+# Install CLI (optional)
+make install-cli
 ```
 
 ### 2. Start Services
 
 ```bash
-# Start the orchestrator
-./start.sh
+# Start using Makefile (recommended)
+make run
+
+# Alternative: Direct CLI management
+vrooli scenario run ai-model-orchestra-controller
 
 # The following will be available:
-# 📊 Dashboard: http://localhost:8082/dashboard
-# 🔀 Model Selection API: http://localhost:8082/api/ai/select-model
-# 🚦 Request Routing API: http://localhost:8082/api/ai/route-request
+# 📊 Dashboard: http://localhost:${UI_PORT}/dashboard.html
+# 🏥 Health API: http://localhost:${API_PORT}/api/v1/health
+# 🤖 Models API: http://localhost:${API_PORT}/api/v1/models
+# 🚦 Routing API: http://localhost:${API_PORT}/api/v1/route
 ```
 
 ### 3. Test the System
 
 ```bash
+# Using CLI (if installed)
+ai-orchestra health
+ai-orchestra models
+ai-orchestra query --prompt "What is AI?"
+
+# Using API directly
+curl http://localhost:${API_PORT}/api/v1/health
+
 # Test model selection
-curl -X POST http://localhost:8082/api/ai/select-model \
+curl -X POST http://localhost:${API_PORT}/api/v1/select-model \
   -H "Content-Type: application/json" \
   -d '{
-    "taskType": "completion",
+    "task": "code_generation",
     "requirements": {
-      "priority": "normal",
-      "complexity": "moderate"
+      "speed": "high",
+      "quality": "medium"
     }
   }'
 
-# Test full request routing
-curl -X POST http://localhost:8082/api/ai/route-request \
+# Test request routing
+curl -X POST http://localhost:${API_PORT}/api/v1/route \
   -H "Content-Type: application/json" \
   -d '{
-    "taskType": "completion",
     "prompt": "Explain quantum computing in simple terms",
-    "requirements": {
-      "maxTokens": 500,
-      "priority": "normal"
-    }
+    "task": "text_generation",
+    "max_tokens": 500
   }'
 ```
 
@@ -136,157 +148,219 @@ curl -X POST http://localhost:8082/api/ai/route-request \
 ```
 ai-model-orchestra-controller/
 ├── .vrooli/
-│   └── service.json                    # Service definition and metadata
-├── initialization/
-│   ├── workflows/
-│   │   ├── orchestrator-main.json      # Main Node-RED orchestration flow
-│   │   └── resource-monitor.json       # System monitoring flow
-│   ├── configuration/
-│   │   ├── api-server.js               # Express API server
-│   │   ├── model-capabilities.json     # Model definitions and capabilities
-│   │   ├── orchestrator-config.json    # Controller configuration
-│   │   └── resource-urls.json          # Service connection URLs
+│   └── service.json                    # Service configuration with lifecycle
+├── api/                                # Go API server
+│   ├── main.go                        # Main API server with versioned endpoints
+│   ├── go.mod                         # Go module dependencies
+│   └── go.sum                         # Go module checksums
+├── cli/                               # Lightweight CLI wrapper
+│   ├── ai-orchestra                  # Main CLI script
+│   └── install.sh                     # CLI installation script
+├── ui/                                # Modular web interface
+│   ├── dashboard.html                 # Main dashboard HTML
+│   ├── dashboard.css                  # Dashboard styles
+│   ├── dashboard.js                   # Dashboard functionality
+│   └── server.js                      # Static file server
+├── test/                              # Comprehensive test suite
+│   ├── run-tests.sh                   # Main test orchestrator
+│   └── phases/                        # Phased testing scripts
+│       ├── test-structure.sh          # Structure validation
+│       ├── test-dependencies.sh       # Dependency checks
+│       ├── test-unit.sh               # Unit tests
+│       ├── test-integration.sh        # Integration tests
+│       ├── test-business.sh           # Business logic tests
+│       └── test-performance.sh        # Performance tests
+├── initialization/                     # Setup and configuration
 │   └── scripts/
-│       └── setup.sh                    # Automated setup script
-├── ui/
-│   └── dashboard.html                  # Real-time monitoring dashboard
-├── start.sh                           # Service startup script
-├── stop.sh                            # Service shutdown script
-├── package.json                       # Node.js dependencies
+│       └── create-resource-urls.sh    # Dynamic resource URL generation
+├── Makefile                           # Build and management commands
+├── PRD.md                             # Product Requirements Document
 └── README.md                          # This documentation
 ```
 
 ## 🔧 Configuration
 
-### Model Capabilities
+### Service Configuration
 
-Edit `initialization/configuration/model-capabilities.json` to define model capabilities:
+The scenario uses `.vrooli/service.json` for lifecycle management:
 
 ```json
 {
-  "models": {
-    "llama3.2:8b": {
-      "capabilities": ["completion", "reasoning", "code", "analysis"],
-      "ram_required_gb": 4.9,
-      "speed": "moderate",
-      "cost_per_1k_tokens": 0.005,
-      "quality_tier": "very_good",
-      "best_for": ["complex_reasoning", "code_generation"]
+  "service": {
+    "name": "ai-model-orchestra-controller",
+    "displayName": "AI Model Orchestra Controller",
+    "description": "Intelligent AI model routing and resource management"
+  },
+  "ports": {
+    "api": {
+      "min": 8000,
+      "max": 8999,
+      "default": 8080
+    },
+    "ui": {
+      "min": 3000,
+      "max": 3999,
+      "default": 3001
+    }
+  },
+  "resources": {
+    "postgres": { "required": true },
+    "redis": { "required": false },
+    "ollama": { "required": true }
+  },
+  "lifecycle": {
+    "api": {
+      "command": "./ai-model-orchestra-controller-api",
+      "workDir": "api",
+      "healthCheck": "/api/v1/health"
+    },
+    "ui": {
+      "command": "node server.js",
+      "workDir": "ui",
+      "healthCheck": "/health"
     }
   }
 }
 ```
 
-### Resource Thresholds
+### Environment Variables
 
-Modify `initialization/configuration/orchestrator-config.json`:
+All configuration uses environment variables (no hard-coded values):
 
-```json
-{
-  "memory_management": {
-    "pressure_thresholds": {
-      "low": 0.3,
-      "moderate": 0.7,
-      "high": 0.85,
-      "critical": 0.95
-    }
-  }
-}
+```bash
+# Core configuration
+ORCHESTRATOR_HOST=localhost
+API_PORT=8080
+UI_PORT=3001
+
+# Resource connections
+RESOURCE_PORTS_POSTGRES=5432
+RESOURCE_PORTS_REDIS=6379
+RESOURCE_PORTS_OLLAMA=11434
 ```
 
 ## 🔌 API Reference
 
-### Model Selection API
-
-**Endpoint**: `POST /api/ai/select-model`
-
-**Request**:
-```json
-{
-  "taskType": "completion|reasoning|code|embedding|analysis",
-  "requirements": {
-    "complexity": "simple|moderate|complex",
-    "priority": "low|normal|high|critical",
-    "maxTokens": 2048,
-    "costLimit": 0.10,
-    "qualityRequirement": "basic|good|high|exceptional"
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "requestId": "req_1642435200_abc123",
-  "selectedModel": "llama3.2:8b",
-  "taskType": "completion",
-  "fallbackUsed": false,
-  "alternatives": ["llama3.2:3b", "llama3.2:1b"],
-  "systemMetrics": {
-    "memoryPressure": 0.45,
-    "availableMemoryGb": 12.3,
-    "cpuUsage": 35.2
-  },
-  "modelInfo": {
-    "capabilities": ["completion", "reasoning"],
-    "speed": "moderate",
-    "quality_tier": "very_good"
-  }
-}
-```
-
-### Request Routing API
-
-**Endpoint**: `POST /api/ai/route-request`
-
-**Request**:
-```json
-{
-  "taskType": "completion",
-  "prompt": "Explain quantum computing",
-  "requirements": {
-    "maxTokens": 500,
-    "priority": "normal",
-    "temperature": 0.7
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "requestId": "req_1642435200_xyz789",
-  "selectedModel": "llama3.2:8b",
-  "response": "Quantum computing is a revolutionary...",
-  "fallbackUsed": false,
-  "metrics": {
-    "responseTimeMs": 1250,
-    "memoryPressure": 0.45,
-    "tokensGenerated": 145,
-    "promptTokens": 12
-  }
-}
-```
-
 ### Health Check API
 
-**Endpoint**: `GET /api/health`
+**Endpoint**: `GET /api/v1/health`
 
 **Response**:
 ```json
 {
   "status": "healthy",
   "timestamp": "2025-01-14T10:30:00.000Z",
+  "version": "1.0.0",
   "services": {
-    "database": "ok",
-    "redis": "ok",
-    "docker": "ok"
+    "database": "connected",
+    "redis": "connected",
+    "ollama": "available"
   },
   "system": {
-    "memory_pressure": 0.45,
-    "available_models": 5,
-    "memory_available_gb": 12.3,
-    "cpu_usage_percent": 35.2
+    "uptime": "2h 45m",
+    "memory_usage": "245MB",
+    "available_models": 3
+  }
+}
+```
+
+### Models API
+
+**Endpoint**: `GET /api/v1/models`
+
+**Response**:
+```json
+{
+  "models": [
+    {
+      "name": "llama3.2:8b",
+      "status": "running",
+      "capabilities": ["text_generation", "code_generation"],
+      "size": "4.9GB",
+      "last_used": "2025-01-14T10:25:00.000Z"
+    }
+  ],
+  "total": 1,
+  "active": 1
+}
+```
+
+### Model Selection API
+
+**Endpoint**: `POST /api/v1/select-model`
+
+**Request**:
+```json
+{
+  "task": "code_generation|text_generation|reasoning|analysis",
+  "requirements": {
+    "speed": "low|medium|high",
+    "quality": "low|medium|high",
+    "max_tokens": 2048
+  }
+}
+```
+
+**Response**:
+```json
+{
+  "selected_model": "llama3.2:8b",
+  "task": "code_generation",
+  "reasoning": "Best match for code generation with high quality requirement",
+  "alternatives": ["codellama:7b"],
+  "timestamp": "2025-01-14T10:30:00.000Z"
+}
+```
+
+### Request Routing API
+
+**Endpoint**: `POST /api/v1/route`
+
+**Request**:
+```json
+{
+  "prompt": "Write a Python function to calculate fibonacci numbers",
+  "task": "code_generation",
+  "max_tokens": 500,
+  "temperature": 0.1
+}
+```
+
+**Response**:
+```json
+{
+  "response": "def fibonacci(n):\n    if n <= 1:\n        return n\n    return fibonacci(n-1) + fibonacci(n-2)",
+  "model_used": "llama3.2:8b",
+  "metrics": {
+    "response_time_ms": 1250,
+    "tokens_generated": 45,
+    "tokens_prompt": 12
+  },
+  "timestamp": "2025-01-14T10:30:00.000Z"
+}
+```
+
+### Metrics API
+
+**Endpoint**: `GET /api/v1/metrics`
+
+**Response**:
+```json
+{
+  "requests": {
+    "total": 1543,
+    "successful": 1521,
+    "failed": 22,
+    "success_rate": 98.6
+  },
+  "performance": {
+    "avg_response_time_ms": 1205,
+    "requests_per_minute": 12.4
+  },
+  "models": {
+    "active": 2,
+    "total_calls": 1543,
+    "most_used": "llama3.2:8b"
   }
 }
 ```
@@ -295,7 +369,7 @@ Modify `initialization/configuration/orchestrator-config.json`:
 
 ### Real-Time Dashboard
 
-Access the dashboard at `http://localhost:8082/dashboard` for:
+Access the dashboard at `http://localhost:${UI_PORT}/dashboard.html` for:
 
 - **System Overview**: Request volume, success rates, response times
 - **Model Status**: Individual model performance and health
@@ -338,72 +412,92 @@ async function getAvailableModel(): Promise<string | null> {
 
 **After** (using Orchestra Controller):
 ```typescript
-async function selectOptimalModel(taskType: string): Promise<string | null> {
-  const response = await fetch('http://localhost:8082/api/ai/select-model', {
+async function selectOptimalModel(task: string): Promise<string | null> {
+  const orchestratorPort = process.env.ORCHESTRATOR_API_PORT || '8080';
+  const response = await fetch(`http://localhost:${orchestratorPort}/api/v1/select-model`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ taskType })
+    body: JSON.stringify({ task, requirements: { quality: 'medium' } })
   });
   const data = await response.json();
-  return data.selectedModel;  // ✅ Intelligent
+  return data.selected_model;  // ✅ Intelligent
 }
 ```
 
-### Resource URLs Configuration
+### CLI Integration
 
-Add to other scenarios' `resource-urls.json`:
+Use the CLI for easy integration:
 
-```json
-{
-  "resources": {
-    "ai": {
-      "orchestrator": {
-        "url": "http://localhost:8082",
-        "endpoints": {
-          "select": "/api/ai/select-model",
-          "route": "/api/ai/route-request",
-          "health": "/api/health"
-        }
-      }
-    }
-  }
-}
+```bash
+# Install CLI system-wide
+cd cli && ./install.sh
+
+# Use in scripts
+SELECTED_MODEL=$(ai-orchestra models --best-for code_generation --format json | jq -r '.model')
+ai-orchestra query --prompt "Generate Python code" --model "$SELECTED_MODEL"
 ```
 
 ## 🧪 Testing
 
-### Unit Tests
+### Comprehensive Test Suite
+
+The scenario includes a phased testing framework:
 
 ```bash
-# Test model selection logic
-npm test
+# Run all tests
+make test
 
-# Test with specific scenarios
-npm run test:integration
+# Alternative: Direct test runner
+./test/run-tests.sh
+
+# Run specific test phases
+./test/run-tests.sh structure dependencies  # Quick validation
+./test/run-tests.sh unit integration       # Core functionality  
+./test/run-tests.sh business performance   # Full validation
+
+# Verbose output
+./test/run-tests.sh all --verbose
 ```
+
+### Test Phases
+
+| Phase | Duration | Purpose |
+|-------|----------|----------|
+| **structure** | <15s | File structure and configuration validation |
+| **dependencies** | <45s | Go modules, system tools, resource checks |
+| **unit** | <90s | Go unit tests, API endpoint logic |
+| **integration** | <180s | Full API integration, model routing |
+| **business** | <300s | End-to-end AI orchestration workflows |
+| **performance** | <120s | Load testing, resource pressure testing |
 
 ### Manual Testing
 
 ```bash
-# Test different task types
-curl -X POST http://localhost:8082/api/ai/select-model \
-  -H "Content-Type: application/json" \
-  -d '{"taskType": "reasoning", "requirements": {"complexity": "complex"}}'
+# Test using CLI
+ai-orchestra health --verbose
+ai-orchestra models --include-metrics
+ai-orchestra query --prompt "Test prompt" --task code_generation
 
-# Test under memory pressure
-curl -X POST http://localhost:8082/api/ai/select-model \
+# Test using API
+curl http://localhost:${API_PORT}/api/v1/health
+curl -X POST http://localhost:${API_PORT}/api/v1/select-model \
   -H "Content-Type: application/json" \
-  -d '{"taskType": "completion", "requirements": {"priority": "critical"}}'
+  -d '{"task": "reasoning", "requirements": {"quality": "high"}}'
 ```
 
-### Load Testing
+### Performance Testing
+
+Built-in performance tests:
 
 ```bash
-# Install artillery for load testing
-npm install -g artillery
+# Quick performance check
+./test/phases/test-performance.sh
 
-# Run load test
-artillery run loadtest.yml
+# Custom load testing
+for i in {1..50}; do
+  curl -s http://localhost:${API_PORT}/api/v1/health &
+done
+wait
 ```
 
 ## 🚦 Performance Benchmarks
@@ -447,32 +541,40 @@ After deployment in production environments:
 
 ### Common Issues
 
-**Issue**: Models not appearing in dashboard
+**Issue**: Scenario won't start
 ```bash
-# Check Ollama connectivity
-curl http://localhost:11434/api/tags
+# Check scenario status
+vrooli scenario status ai-model-orchestra-controller
 
-# Verify orchestrator health
-curl http://localhost:8082/api/health
+# Check build
+make build
+
+# Check dependencies
+./test/phases/test-dependencies.sh
 ```
 
-**Issue**: High memory pressure warnings
+**Issue**: API not responding
 ```bash
-# Check system resources
-free -h
-top
+# Check health
+ai-orchestra health
 
-# Review model memory requirements
-cat initialization/configuration/model-capabilities.json
+# Check API port
+vrooli scenario port ai-model-orchestra-controller API_PORT
+
+# Test direct connection
+curl http://localhost:${API_PORT}/api/v1/health
 ```
 
-**Issue**: No model selected errors
+**Issue**: Models not available
 ```bash
-# Verify models are healthy
-curl http://localhost:8082/api/ai/models/status
+# Check Ollama
+curl http://localhost:${RESOURCE_PORTS_OLLAMA:-11434}/api/tags
 
-# Check model capabilities configuration
-grep -A 10 "taskType" initialization/configuration/model-capabilities.json
+# Check through orchestrator
+ai-orchestra models
+
+# Verify resource connections
+ai-orchestra health --verbose
 ```
 
 ### Debug Mode
@@ -481,48 +583,54 @@ Enable debug logging:
 
 ```bash
 # Set debug environment
-export ORCHESTRATOR_LOG_LEVEL=debug
+export LOG_LEVEL=debug
+export ORCHESTRATOR_DEBUG=true
 
-# Restart service
-./stop.sh && ./start.sh
+# Restart scenario
+make stop && make run
 ```
 
 ### Log Locations
 
-- **API Server**: Console output and systemd journal
-- **Node-RED Flows**: Node-RED debug tab
-- **System Metrics**: PostgreSQL `system_resources` table
-- **Request Logs**: PostgreSQL `orchestrator_requests` table
+- **Go API**: Console output via `vrooli scenario logs ai-model-orchestra-controller`
+- **Scenario Logs**: `vrooli logs ai-model-orchestra-controller`
+- **Test Logs**: `./test/run-tests.sh --verbose`
+- **System Status**: `ai-orchestra health --verbose`
 
 ## 🤝 Contributing
 
 ### Development Setup
 
 ```bash
-# Clone and setup
-git clone <repository>
-cd ai-model-orchestra-controller
+# Navigate to scenario
+cd scenarios/ai-model-orchestra-controller
 
-# Install dependencies
-npm install
+# Setup development environment
+make build
+make install-cli
 
-# Start in development mode
-npm run dev
+# Run tests
+make test
+
+# Start development server
+make run
 ```
 
-### Adding New Models
+### Adding New Features
 
-1. Update `model-capabilities.json` with model specifications
-2. Add to appropriate fallback chains
-3. Test with different task types
-4. Update documentation
+1. **API Endpoints**: Add to `api/main.go` with versioned routes (`/api/v1/`)
+2. **CLI Commands**: Update `cli/ai-orchestra` script
+3. **UI Components**: Add to modular UI files in `ui/`
+4. **Tests**: Add to appropriate test phase in `test/phases/`
+5. **Documentation**: Update this README and PRD.md
 
-### Adding New Task Types
+### Code Structure
 
-1. Define in `model-capabilities.json` under `task_types`
-2. Update selection algorithm in `api-server.js`
-3. Add to Node-RED flow routing logic
-4. Create test cases
+- **Go API**: `api/main.go` - RESTful API with exponential backoff DB connections
+- **CLI**: `cli/ai-orchestra` - Bash script wrapper around API
+- **UI**: `ui/dashboard.{html,css,js}` - Modular web interface
+- **Config**: `.vrooli/service.json` - Lifecycle and resource configuration
+- **Tests**: `test/phases/` - Comprehensive phased testing
 
 ## 📈 Roadmap
 

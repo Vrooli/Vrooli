@@ -72,6 +72,25 @@ CLI_COMMAND_HANDLERS["status"]="sqlite::status"
 CLI_COMMAND_HANDLERS["logs"]="sqlite::logs"
 CLI_COMMAND_HANDLERS["info"]="sqlite::info"
 
+# Register migration commands as a group
+cli::register_command_group "migrate" "Database migration management"
+cli::register_subcommand "migrate" "init" "Initialize migration tracking" "sqlite::migrate::init"
+cli::register_subcommand "migrate" "create" "Create new migration file" "sqlite::migrate::create"
+cli::register_subcommand "migrate" "up" "Apply pending migrations" "sqlite::migrate::up"
+cli::register_subcommand "migrate" "status" "Show migration status" "sqlite::migrate::status"
+
+# Register query builder commands as a group
+cli::register_command_group "query" "Query builder helpers"
+cli::register_subcommand "query" "select" "Build and execute SELECT query" "sqlite::query::select"
+cli::register_subcommand "query" "insert" "Insert data with automatic escaping" "sqlite::query::insert"
+cli::register_subcommand "query" "update" "Update data with conditions" "sqlite::query::update"
+
+# Register stats commands as a group
+cli::register_command_group "stats" "Performance monitoring and analysis"
+cli::register_subcommand "stats" "enable" "Enable query statistics" "sqlite::stats::enable"
+cli::register_subcommand "stats" "show" "Show query statistics" "sqlite::stats::show"
+cli::register_subcommand "stats" "analyze" "Analyze database for optimization" "sqlite::stats::analyze"
+
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"

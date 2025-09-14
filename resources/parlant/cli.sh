@@ -4,8 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="${SCRIPT_DIR}/lib"
 
-# Source core library
-source "${LIB_DIR}/core.sh"
+# Source libraries
+for lib in core agents; do
+    lib_file="${LIB_DIR}/${lib}.sh"
+    if [[ -f "$lib_file" ]]; then
+        source "$lib_file" 2>/dev/null || true
+    fi
+done
 
 # Main CLI handler
 main() {
@@ -36,6 +41,9 @@ main() {
             ;;
         credentials)
             parlant_credentials "$@"
+            ;;
+        agents)
+            parlant::agents::command "$@"
             ;;
         *)
             echo "Error: Unknown command '$command'"

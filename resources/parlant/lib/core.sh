@@ -8,6 +8,33 @@ CONFIG_DIR="${RESOURCE_DIR}/config"
 # Source configuration
 source "${CONFIG_DIR}/defaults.sh"
 
+################################################################################
+# Agent cleanup function
+################################################################################
+
+#######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+parlant::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export PARLANT_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    parlant::agent_cleanup() {
+        if [[ -n "${PARLANT_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${PARLANT_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'parlant::agent_cleanup' EXIT SIGTERM SIGINT
+}
+
 # Help command
 parlant_help() {
     cat << EOF
@@ -39,6 +66,7 @@ COMMANDS:
     status [--json]     Show service status
     logs [--tail N]     View service logs
     credentials         Display connection credentials
+    agents              Manage running parlant agents
 
 EXAMPLES:
     # Install and start Parlant
@@ -883,6 +911,19 @@ parlant_create_agent() {
     local description=""
     local model="gpt-4"
     
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="parlant_create_agent $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id" 2>/dev/null || echo "DEBUG: Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            parlant::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --name)
@@ -915,6 +956,11 @@ parlant_create_agent() {
         "http://${PARLANT_HOST}:${PARLANT_PORT}/agents" \
         -H "Content-Type: application/json" \
         -d "{\"name\": \"$name\", \"description\": \"$description\", \"model\": \"$model\"}")
+    
+    # Unregister agent on completion
+    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$agent_id" >/dev/null 2>&1
+    fi
     
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq .

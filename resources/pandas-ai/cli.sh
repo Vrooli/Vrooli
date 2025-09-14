@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${PANDAS_AI_CLI_DIR}/config/defaults.sh"
 
 # Source pandas-ai libraries
-for lib in common status install lifecycle docker content test; do
+for lib in common status install lifecycle docker content test agents; do
     lib_file="${PANDAS_AI_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -68,6 +68,36 @@ cli::register_subcommand "content" "analyze" "Run data analysis query or script"
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "pandas_ai::status"
 cli::register_command "logs" "Show pandas-ai logs" "pandas_ai::docker::logs"
+
+# Agent management commands
+cli::register_command "agents" "Manage running pandas-ai agents" "pandas_ai::agents::command"
+
+################################################################################
+# Agent cleanup function
+################################################################################
+
+#######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+pandas_ai::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export PANDAS_AI_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    pandas_ai::agent_cleanup() {
+        if [[ -n "${PANDAS_AI_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${PANDAS_AI_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'pandas_ai::agent_cleanup' EXIT SIGTERM SIGINT
+}
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

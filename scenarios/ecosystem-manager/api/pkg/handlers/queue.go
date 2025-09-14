@@ -191,3 +191,33 @@ func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *htt
 
 	log.Println("Queue processor started via API")
 }
+
+// ResetRateLimitHandler resets the rate limit pause manually
+func (h *QueueHandlers) ResetRateLimitHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Reset the rate limit pause in the processor
+	h.processor.ResetRateLimitPause()
+
+	// Broadcast the reset event
+	h.wsManager.BroadcastUpdate("rate_limit_resume", map[string]interface{}{
+		"paused":    false,
+		"manual":    true,
+		"timestamp": time.Now().Unix(),
+	})
+
+	// Get updated status
+	status := h.processor.GetQueueStatus()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Rate limit pause has been reset",
+		"status":  status,
+	})
+
+	log.Println("Rate limit pause manually reset via API")
+}

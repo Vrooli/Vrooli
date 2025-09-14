@@ -280,16 +280,48 @@ SUBCOMMANDS:
     remove               Revoke a certificate
     execute              Run CA operations
 
-OPTIONS:
+CERTIFICATE OPTIONS:
     --cn <name>          Common name for certificate
     --san <names>        Subject alternative names (comma-separated)
     --duration <time>    Certificate validity duration (e.g., 30d, 720h)
     --type <type>        Certificate type (x509, ssh)
 
+CA OPERATIONS (content execute):
+    add-provisioner      Add authentication method (OIDC, JWK, AWS, etc)
+    list-provisioners    List configured provisioners
+    remove-provisioner   Remove a provisioner
+    set-policy           Configure certificate lifetime policies
+    get-policy           Display current certificate policies
+
+PROVISIONER OPTIONS:
+    --type <type>        Provisioner type (JWK, OIDC, ACME, AWS, GCP, Azure)
+    --name <name>        Provisioner name
+    --client-id <id>     OIDC client ID
+    --client-secret <s>  OIDC client secret
+    --issuer <url>       OIDC issuer URL
+    --domain <domain>    Allowed domain for OIDC
+
+POLICY OPTIONS:
+    --default-duration   Default certificate lifetime (e.g., 24h, 30d)
+    --max-duration       Maximum certificate lifetime (e.g., 720h, 90d)
+    --min-duration       Minimum certificate lifetime (e.g., 5m, 1h)
+    --allow-renewal-after-expiry  Allow renewal after expiry (true/false)
+
 EXAMPLES:
+    # Issue certificate
     resource-$RESOURCE_NAME content add --cn service.local --duration 30d
-    resource-$RESOURCE_NAME content list
-    resource-$RESOURCE_NAME content get --cn service.local
+    
+    # Add OIDC provisioner
+    resource-$RESOURCE_NAME content execute add-provisioner \\
+        --type OIDC --name keycloak \\
+        --client-id step-ca --issuer https://auth.example.com
+    
+    # Set certificate policies
+    resource-$RESOURCE_NAME content execute set-policy \\
+        --default-duration 24h --max-duration 90d
+    
+    # List provisioners
+    resource-$RESOURCE_NAME content execute list-provisioners
 EOF
 }
 

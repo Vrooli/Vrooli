@@ -94,6 +94,19 @@ whisper::transcribe_audio() {
     local task="${2:-transcribe}"
     local language="${3:-auto}"
     
+    # Setup agent tracking
+    local agent_id
+    agent_id=$(agents::generate_id)
+    local command="whisper::transcribe_audio $file $task $language"
+    
+    # Register agent
+    if ! agents::register "$agent_id" "$$" "$command"; then
+        log::warn "Failed to register agent for tracking"
+    fi
+    
+    # Setup cleanup trap
+    whisper::setup_agent_cleanup "$agent_id"
+    
     # Validate audio file
     if ! whisper::validate_audio_file "$file"; then
         return 1

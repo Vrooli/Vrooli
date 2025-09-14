@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,13 +15,26 @@ import (
 // ResourceSecretsConfig represents a resource's secrets.yaml file
 type ResourceSecretsConfig struct {
 	Version string `yaml:"version"`
-	Secrets []struct {
-		Name        string `yaml:"name"`
-		Description string `yaml:"description"`
-		Required    bool   `yaml:"required"`
-		Type        string `yaml:"type"`
-		Default     string `yaml:"default"`
-		Example     string `yaml:"example"`
+	Secrets struct {
+		APIKeys []struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+			Required    bool   `yaml:"required"`
+			DefaultEnv  string `yaml:"default_env"`
+			Example     string `yaml:"example"`
+		} `yaml:"api_keys"`
+		Endpoints []struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+			Required    bool   `yaml:"required"`
+			DefaultEnv  string `yaml:"default_env"`
+		} `yaml:"endpoints"`
+		Quotas []struct {
+			Name        string `yaml:"name"`
+			Description string `yaml:"description"`
+			Required    bool   `yaml:"required"`
+			DefaultEnv  string `yaml:"default_env"`
+		} `yaml:"quotas"`
 	} `yaml:"secrets"`
 }
 
@@ -36,6 +50,7 @@ func scanResourcesDirectly() ([]string, error) {
 	}
 
 	resourcesPath := filepath.Join(vrooliRoot, "resources")
+	log.Printf("🔍 Scanning resources directory: %s", resourcesPath)
 	var resourcesWithSecrets []string
 
 	// Walk through resources directory
@@ -51,12 +66,14 @@ func scanResourcesDirectly() ([]string, error) {
 			parts := strings.Split(rel, string(filepath.Separator))
 			if len(parts) > 0 {
 				resourceName := parts[0]
+				log.Printf("  📦 Found resource with secrets: %s", resourceName)
 				resourcesWithSecrets = append(resourcesWithSecrets, resourceName)
 			}
 		}
 		return nil
 	})
 
+	log.Printf("✅ Found %d resources with secrets: %v", len(resourcesWithSecrets), resourcesWithSecrets)
 	return resourcesWithSecrets, err
 }
 
@@ -89,12 +106,33 @@ func loadResourceSecrets(resourceName string) (*ResourceSecretsConfig, error) {
 
 // checkVaultForSecret checks if a secret exists in vault (simplified check)
 func checkVaultForSecret(resourceName, secretName string) bool {
-	// For now, check environment variables as a fallback
-	// In production, this would actually query vault
-	envName := fmt.Sprintf("%s_%s", strings.ToUpper(resourceName), strings.ToUpper(secretName))
-	envName = strings.ReplaceAll(envName, "-", "_")
+	var envName string
 	
-	return os.Getenv(envName) != ""
+	// If resourceName is empty, use secretName directly (for default_env fields)
+	if resourceName == "" {
+		envName = secretName
+	} else {
+		// Construct prefixed name for backwards compatibility
+		envName = fmt.Sprintf("%s_%s", strings.ToUpper(resourceName), strings.ToUpper(secretName))
+		envName = strings.ReplaceAll(envName, "-", "_")
+	}
+	
+	log.Printf("🔍 checkVaultForSecret: resource=%s, secret=%s, envName=%s", resourceName, secretName, envName)
+	
+	// Use getVaultSecret which already implements resource-vault CLI access
+	if value, err := getVaultSecret(envName); err == nil && value != "" {
+		log.Printf("✅ Found secret %s in vault", envName)
+		return true
+	}
+	
+	// Fall back to environment variables
+	if envValue := os.Getenv(envName); envValue != "" {
+		log.Printf("✅ Found secret %s in environment", envName)
+		return true
+	}
+	
+	log.Printf("❌ Secret %s not found in vault or environment", envName)
+	return false
 }
 
 // getVaultSecretsStatusFallback provides fallback implementation when vault CLI hangs
@@ -117,24 +155,98 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 		// Load secrets configuration
 		config, err := loadResourceSecrets(resourceName)
 		if err != nil {
+			log.Printf("  ❌ Error loading %s secrets: %v", resourceName, err)
 			continue // Skip resources we can't read
 		}
+		log.Printf("  📋 Processing %s: %d api_keys, %d endpoints, %d quotas", 
+			resourceName, len(config.Secrets.APIKeys), len(config.Secrets.Endpoints), len(config.Secrets.Quotas))
 
+		// Count all secrets across all categories
+		totalSecrets := len(config.Secrets.APIKeys) + len(config.Secrets.Endpoints) + len(config.Secrets.Quotas)
+		
 		status := VaultResourceStatus{
 			ResourceName: resourceName,
-			SecretsTotal: len(config.Secrets),
+			SecretsTotal: totalSecrets,
 			LastChecked:  time.Now(),
+			AllSecrets:   []VaultSecret{},
 		}
 
-		// Check each secret
-		for _, secret := range config.Secrets {
-			if checkVaultForSecret(resourceName, secret.Name) {
+		// Check API keys
+		for _, secret := range config.Secrets.APIKeys {
+			isConfigured := checkVaultForSecret("", secret.DefaultEnv) // Use direct env name, not prefixed
+			
+			// Add to AllSecrets list
+			status.AllSecrets = append(status.AllSecrets, VaultSecret{
+				Name:        secret.DefaultEnv,
+				Description: secret.Description,
+				Required:    secret.Required,
+				Configured:  isConfigured,
+				SecretType:  "api_key",
+			})
+			
+			if isConfigured {
 				status.SecretsFound++
 			} else if secret.Required {
 				status.SecretsMissing++
 				allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
 					ResourceName: resourceName,
-					SecretName:   secret.Name,
+					SecretName:   secret.DefaultEnv, // Use env var name
+					Required:     secret.Required,
+					Description:  secret.Description,
+				})
+			} else {
+				status.SecretsOptional++
+			}
+		}
+		
+		// Check endpoints
+		for _, secret := range config.Secrets.Endpoints {
+			isConfigured := checkVaultForSecret("", secret.DefaultEnv) // Use direct env name, not prefixed
+			
+			// Add to AllSecrets list
+			status.AllSecrets = append(status.AllSecrets, VaultSecret{
+				Name:        secret.DefaultEnv,
+				Description: secret.Description,
+				Required:    secret.Required,
+				Configured:  isConfigured,
+				SecretType:  "endpoint",
+			})
+			
+			if isConfigured {
+				status.SecretsFound++
+			} else if secret.Required {
+				status.SecretsMissing++
+				allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
+					ResourceName: resourceName,
+					SecretName:   secret.DefaultEnv,
+					Required:     secret.Required,
+					Description:  secret.Description,
+				})
+			} else {
+				status.SecretsOptional++
+			}
+		}
+		
+		// Check quotas
+		for _, secret := range config.Secrets.Quotas {
+			isConfigured := checkVaultForSecret("", secret.DefaultEnv) // Use direct env name, not prefixed
+			
+			// Add to AllSecrets list
+			status.AllSecrets = append(status.AllSecrets, VaultSecret{
+				Name:        secret.DefaultEnv,
+				Description: secret.Description,
+				Required:    secret.Required,
+				Configured:  isConfigured,
+				SecretType:  "quota",
+			})
+			
+			if isConfigured {
+				status.SecretsFound++
+			} else if secret.Required {
+				status.SecretsMissing++
+				allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
+					ResourceName: resourceName,
+					SecretName:   secret.DefaultEnv,
 					Required:     secret.Required,
 					Description:  secret.Description,
 				})

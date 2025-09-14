@@ -16,10 +16,10 @@
       "model-routing",
       "failover-handling",
       "cost-optimization",
-      "api-only",
-      "node-red-flows",
+      "go-api",
       "ollama-models",
-      "postgres-storage"
+      "postgres-storage",
+      "redis-caching"
     ]
   },
   "ports": {
@@ -28,11 +28,6 @@
       "description": "Main AI orchestration API port",
       "range": "15000-19999"
     },
-    "monitoring": {
-      "env_var": "MONITORING_PORT",
-      "description": "Monitoring and metrics endpoint port",
-      "range": "23000-23999"
-    },
     "ui": {
       "env_var": "UI_PORT",
       "description": "AI Model Orchestra Controller UI port",
@@ -40,21 +35,6 @@
     }
   },
   "resources": {
-    "node_red": {
-      "type": "node_red",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/workflows/orchestrator-main.json",
-          "type": "flow"
-        },
-        {
-          "file": "initialization/workflows/resource-monitor.json",
-          "type": "flow"
-        }
-      ]
-    },
     "ollama": {
       "type": "ollama",
       "enabled": true,
@@ -83,11 +63,11 @@
   },
   "endpoints": {
     "health": "/health",
-    "api_health": "/api/health",
-    "select_model": "/api/ai/select-model",
-    "route_request": "/api/ai/route-request",
-    "model_status": "/api/ai/models/status",
-    "resource_metrics": "/api/ai/resources/metrics",
+    "api_health": "/api/v1/health",
+    "select_model": "/api/v1/ai/select-model",
+    "route_request": "/api/v1/ai/route-request",
+    "model_status": "/api/v1/ai/models/status",
+    "resource_metrics": "/api/v1/ai/resources/metrics",
     "dashboard": "/dashboard"
   },
   "capabilities": {
@@ -145,16 +125,9 @@
     },
     {
       "name": "model_availability",
-      "url": "http://localhost:${API_PORT}/api/ai/models/status",
+      "url": "http://localhost:${API_PORT}/api/v1/ai/models/status",
       "interval": 60,
       "timeout": 15,
-      "retries": 2
-    },
-    {
-      "name": "node_red_flows",
-      "url": "http://localhost:${RESOURCE_PORTS[node_red]}/health",
-      "interval": 45,
-      "timeout": 10,
       "retries": 2
     }
   ],
@@ -177,12 +150,22 @@
       ],
       "timeout": 5000,
       "interval": 30000,
-      "startup_grace_period": 10000
+      "startup_grace_period": 15000
     },
     "setup": {
       "description": "Initialize AI Model Orchestra Controller",
       "condition": {
         "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/ai-model-orchestra-controller-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "ai-orchestra"
+          },
           {
             "type": "resources",
             "populated": true
@@ -191,34 +174,28 @@
       },
       "steps": [
         {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "create-resource-urls",
           "run": "bash initialization/scripts/create-resource-urls.sh",
           "description": "Generate dynamic resource URLs configuration"
         },
         {
-          "name": "install-api-deps",
-          "run": "cd initialization/configuration && npm install",
-          "description": "Install API server dependencies"
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
         },
         {
-          "name": "start-api",
-          "run": "cd initialization/configuration && node api-server.js &",
-          "description": "Start AI orchestration API server",
-          "background": true
+          "name": "build-api",
+          "run": "cd api && go mod tidy && go build -o ai-model-orchestra-controller-api .",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
+          "description": "Install UI dependencies"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node_red]}\\n  Health: curl http://localhost:${API_PORT}/health'",
+          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  CLI: ai-orchestra --help\\n  Health: curl http://localhost:${API_PORT}/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -227,51 +204,48 @@
       "description": "Start AI orchestration development environment",
       "steps": [
         {
-          "name": "install-deps",
-          "run": "cd initialization/configuration && npm install",
-          "description": "Install API dependencies",
+          "name": "start-api",
+          "run": "cd api && ./ai-model-orchestra-controller-api",
+          "description": "Start Go API server in background",
+          "background": true,
           "condition": {
-            "file_exists": "initialization/configuration/package.json"
+            "file_exists": "api/ai-model-orchestra-controller-api"
           }
         },
         {
-          "name": "start-orchestrator",
-          "run": "cd initialization/configuration && PORT=$API_PORT node api-server.js",
-          "description": "Start AI orchestration API server",
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI development server",
           "background": true,
           "condition": {
-            "file_exists": "initialization/configuration/api-server.js"
+            "file_exists": "ui/server.js"
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  Model Selection: POST http://localhost:${API_PORT}/api/ai/select-model\\n  Route Request: POST http://localhost:${API_PORT}/api/ai/route-request\\n  Node-RED: http://localhost:${RESOURCE_PORTS[node_red]}'",
+          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  UI Server: http://localhost:${UI_PORT}\\n  Model Selection: POST http://localhost:${API_PORT}/api/v1/ai/select-model\\n  Route Request: POST http://localhost:${API_PORT}/api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test AI orchestration capabilities",
+      "description": "Comprehensive phased testing for ai-model-orchestra-controller using the new testing architecture",
       "steps": [
         {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
+          "name": "run-comprehensive-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)",
+          "condition": {
+            "file_exists": "test/run-tests.sh"
+          }
         },
         {
-          "name": "test-model-selection",
-          "run": "curl -sf -X POST http://localhost:$API_PORT/api/ai/select-model -H 'Content-Type: application/json' -d '{\"taskType\": \"completion\"}'",
-          "description": "Test model selection endpoint"
-        },
-        {
-          "name": "test-model-status",
-          "run": "curl -sf http://localhost:$API_PORT/api/ai/models/status",
-          "description": "Test model status endpoint"
-        },
-        {
-          "name": "test-resource-metrics",
-          "run": "curl -sf http://localhost:$API_PORT/api/ai/resources/metrics",
-          "description": "Test resource metrics endpoint"
+          "name": "fallback-basic-tests",
+          "run": "echo '⚠️  Comprehensive test runner not found, running basic tests...' && cd api && go build -o test-build . && rm test-build && curl -sf http://localhost:$API_PORT/health && curl -sf -X POST http://localhost:$API_PORT/api/v1/ai/select-model -H 'Content-Type: application/json' -d '{\"taskType\": \"completion\"}'",
+          "description": "Fallback to basic tests if comprehensive runner not available",
+          "condition": {
+            "file_not_exists": "test/run-tests.sh"
+          }
         }
       ]
     },
@@ -292,18 +266,7 @@
     }
   },
   "dependencies": {
-    "node": ">=18.0.0",
-    "npm_packages": [
-      "express@^4.18.0",
-      "cors@^2.8.5",
-      "helmet@^6.0.0",
-      "express-rate-limit@^6.6.0",
-      "body-parser@^1.20.0",
-      "pg@^8.8.0",
-      "redis@^4.5.0",
-      "dockerode@^3.3.0",
-      "node-cron@^3.0.0"
-    ]
+    "go": ">=1.21.0"
   },
   "monitoring": {
     "metrics": [

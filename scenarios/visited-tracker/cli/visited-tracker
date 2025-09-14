@@ -467,14 +467,18 @@ show_status() {
     health_response=$(curl -s "${api_url}/health")
     
     echo -e "${CYAN}🔍 Visited Tracker Status${NC}"
-    echo "$health_response" | jq -r '"Service: \(.service)\nVersion: \(.version)\nStatus: \(.status)\nDatabase: \(.database)"'
+    echo "$health_response" | jq -r '"Service: \(.service)\nVersion: \(.version)\nStatus: \(.status)\nUptime: \(.metrics.uptime_seconds // 0 | floor)s"'
     
-    # Get coverage stats
+    # Get coverage stats (if endpoint exists)
     echo ""
     echo -e "${BLUE}Coverage Overview:${NC}"
     local coverage_response
-    coverage_response=$(api_request "GET" "/api/v1/coverage")
-    echo "$coverage_response" | jq -r '"Total files: \(.total_files)\nVisited: \(.visited_files) (\(.coverage_percentage | round)%)\nUnvisited: \(.unvisited_files)"'
+    coverage_response=$(curl -s "${api_url}/api/v1/coverage" 2>/dev/null)
+    if [[ $? -eq 0 ]] && echo "$coverage_response" | jq empty 2>/dev/null; then
+        echo "$coverage_response" | jq -r '"Total files: \(.total_files // 0)\nVisited: \(.visited_files // 0) (\(.coverage_percentage // 0 | round)%)\nUnvisited: \(.unvisited_files // 0)"'
+    else
+        echo "Coverage data not available"
+    fi
 }
 
 import_data() {

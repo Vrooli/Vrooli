@@ -32,7 +32,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OLLAMA_CLI_DIR}/config/defaults.sh"
 
 # Source Ollama libraries
-for lib in common api models status install inject; do
+for lib in common api models status install inject agents; do
     lib_file="${OLLAMA_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -80,6 +80,36 @@ cli::register_subcommand "content" "inject" "Inject models from JSON file" "olla
 # OPTIONAL RESOURCE-SPECIFIC COMMANDS
 # ==============================================================================
 cli::register_command "info" "Show comprehensive Ollama information" "ollama::info"
+
+# Agent management commands
+cli::register_command "agents" "Manage running Ollama agents" "ollama::agents::command"
+
+################################################################################
+# Agent cleanup function
+################################################################################
+
+#######################################
+# Setup agent cleanup on signals
+# Arguments:
+#   $1 - Agent ID
+#######################################
+ollama::setup_agent_cleanup() {
+    local agent_id="$1"
+    
+    # Export the agent ID so trap can access it
+    export OLLAMA_CURRENT_AGENT_ID="$agent_id"
+    
+    # Cleanup function that uses the exported variable
+    ollama::agent_cleanup() {
+        if [[ -n "${OLLAMA_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${OLLAMA_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        fi
+        exit 0
+    }
+    
+    # Register cleanup for common signals
+    trap 'ollama::agent_cleanup' EXIT SIGTERM SIGINT
+}
 
 ################################################################################
 # Legacy wrapper functions - preserve ALL original functionality exactly
@@ -185,6 +215,19 @@ ollama_generate() {
         quiet=true
     fi
     
+    # Register agent if agent management is available
+    local agent_id=""
+    if type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command_string="resource-ollama content generate $*"
+        if agents::register "$agent_id" $$ "$command_string"; then
+            log::debug "Registered agent: $agent_id"
+            
+            # Set up signal handler for cleanup
+            ollama::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     # Simple argument parsing for core functionality
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -246,6 +289,11 @@ ollama_generate() {
         log::info "Generating text with $model"
     fi
     ollama run "$model" "$prompt"
+    
+    # Unregister agent on completion
+    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$agent_id" >/dev/null 2>&1
+    fi
 }
 
 ollama_inject_handler() {

@@ -53,6 +53,31 @@ COMMANDS:
         kick <player>       Kick player from server
         ban <player>        Ban player from server
         give <p> <item> [n] Give items to player
+    world <subcommand>      World management operations
+        save [server]       Save world data
+        backup [server]     Create world backup
+        info [server]       Display world information
+        set-property <prop> <val>  Set world property
+        set-spawn <x> <y> <z>      Set world spawn point
+    event <subcommand>      Event streaming and monitoring
+        start-stream        Start background event streaming
+        stop-stream         Stop event streaming
+        stream-chat [secs]  Stream chat for duration
+        monitor [type]      Monitor specific events (joins/leaves/deaths/all)
+        tail [lines]        Show recent events
+    webhook <subcommand>    Webhook integration
+        configure <url>     Configure webhook endpoint
+        list                List configured webhooks
+        remove <url>        Remove webhook
+        start               Start webhook service
+        stop                Stop webhook service
+        test <url>          Test webhook connectivity
+    mod <subcommand>        Mod/Plugin integration
+        list [server]       List installed mods/plugins
+        execute <mod> <cmd> Execute mod-specific command
+        register-commands   Register custom mod commands
+        show-commands [mod] Show registered mod commands
+        test-support        Test mod support on server
     status                  Show resource status
     logs                    View resource logs
     credentials             Display connection credentials
@@ -128,6 +153,18 @@ main() {
             ;;
         player)
             "${SCRIPT_DIR}/lib/core.sh" player "$@"
+            ;;
+        world)
+            "${SCRIPT_DIR}/lib/core.sh" world "$@"
+            ;;
+        event)
+            "${SCRIPT_DIR}/lib/core.sh" event "$@"
+            ;;
+        webhook)
+            "${SCRIPT_DIR}/lib/core.sh" webhook "$@"
+            ;;
+        mod)
+            "${SCRIPT_DIR}/lib/core.sh" mod "$@"
             ;;
         status)
             "${SCRIPT_DIR}/lib/core.sh" status

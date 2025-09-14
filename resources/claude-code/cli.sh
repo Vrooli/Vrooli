@@ -43,7 +43,7 @@ else
 fi
 
 # Load other libraries in dependency order (common.sh is already loaded)
-for lib in status install session session-enhanced mcp templates settings automation execute batch error-handling content; do
+for lib in status install session session-enhanced mcp templates settings automation execute batch error-handling content agents; do
     lib_file="${CLAUDE_CODE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -97,6 +97,9 @@ cli::register_command "test-rate-limit" "Test rate limit detection (diagnostic)"
 # Information commands
 cli::register_command "status" "Show detailed resource status" "claude_code::status"
 cli::register_command "logs" "Show Claude Code logs" "claude_code::logs"
+
+# Agent management commands
+cli::register_command "agents" "Manage running Claude Code agents" "claude_code::agents::command"
 
 ################################################################################
 # Preserved wrapper functions for backward compatibility and complex operations

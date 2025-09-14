@@ -27,11 +27,11 @@ run_test() {
     
     if eval "$test_command" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC}"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
     else
         echo -e "${RED}✗${NC}"
-        ((TESTS_FAILED++))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
     fi
 }
@@ -57,9 +57,9 @@ main() {
     run_test "service health status" \
         "timeout $TIMEOUT curl -sf ${BASE_URL}/health | jq -e '.status == \"healthy\"' > /dev/null" || true
     
-    # Test 5: Port is correct
+    # Test 5: Port is correct - use ss instead of netstat for better compatibility
     run_test "port configuration" \
-        "netstat -tln | grep -q :${PORT}" || true
+        "ss -tln | grep -q :${PORT} || lsof -i :${PORT} &>/dev/null" || true
     
     # Summary
     echo "===================================="

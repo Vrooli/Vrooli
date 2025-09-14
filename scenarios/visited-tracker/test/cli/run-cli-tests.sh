@@ -2,18 +2,20 @@
 # CLI test runner - orchestrates all BATS tests
 set -euo pipefail
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
+# Setup utilities
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+
+# Get API port dynamically (same as integration test)
+API_PORT="17695"
+
+
 
 echo "🔧 Running CLI BATS tests..."
 
 # Check if BATS is available
 if ! command -v bats >/dev/null 2>&1; then
-    echo -e "${YELLOW}⚠️  BATS is not installed${NC}"
+    log::warning "⚠️  BATS is not installed"
     echo "   Install with: npm install -g bats"
     echo "   Or on Ubuntu: sudo apt-get install bats"
     exit 1
@@ -22,7 +24,7 @@ fi
 # Get the CLI directory (where BATS files should be)
 CLI_DIR="${VROOLI_ROOT:-$(pwd)}/scenarios/visited-tracker/cli"
 if [ ! -d "$CLI_DIR" ]; then
-    echo -e "${RED}❌ CLI directory not found: $CLI_DIR${NC}"
+    log::error "❌ CLI directory not found: $CLI_DIR"
     exit 1
 fi
 
@@ -35,8 +37,8 @@ while IFS= read -r -d '' file; do
 done < <(find "$CLI_DIR" -name "*.bats" -type f -print0 2>/dev/null)
 
 if [ ${#bats_files[@]} -eq 0 ]; then
-    echo -e "${YELLOW}ℹ️  No BATS files found in $CLI_DIR${NC}"
-    echo -e "${BLUE}💡 Creating basic BATS test structure...${NC}"
+    log::warning "ℹ️  No BATS files found in $CLI_DIR"
+    log::info "💡 Creating basic BATS test structure..."
     
     # Create a basic BATS test file
     cat > "$CLI_DIR/visited-tracker.bats" << 'EOF'
@@ -106,7 +108,7 @@ setup() {
 # Integration tests (might fail if service not running)
 @test "CLI least-visited works with service running" {
     # Skip if service is not running
-    if ! curl -sf "http://localhost:${API_PORT:-20252}/health" >/dev/null 2>&1; then
+    if ! timeout 5 curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
         skip "visited-tracker service not running"
     fi
     
@@ -117,7 +119,7 @@ setup() {
 
 @test "CLI coverage works with service running" {
     # Skip if service is not running
-    if ! curl -sf "http://localhost:${API_PORT:-20252}/health" >/dev/null 2>&1; then
+    if ! timeout 5 curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
         skip "visited-tracker service not running"
     fi
     
@@ -127,7 +129,7 @@ setup() {
 }
 EOF
     
-    echo -e "${GREEN}✅ Created basic BATS test file: $CLI_DIR/visited-tracker.bats${NC}"
+    log::success "✅ Created basic BATS test file: $CLI_DIR/visited-tracker.bats"
     bats_files=("$CLI_DIR/visited-tracker.bats")
 fi
 
@@ -141,13 +143,13 @@ echo "🧪 Running $total_files BATS test files..."
 
 for bats_file in "${bats_files[@]}"; do
     echo ""
-    echo -e "${BLUE}📋 Running $(basename "$bats_file")...${NC}"
+    log::info "📋 Running $(basename "$bats_file")..."
     
     if bats "$bats_file" --tap; then
-        echo -e "${GREEN}✅ $(basename "$bats_file") passed${NC}"
+        log::success "✅ $(basename "$bats_file") passed"
         ((test_count++))
     else
-        echo -e "${RED}❌ $(basename "$bats_file") failed${NC}"
+        log::error "❌ $(basename "$bats_file") failed"
         ((failed_count++))
         ((test_count++))
     fi
@@ -161,9 +163,9 @@ echo "   Test files passed: $((test_count - failed_count))"
 echo "   Test files failed: $failed_count"
 
 if [ $failed_count -eq 0 ]; then
-    echo -e "${GREEN}✅ All $test_count CLI test suites passed${NC}"
+    log::success "✅ All $test_count CLI test suites passed"
     exit 0
 else
-    echo -e "${RED}❌ $failed_count of $test_count CLI test suites failed${NC}"
+    log::error "❌ $failed_count of $test_count CLI test suites failed"
     exit 1
 fi

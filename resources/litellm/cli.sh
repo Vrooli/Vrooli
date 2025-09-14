@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${LITELLM_CLI_DIR}/config/defaults.sh"
 
 # Source LiteLLM libraries
-for lib in core docker install status content test; do
+for lib in core docker install status content test agents; do
     lib_file="${LITELLM_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -68,6 +68,7 @@ cli::register_subcommand "content" "models" "List available AI models" "litellm:
 cli::register_command "status" "Show detailed resource status" "litellm::status"
 cli::register_command "logs" "Show LiteLLM logs" "litellm::docker::logs"
 cli::register_command "credentials" "Show LiteLLM credentials for integration" "litellm::core::credentials"
+cli::register_command "agents" "Manage running litellm agents" "litellm::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

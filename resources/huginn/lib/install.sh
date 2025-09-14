@@ -349,15 +349,35 @@ huginn::import_scenario_file() {
         return 1
     fi
     
+    # Register agent for tracking if agent tracking is available
+    local tracking_agent_id=""
+    if type -t agents::register &>/dev/null; then
+        tracking_agent_id=$(agents::generate_id)
+        local command_string="huginn::import_scenario_file $scenario_file"
+        if agents::register "$tracking_agent_id" $$ "$command_string"; then
+            huginn::setup_agent_cleanup "$tracking_agent_id"
+        else
+            tracking_agent_id=""
+        fi
+    fi
+    
     # Read and validate JSON
     local scenario_json
     if ! scenario_json=$(cat "$scenario_file" 2>/dev/null); then
+        # Cleanup tracking agent on error
+        if [[ -n "$tracking_agent_id" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "$tracking_agent_id" >/dev/null 2>&1
+        fi
         log::error "Failed to read scenario file: $scenario_file"
         return 1
     fi
     
     # Validate JSON format
     if ! echo "$scenario_json" | jq . >/dev/null 2>&1; then
+        # Cleanup tracking agent on error
+        if [[ -n "$tracking_agent_id" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "$tracking_agent_id" >/dev/null 2>&1
+        fi
         log::error "Invalid JSON in scenario file: $scenario_file"
         return 1
     fi
@@ -389,6 +409,11 @@ huginn::import_scenario_file() {
     
     local result
     result=$(huginn::rails_runner "$import_code" 2>/dev/null)
+    
+    # Cleanup tracking agent
+    if [[ -n "$tracking_agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$tracking_agent_id" >/dev/null 2>&1
+    fi
     
     if [[ "$result" == *"✅"* ]]; then
         return 0

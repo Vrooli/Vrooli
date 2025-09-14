@@ -1,30 +1,44 @@
 {
   "status": "healthy",
   "service": "device-sync-hub-ui",
-  "timestamp": "2025-09-13T00:00:00Z",
+  "timestamp": "2025-09-14T00:00:00Z",
   "readiness": true,
-  "api_connectivity": {
-    "connected": false,
-    "api_url": "http://localhost:3300",
-    "last_check": "2025-09-13T00:00:00Z",
-    "error": {
-      "code": "STATIC_UI_CANNOT_TEST",
-      "message": "Static UI cannot test live connectivity - health status unknown",
-      "category": "configuration",
-      "retryable": false
-    },
-    "latency_ms": null
+  "deployment": {
+    "type": "static",
+    "mode": "production",
+    "version": "1.0.0"
   },
   "static_files": {
     "available": true,
     "files": {
       "index_html": true,
-      "app_js": true,
-      "style_css": true
+      "style_css": true,
+      "javascript_modules": true,
+      "assets": true
     }
+  },
+  "configuration": {
+    "api_url_source": "meta_tag_injection",
+    "auth_url_source": "meta_tag_injection",
+    "responsive_design": true,
+    "progressive_web_app": true
+  },
+  "features": {
+    "mobile_first": true,
+    "real_time_sync": true,
+    "drag_drop_upload": true,
+    "clipboard_integration": true,
+    "offline_capable": false
+  },
+  "security": {
+    "content_security_headers": true,
+    "xss_protection": true,
+    "frame_options": "DENY",
+    "requires_authentication": true
   },
   "metrics": {
     "deployment_mode": "static",
-    "requires_auth": true
+    "requires_auth": true,
+    "api_connectivity": "runtime_determined"
   }
 }

@@ -195,12 +195,52 @@ resource-step-ca content execute generate-crl
 ### Multi-Provisioner Setup
 Configure different authentication methods for different use cases:
 ```bash
-# Add OIDC provisioner
+# Add OIDC provisioner (e.g., Keycloak, Auth0, Okta)
 resource-step-ca content execute add-provisioner \
   --type OIDC \
   --name keycloak \
-  --client-id step-ca
+  --client-id step-ca \
+  --issuer https://auth.example.com \
+  --domain example.com
+
+# Add cloud provider provisioners
+resource-step-ca content execute add-provisioner \
+  --type AWS \
+  --name aws-prod
+
+resource-step-ca content execute add-provisioner \
+  --type GCP \
+  --name gcp-dev
+
+resource-step-ca content execute add-provisioner \
+  --type Azure \
+  --name azure-staging
+
+# List all configured provisioners
+resource-step-ca content execute list-provisioners
+
+# Remove a provisioner
+resource-step-ca content execute remove-provisioner keycloak-test
 ```
+
+### Certificate Lifetime Policies
+Configure global and per-provisioner certificate lifetimes:
+```bash
+# Set global certificate policies
+resource-step-ca content execute set-policy \
+  --default-duration 24h \
+  --max-duration 90d \
+  --min-duration 5m \
+  --allow-renewal-after-expiry true
+
+# View current policies
+resource-step-ca content execute get-policy
+```
+
+Note: Durations can be specified as:
+- Hours: `24h`, `720h`
+- Days: `30d`, `90d` (automatically converted to hours)
+- Minutes: `5m`, `30m`
 
 ## Performance Tuning
 

@@ -67,19 +67,58 @@ EOF
     # Execute the goal
     log::info "Executing goal in AutoGPT..."
     
+    # Register agent for tracking
+    local agent_id
+    agent_id=$(agents::generate_id)
+    local command="autogpt::run \"$goal\" $mode"
+    
     # Run AutoGPT with the goal
     local output
     if [[ "${mode}" == "continuous" ]]; then
         # Continuous mode - runs until goal is achieved
-        output=$(docker exec -i "${AUTOGPT_CONTAINER_NAME}" python -m autogpt \
-            --continuous \
-            --goal "${goal}" \
-            2>&1 | tee "${AUTOGPT_LOGS_DIR}/run_$(date +%s).log")
+        (
+            # Setup cleanup trap
+            autogpt::setup_agent_cleanup "$agent_id"
+            
+            docker exec -i "${AUTOGPT_CONTAINER_NAME}" python -m autogpt \
+                --continuous \
+                --goal "${goal}" \
+                2>&1 | tee "${AUTOGPT_LOGS_DIR}/run_$(date +%s).log"
+        ) &
     else
         # Task mode - single execution
-        output=$(docker exec -i "${AUTOGPT_CONTAINER_NAME}" python -m autogpt \
-            --goal "${goal}" \
-            2>&1 | tee "${AUTOGPT_LOGS_DIR}/run_$(date +%s).log")
+        (
+            # Setup cleanup trap
+            autogpt::setup_agent_cleanup "$agent_id"
+            
+            docker exec -i "${AUTOGPT_CONTAINER_NAME}" python -m autogpt \
+                --goal "${goal}" \
+                2>&1 | tee "${AUTOGPT_LOGS_DIR}/run_$(date +%s).log"
+        ) &
+    fi
+    
+    local agent_pid=$!
+    
+    # Register the agent
+    if agents::register "$agent_id" "$agent_pid" "$command"; then
+        log::debug "Agent registered: $agent_id (PID: $agent_pid)"
+    else
+        log::warn "Failed to register agent in tracking system"
+    fi
+    
+    # Wait for execution to complete and capture output
+    wait $agent_pid
+    local exit_code=$?
+    
+    # Clean up agent from registry
+    agents::unregister "$agent_id" 2>/dev/null || true
+    
+    # Read output from log file (since we ran in background)
+    local log_file="${AUTOGPT_LOGS_DIR}/run_$(date +%s).log"
+    if [[ -f "$log_file" ]]; then
+        output=$(cat "$log_file")
+    else
+        output="AutoGPT execution completed (no output captured)"
     fi
     
     # Display output
@@ -88,8 +127,14 @@ EOF
     # Clean up
     rm -f "${goal_file}"
     
-    log::success "AutoGPT execution complete"
+    if [[ $exit_code -eq 0 ]]; then
+        log::success "AutoGPT execution complete"
+    else
+        log::error "AutoGPT execution failed with exit code: $exit_code"
+    fi
     log::info "Logs saved to ${AUTOGPT_LOGS_DIR}"
+    
+    return $exit_code
 }
 
 # Run in interactive mode

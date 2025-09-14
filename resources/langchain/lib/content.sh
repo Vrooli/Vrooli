@@ -236,6 +236,19 @@ langchain::content::execute() {
     local script_file="${found_files[0]}"
     log::info "Executing: $(basename "$script_file")"
     
+    # Register agent if agent tracking is available
+    local agent_id=""
+    if type -t agents::generate_id &>/dev/null && type -t agents::register &>/dev/null; then
+        agent_id=$(agents::generate_id)
+        local command="python $(basename "$script_file") $*"
+        agents::register "$agent_id" "$$" "$command" || log::warn "Failed to register agent"
+        
+        # Setup cleanup if function exists
+        if type -t langchain::setup_agent_cleanup &>/dev/null; then
+            langchain::setup_agent_cleanup "$agent_id"
+        fi
+    fi
+    
     # Execute the script with the LangChain Python environment
     "${LANGCHAIN_VENV_DIR}/bin/python" "$script_file" "$@"
 }

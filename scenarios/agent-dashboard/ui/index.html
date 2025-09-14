@@ -386,6 +386,28 @@
             height: 300px;
         }
 
+        /* No agents state */
+        .no-agents {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+            font-family: 'Orbitron', monospace;
+            font-size: 18px;
+            border: 2px dashed rgba(0, 255, 255, 0.2);
+            background: rgba(26, 26, 46, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .no-agents::before {
+            content: '◉';
+            display: block;
+            font-size: 48px;
+            color: var(--primary-cyan);
+            margin-bottom: 20px;
+            animation: flicker 3s infinite;
+        }
+
         /* Command terminal */
         .command-terminal {
             background: var(--dark-surface);
@@ -454,48 +476,6 @@
             animation: dataStream 3s linear infinite;
         }
 
-        /* Orchestration panel */
-        .orchestration-panel {
-            background: linear-gradient(135deg, var(--dark-panel), rgba(26, 26, 46, 0.9));
-            border: 1px solid rgba(255, 0, 255, 0.3);
-            padding: 30px;
-            margin-top: 30px;
-            position: relative;
-        }
-
-        .orchestration-title {
-            font-family: 'Orbitron', monospace;
-            font-size: 24px;
-            color: var(--primary-magenta);
-            margin-bottom: 20px;
-            text-transform: uppercase;
-        }
-
-        .orchestration-controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-
-        .orchestrate-btn {
-            padding: 15px;
-            background: linear-gradient(135deg, rgba(255, 0, 255, 0.1), rgba(0, 255, 255, 0.1));
-            border: 1px solid rgba(255, 0, 255, 0.5);
-            color: var(--text-primary);
-            font-family: 'Orbitron', monospace;
-            font-weight: 600;
-            text-transform: uppercase;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .orchestrate-btn:hover {
-            background: linear-gradient(135deg, rgba(255, 0, 255, 0.2), rgba(0, 255, 255, 0.2));
-            box-shadow: 0 0 30px rgba(255, 0, 255, 0.5);
-            transform: scale(1.05);
-        }
 
         /* Responsive design */
         @media (max-width: 768px) {
@@ -554,7 +534,7 @@
                 </div>
                 <div class="status-indicator">
                     <div class="status-dot warning"></div>
-                    <span>5 AGENTS ACTIVE</span>
+                    <span id="agentCount">0 AGENTS ACTIVE</span>
                 </div>
                 <div class="status-indicator">
                     <div class="status-dot active"></div>
@@ -568,24 +548,6 @@
             <!-- Agent cards will be dynamically inserted here -->
         </div>
 
-        <!-- Orchestration Panel -->
-        <div class="orchestration-panel">
-            <h2 class="orchestration-title">Neural Orchestration</h2>
-            <div class="orchestration-controls">
-                <button class="orchestrate-btn" onclick="orchestrateAgents('optimize')">
-                    Optimize Resources
-                </button>
-                <button class="orchestrate-btn" onclick="orchestrateAgents('scale')">
-                    Auto-Scale Agents
-                </button>
-                <button class="orchestrate-btn" onclick="orchestrateAgents('balance')">
-                    Load Balance
-                </button>
-                <button class="orchestrate-btn" onclick="orchestrateAgents('emergency')">
-                    Emergency Protocol
-                </button>
-            </div>
-        </div>
 
         <!-- Command Terminal -->
         <div class="command-terminal">

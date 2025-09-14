@@ -27,9 +27,11 @@ app.get('/health', (req, res) => {
 
 // API proxy configuration
 app.get('/api/config', (req, res) => {
+    const host = process.env.ORCHESTRATOR_HOST || 'localhost';
     res.json({ 
-        apiUrl: `http://localhost:${API_PORT}`,
+        apiUrl: `http://${host}:${API_PORT}`,
         uiPort: PORT,
+        host: host,
         resources: process.env.RESOURCE_PORTS ? JSON.parse(process.env.RESOURCE_PORTS) : {}
     });
 });
@@ -49,9 +51,10 @@ app.get('*', (req, res) => {
 });
 
 const server = app.listen(PORT, () => {
-    console.log(`✅ UI server running on http://localhost:${PORT}`);
-    console.log(`📡 API endpoint: http://localhost:${process.env.API_PORT || 8080}`);
-    console.log(`🏷️  Scenario: ${'unknown'}`);
+    const host = process.env.ORCHESTRATOR_HOST || 'localhost';
+    console.log(`✅ UI server running on http://${host}:${PORT}`);
+    console.log(`📡 API endpoint: http://${host}:${process.env.API_PORT || 8080}`);
+    console.log(`🏷️  Scenario: ai-model-orchestra-controller`);
 });
 
 // Graceful shutdown

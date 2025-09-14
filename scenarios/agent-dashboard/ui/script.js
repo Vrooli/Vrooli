@@ -1,101 +1,52 @@
 // Agent Dashboard - Interactive Script
 
-// Sample agent data (would come from API in production)
-const sampleAgents = [
-    {
-        id: 'agent-001',
-        name: 'Huginn Scraper',
-        type: 'huginn',
-        status: 'active',
-        description: 'Web scraping and monitoring agent',
-        capabilities: ['web-scraping', 'monitoring', 'alerts'],
-        metrics: {
-            cpu: 23,
-            memory: 512,
-            tasks_completed: 1247,
-            uptime: '3d 14h'
-        },
-        last_heartbeat: new Date(Date.now() - 30000).toISOString()
-    },
-    {
-        id: 'agent-002',
-        name: 'Claude Code',
-        type: 'claude-code',
-        status: 'active',
-        description: 'AI coding assistant',
-        capabilities: ['code-generation', 'debugging', 'refactoring'],
-        metrics: {
-            cpu: 45,
-            memory: 1024,
-            tasks_completed: 89,
-            uptime: '1d 7h'
-        },
-        last_heartbeat: new Date(Date.now() - 15000).toISOString()
-    },
-    {
-        id: 'agent-003',
-        name: 'N8N Workflow Engine',
-        type: 'n8n-workflow',
-        status: 'active',
-        description: 'Workflow automation engine',
-        capabilities: ['automation', 'integration', 'orchestration'],
-        metrics: {
-            cpu: 31,
-            memory: 768,
-            tasks_completed: 3456,
-            uptime: '7d 2h'
-        },
-        last_heartbeat: new Date(Date.now() - 45000).toISOString()
-    },
-    {
-        id: 'agent-004',
-        name: 'Agent-S2 Browser',
-        type: 'agent-s2',
-        status: 'inactive',
-        description: 'Browser automation agent',
-        capabilities: ['browser-automation', 'testing', 'scraping'],
-        metrics: {
-            cpu: 0,
-            memory: 0,
-            tasks_completed: 567,
-            uptime: '0h'
-        },
-        last_heartbeat: new Date(Date.now() - 3600000).toISOString()
-    },
-    {
-        id: 'agent-005',
-        name: 'Vision Analyzer',
-        type: 'custom',
-        status: 'error',
-        description: 'Computer vision processing',
-        capabilities: ['image-analysis', 'ocr', 'object-detection'],
-        metrics: {
-            cpu: 78,
-            memory: 2048,
-            tasks_completed: 234,
-            uptime: '12h'
-        },
-        last_heartbeat: new Date(Date.now() - 600000).toISOString()
-    }
-];
+// Global agents array (populated from API)
+let currentAgents = [];
 
 // Initialize dashboard
-document.addEventListener('DOMContentLoaded', () => {
-    renderAgents();
+document.addEventListener('DOMContentLoaded', async () => {
+    await fetchAndRenderAgents();
     startRealtimeUpdates();
     initializeTerminal();
 });
+
+// Fetch agents from API and render
+async function fetchAndRenderAgents() {
+    try {
+        addTerminalLog('Fetching agent status from resources...', 'info');
+        const agents = await fetchAgentStatus();
+        currentAgents = agents;
+        renderAgents();
+        updateAgentCount(agents.length);
+        addTerminalLog(`✓ Connected to ${agents.length} agents across ${getUniqueResourceCount(agents)} resources`, 'success');
+    } catch (error) {
+        addTerminalLog(`Failed to fetch agents: ${error.message}`, 'error');
+        currentAgents = [];
+        updateAgentCount(0);
+        renderAgents();
+    }
+}
 
 // Render agent cards
 function renderAgents() {
     const grid = document.getElementById('agentGrid');
     grid.innerHTML = '';
     
-    sampleAgents.forEach((agent, index) => {
+    if (currentAgents.length === 0) {
+        grid.innerHTML = '<div class="no-agents">No active agents found. Agents will appear here when resource services start agents.</div>';
+        return;
+    }
+    
+    currentAgents.forEach((agent, index) => {
         const card = createAgentCard(agent);
         card.style.animationDelay = `${index * 0.1}s`;
         grid.appendChild(card);
     });
+}
+
+function getUniqueResourceCount(agents) {
+    const resourceTypes = new Set(agents.map(agent => agent.type));
+    return resourceTypes.size;
 }
 
 // Create agent card element
@@ -117,20 +68,20 @@ function createAgentCard(agent) {
         
         <div class="agent-metrics">
             <div class="metric">
-                <div class="metric-label">CPU Usage</div>
-                <div class="metric-value">${agent.metrics.cpu}%</div>
+                <div class="metric-label">PID</div>
+                <div class="metric-value">${agent.metrics.pid || 'N/A'}</div>
             </div>
             <div class="metric">
-                <div class="metric-label">Memory</div>
-                <div class="metric-value">${agent.metrics.memory}MB</div>
-            </div>
-            <div class="metric">
-                <div class="metric-label">Tasks</div>
-                <div class="metric-value">${agent.metrics.tasks_completed}</div>
+                <div class="metric-label">Start Time</div>
+                <div class="metric-value">${agent.metrics.start_time ? agent.metrics.start_time.split(' ')[1] : 'N/A'}</div>
             </div>
             <div class="metric">
                 <div class="metric-label">Uptime</div>
-                <div class="metric-value">${agent.metrics.uptime}</div>
+                <div class="metric-value">${agent.metrics.uptime || 'N/A'}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Resource</div>
+                <div class="metric-value">${agent.type}</div>
             </div>
         </div>
         
@@ -169,68 +120,46 @@ function getTimeSince(timestamp) {
 
 // Control agent actions
 async function controlAgent(agentId, action) {
-    const agent = sampleAgents.find(a => a.id === agentId);
+    const agent = currentAgents.find(a => a.id === agentId);
     if (!agent) return;
     
-    addTerminalLog(`Executing ${action.toUpperCase()} on ${agent.name}...`);
+    addTerminalLog(`Executing ${action.toUpperCase()} on ${agent.name} (${agent.type})...`);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
         switch(action) {
             case 'start':
-                agent.status = 'active';
-                addTerminalLog(`✓ ${agent.name} started successfully`, 'success');
+                // For real implementation, would call resource API to start agent
+                addTerminalLog(`Note: Agent control requires direct resource management`, 'warning');
+                addTerminalLog(`Use: resource-${agent.type} agents start`, 'info');
                 break;
             case 'stop':
-                agent.status = 'inactive';
-                addTerminalLog(`✓ ${agent.name} stopped`, 'warning');
+                // For real implementation, would call resource API to stop agent  
+                addTerminalLog(`Note: Agent control requires direct resource management`, 'warning');
+                addTerminalLog(`Use: resource-${agent.type} agents stop ${agentId}`, 'info');
                 break;
             case 'logs':
-                addTerminalLog(`[${agent.name}] Processing request...`);
-                addTerminalLog(`[${agent.name}] Task completed: ID-${Math.random().toString(36).substr(2, 9)}`);
-                addTerminalLog(`[${agent.name}] Memory usage: ${agent.metrics.memory}MB`);
+                addTerminalLog(`[${agent.name}] Agent ID: ${agent.id}`);
+                addTerminalLog(`[${agent.name}] PID: ${agent.metrics.pid}`);
+                addTerminalLog(`[${agent.name}] Command: ${agent.metrics.command}`);
+                addTerminalLog(`[${agent.name}] Uptime: ${agent.metrics.uptime}`);
                 break;
         }
-        renderAgents();
-    }, 1000);
+    } catch (error) {
+        addTerminalLog(`Failed to ${action} ${agent.name}: ${error.message}`, 'error');
+    }
 }
 
-// Orchestration functions
-async function orchestrateAgents(mode) {
-    addTerminalLog(`Initiating ${mode.toUpperCase()} orchestration protocol...`, 'info');
-    
-    // Simulate orchestration
-    setTimeout(() => {
-        switch(mode) {
-            case 'optimize':
-                addTerminalLog('Analyzing resource utilization...', 'info');
-                setTimeout(() => {
-                    addTerminalLog('✓ Resources optimized. Efficiency increased by 23%', 'success');
-                }, 1500);
-                break;
-            case 'scale':
-                addTerminalLog('Calculating optimal agent configuration...', 'info');
-                setTimeout(() => {
-                    addTerminalLog('✓ Auto-scaling complete. 2 new agents deployed', 'success');
-                }, 1500);
-                break;
-            case 'balance':
-                addTerminalLog('Redistributing workload...', 'info');
-                setTimeout(() => {
-                    addTerminalLog('✓ Load balanced across 5 active agents', 'success');
-                }, 1500);
-                break;
-            case 'emergency':
-                addTerminalLog('! EMERGENCY PROTOCOL ACTIVATED !', 'error');
-                setTimeout(() => {
-                    addTerminalLog('Isolating compromised agents...', 'warning');
-                    setTimeout(() => {
-                        addTerminalLog('✓ System secured. All agents operational', 'success');
-                    }, 1000);
-                }, 1000);
-                break;
-        }
-    }, 500);
+// Update agent count in header
+function updateAgentCount(count) {
+    const agentCountElement = document.getElementById('agentCount');
+    if (agentCountElement) {
+        const statusDot = agentCountElement.parentElement.querySelector('.status-dot');
+        
+        agentCountElement.textContent = `${count} AGENT${count !== 1 ? 'S' : ''} ACTIVE`;
+        
+        // Update status dot color based on agent count
+        statusDot.className = 'status-dot ' + (count > 0 ? 'active' : 'warning');
+    }
 }
 
 // Terminal logging
@@ -273,49 +202,32 @@ function addTerminalLog(message, type = 'default') {
 // Initialize terminal with welcome message
 function initializeTerminal() {
     setTimeout(() => {
-        addTerminalLog('Agent Command Center v2.0.1 initialized', 'success');
-        addTerminalLog(`Connected to ${sampleAgents.length} agents`, 'info');
-    }, 2000);
+        addTerminalLog('Agent Command Center v3.0.0 initialized', 'success');
+        addTerminalLog('Unified Resource Agent Tracking System', 'info');
+    }, 1000);
 }
 
-// Simulate real-time updates
+// Real-time updates from API
 function startRealtimeUpdates() {
-    setInterval(() => {
-        // Update heartbeats
-        sampleAgents.forEach(agent => {
-            if (agent.status === 'active') {
-                agent.last_heartbeat = new Date().toISOString();
-                
-                // Simulate metric changes
-                agent.metrics.cpu = Math.max(0, Math.min(100, 
-                    agent.metrics.cpu + (Math.random() - 0.5) * 10));
-                agent.metrics.memory = Math.max(256, Math.min(2048,
-                    agent.metrics.memory + (Math.random() - 0.5) * 50));
-                    
-                // Occasionally increment task count
-                if (Math.random() > 0.7) {
-                    agent.metrics.tasks_completed++;
-                }
-            }
-        });
-        
-        // Re-render agents
-        renderAgents();
-    }, 5000);
+    // Refresh agent data every 30 seconds
+    setInterval(async () => {
+        await fetchAndRenderAgents();
+    }, 30000);
     
-    // Occasional status updates in terminal
+    // Status updates in terminal
     setInterval(() => {
-        const activeAgents = sampleAgents.filter(a => a.status === 'active');
+        const activeAgents = currentAgents.filter(a => a.status === 'active');
+        const resourceCount = getUniqueResourceCount(currentAgents);
         const messages = [
-            `System health check: ${activeAgents.length} agents operational`,
-            `Network latency: ${Math.floor(Math.random() * 50 + 10)}ms`,
-            `Queue depth: ${Math.floor(Math.random() * 100)} tasks pending`,
-            `Memory usage: ${Math.floor(Math.random() * 30 + 40)}% total`,
-            `Throughput: ${Math.floor(Math.random() * 1000 + 500)} ops/sec`
+            `System health check: ${activeAgents.length} agents across ${resourceCount} resources`,
+            `Active resources: ${[...new Set(activeAgents.map(a => a.type))].join(', ')}`,
+            `Monitoring agent registry files across 18 resources`,
         ];
         
-        addTerminalLog(messages[Math.floor(Math.random() * messages.length)], 'info');
-    }, 10000);
+        if (messages.length > 0) {
+            addTerminalLog(messages[Math.floor(Math.random() * messages.length)], 'info');
+        }
+    }, 15000);
 }
 
 // Keyboard shortcuts
@@ -325,11 +237,7 @@ document.addEventListener('keydown', (e) => {
             case 'r':
                 e.preventDefault();
                 addTerminalLog('Refreshing agent status...', 'info');
-                renderAgents();
-                break;
-            case 'o':
-                e.preventDefault();
-                orchestrateAgents('optimize');
+                fetchAndRenderAgents();
                 break;
             case 'l':
                 e.preventDefault();
@@ -340,16 +248,24 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// API Integration (placeholder for real implementation)
+// API Integration - fetch real agent data
 async function fetchAgentStatus() {
     try {
-        const response = await fetch('/api/agents/status');
+        // Use relative path - Express proxy handles routing to API server
+        const response = await fetch('/api/agents');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         const data = await response.json();
-        return data;
+        
+        if (!data.success) {
+            throw new Error(data.error || 'API returned error');
+        }
+        
+        return data.data || [];
     } catch (error) {
         console.error('Failed to fetch agent status:', error);
-        addTerminalLog('Warning: Using offline mode', 'warning');
-        return sampleAgents;
+        throw error;
     }
 }
 

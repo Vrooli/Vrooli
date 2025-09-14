@@ -88,14 +88,23 @@ type VaultMissingSecret struct {
 	Description  string `json:"description"`
 }
 
+type VaultSecret struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Required    bool   `json:"required"`
+	Configured  bool   `json:"configured"`
+	SecretType  string `json:"type"` // api_key, endpoint, quota
+}
+
 type VaultResourceStatus struct {
-	ResourceName    string    `json:"resource_name"`
-	SecretsTotal    int       `json:"secrets_total"`
-	SecretsFound    int       `json:"secrets_found"`
-	SecretsMissing  int       `json:"secrets_missing"`
-	SecretsOptional int       `json:"secrets_optional"`
-	HealthStatus    string    `json:"health_status"` // healthy, degraded, critical
-	LastChecked     time.Time `json:"last_checked"`
+	ResourceName    string         `json:"resource_name"`
+	SecretsTotal    int            `json:"secrets_total"`
+	SecretsFound    int            `json:"secrets_found"`
+	SecretsMissing  int            `json:"secrets_missing"`
+	SecretsOptional int            `json:"secrets_optional"`
+	HealthStatus    string         `json:"health_status"` // healthy, degraded, critical
+	LastChecked     time.Time      `json:"last_checked"`
+	AllSecrets      []VaultSecret  `json:"all_secrets,omitempty"` // All secrets for this resource
 }
 
 type VaultValidationSummary struct {
@@ -329,11 +338,109 @@ func initDB() {
 
 // Vault integration - uses resource-vault CLI commands to get secrets status
 func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
-	// Try using fallback implementation that scans directly
-	// The vault CLI commands appear to hang in some environments
-	log.Printf("Using fallback vault status implementation")
-	return getVaultSecretsStatusFallback(resourceFilter)
+	// First try using resource-vault CLI directly
+	status, err := getVaultSecretsStatusFromCLI(resourceFilter)
+	if err != nil {
+		log.Printf("resource-vault CLI failed: %v, using fallback implementation", err)
+		// Fallback to direct scanning
+		return getVaultSecretsStatusFallback(resourceFilter)
+	}
+	return status, nil
 }
+
+// getVaultSecretsStatusFromCLI uses resource-vault CLI commands
+func getVaultSecretsStatusFromCLI(resourceFilter string) (*VaultSecretsStatus, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	
+	// Use resource-vault secrets validate to get status
+	var cmd *exec.Cmd
+	if resourceFilter != "" {
+		cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "check", resourceFilter)
+	} else {
+		cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "validate")
+	}
+	
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("resource-vault command failed: %w", err)
+	}
+	
+	// Parse the output from resource-vault
+	status := parseVaultCLIOutput(string(output), resourceFilter)
+	status.LastUpdated = time.Now()
+	
+	return status, nil
+}
+
+// parseVaultCLIOutput parses resource-vault CLI output into structured data
+func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
+	status := &VaultSecretsStatus{
+		MissingSecrets:   []VaultMissingSecret{},
+		ResourceStatuses: []VaultResourceStatus{},
+	}
+	
+	lines := strings.Split(output, "\n")
+	var currentResource string
+	resourceCount := 0
+	configuredCount := 0
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		
+		// Look for resource headers like "✓ postgres: 3 secrets defined"
+		if strings.Contains(line, "✓") && strings.Contains(line, ":") {
+			parts := strings.SplitN(line, ":", 2)
+			if len(parts) >= 2 {
+				resourceName := strings.TrimSpace(strings.Replace(parts[0], "✓", "", 1))
+				currentResource = resourceName
+				resourceCount++
+				
+				// Check if all secrets are configured (no missing indicators)
+				if !strings.Contains(parts[1], "MISSING") {
+					configuredCount++
+				}
+			}
+		}
+		
+		// Look for missing secrets like "✗ POSTGRES_PASSWORD: MISSING"
+		if strings.Contains(line, "✗") && strings.Contains(line, "MISSING") {
+			parts := strings.Split(line, ":")
+			if len(parts) >= 2 && currentResource != "" {
+				secretName := strings.TrimSpace(strings.Replace(parts[0], "✗", "", 1))
+				missing := VaultMissingSecret{
+					ResourceName: currentResource,
+					SecretName:   secretName,
+					SecretPath:   fmt.Sprintf("secret/%s/%s", currentResource, secretName),
+					Required:     true,
+					Description:  fmt.Sprintf("Missing required secret for %s", currentResource),
+				}
+				status.MissingSecrets = append(status.MissingSecrets, missing)
+			}
+		}
+		
+		// Look for "Fully configured: X" summary
+		if strings.Contains(line, "Fully configured:") {
+			fields := strings.Fields(line)
+			for i, field := range fields {
+				if field == "configured:" && i+1 < len(fields) {
+					if count, err := strconv.Atoi(fields[i+1]); err == nil {
+						configuredCount = count
+					}
+				}
+			}
+		}
+	}
+	
+	status.TotalResources = resourceCount
+	status.ConfiguredResources = configuredCount
+	
+	return status
+}
+
 
 // Parse vault scan output to extract resource names
 func parseVaultScanOutput(output string) []string {
@@ -1216,9 +1323,41 @@ func validateSingleSecret(secret ResourceSecret) SecretValidation {
 }
 
 func getVaultSecret(key string) (string, error) {
-	// TODO: Implement vault integration using resource-vault CLI
-	// For now, return empty to indicate not found
-	return "", fmt.Errorf("vault integration not implemented")
+	// Use resource-vault CLI to get secret value
+	cmd := exec.Command("resource-vault", "secrets", "get", key)
+	
+	// Set timeout for vault command
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "get", key)
+	
+	output, err := cmd.Output()
+	if err != nil {
+		// Check if it's a timeout or command not found
+		if ctx.Err() == context.DeadlineExceeded {
+			return "", fmt.Errorf("vault command timeout")
+		}
+		
+		// If exit error, likely secret not found or vault unavailable
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			// resource-vault typically returns exit code 1 for not found
+			if exitErr.ExitCode() == 1 {
+				return "", fmt.Errorf("secret not found in vault")
+			}
+			return "", fmt.Errorf("vault command failed: %v", err)
+		}
+		
+		return "", fmt.Errorf("failed to execute resource-vault command: %v", err)
+	}
+	
+	// Clean up the output (remove trailing whitespace/newlines)
+	secretValue := strings.TrimSpace(string(output))
+	
+	if secretValue == "" {
+		return "", fmt.Errorf("empty secret value returned from vault")
+	}
+	
+	return secretValue, nil
 }
 
 func storeValidationResult(validation SecretValidation) {

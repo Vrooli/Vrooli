@@ -109,7 +109,7 @@ class SecretsManager {
         
         document.getElementById('provision-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            this.provisionSecret();
+            this.provisionSecretFromForm();
         });
         
         // Close modal on overlay click
@@ -223,7 +223,7 @@ class SecretsManager {
             return;
         }
         
-        this.showNotification('Checking vault secrets status...', 'info');
+        // Silently check vault status without notification
         this.showScanningState(true);
         
         try {
@@ -289,10 +289,11 @@ class SecretsManager {
             
             // Show scan errors if any
             if (scanMetrics.scan_errors && scanMetrics.scan_errors.length > 0) {
-                this.showNotification(`Scan completed with ${scanMetrics.scan_errors.length} errors`, 'warning');
-                // Show first few errors as additional notifications
+                // Silently log scan errors without notification
+                console.warn(`Scan completed with ${scanMetrics.scan_errors.length} errors`);
+                // Log errors to console instead of showing notifications
                 scanMetrics.scan_errors.slice(0, 3).forEach(error => {
-                    setTimeout(() => this.showNotification(`Scan error: ${error}`, 'error'), 500);
+                    console.error(`Scan error: ${error}`);
                 });
             }
             
@@ -332,23 +333,32 @@ class SecretsManager {
     
     async refreshSecretData() {
         // Silently refresh data without user notification
+        console.log('[REFRESH] Starting auto-refresh, currentView:', this.currentView, 'activeStatCard:', this.activeStatCard);
         try {
             // Refresh vault status
             const vaultResponse = await fetch(`${this.apiUrl}/api/v1/vault/secrets/status`);
             if (vaultResponse.ok) {
                 this.vaultStatus = await vaultResponse.json();
-                // Only update table if we're in vault view, otherwise preserve current view
+                // Only update table if we're in vault view
+                // For configured view, we just update the data but don't refresh the UI
+                // to avoid the flicker/switch effect
                 if (this.currentView === 'vault') {
                     this.updateVaultSecretsTable();
                 }
+                // Note: for 'configured' view, we deliberately don't refresh the table
+                // The data is updated, but the view remains stable
             }
             
             // Refresh compliance data
             const complianceResponse = await fetch(`${this.apiUrl}/api/v1/security/compliance`);
             if (complianceResponse.ok) {
                 this.complianceData = await complianceResponse.json();
-                this.updateHealthStats(this.complianceData);
-                this.updateSecurityAlerts(this.complianceData);
+                
+                // Skip updating health stats if we're in configured view to prevent view switching
+                if (this.currentView !== 'configured') {
+                    this.updateHealthStats(this.complianceData);
+                    this.updateSecurityAlerts(this.complianceData);
+                }
                 
                 // Refresh current vulnerability view if showing vulnerabilities
                 if (this.currentView !== 'vault' && this.currentView !== 'configured' && this.currentView !== 'total') {
@@ -363,7 +373,18 @@ class SecretsManager {
     updateHealthStats(data) {
         // Update stats from compliance data - using new component-based approach
         if (data.configured_components !== undefined) {
+            // Save active state before updating
+            const configuredCard = document.getElementById('configured-components').closest('.stat-card');
+            const wasActive = configuredCard && configuredCard.classList.contains('active');
+            console.log('[UPDATE] Configured card wasActive:', wasActive);
+            
             document.getElementById('configured-components').textContent = data.configured_components || 0;
+            
+            // Restore active state if it was lost
+            if (wasActive && !configuredCard.classList.contains('active')) {
+                console.log('[UPDATE] Lost active state on configured card, restoring...');
+                configuredCard.classList.add('active');
+            }
         }
         if (data.vulnerability_summary) {
             // Store vulnerability counts for later use
@@ -374,11 +395,27 @@ class SecretsManager {
                 low: data.vulnerability_summary.low || 0
             };
             
-            // Update individual vulnerability stat boxes
+            // Update individual vulnerability stat boxes while preserving active states
+            const criticalCard = document.getElementById('critical-vulns').closest('.stat-card');
+            const highCard = document.getElementById('high-vulns').closest('.stat-card');
+            const mediumCard = document.getElementById('medium-vulns').closest('.stat-card');
+            const lowCard = document.getElementById('low-vulns').closest('.stat-card');
+            
+            const criticalActive = criticalCard && criticalCard.classList.contains('active');
+            const highActive = highCard && highCard.classList.contains('active');
+            const mediumActive = mediumCard && mediumCard.classList.contains('active');
+            const lowActive = lowCard && lowCard.classList.contains('active');
+            
             document.getElementById('critical-vulns').textContent = this.vulnerabilityCounts.critical;
             document.getElementById('high-vulns').textContent = this.vulnerabilityCounts.high;
             document.getElementById('medium-vulns').textContent = this.vulnerabilityCounts.medium;
             document.getElementById('low-vulns').textContent = this.vulnerabilityCounts.low;
+            
+            // Restore active states if lost
+            if (criticalActive && !criticalCard.classList.contains('active')) criticalCard.classList.add('active');
+            if (highActive && !highCard.classList.contains('active')) highCard.classList.add('active');
+            if (mediumActive && !mediumCard.classList.contains('active')) mediumCard.classList.add('active');
+            if (lowActive && !lowCard.classList.contains('active')) lowCard.classList.add('active');
         }
         
         // Update vault and database status with proper coloring
@@ -426,7 +463,7 @@ class SecretsManager {
                 <tr class="loading-row">
                     <td colspan="6">
                         <div class="loading-animation">
-                            <span>NO VAULT DATA - CLICK SCAN TO CHECK VAULT STATUS</span>
+                            <span>NO VAULT DATA - Click the refresh button (⟳) to scan resources</span>
                         </div>
                     </td>
                 </tr>
@@ -434,93 +471,202 @@ class SecretsManager {
             return;
         }
         
-        // Show vault status for each resource
+        // Show ALL resources and their individual secrets in grouped format
         this.vaultStatus.resource_statuses.forEach(resource => {
-            const statusBadge = resource.health_status === 'healthy' ? 'valid' :
-                               resource.health_status === 'degraded' ? 'discovered' : 'missing';
-            
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>
-                    <input type="checkbox" class="row-checkbox">
-                </td>
-                <td><span class="component-badge resource">RES</span> ${resource.resource_name}</td>
-                <td><code>${resource.secrets_found}/${resource.secrets_total} secrets</code></td>
-                <td>VAULT STATUS</td>
-                <td><span class="status-badge ${statusBadge}">${resource.health_status.toUpperCase()}</span></td>
-                <td>
-                    ${resource.secrets_missing > 0 ? 
-                        `<button class="chrome-btn provision-btn" data-resource="${resource.resource_name}">
-                            PROVISION
-                        </button>` : 
-                        `<span class="chrome-text">✓ CONFIGURED</span>`
-                    }
+            // Create a header row for the resource
+            const resourceRow = document.createElement('tr');
+            resourceRow.style.backgroundColor = 'rgba(0, 255, 65, 0.05)';
+            resourceRow.innerHTML = `
+                <td colspan="6" style="padding: 8px 15px; font-weight: bold; color: var(--matrix-green); border-bottom: 1px solid var(--matrix-dim);">
+                    <span class="component-badge resource">RES</span> 
+                    ${resource.resource_name.toUpperCase()} 
+                    (${resource.secrets_found}/${resource.secrets_total} configured)
+                    <span style="float: right; font-size: 10px;">
+                        ${resource.health_status === 'healthy' ? '✓ HEALTHY' : 
+                          resource.health_status === 'degraded' ? '⚠ DEGRADED' : '✗ CRITICAL'}
+                        ${resource.secrets_missing > 0 ? 
+                            `<button class="chrome-btn provision-btn" data-resource="${resource.resource_name}" 
+                                     style="margin-left: 10px; padding: 2px 8px; font-size: 10px;">
+                                PROVISION ALL
+                            </button>` : ''}
+                    </span>
                 </td>
             `;
+            tbody.appendChild(resourceRow);
             
-            // Add provision event listener if button exists
-            const provisionBtn = row.querySelector('.provision-btn');
-            if (provisionBtn) {
-                provisionBtn.addEventListener('click', () => {
+            // Add provision event listener to header button if it exists
+            const headerProvisionBtn = resourceRow.querySelector('.provision-btn');
+            if (headerProvisionBtn) {
+                headerProvisionBtn.addEventListener('click', () => {
                     this.showProvisionModal(resource.resource_name, true);
                 });
             }
             
-            // Add checkbox event listener
-            const checkbox = row.querySelector('.row-checkbox');
-            if (checkbox) {
-                checkbox.addEventListener('change', () => {
-                    if (checkbox.checked) {
-                        row.classList.add('selected');
-                    } else {
-                        row.classList.remove('selected');
+            // Use all_secrets array if available, otherwise fall back to old method
+            if (resource.all_secrets && resource.all_secrets.length > 0) {
+                // Show all secrets with their actual names and provision buttons
+                resource.all_secrets.forEach(secret => {
+                    const secretRow = document.createElement('tr');
+                    const statusBadge = secret.configured ? 'valid' : (secret.required ? 'missing' : 'discovered');
+                    const statusText = secret.configured ? 'SET' : (secret.required ? 'REQUIRED' : 'OPTIONAL');
+                    
+                    secretRow.innerHTML = `
+                        <td>
+                            <input type="checkbox" class="row-checkbox" data-resource="${resource.resource_name}" data-secret="${secret.name}">
+                        </td>
+                        <td style="padding-left: 30px;" title="${secret.description || ''}">${secret.name}</td>
+                        <td><code>${secret.configured ? 'Configured' : 'Not configured'}</code></td>
+                        <td>${secret.type ? secret.type.toUpperCase().replace('_', ' ') : 'SECRET'}</td>
+                        <td><span class="status-badge ${statusBadge}">${statusText}</span></td>
+                        <td>
+                            <button class="chrome-btn secondary-btn provision-btn" 
+                                    data-resource="${resource.resource_name}" 
+                                    data-secret="${secret.name}"
+                                    title="${secret.configured ? 'Update secret value' : 'Set secret value'}"
+                                    style="padding: 2px 6px; font-size: 9px;">
+                                ${secret.configured ? 'UPDATE' : 'PROVISION'}
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(secretRow);
+                    
+                    // Add provision event listener
+                    const provisionBtn = secretRow.querySelector('.provision-btn');
+                    if (provisionBtn) {
+                        provisionBtn.addEventListener('click', () => {
+                            this.showProvisionModal(resource.resource_name, true, secret.name);
+                        });
                     }
-                    this.updateFixButtonState();
+                    
+                    // Add checkbox event listener
+                    const checkbox = secretRow.querySelector('.row-checkbox');
+                    if (checkbox) {
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                secretRow.classList.add('selected');
+                            } else {
+                                secretRow.classList.remove('selected');
+                            }
+                            this.updateFixButtonState();
+                        });
+                    }
                 });
-            }
-            
-            tbody.appendChild(row);
-        });
-        
-        // Add missing secrets details if any
-        if (this.vaultStatus.missing_secrets && this.vaultStatus.missing_secrets.length > 0) {
-            this.vaultStatus.missing_secrets.forEach(missing => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>
-                        <input type="checkbox" class="row-checkbox">
-                    </td>
-                    <td><span class="component-badge resource">RES</span> ${missing.resource_name}</td>
-                    <td><code>${missing.secret_name}</code></td>
-                    <td>MISSING SECRET</td>
-                    <td><span class="status-badge missing">${missing.required ? 'REQUIRED' : 'OPTIONAL'}</span></td>
-                    <td>
-                        <button class="chrome-btn provision-btn" data-resource="${missing.resource_name}" data-secret="${missing.secret_name}">
-                            SET
-                        </button>
-                    </td>
-                `;
+            } else {
+                // Fallback to old method if all_secrets not available
+                // Get secrets for this resource from missing_secrets array
+                const resourceMissingSecrets = this.vaultStatus.missing_secrets ? 
+                    this.vaultStatus.missing_secrets.filter(s => s.resource_name === resource.resource_name) : [];
                 
-                row.querySelector('.provision-btn').addEventListener('click', () => {
-                    this.showProvisionModal(missing.resource_name, true);
-                });
-                
-                // Add checkbox event listener
-                const checkbox = row.querySelector('.row-checkbox');
-                if (checkbox) {
-                    checkbox.addEventListener('change', () => {
-                        if (checkbox.checked) {
-                            row.classList.add('selected');
-                        } else {
-                            row.classList.remove('selected');
-                        }
-                        this.updateFixButtonState();
-                    });
+                // Show configured secrets (found = total - missing)
+                const foundSecrets = resource.secrets_total - resource.secrets_missing;
+                for (let i = 0; i < foundSecrets; i++) {
+                    const secretRow = document.createElement('tr');
+                    secretRow.innerHTML = `
+                        <td>
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td style="padding-left: 30px;">Secret ${i + 1}</td>
+                        <td><code>Configured in vault/env</code></td>
+                        <td>SECRET</td>
+                        <td><span class="status-badge valid">SET</span></td>
+                        <td>
+                            <button class="chrome-btn secondary-btn provision-btn" 
+                                    style="padding: 2px 6px; font-size: 9px;">
+                                UPDATE
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(secretRow);
+                    
+                    // Add checkbox event listener
+                    const checkbox = secretRow.querySelector('.row-checkbox');
+                    if (checkbox) {
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                secretRow.classList.add('selected');
+                            } else {
+                                secretRow.classList.remove('selected');
+                            }
+                            this.updateFixButtonState();
+                        });
+                    }
                 }
                 
-                tbody.appendChild(row);
-            });
-        }
+                // Show missing secrets with specific names
+                resourceMissingSecrets.forEach(secret => {
+                    const secretRow = document.createElement('tr');
+                    secretRow.innerHTML = `
+                        <td>
+                            <input type="checkbox" class="row-checkbox" data-resource="${secret.resource_name}" data-secret="${secret.secret_name}">
+                        </td>
+                        <td style="padding-left: 30px;">${secret.secret_name}</td>
+                        <td><code>Not configured</code></td>
+                        <td>SECRET</td>
+                        <td><span class="status-badge missing">${secret.required ? 'REQUIRED' : 'OPTIONAL'}</span></td>
+                        <td>
+                            <button class="chrome-btn secondary-btn provision-btn" 
+                                    data-resource="${secret.resource_name}" 
+                                    data-secret="${secret.secret_name}"
+                                    style="padding: 2px 6px; font-size: 9px;">
+                                PROVISION
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(secretRow);
+                    
+                    // Add provision event listener
+                    const provisionBtn = secretRow.querySelector('.provision-btn');
+                    if (provisionBtn) {
+                        provisionBtn.addEventListener('click', () => {
+                            this.showProvisionModal(secret.resource_name, true, secret.secret_name);
+                        });
+                    }
+                    
+                    // Add checkbox event listener
+                    const checkbox = secretRow.querySelector('.row-checkbox');
+                    if (checkbox) {
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                secretRow.classList.add('selected');
+                            } else {
+                                secretRow.classList.remove('selected');
+                            }
+                            this.updateFixButtonState();
+                        });
+                    }
+                });
+                
+                // Show optional secrets that aren't set
+                const optionalCount = resource.secrets_optional || 0;
+                for (let i = 0; i < optionalCount; i++) {
+                    const secretRow = document.createElement('tr');
+                    secretRow.innerHTML = `
+                        <td>
+                            <input type="checkbox" class="row-checkbox">
+                        </td>
+                        <td style="padding-left: 30px;">Optional Secret ${i + 1}</td>
+                        <td><code>Not configured</code></td>
+                        <td>SECRET</td>
+                        <td><span class="status-badge discovered">OPTIONAL</span></td>
+                        <td><span class="chrome-text">Not required</span></td>
+                    `;
+                    tbody.appendChild(secretRow);
+                    
+                    // Add checkbox event listener
+                    const checkbox = secretRow.querySelector('.row-checkbox');
+                    if (checkbox) {
+                        checkbox.addEventListener('change', () => {
+                            if (checkbox.checked) {
+                                secretRow.classList.add('selected');
+                            } else {
+                                secretRow.classList.remove('selected');
+                            }
+                            this.updateFixButtonState();
+                        });
+                    }
+                }
+            }
+        });
     }
     
     updateSecurityVulnerabilities() {
@@ -588,6 +734,7 @@ class SecretsManager {
     }
     
     filterTableByType(label) {
+        console.log('[FILTER] filterTableByType called with label:', label, 'currentView was:', this.currentView);
         // Show skeleton immediately for smooth transition
         this.showTableSkeleton();
         
@@ -597,10 +744,11 @@ class SecretsManager {
         // Small delay to show the skeleton animation
         setTimeout(() => {
             if (label.includes('Configured')) {
-                // Show configured resources
+                // Show configured resources - now uses the same consolidated view
+                console.log('[FILTER] Setting view to configured');
                 this.currentView = 'configured';
-                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> CONFIGURED COMPONENTS';
-                this.showConfiguredComponents();
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> ALL RESOURCE SECRETS';
+                this.updateVaultSecretsTable();
             } else if (label.includes('Critical')) {
                 // Show critical vulnerabilities
                 this.currentView = 'critical';
@@ -647,7 +795,7 @@ class SecretsManager {
                 this.showComponentsByType('scenario');
             } else {
                 this.currentView = 'vault';
-                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> COMPONENT SECURITY STATUS';
+                if (sectionTitle) sectionTitle.innerHTML = '<span class="matrix-green">●</span> ALL RESOURCE SECRETS';
                 this.updateVaultSecretsTable();
             }
         }, 300);
@@ -655,60 +803,16 @@ class SecretsManager {
     
     restoreCurrentView() {
         // Restore the current view and active stat card after refresh
-        if (this.activeStatCard) {
+        // Only re-click if we've lost the active state
+        if (this.activeStatCard && !this.activeStatCard.classList.contains('active')) {
             // Re-trigger the click on the active stat card
             this.activeStatCard.click();
         }
+        // If the card is already active, don't re-click to avoid flicker
     }
     
-    showConfiguredComponents() {
-        const tbody = document.getElementById('secrets-table-body');
-        
-        if (!this.vaultStatus || !this.vaultStatus.resource_statuses) {
-            tbody.innerHTML = `
-                <tr><td colspan="6" class="chrome-text">No vault data available. Click "CHECK VAULT" to scan.</td></tr>
-            `;
-            return;
-        }
-        
-        // Filter for healthy/configured resources only
-        const configuredResources = this.vaultStatus.resource_statuses.filter(r => r.health_status === 'healthy');
-        
-        if (configuredResources.length === 0) {
-            tbody.innerHTML = `
-                <tr><td colspan="6" class="chrome-text">No fully configured resources found.</td></tr>
-            `;
-            return;
-        }
-        
-        configuredResources.forEach(resource => {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>
-                    <input type="checkbox" class="row-checkbox">
-                </td>
-                <td><span class="component-badge resource">RES</span> ${resource.resource_name}</td>
-                <td><code>${resource.secrets_found}/${resource.secrets_total} secrets</code></td>
-                <td>VAULT STATUS</td>
-                <td><span class="status-badge valid">CONFIGURED</span></td>
-                <td><span class="chrome-text">✓ ALL SECRETS SET</span></td>
-            `;
-            // Add checkbox event listener
-            const checkbox = row.querySelector('.row-checkbox');
-            if (checkbox) {
-                checkbox.addEventListener('change', () => {
-                    if (checkbox.checked) {
-                        row.classList.add('selected');
-                    } else {
-                        row.classList.remove('selected');
-                    }
-                    this.updateFixButtonState();
-                });
-            }
-
-            tbody.appendChild(row);
-        });
-    }
+    // showConfiguredComponents() removed - consolidated into updateVaultSecretsTable()
+    // The unified table now shows all resource secrets grouped by resource with provision buttons
     
     async showComponentsByType(componentType) {
         const tbody = document.getElementById('secrets-table-body');
@@ -980,7 +1084,7 @@ ${vuln.code}</pre>
         // Reset section title
         const sectionTitle = document.querySelector('.secrets-panel .panel-header h2');
         if (sectionTitle) {
-            sectionTitle.innerHTML = '<span class="matrix-green">●</span> RESOURCE VAULT STATUS';
+            sectionTitle.innerHTML = '<span class="matrix-green">●</span> ALL RESOURCE SECRETS';
         }
         
         // Remove active class from all stat cards
@@ -1147,11 +1251,15 @@ ${vuln.code}</pre>
         */
     }
     
-    showProvisionModal(resourceOrKey, isResource = false) {
+    showProvisionModal(resourceOrKey, isResource = false, secretName = null) {
         if (isResource) {
-            // For resource-based provisioning, show resource name
-            document.getElementById('secret-key').value = `Resource: ${resourceOrKey}`;
+            // For resource-based provisioning, show specific secret name if provided
+            const displayKey = secretName ? secretName : `Resource: ${resourceOrKey}`;
+            document.getElementById('secret-key').value = displayKey;
             document.getElementById('secret-key').dataset.resource = resourceOrKey;
+            if (secretName) {
+                document.getElementById('secret-key').dataset.secretName = secretName;
+            }
         } else {
             document.getElementById('secret-key').value = resourceOrKey;
         }
@@ -1164,7 +1272,19 @@ ${vuln.code}</pre>
         document.getElementById('provision-modal').classList.remove('show');
     }
     
-    async provisionSecret() {
+    // Method for inline provision buttons (with parameters)
+    provisionSecret(secretName, resourceName) {
+        if (secretName && resourceName) {
+            // Show the provision modal with pre-filled data
+            this.showProvisionModal(resourceName, true, secretName);
+            return;
+        }
+        
+        // Original method continues...
+        this.provisionSecretFromForm();
+    }
+    
+    async provisionSecretFromForm() {
         const secretKeyElement = document.getElementById('secret-key');
         const secretValue = document.getElementById('secret-value').value;
         const storageMethod = document.getElementById('storage-method').value;

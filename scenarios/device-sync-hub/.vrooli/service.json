@@ -1,149 +1,196 @@
 {
-  "name": "device-sync-hub",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "description": "Cross-device file and clipboard synchronization for seamless data sharing",
-  "category": "productivity",
-  "tags": [
-    "sync",
-    "mobile",
-    "file-sharing",
-    "cross-device",
-    "productivity"
-  ],
+  "service": {
+    "name": "device-sync-hub",
+    "displayName": "Device Sync Hub",
+    "description": "Cross-device file and clipboard synchronization with real-time sync capabilities",
+    "version": "1.0.0",
+    "tags": [
+      "sync",
+      "cross-device", 
+      "real-time",
+      "mobile-first",
+      "file-sharing",
+      "clipboard-sync",
+      "websocket",
+      "go-api",
+      "postgres-storage",
+      "scenario-authenticator-integration"
+    ]
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "range": "15000-19999",
-      "description": "Device sync API server port"
+      "description": "Device Sync Hub API port",
+      "range": "3300-3399"
     },
     "ui": {
-      "env_var": "UI_PORT",
-      "range": "35000-39999",
-      "description": "Device sync UI server port"
+      "env_var": "UI_PORT", 
+      "description": "Device Sync Hub UI port",
+      "range": "3300-3399"
     }
   },
   "resources": {
-    "required": [
-      {
-        "name": "scenario-authenticator",
-        "type": "scenario",
-        "purpose": "User authentication and session management"
-      },
-      {
-        "name": "postgres",
-        "type": "database",
-        "purpose": "File metadata and device session storage",
-        "schema": "initialization/postgres/schema.sql"
-      }
-    ],
-    "optional": [
-      {
-        "name": "redis",
-        "type": "cache",
-        "purpose": "WebSocket session management and caching"
-      }
-    ]
-  },
-  "initialization": {
     "postgres": {
-      "schema_files": [
-        "initialization/postgres/schema.sql"
-      ]
+      "required": true,
+      "description": "PostgreSQL database for sync items and device sessions"
+    },
+    "scenario-authenticator": {
+      "required": true,
+      "description": "Authentication service for user validation"
+    },
+    "redis": {
+      "required": false,
+      "description": "Optional Redis for auth caching and performance"
     }
   },
-  "cli": {
-    "binary": "device-sync-hub",
-    "install_script": "cli/install.sh"
-  },
-  "api": {
-    "base_url": "${API_BASE_URL}",
-    "endpoints": [
-      {
-        "path": "/api/v1/sync/upload",
-        "method": "POST",
-        "description": "Upload files or text for cross-device sharing"
-      },
-      {
-        "path": "/api/v1/sync/items",
-        "method": "GET",
-        "description": "List all active sync items for user"
-      },
-      {
-        "path": "/api/v1/sync/items/{id}",
-        "method": "DELETE",
-        "description": "Delete a sync item immediately"
-      },
-      {
-        "path": "/api/v1/sync/items/{id}/download",
-        "method": "GET",
-        "description": "Download a sync item"
-      },
-      {
-        "path": "/api/v1/sync/websocket",
-        "method": "GET",
-        "description": "WebSocket connection for real-time sync"
-      }
-    ]
-  },
-  "ui_info": {
-    "url": "${UI_BASE_URL}",
-    "mobile_optimized": true,
-    "responsive": true,
-    "style": "modern-mobile-first"
-  },
-  "capabilities": [
-    "cross-device-file-sharing",
-    "real-time-sync",
-    "mobile-first-ui",
-    "clipboard-sharing",
-    "secure-authentication",
-    "automatic-cleanup"
-  ],
-  "integration": {
-    "provides": [
-      {
-        "capability": "device-sync",
-        "interface": "api",
-        "description": "Cross-device data synchronization"
-      }
-    ],
-    "consumes": [
-      {
-        "service": "scenario-authenticator",
-        "capability": "authentication",
-        "interface": "api"
-      }
-    ]
-  },
-  "testing": {
-    "test_file": "scenario-test.yaml",
-    "integration_tests": "test/integration.sh",
-    "performance_tests": "test/performance.sh"
-  },
-  "deployment": {
-    "type": "local",
-    "auto_start": true,
-    "health_check_interval": 30,
-    "restart_on_failure": true
-  },
   "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Device Sync Hub health check configuration",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint", 
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 10000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
     "setup": {
-      "description": "Initialize device-sync-hub",
+      "description": "Initialize Device Sync Hub",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/device-sync-hub-api"
+            ]
+          },
+          {
+            "type": "cli", 
+            "command": "device-sync-hub"
+          },
+          {
+            "type": "directory",
+            "path": "data/files"
+          }
+        ]
+      },
       "steps": [
+        {
+          "name": "create-data-dirs",
+          "run": "mkdir -p data/files data/files/thumbnails",
+          "description": "Create data directories for file storage"
+        },
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
         {
           "name": "build-api",
           "run": "cd api && go mod download && go build -o device-sync-hub-api .",
           "description": "Build Go API binary"
         },
         {
-          "name": "install-cli",
-          "run": "cd cli && ./install.sh",
-          "description": "Install CLI tool"
+          "name": "initialize-database",
+          "run": "if command -v psql >/dev/null 2>&1 && [ -n \"${POSTGRES_URL:-}\" ]; then psql \"$POSTGRES_URL\" -f initialization/postgres/schema.sql 2>/dev/null || echo 'Database initialization skipped (will be handled at runtime)'; else echo 'PostgreSQL not available for initialization, will be handled at runtime'; fi",
+          "description": "Initialize database schema if possible"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Device Sync Hub initialized\\n  Web Interface: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: device-sync-hub --help\\n\\n📱 Access from mobile: Replace localhost with your computer\\'s IP address'",
+          "description": "Display service access URLs and mobile setup instructions"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Device Sync Hub with API and UI servers",
+      "env": {
+        "VROOLI_LIFECYCLE_MANAGED": "true",
+        "AUTH_SERVICE_URL": "${scenario-authenticator.api.base_url}",
+        "STORAGE_PATH": "${PWD}/data/files",
+        "POSTGRES_URL": "${postgres.connection_string}",
+        "REDIS_URL": "${redis.connection_string?}",
+        "MAX_FILE_SIZE": "10485760",
+        "DEFAULT_EXPIRY_HOURS": "24",
+        "THUMBNAIL_SIZE": "200"
+      },
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "./api/device-sync-hub-api",
+          "description": "Start Go API server with WebSocket support",
+          "background": true,
+          "condition": {
+            "file_exists": "api/device-sync-hub-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && node server.js",
+          "description": "Start UI static server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Device Sync Hub running:\\n  Web Interface: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: device-sync-hub --help\\n\\n📱 Mobile Access:\\n  Replace localhost with your IP address\\n  Example: http://192.168.1.100:${UI_PORT}'",
+          "description": "Display all running service URLs and mobile access instructions"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run integration tests for Device Sync Hub",
+      "env": {
+        "VROOLI_LIFECYCLE_MANAGED": "true",
+        "AUTH_SERVICE_URL": "${scenario-authenticator.api.base_url}",
+        "STORAGE_PATH": "${PWD}/data/files",
+        "POSTGRES_URL": "${postgres.connection_string}",
+        "DEFAULT_EXPIRY_HOURS": "1"
+      },
+      "steps": [
+        {
+          "name": "run-integration-tests",
+          "run": "test/integration.sh",
+          "description": "Execute comprehensive integration tests",
+          "condition": {
+            "file_exists": "test/integration.sh"
+          }
+        },
+        {
+          "name": "fallback-basic-tests",
+          "run": "echo '⚠️  Integration test runner not found, running basic tests...' && cd api && go build -o test-build . && rm test-build && curl -sf http://localhost:$API_PORT/health",
+          "description": "Fallback to basic tests if integration runner not available",
+          "condition": {
+            "file_not_exists": "test/integration.sh"
+          }
         }
       ]
     },
     "stop": {
-      "description": "Stop device-sync-hub services",
+      "description": "Stop Device Sync Hub services",
       "steps": [
         {
           "name": "stop-api",
@@ -152,29 +199,8 @@
         },
         {
           "name": "stop-ui",
-          "run": "true",
+          "run": "pkill -f \"scenarios/device-sync-hub.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/device-sync-hub.*server\\.js\" 2>/dev/null || true",
           "description": "Stop UI process"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Development mode",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./device-sync-hub-api",
-          "description": "Start Go API server",
-          "background": true,
-          "port": "${API_PORT}",
-          "health_check": "/health"
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start UI server with configuration injection",
-          "background": true,
-          "port": "${UI_PORT}",
-          "health_check": "/"
         }
       ]
     }

@@ -34,7 +34,7 @@ source "${WHISPER_CLI_DIR}/config/defaults.sh"
 source "${WHISPER_CLI_DIR}/config/messages.sh" 2>/dev/null || true
 
 # Source Whisper libraries
-for lib in common docker install status api; do
+for lib in common docker install status api agents; do
     lib_file="${WHISPER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -64,6 +64,7 @@ cli::register_subcommand "content" "languages" "List supported languages" "whisp
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "whisper::status"
 cli::register_command "logs" "Show Whisper logs" "whisper::show_logs"
+cli::register_command "agents" "Manage running whisper agents" "whisper::agents::command"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

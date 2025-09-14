@@ -117,6 +117,18 @@ huginn::run_agent() {
         return 1
     fi
     
+    # Register agent for tracking if agent tracking is available
+    local tracking_agent_id=""
+    if type -t agents::register &>/dev/null; then
+        tracking_agent_id=$(agents::generate_id)
+        local command_string="huginn::run_agent $agent_id"
+        if agents::register "$tracking_agent_id" $$ "$command_string"; then
+            huginn::setup_agent_cleanup "$tracking_agent_id"
+        else
+            tracking_agent_id=""
+        fi
+    fi
+    
     log::info "🚀 Running agent $agent_id..."
     
     local run_code="
@@ -136,9 +148,18 @@ huginn::run_agent() {
     "
     
     huginn::rails_runner "$run_code" 2>/dev/null || {
+        # Cleanup tracking agent on error
+        if [[ -n "$tracking_agent_id" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "$tracking_agent_id" >/dev/null 2>&1
+        fi
         log::error "Failed to run agent"
         return 1
     }
+    
+    # Cleanup tracking agent on success
+    if [[ -n "$tracking_agent_id" ]] && type -t agents::unregister &>/dev/null; then
+        agents::unregister "$tracking_agent_id" >/dev/null 2>&1
+    fi
 }
 
 #######################################

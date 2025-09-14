@@ -22,6 +22,8 @@ fi
 DATA_DIR="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca"
 CONFIG_DIR="$DATA_DIR/config"
 CERTS_DIR="$DATA_DIR/certs"
+# Actual Step-CA config location (nested)
+STEPCA_CONFIG_DIR="$CONFIG_DIR/config"
 
 # Show resource info (v2.0 requirement)
 show_info() {
@@ -56,7 +58,7 @@ EOF
 
 # Show credentials
 show_credentials() {
-    if [[ ! -f "$CONFIG_DIR/ca.json" ]]; then
+    if [[ ! -f "${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json" ]]; then
         echo "⚠️  Step-CA not initialized. Run 'resource-$RESOURCE_NAME manage install' first."
         return 1
     fi
@@ -285,7 +287,7 @@ add_acme_provisioner() {
         2>/dev/null || {
             echo "  Failed to add ACME provisioner, trying alternative method..."
             # Try with direct config modification
-            local config_file="$CONFIG_DIR/ca.json"
+            local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
             if [[ -f "$config_file" ]]; then
                 # Create backup
                 cp "$config_file" "$config_file.bak"
@@ -430,9 +432,341 @@ content_remove() {
 
 # Execute CA operation
 content_execute() {
-    local operation="${2:-}"
+    local operation="${1:-}"
+    shift
     
-    echo "⚙️  Executing CA operation: $operation"
-    echo "  CA operations would be implemented here"
-    # TODO: Execute various CA operations
+    case "$operation" in
+        add-provisioner)
+            add_provisioner "$@"
+            ;;
+        list-provisioners)
+            list_provisioners "$@"
+            ;;
+        remove-provisioner)
+            remove_provisioner "$@"
+            ;;
+        set-policy)
+            set_certificate_policy "$@"
+            ;;
+        get-policy)
+            get_certificate_policy "$@"
+            ;;
+        *)
+            echo "❌ Unknown operation: $operation"
+            echo "Available operations: add-provisioner, list-provisioners, remove-provisioner, set-policy, get-policy"
+            return 1
+            ;;
+    esac
+}
+
+# Add a new provisioner (supports multiple types including OIDC)
+add_provisioner() {
+    local type=""
+    local name=""
+    local client_id=""
+    local client_secret=""
+    local issuer=""
+    local domain=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --type)
+                type="$2"
+                shift 2
+                ;;
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --client-id)
+                client_id="$2"
+                shift 2
+                ;;
+            --client-secret)
+                client_secret="$2"
+                shift 2
+                ;;
+            --issuer)
+                issuer="$2"
+                shift 2
+                ;;
+            --domain)
+                domain="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    if [[ -z "$type" ]] || [[ -z "$name" ]]; then
+        echo "❌ Both --type and --name are required"
+        echo "Supported types: JWK, OIDC, ACME, AWS, GCP, Azure"
+        return 1
+    fi
+    
+    echo "🔐 Adding $type provisioner: $name..."
+    
+    case "$type" in
+        OIDC)
+            if [[ -z "$client_id" ]] || [[ -z "$issuer" ]]; then
+                echo "❌ OIDC requires --client-id and --issuer"
+                return 1
+            fi
+            
+            # Create OIDC provisioner configuration
+            local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
+            if [[ -f "$config_file" ]]; then
+                # Backup config
+                cp "$config_file" "$config_file.bak"
+                
+                # Add OIDC provisioner
+                local oidc_config='{
+                    "type": "OIDC",
+                    "name": "'$name'",
+                    "clientID": "'$client_id'",
+                    "clientSecret": "'${client_secret:-}'",
+                    "configurationEndpoint": "'$issuer/.well-known/openid-configuration'",
+                    "admins": ["'${domain:-*}'"],
+                    "domains": ["'${domain:-*}'"],
+                    "listenAddress": ":10000",
+                    "claims": {
+                        "enableSSHCA": true,
+                        "disableRenewal": false,
+                        "allowRenewalAfterExpiry": true,
+                        "maxTLSCertDuration": "720h",
+                        "defaultTLSCertDuration": "24h"
+                    }
+                }'
+                
+                jq ".authority.provisioners += [$oidc_config]" "$config_file" > "$config_file.tmp" && \
+                    mv "$config_file.tmp" "$config_file"
+                
+                # Restart to apply
+                manage_restart
+                echo "✅ OIDC provisioner '$name' added successfully"
+            else
+                echo "❌ CA configuration not found"
+                return 1
+            fi
+            ;;
+            
+        AWS|GCP|Azure)
+            # Cloud provider provisioners
+            local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
+            if [[ -f "$config_file" ]]; then
+                cp "$config_file" "$config_file.bak"
+                
+                local cloud_config='{
+                    "type": "'$type'",
+                    "name": "'$name'",
+                    "disableCustomSANs": false,
+                    "disableTrustOnFirstUse": false,
+                    "instanceAge": "1h",
+                    "claims": {
+                        "maxTLSCertDuration": "2160h",
+                        "defaultTLSCertDuration": "720h"
+                    }
+                }'
+                
+                jq ".authority.provisioners += [$cloud_config]" "$config_file" > "$config_file.tmp" && \
+                    mv "$config_file.tmp" "$config_file"
+                
+                manage_restart
+                echo "✅ $type provisioner '$name' added successfully"
+            else
+                echo "❌ CA configuration not found"
+                return 1
+            fi
+            ;;
+            
+        JWK)
+            # Token-based provisioner (default)
+            docker exec "$CONTAINER_NAME" step ca provisioner add "$name" \
+                --type JWK \
+                --admin-subject admin \
+                --admin-password-file /home/step/password.txt \
+                2>/dev/null || {
+                    echo "❌ Failed to add JWK provisioner"
+                    return 1
+                }
+            echo "✅ JWK provisioner '$name' added successfully"
+            ;;
+            
+        ACME)
+            # ACME provisioner
+            add_acme_provisioner
+            ;;
+            
+        *)
+            echo "❌ Unsupported provisioner type: $type"
+            echo "Supported types: JWK, OIDC, ACME, AWS, GCP, Azure"
+            return 1
+            ;;
+    esac
+}
+
+# List all provisioners
+list_provisioners() {
+    echo "📋 Configured Provisioners:"
+    
+    if ! docker ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+        echo "⚠️  Step-CA is not running"
+        return 1
+    fi
+    
+    docker exec "$CONTAINER_NAME" step ca provisioner list 2>/dev/null || {
+        # Fallback to parsing config
+        local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
+        if [[ -f "$config_file" ]]; then
+            jq -r '.authority.provisioners[] | "  - \(.name) (\(.type))"' "$config_file" 2>/dev/null
+        else
+            echo "  No provisioners found"
+        fi
+    }
+}
+
+# Remove a provisioner
+remove_provisioner() {
+    local name="${1:-}"
+    
+    if [[ -z "$name" ]]; then
+        echo "❌ Provisioner name required"
+        return 1
+    fi
+    
+    echo "🗑️  Removing provisioner: $name..."
+    
+    docker exec "$CONTAINER_NAME" step ca provisioner remove "$name" \
+        --admin-subject admin \
+        --admin-password-file /home/step/password.txt \
+        2>/dev/null || {
+            # Fallback to config modification
+            local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
+            if [[ -f "$config_file" ]]; then
+                cp "$config_file" "$config_file.bak"
+                jq '.authority.provisioners |= map(select(.name != "'$name'"))' "$config_file" > "$config_file.tmp" && \
+                    mv "$config_file.tmp" "$config_file"
+                manage_restart
+                echo "✅ Provisioner '$name' removed"
+            else
+                echo "❌ Failed to remove provisioner"
+                return 1
+            fi
+        }
+}
+
+# Set certificate lifetime policy
+set_certificate_policy() {
+    local default_duration=""
+    local max_duration=""
+    local min_duration=""
+    local allow_renewal_after_expiry=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --default-duration)
+                default_duration="$2"
+                shift 2
+                ;;
+            --max-duration)
+                max_duration="$2"
+                shift 2
+                ;;
+            --min-duration)
+                min_duration="$2"
+                shift 2
+                ;;
+            --allow-renewal-after-expiry)
+                allow_renewal_after_expiry="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Convert days to hours if needed (Step-CA doesn't support 'd' suffix)
+    convert_duration() {
+        local duration="$1"
+        if [[ "$duration" =~ ^([0-9]+)d$ ]]; then
+            echo "$((${BASH_REMATCH[1]} * 24))h"
+        else
+            echo "$duration"
+        fi
+    }
+    
+    default_duration=$(convert_duration "$default_duration")
+    max_duration=$(convert_duration "$max_duration")
+    min_duration=$(convert_duration "$min_duration")
+    
+    echo "📝 Setting certificate lifetime policies..."
+    
+    local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
+    if [[ ! -f "$config_file" ]]; then
+        echo "❌ CA configuration not found"
+        return 1
+    fi
+    
+    # Backup config
+    cp "$config_file" "$config_file.bak"
+    
+    # Update certificate policies
+    local updates=""
+    [[ -n "$default_duration" ]] && updates="$updates | .authority.claims.defaultTLSCertDuration = \"$default_duration\""
+    [[ -n "$max_duration" ]] && updates="$updates | .authority.claims.maxTLSCertDuration = \"$max_duration\""
+    [[ -n "$min_duration" ]] && updates="$updates | .authority.claims.minTLSCertDuration = \"$min_duration\""
+    [[ -n "$allow_renewal_after_expiry" ]] && updates="$updates | .authority.claims.allowRenewalAfterExpiry = $allow_renewal_after_expiry"
+    
+    if [[ -n "$updates" ]]; then
+        # Ensure claims object exists and apply updates
+        jq ".authority.claims = (.authority.claims // {}) $updates" "$config_file" > "$config_file.tmp" && \
+            mv "$config_file.tmp" "$config_file"
+        
+        # Apply to all provisioners
+        jq '.authority.provisioners |= map(
+            .claims = (.claims // {}) |
+            .claims.defaultTLSCertDuration = "'${default_duration:-24h}'" |
+            .claims.maxTLSCertDuration = "'${max_duration:-720h}'" |
+            .claims.minTLSCertDuration = "'${min_duration:-5m}'"
+        )' "$config_file" > "$config_file.tmp" && \
+            mv "$config_file.tmp" "$config_file"
+        
+        manage_restart
+        echo "✅ Certificate policies updated successfully"
+        
+        # Show new policies
+        get_certificate_policy
+    else
+        echo "⚠️  No policies specified to update"
+    fi
+}
+
+# Get current certificate policies
+get_certificate_policy() {
+    echo "📋 Current Certificate Policies:"
+    
+    # Use the nested config path directly
+    local config_file="${VROOLI_ROOT:-$HOME/Vrooli}/data/step-ca/config/config/ca.json"
+    if [[ ! -f "$config_file" ]]; then
+        echo "⚠️  CA configuration not found at $config_file"
+        return 1
+    fi
+    
+    # Display global policies
+    echo "  Global Policies:"
+    jq -r '.authority.claims // {} | 
+        "    Default Duration: \(.defaultTLSCertDuration // "24h")\n    Max Duration: \(.maxTLSCertDuration // "720h")\n    Min Duration: \(.minTLSCertDuration // "5m")\n    Allow Renewal After Expiry: \(.allowRenewalAfterExpiry // false)"' \
+        "$config_file" 2>/dev/null
+    
+    # Display per-provisioner policies
+    echo ""
+    echo "  Per-Provisioner Policies:"
+    jq -r '.authority.provisioners[] | 
+        "    \(.name) (\(.type)):\n      Default: \(.claims.defaultTLSCertDuration // "inherited")\n      Max: \(.claims.maxTLSCertDuration // "inherited")"' \
+        "$config_file" 2>/dev/null || echo "    No provisioner-specific policies"
 }

@@ -29,7 +29,7 @@ source "${HUGINN_CLI_DIR}/config/defaults.sh"
 source "${HUGINN_CLI_DIR}/config/messages.sh"
 
 # Source Huginn libraries
-for lib in common docker install status api inject test testing; do
+for lib in common docker install status api inject test testing agents; do
     lib_file="${HUGINN_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -54,6 +54,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="huginn::run_agent"
 cli::register_command "status" "Show detailed resource status" "huginn::status"
 cli::register_command "logs" "Show Huginn logs" "huginn::view_logs"
 cli::register_command "credentials" "Show Huginn credentials for integration" "huginn_credentials"
+cli::register_command "agents" "Manage running huginn agents" "huginn::agents::command"
 
 cli::register_subcommand "content" "agents" "List all agents" "huginn::list_agents"
 cli::register_subcommand "content" "scenarios" "List all scenarios" "huginn::list_scenarios"

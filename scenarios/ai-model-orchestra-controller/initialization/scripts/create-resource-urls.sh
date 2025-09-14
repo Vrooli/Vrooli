@@ -32,51 +32,51 @@ cat > "$RESOURCE_URLS_FILE" << EOF
   "resources": {
     "ai": {
       "ollama": {
-        "url": "http://localhost:${RESOURCE_PORTS[ollama]}",
+        "url": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[ollama]}",
         "port": ${RESOURCE_PORTS[ollama]},
-        "host": "localhost",
-        "api_base": "http://localhost:${RESOURCE_PORTS[ollama]}/api"
+        "host": "\${ORCHESTRATOR_HOST:-localhost}",
+        "api_base": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[ollama]}/api"
       }
     },
     "automation": {
       "node_red": {
-        "url": "http://localhost:${RESOURCE_PORTS[node-red]}",
+        "url": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[node-red]}",
         "port": ${RESOURCE_PORTS[node-red]},
-        "host": "localhost",
-        "api_base": "http://localhost:${RESOURCE_PORTS[node-red]}/api"
+        "host": "\${ORCHESTRATOR_HOST:-localhost}",
+        "api_base": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[node-red]}/api"
       },
       "n8n": {
-        "url": "http://localhost:${RESOURCE_PORTS[n8n]}",
+        "url": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[n8n]}",
         "port": ${RESOURCE_PORTS[n8n]},
-        "host": "localhost",
-        "api_base": "http://localhost:${RESOURCE_PORTS[n8n]}/api"
+        "host": "\${ORCHESTRATOR_HOST:-localhost}",
+        "api_base": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[n8n]}/api"
       },
       "windmill": {
-        "url": "http://localhost:${RESOURCE_PORTS[windmill]}",
+        "url": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[windmill]}",
         "port": ${RESOURCE_PORTS[windmill]},
-        "host": "localhost",
-        "api_base": "http://localhost:${RESOURCE_PORTS[windmill]}/api"
+        "host": "\${ORCHESTRATOR_HOST:-localhost}",
+        "api_base": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[windmill]}/api"
       }
     },
     "storage": {
       "postgres": {
-        "url": "postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/orchestrator?sslmode=disable",
+        "url": "postgres://\${POSTGRES_USER:-postgres}:\${POSTGRES_PASSWORD:-postgres}@\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[postgres]}/\${POSTGRES_DB:-orchestrator}?sslmode=disable",
         "port": ${RESOURCE_PORTS[postgres]},
-        "host": "localhost",
-        "database": "orchestrator",
-        "username": "postgres",
+        "host": "\${ORCHESTRATOR_HOST:-localhost}",
+        "database": "\${POSTGRES_DB:-orchestrator}",
+        "username": "\${POSTGRES_USER:-postgres}",
         "maxConnections": 25
       },
       "redis": {
-        "url": "redis://localhost:${RESOURCE_PORTS[redis]}",
+        "url": "redis://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[redis]}",
         "port": ${RESOURCE_PORTS[redis]},
-        "host": "localhost"
+        "host": "\${ORCHESTRATOR_HOST:-localhost}"
       },
       "qdrant": {
-        "url": "http://localhost:${RESOURCE_PORTS[qdrant]}",
+        "url": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[qdrant]}",
         "port": ${RESOURCE_PORTS[qdrant]},
-        "host": "localhost",
-        "api_base": "http://localhost:${RESOURCE_PORTS[qdrant]}"
+        "host": "\${ORCHESTRATOR_HOST:-localhost}",
+        "api_base": "http://\${ORCHESTRATOR_HOST:-localhost}:${RESOURCE_PORTS[qdrant]}"
       }
     },
     "docker": {
