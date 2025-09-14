@@ -10,7 +10,7 @@ export MAILINABOX_DESCRIPTION="All-in-one email server with webmail, contacts, c
 
 # Container configuration
 export MAILINABOX_CONTAINER_NAME="mailinabox"
-export MAILINABOX_IMAGE="mailinabox/mailinabox:v68"
+export MAILINABOX_IMAGE="mailserver/docker-mailserver:latest"
 
 # Network configuration
 export MAILINABOX_PORT_SMTP="25"

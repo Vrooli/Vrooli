@@ -32,8 +32,8 @@ mailinabox_get_health() {
         return 1
     fi
     
-    # Check admin panel availability
-    if timeout 5 curl -sk "https://${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_ADMIN}/admin" >/dev/null 2>&1; then
+    # Check SMTP availability (docker-mailserver doesn't have an admin panel)
+    if echo "QUIT" | timeout 5 nc "${MAILINABOX_BIND_ADDRESS}" "${MAILINABOX_PORT_SMTP}" 2>/dev/null | grep -q "220"; then
         echo "healthy"
         return 0
     else

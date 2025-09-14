@@ -1768,3 +1768,81 @@ body.dark-mode .slider-container input[type="range"] {
     background: var(--dark-border-gray);
 }
 
+/* Rate Limit Notification */
+.rate-limit-notification {
+    background: linear-gradient(135deg, #ff6b6b 0%, #f06292 100%);
+    color: white;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.rate-limit-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.rate-limit-content i {
+    font-size: 1.5rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.rate-limit-text {
+    flex: 0 0 auto;
+}
+
+.rate-limit-text strong {
+    display: block;
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+}
+
+#rate-limit-countdown {
+    font-size: 0.9rem;
+    opacity: 0.95;
+}
+
+.rate-limit-notification .btn {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    transition: all 0.2s;
+}
+
+.rate-limit-notification .btn:hover {
+    background: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.5);
+}
+
+/* Dark mode adjustments for rate limit notification */
+body.dark-mode .rate-limit-notification {
+    background: linear-gradient(135deg, #d32f2f 0%, #c2185b 100%);
+}
+

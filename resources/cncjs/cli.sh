@@ -71,6 +71,12 @@ COMMANDS:
         apply <name>        Apply controller profile
         remove <name>       Delete controller profile
         test                Test controller connectivity
+    visualization           3D G-code path visualization
+        preview <file>      Generate 3D preview of G-code file
+        analyze <file>      Analyze G-code paths and statistics
+        render <file>       Render static visualization image
+        export <file>       Export visualization as HTML
+        server              Start visualization server
     status                  Show detailed service status
     logs                    View CNCjs logs
     credentials             Display connection information
@@ -209,6 +215,11 @@ main() {
             local subcommand="${1:-list}"
             shift || true
             cncjs::controller "$subcommand" "$@"
+            ;;
+        visualization)
+            local subcommand="${1:-}"
+            shift || true
+            cncjs::visualization "$subcommand" "$@"
             ;;
         *)
             echo "Unknown command: $command" >&2

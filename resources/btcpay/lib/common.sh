@@ -21,8 +21,8 @@ btcpay::get_health() {
         return 1
     fi
     
-    # Check if API responds
-    if curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
+    # Check if API responds (with timeout per v2.0 contract)
+    if timeout 5 curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
         echo "healthy"
     else
         echo "unhealthy"

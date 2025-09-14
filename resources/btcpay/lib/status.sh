@@ -26,8 +26,8 @@ btcpay::status() {
         container_status="running"
         health=$(btcpay::get_health)
         
-        # Check API accessibility
-        if curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
+        # Check API accessibility (with timeout per v2.0 contract)
+        if timeout 5 curl -sf "${BTCPAY_BASE_URL}/api/v1/health" &>/dev/null; then
             api_accessible="true"
         fi
         

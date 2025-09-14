@@ -1,0 +1,35 @@
+{
+  "type": "function",
+  "category": "code",
+  "function": {
+    "name": "analyze_code",
+    "description": "Analyze code for patterns, issues, and metrics",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Code to analyze"
+        },
+        "language": {
+          "type": "string",
+          "description": "Programming language"
+        },
+        "analysis_type": {
+          "type": "string",
+          "description": "Type of analysis",
+          "enum": [
+            "syntax",
+            "style",
+            "complexity",
+            "security"
+          ],
+          "default": "syntax"
+        }
+      },
+      "required": [
+        "code"
+      ]
+    }
+  }
+}

@@ -413,6 +413,26 @@
                         </div>
                     </div>
                     
+                    <!-- Rate Limit Management -->
+                    <div class="settings-section">
+                        <h4 class="settings-section-title">
+                            <i class="fas fa-hourglass-half"></i>
+                            Rate Limit Management
+                        </h4>
+                        
+                        <div class="form-group">
+                            <div id="rate-limit-status" style="margin-bottom: 1rem;">
+                                <!-- Rate limit status will be displayed here -->
+                            </div>
+                            
+                            <button type="button" id="reset-rate-limit-btn" class="btn btn-warning" onclick="ecosystemManager.resetRateLimit()">
+                                <i class="fas fa-refresh"></i>
+                                Reset Rate Limit Pause
+                            </button>
+                            <small class="form-help">Manually reset the rate limit pause if you've resolved the API limit issue</small>
+                        </div>
+                    </div>
+                    
                     <!-- Action Buttons -->
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">

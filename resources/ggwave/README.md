@@ -28,6 +28,13 @@ vrooli resource ggwave content execute --data "Hello World" --mode normal
   - 10-byte redundancy for reliable transmission
   - Corrects up to 5 byte errors automatically
   - Optional per-transmission basis
+
+- **WebSocket Support**:
+  - Real-time bidirectional streaming
+  - Session management for concurrent connections
+  - Chunk-based processing for large data
+  - Room-based broadcasting for group transmission
+
 - **Cross-Platform**: Works on iOS, Android, Linux, Arduino
 - **Standard Hardware**: Uses any microphone/speaker - no special equipment needed
 - **Range**: 1-5 meters typical indoor range
@@ -55,6 +62,45 @@ curl -X POST http://localhost:8196/api/decode \
 
 # Health check
 curl http://localhost:8196/health
+```
+
+### WebSocket/Socket.IO Connection
+
+```python
+import socketio
+
+# Create client
+sio = socketio.Client()
+
+# Connect to server
+sio.connect('http://localhost:8196')
+
+# Configure session
+sio.emit('configure', {
+    'mode': 'normal',
+    'error_correction': True
+})
+
+# Stream encode data
+sio.emit('stream_encode', {
+    'data': 'Hello World',
+    'chunk_id': 1
+})
+
+# Stream decode audio
+sio.emit('stream_decode', {
+    'audio': '<base64_audio>',
+    'chunk_id': 1
+})
+
+# Join room for group transmission
+sio.emit('join_room', {'room': 'conference'})
+
+# Broadcast to room
+sio.emit('broadcast', {
+    'room': 'conference',
+    'audio': '<base64_audio>'
+})
 ```
 
 ## Configuration

@@ -3,15 +3,12 @@
 # Runs unit tests for Go and Node.js components
 set -uo pipefail
 
+# Setup paths and utilities
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+
 echo "=== Unit Tests Phase (Target: <60s) ==="
 start_time=$(date +%s)
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
 
 error_count=0
 test_count=0
@@ -28,18 +25,18 @@ echo "🔍 Running Go unit tests..."
 if [ -d "api" ] && [ -f "api/go.mod" ]; then
     if [ -x "$UNIT_DIR/go.sh" ]; then
         if "$UNIT_DIR/go.sh" >/dev/null 2>&1; then
-            echo -e "${GREEN}✅ Go unit tests passed${NC}"
+            log::success "✅ Go unit tests passed"
             ((test_count++))
         else
-            echo -e "${RED}❌ Go unit tests failed${NC}"
+            log::error "❌ Go unit tests failed"
             ((error_count++))
         fi
     else
-        echo -e "${YELLOW}ℹ️  Go test runner not found, skipping Go tests${NC}"
+        log::warning "ℹ️  Go test runner not found, skipping Go tests"
         ((skipped_count++))
     fi
 else
-    echo -e "${YELLOW}ℹ️  No Go code found, skipping Go tests${NC}"
+    log::warning "ℹ️  No Go code found, skipping Go tests"
     ((skipped_count++))
 fi
 
@@ -57,19 +54,19 @@ if [ -d "ui" ] && [ -f "ui/package.json" ]; then
         set -e  # Re-enable exit on error
         
         if [ $npm_exit_code -eq 0 ]; then
-            echo -e "${GREEN}✅ Node.js unit tests passed${NC}"
+            log::success "✅ Node.js unit tests passed"
             ((test_count++))
         else
-            echo -e "${RED}❌ Node.js unit tests failed${NC}"
+            log::error "❌ Node.js unit tests failed"
             ((error_count++))
         fi
     else
-        echo -e "${YELLOW}ℹ️  No test script or Jest not installed, skipping Node.js tests${NC}"
+        log::warning "ℹ️  No test script or Jest not installed, skipping Node.js tests"
         ((skipped_count++))
     fi
     cd ..
 else
-    echo -e "${YELLOW}ℹ️  No Node.js code found, skipping Node.js tests${NC}"
+    log::warning "ℹ️  No Node.js code found, skipping Node.js tests"
     ((skipped_count++))
 fi
 
@@ -87,16 +84,16 @@ echo "   Duration: ${duration}s"
 
 if [ $error_count -eq 0 ]; then
     if [ $test_count -gt 0 ]; then
-        echo -e "${GREEN}✅ All unit tests passed in ${duration}s${NC}"
+        log::success "✅ All unit tests passed in ${duration}s"
     else
-        echo -e "${YELLOW}⚠️  No unit tests were executed in ${duration}s${NC}"
+        log::warning "⚠️  No unit tests were executed in ${duration}s"
     fi
 else
-    echo -e "${RED}❌ Unit tests failed with $error_count failures in ${duration}s${NC}"
+    log::error "❌ Unit tests failed with $error_count failures in ${duration}s"
 fi
 
 if [ $duration -gt 60 ]; then
-    echo -e "${YELLOW}⚠️  Unit tests phase exceeded 60s target${NC}"
+    log::warning "⚠️  Unit tests phase exceeded 60s target"
 fi
 
 # Exit with appropriate code

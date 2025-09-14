@@ -39,6 +39,29 @@ vrooli resource esphome template::apply temperature-sensor living-room "Living R
 # - smart-switch: WiFi-controlled relay switch
 ```
 
+### Monitoring & Metrics
+
+```bash
+# Display device telemetry and statistics
+vrooli resource esphome metrics
+
+# Set up alert system for device failures
+vrooli resource esphome alerts::setup
+
+# Check for active device alerts
+vrooli resource esphome alerts::check
+```
+
+### Custom Components
+
+```bash
+# Add a new custom component template
+vrooli resource esphome custom::add my_sensor
+
+# List available custom components
+vrooli resource esphome custom::list
+```
+
 ### Managing Configurations
 
 ```bash
@@ -134,6 +157,14 @@ web_server:
 - **Template System**: Quick-start templates for common IoT scenarios
 - **Web Dashboard**: Visual interface for device management at port 6587
 - **Device Discovery**: Automatic detection of ESP devices on network
+
+### Advanced Features
+- **Home Assistant Integration**: Auto-discovery and entity creation
+- **Backup/Restore**: Save and restore device configurations
+- **Bulk Operations**: Manage multiple devices simultaneously
+- **Metrics Dashboard**: Real-time device telemetry and statistics
+- **Alert System**: Automated monitoring and failure notifications
+- **Custom Components**: Create your own ESP components
 
 ## Supported Components
 

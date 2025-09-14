@@ -66,6 +66,23 @@ CLI_COMMAND_HANDLERS["content::get"]="esphome::get_config"
 CLI_COMMAND_HANDLERS["content::remove"]="esphome::remove_config"
 CLI_COMMAND_HANDLERS["content::execute"]="esphome::compile"
 
+# P1 requirement handlers
+CLI_COMMAND_HANDLERS["homeassistant::setup"]="esphome::homeassistant::setup"
+CLI_COMMAND_HANDLERS["homeassistant::test"]="esphome::homeassistant::test"
+CLI_COMMAND_HANDLERS["backup"]="esphome::backup"
+CLI_COMMAND_HANDLERS["restore"]="esphome::restore"
+CLI_COMMAND_HANDLERS["backup::list"]="esphome::list_backups"
+CLI_COMMAND_HANDLERS["bulk::compile"]="esphome::bulk::compile"
+CLI_COMMAND_HANDLERS["bulk::upload"]="esphome::bulk::upload"
+CLI_COMMAND_HANDLERS["bulk::status"]="esphome::bulk::status"
+
+# P2 Command handlers
+CLI_COMMAND_HANDLERS["metrics"]="esphome::metrics"
+CLI_COMMAND_HANDLERS["alerts::setup"]="esphome::alerts::setup"
+CLI_COMMAND_HANDLERS["alerts::check"]="esphome::alerts::check"
+CLI_COMMAND_HANDLERS["custom::add"]="esphome::custom::add"
+CLI_COMMAND_HANDLERS["custom::list"]="esphome::custom::list"
+
 # ==============================================================================
 # REQUIRED INFORMATION COMMANDS
 # ==============================================================================
@@ -90,6 +107,27 @@ cli::register_command "monitor" "Monitor device serial output" "esphome::monitor
 # Configuration commands
 cli::register_command "validate" "Validate YAML configuration" "esphome::validate_config"
 cli::register_command "clean" "Clean build artifacts" "esphome::clean_build" "modifies-system"
+
+# Home Assistant integration commands
+cli::register_command "homeassistant::setup" "Configure Home Assistant integration" "esphome::homeassistant::setup" "modifies-system"
+cli::register_command "homeassistant::test" "Test Home Assistant connection" "esphome::homeassistant::test"
+
+# Backup and restore commands  
+cli::register_command "backup" "Create backup of configurations" "esphome::backup" "modifies-system"
+cli::register_command "restore" "Restore from backup" "esphome::restore" "modifies-system"
+cli::register_command "backup::list" "List available backups" "esphome::list_backups"
+
+# Bulk operation commands
+cli::register_command "bulk::compile" "Compile multiple configurations" "esphome::bulk::compile" "modifies-system"
+cli::register_command "bulk::upload" "Upload firmware to multiple devices" "esphome::bulk::upload" "modifies-system"
+cli::register_command "bulk::status" "Check status of all devices" "esphome::bulk::status"
+
+# P2 Requirements - Metrics, Alerts, and Custom Components
+cli::register_command "metrics" "Display device telemetry and statistics" "esphome::metrics"
+cli::register_command "alerts::setup" "Configure alert system for device failures" "esphome::alerts::setup" "modifies-system"
+cli::register_command "alerts::check" "Check for active device alerts" "esphome::alerts::check"
+cli::register_command "custom::add" "Add a custom component template" "esphome::custom::add" "modifies-system"
+cli::register_command "custom::list" "List available custom components" "esphome::custom::list"
 
 # Simple credentials implementation for ESPHome
 esphome::cli_credentials() {

@@ -50,20 +50,16 @@ test_container_running() {
     fi
 }
 
-# Test 2: Health endpoint responds
+# Test 2: Health check (SMTP based for docker-mailserver)
 test_health_endpoint() {
-    echo "Testing: Health endpoint..."
+    echo "Testing: Health check..."
     
-    if timeout "$HEALTH_TIMEOUT" curl -sf "http://localhost:${ADMIN_PORT}/health" &>/dev/null; then
-        test_pass "Health endpoint responds"
+    # docker-mailserver doesn't have an admin panel, check SMTP instead
+    if echo "QUIT" | timeout "$HEALTH_TIMEOUT" nc localhost "$SMTP_PORT" 2>/dev/null | grep -q "220"; then
+        test_pass "Mail server is healthy (SMTP responds)"
     else
-        # Try alternate health check
-        if timeout "$HEALTH_TIMEOUT" curl -sf "http://localhost:${ADMIN_PORT}/admin" &>/dev/null; then
-            test_pass "Admin panel responds (alternate health check)"
-        else
-            test_fail "Health endpoint not responding"
-            return 1
-        fi
+        test_fail "Mail server health check failed"
+        return 1
     fi
 }
 
@@ -79,29 +75,29 @@ test_smtp_port() {
     fi
 }
 
-# Test 4: IMAP port is listening
+# Test 4: IMAPS port is listening (docker-mailserver uses secure IMAP)
 test_imap_port() {
     echo "Testing: IMAP service..."
     
-    if timeout 2 nc -zv localhost "$IMAP_PORT" &>/dev/null; then
-        test_pass "IMAP port $IMAP_PORT is listening"
+    # docker-mailserver exposes IMAPS (993) not plain IMAP (143)
+    local IMAPS_PORT="${MAILINABOX_IMAPS_PORT:-993}"
+    if timeout 2 nc -zv localhost "$IMAPS_PORT" &>/dev/null; then
+        test_pass "IMAPS port $IMAPS_PORT is listening"
     else
-        test_fail "IMAP port $IMAP_PORT is not accessible"
+        test_fail "IMAPS port $IMAPS_PORT is not accessible"
         return 1
     fi
 }
 
-# Test 5: Admin panel accessible
+# Test 5: Email account exists
 test_admin_panel() {
-    echo "Testing: Admin panel..."
+    echo "Testing: Email accounts..."
     
-    local response
-    response=$(timeout "$HEALTH_TIMEOUT" curl -sk -o /dev/null -w "%{http_code}" "https://localhost:${ADMIN_PORT}/admin" 2>/dev/null || echo "000")
-    
-    if [[ "$response" == "200" ]] || [[ "$response" == "401" ]] || [[ "$response" == "302" ]]; then
-        test_pass "Admin panel accessible (HTTP $response)"
+    # docker-mailserver doesn't have admin panel, check if accounts exist
+    if docker exec mailinabox cat /tmp/docker-mailserver/postfix-accounts.cf 2>/dev/null | grep -q "@"; then
+        test_pass "Email accounts configured"
     else
-        test_fail "Admin panel not accessible (HTTP $response)"
+        test_fail "No email accounts found"
         return 1
     fi
 }
@@ -122,10 +118,11 @@ test_cli_commands() {
 test_volumes() {
     echo "Testing: Docker volumes..."
     
-    if docker volume ls | grep -q "mailinabox"; then
-        test_pass "Mail-in-a-Box volumes exist"
+    # Check if container has volume mounts
+    if docker inspect mailinabox --format '{{range .Mounts}}{{.Source}}{{"\n"}}{{end}}' 2>/dev/null | grep -q "/"; then
+        test_pass "Mail server volumes mounted"
     else
-        test_fail "Mail-in-a-Box volumes not found"
+        test_fail "Mail server volumes not found"
         return 1
     fi
 }

@@ -148,43 +148,8 @@ btcpay::content::execute() {
     esac
 }
 
-# Business functionality
-btcpay::create_invoice() {
-    local amount="${1:-}"
-    local currency="${2:-USD}"
-    local description="${3:-Payment}"
-    
-    if [[ -z "$amount" ]]; then
-        log::error "Amount required for invoice creation"
-        return 1
-    fi
-    
-    log::info "Creating invoice: $amount $currency - $description"
-    # This would normally call BTCPay API
-    log::warning "Invoice creation requires BTCPay API configuration"
-}
-
-btcpay::check_payment() {
-    local invoice_id="${1:-}"
-    
-    if [[ -z "$invoice_id" ]]; then
-        log::error "Invoice ID required"
-        return 1
-    fi
-    
-    log::info "Checking payment status for invoice: $invoice_id"
-    # This would normally call BTCPay API
-    log::warning "Payment check requires BTCPay API configuration"
-}
-
-btcpay::generate_address() {
-    local store_id="${1:-}"
-    local crypto="${2:-BTC}"
-    
-    log::info "Generating $crypto address for store: ${store_id:-default}"
-    # This would normally call BTCPay API
-    log::warning "Address generation requires BTCPay API configuration"
-}
+# Business functionality - delegated to core.sh
+# The actual implementations are in core.sh with proper API integration
 
 export -f btcpay::content::add
 export -f btcpay::content::list

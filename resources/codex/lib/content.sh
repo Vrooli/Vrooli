@@ -259,14 +259,22 @@ codex::content::execute() {
         log::error "No input specified"
         echo "Usage: content execute <prompt_or_file> [operation] [context]"
         echo "Operations: generate, review, test, explain, complete, analyze"
-        echo "Contexts: auto, cli, sandbox, text"
+        echo "Contexts: auto, cli, direct, sandbox, text"
         return 1
     fi
     
     # Determine capability based on operation
     local capability
     case "$operation" in
-        generate|complete|explain)
+        generate)
+            # For generate operation, analyze the actual request to determine capability
+            if type -t orchestrator::analyze_request &>/dev/null; then
+                capability=$(orchestrator::analyze_request "$input")
+            else
+                capability="text-generation"
+            fi
+            ;;
+        complete|explain)
             capability="text-generation"
             ;;
         review|test|analyze)
@@ -331,9 +339,9 @@ codex::content::execute() {
     if type -t orchestrator::execute &>/dev/null; then
         log::info "Executing via orchestrator (capability: $capability, context: $context)"
         
-        # Create workspace if using function calling
+        # Create workspace if using function calling with sandbox context
         local workspace_id=""
-        if [[ "$capability" == "function-calling" || "$operation" == "analyze" ]]; then
+        if [[ "$capability" == "function-calling" || "$operation" == "analyze" ]] && [[ "$context" == "sandbox" ]]; then
             if type -t workspace_manager::create &>/dev/null; then
                 local workspace_result
                 workspace_result=$(workspace_manager::create "" "moderate" '{"description": "Content execution workspace", "auto_cleanup": true}')
@@ -347,7 +355,11 @@ codex::content::execute() {
         
         # Execute via orchestrator
         local result
-        result=$(orchestrator::execute "$request_content" "$capability" "$context")
+        if [[ "$context" == "auto" ]]; then
+            result=$(orchestrator::execute "$request_content")
+        else
+            result=$(orchestrator::execute "$request_content" "$context")
+        fi
         
         # Output result
         echo "$result"

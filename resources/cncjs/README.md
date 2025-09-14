@@ -5,11 +5,12 @@ Web-based interface for CNC milling controllers running Grbl, Marlin, Smoothiewa
 ## Overview
 
 CNCjs provides a modern web interface for controlling CNC machines, featuring:
-- Real-time G-code visualization with WebGL
-- Macro automation system for repetitive tasks
-- Remote access capability for distributed manufacturing
-- Support for multiple CNC controller firmwares
-- Serial port communication with USB/Bluetooth support
+- **3D G-code visualization**: Interactive WebGL previews with path analysis
+- **Macro automation**: Define and execute repetitive task sequences
+- **Workflow management**: Chain multiple G-code files for production runs
+- **Multi-controller support**: Grbl, Marlin, Smoothieware, and TinyG
+- **Remote access**: Control machines from anywhere via web interface
+- **Serial communication**: USB, Bluetooth, and network connections
 
 ## Quick Start
 
@@ -85,6 +86,26 @@ vrooli resource cncjs workflow export production_run production.tar.gz
 
 # Import workflow from archive
 vrooli resource cncjs workflow import production.tar.gz
+```
+
+### 3D Visualization
+
+```bash
+# Generate interactive 3D preview of G-code
+vrooli resource cncjs visualization preview mypart.gcode
+
+# Analyze G-code for statistics and bounds
+vrooli resource cncjs visualization analyze mypart.gcode
+
+# Render static visualization (SVG)
+vrooli resource cncjs visualization render mypart.gcode output.svg
+
+# Export standalone HTML visualization
+vrooli resource cncjs visualization export mypart.gcode visualization.html
+
+# Start visualization server (browse all visualizations)
+vrooli resource cncjs visualization server
+# Access at http://localhost:8195/
 ```
 
 ### Controller Configuration

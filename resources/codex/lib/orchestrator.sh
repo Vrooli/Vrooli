@@ -31,16 +31,17 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh"
 orchestrator::analyze_request() {
     local request="$1"
     
-    # Function calling indicators
-    if [[ "$request" =~ (create|build|make|generate.*test|fix.*bug|refactor|write.*file|run.*command) ]]; then
-        if [[ "$request" =~ (file|test|app|project|script|command|execute|run) ]]; then
+    # Function calling indicators (case insensitive)
+    local lower_request=$(echo "$request" | tr '[:upper:]' '[:lower:]')
+    if [[ "$lower_request" =~ (create|build|make|write|generate|fix|refactor|run) ]]; then
+        if [[ "$lower_request" =~ (file|test|app|project|script|command|execute|run|code|program|function|hello.*world) ]]; then
             echo "function-calling"
             return
         fi
     fi
     
     # Reasoning indicators
-    if [[ "$request" =~ (solve|prove|analyze|explain.*complex|step.*by.*step|reasoning|logic) ]]; then
+    if [[ "$lower_request" =~ (solve|prove|analyze|explain.*complex|step.*by.*step|reasoning|logic) ]]; then
         echo "reasoning"
         return
     fi
@@ -63,19 +64,19 @@ orchestrator::execution_preference() {
     
     case "$capability" in
         function-calling)
-            # For function calling, prefer CLI then sandbox
-            echo "cli sandbox text"
+            # For function calling, prefer CLI then direct system, then sandbox for testing
+            echo "cli direct sandbox text"
             ;;
         text-generation)
             # For text generation, prefer text-only (cheapest)
-            echo "text sandbox cli"
+            echo "text direct sandbox cli"
             ;;
         reasoning)
             # For reasoning, prefer text-only with reasoning models
-            echo "text cli sandbox"
+            echo "text cli direct sandbox"
             ;;
         *)
-            echo "text sandbox cli"
+            echo "text direct sandbox cli"
             ;;
     esac
 }
@@ -97,6 +98,14 @@ orchestrator::available_contexts() {
         source "${CODEX_LIB_DIR}/execution-contexts/external-cli.sh"
         if type -t cli_context::is_available &>/dev/null && cli_context::is_available; then
             contexts="$contexts cli"
+        fi
+    fi
+    
+    # Check direct system availability (prioritized for real work)
+    if [[ -f "${CODEX_LIB_DIR}/execution-contexts/direct-system.sh" ]]; then
+        source "${CODEX_LIB_DIR}/execution-contexts/direct-system.sh"
+        if type -t direct_system_context::is_available &>/dev/null && direct_system_context::is_available; then
+            contexts="$contexts direct"
         fi
     fi
     
@@ -220,6 +229,8 @@ orchestrator::execute() {
     local context_file="${CODEX_LIB_DIR}/execution-contexts/${context}-context.sh"
     if [[ "$context" == "cli" ]]; then
         context_file="${CODEX_LIB_DIR}/execution-contexts/external-cli.sh"
+    elif [[ "$context" == "direct" ]]; then
+        context_file="${CODEX_LIB_DIR}/execution-contexts/direct-system.sh"
     elif [[ "$context" == "sandbox" ]]; then
         context_file="${CODEX_LIB_DIR}/execution-contexts/internal-sandbox.sh"
     elif [[ "$context" == "text" ]]; then
@@ -246,6 +257,7 @@ orchestrator::execute() {
     local context_function
     case "$context" in
         cli) context_function="cli_context::execute" ;;
+        direct) context_function="direct_system_context::execute" ;;
         sandbox) context_function="sandbox_context::execute" ;;
         text) context_function="text_context::execute" ;;
     esac

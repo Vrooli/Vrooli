@@ -333,6 +333,79 @@ cncjs::test_integration() {
         ((failed++))
     fi
     
+    # Test 9: Visualization features
+    log::info "Test 9: Testing visualization features..."
+    # Create a test G-code file if not exists
+    local test_gcode="${CNCJS_WATCH_DIR}/viz_test.gcode"
+    cat > "$test_gcode" << 'GEOF'
+G21 ; mm units
+G90 ; absolute
+G0 X0 Y0 Z5
+G1 X10 Y0 Z0 F300
+G1 X10 Y10 Z0
+G1 X0 Y10 Z0
+G1 X0 Y0 Z0
+G0 Z5
+M30
+GEOF
+    
+    # Test preview generation
+    if cncjs::visualization preview "viz_test.gcode" &>/dev/null; then
+        local viz_file="${CNCJS_DATA_DIR}/visualizations/viz_test.html"
+        if [[ -f "$viz_file" ]]; then
+            log::success "✓ Visualization preview generated"
+            rm -f "$viz_file"
+        else
+            log::error "✗ Visualization file not created"
+            ((failed++))
+        fi
+    else
+        log::error "✗ Visualization preview failed"
+        ((failed++))
+    fi
+    
+    # Test analyze function
+    if cncjs::visualization analyze "viz_test.gcode" &>/dev/null; then
+        log::success "✓ G-code analysis works"
+    else
+        log::error "✗ G-code analysis failed"
+        ((failed++))
+    fi
+    
+    # Test render function
+    local svg_output="/tmp/viz_test.svg"
+    if cncjs::visualization render "viz_test.gcode" "$svg_output.svg" &>/dev/null; then
+        # Check for either SVG or the actual output file
+        if [[ -f "$svg_output.svg" ]] || [[ -f "${svg_output%.svg}.svg" ]]; then
+            log::success "✓ Visualization render works"
+            rm -f "$svg_output.svg" "${svg_output%.svg}.svg" 2>/dev/null
+        else
+            log::error "✗ Render output not created"
+            ((failed++))
+        fi
+    else
+        log::error "✗ Visualization render failed"
+        ((failed++))
+    fi
+    
+    # Test export function
+    local export_html="/tmp/viz_export.html"
+    if cncjs::visualization export "viz_test.gcode" "$export_html" &>/dev/null; then
+        if [[ -f "$export_html" ]]; then
+            log::success "✓ Visualization export works"
+            rm -f "$export_html"
+        else
+            log::error "✗ Export file not created"
+            ((failed++))
+        fi
+    else
+        log::error "✗ Visualization export failed"
+        ((failed++))
+    fi
+    
+    # Clean up test file
+    rm -f "$test_gcode"
+    
     if [[ $failed -eq 0 ]]; then
         log::success "All integration tests passed!"
         return 0

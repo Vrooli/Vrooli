@@ -2251,6 +2251,9 @@ class EcosystemManager {
         // Populate form with current settings
         this.populateSettingsForm();
         
+        // Update rate limit status
+        this.updateRateLimitStatus();
+        
         modal.classList.add('show');
     }
     
@@ -2438,14 +2441,29 @@ class EcosystemManager {
         if (maxSlotsEl) maxSlotsEl.textContent = this.queueStatus.maxConcurrent;
         
         if (processorStatusEl && processorIconEl) {
-            if (this.queueStatus.processorActive) {
+            // Check for rate limit pause first
+            if (this.queueStatus.rateLimitPaused) {
+                const now = new Date();
+                const pauseUntil = new Date(this.queueStatus.pauseUntil);
+                const remainingMs = pauseUntil - now;
+                const remainingMinutes = Math.ceil(remainingMs / 60000);
+                
+                processorStatusEl.innerHTML = `Rate Limited<br><small>Resumes in ${remainingMinutes} min</small>`;
+                processorIconEl.className = 'fas fa-ban';
+                processorIconEl.style.color = 'var(--error-color)';
+                
+                // Show rate limit notification if not already shown
+                this.showRateLimitNotification(pauseUntil);
+            } else if (this.queueStatus.processorActive) {
                 processorStatusEl.textContent = 'Active';
                 processorIconEl.className = 'fas fa-play';
                 processorIconEl.style.color = 'var(--success-color)';
+                this.hideRateLimitNotification();
             } else {
                 processorStatusEl.textContent = 'Paused';
                 processorIconEl.className = 'fas fa-pause';
                 processorIconEl.style.color = 'var(--warning-color)';
+                this.hideRateLimitNotification();
             }
         }
     }
@@ -2492,8 +2510,15 @@ class EcosystemManager {
             const response = await fetch(`${this.apiBase}/queue/status`);
             if (response.ok) {
                 const status = await response.json();
-                // Only update processor active status, don't override settings-based values
+                // Update processor active status and rate limit info
                 this.queueStatus.processorActive = status.processor_active;
+                
+                // Check for rate limit status
+                if (status.rate_limit_info) {
+                    this.queueStatus.rateLimitPaused = status.rate_limit_info.paused;
+                    this.queueStatus.pauseUntil = status.rate_limit_info.pause_until;
+                }
+                
                 // Don't override maxConcurrent or refreshInterval - those come from settings
                 // Just update available slots based on current task count
                 this.updateQueueDisplay();
@@ -3089,6 +3114,16 @@ class EcosystemManager {
                 case 'log_entry':
                     this.handleLogEntry(message.data);
                     break;
+                case 'rate_limit_pause':
+                case 'rate_limit_pause_started':
+                    this.handleRateLimitPause(message.data);
+                    break;
+                case 'rate_limit_resume':
+                    this.handleRateLimitResume(message.data);
+                    break;
+                case 'rate_limit_hit':
+                    this.handleRateLimitHit(message.data);
+                    break;
                 default:
                     console.log('Unknown WebSocket message type:', message.type);
             }
@@ -3184,6 +3219,202 @@ class EcosystemManager {
             }
         }
         return null;
+    }
+    
+    // Rate limit handling
+    handleRateLimitPause(data) {
+        console.log('⏸️ Rate limit pause received:', data);
+        this.queueStatus.rateLimitPaused = true;
+        this.queueStatus.pauseUntil = data.pause_until;
+        this.updateQueueDisplay();
+        
+        const pauseDuration = data.pause_duration || data.retry_after;
+        this.showToast(`API rate limit reached. Queue paused for ${Math.ceil(pauseDuration / 60)} minutes.`, 'warning');
+    }
+    
+    handleRateLimitResume(data) {
+        console.log('▶️ Rate limit resume received:', data);
+        this.queueStatus.rateLimitPaused = false;
+        this.queueStatus.pauseUntil = null;
+        this.updateQueueDisplay();
+        this.showToast('Queue processing resumed after rate limit pause', 'success');
+    }
+    
+    handleRateLimitHit(data) {
+        console.log('🚫 Rate limit hit:', data);
+        const taskId = data.task_id;
+        const retryAfter = data.retry_after;
+        
+        // Update the task if it's visible
+        const task = this.findTaskById(taskId);
+        if (task) {
+            task.current_phase = 'rate_limited';
+            this.updateTaskCard(task);
+        }
+        
+        this.showToast(`Task ${taskId} hit rate limit. Will retry in ${Math.ceil(retryAfter / 60)} minutes.`, 'warning');
+    }
+    
+    findTaskById(taskId) {
+        for (const tasks of Object.values(this.tasks)) {
+            const task = tasks.find(t => t.id === taskId);
+            if (task) return task;
+        }
+        return null;
+    }
+    
+    showRateLimitNotification(pauseUntil) {
+        // Check if notification already exists
+        if (document.getElementById('rate-limit-notification')) {
+            return;
+        }
+        
+        const notification = document.createElement('div');
+        notification.id = 'rate-limit-notification';
+        notification.className = 'rate-limit-notification';
+        notification.innerHTML = `
+            <div class="rate-limit-content">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div class="rate-limit-text">
+                    <strong>Rate Limit Active</strong>
+                    <div id="rate-limit-countdown">Calculating...</div>
+                </div>
+                <button class="btn btn-sm" onclick="ecosystemManager.openRateLimitSettings()">
+                    <i class="fas fa-cog"></i> Settings
+                </button>
+            </div>
+        `;
+        
+        // Insert after header
+        const header = document.querySelector('.header');
+        if (header) {
+            header.parentNode.insertBefore(notification, header.nextSibling);
+        }
+        
+        // Start countdown
+        this.startRateLimitCountdown(pauseUntil);
+    }
+    
+    hideRateLimitNotification() {
+        const notification = document.getElementById('rate-limit-notification');
+        if (notification) {
+            notification.remove();
+        }
+        if (this.rateLimitCountdownInterval) {
+            clearInterval(this.rateLimitCountdownInterval);
+            this.rateLimitCountdownInterval = null;
+        }
+    }
+    
+    startRateLimitCountdown(pauseUntil) {
+        const updateCountdown = () => {
+            const now = new Date();
+            const target = new Date(pauseUntil);
+            const remainingMs = target - now;
+            
+            const countdownEl = document.getElementById('rate-limit-countdown');
+            if (!countdownEl) {
+                clearInterval(this.rateLimitCountdownInterval);
+                return;
+            }
+            
+            if (remainingMs <= 0) {
+                countdownEl.textContent = 'Resuming...';
+                clearInterval(this.rateLimitCountdownInterval);
+                this.hideRateLimitNotification();
+            } else {
+                const minutes = Math.floor(remainingMs / 60000);
+                const seconds = Math.floor((remainingMs % 60000) / 1000);
+                countdownEl.textContent = `Queue resumes in ${minutes}m ${seconds}s`;
+            }
+        };
+        
+        updateCountdown();
+        this.rateLimitCountdownInterval = setInterval(updateCountdown, 1000);
+    }
+    
+    openRateLimitSettings() {
+        this.openSettingsModal();
+        // Focus on the rate limit reset button when modal opens
+        setTimeout(() => {
+            const resetBtn = document.getElementById('reset-rate-limit-btn');
+            if (resetBtn) {
+                resetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                resetBtn.focus();
+            }
+        }, 100);
+    }
+    
+    updateRateLimitStatus() {
+        const statusEl = document.getElementById('rate-limit-status');
+        if (!statusEl) return;
+        
+        if (this.queueStatus.rateLimitPaused) {
+            const now = new Date();
+            const pauseUntil = new Date(this.queueStatus.pauseUntil);
+            const remainingMs = pauseUntil - now;
+            const remainingMinutes = Math.ceil(remainingMs / 60000);
+            
+            statusEl.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Rate Limit Active</strong><br>
+                    Queue processing is paused for ${remainingMinutes} minutes.<br>
+                    Resumes at: ${pauseUntil.toLocaleTimeString()}
+                </div>
+            `;
+            
+            document.getElementById('reset-rate-limit-btn').disabled = false;
+        } else {
+            statusEl.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>No Rate Limit</strong><br>
+                    Queue processing is operating normally.
+                </div>
+            `;
+            
+            document.getElementById('reset-rate-limit-btn').disabled = true;
+        }
+    }
+    
+    async resetRateLimit() {
+        if (!confirm('Are you sure you want to manually reset the rate limit pause? This should only be done if you\'ve resolved the API limit issue.')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${this.apiBase}/queue/reset-rate-limit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                // Clear local rate limit state
+                this.queueStatus.rateLimitPaused = false;
+                this.queueStatus.pauseUntil = null;
+                
+                // Update displays
+                this.updateQueueDisplay();
+                this.updateRateLimitStatus();
+                this.hideRateLimitNotification();
+                
+                this.showToast('Rate limit pause has been reset. Queue processing resumed.', 'success');
+                
+                // Trigger immediate processing
+                setTimeout(() => {
+                    this.triggerQueueProcessing();
+                }, 500);
+            } else {
+                const error = await response.text();
+                this.showToast(`Failed to reset rate limit: ${error}`, 'error');
+            }
+        } catch (error) {
+            console.error('Error resetting rate limit:', error);
+            this.showToast('Failed to reset rate limit', 'error');
+        }
     }
     
     // ====== IMMEDIATE PROCESSING FUNCTIONALITY ======

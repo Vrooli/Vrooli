@@ -72,6 +72,7 @@ CLI_COMMAND_HANDLERS["content::execute"]="browserless::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed browserless status" "status"
 cli::register_command "logs" "Show browserless logs" "browserless::logs"
+cli::register_command "credentials" "Display integration credentials" "browserless::credentials"
 
 # ==============================================================================
 # BROWSERLESS-SPECIFIC COMMANDS - Critical browser automation features

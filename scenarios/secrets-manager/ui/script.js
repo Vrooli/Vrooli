@@ -31,20 +31,23 @@ class SecretsManager {
         this.checkApiConnection();
         this.startAutoRefresh();
         
-        // Initialize with vault status check and compliance data
+        // Initialize with vault status check, compliance data, and security scan
         setTimeout(async () => {
             await this.loadVaultStatus();
             await this.loadComplianceData();
+            await this.performSecurityScan();
         }, 1000);
     }
     
     bindEvents() {
-        // Refresh button - now checks vault status
+        // Refresh button - now checks vault status and performs security scan
         const scanBtn = document.getElementById('scan-all-btn');
         if (scanBtn) {
-            scanBtn.addEventListener('click', () => {
+            scanBtn.addEventListener('click', async () => {
                 this.loadVaultStatus();
                 this.loadComplianceData();
+                // Also perform security scan to get scan metrics
+                await this.performSecurityScan();
                 // After refresh, restore the current view if it's not vault
                 if (this.currentView !== 'vault') {
                     setTimeout(() => {
@@ -551,14 +554,22 @@ class SecretsManager {
         // Update scan errors with color coding
         const errorCount = metrics.scan_errors ? metrics.scan_errors.length : 0;
         const errorElement = document.getElementById('scan-errors');
+        const errorInfoBtn = document.getElementById('scan-errors-info-btn');
         errorElement.textContent = errorCount.toString();
         
+        let errorTooltip;
         if (errorCount > 0) {
             errorElement.style.color = '#ff4444';
-            errorElement.title = `${errorCount} scan errors occurred:\n${metrics.scan_errors.slice(0, 3).join('\n')}${errorCount > 3 ? '\n... and more' : ''}`;
+            errorTooltip = `${errorCount} scan errors occurred:\n${metrics.scan_errors.slice(0, 3).join('\n')}${errorCount > 3 ? '\n... and more' : ''}`;
         } else {
             errorElement.style.color = '#00ff00';
-            errorElement.title = 'No scan errors';
+            errorTooltip = 'No scan errors';
+        }
+        
+        // Set tooltip on both the value and info button
+        errorElement.title = errorTooltip;
+        if (errorInfoBtn) {
+            errorInfoBtn.title = errorTooltip;
         }
         
         // Update other metrics if available

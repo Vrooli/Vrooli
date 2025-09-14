@@ -107,6 +107,16 @@ install_mcrcon() {
     # Create systemd service for health endpoint
     create_health_service
     
+    # Install Python library if Python is available
+    if command -v python3 &>/dev/null; then
+        log_info "Installing Python library..."
+        if python3 -m pip install -e "${RESOURCE_DIR}/python" &>/dev/null; then
+            log_info "Python library installed successfully"
+        else
+            log_info "Python library installation skipped (pip not available)"
+        fi
+    fi
+    
     return 0
 }
 
@@ -622,6 +632,703 @@ give_item() {
     execute_command "give $player $item $count" "$server"
 }
 
+# World Operations
+save_world() {
+    local server="${1:-default}"
+    
+    echo "Saving world..."
+    execute_command "save-all" "$server"
+    if [[ $? -eq 0 ]]; then
+        echo "World saved successfully"
+        return 0
+    else
+        log_error "Failed to save world"
+        return 1
+    fi
+}
+
+backup_world() {
+    local server="${1:-default}"
+    local backup_dir="${MCRCON_DATA_DIR}/backups"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_name="world_backup_${timestamp}"
+    
+    echo "Creating world backup: $backup_name"
+    
+    # First, save the world
+    if ! save_world "$server"; then
+        log_error "Failed to save world before backup"
+        return 1
+    fi
+    
+    # Disable auto-save during backup
+    execute_command "save-off" "$server"
+    
+    # Create backup directory if it doesn't exist
+    mkdir -p "$backup_dir"
+    
+    # Get world data path (this would need server config)
+    echo "Backup initiated. Note: Full file backup requires access to server files."
+    echo "Backup metadata saved to: $backup_dir/${backup_name}.info"
+    
+    # Create backup info file
+    cat > "$backup_dir/${backup_name}.info" << EOF
+Backup Time: $(date)
+Server: $server
+Status: Metadata only (full backup requires server file access)
+EOF
+    
+    # Re-enable auto-save
+    execute_command "save-on" "$server"
+    
+    echo "Backup process completed"
+    return 0
+}
+
+set_world_property() {
+    local property="$1"
+    local value="$2"
+    local server="${3:-default}"
+    
+    if [[ -z "$property" ]] || [[ -z "$value" ]]; then
+        log_error "Usage: set_world_property <property> <value> [server]"
+        return 1
+    fi
+    
+    echo "Setting world property: $property = $value"
+    
+    # Common world properties
+    case "$property" in
+        difficulty)
+            execute_command "difficulty $value" "$server"
+            ;;
+        gamemode)
+            execute_command "defaultgamemode $value" "$server"
+            ;;
+        pvp)
+            execute_command "gamerule pvp $value" "$server"
+            ;;
+        spawn-protection)
+            execute_command "gamerule spawnRadius $value" "$server"
+            ;;
+        max-players)
+            execute_command "setmaxplayers $value" "$server"
+            ;;
+        weather)
+            execute_command "weather $value" "$server"
+            ;;
+        time)
+            execute_command "time set $value" "$server"
+            ;;
+        *)
+            # Try as a gamerule
+            execute_command "gamerule $property $value" "$server"
+            ;;
+    esac
+}
+
+get_world_info() {
+    local server="${1:-default}"
+    
+    echo "World Information"
+    echo "================="
+    
+    # Get various world information
+    echo -e "\n[Difficulty]"
+    execute_command "difficulty" "$server"
+    
+    echo -e "\n[Game Time]"
+    execute_command "time query gametime" "$server"
+    
+    echo -e "\n[Day Time]"
+    execute_command "time query daytime" "$server"
+    
+    echo -e "\n[Weather]"
+    execute_command "weather query" "$server"
+    
+    echo -e "\n[Loaded Chunks]"
+    execute_command "debug report" "$server" 2>/dev/null || echo "Debug info not available"
+}
+
+set_world_spawn() {
+    local x="${1:-~}"
+    local y="${2:-~}"
+    local z="${3:-~}"
+    local server="${4:-default}"
+    
+    echo "Setting world spawn point to ($x, $y, $z)..."
+    execute_command "setworldspawn $x $y $z" "$server"
+}
+
+# Event Streaming Functions
+start_event_stream() {
+    local server="${1:-default}"
+    local output_file="${2:-${MCRCON_DATA_DIR}/events.log}"
+    local filter="${3:-all}"
+    
+    echo "Starting event stream for server: $server"
+    echo "Output: $output_file"
+    echo "Filter: $filter"
+    
+    # Create events directory
+    mkdir -p "$(dirname "$output_file")"
+    
+    # Create streaming script
+    cat > "${MCRCON_DATA_DIR}/stream_events.sh" << 'STREAM_EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "${RESOURCE_DIR}/config/defaults.sh"
+
+server="$1"
+output_file="$2"
+filter="$3"
+
+echo "[$(date)] Event stream started" >> "$output_file"
+
+# Stream events in a loop
+while true; do
+    # Get latest log entries
+    if timeout 5 "${MCRCON_BINARY}" -H "${MCRCON_HOST}" -P "${MCRCON_PORT}" -p "${MCRCON_PASSWORD}" "list" &>/dev/null; then
+        # Parse server logs if accessible
+        echo "[$(date)] Polling server events..." >> "$output_file"
+        
+        # Try to get recent chat messages
+        # Note: This requires server log access or a mod for full functionality
+        echo "[$(date)] Event streaming active (requires server log access for full events)" >> "$output_file"
+    else
+        echo "[$(date)] Connection lost, retrying..." >> "$output_file"
+    fi
+    
+    sleep 5
+done
+STREAM_EOF
+    
+    chmod +x "${MCRCON_DATA_DIR}/stream_events.sh"
+    
+    # Start streaming in background
+    nohup bash "${MCRCON_DATA_DIR}/stream_events.sh" "$server" "$output_file" "$filter" > /dev/null 2>&1 &
+    local pid=$!
+    echo $pid > "${MCRCON_DATA_DIR}/stream.pid"
+    
+    echo "Event stream started with PID: $pid"
+    return 0
+}
+
+stop_event_stream() {
+    if [[ -f "${MCRCON_DATA_DIR}/stream.pid" ]]; then
+        local pid=$(cat "${MCRCON_DATA_DIR}/stream.pid")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill "$pid"
+            echo "Event stream stopped (PID: $pid)"
+            rm -f "${MCRCON_DATA_DIR}/stream.pid"
+        else
+            echo "Event stream not running"
+            rm -f "${MCRCON_DATA_DIR}/stream.pid"
+        fi
+    else
+        echo "No event stream found"
+    fi
+}
+
+stream_chat() {
+    local server="${1:-default}"
+    local duration="${2:-60}"
+    
+    echo "Streaming chat messages for ${duration} seconds..."
+    echo "Note: Full chat streaming requires server log access or a supporting mod"
+    
+    local end_time=$(($(date +%s) + duration))
+    
+    while [[ $(date +%s) -lt $end_time ]]; do
+        # Try to capture chat activity through player list changes
+        local players=$(execute_command "list" "$server" 2>/dev/null | grep -oP '\d+ of \d+ players' || echo "")
+        if [[ -n "$players" ]]; then
+            echo "[$(date '+%H:%M:%S')] Online: $players"
+        fi
+        sleep 2
+    done
+    
+    echo "Chat stream ended"
+}
+
+monitor_events() {
+    local server="${1:-default}"
+    local event_type="${2:-all}"
+    
+    echo "Monitoring events: $event_type"
+    echo "Press Ctrl+C to stop"
+    
+    case "$event_type" in
+        joins)
+            echo "Monitoring player joins..."
+            local prev_count=0
+            while true; do
+                local curr_count=$(execute_command "list" "$server" 2>/dev/null | grep -oP '\d+(?= of)' || echo "0")
+                if [[ $curr_count -gt $prev_count ]]; then
+                    echo "[$(date '+%H:%M:%S')] Player joined (total: $curr_count)"
+                fi
+                prev_count=$curr_count
+                sleep 2
+            done
+            ;;
+        leaves)
+            echo "Monitoring player leaves..."
+            local prev_count=0
+            while true; do
+                local curr_count=$(execute_command "list" "$server" 2>/dev/null | grep -oP '\d+(?= of)' || echo "0")
+                if [[ $curr_count -lt $prev_count ]] && [[ $prev_count -ne 0 ]]; then
+                    echo "[$(date '+%H:%M:%S')] Player left (total: $curr_count)"
+                fi
+                prev_count=$curr_count
+                sleep 2
+            done
+            ;;
+        deaths)
+            echo "Monitoring deaths (requires server log access)..."
+            echo "Note: Full death monitoring requires server log access"
+            while true; do
+                echo "[$(date '+%H:%M:%S')] Monitoring active..."
+                sleep 10
+            done
+            ;;
+        achievements)
+            echo "Monitoring achievements (requires server log access)..."
+            echo "Note: Full achievement monitoring requires server log access"
+            while true; do
+                echo "[$(date '+%H:%M:%S')] Monitoring active..."
+                sleep 10
+            done
+            ;;
+        all|*)
+            echo "Monitoring all events..."
+            local prev_count=0
+            while true; do
+                local curr_count=$(execute_command "list" "$server" 2>/dev/null | grep -oP '\d+(?= of)' || echo "0")
+                local curr_time=$(date '+%H:%M:%S')
+                
+                if [[ $curr_count -gt $prev_count ]]; then
+                    echo "[$curr_time] EVENT: Player joined (total: $curr_count)"
+                elif [[ $curr_count -lt $prev_count ]] && [[ $prev_count -ne 0 ]]; then
+                    echo "[$curr_time] EVENT: Player left (total: $curr_count)"
+                fi
+                
+                # Periodic status
+                if [[ $((SECONDS % 30)) -eq 0 ]]; then
+                    echo "[$curr_time] STATUS: $curr_count players online"
+                fi
+                
+                prev_count=$curr_count
+                sleep 2
+            done
+            ;;
+    esac
+}
+
+tail_events() {
+    local lines="${1:-20}"
+    local output_file="${MCRCON_DATA_DIR}/events.log"
+    
+    if [[ -f "$output_file" ]]; then
+        echo "Last $lines events:"
+        tail -n "$lines" "$output_file"
+    else
+        echo "No event log found. Start event streaming first."
+        return 1
+    fi
+}
+
+# Webhook Support Functions
+configure_webhook() {
+    local url="$1"
+    local events="${2:-all}"
+    local server="${3:-default}"
+    
+    if [[ -z "$url" ]]; then
+        log_error "Webhook URL required"
+        return 1
+    fi
+    
+    # Validate URL format
+    if ! echo "$url" | grep -qE '^https?://'; then
+        log_error "Invalid webhook URL format (must start with http:// or https://)"
+        return 1
+    fi
+    
+    # Save webhook configuration
+    local webhook_config="${MCRCON_DATA_DIR}/webhooks.json"
+    
+    # Load existing config or create new
+    local config="{}"
+    if [[ -f "$webhook_config" ]]; then
+        config=$(cat "$webhook_config")
+    fi
+    
+    # Add/update webhook
+    config=$(echo "$config" | jq --arg url "$url" --arg events "$events" --arg server "$server" \
+        '.webhooks += [{"url": $url, "events": $events, "server": $server, "enabled": true}]')
+    
+    echo "$config" > "$webhook_config"
+    echo "Webhook configured: $url"
+    echo "Events: $events"
+    echo "Server: $server"
+    
+    # Restart webhook service if running
+    if pgrep -f "webhook_service.py.*mcrcon" > /dev/null 2>&1; then
+        stop_webhook_service
+        start_webhook_service
+    fi
+    
+    return 0
+}
+
+list_webhooks() {
+    local webhook_config="${MCRCON_DATA_DIR}/webhooks.json"
+    
+    if [[ ! -f "$webhook_config" ]]; then
+        echo "No webhooks configured"
+        return 0
+    fi
+    
+    echo "Configured Webhooks:"
+    echo "===================="
+    jq -r '.webhooks[] | "URL: \(.url)\nEvents: \(.events)\nServer: \(.server)\nEnabled: \(.enabled)\n"' "$webhook_config"
+}
+
+remove_webhook() {
+    local url="$1"
+    local webhook_config="${MCRCON_DATA_DIR}/webhooks.json"
+    
+    if [[ -z "$url" ]]; then
+        log_error "Webhook URL required"
+        return 1
+    fi
+    
+    if [[ ! -f "$webhook_config" ]]; then
+        echo "No webhooks configured"
+        return 1
+    fi
+    
+    # Remove webhook from config
+    local config=$(cat "$webhook_config")
+    config=$(echo "$config" | jq --arg url "$url" '.webhooks |= map(select(.url != $url))')
+    
+    echo "$config" > "$webhook_config"
+    echo "Webhook removed: $url"
+    
+    # Restart webhook service if running
+    if pgrep -f "webhook_service.py.*mcrcon" > /dev/null 2>&1; then
+        stop_webhook_service
+        start_webhook_service
+    fi
+    
+    return 0
+}
+
+start_webhook_service() {
+    if pgrep -f "webhook_service.py.*mcrcon" > /dev/null 2>&1; then
+        log_info "Webhook service already running"
+        return 0
+    fi
+    
+    # Create webhook service script
+    cat > "${MCRCON_DATA_DIR}/webhook_service.py" << 'WEBHOOK_EOF'
+#!/usr/bin/env python3
+import json
+import os
+import time
+import urllib.request
+import urllib.parse
+import subprocess
+from pathlib import Path
+
+WEBHOOK_CONFIG = Path(os.environ.get('MCRCON_DATA_DIR', Path.home() / '.mcrcon')) / 'webhooks.json'
+MCRCON_BINARY = Path(os.environ.get('MCRCON_DATA_DIR', Path.home() / '.mcrcon')) / 'bin' / 'mcrcon'
+
+def load_webhooks():
+    if not WEBHOOK_CONFIG.exists():
+        return []
+    
+    with open(WEBHOOK_CONFIG, 'r') as f:
+        config = json.load(f)
+        return config.get('webhooks', [])
+
+def send_webhook(url, event_data):
+    try:
+        data = json.dumps(event_data).encode('utf-8')
+        req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return response.status == 200
+    except Exception as e:
+        print(f"Webhook error: {e}")
+        return False
+
+def monitor_events():
+    webhooks = load_webhooks()
+    prev_player_count = 0
+    
+    while True:
+        try:
+            # Get current player count (simplified monitoring)
+            # In production, this would monitor actual server logs
+            
+            for webhook in webhooks:
+                if not webhook.get('enabled', True):
+                    continue
+                
+                # Example event (in production, would be actual events)
+                event = {
+                    'type': 'heartbeat',
+                    'server': webhook['server'],
+                    'timestamp': time.time(),
+                    'message': 'Webhook service active'
+                }
+                
+                # Only send events that match webhook filter
+                if webhook['events'] == 'all' or event['type'] in webhook['events']:
+                    send_webhook(webhook['url'], event)
+            
+        except Exception as e:
+            print(f"Monitor error: {e}")
+        
+        # Reload config periodically
+        if int(time.time()) % 60 == 0:
+            webhooks = load_webhooks()
+        
+        time.sleep(10)
+
+if __name__ == "__main__":
+    print("Webhook service started")
+    monitor_events()
+WEBHOOK_EOF
+    
+    chmod +x "${MCRCON_DATA_DIR}/webhook_service.py"
+    
+    log_info "Starting webhook service..."
+    nohup python3 "${MCRCON_DATA_DIR}/webhook_service.py" > "${MCRCON_DATA_DIR}/logs/webhook.log" 2>&1 &
+    
+    echo "Webhook service started"
+    return 0
+}
+
+stop_webhook_service() {
+    local pid=$(pgrep -f "webhook_service.py.*mcrcon" 2>/dev/null || true)
+    if [[ -n "$pid" ]]; then
+        kill "$pid" 2>/dev/null || true
+        log_info "Webhook service stopped"
+    fi
+}
+
+test_webhook() {
+    local url="$1"
+    
+    if [[ -z "$url" ]]; then
+        log_error "Webhook URL required"
+        return 1
+    fi
+    
+    echo "Testing webhook: $url"
+    
+    # Send test event
+    local test_event='{
+        "type": "test",
+        "message": "Test webhook from mcrcon",
+        "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+    }'
+    
+    if curl -X POST "$url" \
+        -H "Content-Type: application/json" \
+        -d "$test_event" \
+        --connect-timeout 5 \
+        -w "\nHTTP Status: %{http_code}\n" \
+        2>/dev/null; then
+        echo "Webhook test successful"
+        return 0
+    else
+        echo "Webhook test failed"
+        return 1
+    fi
+}
+
+# Mod Integration Functions
+list_mods() {
+    local server="${1:-default}"
+    
+    echo "Checking for installed mods..."
+    
+    # Try common mod list commands
+    local result=$(execute_command "mods" "$server" 2>/dev/null || true)
+    if [[ -n "$result" ]]; then
+        echo "$result"
+        return 0
+    fi
+    
+    # Try Forge command
+    result=$(execute_command "forge mods" "$server" 2>/dev/null || true)
+    if [[ -n "$result" ]]; then
+        echo "Forge Mods:"
+        echo "$result"
+        return 0
+    fi
+    
+    # Try Fabric command
+    result=$(execute_command "fabric:mods" "$server" 2>/dev/null || true)
+    if [[ -n "$result" ]]; then
+        echo "Fabric Mods:"
+        echo "$result"
+        return 0
+    fi
+    
+    # Try Bukkit/Spigot/Paper plugins
+    result=$(execute_command "plugins" "$server" 2>/dev/null || true)
+    if [[ -n "$result" ]]; then
+        echo "Plugins:"
+        echo "$result"
+        return 0
+    fi
+    
+    echo "No mod list command available (server may be vanilla or mod commands not exposed)"
+    echo "Note: Full mod support requires compatible server mods/plugins"
+    return 1
+}
+
+execute_mod_command() {
+    local mod="$1"
+    local command="$2"
+    local server="${3:-default}"
+    
+    if [[ -z "$mod" ]] || [[ -z "$command" ]]; then
+        log_error "Usage: execute_mod_command <mod> <command> [server]"
+        return 1
+    fi
+    
+    echo "Executing mod command: $mod:$command"
+    
+    # Try various mod command formats
+    local formats=(
+        "${mod}:${command}"
+        "${mod} ${command}"
+        "/${mod}:${command}"
+        "/${mod} ${command}"
+    )
+    
+    for format in "${formats[@]}"; do
+        local result=$(execute_command "$format" "$server" 2>/dev/null || true)
+        if [[ -n "$result" ]] && [[ "$result" != *"Unknown command"* ]]; then
+            echo "$result"
+            return 0
+        fi
+    done
+    
+    log_error "Failed to execute mod command (mod may not be installed or command not available)"
+    return 1
+}
+
+register_mod_commands() {
+    local config_file="${1:-${MCRCON_DATA_DIR}/mod_commands.json}"
+    local server="${2:-default}"
+    
+    echo "Registering custom mod commands..."
+    
+    # Create or load mod commands configuration
+    if [[ ! -f "$config_file" ]]; then
+        cat > "$config_file" << 'MOD_CONFIG_EOF'
+{
+    "mod_commands": [
+        {
+            "mod": "worldedit",
+            "commands": [
+                {"name": "set", "usage": "//set <block>", "description": "Set selection to block"},
+                {"name": "copy", "usage": "//copy", "description": "Copy selection"},
+                {"name": "paste", "usage": "//paste", "description": "Paste clipboard"}
+            ]
+        },
+        {
+            "mod": "essentials",
+            "commands": [
+                {"name": "home", "usage": "/home [name]", "description": "Teleport to home"},
+                {"name": "warp", "usage": "/warp <name>", "description": "Teleport to warp"},
+                {"name": "kit", "usage": "/kit <name>", "description": "Get a kit"}
+            ]
+        },
+        {
+            "mod": "permissions",
+            "commands": [
+                {"name": "group", "usage": "/perm group <action>", "description": "Manage groups"},
+                {"name": "user", "usage": "/perm user <action>", "description": "Manage users"}
+            ]
+        }
+    ]
+}
+MOD_CONFIG_EOF
+        echo "Created default mod commands configuration"
+    fi
+    
+    echo "Mod commands registered at: $config_file"
+    echo "Edit this file to add custom mod commands for your server"
+    return 0
+}
+
+show_mod_commands() {
+    local mod="${1:-all}"
+    local config_file="${MCRCON_DATA_DIR}/mod_commands.json"
+    
+    if [[ ! -f "$config_file" ]]; then
+        echo "No mod commands registered. Run 'register-commands' first."
+        return 1
+    fi
+    
+    if [[ "$mod" == "all" ]]; then
+        echo "Registered Mod Commands:"
+        echo "========================"
+        jq -r '.mod_commands[] | "\n[\(.mod)]\n" + (.commands[] | "  \(.name): \(.usage)\n    \(.description)")' "$config_file"
+    else
+        echo "Commands for mod: $mod"
+        echo "===================="
+        jq -r --arg mod "$mod" '.mod_commands[] | select(.mod == $mod) | .commands[] | "\(.name): \(.usage)\n  \(.description)"' "$config_file"
+    fi
+}
+
+test_mod_support() {
+    local server="${1:-default}"
+    
+    echo "Testing mod support on server..."
+    echo "================================"
+    
+    # Test for common mod loaders
+    echo -n "Forge: "
+    if execute_command "forge" "$server" &>/dev/null; then
+        echo "✓ Detected"
+    else
+        echo "✗ Not found"
+    fi
+    
+    echo -n "Fabric: "
+    if execute_command "fabric" "$server" &>/dev/null; then
+        echo "✓ Detected"
+    else
+        echo "✗ Not found"
+    fi
+    
+    echo -n "Bukkit/Spigot/Paper: "
+    if execute_command "version" "$server" 2>/dev/null | grep -qE "(Bukkit|Spigot|Paper)"; then
+        echo "✓ Detected"
+    else
+        echo "✗ Not found"
+    fi
+    
+    echo -n "Plugins: "
+    if execute_command "plugins" "$server" &>/dev/null; then
+        echo "✓ Available"
+    else
+        echo "✗ Not available"
+    fi
+    
+    echo ""
+    echo "Attempting to list installed mods/plugins..."
+    list_mods "$server"
+}
+
 # Main command handler
 main() {
     local command="${1:-}"
@@ -715,6 +1422,113 @@ main() {
                     ;;
                 *)
                     echo "Unknown player subcommand: $subcommand" >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+        world)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                save)
+                    save_world "$@"
+                    ;;
+                backup)
+                    backup_world "$@"
+                    ;;
+                info)
+                    get_world_info "$@"
+                    ;;
+                set-property)
+                    set_world_property "$@"
+                    ;;
+                set-spawn)
+                    set_world_spawn "$@"
+                    ;;
+                *)
+                    echo "Unknown world subcommand: $subcommand" >&2
+                    echo "Available: save, backup, info, set-property, set-spawn"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        event)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                start-stream)
+                    start_event_stream "$@"
+                    ;;
+                stop-stream)
+                    stop_event_stream
+                    ;;
+                stream-chat)
+                    stream_chat "$@"
+                    ;;
+                monitor)
+                    monitor_events "$@"
+                    ;;
+                tail)
+                    tail_events "$@"
+                    ;;
+                *)
+                    echo "Unknown event subcommand: $subcommand" >&2
+                    echo "Available: start-stream, stop-stream, stream-chat, monitor, tail"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        webhook)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                configure)
+                    configure_webhook "$@"
+                    ;;
+                list)
+                    list_webhooks
+                    ;;
+                remove)
+                    remove_webhook "$@"
+                    ;;
+                start)
+                    start_webhook_service
+                    ;;
+                stop)
+                    stop_webhook_service
+                    ;;
+                test)
+                    test_webhook "$@"
+                    ;;
+                *)
+                    echo "Unknown webhook subcommand: $subcommand" >&2
+                    echo "Available: configure, list, remove, start, stop, test"
+                    exit 1
+                    ;;
+            esac
+            ;;
+        mod)
+            local subcommand="${1:-}"
+            shift || true
+            case "$subcommand" in
+                list)
+                    list_mods "$@"
+                    ;;
+                execute)
+                    execute_mod_command "$@"
+                    ;;
+                register-commands)
+                    register_mod_commands "$@"
+                    ;;
+                show-commands)
+                    show_mod_commands "$@"
+                    ;;
+                test-support)
+                    test_mod_support "$@"
+                    ;;
+                *)
+                    echo "Unknown mod subcommand: $subcommand" >&2
+                    echo "Available: list, execute, register-commands, show-commands, test-support"
                     exit 1
                     ;;
             esac

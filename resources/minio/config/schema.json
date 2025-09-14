@@ -1,0 +1,148 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MinIO Configuration Schema",
+  "description": "Configuration schema for MinIO S3-compatible object storage",
+  "type": "object",
+  "properties": {
+    "ports": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "integer",
+          "description": "S3 API port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 9000
+        },
+        "console": {
+          "type": "integer",
+          "description": "Web console port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 9001
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Directory for storing MinIO data",
+          "default": "~/.minio/data"
+        },
+        "config_dir": {
+          "type": "string",
+          "description": "Directory for MinIO configuration",
+          "default": "~/.minio/config"
+        },
+        "min_disk_space_gb": {
+          "type": "integer",
+          "description": "Minimum required disk space in GB",
+          "minimum": 1,
+          "default": 5
+        }
+      }
+    },
+    "credentials": {
+      "type": "object",
+      "properties": {
+        "root_user": {
+          "type": "string",
+          "description": "MinIO root username",
+          "minLength": 3,
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "root_password": {
+          "type": "string",
+          "description": "MinIO root password",
+          "minLength": 8
+        },
+        "auto_generate": {
+          "type": "boolean",
+          "description": "Automatically generate secure credentials",
+          "default": true
+        }
+      }
+    },
+    "buckets": {
+      "type": "object",
+      "properties": {
+        "default_buckets": {
+          "type": "array",
+          "description": "Buckets to create automatically on startup",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.-]*[a-z0-9]$"
+          },
+          "default": [
+            "vrooli-user-uploads",
+            "vrooli-agent-artifacts",
+            "vrooli-model-cache",
+            "vrooli-temp-storage"
+          ]
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "properties": {
+        "container_name": {
+          "type": "string",
+          "description": "Docker container name",
+          "default": "minio"
+        },
+        "network_name": {
+          "type": "string",
+          "description": "Docker network name",
+          "default": "minio-network"
+        },
+        "region": {
+          "type": "string",
+          "description": "S3 region name",
+          "default": "us-east-1"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "health_check_interval": {
+          "type": "integer",
+          "description": "Health check interval in seconds",
+          "minimum": 1,
+          "default": 5
+        },
+        "startup_max_wait": {
+          "type": "integer",
+          "description": "Maximum startup wait time in seconds",
+          "minimum": 10,
+          "maximum": 300,
+          "default": 60
+        },
+        "api_timeout": {
+          "type": "integer",
+          "description": "API request timeout in seconds",
+          "minimum": 1,
+          "default": 10
+        }
+      }
+    },
+    "docker": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Docker image to use",
+          "default": "minio/minio:latest"
+        },
+        "version": {
+          "type": "string",
+          "description": "MinIO version",
+          "default": "latest"
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

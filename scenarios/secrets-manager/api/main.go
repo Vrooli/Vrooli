@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/handlers"
@@ -158,6 +159,27 @@ type ScanMetrics struct {
 	ResourceScanTimeMs   int      `json:"resource_scan_time_ms"`
 	ScenarioScanTimeMs   int      `json:"scenario_scan_time_ms"`
 	TotalScanTimeMs      int      `json:"total_scan_time_ms"`
+	// Progressive scanning fields
+	ScanComplete         bool     `json:"scan_complete"`
+	EstimatedTotalFiles  int      `json:"estimated_total_files"`
+	BatchesProcessed     int      `json:"batches_processed"`
+	LastBatchTime        string   `json:"last_batch_time,omitempty"`
+}
+
+// ProgressiveScanResult represents an ongoing scan session
+type ProgressiveScanResult struct {
+	ScanID            string                  `json:"scan_id"`
+	Status            string                  `json:"status"` // "running", "completed", "failed"
+	StartTime         time.Time               `json:"start_time"`
+	LastUpdate        time.Time               `json:"last_update"`
+	ComponentFilter   string                  `json:"component_filter,omitempty"`
+	ComponentType     string                  `json:"component_type,omitempty"`
+	Vulnerabilities   []SecurityVulnerability `json:"vulnerabilities"`
+	RiskScore         int                     `json:"risk_score"`
+	ComponentsSummary ComponentScanSummary    `json:"components_summary"`
+	ScanMetrics       ScanMetrics             `json:"scan_metrics"`
+	Recommendations   []RemediationSuggestion `json:"recommendations"`
+	EstimatedProgress float64                 `json:"estimated_progress"` // 0.0-1.0
 }
 
 type ComplianceMetrics struct {
@@ -215,6 +237,10 @@ type ProvisionResponse struct {
 var db *sql.DB
 var scanner *SecretScanner
 var validator *SecretValidator
+
+// Progressive scan management
+var activeScansMutex sync.RWMutex
+var activeScans = make(map[string]*ProgressiveScanResult)
 
 func initDB() {
 	var err error
@@ -411,7 +437,104 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 	return status
 }
 
-// Security vulnerability scanner - scans both resources and scenarios
+// Progressive security scanner - returns immediate results and continues in background
+func startProgressiveScan(componentFilter, componentTypeFilter, severityFilter string) (*ProgressiveScanResult, error) {
+	scanID := uuid.New().String()
+	startTime := time.Now()
+	
+	// Initialize progressive scan
+	progressiveScan := &ProgressiveScanResult{
+		ScanID:          scanID,
+		Status:          "running",
+		StartTime:       startTime,
+		LastUpdate:      startTime,
+		ComponentFilter: componentFilter,
+		ComponentType:   componentTypeFilter,
+		Vulnerabilities: []SecurityVulnerability{},
+		ScanMetrics: ScanMetrics{
+			ScanErrors:         []string{},
+			ScanComplete:       false,
+			BatchesProcessed:   0,
+			LastBatchTime:      startTime.Format(time.RFC3339),
+		},
+		EstimatedProgress: 0.0,
+	}
+	
+	// Store in active scans
+	activeScansMutex.Lock()
+	activeScans[scanID] = progressiveScan
+	activeScansMutex.Unlock()
+	
+	// Start background scanning
+	go performProgressiveScan(progressiveScan, componentFilter, componentTypeFilter, severityFilter)
+	
+	// Return immediate partial results (empty initially)
+	return progressiveScan, nil
+}
+
+// Background progressive scanning with batching
+func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, componentTypeFilter, severityFilter string) {
+	defer func() {
+		// Mark scan as complete
+		activeScansMutex.Lock()
+		scan.Status = "completed"
+		scan.ScanMetrics.ScanComplete = true
+		scan.LastUpdate = time.Now()
+		scan.EstimatedProgress = 1.0
+		activeScansMutex.Unlock()
+		
+		log.Printf("Progressive scan %s completed: %d vulnerabilities found", scan.ScanID, len(scan.Vulnerabilities))
+	}()
+
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			scan.Status = "failed"
+			scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, fmt.Sprintf("Failed to get user home directory: %v", err))
+			return
+		}
+		vrooliRoot = filepath.Join(home, "Vrooli")
+	}
+
+	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
+	resourcesPath := filepath.Join(vrooliRoot, "resources")
+	
+	// Estimate total files for progress tracking
+	estimatedFiles := estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter)
+	scan.ScanMetrics.EstimatedTotalFiles = estimatedFiles
+	
+	const batchSize = 150 // Process files in batches
+	var allVulnerabilities []SecurityVulnerability
+	var resourcesScanned, scenariosScanned int
+	
+	// TODO: Progressive scanning implementation - for now use existing method
+	result, err := scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter)
+	if err != nil {
+		scan.Status = "failed"
+		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, fmt.Sprintf("Scan failed: %v", err))
+		return
+	}
+	
+	allVulnerabilities = result.Vulnerabilities
+	resourcesScanned = result.ComponentsSummary.ResourcesScanned
+	scenariosScanned = result.ComponentsSummary.ScenariosScanned
+	
+	// Final update
+	activeScansMutex.Lock()
+	scan.Vulnerabilities = allVulnerabilities
+	scan.RiskScore = calculateRiskScore(allVulnerabilities)
+	scan.Recommendations = generateRemediationSuggestions(allVulnerabilities)
+	scan.ComponentsSummary = ComponentScanSummary{
+		ResourcesScanned: resourcesScanned,
+		ScenariosScanned: scenariosScanned,
+		TotalComponents:  resourcesScanned + scenariosScanned,
+	}
+	scan.ScanMetrics.TotalScanTimeMs = int(time.Since(scan.StartTime).Milliseconds())
+	activeScansMutex.Unlock()
+}
+
+// Original function modified to work with the new progressive system
 func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
 	startTime := time.Now()
 	scanID := uuid.New().String()
@@ -441,20 +564,20 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
 		scenarioStartTime := time.Now()
 		// Create timeout context for scenario scanning
-		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // Increased timeout for large projects
 		defer cancel()
 		
 		scenarioFilesScanned := 0
-		maxScenarioFiles := 1000 // Higher limit for scenarios as they're the main focus
+		maxScenarioFiles := 25000 // Significantly increased limit for large projects
 		filesPerScenario := make(map[string]int) // Track files per scenario to balance scanning
 		
 		err := filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
 			// Check timeout
 			select {
 			case <-ctx.Done():
-				log.Printf("Scenario scanning timed out after 45 seconds")
+				log.Printf("Scenario scanning timed out after 120 seconds")
 				metrics.TimeoutOccurred = true
-				metrics.ScanErrors = append(metrics.ScanErrors, "Scenario scanning timeout after 45 seconds")
+				metrics.ScanErrors = append(metrics.ScanErrors, "Scenario scanning timeout after 120 seconds")
 				return filepath.SkipAll
 			default:
 			}
@@ -485,14 +608,14 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 			}
 			
 			// Limit files per scenario to ensure we scan more scenarios
-			const maxFilesPerScenario = 20
+			const maxFilesPerScenario = 200 // Increased limit per scenario for large projects
 			if filesPerScenario[scenarioName] >= maxFilesPerScenario {
 				return nil // Skip additional files from this scenario
 			}
 			
 			// Check file size
 			info, err := d.Info()
-			if err == nil && info.Size() > 100*1024 { // Skip files larger than 100KB for scenarios
+			if err == nil && info.Size() > 500*1024 { // Skip files larger than 500KB for scenarios
 				metrics.LargeFilesSkipped++
 				return nil
 			}
@@ -552,20 +675,20 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 	if componentTypeFilter == "" || componentTypeFilter == "resource" {
 		resourceStartTime := time.Now()
 		// Create timeout context for resource scanning
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second) // Increased timeout for large projects
 		defer cancel()
 		
 		resourceFilesScanned := 0
-		maxFiles := 500 // Increased limit to scan more resources
+		maxFiles := 15000 // Significantly increased limit for large projects
 		filesPerResource := make(map[string]int) // Track files per resource to balance scanning
 		
 		err := filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
 			// Check timeout
 			select {
 			case <-ctx.Done():
-				log.Printf("Resource scanning timed out after 30 seconds")
+				log.Printf("Resource scanning timed out after 90 seconds")
 				metrics.TimeoutOccurred = true
-				metrics.ScanErrors = append(metrics.ScanErrors, "Resource scanning timeout after 30 seconds")
+				metrics.ScanErrors = append(metrics.ScanErrors, "Resource scanning timeout after 90 seconds")
 				return filepath.SkipAll
 			default:
 			}
@@ -596,14 +719,14 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 			}
 			
 			// Limit files per resource to ensure we scan more resources
-			const maxFilesPerResource = 10
+			const maxFilesPerResource = 100 // Increased limit per resource for large projects
 			if filesPerResource[resourceName] >= maxFilesPerResource {
 				return nil // Skip additional files from this resource
 			}
 			
 			// Check file size to prevent scanning huge files
 			info, err := d.Info()
-			if err == nil && info.Size() > 50*1024 { // Skip files larger than 50KB
+			if err == nil && info.Size() > 200*1024 { // Skip files larger than 200KB for resources
 				metrics.LargeFilesSkipped++
 				return nil
 			}
@@ -806,6 +929,41 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 	}
 
 	return vulnerabilities, nil
+}
+
+// Helper functions for progressive scanning
+
+// estimateFileCount provides a quick count of scannable files
+func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string) int {
+	count := 0
+	
+	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
+		filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext == ".go" || ext == ".js" || ext == ".ts" || ext == ".py" || ext == ".sh" {
+				count++
+			}
+			return nil
+		})
+	}
+	
+	if componentTypeFilter == "" || componentTypeFilter == "resource" {
+		filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return nil
+			}
+			ext := strings.ToLower(filepath.Ext(path))
+			if ext == ".go" || ext == ".js" || ext == ".ts" || ext == ".py" || ext == ".sh" || ext == ".yml" || ext == ".yaml" || ext == ".json" {
+				count++
+			}
+			return nil
+		})
+	}
+	
+	return count
 }
 
 

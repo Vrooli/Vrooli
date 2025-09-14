@@ -68,6 +68,25 @@ cli::register_subcommand "content" "metrics" "Get performance metrics" "neo4j_ge
 cli::register_subcommand "content" "monitor" "Monitor query performance" "neo4j_monitor_query"
 cli::register_subcommand "content" "slow-queries" "Get slow queries" "neo4j_get_slow_queries"
 
+# Graph algorithm commands  
+cli::register_subcommand "content" "pagerank" "Run PageRank algorithm" "neo4j_algo_pagerank"
+cli::register_subcommand "content" "shortest-path" "Find shortest path between nodes" "neo4j_algo_shortest_path"
+cli::register_subcommand "content" "communities" "Detect communities in graph" "neo4j_algo_community_detection"
+cli::register_subcommand "content" "centrality" "Calculate centrality metrics" "neo4j_algo_centrality"
+cli::register_subcommand "content" "similarity" "Find similar nodes" "neo4j_algo_similarity"
+
+# Real-time/WebSocket features
+cli::register_subcommand "content" "change-stream" "Configure change streams" "neo4j_enable_change_stream"
+cli::register_subcommand "content" "monitor-changes" "Monitor database changes" "neo4j_monitor_changes"
+cli::register_subcommand "content" "create-trigger" "Create database trigger" "neo4j_create_trigger"
+cli::register_subcommand "content" "list-triggers" "List active triggers" "neo4j_list_triggers"
+
+# Clustering features  
+cli::register_subcommand "content" "configure-cluster" "Configure clustering" "neo4j_configure_cluster"
+cli::register_subcommand "content" "cluster-status" "Check cluster status" "neo4j_cluster_status"
+cli::register_subcommand "content" "load-balancing" "Configure load balancing" "neo4j_configure_load_balancing"
+cli::register_subcommand "content" "cluster-backup" "Cluster backup strategy" "neo4j_cluster_backup_strategy"
+
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "neo4j_status"
 cli::register_command "logs" "Show Neo4j logs" "neo4j_logs"

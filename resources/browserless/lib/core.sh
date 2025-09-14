@@ -377,3 +377,70 @@ browserless::get_urls() {
     echo "Content: http://localhost:$BROWSERLESS_PORT/chrome/content"
     echo "Function: http://localhost:$BROWSERLESS_PORT/chrome/function"
 }
+
+#######################################
+# Display integration credentials
+# Globals:
+#   BROWSERLESS_PORT
+# Arguments:
+#   None
+# Returns:
+#   0 on success
+#######################################
+browserless::credentials() {
+    local port="${BROWSERLESS_PORT:-4110}"
+    
+    cat <<EOF
+🔐 Browserless Integration Credentials
+======================================
+
+Service Endpoint:
+  URL: http://localhost:${port}
+  Protocol: HTTP
+  
+Health Check:
+  Endpoint: http://localhost:${port}/pressure
+  Method: GET
+  Expected: 200 OK with JSON response
+  
+API Authentication:
+  Type: None (open access on localhost)
+  Note: Add authentication proxy for production
+  
+Browser Endpoints:
+  Screenshot: POST http://localhost:${port}/screenshot
+  PDF: POST http://localhost:${port}/pdf
+  Content: POST http://localhost:${port}/content
+  Function: POST http://localhost:${port}/function
+  
+WebSocket Endpoint:
+  CDP: ws://localhost:${port}
+  
+Integration Example:
+  curl -X POST http://localhost:${port}/screenshot \\
+    -H "Content-Type: application/json" \\
+    -d '{"url": "https://example.com"}'
+    
+Dashboard Access:
+  URL: http://localhost:${port}
+  Features: Metrics, configuration, live browser view
+  
+Container Details:
+  Name: vrooli-browserless
+  Image: ghcr.io/browserless/chrome:latest
+  Network: host mode
+  
+Resource Limits:
+  Max Concurrent: ${BROWSERLESS_MAX_CONCURRENT_SESSIONS:-10} sessions
+  Max Queue: ${BROWSERLESS_MAX_QUEUE_LENGTH:-10} requests
+  Timeout: ${BROWSERLESS_CONNECTION_TIMEOUT:-60000}ms
+  
+Notes:
+  - Service runs in host network mode for localhost access
+  - No authentication required for local development
+  - Add reverse proxy with auth for production use
+  - CDP protocol available for advanced automation
+EOF
+    
+    return 0
+}

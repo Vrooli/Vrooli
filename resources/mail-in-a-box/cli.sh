@@ -26,7 +26,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source config and libraries
 [[ -f "${MAILINABOX_CLI_DIR}/config/defaults.sh" ]] && source "${MAILINABOX_CLI_DIR}/config/defaults.sh"
-for lib in core install start stop status inject test; do
+for lib in core install start stop status inject test content; do
     lib_file="${MAILINABOX_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -49,9 +49,9 @@ CLI_COMMAND_HANDLERS["test::all"]="run_test_all"
 
 # Content handlers (REQUIRED) - business functionality
 CLI_COMMAND_HANDLERS["content::add"]="mailinabox_add_account"
-CLI_COMMAND_HANDLERS["content::list"]="mailinabox_get_status_details"
-CLI_COMMAND_HANDLERS["content::get"]="mailinabox_get_urls"
-CLI_COMMAND_HANDLERS["content::remove"]="echo 'Remove operation not supported for mail accounts'"
+CLI_COMMAND_HANDLERS["content::list"]="mailinabox_list_accounts"
+CLI_COMMAND_HANDLERS["content::get"]="mailinabox_get_config"
+CLI_COMMAND_HANDLERS["content::remove"]="mailinabox_delete_account"
 
 # Custom content subcommands for email management
 cli::register_subcommand "content" "add-alias" "Add email alias" "mailinabox_add_alias"

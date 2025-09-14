@@ -39,10 +39,10 @@ SUBCOMMANDS:
     restart <name> [options] Restart a scenario (stop then start)
     stop <name>             Stop a running scenario
     stop-all                Stop all running scenarios
-    test <name>             Test a scenario
+    test <name>             Run scenario's test lifecycle event
     list [--json]           List available scenarios
     logs <name> [options]   View logs for a scenario
-    status [name] [--json]  Show scenario status
+    status [name] [--json]  Show scenario status (includes test infrastructure validation)
     open <name> [options]   Open scenario in browser
     port <name> <port>      Get port number for scenario
 
@@ -63,13 +63,13 @@ EXAMPLES:
     vrooli scenario restart ecosystem-manager    # Restart a scenario
     vrooli scenario stop swarm-manager           # Stop a specific scenario
     vrooli scenario stop-all                     # Stop all scenarios
-    vrooli scenario test system-monitor          # Test a scenario
+    vrooli scenario test system-monitor          # Run scenario's test lifecycle event
     vrooli scenario list                         # List available scenarios
     vrooli scenario list --json                  # List scenarios in JSON format
     vrooli scenario logs system-monitor          # Shows lifecycle execution
     vrooli scenario logs system-monitor --follow # Follow lifecycle log
     vrooli scenario status                       # Show all scenarios
-    vrooli scenario status swarm-manager --json  # Show specific scenario in JSON
+    vrooli scenario status swarm-manager --json  # Show specific scenario with test validation
     vrooli scenario open app-monitor             # Open scenario in browser
     vrooli scenario open app-monitor --print-url # Print URL instead of opening
     vrooli scenario port app-monitor UI_PORT     # Get UI port number

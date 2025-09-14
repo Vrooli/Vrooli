@@ -9,10 +9,16 @@
 minio::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${MINIO_PORT:-}" ]]; then
-        # Try to get port from resources function, fallback to 9000
-        local default_port="9000"
+        # Get port from resources function - no hardcoded fallback
         if command -v resources::get_default_port &>/dev/null; then
-            default_port=$(resources::get_default_port "minio" 2>/dev/null || echo "9000")
+            local default_port=$(resources::get_default_port "minio" 2>/dev/null)
+            if [[ -z "$default_port" ]]; then
+                log::error "Unable to get port for minio from port registry"
+                return 1
+            fi
+        else
+            log::error "Port registry not available - cannot determine minio port"
+            return 1
         fi
         readonly MINIO_PORT="${MINIO_CUSTOM_PORT:-$default_port}"
     fi

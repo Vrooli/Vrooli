@@ -6,79 +6,80 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 MAILINABOX_INSTALL_LIB_DIR="${APP_ROOT}/resources/mail-in-a-box/lib"
 
 # Source dependencies
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
 source "$MAILINABOX_INSTALL_LIB_DIR/core.sh"
 
 # Install Mail-in-a-Box
 mailinabox_install() {
-    format_header "📧 Installing Mail-in-a-Box"
+    log::header "📧 Installing Mail-in-a-Box"
     
     # Check if already installed
     if mailinabox_is_installed; then
-        format_warning "Mail-in-a-Box is already installed"
+        log::warning "Mail-in-a-Box is already installed"
         return 0
     fi
     
     # Create data directories
-    format_info "Creating data directories..."
+    log::info "Creating data directories..."
     mkdir -p "$MAILINABOX_DATA_DIR"/{mail,config,ssl,backup}
     
     # Pull Docker image
-    format_info "Pulling Mail-in-a-Box Docker image..."
+    log::info "Pulling Mail-in-a-Box Docker image..."
     if ! docker pull "$MAILINABOX_IMAGE"; then
-        format_error "Failed to pull Mail-in-a-Box image"
+        log::error "Failed to pull Mail-in-a-Box image"
         return 1
     fi
     
-    # Create configuration file
-    format_info "Creating configuration..."
-    cat > "$MAILINABOX_CONFIG_DIR/mailinabox.env" <<EOF
-PRIMARY_HOSTNAME=${MAILINABOX_PRIMARY_HOSTNAME}
-ADMIN_EMAIL=${MAILINABOX_ADMIN_EMAIL}
-ADMIN_PASSWORD=${MAILINABOX_ADMIN_PASSWORD}
-ENABLE_WEBMAIL=${MAILINABOX_ENABLE_WEBMAIL}
-ENABLE_CALDAV=${MAILINABOX_ENABLE_CALDAV}
-ENABLE_CARDDAV=${MAILINABOX_ENABLE_CARDDAV}
-ENABLE_AUTOCONFIG=${MAILINABOX_ENABLE_AUTOCONFIG}
-ENABLE_GREYLISTING=${MAILINABOX_ENABLE_GREYLISTING}
-ENABLE_SPAMASSASSIN=${MAILINABOX_ENABLE_SPAMASSASSIN}
-ENABLE_FAIL2BAN=${MAILINABOX_ENABLE_FAIL2BAN}
+    # Create configuration file for docker-mailserver
+    log::info "Creating configuration..."
+    cat > "$MAILINABOX_CONFIG_DIR/mailserver.env" <<EOF
+# Core settings
+OVERRIDE_HOSTNAME=${MAILINABOX_PRIMARY_HOSTNAME}
+PERMIT_DOCKER=connected-networks
+ENABLE_FAIL2BAN=1
+ENABLE_SPAMASSASSIN=1
+ENABLE_CLAMAV=0
+SPAMASSASSIN_SPAM_TO_INBOX=1
+MOVE_SPAM_TO_JUNK=1
+VIRUSMAILS_DELETE_DELAY=7
+ONE_DIR=0
+DMS_DEBUG=0
 EOF
     
-    # Create and start container
-    format_info "Creating Mail-in-a-Box container..."
+    # Create and start container for docker-mailserver
+    log::info "Creating Mail Server container..."
     docker create \
         --name "$MAILINABOX_CONTAINER_NAME" \
         --hostname "$MAILINABOX_PRIMARY_HOSTNAME" \
-        --env-file "$MAILINABOX_CONFIG_DIR/mailinabox.env" \
+        --env-file "$MAILINABOX_CONFIG_DIR/mailserver.env" \
         -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_SMTP}:25" \
         -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_SUBMISSION}:587" \
-        -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_IMAP}:143" \
         -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_IMAPS}:993" \
-        -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_POP3}:110" \
         -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_POP3S}:995" \
-        -p "${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_ADMIN}:443" \
-        -v "$MAILINABOX_MAIL_DIR:/home/user-data/mail" \
-        -v "$MAILINABOX_CONFIG_DIR:/home/user-data/config" \
-        -v "$MAILINABOX_SSL_DIR:/home/user-data/ssl" \
+        -v "$MAILINABOX_MAIL_DIR:/var/mail" \
+        -v "$MAILINABOX_CONFIG_DIR:/tmp/docker-mailserver" \
+        -v "$MAILINABOX_SSL_DIR:/etc/letsencrypt" \
+        -v /etc/localtime:/etc/localtime:ro \
+        --cap-add NET_ADMIN \
         --restart unless-stopped \
         "$MAILINABOX_IMAGE"
     
     if [[ $? -eq 0 ]]; then
-        format_success "Mail-in-a-Box installed successfully"
+        log::success "Mail-in-a-Box installed successfully"
         return 0
     else
-        format_error "Failed to create Mail-in-a-Box container"
+        log::error "Failed to create Mail-in-a-Box container"
         return 1
     fi
 }
 
 # Uninstall Mail-in-a-Box
 mailinabox_uninstall() {
-    format_header "🗑️ Uninstalling Mail-in-a-Box"
+    log::header "🗑️ Uninstalling Mail-in-a-Box"
     
     # Stop and remove container
     if docker inspect "$MAILINABOX_CONTAINER_NAME" >/dev/null 2>&1; then
-        format_info "Removing Mail-in-a-Box container..."
+        log::info "Removing Mail-in-a-Box container..."
         docker stop "$MAILINABOX_CONTAINER_NAME" >/dev/null 2>&1
         docker rm "$MAILINABOX_CONTAINER_NAME" >/dev/null 2>&1
     fi
@@ -87,10 +88,10 @@ mailinabox_uninstall() {
     read -p "Remove Mail-in-a-Box data directory? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        format_info "Removing data directory..."
+        log::info "Removing data directory..."
         rm -rf "$MAILINABOX_DATA_DIR"
     fi
     
-    format_success "Mail-in-a-Box uninstalled"
+    log::success "Mail-in-a-Box uninstalled"
     return 0
 }

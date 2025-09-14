@@ -8,14 +8,38 @@ mcrcon provides a command-line interface and library for connecting to Minecraft
 
 ## Features
 
+### Core Features
 - **RCON Protocol Support**: Full implementation of Minecraft's remote console protocol
 - **Multi-Server Management**: Connect to and manage multiple Minecraft servers simultaneously
 - **Server Auto-Discovery**: Automatically detect Minecraft servers on local network
 - **Command Execution**: Execute any Minecraft server command programmatically
-- **Player Management**: Comprehensive player control (list, teleport, kick, ban, give items)
 - **Health Monitoring**: Built-in health check endpoint for service monitoring
 - **Error Recovery**: Automatic retry logic with exponential backoff
 - **v2.0 Contract Compliant**: Follows Vrooli's universal resource contract
+
+### Player Management
+- List online players and get player information
+- Teleport players to specific coordinates
+- Kick or ban players with custom reasons
+- Give items to players
+
+### World Operations
+- Save world data on demand
+- Create world backups with timestamps
+- Get comprehensive world information
+- Set world properties (difficulty, gamemode, weather, time)
+- Configure world spawn points
+
+### Event Streaming & Monitoring
+- Stream server events in real-time
+- Monitor specific events (joins, leaves, deaths, achievements)
+- Stream chat messages for specified duration
+- Tail recent events from event log
+
+### Integration Features
+- **Python Library**: Full-featured Python module for scripting
+- **Webhook Support**: Forward events to external services
+- **Mod Integration**: Execute mod-specific commands and list installed mods/plugins
 
 ## Quick Start
 

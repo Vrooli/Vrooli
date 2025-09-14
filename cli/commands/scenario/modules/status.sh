@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Source test infrastructure validator
+TEST_VALIDATOR="${SCENARIO_CMD_DIR}/validators/test-validator.sh"
+if [[ -f "$TEST_VALIDATOR" ]]; then
+    source "$TEST_VALIDATOR"
+fi
+
 # Show scenario status
 scenario::status::show() {
     local scenario_name="${1:-}"
@@ -141,18 +147,27 @@ scenario::status::format_json_individual() {
     local diagnostic_data
     diagnostic_data=$(scenario::health::collect_all_diagnostic_data "$scenario_name" "$response" "$status")
     
-    # Create enhanced JSON response for individual scenario with diagnostics
-    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" '
+    # Collect test infrastructure validation data
+    local test_validation="{}"
+    local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
+    if [[ -d "$scenario_path" ]] && command -v scenario::test::validate_infrastructure >/dev/null 2>&1; then
+        test_validation=$(scenario::test::validate_infrastructure "$scenario_name" "$scenario_path")
+    fi
+    
+    # Create enhanced JSON response for individual scenario with diagnostics and test validation
+    local enhanced_response=$(echo "$response" | jq --arg scenario_name "$scenario_name" --argjson diagnostics "$diagnostic_data" --argjson test_infrastructure "$test_validation" '
     {
         "success": .success,
         "scenario_name": $scenario_name,
         "scenario_data": .data,
         "diagnostics": $diagnostics,
+        "test_infrastructure": $test_infrastructure,
         "raw_response": .,
         "metadata": {
             "query_type": "individual_scenario",
             "timestamp": (now | strftime("%Y-%m-%d %H:%M:%S UTC")),
-            "diagnostics_included": true
+            "diagnostics_included": true,
+            "test_validation_included": true
         }
     }')
     echo "$enhanced_response"
@@ -414,6 +429,9 @@ scenario::status::display_diagnostic_data() {
     if [[ "$status" == "stopped" ]]; then
         scenario::status::display_failure_diagnostics "$diagnostic_data" "$scenario_name"
     fi
+    
+    # Always display test infrastructure validation (for all statuses)
+    scenario::status::display_test_infrastructure "$scenario_name"
 }
 
 # Display health check information for running scenarios
@@ -637,6 +655,27 @@ scenario::status::display_failure_diagnostics() {
         if [[ "$has_general_recs" == "true" ]] && [[ "$has_api_failures" == "false" ]] && [[ "$has_ui_failures" == "false" ]]; then
             echo "💡 Troubleshooting tips:"
             echo "$diagnostic_data" | jq -r '.log_analysis.general_recommendations[] | "   • " + .'
+        fi
+    fi
+}
+
+# Display test infrastructure validation
+scenario::status::display_test_infrastructure() {
+    local scenario_name="$1"
+    local scenario_path="${APP_ROOT}/scenarios/${scenario_name}"
+    
+    # Skip if scenario directory doesn't exist
+    if [[ ! -d "$scenario_path" ]]; then
+        return 0
+    fi
+    
+    # Only validate if test validator is available
+    if command -v scenario::test::validate_infrastructure >/dev/null 2>&1; then
+        local validation_result
+        validation_result=$(scenario::test::validate_infrastructure "$scenario_name" "$scenario_path")
+        
+        if [[ -n "$validation_result" ]]; then
+            scenario::test::display_validation "$scenario_name" "$validation_result"
         fi
     fi
 }

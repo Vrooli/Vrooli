@@ -882,3 +882,512 @@ EOF
             ;;
     esac
 }
+
+#######################################
+# G-code Visualization Functions
+# WebGL-based 3D path preview
+#######################################
+cncjs::visualization() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        preview)
+            cncjs::visualization::preview "$@"
+            ;;
+        analyze)
+            cncjs::visualization::analyze "$@"
+            ;;
+        render)
+            cncjs::visualization::render "$@"
+            ;;
+        export)
+            cncjs::visualization::export "$@"
+            ;;
+        server)
+            cncjs::visualization::server "$@"
+            ;;
+        *)
+            echo "Usage: visualization [preview|analyze|render|export|server]"
+            echo ""
+            echo "Actions:"
+            echo "  preview <file>     Generate 3D preview of G-code file"
+            echo "  analyze <file>     Analyze G-code paths and statistics"
+            echo "  render <file>      Render static visualization image"
+            echo "  export <file>      Export visualization as HTML"
+            echo "  server             Start visualization server"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Generate 3D preview of G-code file
+#######################################
+cncjs::visualization::preview() {
+    local gcode_file="${1:-}"
+    
+    if [[ -z "$gcode_file" ]]; then
+        log::error "G-code file required"
+        echo "Usage: visualization preview <file>"
+        return 1
+    fi
+    
+    # Check if file exists
+    local file_path="${CNCJS_WATCH_DIR}/${gcode_file}"
+    if [[ ! -f "$file_path" ]]; then
+        log::error "G-code file not found: $gcode_file"
+        return 1
+    fi
+    
+    log::info "Generating 3D preview for ${gcode_file}..."
+    
+    # Create visualization HTML with embedded Three.js
+    local viz_file="${CNCJS_DATA_DIR}/visualizations/${gcode_file%.gcode}.html"
+    mkdir -p "${CNCJS_DATA_DIR}/visualizations"
+    
+    # Generate visualization HTML
+    cat > "$viz_file" << 'VIZEOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>G-code Visualization</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #container { width: 100vw; height: 100vh; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">
+        <div>File: GCODE_FILE</div>
+        <div id="stats"></div>
+        <div>Controls: Mouse to rotate, Scroll to zoom</div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        // G-code parser and visualization
+        const gcodeContent = `GCODE_CONTENT`;
+        
+        // Initialize Three.js scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+        
+        const camera = new THREE.PerspectiveCamera(
+            75, window.innerWidth / window.innerHeight, 0.1, 10000
+        );
+        camera.position.set(100, 100, 200);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('container').appendChild(renderer.domElement);
+        
+        // Add controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+        directionalLight.position.set(50, 50, 50);
+        scene.add(directionalLight);
+        
+        // Add grid
+        const gridHelper = new THREE.GridHelper(200, 20, 0x444444, 0x222222);
+        scene.add(gridHelper);
+        
+        // Parse G-code and create path
+        const points = [];
+        let currentX = 0, currentY = 0, currentZ = 0;
+        let minX = 0, maxX = 0, minY = 0, maxY = 0, minZ = 0, maxZ = 0;
+        let totalDistance = 0;
+        let rapidMoves = 0, feedMoves = 0;
+        
+        const lines = gcodeContent.split('\n');
+        lines.forEach(line => {
+            line = line.trim();
+            if (!line || line.startsWith(';') || line.startsWith('(')) return;
+            
+            const parts = line.split(' ');
+            const command = parts[0];
+            
+            if (command === 'G0' || command === 'G00' || command === 'G1' || command === 'G01') {
+                let newX = currentX, newY = currentY, newZ = currentZ;
+                
+                parts.forEach(part => {
+                    if (part.startsWith('X')) newX = parseFloat(part.slice(1));
+                    if (part.startsWith('Y')) newY = parseFloat(part.slice(1));
+                    if (part.startsWith('Z')) newZ = parseFloat(part.slice(1));
+                });
+                
+                // Track statistics
+                const distance = Math.sqrt(
+                    Math.pow(newX - currentX, 2) +
+                    Math.pow(newY - currentY, 2) +
+                    Math.pow(newZ - currentZ, 2)
+                );
+                totalDistance += distance;
+                
+                if (command === 'G0' || command === 'G00') {
+                    rapidMoves++;
+                } else {
+                    feedMoves++;
+                    points.push(new THREE.Vector3(newX, newZ, newY));
+                }
+                
+                // Update bounds
+                minX = Math.min(minX, newX);
+                maxX = Math.max(maxX, newX);
+                minY = Math.min(minY, newY);
+                maxY = Math.max(maxY, newY);
+                minZ = Math.min(minZ, newZ);
+                maxZ = Math.max(maxZ, newZ);
+                
+                currentX = newX;
+                currentY = newY;
+                currentZ = newZ;
+            }
+        });
+        
+        // Create line geometry from points
+        if (points.length > 0) {
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const material = new THREE.LineBasicMaterial({ 
+                color: 0x00ff00,
+                linewidth: 2
+            });
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            
+            // Center camera on object
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            const centerZ = (minZ + maxZ) / 2;
+            controls.target.set(centerX, centerZ, centerY);
+        }
+        
+        // Display statistics
+        document.getElementById('stats').innerHTML = `
+            <div>Total Distance: ${totalDistance.toFixed(2)} mm</div>
+            <div>Feed Moves: ${feedMoves}</div>
+            <div>Rapid Moves: ${rapidMoves}</div>
+            <div>Bounds: X[${minX.toFixed(1)}, ${maxX.toFixed(1)}] Y[${minY.toFixed(1)}, ${maxY.toFixed(1)}] Z[${minZ.toFixed(1)}, ${maxZ.toFixed(1)}]</div>
+        `;
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
+VIZEOF
+    
+    # Read G-code content and inject into HTML
+    local gcode_content=$(cat "$file_path" | sed 's/`/\\`/g' | sed 's/\$/\\$/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+    sed -i "s|GCODE_FILE|${gcode_file}|g" "$viz_file"
+    # Use a different approach for content replacement to avoid sed issues
+    local temp_file="${viz_file}.tmp"
+    awk -v content="$gcode_content" '{gsub(/GCODE_CONTENT/, content); print}' "$viz_file" > "$temp_file"
+    mv "$temp_file" "$viz_file"
+    
+    log::success "3D preview generated: ${viz_file}"
+    echo "Preview saved to: ${viz_file}"
+    echo "Open in browser: http://localhost:${CNCJS_PORT}/visualizations/${gcode_file%.gcode}.html"
+    
+    return 0
+}
+
+#######################################
+# Analyze G-code paths and statistics
+#######################################
+cncjs::visualization::analyze() {
+    local gcode_file="${1:-}"
+    
+    if [[ -z "$gcode_file" ]]; then
+        log::error "G-code file required"
+        return 1
+    fi
+    
+    local file_path="${CNCJS_WATCH_DIR}/${gcode_file}"
+    if [[ ! -f "$file_path" ]]; then
+        log::error "G-code file not found: $gcode_file"
+        return 1
+    fi
+    
+    log::info "Analyzing G-code: ${gcode_file}"
+    
+    # Parse G-code for statistics  
+    local total_lines=$(wc -l < "$file_path")
+    local g0_moves=$(grep -c "^G0\|^G00" "$file_path" 2>/dev/null || echo "0")
+    local g1_moves=$(grep -c "^G1\|^G01" "$file_path" 2>/dev/null || echo "0")
+    local g2_moves=$(grep -c "^G2\|^G02" "$file_path" 2>/dev/null || echo "0")
+    local g3_moves=$(grep -c "^G3\|^G03" "$file_path" 2>/dev/null || echo "0")
+    local tool_changes=$(grep -c "^M6\|^T[0-9]" "$file_path" 2>/dev/null || echo "0")
+    local spindle_commands=$(grep -c "^M3\|^M4\|^M5" "$file_path" 2>/dev/null || echo "0")
+    
+    # Extract bounds
+    local x_values=$(grep -oE "X-?[0-9]+\.?[0-9]*" "$file_path" | cut -c2- | sort -n)
+    local y_values=$(grep -oE "Y-?[0-9]+\.?[0-9]*" "$file_path" | cut -c2- | sort -n)
+    local z_values=$(grep -oE "Z-?[0-9]+\.?[0-9]*" "$file_path" | cut -c2- | sort -n)
+    
+    local x_min=$(echo "$x_values" | head -1)
+    local x_max=$(echo "$x_values" | tail -1)
+    local y_min=$(echo "$y_values" | head -1)
+    local y_max=$(echo "$y_values" | tail -1)
+    local z_min=$(echo "$z_values" | head -1)
+    local z_max=$(echo "$z_values" | tail -1)
+    
+    # Calculate work envelope (using awk for safer arithmetic)
+    local x_range=$(awk -v max="${x_max:-0}" -v min="${x_min:-0}" 'BEGIN {print max - min}')
+    local y_range=$(awk -v max="${y_max:-0}" -v min="${y_min:-0}" 'BEGIN {print max - min}')
+    local z_range=$(awk -v max="${z_max:-0}" -v min="${z_min:-0}" 'BEGIN {print max - min}')
+    
+    # Output analysis
+    cat << EOF
+G-code Analysis: ${gcode_file}
+========================================
+File Statistics:
+  Total Lines:      ${total_lines}
+  Rapid Moves (G0): ${g0_moves}
+  Feed Moves (G1):  ${g1_moves}
+  Arc CW (G2):      ${g2_moves}
+  Arc CCW (G3):     ${g3_moves}
+  Tool Changes:     ${tool_changes}
+  Spindle Commands: ${spindle_commands}
+
+Work Envelope:
+  X: [${x_min:-0}, ${x_max:-0}] (range: ${x_range} mm)
+  Y: [${y_min:-0}, ${y_max:-0}] (range: ${y_range} mm)
+  Z: [${z_min:-0}, ${z_max:-0}] (range: ${z_range} mm)
+
+Estimated Statistics:
+  Total Moves:      $(awk -v g0="$g0_moves" -v g1="$g1_moves" -v g2="$g2_moves" -v g3="$g3_moves" 'BEGIN {print g0 + g1 + g2 + g3}')
+  Cut Percentage:   $(awk -v g0="$g0_moves" -v g1="$g1_moves" 'BEGIN {if(g0 + g1 > 0) printf "%.0f", g1 * 100 / (g0 + g1); else print "0"}')%
+EOF
+    
+    return 0
+}
+
+#######################################
+# Render static visualization image
+#######################################
+cncjs::visualization::render() {
+    local gcode_file="${1:-}"
+    local output_file="${2:-}"
+    
+    if [[ -z "$gcode_file" ]]; then
+        log::error "G-code file required"
+        return 1
+    fi
+    
+    local file_path="${CNCJS_WATCH_DIR}/${gcode_file}"
+    if [[ ! -f "$file_path" ]]; then
+        log::error "G-code file not found: $gcode_file"
+        return 1
+    fi
+    
+    # Default output file
+    if [[ -z "$output_file" ]]; then
+        output_file="${CNCJS_DATA_DIR}/visualizations/${gcode_file%.gcode}.png"
+    fi
+    
+    mkdir -p "$(dirname "$output_file")"
+    
+    log::info "Rendering visualization to ${output_file}..."
+    
+    # First generate HTML preview
+    cncjs::visualization::preview "$gcode_file" &>/dev/null
+    
+    # Use browserless if available to capture screenshot
+    if command -v resource-browserless &>/dev/null; then
+        local html_file="${CNCJS_DATA_DIR}/visualizations/${gcode_file%.gcode}.html"
+        resource-browserless screenshot "file://${html_file}" --output "$output_file" 2>/dev/null && {
+            log::success "Visualization rendered to ${output_file}"
+            return 0
+        }
+    fi
+    
+    # Fallback: Create a simple SVG representation
+    log::info "Creating SVG visualization..."
+    # If output file already ends with .svg, use it as is
+    local svg_file="$output_file"
+    if [[ "$output_file" != *.svg ]]; then
+        svg_file="${output_file%.png}.svg"
+    fi
+    
+    # Parse G-code and create SVG paths
+    cat > "$svg_file" << 'SVGEOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+    <rect width="800" height="600" fill="#1a1a1a"/>
+    <g transform="translate(400,300)">
+SVGEOF
+    
+    # Add G-code paths as SVG path elements
+    awk '
+    BEGIN { x=0; y=0; path="M 0 0" }
+    /^G0|^G00|^G1|^G01/ {
+        for(i=1; i<=NF; i++) {
+            if(substr($i,1,1)=="X") x=substr($i,2)
+            if(substr($i,1,1)=="Y") y=substr($i,2)
+        }
+        path = path " L " x " " (-y)
+    }
+    END {
+        print "<path d=\"" path "\" stroke=\"#00ff00\" stroke-width=\"1\" fill=\"none\"/>"
+    }
+    ' "$file_path" >> "$svg_file"
+    
+    echo '    </g>' >> "$svg_file"
+    echo '</svg>' >> "$svg_file"
+    
+    log::success "SVG visualization saved to ${svg_file}"
+    echo "Output: ${svg_file}"
+    
+    return 0
+}
+
+#######################################
+# Export visualization as standalone HTML
+#######################################
+cncjs::visualization::export() {
+    local gcode_file="${1:-}"
+    local output_file="${2:-}"
+    
+    if [[ -z "$gcode_file" ]]; then
+        log::error "G-code file required"
+        return 1
+    fi
+    
+    # Generate preview first
+    cncjs::visualization::preview "$gcode_file" || return 1
+    
+    # Set output file
+    if [[ -z "$output_file" ]]; then
+        output_file="${CNCJS_DATA_DIR}/exports/${gcode_file%.gcode}_viz.html"
+    fi
+    
+    mkdir -p "$(dirname "$output_file")"
+    
+    # Copy visualization to export location
+    local viz_file="${CNCJS_DATA_DIR}/visualizations/${gcode_file%.gcode}.html"
+    cp "$viz_file" "$output_file"
+    
+    log::success "Visualization exported to ${output_file}"
+    echo "Exported to: ${output_file}"
+    
+    return 0
+}
+
+#######################################
+# Start visualization server
+#######################################
+cncjs::visualization::server() {
+    local port="${1:-8195}"  # Use port adjacent to CNCjs
+    
+    log::info "Starting visualization server on port ${port}..."
+    
+    # Create index page for visualizations
+    local index_file="${CNCJS_DATA_DIR}/visualizations/index.html"
+    cat > "$index_file" << 'INDEXEOF'
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CNCjs G-code Visualizations</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        h1 { color: #00ff00; }
+        .viz-list {
+            list-style: none;
+            padding: 0;
+        }
+        .viz-item {
+            background: #2a2a2a;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #00ff00;
+        }
+        .viz-item a {
+            color: #00ff00;
+            text-decoration: none;
+            font-size: 18px;
+        }
+        .viz-item a:hover {
+            text-decoration: underline;
+        }
+        .meta {
+            color: #888;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CNCjs G-code Visualizations</h1>
+    <ul class="viz-list">
+INDEXEOF
+    
+    # List all visualization files
+    for viz in "${CNCJS_DATA_DIR}"/visualizations/*.html; do
+        if [[ -f "$viz" ]] && [[ "$(basename "$viz")" != "index.html" ]]; then
+            local name=$(basename "$viz" .html)
+            local modified=$(stat -c %y "$viz" 2>/dev/null | cut -d' ' -f1,2 | cut -d'.' -f1)
+            cat >> "$index_file" << ITEMEOF
+        <li class="viz-item">
+            <a href="$(basename "$viz")">${name}</a>
+            <div class="meta">Modified: ${modified}</div>
+        </li>
+ITEMEOF
+        fi
+    done
+    
+    cat >> "$index_file" << 'INDEXEOF'
+    </ul>
+    <p style="color: #666; margin-top: 40px;">
+        Generate new visualizations using: <code>cncjs visualization preview &lt;gcode-file&gt;</code>
+    </p>
+</body>
+</html>
+INDEXEOF
+    
+    # Start simple HTTP server
+    cd "${CNCJS_DATA_DIR}/visualizations"
+    python3 -m http.server "$port" &>/dev/null &
+    local server_pid=$!
+    
+    log::success "Visualization server started on port ${port}"
+    echo "Access visualizations at: http://localhost:${port}/"
+    echo "Server PID: ${server_pid}"
+    echo "Stop with: kill ${server_pid}"
+    
+    return 0
+}
