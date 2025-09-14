@@ -144,12 +144,6 @@ collect_resource_data() {
     local verbose="${1:-false}"
     local use_fast="${2:-true}"  # Default to fast mode for performance
     
-    # Check if config file exists
-    if [[ ! -f "$RESOURCES_CONFIG" ]]; then
-        echo "error:No resource configuration found at $RESOURCES_CONFIG"
-        return
-    fi
-    
     # Create temporary directory for parallel execution results
     local temp_dir
     temp_dir=$(mktemp -d)
@@ -163,27 +157,87 @@ collect_resource_data() {
     }
     trap cleanup_temp EXIT
     
-    # Parse resources from config and launch parallel checks
-    local jq_query='
-        .resources | to_entries[] | 
-        select(.value.enabled == true) | 
-        "\(.key)"
-    '
+    # Collect all resources from filesystem (registered and unregistered)
+    local RESOURCES_DIR="${var_RESOURCES_DIR}"
+    local filesystem_resources=()
+    if [[ -d "$RESOURCES_DIR" ]]; then
+        while IFS= read -r resource_dir; do
+            [[ -z "$resource_dir" ]] && continue
+            local resource_name=$(basename "$resource_dir")
+            filesystem_resources+=("$resource_name")
+        done < <(find "$RESOURCES_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
+    fi
+    
+    # Get configured resources
+    local config_resources=()
+    if [[ -f "$RESOURCES_CONFIG" ]]; then
+        local jq_query='
+            .resources | to_entries[] | 
+            "\(.key)/\(.value.enabled)"
+        '
+        while IFS= read -r line; do
+            if [[ -n "$line" ]]; then
+                local name="${line%%/*}"
+                local enabled="${line#*/}"
+                config_resources+=("$name:$enabled")
+            fi
+        done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null || true)
+    fi
+    
+    # Build combined list of all resources (registered and unregistered)
+    local all_resources=()
+    local unregistered_count=0
+    
+    # Add all filesystem resources
+    for fs_name in "${filesystem_resources[@]}"; do
+        local is_registered=false
+        local is_enabled=false
+        
+        # Check if resource is in config
+        for config_entry in "${config_resources[@]}"; do
+            local config_name="${config_entry%%:*}"
+            local config_enabled="${config_entry#*:}"
+            if [[ "$config_name" == "$fs_name" ]]; then
+                is_registered=true
+                if [[ "$config_enabled" == "true" ]]; then
+                    is_enabled=true
+                fi
+                break
+            fi
+        done
+        
+        if [[ "$is_registered" == "false" ]]; then
+            ((unregistered_count++))
+        fi
+        
+        all_resources+=("$fs_name:$is_enabled:$is_registered")
+    done
+    
+    # Sort all resources alphabetically
+    IFS=$'\n' sorted_resources=($(printf '%s\n' "${all_resources[@]}" | sort -t: -k1))
+    unset IFS
     
     local -a pids=()
     local enabled_count=0
     
-    # Launch all status checks in parallel
-    while IFS= read -r line; do
-        if [[ -n "$line" ]]; then
-            local name="$line"
+    # Launch status checks for all resources (registered and unregistered)
+    for resource_entry in "${sorted_resources[@]}"; do
+        local name="${resource_entry%%:*}"
+        local rest="${resource_entry#*:}"
+        local is_enabled="${rest%%:*}"
+        local is_registered="${rest#*:}"
+        
+        if [[ "$is_enabled" == "true" ]]; then
             ((enabled_count++))
-            
+        fi
+        
+        # Check status for all resources in verbose mode, or only enabled ones in normal mode
+        if [[ "$verbose" == "true" ]] || [[ "$is_enabled" == "true" ]]; then
             # Launch background process
             check_resource_with_timing "$name" "$result_file" "$use_fast" &
             pids+=($!)
         fi
-    done < <(jq -r "$jq_query" "$RESOURCES_CONFIG" 2>/dev/null | sort || true)
+    done
     
     # Wait for all background processes to complete
     for pid in "${pids[@]}"; do
@@ -214,10 +268,41 @@ collect_resource_data() {
             # Store timing data for later analysis
             timing_data+=("${duration_ms}:${name}:${status}")
             
+            # Check if resource is registered
+            local is_registered=false
+            for resource_entry in "${sorted_resources[@]}"; do
+                local res_name="${resource_entry%%:*}"
+                local res_rest="${resource_entry#*:}"
+                local res_registered="${res_rest#*:}"
+                if [[ "$res_name" == "$name" ]] && [[ "$res_registered" == "true" ]]; then
+                    is_registered=true
+                    break
+                fi
+            done
+            
             if [[ "$verbose" == "true" ]]; then
-                echo "resource:${name}:${status}"
+                if [[ "$is_registered" == "false" ]]; then
+                    echo "resource:${name}:${status}:unregistered"
+                else
+                    echo "resource:${name}:${status}"
+                fi
             fi
         done < <(sort "$result_file")
+    fi
+    
+    # Also output unregistered resources that weren't checked (in verbose mode)
+    if [[ "$verbose" == "true" ]]; then
+        for resource_entry in "${sorted_resources[@]}"; do
+            local name="${resource_entry%%:*}"
+            local rest="${resource_entry#*:}"
+            local is_enabled="${rest%%:*}"
+            local is_registered="${rest#*:}"
+            
+            # If resource is unregistered and disabled, it wasn't checked above
+            if [[ "$is_registered" == "false" ]] && [[ "$is_enabled" == "false" ]]; then
+                echo "resource:${name}:stopped:unregistered"
+            fi
+        done
     fi
     
     # Display timing information for verbose mode
@@ -238,10 +323,13 @@ collect_resource_data() {
         done
     fi
     
-    # Always output summary
+    # Always output summary (include unregistered count in verbose mode)
     echo "enabled:${enabled_count}"
     echo "running:${running_count}"
     echo "healthy:${healthy_count}"
+    if [[ "$verbose" == "true" ]] && [[ "$unregistered_count" -gt 0 ]]; then
+        echo "unregistered:${unregistered_count}"
+    fi
 }
 
 # Get structured resource data (format-agnostic)
@@ -688,18 +776,29 @@ format_component_data() {
     if [[ "$format" == "json" ]]; then
         # Build JSON based on component type
         if [[ "$component" == "resources" ]]; then
-            local enabled running healthy
+            local enabled running healthy unregistered
             enabled=$(echo "$raw_data" | grep "^enabled:" | cut -d: -f2)
             running=$(echo "$raw_data" | grep "^running:" | cut -d: -f2)
             healthy=$(echo "$raw_data" | grep "^healthy:" | cut -d: -f2)
+            unregistered=$(echo "$raw_data" | grep "^unregistered:" | cut -d: -f2 || echo "0")
             
             if echo "$raw_data" | grep -q "^details:true"; then
                 local details_json="["
                 local first=true
                 while IFS= read -r line; do
-                    if [[ "$line" =~ ^item:(.+):(.+)$ ]]; then
+                    if [[ "$line" =~ ^item:(.+):(.+):(.+)$ ]]; then
+                        # Handle resource with unregistered status (3 fields)
                         [[ "$first" == "true" ]] && first=false || details_json="${details_json},"
-                        details_json="${details_json}{\"name\":\"${BASH_REMATCH[1]}\",\"status\":\"${BASH_REMATCH[2]}\"}"
+                        local reg_status="${BASH_REMATCH[3]}"
+                        if [[ "$reg_status" == "unregistered" ]]; then
+                            details_json="${details_json}{\"name\":\"${BASH_REMATCH[1]}\",\"status\":\"${BASH_REMATCH[2]}\",\"registered\":false}"
+                        else
+                            details_json="${details_json}{\"name\":\"${BASH_REMATCH[1]}\",\"status\":\"${BASH_REMATCH[2]}\",\"registered\":true}"
+                        fi
+                    elif [[ "$line" =~ ^item:(.+):(.+)$ ]]; then
+                        # Handle normal resource (2 fields, backward compatibility)
+                        [[ "$first" == "true" ]] && first=false || details_json="${details_json},"
+                        details_json="${details_json}{\"name\":\"${BASH_REMATCH[1]}\",\"status\":\"${BASH_REMATCH[2]}\",\"registered\":true}"
                     fi
                 done <<< "$raw_data"
                 details_json="${details_json}]"
@@ -750,13 +849,41 @@ format_component_data() {
         fi
     else
         # Text format
-        echo "${component^}: $summary"
+        # Add unregistered count to summary if present
+        local unregistered_count
+        unregistered_count=$(echo "$raw_data" | grep "^unregistered:" | cut -d: -f2 || echo "0")
+        if [[ "$unregistered_count" -gt 0 ]]; then
+            echo "${component^}: $summary (⚠️ $unregistered_count unregistered)"
+        else
+            echo "${component^}: $summary"
+        fi
         
         if echo "$raw_data" | grep -q "^details:true"; then
             echo ""
             local table_rows=()
             while IFS= read -r line; do
-                if [[ "$line" =~ ^item:(.+):(.+)$ ]]; then
+                if [[ "$line" =~ ^item:(.+):(.+):(.+)$ ]]; then
+                    # Handle resource with unregistered status (3 fields)
+                    local name="${BASH_REMATCH[1]}"
+                    local status="${BASH_REMATCH[2]}"
+                    local reg_status="${BASH_REMATCH[3]}"
+                    local status_icon="🔴"
+                    case "$status" in
+                        "healthy") status_icon="🟢" ;;
+                        "degraded") status_icon="🟡" ;;
+                        "unhealthy") status_icon="🔴" ;;
+                        "running") status_icon="🟡" ;;
+                        "stopped") status_icon="🔴" ;;
+                        "error") status_icon="❌" ;;
+                        "no_cli") status_icon="⚠️" ;;
+                    esac
+                    if [[ "$reg_status" == "unregistered" ]]; then
+                        table_rows+=("${name} [UNREGISTERED]:${status}:${status_icon}")
+                    else
+                        table_rows+=("${name}:${status}:${status_icon}")
+                    fi
+                elif [[ "$line" =~ ^item:(.+):(.+)$ ]]; then
+                    # Handle normal resource (2 fields, backward compatibility)
                     local name="${BASH_REMATCH[1]}"
                     local status="${BASH_REMATCH[2]}"
                     local status_icon="🔴"

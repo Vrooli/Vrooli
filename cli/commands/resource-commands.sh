@@ -270,69 +270,111 @@ collect_resource_list_data() {
     local include_connection="${1:-false}"
     local only_running="${2:-false}"
     
-    # Check if config file exists
-    if [[ ! -f "$RESOURCES_CONFIG" ]]; then
-        echo "error:No resource configuration found at $RESOURCES_CONFIG"
-        return
+    # First, collect all resources from the filesystem
+    local filesystem_resources=()
+    if [[ -d "$RESOURCES_DIR" ]]; then
+        while IFS= read -r resource_dir; do
+            [[ -z "$resource_dir" ]] && continue
+            local resource_name=$(basename "$resource_dir")
+            filesystem_resources+=("$resource_name")
+        done < <(find "$RESOURCES_DIR" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort)
     fi
     
-    
-    # Get all resources from config (flat structure, not nested categories)
-    local all_resources
-    all_resources=$(jq -r '
-        .resources | to_entries[] | 
-        "\(.key)/\(.value.enabled)"
-    ' "$RESOURCES_CONFIG" 2>/dev/null)
-    
-    if [[ -z "$all_resources" ]]; then
-        echo "error:No resources found in configuration"
-        return
+    # Get all resources from config (if it exists)
+    local config_resources=()
+    local config_data=""
+    if [[ -f "$RESOURCES_CONFIG" ]]; then
+        config_data=$(jq -r '
+            .resources | to_entries[] | 
+            "\(.key)/\(.value.enabled)"
+        ' "$RESOURCES_CONFIG" 2>/dev/null || echo "")
+        
+        # Build array of configured resources
+        while IFS= read -r resource_line; do
+            [[ -z "$resource_line" ]] && continue
+            local name="${resource_line%%/*}"
+            config_resources+=("$name")
+        done <<< "$config_data"
     fi
     
-    # Process each resource (flat structure)
-    while IFS= read -r resource_line; do
-        [[ -z "$resource_line" ]] && continue
+    # Create a combined list of all resources (registered and unregistered), sorted alphabetically
+    local all_resource_names=()
+    # Add all filesystem resources
+    for name in "${filesystem_resources[@]}"; do
+        all_resource_names+=("$name")
+    done
+    # Add any configured resources that aren't in filesystem (shouldn't happen, but be safe)
+    for name in "${config_resources[@]}"; do
+        local found=false
+        for fs_name in "${filesystem_resources[@]}"; do
+            if [[ "$fs_name" == "$name" ]]; then
+                found=true
+                break
+            fi
+        done
+        if [[ "$found" == "false" ]]; then
+            all_resource_names+=("$name")
+        fi
+    done
+    
+    # Sort the resource names
+    IFS=$'\n' sorted_resources=($(sort <<<"${all_resource_names[*]}"))
+    unset IFS
+    
+    # Process each resource
+    for name in "${sorted_resources[@]}"; do
+        [[ -z "$name" ]] && continue
         
-        local name="${resource_line%%/*}"
-        local enabled="${resource_line#*/}"
+        # Check if resource exists in filesystem
+        local resource_dir="$RESOURCES_DIR/$name"
+        local exists_in_filesystem="false"
+        if [[ -d "$resource_dir" ]]; then
+            exists_in_filesystem="true"
+        fi
         
-        # Skip disabled resources if only_running is true
+        # Check if resource is in config
+        local enabled="false"
+        local registered="false"
+        if [[ -f "$RESOURCES_CONFIG" ]]; then
+            local config_entry=$(jq -r --arg name "$name" '.resources[$name] // null' "$RESOURCES_CONFIG" 2>/dev/null)
+            if [[ "$config_entry" != "null" ]]; then
+                registered="true"
+                enabled=$(jq -r --arg name "$name" '.resources[$name].enabled // false' "$RESOURCES_CONFIG" 2>/dev/null || echo "false")
+            fi
+        fi
+        
+        # Skip if only_running is true and resource is disabled/unregistered
         if [[ "$only_running" == "true" && "$enabled" != "true" ]]; then
             continue
         fi
         
-        # Resources now use flat structure
-        local resource_dir="$RESOURCES_DIR/$name"
-        
-        if [[ -d "$resource_dir" ]]; then
-            # Check running status using resource CLI
-            local is_running="false"
-            
-            # Use proper resource status checking with timeout (fixed hanging issue)
-            if has_resource_cli "$name"; then
-                local status_output
-                # Use timeout to prevent hangs, capture both stdout and stderr
-                if status_output=$(timeout 10s resource-"$name" status --format json --fast 2>&1); then
-                    # Check if we got valid JSON output
-                    if [[ -n "$status_output" ]] && echo "$status_output" | jq -e '.' >/dev/null 2>&1; then
-                        # Parse JSON to get running status
-                        local json_running
-                        json_running=$(echo "$status_output" | jq -r '.running // false' 2>/dev/null || echo "false")
-                        is_running="$json_running"
-                    fi
+        # Check running status using resource CLI
+        local is_running="false"
+        if [[ "$exists_in_filesystem" == "true" ]] && has_resource_cli "$name"; then
+            local status_output
+            # Use timeout to prevent hangs, capture both stdout and stderr
+            if status_output=$(timeout 10s resource-"$name" status --format json --fast 2>&1); then
+                # Check if we got valid JSON output
+                if [[ -n "$status_output" ]] && echo "$status_output" | jq -e '.' >/dev/null 2>&1; then
+                    # Parse JSON to get running status
+                    local json_running
+                    json_running=$(echo "$status_output" | jq -r '.running // false' 2>/dev/null || echo "false")
+                    is_running="$json_running"
                 fi
             fi
-            
-            # Skip if only_running is true and resource is not running
-            if [[ "$only_running" == "true" && "$is_running" != "true" ]]; then
-                continue
-            fi
-            
-            # Check features
-            local has_cli="false"
-            local has_script="false"
-            local has_capabilities="false"
-            
+        fi
+        
+        # Skip if only_running is true and resource is not running
+        if [[ "$only_running" == "true" && "$is_running" != "true" ]]; then
+            continue
+        fi
+        
+        # Check features
+        local has_cli="false"
+        local has_script="false"
+        local has_capabilities="false"
+        
+        if [[ "$exists_in_filesystem" == "true" ]]; then
             if has_resource_cli "$name"; then
                 has_cli="true"
             fi
@@ -342,11 +384,11 @@ collect_resource_list_data() {
             if [[ -f "$resource_dir/capabilities.yaml" ]]; then
                 has_capabilities="true"
             fi
-            
-            # Output resource data (no category in flat structure)
-            echo "resource:${name}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
         fi
-    done <<< "$all_resources"
+        
+        # Output resource data with registration status
+        echo "resource:${name}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}:${registered}:${exists_in_filesystem}"
+    done
 }
 
 # Collect raw status data for a single resource
@@ -462,26 +504,30 @@ get_resource_list_data() {
     local total_count=0
     local enabled_count=0
     local running_count=0
+    local unregistered_count=0
     
-    # Process each resource
+    # Process each resource - now with 8 fields including registered and exists_in_filesystem
     while IFS= read -r line; do
-        if [[ "$line" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+        if [[ "$line" =~ ^resource:(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
             local name="${BASH_REMATCH[1]}"
             local enabled="${BASH_REMATCH[2]}"
             local is_running="${BASH_REMATCH[3]}"
             local has_cli="${BASH_REMATCH[4]}"
             local has_script="${BASH_REMATCH[5]}"
             local has_capabilities="${BASH_REMATCH[6]}"
+            local registered="${BASH_REMATCH[7]}"
+            local exists_in_filesystem="${BASH_REMATCH[8]}"
             
-            echo "item:${name}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}"
+            echo "item:${name}:${enabled}:${is_running}:${has_cli}:${has_script}:${has_capabilities}:${registered}:${exists_in_filesystem}"
             
             ((total_count++))
             [[ "$enabled" == "true" ]] && ((enabled_count++))
             [[ "$is_running" == "true" ]] && ((running_count++))
+            [[ "$registered" == "false" ]] && ((unregistered_count++))
         fi
     done <<< "$raw_data"
     
-    echo "summary:${total_count}:${enabled_count}:${running_count}"
+    echo "summary:${total_count}:${enabled_count}:${running_count}:${unregistered_count}"
 }
 
 # Get structured status data for a single resource
@@ -542,19 +588,47 @@ format_resource_list_data() {
         return
     fi
     
-    # Collect table rows
+    # Extract summary for display
+    local summary_line=$(echo "$raw_data" | grep "^summary:")
+    local unregistered_count=0
+    if [[ "$summary_line" =~ ^summary:([^:]+):([^:]+):([^:]+):([^:]+)$ ]]; then
+        unregistered_count="${BASH_REMATCH[4]}"
+    fi
+    
+    # Collect table rows - now with 8 fields
     local table_rows=()
     while IFS= read -r line; do
-        if [[ "$line" =~ ^item:(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
+        if [[ "$line" =~ ^item:(.+):(.+):(.+):(.+):(.+):(.+):(.+):(.+)$ ]]; then
             local name="${BASH_REMATCH[1]}"
             local enabled="${BASH_REMATCH[2]}"
             local running="${BASH_REMATCH[3]}"
-            table_rows+=("${name}:${enabled}:${running}")
+            local registered="${BASH_REMATCH[7]}"
+            local exists_in_filesystem="${BASH_REMATCH[8]}"
+            
+            # Mark unregistered resources
+            local status_indicator=""
+            if [[ "$registered" == "false" ]]; then
+                status_indicator="[UNREGISTERED]"
+                enabled="N/A"
+            fi
+            
+            # Check for config-only resources (shouldn't normally happen)
+            if [[ "$exists_in_filesystem" == "false" ]]; then
+                status_indicator="[MISSING]"
+            fi
+            
+            table_rows+=("${name}:${enabled}:${running}:${status_indicator}")
         fi
     done <<< "$raw_data"
     
-    # Format as table using format.sh (no category column)
-    format::output "$format" "table" "Name" "Enabled" "Running" -- "${table_rows[@]}"
+    # Show warning if there are unregistered resources
+    if [[ "$unregistered_count" -gt 0 ]] && [[ "$format" != "json" ]]; then
+        echo "⚠️  WARNING: Found $unregistered_count unregistered resource(s) in resources/ folder"
+        echo ""
+    fi
+    
+    # Format as table using format.sh with status column
+    format::output "$format" "table" "Name" "Enabled" "Running" "Status" -- "${table_rows[@]}"
 }
 
 # Format resource overview data (for resource status with no args)

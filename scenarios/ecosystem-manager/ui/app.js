@@ -14,11 +14,12 @@ class EcosystemManager {
         
         // Target data caching and polling
         this.targetCacheState = {
-            resources: { loading: false, lastUpdate: null, error: null },
-            scenarios: { loading: false, lastUpdate: null, error: null }
+            resources: { loading: false, lastUpdate: null, error: null, retryCount: 0 },
+            scenarios: { loading: false, lastUpdate: null, error: null, retryCount: 0 }
         };
         this.targetPollingInterval = null;
-        this.targetPollingIntervalMs = 30000; // Poll every 30 seconds
+        this.targetPollingIntervalMs = 300000; // Poll every 5 minutes (300 seconds)
+        this.maxTargetRetries = 3; // Maximum number of retries for failed target polls
         
         // Queue status tracking - will be updated from settings
         this.queueStatus = {
@@ -67,6 +68,9 @@ class EcosystemManager {
                 // Start target data polling for fresh information
                 this.startTargetPolling();
                 console.log('✅ Target polling started');
+                
+                // If modal is already open, refresh the dropdown
+                this.refreshDropdownIfNeeded(true, true);
             } catch (error) {
                 console.error('❌ Failed to load initial discovery data:', error);
                 // Continue anyway - polling will retry
@@ -201,7 +205,7 @@ class EcosystemManager {
             });
         }, this.targetPollingIntervalMs);
         
-        console.log(`🔄 Started target polling every ${this.targetPollingIntervalMs/1000}s`);
+        console.log(`🔄 Started target polling every ${this.targetPollingIntervalMs/1000}s (${this.targetPollingIntervalMs/60000} minutes)`);
     }
     
     stopTargetPolling() {
@@ -216,7 +220,7 @@ class EcosystemManager {
         // Skip if either type is already loading
         if (this.targetCacheState.resources.loading || this.targetCacheState.scenarios.loading) {
             console.log('⏭️ Skipping target poll - previous request still in progress');
-            return;
+            throw new Error('Poll already in progress');
         }
         
         // Set loading states
@@ -231,12 +235,20 @@ class EcosystemManager {
             ]);
             
             // Process resources
+            let resourcesUpdated = false;
+            let scenariosUpdated = false;
+            
             if (resourcesResponse.ok) {
                 const newResources = await resourcesResponse.json();
+                const hadNoResources = this.resources.length === 0;
+                const prevCount = this.resources.length;
                 this.resources = newResources;
                 this.targetCacheState.resources.error = null;
                 this.targetCacheState.resources.lastUpdate = Date.now();
-                console.log(`🔧 Updated ${this.resources.length} resources in cache:`, this.resources.map(r => r.name).slice(0, 10) + (this.resources.length > 10 ? `... and ${this.resources.length - 10} more` : ''));
+                this.targetCacheState.resources.retryCount = 0; // Reset retry count on success
+                resourcesUpdated = hadNoResources && newResources.length > 0;
+                console.log(`🔧 Updated resources in cache: ${prevCount} → ${this.resources.length} (hadNoResources=${hadNoResources}, resourcesUpdated=${resourcesUpdated})`);
+                console.log(`🔧 Resources:`, this.resources.map(r => r.name).slice(0, 10) + (this.resources.length > 10 ? `... and ${this.resources.length - 10} more` : ''));
             } else {
                 console.warn('Failed to load resources:', resourcesResponse.statusText);
                 this.targetCacheState.resources.error = `HTTP ${resourcesResponse.status}`;
@@ -245,14 +257,22 @@ class EcosystemManager {
             // Process scenarios
             if (scenariosResponse.ok) {
                 const newScenarios = await scenariosResponse.json();
+                const hadNoScenarios = this.scenarios.length === 0;
+                const prevCount = this.scenarios.length;
                 this.scenarios = newScenarios;
                 this.targetCacheState.scenarios.error = null;
                 this.targetCacheState.scenarios.lastUpdate = Date.now();
-                console.log(`📋 Updated ${this.scenarios.length} scenarios in cache:`, this.scenarios.map(s => s.name));
+                this.targetCacheState.scenarios.retryCount = 0; // Reset retry count on success
+                scenariosUpdated = hadNoScenarios && newScenarios.length > 0;
+                console.log(`📋 Updated scenarios in cache: ${prevCount} → ${this.scenarios.length} (hadNoScenarios=${hadNoScenarios}, scenariosUpdated=${scenariosUpdated})`);
+                console.log(`📋 Scenarios:`, this.scenarios.map(s => s.name));
             } else {
                 console.warn('Failed to load scenarios:', scenariosResponse.statusText);
                 this.targetCacheState.scenarios.error = `HTTP ${scenariosResponse.status}`;
             }
+            
+            // Refresh dropdown if it's open and showing loading state
+            this.refreshDropdownIfNeeded(resourcesUpdated, scenariosUpdated);
             
         } catch (error) {
             console.error('Failed to poll target data:', error);
@@ -262,6 +282,42 @@ class EcosystemManager {
             // Clear loading states
             this.targetCacheState.resources.loading = false;
             this.targetCacheState.scenarios.loading = false;
+        }
+    }
+    
+    refreshDropdownIfNeeded(resourcesUpdated, scenariosUpdated) {
+        // Check if the create task modal is open
+        const modal = document.getElementById('create-task-modal');
+        const isModalOpen = modal && modal.classList.contains('show');
+        
+        console.log(`🔍 Checking if dropdown refresh needed: Modal open=${isModalOpen}, Resources updated=${resourcesUpdated}, Scenarios updated=${scenariosUpdated}`);
+        
+        if (!isModalOpen) {
+            return; // Modal not open, nothing to refresh
+        }
+        
+        // Check if improver operation is selected
+        const operation = document.querySelector('input[name="operation"]:checked')?.value;
+        console.log(`🔍 Current operation: ${operation}`);
+        
+        if (operation !== 'improver') {
+            return; // Not showing target selector
+        }
+        
+        // Check which type is selected
+        const type = document.querySelector('input[name="type"]:checked')?.value || 'resource';
+        console.log(`🔍 Current type: ${type}`);
+        
+        // Check if we need to refresh based on what was updated
+        const shouldRefresh = (type === 'resource' && resourcesUpdated) || 
+                             (type === 'scenario' && scenariosUpdated);
+        
+        if (shouldRefresh) {
+            console.log(`🔄 Refreshing ${type} dropdown after background data load (${type === 'resource' ? this.resources.length : this.scenarios.length} items)`);
+            // Use the internal method to avoid debouncing
+            this._doUpdateTargetOptions(type);
+        } else {
+            console.log(`⏭️ No refresh needed for ${type} dropdown`);
         }
     }
     
@@ -511,19 +567,8 @@ class EcosystemManager {
             this.handleCreateTask();
         });
         
-        // Type change in create form (for radio buttons)
-        document.querySelectorAll('input[name="type"]').forEach(radio => {
-            radio.addEventListener('change', () => {
-                this.updateFormForType();
-            });
-        });
-        
-        // Operation change in create form (for radio buttons)
-        document.querySelectorAll('input[name="operation"]').forEach(radio => {
-            radio.addEventListener('change', () => {
-                this.updateFormForOperation();
-            });
-        });
+        // Event listeners are already set up via onchange attributes in HTML
+        // No need to add duplicate listeners here
         
         // Close modals on background click
         document.addEventListener('click', (e) => {
@@ -1229,7 +1274,32 @@ class EcosystemManager {
     updateTargetOptions(type) {
         console.log(`🎯 updateTargetOptions called with type: ${type}, resources count: ${this.resources.length}, scenarios count: ${this.scenarios.length}`);
         
+        // Debounce rapid calls
+        const debounceKey = `updateTargetOptions_debounce_${type}`;
+        if (this[debounceKey]) {
+            clearTimeout(this[debounceKey]);
+        }
+        
+        this[debounceKey] = setTimeout(() => {
+            this._doUpdateTargetOptions(type);
+        }, 100); // 100ms debounce
+    }
+    
+    _doUpdateTargetOptions(type) {
+        // Prevent multiple concurrent update requests for the same type
+        const updateKey = `updateTargetOptions_${type}`;
+        if (this[updateKey + '_pending']) {
+            console.log(`⏭️ Skipping updateTargetOptions for ${type} - update already pending`);
+            return;
+        }
+        
         const targetSelect = document.getElementById('task-target');
+        
+        // Exit early if element doesn't exist
+        if (!targetSelect) {
+            console.warn('Target select element not found');
+            return;
+        }
         
         // Convert input to select if it's not already
         if (targetSelect.tagName !== 'SELECT') {
@@ -1276,7 +1346,7 @@ class EcosystemManager {
                 }
             }
             
-            console.log(`🎯 Adding ${targets.length} targets to dropdown. First few:`, targets.slice(0, 3).map(t => t.name));
+            console.log(`🎯 Adding ${targets.length} ${type} targets to dropdown. First few:`, targets.slice(0, 3).map(t => t.name));
             targets.forEach(target => {
                 const option = document.createElement('option');
                 option.value = target.name;
@@ -1322,27 +1392,31 @@ class EcosystemManager {
                 const option = document.createElement('option');
                 option.value = '';
                 
-                // Check if we've never loaded data before
+                // Check current cache state
                 const cacheState = this.targetCacheState[type + 's'];
-                const hasNeverLoaded = !cacheState || (!cacheState.lastUpdate && !cacheState.error);
+                const isLoading = cacheState && cacheState.loading;
+                const hasError = cacheState && cacheState.error;
                 
-                if (hasNeverLoaded) {
+                if (isLoading) {
                     option.textContent = `Loading ${type}s... please wait`;
                     option.style.color = '#ffc107';
-                    console.log(`⏳ Targets not loaded yet. Triggering immediate poll...`);
-                    // Trigger an immediate poll and re-populate when done
-                    this.pollTargets().then(() => {
-                        console.log(`✅ Poll complete, re-populating dropdown`);
-                        this.updateTargetOptions(type);
-                    }).catch(err => {
-                        console.error(`❌ Poll failed:`, err);
-                    });
-                } else if (cacheState && cacheState.error) {
+                    console.log(`⏳ Currently loading ${type}s...`);
+                } else if (hasError) {
                     option.textContent = `Failed to load ${type}s - check connection`;
                     option.style.color = '#dc3545';
                 } else {
-                    option.textContent = `No ${type}s found - they may need to be created first`;
+                    option.textContent = `No ${type}s found - checking for updates...`;
                     option.style.color = '#6c757d';
+                    
+                    // Trigger a background poll if we haven't loaded data yet
+                    if (!cacheState || !cacheState.lastUpdate) {
+                        console.log(`📊 No ${type}s loaded yet, triggering background poll...`);
+                        this.pollTargets().catch(err => {
+                            console.warn(`Background poll failed:`, err.message);
+                        });
+                    } else {
+                        option.textContent = `No ${type}s available`;
+                    }
                 }
                 
                 option.disabled = true;

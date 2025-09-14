@@ -554,26 +554,37 @@ test_scenario_integration() {
         
         log_progress "$current" "$total_scenarios" "Testing scenario integration"
         
-        # Run integration test if available
-        local integration_test="$PROJECT_ROOT/scenarios/tools/run-integration-test.sh"
-        if [[ -x "$integration_test" ]]; then
-            if run_cached_test "$scenario_dir" "integration" "'$integration_test' '$scenario_name'" "integration: $scenario_name"; then
+        # Use universal test runner that handles both formats
+        # Source it only once at the beginning of the loop
+        if [[ $current -eq 1 ]] && [[ -f "$PROJECT_ROOT/scripts/lib/testing/legacy/run-scenario-tests.sh" ]]; then
+            source "$PROJECT_ROOT/scripts/lib/testing/legacy/run-scenario-tests.sh"
+        fi
+        
+        # Try to run tests using the universal runner
+        if command -v run_scenario_tests >/dev/null 2>&1; then
+            if run_cached_test "$scenario_dir" "integration" "run_scenario_tests '$scenario_dir' 30" "integration: $scenario_name"; then
                 increment_test_counter "passed"
             else
-                increment_test_counter "failed"
+                # Check if it's just missing tests vs actual failure
+                local test_output=$(run_scenario_tests "$scenario_dir" 2>&1)
+                if echo "$test_output" | grep -q "No tests found"; then
+                    log_test_skip "integration: $scenario_name" "No test format detected"
+                    increment_test_counter "skipped"
+                else
+                    increment_test_counter "failed"
+                fi
             fi
         else
-            # Fallback: test that scenario can be run with manage.sh
-            local service_json="$scenario_dir/.vrooli/service.json"
-            if [[ -f "$service_json" ]]; then
-                # Test that we can at least dry-run the scenario
-                if run_cached_test "$scenario_dir" "manage-dryrun" "(cd '$scenario_dir' && timeout 10 '$PROJECT_ROOT/scripts/manage.sh' develop --dry-run >/dev/null 2>&1)" "manage-dryrun: $scenario_name"; then
+            # Fallback to old method if universal runner not available
+            local integration_test="$PROJECT_ROOT/scenarios/tools/run-integration-test.sh"
+            if [[ -x "$integration_test" ]]; then
+                if run_cached_test "$scenario_dir" "integration" "'$integration_test' '$scenario_name'" "integration: $scenario_name"; then
                     increment_test_counter "passed"
                 else
                     increment_test_counter "failed"
                 fi
             else
-                log_test_skip "integration: $scenario_name" "service.json not available"
+                log_test_skip "integration: $scenario_name" "No test runner available"
                 increment_test_counter "skipped"
             fi
         fi
