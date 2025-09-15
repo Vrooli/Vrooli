@@ -141,10 +141,26 @@ main() {
         echo -e "  Testing Python API... ${YELLOW}SKIPPED (KiCad not installed)${NC}"
     fi
     
+    # Test P2 features (cloud backup, simulation, autoroute)
+    echo
+    echo "Testing P2 Features:"
+    run_test "Simulation models creation" \
+        "${KICAD_DIR}/cli.sh simulation models"
+    
+    run_test "Backup commands available" \
+        "${KICAD_DIR}/cli.sh backup --help"
+    
+    run_test "Autoroute commands available" \
+        "${KICAD_DIR}/cli.sh autoroute --help"
+    
+    run_test "Version control commands available" \
+        "${KICAD_DIR}/cli.sh version --help"
+    
     # Cleanup test files
     echo
     echo "Cleaning up test files..."
     rm -f "$test_project"
+    rm -rf "${KICAD_DATA_DIR}/libraries/spice_models"
     
     # Summary
     echo

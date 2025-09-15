@@ -2,7 +2,7 @@
 
 Complete open-source ERP with accounting, inventory, HR, CRM, and project management capabilities.
 
-**Status**: ✅ v2.0 Contract Compliant | 64% PRD Complete | All Tests Passing
+**Status**: ✅ v2.0 Contract Compliant | 71% PRD Complete | All Tests Passing
 
 ## Overview
 
@@ -65,6 +65,45 @@ vrooli resource erpnext inject --type doctype customer_extension.json
 
 # Inject a server script
 vrooli resource erpnext inject --type script custom_workflow.py
+```
+
+## Workflow Management
+
+ERPNext includes a powerful workflow engine for business process automation:
+
+```bash
+# List available workflows
+vrooli resource erpnext workflow list
+
+# Get workflow details
+vrooli resource erpnext workflow get "Purchase Order"
+
+# Create new workflow from JSON
+vrooli resource erpnext workflow create workflow.json
+
+# Execute workflow transition
+vrooli resource erpnext workflow transition "Purchase Order" "PO-001" "Approve"
+```
+
+## Reporting and Analytics
+
+Built-in reporting module with custom report builder:
+
+```bash
+# List available reports
+vrooli resource erpnext report list
+
+# Get report details
+vrooli resource erpnext report get "Sales Register"
+
+# Execute report with filters
+vrooli resource erpnext report execute "Sales Register" '{"from_date":"2025-01-01","to_date":"2025-12-31"}'
+
+# Export report data
+vrooli resource erpnext report export "Sales Register" csv
+
+# Create custom report from JSON
+vrooli resource erpnext report create report.json
 ```
 
 ## API Access

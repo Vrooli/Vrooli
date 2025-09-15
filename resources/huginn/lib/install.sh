@@ -153,15 +153,12 @@ huginn::pre_install_checks() {
 huginn::pull_images() {
     log::info "📦 Pulling Docker images..."
     
-    local images=("$HUGINN_IMAGE" "$POSTGRES_IMAGE")
-    
-    for image in "${images[@]}"; do
-        log::info "Pulling $image..."
-        if ! docker pull "$image" >/dev/null 2>&1; then
-            log::error "Failed to pull image: $image"
-            return 1
-        fi
-    done
+    # Only pull PostgreSQL image, Huginn will be built custom
+    log::info "Pulling $POSTGRES_IMAGE..."
+    if ! docker pull "$POSTGRES_IMAGE" >/dev/null 2>&1; then
+        log::error "Failed to pull image: $POSTGRES_IMAGE"
+        return 1
+    fi
     
     return 0
 }

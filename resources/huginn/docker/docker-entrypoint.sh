@@ -2,16 +2,10 @@
 set -e
 # Enhanced entrypoint for Huginn with Vrooli integration
 
-# Source var.sh for directory variables
-# shellcheck disable=SC1091
-source "/host/scripts/lib/utils/var.sh"
-# shellcheck disable=SC1091
-source "${var_TRASH_FILE}"
-
 echo "Starting Huginn with enhanced entrypoint..."
 
-# Set up PATH to include host directories
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/usr/bin:/host/bin:$PATH"
+# Set up PATH
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 
 # Set up environment for Huginn
 export RAILS_ENV="${RAILS_ENV:-production}"
@@ -29,110 +23,36 @@ export DATABASE_POOL="${DATABASE_POOL:-20}"
 
 # Function to wait for database
 wait_for_database() {
-    echo "Waiting for PostgreSQL to be ready..."
+    echo "Waiting for MySQL to be ready..."
     local max_attempts=30
     local attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        if pg_isready -h "$DATABASE_HOST" -p "$DATABASE_PORT" -U "$DATABASE_USERNAME" 2>/dev/null; then
-            echo "PostgreSQL is ready!"
+        if mysqladmin ping -h "$DATABASE_HOST" -P "$DATABASE_PORT" -u "$DATABASE_USERNAME" -p"$DATABASE_PASSWORD" --silent 2>/dev/null; then
+            echo "MySQL is ready!"
             return 0
         fi
         
         attempt=$((attempt + 1))
-        echo "Waiting for PostgreSQL... (attempt $attempt/$max_attempts)"
+        echo "Waiting for MySQL... (attempt $attempt/$max_attempts)"
         sleep 2
     done
     
-    echo "ERROR: PostgreSQL did not become ready in time"
+    echo "ERROR: MySQL did not become ready in time"
     return 1
 }
 
-# Handle running as root
-if [[ "$(id -u)" = "0" ]]; then
-    echo "Running as root, setting up permissions..."
-    
-    # Fix ownership of app directory
-    chown -R huginn:huginn /app 2>/dev/null || true
-    
-    # Fix Docker socket access if socket exists
-    if [[ -S "/var/run/docker.sock" ]]; then
-        # Get the group ID of the docker socket
-        DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
-        
-        # Create/update docker group with correct GID
-        if ! getent group docker >/dev/null 2>&1; then
-            groupadd -g "$DOCKER_GID" docker
-        else
-            groupmod -g "$DOCKER_GID" docker 2>/dev/null || true
-        fi
-        
-        # Add huginn user to docker group
-        usermod -a -G docker huginn
-        
-        echo "Added huginn user to docker group (GID: $DOCKER_GID)"
-    fi
-    
-    # Create required directories
-    mkdir -p /app/log /app/tmp/pids /app/tmp/cache /app/uploads
-    chown -R huginn:huginn /app/log /app/tmp /app/uploads
-    
-    # Drop to huginn user and re-run this script
-    echo "Dropping privileges to huginn user..."
-    exec su -s /bin/bash huginn -c "$0 $*"
-fi
+# Create required directories
+mkdir -p /app/log /app/tmp/pids /app/tmp/cache /app/uploads 2>/dev/null || true
 
-# Running as huginn user from here
 echo "Running as user: $(whoami)"
 
 # Wait for database to be ready
 wait_for_database || exit 1
 
-# Check if database needs initialization
-echo "Checking database status..."
-if ! bundle exec rails db:version >/dev/null 2>&1; then
-    echo "Database needs initialization, running setup..."
-    bundle exec rails db:create db:schema:load db:seed
-else
-    echo "Database exists, running migrations..."
-    bundle exec rails db:migrate
-fi
-
-# Create default admin user if it doesn't exist
-echo "Ensuring default admin user exists..."
-bundle exec rails runner "
-  admin = User.find_by(email: 'admin@localhost')
-  unless admin
-    admin = User.create!(
-      email: 'admin@localhost',
-      password: ENV['SEED_PASSWORD'] || 'vrooli_huginn_secure_2025',
-      password_confirmation: ENV['SEED_PASSWORD'] || 'vrooli_huginn_secure_2025',
-      username: 'admin',
-      admin: true
-    )
-    puts 'Created default admin user'
-  else
-    puts 'Admin user already exists'
-  end
-" || echo "Warning: Could not ensure admin user"
-
-# Precompile assets if needed
-if [[ "$RAILS_ENV" == "production" ]] && [[ ! -d "public/assets" ]]; then
-    echo "Precompiling assets..."
-    bundle exec rails assets:precompile
-fi
-
 # Clean up old PID files
-trash::safe_remove /app/tmp/pids/server.pid --temp
+rm -f /app/tmp/pids/server.pid 2>/dev/null || true
 
-# Export host directories in PATH for child processes
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/usr/bin:/host/bin:$PATH"
-
-# Start Huginn with the provided command or default
-if [ $# -eq 0 ]; then
-    echo "Starting Huginn web server..."
-    exec bundle exec rails server -b 0.0.0.0 -p 3000
-else
-    echo "Running command: $@"
-    exec "$@"
-fi
+# Pass control to the original Huginn entrypoint
+echo "Passing control to default Huginn entrypoint..."
+exec /scripts/init

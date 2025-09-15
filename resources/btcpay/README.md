@@ -83,6 +83,49 @@ vrooli resource btcpay content list
 vrooli resource btcpay content add --name "My Store"
 ```
 
+## Lightning Network
+
+BTCPay Server includes full Lightning Network support for instant, low-fee Bitcoin payments.
+
+### Setting Up Lightning
+
+```bash
+# Initialize Lightning Network support
+vrooli resource btcpay lightning setup
+
+# Check Lightning status
+vrooli resource btcpay lightning status
+
+# View Lightning wallet balance
+vrooli resource btcpay lightning balance
+```
+
+### Lightning Invoices
+
+```bash
+# Create a Lightning invoice (amount in satoshis)
+vrooli resource btcpay lightning create-invoice 10000 "Coffee payment"
+
+# Check Lightning invoice status
+vrooli resource btcpay lightning check-invoice <invoice_hash>
+```
+
+### Channel Management
+
+```bash
+# List Lightning channels
+vrooli resource btcpay lightning channels
+
+# Open a new channel (amount in satoshis)
+vrooli resource btcpay lightning open-channel <peer_pubkey> 100000
+```
+
+### Popular Lightning Nodes
+
+When opening channels, you can connect to these well-known nodes:
+- **ACINQ**: `03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f`
+- **Bitrefill**: `030c3f19d742ca294a55c00376b3b355c3c90d61c6b6b39554dbc7ac19b141c14f`
+
 ## Configuration
 
 BTCPay Server uses environment variables for configuration:

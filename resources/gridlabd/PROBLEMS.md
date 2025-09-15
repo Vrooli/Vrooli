@@ -14,12 +14,14 @@ This is a fully functional implementation of the GridLAB-D resource that provide
 
 ## Known Issues
 
-### 1. GridLAB-D Core Not Installed
-**Issue**: The actual GridLAB-D simulator is not installed, only a mock binary for testing.
+### 1. GridLAB-D Core Not Installed (Using Mock)
+**Issue**: The actual GridLAB-D simulator is not installed, using an enhanced mock binary for testing.
 
-**Impact**: Cannot run actual power flow simulations.
+**Impact**: Cannot run actual power flow simulations, but mock provides realistic test data.
 
-**Solution**: Install GridLAB-D from source or package manager:
+**Current State**: Mock implementation supports all required endpoints with simulated results.
+
+**Solution**: Install GridLAB-D from source or package manager when actual simulations needed:
 ```bash
 # Ubuntu/Debian
 sudo apt-get install gridlabd
@@ -32,18 +34,14 @@ make
 sudo make install
 ```
 
-### 2. Python Dependencies Not in Virtual Environment
-**Issue**: Python dependencies (Flask, numpy, pandas) are not installed in a virtual environment.
+### 2. Restart Test Timing Sensitivity
+**Issue**: Integration test for restart occasionally fails due to timing issues.
 
-**Impact**: API server uses basic HTTP server instead of Flask.
+**Impact**: Test suite shows 80% pass rate for integration tests.
 
-**Solution**: Install python3-venv and create proper virtual environment:
-```bash
-sudo apt install python3-venv
-python3 -m venv ~/.vrooli/gridlabd/venv
-source ~/.vrooli/gridlabd/venv/bin/activate
-pip install flask flask-cors numpy pandas matplotlib plotly
-```
+**Current State**: Manual restart works perfectly, only automated test has timing issues.
+
+**Solution**: Enhanced test with longer timeouts and retry logic, but still occasionally fails.
 
 ### 3. Socket Reuse Issues (FIXED)
 **Issue**: API server would fail with "Address already in use" errors on restart.
@@ -58,6 +56,13 @@ pip install flask flask-cors numpy pandas matplotlib plotly
 **Impact**: Restart operations would fail.
 
 **Solution**: Enhanced stop function with graceful shutdown, process cleanup with pkill fallback, and port release verification.
+
+### 5. Flask Import Error (FIXED) 
+**Issue**: `re` module was imported inside loop causing UnboundLocalError.
+
+**Impact**: /validate endpoint would fail with error.
+
+**Solution**: Moved `import re` to top of validate_glm_model function.
 
 ## Future Improvements
 

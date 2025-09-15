@@ -90,6 +90,7 @@ def run_gridlabd_simulation(glm_content: str, output_format: str = 'csv') -> Dic
 
 def validate_glm_model(glm_content: str) -> Dict[str, Any]:
     """Validate GLM model syntax"""
+    import re
     temp_file = TEMP_DIR / f"validate_{uuid.uuid4().hex}.glm"
     
     try:
@@ -112,7 +113,6 @@ def validate_glm_model(glm_content: str) -> Dict[str, Any]:
                 warnings.append(line.strip())
             elif 'objects' in line.lower():
                 # Try to extract object count
-                import re
                 match = re.search(r'(\d+)\s+objects', line)
                 if match:
                     object_count = int(match.group(1))

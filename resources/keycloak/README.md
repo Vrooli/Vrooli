@@ -148,6 +148,172 @@ vrooli resource keycloak ldap sync --name my-ldap --realm master --full
 vrooli resource keycloak ldap remove --name my-ldap --realm master
 ```
 
+## Theme Customization
+
+```bash
+# Create a custom theme
+vrooli resource keycloak theme create my-brand-theme
+
+# List available themes
+vrooli resource keycloak theme list
+
+# Deploy theme to container
+vrooli resource keycloak theme deploy my-brand-theme
+
+# Apply theme to a realm
+vrooli resource keycloak theme apply test-realm my-brand-theme login
+
+# Customize theme properties
+vrooli resource keycloak theme customize my-brand-theme primary-color "#ff6600"
+vrooli resource keycloak theme customize my-brand-theme logo /path/to/logo.png
+
+# Export theme for sharing
+vrooli resource keycloak theme export my-brand-theme /tmp/theme-export.tar.gz
+
+# Import theme from archive
+vrooli resource keycloak theme import /tmp/theme-export.tar.gz
+
+# Remove a theme
+vrooli resource keycloak theme remove my-brand-theme
+```
+
+Theme features:
+- Custom CSS styling and gradients
+- Logo and branding customization
+- Multiple theme types (login, account, admin, email)
+- Export/import for sharing themes
+- Hot deployment to running container
+
+## Backup and Restore
+
+```bash
+# Create backup of a realm
+vrooli resource keycloak backup create master
+
+# List available backups
+vrooli resource keycloak backup list
+
+# Restore from backup
+vrooli resource keycloak backup restore keycloak_master_20250914.json.gz
+
+# Clean up old backups (with rotation policies)
+vrooli resource keycloak backup cleanup  # Uses retention/max/min policies
+
+# Schedule automatic backups
+vrooli resource keycloak backup schedule master "0 2 * * *"  # 2 AM daily
+```
+
+Backup features:
+- Compressed backups (gzip)
+- Intelligent rotation policies
+- Configurable retention (KEYCLOAK_BACKUP_RETENTION_DAYS)
+- Maximum backup limit (KEYCLOAK_BACKUP_MAX_COUNT)
+- Minimum backup guarantee (KEYCLOAK_BACKUP_MIN_COUNT)
+- Scheduled backups via cron
+
+## Performance Monitoring
+
+```bash
+# Check health status
+vrooli resource keycloak monitor health
+
+# View performance metrics
+vrooli resource keycloak monitor metrics
+
+# Analyze performance
+vrooli resource keycloak monitor performance
+
+# View realm statistics
+vrooli resource keycloak monitor realms
+
+# Full monitoring dashboard (includes history)
+vrooli resource keycloak monitor dashboard
+```
+
+Monitoring features:
+- Real-time health checks with response times
+- JVM and container metrics
+- Connection statistics
+- Historical metrics with averaging
+- Performance benchmarking (token generation <100ms)
+- Metrics persistence and trend analysis
+
+## TLS/HTTPS Configuration
+
+```bash
+# Generate self-signed certificate (for development)
+vrooli resource keycloak tls generate
+
+# Import existing certificate
+vrooli resource keycloak tls import /path/to/cert.pem /path/to/key.pem
+
+# Enable HTTPS
+vrooli resource keycloak tls enable
+
+# Check certificate expiry
+vrooli resource keycloak tls check
+
+# Show certificate details
+vrooli resource keycloak tls show
+
+# Renew certificate
+vrooli resource keycloak tls renew
+
+# Disable HTTPS (revert to HTTP only)
+vrooli resource keycloak tls disable
+```
+
+## Multi-Factor Authentication (MFA)
+
+```bash
+# Enable MFA for a realm (totp/webauthn/sms)
+vrooli resource keycloak mfa enable master totp
+
+# Configure MFA policy (always/conditional/optional)
+vrooli resource keycloak mfa configure master conditional
+
+# Enable MFA for specific user
+vrooli resource keycloak mfa enable-user master john.doe
+
+# Check MFA status
+vrooli resource keycloak mfa status master
+
+# List users with MFA status
+vrooli resource keycloak mfa list-users master
+
+# Disable MFA
+vrooli resource keycloak mfa disable master
+```
+
+## Password Policy Management
+
+```bash
+# Set custom password policy
+vrooli resource keycloak password-policy set master \
+  --length 12 \
+  --digits 2 \
+  --uppercase 2 \
+  --lowercase 2 \
+  --special 1 \
+  --not-username \
+  --history 5
+
+# Apply preset policy (basic/moderate/strong/paranoid)
+vrooli resource keycloak password-policy preset master strong
+
+# View current policy
+vrooli resource keycloak password-policy get master
+
+# Validate password against policy
+vrooli resource keycloak password-policy validate master "MyP@ssw0rd123"
+
+# Force password reset for user(s)
+vrooli resource keycloak password-policy force-reset master john.doe
+
+# Clear password policy
+vrooli resource keycloak password-policy clear master
+```
+
 ## Documentation
 
 - [Installation Guide](docs/installation.md)

@@ -67,13 +67,13 @@ cli::register_subcommand "content" "export" "Export PCB project to various forma
 cli::register_subcommand "content" "projects" "List all KiCad projects" "kicad::content::list_projects"
 cli::register_subcommand "content" "libraries" "List all KiCad libraries" "kicad::content::list_libraries"
 
-# Add version control commands as a regular command with subcommands
-cli::register_command "version" "Git version control for KiCad projects" "kicad::version::help"
-CLI_COMMAND_HANDLERS["version::init"]="kicad::git::init"
-CLI_COMMAND_HANDLERS["version::status"]="kicad::git::status"
-CLI_COMMAND_HANDLERS["version::commit"]="kicad::git::commit"
-CLI_COMMAND_HANDLERS["version::log"]="kicad::git::log"
-CLI_COMMAND_HANDLERS["version::backup"]="kicad::git::backup"
+# Add version control commands as a command group
+cli::register_command_group "version" "Git version control for KiCad projects"
+cli::register_subcommand "version" "init" "Initialize git repository for project" "kicad::git::init"
+cli::register_subcommand "version" "status" "Show git status for project" "kicad::git::status"
+cli::register_subcommand "version" "commit" "Commit project changes" "kicad::git::commit"
+cli::register_subcommand "version" "log" "Show commit history" "kicad::git::log"
+cli::register_subcommand "version" "backup" "Create backup branch" "kicad::git::backup"
 
 # Version help function
 kicad::version::help() {
@@ -85,8 +85,8 @@ kicad::version::help() {
     echo "  backup <project>   - Create backup branch"
 }
 
-# Add cloud backup commands
-cli::register_command "backup" "Cloud backup management for KiCad projects" "kicad::backup::help"
+# Add cloud backup commands as a command group
+cli::register_command_group "backup" "Cloud backup management for KiCad projects"
 cli::register_subcommand "backup" "cloud" "Backup project to cloud" "kicad::backup::cloud"
 cli::register_subcommand "backup" "list" "List available backups" "kicad::backup::list"
 cli::register_subcommand "backup" "restore" "Restore from backup" "kicad::backup::restore"
@@ -101,8 +101,8 @@ kicad::backup::help() {
     echo "  schedule <project> - Schedule automatic backups"
 }
 
-# Add SPICE simulation commands
-cli::register_command "simulation" "SPICE circuit simulation" "kicad::simulation::help"
+# Add SPICE simulation commands as a command group
+cli::register_command_group "simulation" "SPICE circuit simulation"
 cli::register_subcommand "simulation" "extract" "Extract SPICE netlist from schematic" "kicad::simulation::extract_netlist"
 cli::register_subcommand "simulation" "run" "Run SPICE simulation" "kicad::simulation::run"
 cli::register_subcommand "simulation" "interactive" "Interactive SPICE shell" "kicad::simulation::interactive"
@@ -119,8 +119,8 @@ kicad::simulation::help() {
     echo "  models                - Create SPICE models library"
 }
 
-# Add auto-routing commands
-cli::register_command "autoroute" "Automated PCB trace routing" "kicad::autoroute::help"
+# Add auto-routing commands as a command group
+cli::register_command_group "autoroute" "Automated PCB trace routing"
 cli::register_subcommand "autoroute" "export" "Export board for auto-routing" "kicad::autoroute::export_dsn"
 cli::register_subcommand "autoroute" "run" "Run auto-router" "kicad::autoroute::run"
 cli::register_subcommand "autoroute" "import" "Import routed board" "kicad::autoroute::import_ses"

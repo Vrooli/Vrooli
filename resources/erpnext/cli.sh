@@ -39,7 +39,7 @@ if [[ -f "${ERPNEXT_CLI_DIR}/lib/main.sh" ]]; then
 fi
 
 # Source ERPNext libraries
-for lib in config docker install status inject content test; do
+for lib in config docker install status inject content test workflow reporting; do
     lib_file="${ERPNEXT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -72,6 +72,21 @@ cli::register_subcommand "test" "performance" "Run performance tests on ERPNext"
 cli::register_command "status" "Show detailed resource status" "erpnext::status"
 cli::register_command "logs" "Show ERPNext logs" "erpnext::docker::logs"
 cli::register_command "credentials" "Show access credentials and instructions" "erpnext::show_credentials"
+
+# Workflow management commands
+cli::register_command_group "workflow" "Manage ERPNext workflows"
+cli::register_subcommand "workflow" "list" "List available workflows" "erpnext::workflow::cli::list"
+cli::register_subcommand "workflow" "get" "Get workflow details" "erpnext::workflow::cli::get"
+cli::register_subcommand "workflow" "create" "Create new workflow" "erpnext::workflow::cli::create"
+cli::register_subcommand "workflow" "transition" "Execute workflow transition" "erpnext::workflow::cli::transition"
+
+# Reporting commands
+cli::register_command_group "report" "Manage ERPNext reports"
+cli::register_subcommand "report" "list" "List available reports" "erpnext::report::cli::list"
+cli::register_subcommand "report" "get" "Get report details" "erpnext::report::cli::get"
+cli::register_subcommand "report" "execute" "Execute report with filters" "erpnext::report::cli::execute"
+cli::register_subcommand "report" "create" "Create new report" "erpnext::report::cli::create"
+cli::register_subcommand "report" "export" "Export report data" "erpnext::report::cli::export"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

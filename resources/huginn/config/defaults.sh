@@ -38,13 +38,13 @@ if [[ -z "${CONTAINER_NAME:-}" ]]; then
     readonly CONTAINER_NAME="huginn"
 fi
 if [[ -z "${DB_CONTAINER_NAME:-}" ]]; then
-    readonly DB_CONTAINER_NAME="huginn-postgres"
+    readonly DB_CONTAINER_NAME="huginn-mysql"
 fi
 if [[ -z "${VOLUME_NAME:-}" ]]; then
     readonly VOLUME_NAME="huginn-data"
 fi
 if [[ -z "${DB_VOLUME_NAME:-}" ]]; then
-    readonly DB_VOLUME_NAME="huginn-postgres-data"
+    readonly DB_VOLUME_NAME="huginn-mysql-data"
 fi
 if [[ -z "${NETWORK_NAME:-}" ]]; then
     readonly NETWORK_NAME="vrooli-network"
@@ -52,10 +52,10 @@ fi
 
 # Image configuration
 if [[ -z "${HUGINN_IMAGE:-}" ]]; then
-    readonly HUGINN_IMAGE="huginn/huginn:latest"
+    readonly HUGINN_IMAGE="ghcr.io/huginn/huginn-single-process:latest"
 fi
-if [[ -z "${POSTGRES_IMAGE:-}" ]]; then
-    readonly POSTGRES_IMAGE="postgres:15-alpine"
+if [[ -z "${MYSQL_IMAGE:-}" ]]; then
+    readonly MYSQL_IMAGE="mysql:5.7"
 fi
 
 # Data directories
@@ -63,7 +63,7 @@ if [[ -z "${HUGINN_DATA_DIR:-}" ]]; then
     readonly HUGINN_DATA_DIR="${HOME}/.huginn"
 fi
 if [[ -z "${HUGINN_DB_DIR:-}" ]]; then
-    readonly HUGINN_DB_DIR="${HUGINN_DATA_DIR}/postgres"
+    readonly HUGINN_DB_DIR="${HUGINN_DATA_DIR}/mysql"
 fi
 if [[ -z "${HUGINN_UPLOADS_DIR:-}" ]]; then
     readonly HUGINN_UPLOADS_DIR="${HUGINN_DATA_DIR}/uploads"
@@ -73,6 +73,9 @@ fi
 if [[ -z "${DEFAULT_DB_PASSWORD:-}" ]]; then
     # Use a consistent password, not timestamp-based
     readonly DEFAULT_DB_PASSWORD="huginn_secure_password_2025"
+fi
+if [[ -z "${DEFAULT_ROOT_PASSWORD:-}" ]]; then
+    readonly DEFAULT_ROOT_PASSWORD="root_secure_password_2025"
 fi
 if [[ -z "${DEFAULT_ADMIN_EMAIL:-}" ]]; then
     readonly DEFAULT_ADMIN_EMAIL="admin@huginn.local"
@@ -144,9 +147,9 @@ huginn::export_config() {
     export HUGINN_PORT HUGINN_BASE_URL
     export RESOURCE_NAME RESOURCE_CATEGORY RESOURCE_DESC RESOURCE_PORT
     export CONTAINER_NAME DB_CONTAINER_NAME VOLUME_NAME DB_VOLUME_NAME NETWORK_NAME
-    export HUGINN_IMAGE POSTGRES_IMAGE
+    export HUGINN_IMAGE MYSQL_IMAGE
     export HUGINN_DATA_DIR HUGINN_DB_DIR HUGINN_UPLOADS_DIR
-    export DEFAULT_DB_PASSWORD DEFAULT_ADMIN_EMAIL DEFAULT_ADMIN_USERNAME DEFAULT_ADMIN_PASSWORD
+    export DEFAULT_DB_PASSWORD DEFAULT_ROOT_PASSWORD DEFAULT_ADMIN_EMAIL DEFAULT_ADMIN_USERNAME DEFAULT_ADMIN_PASSWORD
     export HUGINN_HEALTH_CHECK_INTERVAL HUGINN_HEALTH_CHECK_MAX_ATTEMPTS HUGINN_HEALTH_CHECK_TIMEOUT
     export DOCKER_HEALTH_INTERVAL DOCKER_HEALTH_TIMEOUT DOCKER_HEALTH_RETRIES
     export HUGINN_API_TIMEOUT RAILS_RUNNER_TIMEOUT

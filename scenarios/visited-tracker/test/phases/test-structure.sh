@@ -18,14 +18,6 @@ required_files=(
     ".vrooli/service.json"
     "README.md"
     "PRD.md"
-    "api/main.go"
-    "api/go.mod"
-    "cli/visited-tracker"
-    "cli/install.sh"
-    "ui/index.html"
-    "ui/package.json"
-    "ui/server.js"
-    "scenario-test.yaml"
 )
 
 missing_files=()
@@ -138,18 +130,33 @@ else
     ((error_count++))
 fi
 
-# Check scenario-test.yaml structure
-echo "🔍 Validating scenario-test.yaml..."
-if [ -f "scenario-test.yaml" ]; then
-    if grep -q "version:" scenario-test.yaml && grep -q "scenario:" scenario-test.yaml; then
-        log::success "✅ scenario-test.yaml structure valid"
-    else
-        log::error "❌ scenario-test.yaml missing required fields"
-        ((error_count++))
-    fi
-else
-    log::error "❌ scenario-test.yaml missing"
+# Check modern test structure
+echo "🔍 Validating test infrastructure..."
+test_structure_valid=true
+
+if [ ! -f "test/run-tests.sh" ]; then
+    log::error "❌ Modern test orchestrator missing: test/run-tests.sh"
     ((error_count++))
+    test_structure_valid=false
+fi
+
+if [ ! -x "test/run-tests.sh" ] && [ -f "test/run-tests.sh" ]; then
+    log::error "❌ Test orchestrator not executable: test/run-tests.sh"
+    ((error_count++))
+    test_structure_valid=false
+fi
+
+required_phases=("test-structure.sh" "test-dependencies.sh" "test-unit.sh")
+for phase in "${required_phases[@]}"; do
+    if [ ! -f "test/phases/$phase" ]; then
+        log::error "❌ Missing test phase: test/phases/$phase"
+        ((error_count++))
+        test_structure_valid=false
+    fi
+done
+
+if [ "$test_structure_valid" = "true" ]; then
+    log::success "✅ Modern test infrastructure complete"
 fi
 
 # Check data directory structure

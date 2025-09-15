@@ -458,16 +458,9 @@ func scanResource(resourceName string, discoveredAgents map[string]*Agent) Resou
     
     if agentErr != nil {
         // Resource is running but doesn't support agent discovery yet
-        // Create mock agent data for demonstration
-        log.Printf("Resource %s doesn't support agent discovery, creating mock agent", resourceName)
-        mockAgent := createMockAgent(resourceName)
-        if mockAgent != nil {
-            fullID := fmt.Sprintf("%s:mock-agent", resourceName)
-            discoveredAgents[fullID] = mockAgent
-            result.Success = true
-            result.AgentsFound = 1
-            log.Printf("Resource %s: created 1 mock agent", resourceName)
-        }
+        log.Printf("Resource %s doesn't support agent discovery (no 'agents list' command)", resourceName)
+        result.Success = true
+        result.AgentsFound = 0
         return result
     }
     
@@ -559,47 +552,12 @@ func getDefaultMetrics() map[string]interface{} {
 }
 
 func generateRadarPosition() *RadarPosition {
-    // Generate random position within radar circle (will be animated later)
+    // Generate random position within radar circle for visualization
     return &RadarPosition{
         X:       50 + (float64(time.Now().UnixNano()%80) - 40), // Random -40 to +40 from center
         Y:       50 + (float64(time.Now().UnixNano()%80) - 40),
         TargetX: 50 + (float64(time.Now().UnixNano()%60) - 30), // Random target position
         TargetY: 50 + (float64(time.Now().UnixNano()%60) - 30),
-    }
-}
-
-// createMockAgent creates a mock agent for resources that are running but don't support agent discovery yet
-func createMockAgent(resourceName string) *Agent {
-    now := time.Now()
-    startTime := now.Add(-time.Duration(time.Now().UnixNano()%3600) * time.Second) // Random start time within last hour
-    
-    mockAgent := &Agent{
-        ID:           fmt.Sprintf("%s:mock-agent", resourceName),
-        Name:         fmt.Sprintf("%s Service", strings.Title(resourceName)),
-        Type:         resourceName,
-        Status:       "active",
-        PID:          int(1000 + time.Now().UnixNano()%8999), // Random PID between 1000-9999
-        StartTime:    startTime,
-        LastSeen:     now,
-        Uptime:       time.Since(startTime).Truncate(time.Second).String(),
-        Command:      fmt.Sprintf("%s-server --port=${PORT}", resourceName),
-        Capabilities: getResourceCapabilities(resourceName),
-        Metrics:      getMockMetrics(),
-        RadarPosition: generateRadarPosition(),
-    }
-    
-    return mockAgent
-}
-
-// getMockMetrics generates realistic mock metrics for demonstration
-func getMockMetrics() map[string]interface{} {
-    return map[string]interface{}{
-        "memory_mb":    50 + time.Now().UnixNano()%200,  // Random 50-250 MB
-        "cpu_percent":  float64(time.Now().UnixNano()%30), // Random 0-30% CPU
-        "custom_fields": map[string]interface{}{
-            "health_status": "healthy",
-            "last_activity": time.Now().Format(time.RFC3339),
-        },
     }
 }
 

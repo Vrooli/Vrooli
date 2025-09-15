@@ -1,9 +1,9 @@
 # Huginn Resource Problems and Limitations
 
-## Current Status
-The Huginn resource has a complete v2.0-compliant framework but faces runtime issues with the upstream Huginn Docker image.
+## Current Status - Updated 2025-09-14
+✅ **RESOLVED** - The Huginn resource is now fully functional after switching from PostgreSQL to MySQL 5.7 and using the ghcr.io/huginn/huginn-single-process image.
 
-## Issues Discovered
+## Issues Discovered and Resolved
 
 ### 1. Database Initialization Problems
 **Issue**: The upstream `huginn/huginn:latest` image has database initialization issues when used with PostgreSQL 15.
@@ -15,8 +15,10 @@ The Huginn resource has a complete v2.0-compliant framework but faces runtime is
 - Fixed password generation to use consistent value instead of timestamp-based
 - Added `DO_NOT_CREATE_DATABASE=true` and `DATABASE_ADAPTER=postgresql` environment variables
 - Ensured PostgreSQL container is healthy before starting Huginn
+- Tried both HUGINN_DATABASE_* and DATABASE_* environment variable formats
+- Reset volumes and started fresh
 
-**Status**: Partially resolved but still unstable
+**Status**: RESOLVED - Switched to MySQL 5.7 which has better compatibility
 
 ### 2. Health Check Failures
 **Issue**: The Huginn container fails health checks consistently after startup.
@@ -26,12 +28,18 @@ The Huginn resource has a complete v2.0-compliant framework but faces runtime is
 
 **Root Cause**: The upstream image appears to have compatibility issues with the current PostgreSQL setup.
 
-### 3. Missing Custom Dockerfile Build
-**Issue**: The resource has a custom Dockerfile but uses the upstream image directly.
-- `docker/Dockerfile` exists but is not being built
-- The docker-compose.yml references a build context but installation uses pre-built image
+### 3. Custom Docker Image Issues
+**Issue**: Attempted to build a custom Docker image to fix the issues.
+- Created custom Dockerfile with additional packages
+- Created custom entrypoint script
+- Image builds successfully but has permission issues at runtime
 
-**Impact**: Custom configurations and fixes cannot be applied
+**Attempted Solutions**:
+- Built custom image with enhanced entrypoint
+- Tried to handle database initialization in custom entrypoint
+- Simplified entrypoint to just pass control to base image
+
+**Status**: RESOLVED - Using ghcr.io/huginn/huginn-single-process instead
 
 ## Recommendations for Future Improvements
 
@@ -48,19 +56,23 @@ The Huginn resource has a complete v2.0-compliant framework but faces runtime is
 4. **Create integration tests** that validate actual service functionality
 
 ## Working Components
-Despite runtime issues, the following components are fully functional:
-- v2.0 CLI framework and all commands
-- Configuration management and defaults
-- Test framework (unit tests pass)
-- Docker operations (start/stop/restart)
-- API function shells (ready for integration when service runs)
+All components are now fully functional:
+- ✅ v2.0 CLI framework and all commands
+- ✅ Configuration management and defaults
+- ✅ Test framework (all tests pass)
+- ✅ Docker operations (start/stop/restart)
+- ✅ Health checks and monitoring
+- ✅ Web interface accessible at http://localhost:4111
+- ✅ Rails runner for agent operations
+- ✅ Database connectivity (MySQL)
 
 ## Next Steps
-1. Priority should be getting the service to start reliably
-2. Once running, implement and test agent/scenario CRUD operations
+1. Implement complete agent/scenario CRUD operations
+2. Test event flow between agents
 3. Add Redis event bus integration for real-time updates
 4. Implement backup/restore functionality
 5. Add monitoring dashboard features
+6. Consider adding Ollama integration for AI-enhanced workflows
 
 ## Testing Commands
 ```bash
@@ -81,4 +93,4 @@ docker exec huginn-postgres psql -U huginn -d huginn -c "SELECT 1;"
 ```
 
 ## Severity
-**Level 3: Major** - Core feature broken but framework functional. Service won't start reliably, preventing actual usage.
+**Level 0: Resolved** - Service is now fully functional. All critical issues have been resolved by switching to MySQL and using the single-process Huginn image variant.

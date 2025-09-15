@@ -406,6 +406,72 @@ GEOF
     # Clean up test file
     rm -f "$test_gcode"
     
+    # Test 10: Job Queue Management
+    log::info "Test 10: Testing job queue management..."
+    
+    # Add test G-code file for queue testing
+    local queue_test_file="/tmp/queue_test.gcode"
+    echo "G0 X0 Y0 Z0" > "$queue_test_file"
+    cncjs::content add "$queue_test_file" &>/dev/null
+    
+    # Test adding jobs to queue
+    if cncjs::jobqueue add "queue_test.gcode" 3 "priority_job" &>/dev/null; then
+        log::success "✓ Job added to queue"
+    else
+        log::error "✗ Failed to add job to queue"
+        ((failed++))
+    fi
+    
+    # Test listing queue
+    local queue_output=$(cncjs::jobqueue list 2>&1 | cat)
+    if echo "$queue_output" | grep -q "priority_job"; then
+        log::success "✓ Job appears in queue listing"
+    else
+        log::error "✗ Job not found in queue"
+        ((failed++))
+    fi
+    
+    # Test queue status
+    if cncjs::jobqueue status "priority_job" &>/dev/null; then
+        log::success "✓ Job status query works"
+    else
+        log::error "✗ Failed to get job status"
+        ((failed++))
+    fi
+    
+    # Test starting queue processor
+    if cncjs::jobqueue start &>/dev/null; then
+        log::success "✓ Queue processor started"
+        sleep 8  # Wait for job to process
+        
+        # Check if job was processed
+        local status_output=$(cncjs::jobqueue list 2>&1 | cat)
+        if echo "$status_output" | grep -q "Completed: 1"; then
+            log::success "✓ Job was processed"
+        else
+            log::error "✗ Job was not processed"
+            ((failed++))
+        fi
+        
+        # Stop queue processor
+        cncjs::jobqueue stop &>/dev/null
+    else
+        log::error "✗ Failed to start queue processor"
+        ((failed++))
+    fi
+    
+    # Test clearing queue
+    if cncjs::jobqueue clear all &>/dev/null; then
+        log::success "✓ Queue cleared successfully"
+    else
+        log::error "✗ Failed to clear queue"
+        ((failed++))
+    fi
+    
+    # Clean up
+    rm -f "$queue_test_file"
+    cncjs::content remove "queue_test.gcode" &>/dev/null || true
+    
     if [[ $failed -eq 0 ]]; then
         log::success "All integration tests passed!"
         return 0

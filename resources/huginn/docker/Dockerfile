@@ -1,4 +1,4 @@
-FROM ghcr.io/huginn/huginn:latest
+FROM ghcr.io/huginn/huginn-single-process:latest
 
 USER root
 
@@ -11,23 +11,19 @@ RUN apt-get update && apt-get install -y \
     git \
     docker.io \
     netcat-openbsd \
-    postgresql-client \
+    mysql-client \
     redis-tools \
     vim \
     less \
     htop \
     && rm -rf /var/lib/apt/lists/*
 
-# Create directories for host access and custom configurations
-RUN mkdir -p /host/bin /host/usr/bin /workspace /app/uploads
+# Create directories for custom configurations
+RUN mkdir -p /workspace /app/uploads
 
-# Install additional Ruby gems for enhanced functionality
-USER huginn
-RUN bundle add rest-client json colorize --skip-install && \
-    bundle install
+# Skip gem additions for now - the base image has requirements
 
 # Copy custom entrypoint
-USER root
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 

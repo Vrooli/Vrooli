@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status inject content social-providers ldap-federation multi-realm backup monitor; do
+for lib in common install lifecycle status inject content social-providers ldap-federation multi-realm backup monitor theme tls mfa password-policy; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -176,6 +176,90 @@ cli::register_subcommand "monitor" "metrics" "Show performance metrics" "monitor
 cli::register_subcommand "monitor" "performance" "Analyze performance" "monitor::performance"
 cli::register_subcommand "monitor" "realms" "Show realm statistics" "monitor::realms"
 cli::register_subcommand "monitor" "dashboard" "Full monitoring dashboard" "monitor::dashboard"
+
+# Register theme command group for theme customization
+CLI_COMMAND_GROUPS["theme"]="true"
+CLI_GROUP_DESCRIPTIONS["theme"]="🎨 Theme customization and branding"
+
+# Theme management commands
+CLI_COMMAND_HANDLERS["theme::create"]="theme::create"
+CLI_COMMAND_HANDLERS["theme::list"]="theme::list"
+CLI_COMMAND_HANDLERS["theme::deploy"]="theme::deploy"
+CLI_COMMAND_HANDLERS["theme::apply"]="theme::apply"
+CLI_COMMAND_HANDLERS["theme::remove"]="theme::remove"
+CLI_COMMAND_HANDLERS["theme::customize"]="theme::customize"
+CLI_COMMAND_HANDLERS["theme::export"]="theme::export"
+CLI_COMMAND_HANDLERS["theme::import"]="theme::import"
+
+cli::register_subcommand "theme" "create" "Create a new theme" "theme::create"
+cli::register_subcommand "theme" "list" "List available themes" "theme::list"
+cli::register_subcommand "theme" "deploy" "Deploy theme to container" "theme::deploy"
+cli::register_subcommand "theme" "apply" "Apply theme to a realm" "theme::apply"
+cli::register_subcommand "theme" "remove" "Remove a theme" "theme::remove"
+cli::register_subcommand "theme" "customize" "Customize theme properties" "theme::customize"
+cli::register_subcommand "theme" "export" "Export theme as archive" "theme::export"
+cli::register_subcommand "theme" "import" "Import theme from archive" "theme::import"
+
+# Register TLS command group for HTTPS/certificate management
+CLI_COMMAND_GROUPS["tls"]="true"
+CLI_GROUP_DESCRIPTIONS["tls"]="🔒 TLS/HTTPS certificate management"
+
+# TLS management commands
+CLI_COMMAND_HANDLERS["tls::generate"]="keycloak::tls::generate_self_signed"
+CLI_COMMAND_HANDLERS["tls::import"]="keycloak::tls::import_certificate"
+CLI_COMMAND_HANDLERS["tls::enable"]="keycloak::tls::enable_https"
+CLI_COMMAND_HANDLERS["tls::disable"]="keycloak::tls::disable_https"
+CLI_COMMAND_HANDLERS["tls::check"]="keycloak::tls::check_expiry"
+CLI_COMMAND_HANDLERS["tls::show"]="keycloak::tls::show_certificate"
+CLI_COMMAND_HANDLERS["tls::renew"]="keycloak::tls::renew_certificate"
+
+cli::register_subcommand "tls" "generate" "Generate self-signed certificate" "keycloak::tls::generate_self_signed"
+cli::register_subcommand "tls" "import" "Import existing certificate" "keycloak::tls::import_certificate"
+cli::register_subcommand "tls" "enable" "Enable HTTPS for Keycloak" "keycloak::tls::enable_https"
+cli::register_subcommand "tls" "disable" "Disable HTTPS (HTTP only)" "keycloak::tls::disable_https"
+cli::register_subcommand "tls" "check" "Check certificate expiry" "keycloak::tls::check_expiry"
+cli::register_subcommand "tls" "show" "Show certificate details" "keycloak::tls::show_certificate"
+cli::register_subcommand "tls" "renew" "Renew certificate" "keycloak::tls::renew_certificate"
+
+# Register MFA command group for multi-factor authentication
+CLI_COMMAND_GROUPS["mfa"]="true"
+CLI_GROUP_DESCRIPTIONS["mfa"]="🔐 Multi-factor authentication management"
+
+# MFA management commands
+CLI_COMMAND_HANDLERS["mfa::enable"]="keycloak::mfa::enable"
+CLI_COMMAND_HANDLERS["mfa::disable"]="keycloak::mfa::disable"
+CLI_COMMAND_HANDLERS["mfa::configure"]="keycloak::mfa::configure_policy"
+CLI_COMMAND_HANDLERS["mfa::enable-user"]="keycloak::mfa::enable_for_user"
+CLI_COMMAND_HANDLERS["mfa::status"]="keycloak::mfa::status"
+CLI_COMMAND_HANDLERS["mfa::list-users"]="keycloak::mfa::list_users"
+CLI_COMMAND_HANDLERS["mfa::backup-codes"]="keycloak::mfa::generate_backup_codes"
+
+cli::register_subcommand "mfa" "enable" "Enable MFA for realm" "keycloak::mfa::enable"
+cli::register_subcommand "mfa" "disable" "Disable MFA for realm" "keycloak::mfa::disable"
+cli::register_subcommand "mfa" "configure" "Configure MFA policy" "keycloak::mfa::configure_policy"
+cli::register_subcommand "mfa" "enable-user" "Enable MFA for specific user" "keycloak::mfa::enable_for_user"
+cli::register_subcommand "mfa" "status" "Show MFA status" "keycloak::mfa::status"
+cli::register_subcommand "mfa" "list-users" "List users with MFA status" "keycloak::mfa::list_users"
+cli::register_subcommand "mfa" "backup-codes" "Generate backup codes" "keycloak::mfa::generate_backup_codes"
+
+# Register password-policy command group
+CLI_COMMAND_GROUPS["password-policy"]="true"
+CLI_GROUP_DESCRIPTIONS["password-policy"]="🔑 Password policy management"
+
+# Password policy commands
+CLI_COMMAND_HANDLERS["password-policy::set"]="keycloak::password_policy::set"
+CLI_COMMAND_HANDLERS["password-policy::get"]="keycloak::password_policy::get"
+CLI_COMMAND_HANDLERS["password-policy::clear"]="keycloak::password_policy::clear"
+CLI_COMMAND_HANDLERS["password-policy::preset"]="keycloak::password_policy::apply_preset"
+CLI_COMMAND_HANDLERS["password-policy::validate"]="keycloak::password_policy::validate"
+CLI_COMMAND_HANDLERS["password-policy::force-reset"]="keycloak::password_policy::force_reset"
+
+cli::register_subcommand "password-policy" "set" "Set password policy" "keycloak::password_policy::set"
+cli::register_subcommand "password-policy" "get" "Show current policy" "keycloak::password_policy::get"
+cli::register_subcommand "password-policy" "clear" "Clear password policy" "keycloak::password_policy::clear"
+cli::register_subcommand "password-policy" "preset" "Apply preset policy (basic/moderate/strong/paranoid)" "keycloak::password_policy::apply_preset"
+cli::register_subcommand "password-policy" "validate" "Validate password against policy" "keycloak::password_policy::validate"
+cli::register_subcommand "password-policy" "force-reset" "Force password reset for users" "keycloak::password_policy::force_reset"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "keycloak::status"

@@ -21,17 +21,31 @@ erpnext::api::login() {
     local password="${2:-${ERPNEXT_ADMIN_PASSWORD:-admin}}"
     local site_name="${ERPNEXT_SITE_NAME:-vrooli.local}"
     
+    # Use cookie jar to capture session
+    local cookie_file="/tmp/erpnext_cookies_$$"
+    
     local response
-    response=$(curl -sf -X POST \
+    response=$(timeout 5 curl -sf -c "$cookie_file" -X POST \
         -H "Host: ${site_name}" \
         -H "Content-Type: application/json" \
         -d "{\"usr\":\"${username}\",\"pwd\":\"${password}\"}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/login" 2>/dev/null)
     
     if [[ $? -eq 0 ]]; then
-        # Extract session cookie from response
-        echo "$response" | grep -o '"sid":"[^"]*' | cut -d'"' -f4
+        # Extract session ID from cookie file (last field on sid line)
+        local sid=$(grep -E "sid\s+" "$cookie_file" 2>/dev/null | awk '{print $NF}')
+        
+        # Clean up cookie file
+        rm -f "$cookie_file"
+        
+        if [[ -n "$sid" ]]; then
+            echo "$sid"
+        else
+            return 1
+        fi
     else
+        # Clean up cookie file on failure
+        rm -f "$cookie_file"
         return 1
     fi
 }
@@ -45,7 +59,7 @@ erpnext::api::logout() {
         return 1
     fi
     
-    curl -sf -X POST \
+    timeout 5 curl -sf -X POST \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/logout" &>/dev/null
@@ -65,7 +79,7 @@ erpnext::api::get() {
         auth_header="-H \"Cookie: sid=${session_id}\""
     fi
     
-    eval curl -sf \
+    eval timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         $auth_header \
         "http://localhost:${ERPNEXT_PORT}${endpoint}"
@@ -82,7 +96,7 @@ erpnext::api::post() {
         auth_header="-H \"Cookie: sid=${session_id}\""
     fi
     
-    eval curl -sf -X POST \
+    eval timeout 5 curl -sf -X POST \
         -H "Host: ${site_name}" \
         -H "Content-Type: application/json" \
         $auth_header \
@@ -103,7 +117,7 @@ erpnext::api::list_doctypes() {
         return 1
     fi
     
-    curl -sf \
+    timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/frappe.desk.desktop.get_desktop_page" 2>/dev/null
@@ -125,7 +139,7 @@ erpnext::api::get_doctype() {
         endpoint="${endpoint}/${name}"
     fi
     
-    curl -sf \
+    timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}${endpoint}"
@@ -142,7 +156,7 @@ erpnext::api::create_doctype() {
         return 1
     fi
     
-    curl -sf -X POST \
+    timeout 5 curl -sf -X POST \
         -H "Host: ${site_name}" \
         -H "Content-Type: application/json" \
         -H "Cookie: sid=${session_id}" \
@@ -163,7 +177,7 @@ erpnext::api::get_modules() {
         return 1
     fi
     
-    curl -sf \
+    timeout 5 curl -sf \
         -H "Host: ${site_name}" \
         -H "Cookie: sid=${session_id}" \
         "http://localhost:${ERPNEXT_PORT}/api/method/frappe.desk.moduleview.get_modules" 2>/dev/null

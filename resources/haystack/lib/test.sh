@@ -42,12 +42,10 @@ haystack::test_smoke() {
 
 # Run integration tests
 haystack::test_integration() {
-    log::info "Running Haystack integration tests..."
-    
     if [[ -f "${HAYSTACK_TEST_DIR}/phases/test-integration.sh" ]]; then
         bash "${HAYSTACK_TEST_DIR}/phases/test-integration.sh"
     else
-        log::warning "Integration tests not yet implemented"
+        log::info "Integration tests not implemented for haystack"
         return 0
     fi
 }

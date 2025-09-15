@@ -8,6 +8,9 @@ CNCjs provides a modern web interface for controlling CNC machines, featuring:
 - **3D G-code visualization**: Interactive WebGL previews with path analysis
 - **Macro automation**: Define and execute repetitive task sequences
 - **Workflow management**: Chain multiple G-code files for production runs
+- **Job queue management**: Automated scheduling with priority-based execution
+- **Camera integration**: Real-time monitoring with snapshot and timelapse
+- **Custom widgets**: Extensible UI with gauges, buttons, charts, and terminals
 - **Multi-controller support**: Grbl, Marlin, Smoothieware, and TinyG
 - **Remote access**: Control machines from anywhere via web interface
 - **Serial communication**: USB, Bluetooth, and network connections
@@ -189,6 +192,31 @@ vrooli resource cncjs widget uninstall spindle-speed
 
 # Remove widget definition
 vrooli resource cncjs widget remove spindle-speed
+```
+
+### Job Queue Management
+
+```bash
+# List job queue status
+vrooli resource cncjs jobqueue list
+
+# Add G-code file to queue with priority (1-10, 1=highest)
+vrooli resource cncjs jobqueue add file.gcode 3 job_name
+
+# Check specific job status
+vrooli resource cncjs jobqueue status job_name
+
+# Start job queue processor
+vrooli resource cncjs jobqueue start
+
+# Stop job queue processor
+vrooli resource cncjs jobqueue stop
+
+# Clear queues (pending/completed/failed/all)
+vrooli resource cncjs jobqueue clear all
+
+# Remove specific job from queue
+vrooli resource cncjs jobqueue remove job_name
 ```
 
 ### Configuration

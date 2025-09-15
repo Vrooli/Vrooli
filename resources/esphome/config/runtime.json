@@ -26,7 +26,7 @@
     "retries": 3
   },
   "ports": {
-    "dashboard": 6587
+    "dashboard": "from_registry"
   },
   "environment": {
     "ESPHOME_DASHBOARD": "true",

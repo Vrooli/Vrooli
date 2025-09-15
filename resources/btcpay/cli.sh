@@ -31,7 +31,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${BTCPAY_CLI_DIR}/config/defaults.sh"
 
 # Source BTCPay libraries
-for lib in common core docker install status content test inject; do
+for lib in common core docker install status content test inject lightning; do
     lib_file="${BTCPAY_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -78,6 +78,30 @@ cli::register_subcommand "content" "generate-address" "Generate crypto address" 
 
 # Custom test phase for performance testing
 cli::register_subcommand "test" "performance" "Test API performance" "btcpay::test::performance"
+
+# ==============================================================================
+# LIGHTNING NETWORK COMMANDS
+# ==============================================================================
+# Register Lightning command group
+cli::register_command_group "lightning" "Lightning Network management"
+
+# Register Lightning subcommands
+cli::register_subcommand "lightning" "setup" "Set up Lightning Network support" "btcpay::lightning::setup"
+cli::register_subcommand "lightning" "status" "Show Lightning Network status" "btcpay::lightning::status"
+cli::register_subcommand "lightning" "create-invoice" "Create Lightning invoice" "btcpay::lightning::create_invoice"
+cli::register_subcommand "lightning" "check-invoice" "Check Lightning invoice status" "btcpay::lightning::check_invoice"
+cli::register_subcommand "lightning" "balance" "Show Lightning wallet balance" "btcpay::lightning::balance"
+cli::register_subcommand "lightning" "channels" "List Lightning channels" "btcpay::lightning::list_channels"
+cli::register_subcommand "lightning" "open-channel" "Open a Lightning channel" "btcpay::lightning::open_channel"
+
+# Register Lightning command handlers for v2.0 framework
+CLI_COMMAND_HANDLERS["lightning::setup"]="btcpay::lightning::setup"
+CLI_COMMAND_HANDLERS["lightning::status"]="btcpay::lightning::status"
+CLI_COMMAND_HANDLERS["lightning::create-invoice"]="btcpay::lightning::create_invoice"
+CLI_COMMAND_HANDLERS["lightning::check-invoice"]="btcpay::lightning::check_invoice"
+CLI_COMMAND_HANDLERS["lightning::balance"]="btcpay::lightning::balance"
+CLI_COMMAND_HANDLERS["lightning::channels"]="btcpay::lightning::list_channels"
+CLI_COMMAND_HANDLERS["lightning::open-channel"]="btcpay::lightning::open_channel"
 
 # Only execute if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

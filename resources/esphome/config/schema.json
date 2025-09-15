@@ -10,10 +10,9 @@
     },
     "port": {
       "type": "integer",
-      "description": "Dashboard web interface port",
+      "description": "Dashboard web interface port (from port registry)",
       "minimum": 1024,
-      "maximum": 65535,
-      "default": 6587
+      "maximum": 65535
     },
     "dashboard_enabled": {
       "type": "boolean",

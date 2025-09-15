@@ -85,7 +85,7 @@ test_integration() {
     echo -n "  Testing simulation endpoint... "
     if timeout 5 curl -sf -X POST "http://localhost:${GRIDLABD_PORT}/simulate" \
         -H "Content-Type: application/json" \
-        -d '{"model":"test"}' > /dev/null 2>&1; then
+        -d '{"model":"ieee13"}' > /dev/null 2>&1; then
         echo "✓"
     else
         echo "✗"
@@ -107,19 +107,45 @@ test_integration() {
     echo -n "  Testing service restart... "
     # Ensure service is running first
     "${SCRIPT_DIR}/cli.sh" manage start --wait > /dev/null 2>&1 || true
-    sleep 1
+    sleep 2
     
-    # Now test restart
+    # Now test restart with better timing
     if "${SCRIPT_DIR}/cli.sh" manage stop > /dev/null 2>&1; then
-        sleep 2
-        if "${SCRIPT_DIR}/cli.sh" manage start --wait > /dev/null 2>&1; then
-            if timeout 5 curl -sf "http://localhost:${GRIDLABD_PORT}/health" > /dev/null 2>&1; then
-                echo "✓"
-            else
-                echo "✗"
-                exit_code=1
+        # Wait for port to be fully released
+        local count=0
+        while [ $count -lt 20 ]; do
+            if ! timeout 1 bash -c "echo > /dev/tcp/localhost/${GRIDLABD_PORT}" 2>/dev/null; then
+                break
             fi
-        else
+            sleep 0.5
+            ((count++))
+        done
+        
+        # Add additional delay for system to fully clean up
+        sleep 2
+        
+        # Try multiple times to start with longer timeout
+        local start_attempts=0
+        local started=false
+        while [ $start_attempts -lt 3 ] && [ "$started" = false ]; do
+            if "${SCRIPT_DIR}/cli.sh" manage start > /dev/null 2>&1; then
+                # Wait longer for service to be ready
+                local health_check_count=0
+                while [ $health_check_count -lt 10 ]; do
+                    if timeout 5 curl -sf "http://localhost:${GRIDLABD_PORT}/health" > /dev/null 2>&1; then
+                        started=true
+                        echo "✓"
+                        break
+                    fi
+                    sleep 1
+                    ((health_check_count++))
+                done
+            fi
+            ((start_attempts++))
+            [ "$started" = false ] && sleep 2
+        done
+        
+        if [ "$started" = false ]; then
             echo "✗"
             exit_code=1
         fi

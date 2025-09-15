@@ -102,16 +102,35 @@ install_gridlabd_binary() {
     
     if [[ "$os_type" == "linux" ]] && [[ "$arch" == "x86_64" ]]; then
         # Try to download pre-built binary
+        echo "Downloading GridLAB-D binary release..."
         wget -q -O /tmp/gridlabd.tar.gz \
-            "https://github.com/gridlab-d/gridlab-d/releases/download/v5.3/gridlabd-5.3-linux-x64.tar.gz" \
+            "https://github.com/gridlab-d/gridlab-d/releases/download/v5.3.0/GridLAB-D-5.3.0-Linux.tar.gz" \
             2>/dev/null || {
                 echo "No pre-built binary available. Using mock installation..."
                 install_mock_gridlabd
                 return
             }
         
-        tar -xzf /tmp/gridlabd.tar.gz -C "${HOME}/.local" --strip-components=1
-        rm /tmp/gridlabd.tar.gz
+        echo "Extracting GridLAB-D..."
+        tar -xzf /tmp/gridlabd.tar.gz -C /tmp/
+        
+        # Find and copy the binary to the correct location
+        if [ -d /tmp/GridLAB-D-5.3.0-Linux ]; then
+            mkdir -p "${HOME}/.local"
+            # Copy all files maintaining structure
+            cp -r /tmp/GridLAB-D-5.3.0-Linux/* "${HOME}/.local/" 2>/dev/null || true
+            # Make the binary executable
+            chmod +x "${HOME}/.local/bin/gridlabd" 2>/dev/null || true
+            chmod +x "${HOME}/.local/bin/gridlabd.sh" 2>/dev/null || true
+            echo "GridLAB-D binary installed successfully"
+        else
+            echo "Could not find GridLAB-D files in archive. Using mock installation..."
+            install_mock_gridlabd
+            rm -rf /tmp/gridlabd* /tmp/GridLAB*
+            return
+        fi
+        
+        rm -rf /tmp/gridlabd* /tmp/GridLAB*
     else
         install_mock_gridlabd
     fi

@@ -304,6 +304,12 @@ func loadAllCampaigns() ([]Campaign, error) {
 	
 	var campaigns []Campaign
 	
+	// Check if the directory exists first
+	if _, err := os.Stat(dataPath); os.IsNotExist(err) {
+		// Directory doesn't exist, return empty slice without error
+		return campaigns, nil
+	}
+	
 	err := filepath.WalkDir(dataPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -754,24 +760,27 @@ func deleteCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Check if campaign exists
+	// Check if campaign exists (for logging purposes)
 	campaign, err := loadCampaign(campaignID)
-	if err != nil {
-		if err.Error() == "campaign not found" {
-			http.Error(w, `{"error": "Campaign not found"}`, http.StatusNotFound)
+	var campaignName string
+	if err == nil {
+		campaignName = campaign.Name
+	}
+	
+	// Delete the campaign file (idempotent operation)
+	if err := deleteCampaignFile(campaignID); err != nil {
+		// Only return error if it's not a "file not found" error
+		if !os.IsNotExist(err) {
+			http.Error(w, fmt.Sprintf(`{"error": "Failed to delete campaign: %v"}`, err), http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to load campaign: %v"}`, err), http.StatusInternalServerError)
-		return
 	}
 	
-	// Delete the campaign file
-	if err := deleteCampaignFile(campaignID); err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Failed to delete campaign: %v"}`, err), http.StatusInternalServerError)
-		return
+	if campaignName != "" {
+		logger.Printf("🗑️ Deleted campaign: %s (ID: %s)", campaignName, campaignID)
+	} else {
+		logger.Printf("🗑️ Attempted to delete non-existent campaign (ID: %s) - idempotent operation", campaignID)
 	}
-	
-	logger.Printf("🗑️ Deleted campaign: %s (ID: %s)", campaign.Name, campaign.ID)
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1288,6 +1297,31 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 	
 	// Update staleness scores
 	updateStalenessScores(campaign)
+	
+	// Check for patterns filter
+	patternsParam := r.URL.Query().Get("patterns")
+	if patternsParam != "" {
+		patterns := strings.Split(patternsParam, ",")
+		filteredFiles := []TrackedFile{}
+		
+		for _, file := range campaign.TrackedFiles {
+			for _, pattern := range patterns {
+				pattern = strings.TrimSpace(pattern)
+				if matched, _ := filepath.Match(pattern, filepath.Base(file.FilePath)); matched {
+					filteredFiles = append(filteredFiles, file)
+					break
+				}
+			}
+		}
+		
+		// Create a copy of the campaign with filtered files
+		exportCampaign := *campaign
+		exportCampaign.TrackedFiles = filteredFiles
+		
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&exportCampaign)
+		return
+	}
 	
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(campaign)

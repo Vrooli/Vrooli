@@ -20,7 +20,9 @@ KEYCLOAK_PORT=$(source "${APP_ROOT}/scripts/resources/port_registry.sh" && port_
 
 # Backup directory configuration
 BACKUP_DIR="${RESOURCE_DIR}/backups"
-BACKUP_RETENTION_DAYS=7
+BACKUP_RETENTION_DAYS=${KEYCLOAK_BACKUP_RETENTION_DAYS:-7}
+BACKUP_MAX_COUNT=${KEYCLOAK_BACKUP_MAX_COUNT:-30}
+BACKUP_MIN_COUNT=${KEYCLOAK_BACKUP_MIN_COUNT:-5}
 
 ################################################################################
 # Backup Functions
@@ -222,25 +224,69 @@ backup::restore() {
 
 backup::cleanup() {
     local retention_days="${1:-$BACKUP_RETENTION_DAYS}"
+    local max_count="${2:-$BACKUP_MAX_COUNT}"
+    local min_count="${3:-$BACKUP_MIN_COUNT}"
     
-    log::info "Cleaning up backups older than $retention_days days"
+    log::info "Applying backup rotation policy:"
+    log::info "  - Retention: $retention_days days"
+    log::info "  - Max backups: $max_count"
+    log::info "  - Min backups: $min_count"
     
-    if [[ -d "$BACKUP_DIR" ]]; then
-        local count=0
-        while IFS= read -r backup; do
-            if [[ -n "$backup" ]]; then
-                log::warning "Removing old backup: $(basename "$backup")"
-                rm -f "$backup"
-                ((count++))
-            fi
-        done < <(find "$BACKUP_DIR" -name "*.json.gz" -type f -mtime +$retention_days 2>/dev/null)
-        
-        if [[ $count -gt 0 ]]; then
-            log::success "Removed $count old backup(s)"
-        else
-            log::info "No old backups to remove"
-        fi
+    if [[ ! -d "$BACKUP_DIR" ]]; then
+        log::warning "Backup directory does not exist"
+        return 0
     fi
+    
+    # Count total backups
+    local total_backups=$(find "$BACKUP_DIR" -name "*.json.gz" -type f 2>/dev/null | wc -l)
+    log::info "Current backup count: $total_backups"
+    
+    # Apply retention policy (remove old backups)
+    local removed_by_age=0
+    while IFS= read -r backup; do
+        if [[ -n "$backup" ]]; then
+            # Only remove if we'll have min_count left
+            local remaining=$((total_backups - removed_by_age))
+            if [[ $remaining -gt $min_count ]]; then
+                log::warning "Removing old backup (age): $(basename "$backup")"
+                rm -f "$backup"
+                ((removed_by_age++))
+            else
+                log::info "Keeping backup to maintain minimum count: $(basename "$backup")"
+            fi
+        fi
+    done < <(find "$BACKUP_DIR" -name "*.json.gz" -type f -mtime +$retention_days 2>/dev/null | sort)
+    
+    # Apply max count policy (remove oldest if over limit)
+    local current_count=$((total_backups - removed_by_age))
+    local removed_by_count=0
+    
+    if [[ $current_count -gt $max_count ]]; then
+        local to_remove=$((current_count - max_count))
+        log::info "Removing $to_remove backup(s) to stay under max count"
+        
+        while IFS= read -r backup; do
+            if [[ $to_remove -gt 0 && -n "$backup" ]]; then
+                log::warning "Removing old backup (count): $(basename "$backup")"
+                rm -f "$backup"
+                ((removed_by_count++))
+                ((to_remove--))
+            fi
+        done < <(find "$BACKUP_DIR" -name "*.json.gz" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | cut -d' ' -f2)
+    fi
+    
+    local total_removed=$((removed_by_age + removed_by_count))
+    if [[ $total_removed -gt 0 ]]; then
+        log::success "Removed $total_removed backup(s) (age: $removed_by_age, count: $removed_by_count)"
+    else
+        log::info "No backups removed"
+    fi
+    
+    # Show final status
+    local final_count=$(find "$BACKUP_DIR" -name "*.json.gz" -type f 2>/dev/null | wc -l)
+    log::info "Final backup count: $final_count"
+    
+    return 0
 }
 
 backup::schedule() {

@@ -36,6 +36,12 @@ kicad::simulation::extract_netlist() {
         return 1
     fi
     
+    # Check if schematic file exists
+    if [[ ! -f "$schematic" ]]; then
+        log::error "Schematic file not found: $schematic"
+        return 1
+    fi
+    
     if [[ -z "$output" ]]; then
         output="${schematic%.kicad_sch}.net"
     fi

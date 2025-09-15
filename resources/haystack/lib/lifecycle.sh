@@ -13,6 +13,12 @@ source "${HAYSTACK_LIB_DIR}/install.sh"
 
 # Start Haystack
 haystack::start() {
+    # Handle --wait flag (it's the default behavior anyway)
+    local wait_flag=true
+    if [[ "${1:-}" == "--wait" ]]; then
+        wait_flag=true
+    fi
+    
     log::info "Starting Haystack"
     
     # Check if already running
@@ -56,7 +62,7 @@ haystack::start() {
     local max_attempts=30
     local attempt=0
     while [[ ${attempt} -lt ${max_attempts} ]]; do
-        if curl -sf "http://localhost:${port}/health" >/dev/null 2>&1; then
+        if timeout 5 curl -sf "http://localhost:${port}/health" &>/dev/null; then
             log::success "Haystack started successfully"
             return 0
         fi

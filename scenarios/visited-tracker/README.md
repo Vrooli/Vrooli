@@ -1,143 +1,153 @@
 # Visited Tracker
 
-Persistent file visit tracking with staleness detection that maintains state across Claude Code conversations, AI models, and agent iterations. Essential infrastructure for systematic code analysis with intelligent prioritization.
+Persistent file visit tracking with staleness detection for systematic code analysis
 
-## Core Value
+## 🎯 Purpose & Vision
 
-This scenario adds **persistent visit tracking and staleness detection** to Vrooli, enabling:
-- Comprehensive code coverage guarantees for security audits and bug hunts
-- Intelligent prioritization based on visit frequency and modification patterns  
-- Cross-model memory - any AI can see what others have analyzed
-- Prevention of "code rot" by surfacing frequently modified but rarely reviewed files
+A systematic file visit tracking tool that enables maintenance scenarios to efficiently analyze large codebases over multiple conversations without losing track of progress. Ensures no file is left behind during comprehensive code reviews, testing, and analysis workflows.
 
-## Features
+## 🏗️ Architecture
 
-✅ **Visit Tracking**: Count and timestamp every file visit with context
-✅ **Staleness Detection**: Calculate risk scores based on modifications vs visits
-✅ **Structure Sync**: Handle file additions, deletions, and moves automatically
-✅ **Smart Prioritization**: Surface least visited and most stale files
-✅ **Coverage Reports**: Track analysis progress with percentages and heatmaps
-✅ **Import/Export**: Share and backup visited maps across systems
+### Campaign Management
+Organizes file tracking into campaigns, each targeting specific directories and file patterns for focused analysis projects.
 
-## Quick Start
+### Visit Tracking System
+Records every file access with timestamps, building a comprehensive view of which files have been analyzed and how recently.
 
+### Staleness Detection
+Calculates staleness scores based on file modification time, visit frequency, and time since last visit to prioritize neglected files.
+
+## 🎨 UI Style
+
+**Clean Developer Tool** - A minimal, data-focused interface optimized for developer workflows
+- Light theme with blue accents for clear data visualization
+- Tabular views for file lists and visit statistics with sortable columns
+- Progress indicators showing campaign completion percentages
+- Minimalist design prioritizing information density over aesthetics
+- Responsive layout that works well in split-screen development setups
+
+## 🔧 Key Features
+
+### Campaign-Based Organization
+Create focused tracking campaigns for different analysis projects with custom file patterns and directory targets.
+
+### Intelligent Prioritization
+Get recommended files to visit next based on staleness scoring, ensuring systematic coverage of entire codebases.
+
+### Comprehensive Visit Tracking
+Record and visualize file visit patterns with detailed statistics on coverage and frequency.
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Go 1.19+ for API server
+- Node.js 16+ for web interface
+- Basic file system access for tracking
+
+### Installation
 ```bash
-# Run the scenario
-vrooli scenario run visited-tracker
+# Setup the scenario
+vrooli scenario setup visited-tracker
 
-# Record file visits
-visited-tracker visit "src/**/*.ts" --context security
-
-# Get least visited files
-visited-tracker least-visited --limit 10
-
-# Get most stale files (high risk)
-visited-tracker most-stale --threshold 5.0
-
-# Check coverage
-visited-tracker coverage --group-by directory
-
-# Sync file structure
-visited-tracker sync --patterns "**/*.js" --remove-deleted
+# Start the services
+vrooli scenario start visited-tracker
 ```
 
-## API Access
-
-- **Health**: http://localhost:20252/health
-- **Visit Recording**: http://localhost:20252/api/v1/visit
-- **Prioritization**: http://localhost:20252/api/v1/prioritize/*
-- **Dashboard**: http://localhost:3252
-
-## Staleness Formula
-
-```
-staleness_score = (modifications_since_last_visit × time_since_last_visit) / (visit_count + 1)
-```
-
-High staleness = frequently modified but rarely visited = **HIGH BUG RISK**
-
-## Architecture
-
-- **Go API**: High-performance REST API with staleness calculation
-- **CLI**: Comprehensive tool for all tracking operations
-- **UI**: Heatmap dashboard with coverage visualization
-- **Database**: PostgreSQL with optimized indexes for prioritization
-
-## Use Cases
-
-### Security Auditing
+### Basic Usage
 ```bash
-# Start security audit campaign
-visited-tracker sync --patterns "**/*.{js,ts,go}"
-visited-tracker least-visited --context security --limit 50
+# Create a new campaign
+visited-tracker create --name "api-analysis" --pattern "**/*.go" --from-agent "api-manager"
 
-# After reviewing files
-visited-tracker visit file1.js file2.ts --context security --agent "claude"
+# Get files to visit next (least visited first)
+visited-tracker least-visited --campaign "api-analysis" --limit 5
+
+# Record visits after analyzing files
+visited-tracker visit --campaign "api-analysis" --files "src/main.go,src/utils.go"
+
+# Check campaign progress
+visited-tracker status --campaign "api-analysis"
 ```
 
-### Bug Hunting
+## 🧪 Testing
+
+Run the comprehensive test suite:
 ```bash
-# Find high-risk files (stale + critical)
-visited-tracker most-stale --patterns "src/core/**" --limit 20
+# Full test suite
+vrooli scenario test visited-tracker
 
-# Track debugging progress
-visited-tracker visit src/auth/login.js --context bug --agent "gpt-4"
+# Quick validation
+vrooli scenario test visited-tracker quick
+
+# Specific test phases
+vrooli scenario test visited-tracker unit
+vrooli scenario test visited-tracker integration
 ```
 
-### Performance Analysis
+## 📡 API Reference
+
+### Base URL
+```
+http://localhost:17695
+```
+
+### Key Endpoints
+- `GET /health` - Health check
+- `POST /api/v1/campaigns` - Create new campaign
+- `GET /api/v1/campaigns` - List all campaigns
+- `GET /api/v1/campaigns/{id}` - Get campaign details
+- `POST /api/v1/campaigns/{id}/visit` - Record file visits
+- `GET /api/v1/campaigns/{id}/least-visited` - Get least visited files
+- `GET /api/v1/campaigns/{id}/most-stale` - Get most stale files
+
+## 🎨 Web Interface
+
+Access the web interface at: `http://localhost:37695`
+
+Provides a visual dashboard for managing campaigns, viewing file visit statistics, monitoring staleness metrics, and tracking analysis progress across multiple projects.
+
+## 🔗 Integration
+
+### CLI Integration
 ```bash
-# Identify unproﬁled hotspots
-visited-tracker least-visited --context performance --patterns "**/*service*.go"
+# Example: Get least visited files for systematic analysis
+visited-tracker least-visited --campaign my-analysis --limit 10
 
-# Check coverage
-visited-tracker coverage --context performance
+# Example: Record file visits after analysis
+visited-tracker visit --campaign my-analysis --files "src/*.go"
+
+# Example: Export campaign data for reporting
+visited-tracker export --campaign my-analysis --format json
 ```
 
-## Integration
+### Programmatic Usage
+Other scenarios can integrate with visited-tracker to manage systematic file analysis workflows:
+- **api-manager**: Track API files across all scenarios for periodic review
+- **test-genie**: Identify files that need test coverage attention
+- **security-auditor**: Ensure all files are regularly reviewed for vulnerabilities
 
-Other scenarios leverage visited-tracker via:
-- **REST API** for programmatic tracking
-- **CLI** for script integration
-- **Events** for real-time staleness alerts
+## 📊 Monitoring
 
-### Example Integration
-```javascript
-// Security scanner using visited-tracker
-const unvisited = await fetch('http://localhost:20252/api/v1/prioritize/least-visited', {
-  method: 'GET',
-  body: JSON.stringify({
-    context: 'security',
-    limit: 100
-  })
-});
+- **Health Check**: `GET /health`
+- **Metrics**: Available through the web interface with campaign progress and file statistics
+- **Logs**: `vrooli scenario logs visited-tracker`
 
-// Scan unvisited files first
-for (const file of unvisited.files) {
-  await scanFile(file.absolute_path);
-  await recordVisit(file.file_path, 'security');
-}
-```
+## 🔧 Configuration
 
-## Coverage Visualization
+Configuration is managed through `.vrooli/service.json`:
+- Port allocation: API (15000-19999), UI (35000-39999)
+- Resource dependencies: Local file system, optional PostgreSQL
+- Service lifecycle: Development and production modes
 
-The dashboard provides:
-- **Heatmap View**: Visual representation of visit frequency
-- **Staleness Alerts**: Red zones for high-risk files
-- **Coverage Badges**: Percentage tracked per directory
-- **Timeline**: Visit history and modification patterns
+## 🤝 Contributing
 
-## Why This Matters
+This scenario follows Vrooli's standard development patterns:
+- Go backend with comprehensive test coverage (79.4%)
+- Modern web interface with responsive design
+- CLI tools for automation and integration
+- Phased testing architecture for quality assurance
 
-Without visited-tracker:
-- Files get forgotten during reviews
-- Bugs hide in rarely-visited code
-- Multiple agents duplicate work
-- No way to prove comprehensive coverage
+## 📚 Documentation
 
-With visited-tracker:
-- **100% coverage guarantee** possible
-- **Risk-based prioritization** surfaces problems early
-- **Cross-agent coordination** prevents duplicate work
-- **Audit trail** proves compliance and thoroughness
-
-This becomes a **foundational capability** that every analysis scenario builds upon, creating Vrooli's persistent memory for code intelligence.
+- **API Documentation**: Available at `http://localhost:17695/docs`
+- **Testing Guide**: See `api/TESTING_GUIDE.md`
+- **Development Setup**: Follow the standard Vrooli development workflow

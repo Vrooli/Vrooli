@@ -92,6 +92,14 @@ COMMANDS:
         uninstall <name>    Remove widget from CNCjs
         export <name>       Export widget package
         import <file>       Import widget package
+    jobqueue                Automated job scheduling and execution
+        list                Show queue status and pending jobs
+        add <file> [prio]   Add G-code to queue (priority 1-10)
+        remove <job_id>     Remove job from queue
+        start               Start queue processor
+        stop                Stop queue processor
+        clear [state]       Clear queue (pending/completed/failed/all)
+        status [job_id]     Show job or queue status
     status                  Show detailed service status
     logs                    View CNCjs logs
     credentials             Display connection information
@@ -245,6 +253,11 @@ main() {
             local subcommand="${1:-list}"
             shift || true
             cncjs::widget "$subcommand" "$@"
+            ;;
+        jobqueue)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::jobqueue "$subcommand" "$@"
             ;;
         *)
             echo "Unknown command: $command" >&2

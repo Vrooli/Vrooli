@@ -37,12 +37,29 @@ monitor::metrics() {
         log::info "🔐 Keycloak Metrics:"
         echo "$metrics_response" | grep -E "keycloak_logins|keycloak_failed_login|keycloak_registrations" | head -10
     else
-        log::warning "Metrics endpoint not available"
+        log::warning "Metrics endpoint not available - using alternative metrics"
     fi
     
     # Get container stats
     log::info "🐳 Container Statistics:"
     docker stats --no-stream "${KEYCLOAK_CONTAINER_NAME}" 2>/dev/null || log::error "Container not running"
+    
+    # Get memory usage details
+    log::info "💾 Memory Details:"
+    local mem_usage=$(docker exec "${KEYCLOAK_CONTAINER_NAME}" sh -c 'cat /proc/meminfo' 2>/dev/null | grep -E "MemTotal|MemFree|MemAvailable" || echo "N/A")
+    echo "$mem_usage"
+    
+    # Get connection statistics
+    log::info "🔌 Connection Statistics:"
+    local connections=$(docker exec "${KEYCLOAK_CONTAINER_NAME}" sh -c 'netstat -an 2>/dev/null | grep -c ESTABLISHED' || echo "0")
+    log::info "  Active connections: $connections"
+    
+    # Get database pool stats (if using PostgreSQL)
+    if [[ "${KEYCLOAK_DB_VENDOR:-h2}" == "postgres" ]]; then
+        log::info "🗄️ Database Pool:"
+        local db_pool=$(docker exec "${KEYCLOAK_CONTAINER_NAME}" sh -c 'jstat -gc $(pgrep java) 2>/dev/null | tail -1' || echo "N/A")
+        echo "  $db_pool"
+    fi
 }
 
 monitor::health() {
@@ -197,5 +214,55 @@ monitor::dashboard() {
     monitor::metrics
     echo ""
     
+    monitor::history
+    echo ""
+    
     log::success "Dashboard refresh complete"
+}
+
+monitor::history() {
+    log::info "📈 Metrics History"
+    
+    local history_file="${RESOURCE_DIR}/logs/metrics-history.json"
+    local timestamp=$(date -Iseconds)
+    
+    # Ensure logs directory exists
+    mkdir -p "${RESOURCE_DIR}/logs"
+    
+    # Collect current metrics
+    local cpu_usage=$(docker stats --no-stream --format "{{.CPUPerc}}" "${KEYCLOAK_CONTAINER_NAME}" 2>/dev/null | tr -d '%')
+    local mem_usage=$(docker stats --no-stream --format "{{.MemUsage}}" "${KEYCLOAK_CONTAINER_NAME}" 2>/dev/null | awk '{print $1}' | tr -d 'MiB')
+    local connections=$(docker exec "${KEYCLOAK_CONTAINER_NAME}" sh -c 'netstat -an 2>/dev/null | grep -c ESTABLISHED' || echo "0")
+    
+    # Append to history
+    if [[ ! -f "$history_file" ]]; then
+        echo "[]" > "$history_file"
+    fi
+    
+    # Add new entry
+    local new_entry=$(jq -n \
+        --arg ts "$timestamp" \
+        --arg cpu "$cpu_usage" \
+        --arg mem "$mem_usage" \
+        --arg conn "$connections" \
+        '{timestamp: $ts, cpu: $cpu, memory: $mem, connections: $conn}')
+    
+    # Keep only last 100 entries
+    jq ". += [$new_entry] | .[-100:]" "$history_file" > "${history_file}.tmp" && mv "${history_file}.tmp" "$history_file"
+    
+    # Display recent history
+    log::info "Recent metrics (last 5 entries):"
+    jq -r '.[-5:] | .[] | "  \(.timestamp): CPU=\(.cpu)%, Mem=\(.memory)MB, Conn=\(.connections)"' "$history_file" 2>/dev/null || log::warning "No history available"
+    
+    # Calculate averages
+    if [[ -f "$history_file" ]]; then
+        local avg_cpu=$(jq -r '[.[] | .cpu | tonumber] | add/length' "$history_file" 2>/dev/null || echo "N/A")
+        local avg_mem=$(jq -r '[.[] | .memory | tonumber] | add/length' "$history_file" 2>/dev/null || echo "N/A")
+        local avg_conn=$(jq -r '[.[] | .connections | tonumber] | add/length' "$history_file" 2>/dev/null || echo "N/A")
+        
+        log::info "Averages:"
+        log::info "  CPU: ${avg_cpu}%"
+        log::info "  Memory: ${avg_mem}MB"
+        log::info "  Connections: ${avg_conn}"
+    fi
 }

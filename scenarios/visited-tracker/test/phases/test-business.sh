@@ -5,6 +5,23 @@ set -euo pipefail
 echo "=== Business Logic Tests Phase ==="
 echo "Testing core business functionality..."
 
+# Get dynamic API URL
+SCENARIO_NAME=$(basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)")
+
+# Use vrooli command to get port
+if command -v vrooli >/dev/null 2>&1; then
+    API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || echo "")
+    if [ -n "$API_PORT" ]; then
+        API_BASE_URL="http://localhost:$API_PORT"
+    else
+        API_BASE_URL="http://localhost:17695"  # Fallback
+    fi
+else
+    API_BASE_URL="http://localhost:17695"  # Fallback
+fi
+
+echo "Using API base URL: $API_BASE_URL"
+
 # Test counters
 error_count=0
 test_count=0
@@ -16,7 +33,7 @@ cleanup() {
     for campaign_id in "${created_campaign_ids[@]}"; do
         if [ -n "$campaign_id" ] && [ "$campaign_id" != "null" ]; then
             echo "Deleting test campaign: $campaign_id"
-            curl -sf -X DELETE "http://localhost:17695/api/v1/campaigns/$campaign_id" >/dev/null 2>&1 || echo "Warning: Failed to delete campaign $campaign_id"
+            curl -sf -X DELETE "$API_BASE_URL/api/v1/campaigns/$campaign_id" >/dev/null 2>&1 || echo "Warning: Failed to delete campaign $campaign_id"
         fi
     done
 }
@@ -26,12 +43,12 @@ trap cleanup EXIT
 
 # Pre-cleanup: Remove any existing test campaigns
 echo "Cleaning up any existing test campaigns..."
-existing_campaigns=$(curl -sf "http://localhost:17695/api/v1/campaigns" 2>/dev/null || echo "")
+existing_campaigns=$(curl -sf "$API_BASE_URL/api/v1/campaigns" 2>/dev/null || echo "")
 if echo "$existing_campaigns" | jq -e '.campaigns' >/dev/null 2>&1; then
     echo "$existing_campaigns" | jq -r '.campaigns[] | select(.name | test("^business-test-")) | .id' | while read -r old_campaign_id; do
         if [ -n "$old_campaign_id" ] && [ "$old_campaign_id" != "null" ]; then
             echo "Deleting old test campaign: $old_campaign_id"
-            curl -sf -X DELETE "http://localhost:17695/api/v1/campaigns/$old_campaign_id" >/dev/null 2>&1 || echo "Warning: Failed to delete old campaign $old_campaign_id"
+            curl -sf -X DELETE "$API_BASE_URL/api/v1/campaigns/$old_campaign_id" >/dev/null 2>&1 || echo "Warning: Failed to delete old campaign $old_campaign_id"
         fi
     done
 fi
@@ -40,7 +57,7 @@ fi
 echo "Testing campaign creation..."
 timestamp=$(date +%s)
 campaign_data='{"name":"business-test-'$timestamp'","from_agent":"test","patterns":["**/*.js"]}'
-campaign_response=$(curl -sf -X POST "http://localhost:17695/api/v1/campaigns" -H "Content-Type: application/json" -d "$campaign_data" 2>/dev/null || echo "")
+campaign_response=$(curl -sf -X POST "$API_BASE_URL/api/v1/campaigns" -H "Content-Type: application/json" -d "$campaign_data" 2>/dev/null || echo "")
 
 if echo "$campaign_response" | jq -e '.id' >/dev/null 2>&1; then
     campaign_id=$(echo "$campaign_response" | jq -r '.id')
@@ -72,7 +89,7 @@ fi
 
 # Test data persistence
 echo "Testing data persistence..."
-campaigns_response=$(curl -sf "http://localhost:17695/api/v1/campaigns" 2>/dev/null || echo "")
+campaigns_response=$(curl -sf "$API_BASE_URL/api/v1/campaigns" 2>/dev/null || echo "")
 if echo "$campaigns_response" | jq -e '.campaigns' >/dev/null 2>&1; then
     campaign_count=$(echo "$campaigns_response" | jq '.campaigns | length')
     echo "Data persistence tests passed - $campaign_count campaigns found"

@@ -9,8 +9,18 @@ esphome::export_config() {
     export ESPHOME_CONTAINER_NAME="${ESPHOME_CONTAINER_NAME:-esphome}"
     export ESPHOME_IMAGE="${ESPHOME_IMAGE:-esphome/esphome:latest}"
     
-    # Port configuration - using 6587 for ESPHome dashboard
-    export ESPHOME_PORT="${ESPHOME_PORT:-6587}"
+    # Port configuration - load from registry
+    PORT_REGISTRY="${APP_ROOT:-${VROOLI_ROOT:-${HOME}/Vrooli}}/scripts/resources/port_registry.sh"
+    if [[ -f "$PORT_REGISTRY" ]]; then
+        source "$PORT_REGISTRY"
+        export ESPHOME_PORT="${ESPHOME_PORT:-${RESOURCE_PORTS[esphome]}}"
+    fi
+    
+    # Fail if port not set
+    if [[ -z "${ESPHOME_PORT}" ]]; then
+        echo "ERROR: ESPHOME_PORT not provided and could not be obtained from registry" >&2
+        return 1
+    fi
     export ESPHOME_BASE_URL="${ESPHOME_BASE_URL:-http://localhost:${ESPHOME_PORT}}"
     
     # Directory paths

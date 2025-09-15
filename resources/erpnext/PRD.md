@@ -19,8 +19,8 @@
 - [x] **Redis Integration**: Redis for caching and queue management ✅ 2025-01-12
 
 ### P1 Requirements (Should Have)
-- [ ] **Workflow Engine**: Custom business process automation
-- [ ] **Reporting Module**: Built-in analytics and custom report builder
+- [x] **Workflow Engine**: Custom business process automation ✅ 2025-09-14
+- [x] **Reporting Module**: Built-in analytics and custom report builder ✅ 2025-09-14
 - [ ] **Multi-tenant Support**: Multiple companies/organizations
 - [x] **Content Management**: Add/list/get/remove custom apps and DocTypes ✅ 2025-09-13
 
@@ -60,9 +60,9 @@ priority: medium
 
 ### Completion Targets
 - **P0 Completion**: 100% (7/7 requirements fully working)
-- **P1 Completion**: 25% (1/4 requirements)  
+- **P1 Completion**: 75% (3/4 requirements)  
 - **P2 Completion**: 0% (0/3 requirements)
-- **Overall**: 64% (8/14 requirements)
+- **Overall**: 71% (10/14 requirements)
 
 ### Quality Metrics
 - Health check response time: <1s required
@@ -84,6 +84,7 @@ priority: medium
 - 2025-09-12: 29% → 50% - Added site initialization, API status monitoring, enhanced status reporting, partial module and auth functionality
 - 2025-09-13: 50% → 57% - Enhanced API integration with Host header support, implemented content management, added credentials command, created API helper library
 - 2025-09-14: 57% → 64% - Fixed database configuration, completed P0 requirements, all tests passing (100% pass rate)
+- 2025-09-14: 64% → 71% - Exposed Workflow Engine and Reporting Module via CLI, added timeout handling to all API calls, fixed session management
 
 ### Next Steps
 1. Complete web interface routing solution (nginx proxy or hosts file)

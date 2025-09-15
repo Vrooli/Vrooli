@@ -1,0 +1,32 @@
+* KiCad Netlist (Mock)
+* Generated from: schematic.kicad_sch
+
+.title Mock Circuit Simulation
+
+* Voltage source
+V1 VCC 0 DC 5V
+
+* Resistors
+R1 VCC n1 1k
+R2 n1 0 2k
+
+* Capacitor
+C1 n1 0 100n
+
+* Transistor (NPN)
+Q1 out n1 0 2N2222
+
+* Load resistor  
+RL out VCC 10k
+
+* Analysis commands
+.tran 1u 10m
+.dc V1 0 10 0.1
+.ac dec 10 1 100k
+
+.control
+run
+plot v(out) v(n1)
+.endc
+
+.end

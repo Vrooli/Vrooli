@@ -133,8 +133,8 @@ cli::register_command "custom::list" "List available custom components" "esphome
 esphome::cli_credentials() {
     if docker ps --format "table {{.Names}}\t{{.Status}}" | grep -q "${ESPHOME_CONTAINER_NAME:-esphome}.*Up"; then
         echo "ESPHome Dashboard is running at:"
-        echo "  Web UI: ${ESPHOME_BASE_URL:-http://localhost:6587}"
-        echo "  API: ${ESPHOME_BASE_URL:-http://localhost:6587}/api"
+        echo "  Web UI: ${ESPHOME_BASE_URL}"
+        echo "  API: ${ESPHOME_BASE_URL}/api"
         echo ""
         echo "Default credentials (if configured):"
         echo "  Username: admin"

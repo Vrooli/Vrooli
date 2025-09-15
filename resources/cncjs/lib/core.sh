@@ -2048,3 +2048,320 @@ EOF
             ;;
     esac
 }
+
+#######################################
+# Job Queue Management System
+# Automated job scheduling and execution
+#######################################
+cncjs::jobqueue() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    local queue_dir="${CNCJS_DATA_DIR}/queue"
+    local queue_status_file="${queue_dir}/status.json"
+    local queue_lock_file="${queue_dir}/.lock"
+    
+    # Initialize queue directory
+    mkdir -p "${queue_dir}/pending"
+    mkdir -p "${queue_dir}/running"
+    mkdir -p "${queue_dir}/completed"
+    mkdir -p "${queue_dir}/failed"
+    
+    # Initialize status file if not exists
+    if [[ ! -f "$queue_status_file" ]]; then
+        echo '{"active": false, "current_job": null, "stats": {"total": 0, "completed": 0, "failed": 0}}' > "$queue_status_file"
+    fi
+    
+    case "$subcommand" in
+        list)
+            log::info "Job Queue Status:"
+            
+            # Show queue state
+            local active=$(jq -r '.active' "$queue_status_file" 2>/dev/null || echo "false")
+            local current=$(jq -r '.current_job // "none"' "$queue_status_file" 2>/dev/null || echo "none")
+            echo "  Queue Active: $active"
+            echo "  Current Job: $current"
+            echo ""
+            
+            # Show jobs by status
+            echo "  Pending Jobs:"
+            local pending_count=0
+            for job in "${queue_dir}/pending"/*.job; do
+                if [[ -f "$job" ]]; then
+                    local job_name=$(basename "$job" .job)
+                    local priority=$(jq -r '.priority // 5' "$job" 2>/dev/null || echo "5")
+                    local file=$(jq -r '.file' "$job" 2>/dev/null || echo "unknown")
+                    echo "    [$priority] $job_name: $file"
+                    ((pending_count++))
+                fi
+            done
+            [[ $pending_count -eq 0 ]] && echo "    (none)"
+            
+            echo ""
+            echo "  Running Jobs:"
+            local running_count=0
+            for job in "${queue_dir}/running"/*.job; do
+                if [[ -f "$job" ]]; then
+                    local job_name=$(basename "$job" .job)
+                    local start_time=$(jq -r '.start_time' "$job" 2>/dev/null || echo "unknown")
+                    echo "    $job_name (started: $start_time)"
+                    ((running_count++))
+                fi
+            done
+            [[ $running_count -eq 0 ]] && echo "    (none)"
+            
+            # Show statistics
+            echo ""
+            echo "  Statistics:"
+            local total=$(jq -r '.stats.total' "$queue_status_file" 2>/dev/null || echo "0")
+            local completed=$(jq -r '.stats.completed' "$queue_status_file" 2>/dev/null || echo "0")
+            local failed=$(jq -r '.stats.failed' "$queue_status_file" 2>/dev/null || echo "0")
+            echo "    Total Jobs: $total"
+            echo "    Completed: $completed"
+            echo "    Failed: $failed"
+            ;;
+            
+        add)
+            local file="${1:-}"
+            local priority="${2:-5}"
+            local name="${3:-}"
+            
+            if [[ -z "$file" ]]; then
+                log::error "Usage: jobqueue add <file> [priority] [name]"
+                echo "  Priority: 1-10 (1=highest, default=5)"
+                return 1
+            fi
+            
+            # Check if file exists in watch directory
+            local file_path="${CNCJS_WATCH_DIR}/${file}"
+            if [[ ! -f "$file_path" ]]; then
+                log::error "G-code file not found: $file"
+                echo "Available files:"
+                ls -1 "${CNCJS_WATCH_DIR}/" 2>/dev/null | sed 's/^/  /'
+                return 1
+            fi
+            
+            # Generate job ID if no name provided
+            if [[ -z "$name" ]]; then
+                name="job_$(date +%Y%m%d_%H%M%S)_${file%.gcode}"
+            fi
+            
+            # Create job file
+            local job_file="${queue_dir}/pending/${name}.job"
+            cat > "$job_file" << EOF
+{
+  "id": "$name",
+  "file": "$file",
+  "priority": $priority,
+  "created": "$(date -Iseconds)",
+  "status": "pending",
+  "estimated_time": null,
+  "metadata": {
+    "file_size": $(stat -c%s "$file_path" 2>/dev/null || echo 0),
+    "line_count": $(wc -l < "$file_path" 2>/dev/null || echo 0)
+  }
+}
+EOF
+            
+            # Update statistics
+            local total=$(jq -r '.stats.total' "$queue_status_file")
+            jq ".stats.total = $((total + 1))" "$queue_status_file" > "${queue_status_file}.tmp" && \
+                mv "${queue_status_file}.tmp" "$queue_status_file"
+            
+            log::success "Job '$name' added to queue with priority $priority"
+            ;;
+            
+        remove)
+            local job_id="${1:-}"
+            
+            if [[ -z "$job_id" ]]; then
+                log::error "Usage: jobqueue remove <job_id>"
+                return 1
+            fi
+            
+            # Find and remove job from any state
+            local removed=false
+            for state in pending running completed failed; do
+                local job_file="${queue_dir}/${state}/${job_id}.job"
+                if [[ -f "$job_file" ]]; then
+                    rm "$job_file"
+                    log::success "Removed job '$job_id' from $state queue"
+                    removed=true
+                    break
+                fi
+            done
+            
+            if [[ "$removed" == "false" ]]; then
+                log::error "Job '$job_id' not found in queue"
+                return 1
+            fi
+            ;;
+            
+        start)
+            log::info "Starting job queue processor..."
+            
+            # Check if already running
+            if [[ -f "$queue_lock_file" ]]; then
+                local pid=$(cat "$queue_lock_file")
+                if kill -0 "$pid" 2>/dev/null; then
+                    log::warning "Queue processor already running (PID: $pid)"
+                    return 0
+                fi
+                rm "$queue_lock_file"
+            fi
+            
+            # Start queue processor in background
+            (
+                echo $$ > "$queue_lock_file"
+                jq '.active = true' "$queue_status_file" > "${queue_status_file}.tmp" && \
+                    mv "${queue_status_file}.tmp" "$queue_status_file"
+                
+                log::info "Queue processor started (PID: $$)"
+                
+                while [[ -f "$queue_lock_file" ]]; do
+                    # Find next job by priority
+                    local next_job=""
+                    local highest_priority=11
+                    
+                    for job in "${queue_dir}/pending"/*.job; do
+                        if [[ -f "$job" ]]; then
+                            local priority=$(jq -r '.priority // 5' "$job")
+                            if [[ $priority -lt $highest_priority ]]; then
+                                highest_priority=$priority
+                                next_job="$job"
+                            fi
+                        fi
+                    done
+                    
+                    if [[ -n "$next_job" ]]; then
+                        local job_name=$(basename "$next_job" .job)
+                        local file=$(jq -r '.file' "$next_job")
+                        
+                        log::info "Processing job: $job_name (file: $file)"
+                        
+                        # Move to running state
+                        mv "$next_job" "${queue_dir}/running/"
+                        jq ".current_job = \"$job_name\" | .start_time = \"$(date -Iseconds)\"" \
+                            "${queue_dir}/running/${job_name}.job" > "${queue_dir}/running/${job_name}.job.tmp" && \
+                            mv "${queue_dir}/running/${job_name}.job.tmp" "${queue_dir}/running/${job_name}.job"
+                        
+                        jq ".current_job = \"$job_name\"" "$queue_status_file" > "${queue_status_file}.tmp" && \
+                            mv "${queue_status_file}.tmp" "$queue_status_file"
+                        
+                        # Simulate job execution (in real scenario, would send to CNC)
+                        log::warning "Simulating execution of $file (no controller connected)"
+                        sleep 5  # Simulate processing time
+                        
+                        # Mark as completed
+                        jq ".status = \"completed\" | .end_time = \"$(date -Iseconds)\"" \
+                            "${queue_dir}/running/${job_name}.job" > "${queue_dir}/completed/${job_name}.job"
+                        rm "${queue_dir}/running/${job_name}.job"
+                        
+                        # Update statistics
+                        local completed=$(jq -r '.stats.completed' "$queue_status_file")
+                        jq ".stats.completed = $((completed + 1)) | .current_job = null" \
+                            "$queue_status_file" > "${queue_status_file}.tmp" && \
+                            mv "${queue_status_file}.tmp" "$queue_status_file"
+                        
+                        log::success "Job $job_name completed"
+                    else
+                        # No jobs to process, wait
+                        sleep 2
+                    fi
+                done
+                
+                jq '.active = false | .current_job = null' "$queue_status_file" > "${queue_status_file}.tmp" && \
+                    mv "${queue_status_file}.tmp" "$queue_status_file"
+                log::info "Queue processor stopped"
+            ) &
+            
+            log::success "Queue processor started in background"
+            ;;
+            
+        stop)
+            log::info "Stopping job queue processor..."
+            
+            if [[ -f "$queue_lock_file" ]]; then
+                local pid=$(cat "$queue_lock_file")
+                if kill -0 "$pid" 2>/dev/null; then
+                    kill "$pid"
+                    rm "$queue_lock_file"
+                    
+                    # Update status
+                    jq '.active = false' "$queue_status_file" > "${queue_status_file}.tmp" && \
+                        mv "${queue_status_file}.tmp" "$queue_status_file"
+                    
+                    log::success "Queue processor stopped"
+                else
+                    rm "$queue_lock_file"
+                    log::warning "Queue processor was not running"
+                fi
+            else
+                log::warning "Queue processor is not running"
+            fi
+            ;;
+            
+        clear)
+            local state="${1:-pending}"
+            
+            if [[ "$state" == "all" ]]; then
+                log::info "Clearing all queues..."
+                rm -f "${queue_dir}/pending"/*.job 2>/dev/null
+                rm -f "${queue_dir}/completed"/*.job 2>/dev/null
+                rm -f "${queue_dir}/failed"/*.job 2>/dev/null
+                
+                # Reset statistics
+                jq '.stats = {"total": 0, "completed": 0, "failed": 0}' \
+                    "$queue_status_file" > "${queue_status_file}.tmp" && \
+                    mv "${queue_status_file}.tmp" "$queue_status_file"
+                
+                log::success "All queues cleared"
+            else
+                case "$state" in
+                    pending|completed|failed)
+                        rm -f "${queue_dir}/${state}"/*.job 2>/dev/null
+                        log::success "Cleared $state queue"
+                        ;;
+                    *)
+                        log::error "Invalid queue state: $state"
+                        echo "Valid states: pending, completed, failed, all"
+                        return 1
+                        ;;
+                esac
+            fi
+            ;;
+            
+        status)
+            local job_id="${1:-}"
+            
+            if [[ -z "$job_id" ]]; then
+                # Show overall status
+                cncjs::jobqueue list
+            else
+                # Show specific job status
+                local found=false
+                for state in pending running completed failed; do
+                    local job_file="${queue_dir}/${state}/${job_id}.job"
+                    if [[ -f "$job_file" ]]; then
+                        log::info "Job: $job_id"
+                        echo "  State: $state"
+                        jq '.' "$job_file" 2>/dev/null | sed 's/^/  /'
+                        found=true
+                        break
+                    fi
+                done
+                
+                if [[ "$found" == "false" ]]; then
+                    log::error "Job '$job_id' not found"
+                    return 1
+                fi
+            fi
+            ;;
+            
+        *)
+            log::error "Unknown jobqueue subcommand: $subcommand"
+            echo "Available subcommands: list, add, remove, start, stop, clear, status"
+            return 1
+            ;;
+    esac
+}

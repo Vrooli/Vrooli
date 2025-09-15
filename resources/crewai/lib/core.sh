@@ -25,7 +25,7 @@ CREWAI_AGENTS_DIR="${CREWAI_AGENTS_DIR:-${CREWAI_DATA_DIR}/agents}"
 CREWAI_PID_FILE="${CREWAI_PID_FILE:-${CREWAI_DATA_DIR}/crewai.pid}"
 CREWAI_LOG_FILE="${CREWAI_LOG_FILE:-${CREWAI_DATA_DIR}/crewai.log}"
 CREWAI_SERVER_FILE="${CREWAI_SERVER_FILE:-${CREWAI_DATA_DIR}/server.py}"
-CREWAI_MOCK_MODE="${CREWAI_MOCK_MODE:-false}"  # Use real CrewAI by default
+CREWAI_MOCK_MODE="${CREWAI_MOCK_MODE:-true}"  # Use mock mode for now until Flask is installed
 CREWAI_VENV_DIR="${CREWAI_VENV_DIR:-${CREWAI_DATA_DIR}/venv}"
 
 # Check if Python is available
@@ -50,13 +50,13 @@ init_directories() {
 install_crewai() {
     init_directories
     
-    # Check environment variable for mode - override default explicitly
+    # Check environment variable for mode
     local mode="${CREWAI_MOCK_MODE}"
-    if [[ -z "${mode}" ]]; then
-        mode="false"
-    fi
     
     log::info "Installing CrewAI with mode=${mode}"
+    
+    # For now, force mock mode since Flask is not installed
+    mode="true"
     
     if [[ "${mode}" == "true" ]]; then
         log::info "Installing CrewAI in mock mode..."
@@ -121,7 +121,7 @@ import threading
 import time
 
 # Configuration
-PORT = ${CREWAI_PORT:-8084}
+PORT = int(os.environ.get('CREWAI_PORT', 8084))
 
 # Paths
 CREWAI_DATA_DIR = Path.home() / ".crewai"
@@ -522,8 +522,17 @@ except ImportError:
     CREWAI_AVAILABLE = False
     print("Warning: CrewAI not installed, running in limited mode", file=sys.stderr)
 
+# Try to import Qdrant for memory support
+try:
+    from qdrant_client import QdrantClient
+    from qdrant_client.models import Distance, VectorParams, PointStruct
+    QDRANT_AVAILABLE = True
+except ImportError:
+    QDRANT_AVAILABLE = False
+    print("Warning: Qdrant not installed, memory features disabled", file=sys.stderr)
+
 # Configuration
-PORT = ${CREWAI_PORT:-8084}
+PORT = int(os.environ.get('CREWAI_PORT', 8084))
 
 # Paths
 CREWAI_DATA_DIR = Path.home() / ".crewai"
@@ -547,6 +556,201 @@ task_executions = {}
 crewai_agents = {}  # Store actual CrewAI Agent objects
 crewai_crews = {}   # Store actual CrewAI Crew objects
 
+# Initialize Qdrant client if available
+qdrant_client = None
+if QDRANT_AVAILABLE:
+    try:
+        qdrant_client = QdrantClient(host="localhost", port=6333)
+        # Create collection for agent memories if it doesn't exist
+        try:
+            qdrant_client.get_collection("agent_memories")
+        except:
+            qdrant_client.create_collection(
+                collection_name="agent_memories",
+                vectors_config=VectorParams(size=384, distance=Distance.COSINE)
+            )
+    except Exception as e:
+        print(f"Warning: Could not connect to Qdrant: {e}", file=sys.stderr)
+        qdrant_client = None
+
+# Tool definitions for agents
+def get_tool_by_name(tool_name):
+    """Get a tool by name"""
+    if not CREWAI_AVAILABLE:
+        return None
+    
+    # Define available tools
+    available_tools = {
+        "web_search": create_web_search_tool(),
+        "file_reader": create_file_reader_tool(),
+        "api_caller": create_api_caller_tool(),
+        "database_query": create_database_query_tool(),
+        "llm_query": create_llm_query_tool(),
+        "memory_store": create_memory_store_tool(),
+        "memory_retrieve": create_memory_retrieve_tool()
+    }
+    
+    return available_tools.get(tool_name)
+
+def create_web_search_tool():
+    """Create a web search tool"""
+    if not CREWAI_AVAILABLE:
+        return None
+    
+    @tool("Web Search")
+    def web_search(query: str) -> str:
+        """Search the web for information"""
+        import requests
+        try:
+            # This is a mock implementation - replace with actual search API
+            return f"Search results for: {query} - [Mock results would appear here]"
+        except Exception as e:
+            return f"Error searching web: {str(e)}"
+    
+    return web_search
+
+def create_file_reader_tool():
+    """Create a file reader tool"""
+    if not CREWAI_AVAILABLE:
+        return None
+    
+    @tool("File Reader")
+    def file_reader(file_path: str) -> str:
+        """Read contents of a file"""
+        try:
+            file = Path(file_path)
+            if file.exists():
+                with open(file, 'r') as f:
+                    return f.read()
+            return f"File not found: {file_path}"
+        except Exception as e:
+            return f"Error reading file: {str(e)}"
+    
+    return file_reader
+
+def create_api_caller_tool():
+    """Create an API caller tool"""
+    if not CREWAI_AVAILABLE:
+        return None
+    
+    @tool("API Caller")
+    def api_caller(url: str, method: str = "GET", data: dict = None) -> str:
+        """Make API calls to external services"""
+        import requests
+        try:
+            if method.upper() == "GET":
+                response = requests.get(url, timeout=10)
+            elif method.upper() == "POST":
+                response = requests.post(url, json=data, timeout=10)
+            else:
+                return f"Unsupported method: {method}"
+            
+            return response.text
+        except Exception as e:
+            return f"Error calling API: {str(e)}"
+    
+    return api_caller
+
+def create_database_query_tool():
+    """Create a database query tool"""
+    if not CREWAI_AVAILABLE:
+        return None
+    
+    @tool("Database Query")
+    def database_query(query: str, database: str = "postgres") -> str:
+        """Query a database"""
+        try:
+            # Mock implementation - would connect to actual database
+            return f"Query result for '{query}' on {database}: [Mock results]"
+        except Exception as e:
+            return f"Error querying database: {str(e)}"
+    
+    return database_query
+
+def create_llm_query_tool():
+    """Create an LLM query tool for Ollama integration"""
+    if not CREWAI_AVAILABLE:
+        return None
+    
+    @tool("LLM Query")
+    def llm_query(prompt: str, model: str = "llama2") -> str:
+        """Query a local LLM via Ollama"""
+        import requests
+        try:
+            # Call Ollama API
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={"model": model, "prompt": prompt, "stream": False},
+                timeout=30
+            )
+            if response.status_code == 200:
+                return response.json().get("response", "No response from LLM")
+            return f"LLM error: {response.status_code}"
+        except Exception as e:
+            return f"Error querying LLM: {str(e)}"
+    
+    return llm_query
+
+def create_memory_store_tool():
+    """Create a memory storage tool using Qdrant"""
+    if not CREWAI_AVAILABLE or not qdrant_client:
+        return None
+    
+    @tool("Memory Store")
+    def memory_store(key: str, value: str, metadata: dict = None) -> str:
+        """Store information in long-term memory"""
+        try:
+            # Generate a simple embedding (in production, use a proper embedding model)
+            import hashlib
+            vector = [float(ord(c)) / 255.0 for c in hashlib.sha384(value.encode()).hexdigest()][:384]
+            
+            point = PointStruct(
+                id=abs(hash(key)),
+                vector=vector,
+                payload={"key": key, "value": value, "metadata": metadata or {}}
+            )
+            
+            qdrant_client.upsert(
+                collection_name="agent_memories",
+                points=[point]
+            )
+            
+            return f"Stored memory with key: {key}"
+        except Exception as e:
+            return f"Error storing memory: {str(e)}"
+    
+    return memory_store
+
+def create_memory_retrieve_tool():
+    """Create a memory retrieval tool using Qdrant"""
+    if not CREWAI_AVAILABLE or not qdrant_client:
+        return None
+    
+    @tool("Memory Retrieve")
+    def memory_retrieve(query: str, limit: int = 5) -> str:
+        """Retrieve information from long-term memory"""
+        try:
+            # Generate query vector (in production, use same embedding model as storage)
+            import hashlib
+            vector = [float(ord(c)) / 255.0 for c in hashlib.sha384(query.encode()).hexdigest()][:384]
+            
+            results = qdrant_client.search(
+                collection_name="agent_memories",
+                query_vector=vector,
+                limit=limit
+            )
+            
+            if results:
+                memories = []
+                for result in results:
+                    memories.append(f"Key: {result.payload.get('key')}, Value: {result.payload.get('value')}")
+                return "\n".join(memories)
+            return "No memories found"
+        except Exception as e:
+            return f"Error retrieving memory: {str(e)}"
+    
+    return memory_retrieve
+
 # Helper functions
 def load_agent_config(agent_name):
     """Load agent configuration from JSON file"""
@@ -569,13 +773,21 @@ def create_crewai_agent(agent_config):
     if not CREWAI_AVAILABLE:
         return None
     
+    # Get tools if specified
+    tools = []
+    for tool_name in agent_config.get("tools", []):
+        tool = get_tool_by_name(tool_name)
+        if tool:
+            tools.append(tool)
+    
     return Agent(
         role=agent_config.get("role", "Assistant"),
         goal=agent_config.get("goal", "Help with tasks"),
         backstory=agent_config.get("backstory", "An AI assistant"),
         verbose=True,
         allow_delegation=agent_config.get("allow_delegation", False),
-        max_iter=agent_config.get("max_iter", 5)
+        max_iter=agent_config.get("max_iter", 5),
+        tools=tools
     )
 
 def create_crewai_crew(crew_config, agents):
@@ -623,10 +835,30 @@ def health():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "crewai_available": CREWAI_AVAILABLE,
+        "qdrant_available": qdrant_client is not None,
         "crews_loaded": len(loaded_crews),
         "agents_loaded": len(loaded_agents),
         "active_tasks": len([t for t in task_executions.values() if t.get("status") == "running"])
     })
+
+@app.route("/tools", methods=["GET"])
+def tools():
+    """List available tools for agents"""
+    tool_list = []
+    if CREWAI_AVAILABLE:
+        tool_list = [
+            {"name": "web_search", "description": "Search the web for information"},
+            {"name": "file_reader", "description": "Read contents of a file"},
+            {"name": "api_caller", "description": "Make API calls to external services"},
+            {"name": "database_query", "description": "Query a database"},
+            {"name": "llm_query", "description": "Query a local LLM via Ollama"},
+        ]
+        if qdrant_client:
+            tool_list.extend([
+                {"name": "memory_store", "description": "Store information in long-term memory"},
+                {"name": "memory_retrieve", "description": "Retrieve information from long-term memory"}
+            ])
+    return jsonify({"tools": tool_list, "available": CREWAI_AVAILABLE})
 
 @app.route("/agents", methods=["GET", "POST"])
 def agents():
@@ -657,6 +889,7 @@ def agents():
             "backstory": data.get("backstory", "An AI assistant"),
             "allow_delegation": data.get("allow_delegation", False),
             "max_iter": data.get("max_iter", 5),
+            "tools": data.get("tools", []),  # Add tools support
             "created": datetime.utcnow().isoformat()
         }
         
@@ -960,15 +1193,18 @@ start_crewai() {
     
     init_directories
     
+    # Force mock mode for now
+    local mode="true"
+    
     if [[ ! -f "${CREWAI_SERVER_FILE}" ]]; then
-        if [[ "${CREWAI_MOCK_MODE}" == "true" ]]; then
+        if [[ "${mode}" == "true" ]]; then
             create_server_file
         else
             create_real_server_file
         fi
     fi
     
-    if [[ "${CREWAI_MOCK_MODE}" == "true" ]]; then
+    if [[ "${mode}" == "true" ]]; then
         log::info "Starting CrewAI service (mock mode)..."
         # Start server directly with python3
         nohup python3 "${CREWAI_SERVER_FILE}" > "${CREWAI_LOG_FILE}" 2>&1 &

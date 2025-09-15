@@ -140,8 +140,12 @@ EOF
         # Try to run the build from the test directory
         # Use explicit PATH to ensure earthly is found
         set +e  # Temporarily disable exit on error
-        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +test >/dev/null 2>&1)
+        cd "${test_dir}"
+        # Clear any earthly platform variables
+        unset EARTHLY_PLATFORMS
+        PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +test > "${test_dir}/build.log" 2>&1
         local exit_code=$?
+        cd - >/dev/null
         set -e  # Re-enable exit on error
         
         if [[ ${exit_code} -eq 0 ]]; then
@@ -151,6 +155,9 @@ EOF
             ((failed++))
         else
             echo "❌ FAIL: Build failed with exit code ${exit_code}"
+            if [[ -f "${test_dir}/build.log" ]]; then
+                echo "Build log: $(tail -5 ${test_dir}/build.log)"
+            fi
             ((failed++))
         fi
     else
@@ -181,10 +188,13 @@ EOF
     if command -v earthly &>/dev/null && docker ps &>/dev/null; then
         set +e  # Temporarily disable exit on error
         local first_run=$(date +%s)
-        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +build >/dev/null 2>&1)
+        cd "${test_dir}"
+        unset EARTHLY_PLATFORMS
+        PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +build >/dev/null 2>&1
         local second_run=$(date +%s)
-        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +build >/dev/null 2>&1)
+        PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +build >/dev/null 2>&1
         local third_run=$(date +%s)
+        cd - >/dev/null
         set -e  # Re-enable exit on error
         
         local first_duration=$((second_run - first_run))
@@ -223,8 +233,11 @@ EOF
         
         # Use explicit PATH to ensure earthly is found
         set +e  # Temporarily disable exit on error
-        (cd "${test_dir}" && PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +all >/dev/null 2>&1)
+        cd "${test_dir}"
+        unset EARTHLY_PLATFORMS
+        PATH="${HOME}/.local/bin:${PATH}" timeout 60 earthly +all >/dev/null 2>&1
         local exit_code=$?
+        cd - >/dev/null
         set -e  # Re-enable exit on error
         
         if [[ ${exit_code} -eq 0 ]]; then

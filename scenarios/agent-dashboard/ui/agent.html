@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Details - Agent Command Center</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="cyber-grid"></div>
+    <div class="scan-line"></div>
+    
+    <div class="command-center">
+        <!-- Header with Navigation -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <div class="logo-cube">
+                        <div class="cube-face front"></div>
+                        <div class="cube-face back"></div>
+                        <div class="cube-face left"></div>
+                        <div class="cube-face right"></div>
+                        <div class="cube-face top"></div>
+                        <div class="cube-face bottom"></div>
+                    </div>
+                </div>
+                <div class="logo-text">AGENT COMMAND</div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="/" class="nav-link">
+                    <i data-lucide="layout-dashboard"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/agents.html" class="nav-link">
+                    <i data-lucide="bot"></i>
+                    <span>Agents</span>
+                </a>
+                <a href="/logs.html" class="nav-link">
+                    <i data-lucide="terminal"></i>
+                    <span>Logs</span>
+                </a>
+                <a href="/metrics.html" class="nav-link">
+                    <i data-lucide="bar-chart"></i>
+                    <span>Metrics</span>
+                </a>
+            </nav>
+            
+            <div class="system-status">
+                <div class="status-indicator">
+                    <i data-lucide="shield-check" class="status-icon active"></i>
+                    <span>SYSTEM ONLINE</span>
+                </div>
+                <div class="status-indicator">
+                    <i data-lucide="cpu" class="status-icon warning"></i>
+                    <span id="agentCount">0 AGENTS ACTIVE</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="agent-detail-header">
+                <button class="back-btn" onclick="history.back()">
+                    <i data-lucide="arrow-left"></i>
+                    Back
+                </button>
+                <h1 class="agent-title" id="agentTitle">
+                    <i data-lucide="bot"></i>
+                    Loading Agent...
+                </h1>
+                <div class="agent-actions">
+                    <button id="startBtn" class="action-btn success" style="display: none;">
+                        <i data-lucide="play"></i>
+                        START
+                    </button>
+                    <button id="stopBtn" class="action-btn danger" style="display: none;">
+                        <i data-lucide="square"></i>
+                        STOP
+                    </button>
+                    <button id="restartBtn" class="action-btn warning">
+                        <i data-lucide="rotate-cw"></i>
+                        RESTART
+                    </button>
+                </div>
+            </div>
+
+            <div class="detail-grid">
+                <!-- Status Card -->
+                <div class="detail-card">
+                    <h2 class="card-title">
+                        <i data-lucide="activity"></i>
+                        Status
+                    </h2>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <span class="detail-label">Current Status:</span>
+                            <span id="agentStatus" class="status-badge">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Type:</span>
+                            <span id="agentType">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">PID:</span>
+                            <span id="agentPid" class="mono">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Uptime:</span>
+                            <span id="agentUptime">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Information Card -->
+                <div class="detail-card">
+                    <h2 class="card-title">
+                        <i data-lucide="info"></i>
+                        Information
+                    </h2>
+                    <div class="detail-content">
+                        <div class="detail-row">
+                            <span class="detail-label">Agent ID:</span>
+                            <span id="agentId" class="mono">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Started:</span>
+                            <span id="agentStartTime">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Last Seen:</span>
+                            <span id="agentLastSeen">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Version:</span>
+                            <span id="agentVersion">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Capabilities Card -->
+                <div class="detail-card">
+                    <h2 class="card-title">
+                        <i data-lucide="zap"></i>
+                        Capabilities
+                    </h2>
+                    <div class="detail-content">
+                        <div id="agentCapabilities" class="capabilities-list">
+                            <!-- Capabilities will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Command Card -->
+                <div class="detail-card">
+                    <h2 class="card-title">
+                        <i data-lucide="terminal"></i>
+                        Command
+                    </h2>
+                    <div class="detail-content">
+                        <div class="command-display">
+                            <code id="agentCommand">-</code>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Metrics Card -->
+                <div class="detail-card span-2">
+                    <h2 class="card-title">
+                        <i data-lucide="trending-up"></i>
+                        Quick Metrics
+                    </h2>
+                    <div class="detail-content">
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <span class="metric-label">CPU Usage</span>
+                                <span id="metricCpu" class="metric-value">-</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Memory</span>
+                                <span id="metricMemory" class="metric-value">-</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Tasks Completed</span>
+                                <span id="metricTasks" class="metric-value">-</span>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Success Rate</span>
+                                <span id="metricSuccess" class="metric-value">-</span>
+                            </div>
+                        </div>
+                        <div class="metric-actions">
+                            <a href="/metrics.html" class="action-btn">
+                                <i data-lucide="bar-chart"></i>
+                                View Full Metrics
+                            </a>
+                            <a href="/logs.html" class="action-btn" id="viewLogsBtn">
+                                <i data-lucide="scroll-text"></i>
+                                View Logs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="shared/api.js"></script>
+    <script src="agent.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>

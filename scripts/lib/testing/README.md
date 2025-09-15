@@ -1,162 +1,326 @@
 # Centralized Testing Library
 
-This directory contains shared testing utilities for Vrooli scenarios and resources.
+A comprehensive, modular testing framework for Vrooli scenarios that provides both **sourceable libraries** and **copy-and-customize templates**.
 
-## Directory Structure
+## 📁 Directory Structure
 
 ```
-testing/
-├── unit/           # Language-specific unit test runners
-│   ├── go.sh       # Go test runner
-│   ├── node.sh     # Node.js test runner
-│   ├── python.sh   # Python test runner
-│   └── run-all.sh  # Universal runner that runs all languages
-├── phases/         # Shared phase templates (future)
-├── common/         # Common test utilities (future)
-└── legacy/         # Support for legacy test formats
-    └── run-scenario-tests.sh  # Universal scenario test runner
+scripts/lib/testing/
+├── shell/                    # Sourceable shell libraries
+│   ├── core.sh              # Scenario detection, configuration
+│   ├── connectivity.sh      # API/UI connectivity testing
+│   ├── resources.sh         # Resource integration testing
+│   ├── cli.sh               # CLI testing utilities
+│   └── orchestration.sh     # Comprehensive test suite execution
+├── unit/                     # Language-specific unit test runners
+│   ├── run-all.sh           # Universal test runner
+│   ├── go.sh                # Go test runner
+│   ├── node.sh              # Node.js test runner
+│   └── python.sh            # Python test runner
+├── templates/                # Copy-and-customize templates
+│   ├── README.md            # Template usage guide
+│   └── go/                  # Go testing templates
+│       ├── test_helpers.go.template
+│       └── error_patterns.go.template
+├── legacy/                   # Backwards compatibility
+│   └── run-scenario-tests.sh
+└── README.md                # This file
 ```
 
-## Unit Test Runners
+## 🚀 Quick Start
 
-The unit test runners provide a standardized way to run tests across different languages.
-
-### Using in Your Scenario
-
-#### Method 1: Direct Sourcing (Recommended)
-
-In your scenario's test phase script:
+### Using Shell Libraries
 
 ```bash
 #!/bin/bash
-set -euo pipefail
+# In your test script
 
-# Get paths
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
-TESTING_LIB="$APP_ROOT/scripts/lib/testing/unit"
+# Source the modules you need
+source "${APP_ROOT}/scripts/lib/testing/shell/orchestration.sh"
 
-# Source the testing library
-source "$TESTING_LIB/run-all.sh"
+# Run comprehensive tests
+testing::orchestration::run_comprehensive_tests
 
-# Run tests
-cd "$SCENARIO_DIR"
-testing::unit::run_all_tests --go-dir "api" --node-dir "ui" --skip-python
+# Or use individual modules
+source "${APP_ROOT}/scripts/lib/testing/shell/connectivity.sh"
+testing::connectivity::test_api "my-scenario"
 ```
 
-#### Method 2: Individual Language Runners
+### Using Unit Test Runners
 
 ```bash
-# Source individual runners
-source "$TESTING_LIB/go.sh"
-source "$TESTING_LIB/node.sh"
+# Source the universal runner
+source "${APP_ROOT}/scripts/lib/testing/unit/run-all.sh"
 
-# Run specific language tests
-testing::unit::run_go_tests --dir "api" --verbose
-testing::unit::run_node_tests --dir "ui" --timeout 60000
+# Run all language tests
+testing::unit::run_all_tests --coverage-warn 80 --coverage-error 70
 ```
 
-### Test Coverage Thresholds
+### Using Templates
 
-The centralized testing library includes configurable coverage thresholds to ensure code quality:
+```bash
+# Copy Go templates to your scenario
+cp scripts/lib/testing/templates/go/test_helpers.go.template \
+   scenarios/my-scenario/api/test_helpers.go
 
-- **Warning Threshold (default: 80%)**: Shows a warning when coverage is below this level, but tests still pass
-- **Error Threshold (default: 50%)**: Fails tests when coverage is below this level, indicating insufficient coverage
-
-### Coverage Threshold Behavior
-
-- **Above Warning Threshold**: ✅ Tests pass with good coverage message
-- **Below Warning, Above Error**: ⚠️  Tests pass but show warning about low coverage  
-- **Below Error Threshold**: ❌ Tests fail with error message about insufficient coverage
-
-### Example Output
-
-```
-📊 Go Test Coverage Summary:
-total:                                  (statements)            65.2%
-
-⚠️  WARNING: Go test coverage (65.2%) is below warning threshold (80%)
-   Consider adding more tests to improve code coverage.
+# Customize for your needs (change package, add helpers, etc.)
 ```
 
-## Available Functions
+## 📚 Shell Library Modules
 
-#### `testing::unit::run_all_tests`
+### core.sh
+Core utilities for all testing scenarios.
 
-Runs unit tests for all detected languages.
+**Functions:**
+- `testing::core::detect_scenario()` - Auto-detect current scenario
+- `testing::core::get_scenario_config()` - Read service.json configuration
+- `testing::core::detect_languages()` - Detect languages in use
+- `testing::core::is_scenario_running()` - Check if scenario is active
+- `testing::core::wait_for_scenario()` - Wait for scenario readiness
+
+### connectivity.sh
+API and UI endpoint testing.
+
+**Functions:**
+- `testing::connectivity::get_api_url()` - Get scenario API URL
+- `testing::connectivity::get_ui_url()` - Get scenario UI URL
+- `testing::connectivity::test_api()` - Test API connectivity
+- `testing::connectivity::test_ui()` - Test UI connectivity
+- `testing::connectivity::test_all()` - Test all endpoints
+
+### resources.sh
+Resource integration testing.
+
+**Functions:**
+- `testing::resources::test_postgres()` - Test PostgreSQL integration
+- `testing::resources::test_redis()` - Test Redis integration
+- `testing::resources::test_ollama()` - Test Ollama integration
+- `testing::resources::test_n8n()` - Test N8n integration
+- `testing::resources::test_qdrant()` - Test Qdrant integration
+- `testing::resources::test_all()` - Test all configured resources
+
+### cli.sh
+CLI testing utilities.
+
+**Functions:**
+- `testing::cli::test_integration()` - Test CLI binary functionality
+- `testing::cli::test_command()` - Test specific CLI command
+- `testing::cli::test_with_input()` - Test CLI with input/output
+
+### orchestration.sh
+Comprehensive test suite execution.
+
+**Functions:**
+- `testing::orchestration::run_unit_tests()` - Run all unit tests
+- `testing::orchestration::run_integration_tests()` - Run integration tests only
+- `testing::orchestration::run_comprehensive_tests()` - Run full test suite
+
+## 🧪 Unit Test Runners
+
+### Universal Runner
+```bash
+testing::unit::run_all_tests [options]
+```
 
 **Options:**
-- `--go-dir PATH` - Directory for Go tests (default: api)
-- `--node-dir PATH` - Directory for Node.js tests (default: ui)
-- `--python-dir PATH` - Directory for Python tests (default: .)
+- `--go-dir PATH` - Go code directory (default: api)
+- `--node-dir PATH` - Node.js code directory (default: ui)
+- `--python-dir PATH` - Python code directory (default: .)
 - `--skip-go` - Skip Go tests
 - `--skip-node` - Skip Node.js tests
 - `--skip-python` - Skip Python tests
-- `--verbose` - Verbose output for all tests
-- `--fail-fast` - Stop on first test failure
-- `--coverage-warn PERCENT` - Coverage warning threshold (default: 80)
-- `--coverage-error PERCENT` - Coverage error threshold (default: 50)
+- `--verbose` - Verbose output
+- `--fail-fast` - Stop on first failure
+- `--coverage-warn PERCENT` - Warning threshold (default: 80)
+- `--coverage-error PERCENT` - Error threshold (default: 70)
 
-#### `testing::unit::run_go_tests`
+### Language-Specific Runners
 
-Runs Go unit tests.
+Each language has its own runner with specific options:
 
-**Options:**
-- `--dir PATH` - Directory containing Go code (default: api)
-- `--timeout SEC` - Test timeout in seconds (default: 30)
-- `--no-coverage` - Skip coverage report
-- `--verbose` - Verbose test output
-- `--coverage-warn PERCENT` - Coverage warning threshold (default: 80)
-- `--coverage-error PERCENT` - Coverage error threshold (default: 50)
+```bash
+# Go tests
+testing::unit::run_go_tests --dir api --coverage-warn 80
 
-#### `testing::unit::run_node_tests`
+# Node.js tests
+testing::unit::run_node_tests --dir ui --timeout 60000
 
-Runs Node.js unit tests.
+# Python tests
+testing::unit::run_python_tests --dir . --framework pytest
+```
 
-**Options:**
-- `--dir PATH` - Directory containing Node.js code (default: ui)
-- `--timeout MS` - Test timeout in milliseconds (default: 30000)
-- `--test-cmd CMD` - Custom test command (default: reads from package.json)
-- `--verbose` - Verbose test output
-- `--coverage-warn PERCENT` - Coverage warning threshold (default: 80)
-- `--coverage-error PERCENT` - Coverage error threshold (default: 50)
+## 📝 Templates
 
-#### `testing::unit::run_python_tests`
+Templates are **starting points** for your test helpers. They're meant to be copied and customized, not imported.
 
-Runs Python unit tests.
+### Available Templates
 
-**Options:**
-- `--dir PATH` - Directory containing Python code (default: .)
-- `--timeout SEC` - Test timeout in seconds (default: 30)
-- `--framework FW` - Test framework: pytest, unittest, nose (default: auto-detect)
-- `--verbose` - Verbose test output
+- **go/test_helpers.go.template** - HTTP testing utilities for Go
+- **go/error_patterns.go.template** - Sophisticated error testing patterns
 
-## Legacy Support
+### Template Usage
 
-The `legacy/run-scenario-tests.sh` script provides backward compatibility for scenarios using the old test format.
+1. **Copy** the template to your scenario
+2. **Customize** package names and imports
+3. **Adapt** functions to your needs
+4. **Delete** unused code
+5. **Add** scenario-specific helpers
 
-It automatically detects and runs:
-1. New phased testing format (test/run-tests.sh)
-2. V2 lifecycle testing (service.json lifecycle.test)
-3. Legacy format (scenario-test.yaml)
+See [templates/README.md](templates/README.md) for detailed usage instructions.
 
-This ensures all scenarios work during the migration period.
+## 💡 Usage Examples
 
-## Migration Guide
+### Example 1: Phased Testing
 
-### From Individual Test Scripts
+```bash
+#!/bin/bash
+# test/phases/test-integration.sh
 
-If your scenario has individual test scripts in `test/unit/`:
+source "${APP_ROOT}/scripts/lib/testing/shell/connectivity.sh"
 
-1. Remove the individual language scripts (go.sh, node.sh, python.sh)
-2. Update your test phase script to source the centralized library
-3. Use `testing::unit::run_all_tests` or individual language functions
+# Get dynamic API URL
+API_URL=$(testing::connectivity::get_api_url)
 
-### From Legacy scenario-test.yaml
+# Test connectivity
+if testing::connectivity::test_api; then
+    echo "✅ API is healthy"
+fi
+```
 
-1. Create a `test/` directory structure
-2. Add phase scripts in `test/phases/`
-3. Update `.vrooli/service.json` to include a test lifecycle event
-4. Remove the old `scenario-test.yaml`
+### Example 2: Comprehensive Testing
 
-See `docs/scenarios/PHASED_TESTING_ARCHITECTURE.md` for detailed migration instructions.
+```bash
+#!/bin/bash
+# test/run-comprehensive.sh
+
+source "${APP_ROOT}/scripts/lib/testing/shell/orchestration.sh"
+
+# Run everything with custom thresholds
+testing::orchestration::run_comprehensive_tests "my-scenario" 85 75
+```
+
+### Example 3: Resource Testing
+
+```bash
+#!/bin/bash
+# test/test-resources.sh
+
+source "${APP_ROOT}/scripts/lib/testing/shell/resources.sh"
+
+# Test specific resources
+testing::resources::test_postgres "my-scenario"
+testing::resources::test_redis "my-scenario"
+```
+
+## 🔄 Migration Guide
+
+### From Old Abstraction Layer
+
+```bash
+# Old way
+source "$APP_ROOT/scripts/lib/testing/abstraction/portable-helpers.sh"
+testing::abstraction::test_api_connectivity
+
+# New way
+source "$APP_ROOT/scripts/lib/testing/shell/connectivity.sh"
+testing::connectivity::test_api
+```
+
+### From Hardcoded Ports
+
+```bash
+# Old way
+API_URL="http://localhost:17695"
+
+# New way
+source "$APP_ROOT/scripts/lib/testing/shell/connectivity.sh"
+API_URL=$(testing::connectivity::get_api_url)
+```
+
+## ✅ Best Practices
+
+### 1. Use Modules Selectively
+
+Only source the modules you need:
+
+```bash
+# Just need connectivity testing?
+source "${APP_ROOT}/scripts/lib/testing/shell/connectivity.sh"
+
+# Need everything?
+source "${APP_ROOT}/scripts/lib/testing/shell/orchestration.sh"
+```
+
+### 2. Leverage Auto-Detection
+
+Let the framework detect your scenario:
+
+```bash
+# Auto-detects from current directory
+testing::connectivity::test_api
+
+# Or specify explicitly
+testing::connectivity::test_api "my-scenario"
+```
+
+### 3. Consistent Coverage Standards
+
+Use standard thresholds across scenarios:
+
+```bash
+# Standard: 80% warning, 70% error
+testing::orchestration::run_unit_tests "" 80 70
+```
+
+### 4. Templates as Starting Points
+
+Don't try to make templates work for everything. Copy and customize:
+
+```bash
+# Copy template
+cp templates/go/test_helpers.go.template api/test_helpers.go
+
+# Make it yours
+# - Change package name
+# - Add your helpers
+# - Remove what you don't need
+```
+
+## 🤝 Contributing
+
+### Adding New Shell Functions
+
+1. Add to appropriate module in `shell/`
+2. Export the function
+3. Document in this README
+4. Add tests
+
+### Adding New Templates
+
+1. Create well-documented template in `templates/<language>/`
+2. Update `templates/README.md`
+3. Provide real usage example
+
+### Improving Unit Runners
+
+1. Update language-specific runner in `unit/`
+2. Ensure compatibility with `run-all.sh`
+3. Test with multiple scenarios
+
+## 📚 See Also
+
+- [templates/README.md](templates/README.md) - Template usage guide
+- [docs/PHASED_TESTING_ARCHITECTURE.md](/home/matthalloran8/Vrooli/docs/PHASED_TESTING_ARCHITECTURE.md) - Phased testing documentation
+- [scenarios/visited-tracker/](../../scenarios/visited-tracker/) - Example implementation
+
+## 🎯 Philosophy
+
+This testing framework follows these principles:
+
+1. **Modular** - Use only what you need
+2. **Discoverable** - Auto-detect scenarios and languages
+3. **Flexible** - Templates to copy, not rigid structures
+4. **Consistent** - Same patterns across all scenarios
+5. **Practical** - Based on real-world usage
+
+The goal is to make testing **easier**, not harder. If something doesn't help, don't use it!

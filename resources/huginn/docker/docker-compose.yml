@@ -1,42 +1,43 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: huginn-postgres
+  mysql:
+    image: mysql:5.7
+    container_name: huginn-mysql
     environment:
-      POSTGRES_DB: huginn
-      POSTGRES_USER: huginn
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root_secure_password}
+      MYSQL_DATABASE: huginn
+      MYSQL_USER: huginn
+      MYSQL_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mysql_data:/var/lib/mysql
     networks:
       - huginn-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U huginn"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "huginn", "-p${DB_PASSWORD:-huginn_secure_password}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   huginn:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: huginn-vrooli:latest
+    image: ghcr.io/huginn/huginn-single-process:latest
     container_name: huginn
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
     ports:
       - "${HUGINN_PORT:-4111}:3000"
     environment:
       # Database Configuration
-      DATABASE_ADAPTER: postgresql
-      DATABASE_HOST: postgres
+      DATABASE_ADAPTER: mysql2
+      DATABASE_HOST: mysql
       DATABASE_NAME: huginn
       DATABASE_USERNAME: huginn
       DATABASE_PASSWORD: ${DB_PASSWORD:-huginn_secure_password}
+      DATABASE_PORT: 3306
+      DATABASE_ENCODING: utf8mb4
+      DATABASE_RECONNECT: "true"
       
       # Huginn Configuration
       APP_SECRET_TOKEN: ${APP_SECRET_TOKEN:-generate_me}
@@ -64,8 +65,6 @@ services:
     volumes:
       - huginn_uploads:/app/public/system
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /usr/bin:/host/usr/bin:ro
-      - /bin:/host/bin:ro
       - ${WORKSPACE_DIR:-/workspace}:/workspace
     networks:
       - huginn-network
@@ -82,7 +81,7 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
-    name: huginn_postgres_data
+  mysql_data:
+    name: huginn_mysql_data
   huginn_uploads:
     name: huginn_uploads

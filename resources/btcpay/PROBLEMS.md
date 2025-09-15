@@ -2,13 +2,25 @@
 
 ## Current Limitations
 
-### 1. API Key Requirements
+### 1. Lightning Network Considerations
+**Problem**: LND requires wallet initialization and blockchain sync
+**Impact**: Lightning features not immediately available after setup
+**Workaround**: Run `vrooli resource btcpay lightning setup` and wait for sync
+**Status**: By design - blockchain sync required
+
+### 2. Lightning Channel Requirements
+**Problem**: Opening Lightning channels requires on-chain Bitcoin balance
+**Impact**: Cannot create channels without funding the wallet first
+**Solution**: Send Bitcoin to LND wallet, then open channels
+**Status**: Standard Lightning Network requirement
+
+### 3. API Key Requirements
 **Problem**: Most BTCPay API operations require an API key
 **Impact**: Store management and advanced features need manual key generation
 **Workaround**: Generate API key through web interface at http://localhost:23000
 **Status**: By design - security requirement
 
-### 2. Bitcoin Core Requirement
+### 4. Bitcoin Core Requirement
 **Problem**: Full BTCPay operation requires Bitcoin Core or equivalent blockchain node
 **Impact**: Cannot process actual Bitcoin transactions without blockchain access
 **Solution**: Either connect to external node or run Bitcoin Core container

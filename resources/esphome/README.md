@@ -19,7 +19,7 @@ vrooli resource esphome manage start --wait
 vrooli resource esphome status
 
 # Access dashboard
-# Open http://localhost:6587 in your browser
+# Dashboard URL will be shown in the status output
 ```
 
 ## Usage
@@ -101,7 +101,7 @@ vrooli resource esphome validate my-sensor.yaml
 
 Default settings are stored in `config/defaults.sh`. Key configurations:
 
-- **Port**: 6587 (dashboard)
+- **Port**: Allocated from port registry
 - **Container**: esphome
 - **OTA Password**: vrooli_ota (default)
 - **Parallel Builds**: 2
@@ -155,7 +155,7 @@ web_server:
 - **Firmware Compilation**: Build custom firmware for ESP32/ESP8266 devices
 - **OTA Updates**: Deploy firmware updates over the network
 - **Template System**: Quick-start templates for common IoT scenarios
-- **Web Dashboard**: Visual interface for device management at port 6587
+- **Web Dashboard**: Visual interface for device management
 - **Device Discovery**: Automatic detection of ESP devices on network
 
 ### Advanced Features
@@ -252,7 +252,7 @@ vrooli resource vault content add wifi-password "MySecurePassword"
 ### Dashboard Not Accessible
 
 1. Check container is running: `vrooli resource esphome status`
-2. Verify port 6587 is available: `ss -tlnp | grep 6587`
+2. Verify port is available: `docker ps | grep esphome`
 3. Check logs: `vrooli resource esphome logs`
 
 ### Compilation Fails

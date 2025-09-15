@@ -195,7 +195,13 @@ keycloak::status::display_text() {
         log::info "⚙️  Configuration:"
         log::info "   📶 Port: ${data[port]:-unknown}"
         log::info "   👤 Admin User: admin"
-        log::info "   🗄️  Database: H2 (embedded)"
+        
+        # Check actual database configuration
+        local db_type="H2 (embedded)"
+        if docker exec vrooli-keycloak printenv KC_DB 2>/dev/null | grep -q postgres; then
+            db_type="PostgreSQL (vrooli-postgres-main)"
+        fi
+        log::info "   🗄️  Database: ${db_type}"
         log::info "   📁 Data Dir: ${data[data_dir]:-unknown}"
         echo
         
