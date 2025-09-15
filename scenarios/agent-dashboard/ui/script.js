@@ -12,12 +12,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     await fetchAndRenderAgents();
     startRealtimeUpdates();
     initializeTerminal();
+    initializeLogsModal();
 });
 
 // Initialize the radar visualization
 function initializeRadar() {
     agentRadar = new AgentRadar('agentRadar');
     console.log('🎯 Agent radar initialized');
+}
+
+// Fetch agents from API
+async function fetchAgentStatus() {
+    const apiPort = window.API_PORT || '15000';
+    const response = await fetch(`http://localhost:${apiPort}/api/v1/agents`);
+    
+    if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.agents || [];
 }
 
 // Fetch agents from API and render
@@ -30,7 +44,11 @@ async function fetchAndRenderAgents() {
         updateAgentCount(agents.length);
         addTerminalLog(`✓ Connected to ${agents.length} agents across ${getUniqueResourceCount(agents)} resources`, 'success');
     } catch (error) {
+        console.log('Fetch error details:', error);
         addTerminalLog(`Failed to fetch agents: ${error.message}`, 'error');
+        if (error.message.includes('CORS') || error.message.includes('fetch')) {
+            addTerminalLog('API may not be running or CORS issue detected', 'warning');
+        }
         currentAgents = [];
         updateAgentCount(0);
         renderAgents();
@@ -40,9 +58,17 @@ async function fetchAndRenderAgents() {
 // Render agent cards
 function renderAgents() {
     const grid = document.getElementById('agentGrid');
+    
+    if (!grid) {
+        console.error('agentGrid element not found');
+        return;
+    }
+    
     grid.innerHTML = '';
     
     if (currentAgents.length === 0) {
+        console.log('No agents found, showing empty state');
+        grid.classList.add('empty');
         grid.innerHTML = '<div class="no-agents">No active agents found. Agents will appear here when resource services start agents.</div>';
         
         // Update radar with empty data
@@ -52,11 +78,20 @@ function renderAgents() {
         return;
     }
     
+    console.log(`Rendering ${currentAgents.length} agents`);
+    // Remove empty class if agents exist
+    grid.classList.remove('empty');
+    
     currentAgents.forEach((agent, index) => {
         const card = createAgentCard(agent);
         card.style.animationDelay = `${index * 0.1}s`;
         grid.appendChild(card);
     });
+    
+    // Initialize Lucide icons for dynamically created content
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
     
     // Update radar with current agents
     if (agentRadar) {
@@ -69,50 +104,88 @@ function getUniqueResourceCount(agents) {
     return resourceTypes.size;
 }
 
+// Update agent count in header
+function updateAgentCount(count) {
+    const agentCountElement = document.getElementById('agentCount');
+    if (agentCountElement) {
+        agentCountElement.textContent = `${count} AGENTS ACTIVE`;
+    } else {
+        console.warn('agentCount element not found in DOM');
+    }
+}
+
+// Start real-time updates
+function startRealtimeUpdates() {
+    // Refresh agent data every 30 seconds
+    setInterval(fetchAndRenderAgents, 30000);
+}
+
 // Create agent card element
 function createAgentCard(agent) {
     const card = document.createElement('div');
     card.className = 'agent-card';
     card.innerHTML = `
         <div class="agent-header">
-            <div class="agent-name">${agent.name}</div>
+            <div class="agent-name">
+                <i data-lucide="bot"></i>
+                ${agent.name}
+            </div>
             <div class="agent-type">${agent.type.toUpperCase()}</div>
         </div>
         
         <div class="agent-status">
-            <span class="status-badge ${agent.status}">${agent.status}</span>
+            <span class="status-badge ${agent.status}">
+                <i data-lucide="${agent.status === 'active' ? 'zap' : agent.status === 'error' ? 'alert-triangle' : 'pause'}"></i>
+                ${agent.status}
+            </span>
             <span style="color: var(--text-secondary); font-size: 12px;">
+                <i data-lucide="clock"></i>
                 Last heartbeat: ${getTimeSince(agent.last_heartbeat)}
             </span>
         </div>
         
         <div class="agent-metrics">
             <div class="metric">
-                <div class="metric-label">PID</div>
+                <div class="metric-label">
+                    <i data-lucide="hash"></i>
+                    PID
+                </div>
                 <div class="metric-value">${agent.metrics.pid || 'N/A'}</div>
             </div>
             <div class="metric">
-                <div class="metric-label">Start Time</div>
+                <div class="metric-label">
+                    <i data-lucide="clock"></i>
+                    Start Time
+                </div>
                 <div class="metric-value">${agent.metrics.start_time ? agent.metrics.start_time.split(' ')[1] : 'N/A'}</div>
             </div>
             <div class="metric">
-                <div class="metric-label">Uptime</div>
+                <div class="metric-label">
+                    <i data-lucide="timer"></i>
+                    Uptime
+                </div>
                 <div class="metric-value">${agent.metrics.uptime || 'N/A'}</div>
             </div>
             <div class="metric">
-                <div class="metric-label">Resource</div>
+                <div class="metric-label">
+                    <i data-lucide="server"></i>
+                    Resource
+                </div>
                 <div class="metric-value">${agent.type}</div>
             </div>
         </div>
         
         <div class="agent-controls">
             <button class="control-btn" onclick="controlAgent('${agent.id}', 'start')">
+                <i data-lucide="${agent.status === 'inactive' ? 'play' : 'rotate-cw'}"></i>
                 ${agent.status === 'inactive' ? 'START' : 'RESTART'}
             </button>
             <button class="control-btn" onclick="controlAgent('${agent.id}', 'stop')">
+                <i data-lucide="square"></i>
                 STOP
             </button>
             <button class="control-btn" onclick="controlAgent('${agent.id}', 'logs')">
+                <i data-lucide="scroll-text"></i>
                 LOGS
             </button>
         </div>
@@ -173,12 +246,19 @@ async function controlAgent(agentId, action) {
 function updateAgentCount(count) {
     const agentCountElement = document.getElementById('agentCount');
     if (agentCountElement) {
-        const statusDot = agentCountElement.parentElement.querySelector('.status-dot');
-        
+        // Update the text content
         agentCountElement.textContent = `${count} AGENT${count !== 1 ? 'S' : ''} ACTIVE`;
         
-        // Update status dot color based on agent count
-        statusDot.className = 'status-dot ' + (count > 0 ? 'active' : 'warning');
+        // Update the status icon color (we replaced status-dot with status-icon)
+        const statusIcon = agentCountElement.parentElement.querySelector('.status-icon');
+        if (statusIcon) {
+            // Remove old status classes
+            statusIcon.classList.remove('active', 'warning', 'error');
+            // Add new status class based on agent count
+            statusIcon.classList.add(count > 0 ? 'active' : 'warning');
+        }
+    } else {
+        console.warn('agentCount element not found in DOM');
     }
 }
 
@@ -227,6 +307,31 @@ function initializeTerminal() {
     }, 1000);
 }
 
+// Initialize logs modal functionality
+function initializeLogsModal() {
+    const logsButton = document.getElementById('logsButton');
+    const logsModal = document.getElementById('logsModal');
+    const logsCloseBtn = document.getElementById('logsCloseBtn');
+    
+    // Open modal when logs button is clicked
+    logsButton.addEventListener('click', () => {
+        logsModal.classList.add('show');
+        addTerminalLog('Logs viewer opened', 'info');
+    });
+    
+    // Close modal when close button is clicked
+    logsCloseBtn.addEventListener('click', () => {
+        logsModal.classList.remove('show');
+    });
+    
+    // Close modal when clicking outside the modal content
+    logsModal.addEventListener('click', (e) => {
+        if (e.target === logsModal) {
+            logsModal.classList.remove('show');
+        }
+    });
+}
+
 // Real-time updates from API
 function startRealtimeUpdates() {
     // Refresh agent data every 30 seconds
@@ -252,6 +357,14 @@ function startRealtimeUpdates() {
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+    const logsModal = document.getElementById('logsModal');
+    
+    // Handle Escape key for modal
+    if (e.key === 'Escape' && logsModal && logsModal.classList.contains('show')) {
+        logsModal.classList.remove('show');
+        return;
+    }
+    
     if (e.ctrlKey || e.metaKey) {
         switch(e.key) {
             case 'r':
@@ -261,42 +374,17 @@ document.addEventListener('keydown', (e) => {
                 break;
             case 'l':
                 e.preventDefault();
-                document.getElementById('terminalOutput').scrollTop = 
-                    document.getElementById('terminalOutput').scrollHeight;
+                // Open logs modal instead of just scrolling
+                if (logsModal) {
+                    logsModal.classList.add('show');
+                    addTerminalLog('Logs viewer opened (Ctrl+L)', 'info');
+                }
                 break;
         }
     }
 });
 
-// API Integration - fetch real agent data
-async function fetchAgentStatus() {
-    try {
-        // Use injected API_PORT from server
-        const apiPort = window.API_PORT || '20000';
-        const response = await fetch(`http://localhost:${apiPort}/api/v1/agents`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const data = await response.json();
-        
-        // New API format returns AgentsResponse directly
-        // { agents: [], last_scan: "", scan_in_progress: bool, errors: [] }
-        if (data.errors && data.errors.length > 0) {
-            console.warn('Agent discovery errors:', data.errors);
-            // Log errors but don't fail completely
-            data.errors.forEach(error => {
-                addTerminalLog(`⚠ ${error.resource_name}: ${error.error}`, 'warn');
-            });
-        }
-        
-        addTerminalLog(`Last scan: ${new Date(data.last_scan).toLocaleTimeString()}, ${data.scan_in_progress ? 'scan in progress' : 'scan complete'}`, 'info');
-        
-        return data.agents || [];
-    } catch (error) {
-        console.error('Failed to fetch agent status:', error);
-        throw error;
-    }
-}
+// Remove duplicate function - using the one defined earlier in the file
 
 // WebSocket connection for real-time updates (placeholder)
 function connectWebSocket() {

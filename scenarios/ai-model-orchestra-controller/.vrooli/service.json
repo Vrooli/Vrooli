@@ -174,11 +174,6 @@
       },
       "steps": [
         {
-          "name": "create-resource-urls",
-          "run": "bash initialization/scripts/create-resource-urls.sh",
-          "description": "Generate dynamic resource URLs configuration"
-        },
-        {
           "name": "install-cli",
           "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally"

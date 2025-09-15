@@ -16,7 +16,7 @@ class AgentRadar {
         this.centerX = this.radarSize / 2;
         this.centerY = this.radarSize / 2;
         this.maxRadius = this.radarSize / 2 - 10;
-        this.animationSpeed = 0.02; // Speed of agent movement
+        this.animationSpeed = 0.008; // Reduced speed for smoother, slower agent movement
         
         this.init();
     }

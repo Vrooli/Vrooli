@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -15,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -33,8 +33,68 @@ var (
 	db        *sql.DB
 	rdb       *redis.Client
 	dockerCli *client.Client
+	ollamaClient *OllamaClient
 	mu        sync.RWMutex
 )
+
+// Circuit breaker states
+type CircuitState int
+
+const (
+	Closed CircuitState = iota
+	Open
+	HalfOpen
+)
+
+// Circuit breaker for Ollama
+type CircuitBreaker struct {
+	maxFailures   int
+	resetTimeout  time.Duration
+	state         CircuitState
+	failures      int
+	lastFailTime  time.Time
+	mutex         sync.RWMutex
+}
+
+// Ollama API structures  
+type OllamaClient struct {
+	BaseURL        string
+	Client         *http.Client
+	CircuitBreaker *CircuitBreaker
+}
+
+type OllamaGenerateRequest struct {
+	Model     string  `json:"model"`
+	Prompt    string  `json:"prompt"`
+	Stream    bool    `json:"stream"`
+	Options   map[string]interface{} `json:"options,omitempty"`
+}
+
+type OllamaGenerateResponse struct {
+	Model              string    `json:"model"`
+	CreatedAt          time.Time `json:"created_at"`
+	Response           string    `json:"response"`
+	Done               bool      `json:"done"`
+	Context            []int     `json:"context,omitempty"`
+	TotalDuration      int64     `json:"total_duration,omitempty"`
+	LoadDuration       int64     `json:"load_duration,omitempty"`
+	PromptEvalCount    int       `json:"prompt_eval_count,omitempty"`
+	PromptEvalDuration int64     `json:"prompt_eval_duration,omitempty"`
+	EvalCount          int       `json:"eval_count,omitempty"`
+	EvalDuration       int64     `json:"eval_duration,omitempty"`
+}
+
+type OllamaModel struct {
+	Name       string            `json:"name"`
+	Size       int64             `json:"size"`
+	Digest     string            `json:"digest"`
+	ModifiedAt time.Time         `json:"modified_at"`
+	Details    map[string]interface{} `json:"details,omitempty"`
+}
+
+type OllamaModelsResponse struct {
+	Models []OllamaModel `json:"models"`
+}
 
 // Models for AI orchestration
 type ModelMetric struct {
@@ -133,9 +193,18 @@ type HealthResponse struct {
 // Initialize database connection with exponential backoff
 func initDatabase() error {
 	host := getEnvOrDefault("ORCHESTRATOR_HOST", "localhost")
-	port := getEnvOrDefault("RESOURCE_PORTS_POSTGRES", "5432")
-	user := getEnvOrDefault("POSTGRES_USER", "postgres")
-	password := getEnvOrDefault("POSTGRES_PASSWORD", "postgres")
+	port := os.Getenv("RESOURCE_PORTS_POSTGRES")
+	if port == "" {
+		return fmt.Errorf("RESOURCE_PORTS_POSTGRES environment variable is required")
+	}
+	user := os.Getenv("POSTGRES_USER")
+	if user == "" {
+		return fmt.Errorf("POSTGRES_USER environment variable is required")
+	}
+	password := os.Getenv("POSTGRES_PASSWORD")
+	if password == "" {
+		return fmt.Errorf("POSTGRES_PASSWORD environment variable is required")
+	}
 	dbname := getEnvOrDefault("POSTGRES_DB", "orchestrator")
 	
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -186,14 +255,17 @@ func initDatabase() error {
 // Initialize Redis connection with exponential backoff
 func initRedis() error {
 	host := getEnvOrDefault("ORCHESTRATOR_HOST", "localhost")
-	port := getEnvOrDefault("RESOURCE_PORTS_REDIS", "6379")
+	port := os.Getenv("RESOURCE_PORTS_REDIS")
+	if port == "" {
+		return fmt.Errorf("RESOURCE_PORTS_REDIS environment variable is required")
+	}
 	
 	rdb = redis.NewClient(&redis.Options{
 		Addr:         fmt.Sprintf("%s:%s", host, port),
-		Password:     getEnvOrDefault("REDIS_PASSWORD", ""),
+		Password:     os.Getenv("REDIS_PASSWORD"), // No fallback - empty string if not set
 		DB:           0,
 		MaxRetries:   3,
-		RetryDelay:   time.Second,
+		MinRetryBackoff: time.Second,
 		PoolSize:     10,
 		MinIdleConns: 2,
 	})
@@ -252,6 +324,268 @@ func initDocker() error {
 	return nil
 }
 
+// Initialize Ollama client
+func initOllama() error {
+	host := getEnvOrDefault("ORCHESTRATOR_HOST", "localhost")
+	port := os.Getenv("RESOURCE_PORTS_OLLAMA")
+	if port == "" {
+		return fmt.Errorf("RESOURCE_PORTS_OLLAMA environment variable is required")
+	}
+	
+	baseURL := fmt.Sprintf("http://%s:%s", host, port)
+	
+	ollamaClient = &OllamaClient{
+		BaseURL: baseURL,
+		Client: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+		CircuitBreaker: &CircuitBreaker{
+			maxFailures:  5,                // Open circuit after 5 consecutive failures
+			resetTimeout: 60 * time.Second, // Try again after 60 seconds
+			state:        Closed,
+		},
+	}
+	
+	// Test connection by fetching models
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	_, err := ollamaClient.GetModels(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Ollama at %s: %v", baseURL, err)
+	}
+	
+	logger.Printf("✅ Connected to Ollama at %s", baseURL)
+	return nil
+}
+
+// Ollama client methods
+func (c *OllamaClient) GetModels(ctx context.Context) (*OllamaModelsResponse, error) {
+	// Check circuit breaker
+	if err := c.CircuitBreaker.CanRequest(); err != nil {
+		return nil, err
+	}
+	
+	req, err := http.NewRequestWithContext(ctx, "GET", c.BaseURL+"/api/tags", nil)
+	if err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		c.CircuitBreaker.RecordFailure()
+		return nil, fmt.Errorf("ollama API returned status %d", resp.StatusCode)
+	}
+	
+	var modelsResp OllamaModelsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&modelsResp); err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	
+	c.CircuitBreaker.RecordSuccess()
+	return &modelsResp, nil
+}
+
+func (c *OllamaClient) Generate(ctx context.Context, req *OllamaGenerateRequest) (*OllamaGenerateResponse, error) {
+	// Check circuit breaker
+	if err := c.CircuitBreaker.CanRequest(); err != nil {
+		return nil, fmt.Errorf("circuit breaker open: %v", err)
+	}
+	
+	reqBody, err := json.Marshal(req)
+	if err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/api/generate", bytes.NewBuffer(reqBody))
+	if err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	
+	httpReq.Header.Set("Content-Type", "application/json")
+	
+	resp, err := c.Client.Do(httpReq)
+	if err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		c.CircuitBreaker.RecordFailure()
+		return nil, fmt.Errorf("ollama API returned status %d", resp.StatusCode)
+	}
+	
+	var genResp OllamaGenerateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&genResp); err != nil {
+		c.CircuitBreaker.RecordFailure()
+		return nil, err
+	}
+	
+	c.CircuitBreaker.RecordSuccess()
+	return &genResp, nil
+}
+
+func (c *OllamaClient) IsHealthy(ctx context.Context) bool {
+	_, err := c.GetModels(ctx)
+	return err == nil
+}
+
+// Circuit breaker methods
+func (cb *CircuitBreaker) CanRequest() error {
+	cb.mutex.RLock()
+	defer cb.mutex.RUnlock()
+	
+	switch cb.state {
+	case Open:
+		if time.Since(cb.lastFailTime) > cb.resetTimeout {
+			// Transition to half-open
+			cb.mutex.RUnlock()
+			cb.mutex.Lock()
+			cb.state = HalfOpen
+			cb.mutex.Unlock()
+			cb.mutex.RLock()
+			return nil
+		}
+		return fmt.Errorf("circuit breaker is open")
+	case HalfOpen, Closed:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func (cb *CircuitBreaker) RecordSuccess() {
+	cb.mutex.Lock()
+	defer cb.mutex.Unlock()
+	
+	cb.failures = 0
+	cb.state = Closed
+}
+
+func (cb *CircuitBreaker) RecordFailure() {
+	cb.mutex.Lock()
+	defer cb.mutex.Unlock()
+	
+	cb.failures++
+	cb.lastFailTime = time.Now()
+	
+	if cb.failures >= cb.maxFailures {
+		cb.state = Open
+	}
+}
+
+func (cb *CircuitBreaker) GetState() CircuitState {
+	cb.mutex.RLock()
+	defer cb.mutex.RUnlock()
+	return cb.state
+}
+
+// Database operations
+func storeOrchestratorRequest(requestID, taskType, selectedModel string, fallbackUsed bool, responseTimeMs int, success bool, errorMessage *string, resourcePressure, costEstimate float64) error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	
+	query := `
+		INSERT INTO orchestrator_requests 
+		(request_id, task_type, selected_model, fallback_used, response_time_ms, success, error_message, resource_pressure, cost_estimate)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+	
+	_, err := db.Exec(query, requestID, taskType, selectedModel, fallbackUsed, responseTimeMs, success, errorMessage, resourcePressure, costEstimate)
+	if err != nil {
+		logger.Printf("⚠️  Failed to store orchestrator request: %v", err)
+		return err
+	}
+	
+	return nil
+}
+
+func storeSystemResources(memoryAvailableGB, memoryFreeGB, memoryTotalGB, cpuUsagePercent, swapUsedPercent float64) error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	
+	query := `
+		INSERT INTO system_resources 
+		(memory_available_gb, memory_free_gb, memory_total_gb, cpu_usage_percent, swap_used_percent)
+		VALUES ($1, $2, $3, $4, $5)`
+	
+	_, err := db.Exec(query, memoryAvailableGB, memoryFreeGB, memoryTotalGB, cpuUsagePercent, swapUsedPercent)
+	if err != nil {
+		logger.Printf("⚠️  Failed to store system resources: %v", err)
+		return err
+	}
+	
+	return nil
+}
+
+func updateModelMetrics(modelName string, requestCount, successCount, errorCount int, avgResponseTime, currentLoad, memoryUsage float64, healthy bool) error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	
+	query := `
+		INSERT INTO model_metrics 
+		(model_name, request_count, success_count, error_count, avg_response_time_ms, current_load, memory_usage_mb, healthy, last_used)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+		ON CONFLICT (model_name) DO UPDATE SET
+			request_count = model_metrics.request_count + $2,
+			success_count = model_metrics.success_count + $3,
+			error_count = model_metrics.error_count + $4,
+			avg_response_time_ms = (model_metrics.avg_response_time_ms + $5) / 2,
+			current_load = $6,
+			memory_usage_mb = $7,
+			healthy = $8,
+			last_used = CURRENT_TIMESTAMP,
+			updated_at = CURRENT_TIMESTAMP`
+	
+	_, err := db.Exec(query, modelName, requestCount, successCount, errorCount, avgResponseTime, currentLoad, memoryUsage, healthy)
+	if err != nil {
+		logger.Printf("⚠️  Failed to update model metrics: %v", err)
+		return err
+	}
+	
+	return nil
+}
+
+// Background monitoring
+func startSystemMonitoring() {
+	ticker := time.NewTicker(30 * time.Second) // Store metrics every 30 seconds
+	defer ticker.Stop()
+	
+	logger.Printf("🔄 Started background system monitoring")
+	
+	for {
+		select {
+		case <-ticker.C:
+			if db != nil {
+				metrics := getSystemMetrics()
+				
+				if err := storeSystemResources(
+					metrics["availableMemoryGb"].(float64),
+					metrics["availableMemoryGb"].(float64), // Using available as free for simplicity
+					metrics["totalMemoryGb"].(float64),
+					metrics["cpuUsage"].(float64),
+					0.0, // swap usage - would need to implement proper swap monitoring
+				); err != nil {
+					logger.Printf("⚠️  Failed to store system resources: %v", err)
+				}
+			}
+		}
+	}
+}
+
 // Helper functions
 func getEnvOrDefault(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
@@ -298,16 +632,9 @@ func getSystemMetrics() map[string]interface{} {
 	}
 }
 
-// Model selection logic
-func selectOptimalModel(taskType string, requirements map[string]interface{}) (*ModelSelectResponse, error) {
-	requestID := uuid.New().String()
-	
-	// Get system metrics
-	systemMetrics := getSystemMetrics()
-	memoryPressure := systemMetrics["memoryPressure"].(float64)
-	
-	// Available models (in production, this would query Ollama or a model registry)
-	availableModels := []ModelCapability{
+// Get default model capabilities as fallback
+func getDefaultModelCapabilities() []ModelCapability {
+	return []ModelCapability{
 		{
 			ModelName:       "llama3.2:1b",
 			Capabilities:    []string{"completion", "reasoning"},
@@ -344,6 +671,99 @@ func selectOptimalModel(taskType string, requirements map[string]interface{}) (*
 			QualityTier:    "high",
 			BestFor:        []string{"code-generation", "code-analysis"},
 		},
+	}
+}
+
+// Convert Ollama models to model capabilities
+func convertOllamaModelsToCapabilities(ollamaModels []OllamaModel) []ModelCapability {
+	capabilities := make([]ModelCapability, 0, len(ollamaModels))
+	
+	for _, model := range ollamaModels {
+		// Determine capabilities based on model name patterns
+		var modelCaps []string
+		var speed string
+		var qualityTier string
+		var costPer1K float64
+		var bestFor []string
+		
+		modelName := strings.ToLower(model.Name)
+		sizeGB := float64(model.Size) / (1024 * 1024 * 1024)
+		
+		// Classify model capabilities based on name patterns
+		if strings.Contains(modelName, "code") || strings.Contains(modelName, "llama") {
+			modelCaps = []string{"completion", "reasoning", "code"}
+			bestFor = []string{"code-generation", "completion", "reasoning"}
+		} else if strings.Contains(modelName, "embed") {
+			modelCaps = []string{"embedding"}
+			bestFor = []string{"text-embedding", "similarity"}
+		} else {
+			modelCaps = []string{"completion", "reasoning"}
+			bestFor = []string{"completion", "reasoning"}
+		}
+		
+		// Determine quality and speed based on size
+		if sizeGB < 3 {
+			speed = "fast"
+			qualityTier = "basic"
+			costPer1K = 0.001
+		} else if sizeGB < 6 {
+			speed = "medium"
+			qualityTier = "good"
+			costPer1K = 0.003
+		} else {
+			speed = "slow"
+			qualityTier = "high"
+			costPer1K = 0.008
+		}
+		
+		// Add analysis capability for larger models
+		if sizeGB > 6 {
+			modelCaps = append(modelCaps, "analysis")
+			bestFor = append(bestFor, "complex-reasoning", "analysis")
+		}
+		
+		capability := ModelCapability{
+			ModelName:       model.Name,
+			Capabilities:    modelCaps,
+			RamRequiredGB:   sizeGB,
+			Speed:          speed,
+			CostPer1KTokens: costPer1K,
+			QualityTier:    qualityTier,
+			BestFor:        bestFor,
+		}
+		
+		capabilities = append(capabilities, capability)
+	}
+	
+	return capabilities
+}
+
+// Model selection logic
+func selectOptimalModel(taskType string, requirements map[string]interface{}) (*ModelSelectResponse, error) {
+	requestID := uuid.New().String()
+	
+	// Get system metrics
+	systemMetrics := getSystemMetrics()
+	memoryPressure := systemMetrics["memoryPressure"].(float64)
+	
+	// Get available models from Ollama
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	var availableModels []ModelCapability
+	
+	if ollamaClient != nil {
+		ollamaModels, err := ollamaClient.GetModels(ctx)
+		if err != nil {
+			logger.Printf("⚠️  Failed to fetch models from Ollama: %v", err)
+			// Fallback to basic model list
+			availableModels = getDefaultModelCapabilities()
+		} else {
+			availableModels = convertOllamaModelsToCapabilities(ollamaModels.Models)
+		}
+	} else {
+		logger.Printf("⚠️  Ollama client not initialized, using default models")
+		availableModels = getDefaultModelCapabilities()
 	}
 	
 	// Filter models by capabilities
@@ -459,11 +879,53 @@ func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 		status = "unhealthy"
 	}
 	
-	// Check Ollama (simplified - would normally make HTTP request)
-	services["ollama"] = "ok"
+	// Check Ollama health
+	if ollamaClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		
+		if ollamaClient.IsHealthy(ctx) {
+			services["ollama"] = "ok"
+		} else {
+			services["ollama"] = "error"
+			if status != "unhealthy" {
+				status = "degraded"
+			}
+		}
+	} else {
+		services["ollama"] = "not_connected"
+		status = "unhealthy"
+	}
 	
 	systemMetrics := getSystemMetrics()
-	systemMetrics["available_models"] = 4 // Simplified
+	
+	// Get actual model count from Ollama
+	modelCount := 0
+	if ollamaClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		
+		if models, err := ollamaClient.GetModels(ctx); err == nil {
+			modelCount = len(models.Models)
+		}
+	}
+	systemMetrics["available_models"] = modelCount
+	
+	// Add circuit breaker status
+	if ollamaClient != nil && ollamaClient.CircuitBreaker != nil {
+		cbState := ollamaClient.CircuitBreaker.GetState()
+		var stateStr string
+		switch cbState {
+		case Closed:
+			stateStr = "closed"
+		case Open:
+			stateStr = "open"
+		case HalfOpen:
+			stateStr = "half-open"
+		}
+		systemMetrics["circuit_breaker_state"] = stateStr
+		systemMetrics["circuit_breaker_failures"] = ollamaClient.CircuitBreaker.failures
+	}
 	
 	response := HealthResponse{
 		Status:    status,
@@ -535,19 +997,142 @@ func handleRouteRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Simulate AI inference (in production, would call Ollama API)
-	time.Sleep(100 * time.Millisecond) // Simulate processing time
-	responseText := fmt.Sprintf("Simulated response from %s for task '%s': %s", 
-		modelResponse.SelectedModel, req.TaskType, req.Prompt)
+	// Generate actual AI response using Ollama
+	var responseText string
+	var tokensGenerated int
+	var promptTokens int
+	
+	if ollamaClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		
+		// Prepare generation options
+		options := make(map[string]interface{})
+		if maxTokens, ok := req.Requirements["maxTokens"].(float64); ok {
+			options["num_predict"] = int(maxTokens)
+		}
+		if temperature, ok := req.Requirements["temperature"].(float64); ok {
+			options["temperature"] = temperature
+		}
+		
+		ollamaReq := &OllamaGenerateRequest{
+			Model:   modelResponse.SelectedModel,
+			Prompt:  req.Prompt,
+			Stream:  false,
+			Options: options,
+		}
+		
+		ollamaResp, err := ollamaClient.Generate(ctx, ollamaReq)
+		if err != nil {
+			logger.Printf("❌ Ollama generation failed: %v", err)
+			
+			// Store failed request in database
+			responseTimeMs := int(time.Since(startTime).Milliseconds())
+			errorMsg := err.Error()
+			resourcePressure := modelResponse.SystemMetrics["memoryPressure"].(float64)
+			
+			if dbErr := storeOrchestratorRequest(
+				modelResponse.RequestID,
+				req.TaskType,
+				modelResponse.SelectedModel,
+				modelResponse.FallbackUsed,
+				responseTimeMs,
+				false, // success = false
+				&errorMsg,
+				resourcePressure,
+				0.0, // no cost for failed request
+			); dbErr != nil {
+				logger.Printf("⚠️  Failed to store failed request log: %v", dbErr)
+			}
+			
+			// Update model metrics with error count
+			if dbErr := updateModelMetrics(
+				modelResponse.SelectedModel,
+				1, // request count increment
+				0, // success count increment  
+				1, // error count increment
+				float64(responseTimeMs),
+				0.0, // current load
+				0.0, // memory usage
+				false, // healthy = false due to error
+			); dbErr != nil {
+				logger.Printf("⚠️  Failed to update model metrics: %v", dbErr)
+			}
+			
+			writeErrorResponse(w, http.StatusInternalServerError, fmt.Sprintf("AI generation failed: %v", err))
+			return
+		}
+		
+		responseText = ollamaResp.Response
+		tokensGenerated = ollamaResp.EvalCount
+		promptTokens = ollamaResp.PromptEvalCount
+	} else {
+		// Fallback to simulation if Ollama is not available
+		logger.Printf("⚠️  Ollama client not available, falling back to simulation")
+		responseText = fmt.Sprintf("Simulated response from %s for task '%s': %s", 
+			modelResponse.SelectedModel, req.TaskType, req.Prompt)
+		tokensGenerated = len(strings.Split(responseText, " "))
+		promptTokens = len(strings.Split(req.Prompt, " "))
+	}
 	
 	responseTimeMs := int(time.Since(startTime).Milliseconds())
+	
+	// Store request in database
+	success := true
+	var errorMessage *string
+	resourcePressure := modelResponse.SystemMetrics["memoryPressure"].(float64)
+	costEstimate := 0.0 // TODO: Calculate actual cost based on tokens and model pricing
+	
+	// Calculate cost estimate based on tokens and model pricing
+	if tokensGenerated > 0 {
+		// Find the model capability to get cost per 1k tokens
+		availableModels, _ := ollamaClient.GetModels(context.Background())
+		if availableModels != nil {
+			capabilities := convertOllamaModelsToCapabilities(availableModels.Models)
+			for _, cap := range capabilities {
+				if cap.ModelName == modelResponse.SelectedModel {
+					costEstimate = (float64(tokensGenerated) / 1000.0) * cap.CostPer1KTokens
+					break
+				}
+			}
+		}
+	}
+	
+	if err := storeOrchestratorRequest(
+		modelResponse.RequestID,
+		req.TaskType,
+		modelResponse.SelectedModel,
+		modelResponse.FallbackUsed,
+		responseTimeMs,
+		success,
+		errorMessage,
+		resourcePressure,
+		costEstimate,
+	); err != nil {
+		logger.Printf("⚠️  Failed to store request log: %v", err)
+	}
+	
+	// Update model metrics
+	if err := updateModelMetrics(
+		modelResponse.SelectedModel,
+		1,    // request count increment
+		1,    // success count increment  
+		0,    // error count increment
+		float64(responseTimeMs),
+		0.0,  // current load (would need to calculate)
+		0.0,  // memory usage (would need to measure)
+		true, // healthy
+	); err != nil {
+		logger.Printf("⚠️  Failed to update model metrics: %v", err)
+	}
 	
 	metrics := map[string]interface{}{
 		"responseTimeMs":  responseTimeMs,
 		"memoryPressure":  modelResponse.SystemMetrics["memoryPressure"],
 		"modelUsed":       modelResponse.SelectedModel,
-		"tokensGenerated": len(strings.Split(responseText, " ")),
-		"promptTokens":    len(strings.Split(req.Prompt, " ")),
+		"tokensGenerated": tokensGenerated,
+		"promptTokens":    promptTokens,
+		"costEstimate":    costEstimate,
 	}
 	
 	response := RouteResponse{
@@ -562,46 +1147,124 @@ func handleRouteRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleModelsStatus(w http.ResponseWriter, r *http.Request) {
-	// Simulate model status data
-	models := []ModelMetric{
-		{
-			ID:                uuid.New(),
-			ModelName:        "llama3.2:1b",
-			RequestCount:     150,
-			SuccessCount:     147,
-			ErrorCount:       3,
-			AvgResponseTimeMs: 250.5,
-			CurrentLoad:      0.3,
-			MemoryUsageMB:    2048,
-			Healthy:          true,
-			Capabilities:     []string{"completion", "reasoning"},
-			Speed:           "fast",
-			QualityTier:     "basic",
-			CostPer1KTokens: 0.001,
-			RamRequiredGB:   2.0,
-		},
-		{
-			ID:                uuid.New(),
-			ModelName:        "llama3.2:8b",
-			RequestCount:     89,
-			SuccessCount:     88,
-			ErrorCount:       1,
-			AvgResponseTimeMs: 850.2,
-			CurrentLoad:      0.7,
-			MemoryUsageMB:    8192,
-			Healthy:          true,
-			Capabilities:     []string{"completion", "reasoning", "code", "analysis"},
-			Speed:           "slow",
-			QualityTier:     "high",
-			CostPer1KTokens: 0.008,
-			RamRequiredGB:   8.0,
-		},
+	var models []ModelMetric
+	healthyCount := 0
+	
+	// Get real model data from database
+	if db != nil {
+		query := `
+			SELECT model_name, request_count, success_count, error_count, 
+				   avg_response_time_ms, current_load, memory_usage_mb, 
+				   healthy, last_used, created_at, updated_at
+			FROM model_metrics 
+			ORDER BY last_used DESC`
+		
+		rows, err := db.Query(query)
+		if err != nil {
+			logger.Printf("⚠️  Failed to query model metrics: %v", err)
+		} else {
+			defer rows.Close()
+			
+			for rows.Next() {
+				var model ModelMetric
+				var lastUsed sql.NullTime
+				
+				err := rows.Scan(
+					&model.ModelName,
+					&model.RequestCount,
+					&model.SuccessCount,
+					&model.ErrorCount,
+					&model.AvgResponseTimeMs,
+					&model.CurrentLoad,
+					&model.MemoryUsageMB,
+					&model.Healthy,
+					&lastUsed,
+					&model.CreatedAt,
+					&model.UpdatedAt,
+				)
+				if err != nil {
+					logger.Printf("⚠️  Failed to scan model metric: %v", err)
+					continue
+				}
+				
+				model.ID = uuid.New()
+				if lastUsed.Valid {
+					model.LastUsed = &lastUsed.Time
+				}
+				
+				// Get model capabilities from Ollama or defaults
+				if ollamaClient != nil {
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					
+					if ollamaModels, err := ollamaClient.GetModels(ctx); err == nil {
+						capabilities := convertOllamaModelsToCapabilities(ollamaModels.Models)
+						for _, cap := range capabilities {
+							if cap.ModelName == model.ModelName {
+								model.Capabilities = cap.Capabilities
+								model.Speed = cap.Speed
+								model.QualityTier = cap.QualityTier
+								model.CostPer1KTokens = cap.CostPer1KTokens
+								model.RamRequiredGB = cap.RamRequiredGB
+								break
+							}
+						}
+					}
+				}
+				
+				// Set defaults if not found
+				if len(model.Capabilities) == 0 {
+					model.Capabilities = []string{"completion", "reasoning"}
+					model.Speed = "medium"
+					model.QualityTier = "good"
+					model.CostPer1KTokens = 0.005
+					model.RamRequiredGB = 4.0
+				}
+				
+				models = append(models, model)
+				if model.Healthy {
+					healthyCount++
+				}
+			}
+		}
+	}
+	
+	// If no models in database, get them from Ollama
+	if len(models) == 0 && ollamaClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
+		if ollamaModels, err := ollamaClient.GetModels(ctx); err == nil {
+			capabilities := convertOllamaModelsToCapabilities(ollamaModels.Models)
+			for _, cap := range capabilities {
+				model := ModelMetric{
+					ID:                uuid.New(),
+					ModelName:        cap.ModelName,
+					RequestCount:     0,
+					SuccessCount:     0,
+					ErrorCount:       0,
+					AvgResponseTimeMs: 0,
+					CurrentLoad:      0,
+					MemoryUsageMB:    cap.RamRequiredGB * 1024,
+					Healthy:          true,
+					Capabilities:     cap.Capabilities,
+					Speed:           cap.Speed,
+					QualityTier:     cap.QualityTier,
+					CostPer1KTokens: cap.CostPer1KTokens,
+					RamRequiredGB:   cap.RamRequiredGB,
+					CreatedAt:       time.Now(),
+					UpdatedAt:       time.Now(),
+				}
+				models = append(models, model)
+				healthyCount++
+			}
+		}
 	}
 	
 	response := map[string]interface{}{
 		"models":       models,
 		"totalModels":  len(models),
-		"healthyModels": len(models),
+		"healthyModels": healthyCount,
 		"systemHealth": getSystemMetrics(),
 	}
 	
@@ -620,16 +1283,62 @@ func handleResourceMetrics(w http.ResponseWriter, r *http.Request) {
 	
 	current := getSystemMetrics()
 	
-	// Simulate historical data
-	history := []map[string]interface{}{}
-	for i := 0; i < hours; i++ {
-		historyPoint := map[string]interface{}{
-			"timestamp":      time.Now().Add(-time.Duration(i) * time.Hour),
-			"memoryPressure": 0.4 + (float64(i%10)/25.0), // Simulate varying pressure
-			"cpuUsage":       20.0 + float64(i%30),
-			"availableMemoryGb": 8.0 - (float64(i%5) * 0.5),
+	// Get historical data from database
+	var history []map[string]interface{}
+	
+	if db != nil {
+		query := `
+			SELECT memory_available_gb, memory_free_gb, memory_total_gb, 
+				   cpu_usage_percent, swap_used_percent, recorded_at
+			FROM system_resources 
+			WHERE recorded_at >= NOW() - INTERVAL '%d hours'
+			ORDER BY recorded_at DESC`
+		
+		rows, err := db.Query(fmt.Sprintf(query, hours))
+		if err != nil {
+			logger.Printf("⚠️  Failed to query resource metrics: %v", err)
+		} else {
+			defer rows.Close()
+			
+			for rows.Next() {
+				var memAvailable, memFree, memTotal, cpuUsage, swapUsed float64
+				var recordedAt time.Time
+				
+				err := rows.Scan(&memAvailable, &memFree, &memTotal, &cpuUsage, &swapUsed, &recordedAt)
+				if err != nil {
+					logger.Printf("⚠️  Failed to scan resource metric: %v", err)
+					continue
+				}
+				
+				memoryPressure := 0.0
+				if memTotal > 0 {
+					memoryPressure = 1.0 - (memAvailable / memTotal)
+				}
+				
+				historyPoint := map[string]interface{}{
+					"timestamp":         recordedAt,
+					"memoryPressure":    memoryPressure,
+					"cpuUsage":          cpuUsage,
+					"availableMemoryGb": memAvailable,
+					"totalMemoryGb":     memTotal,
+					"swapUsedPercent":   swapUsed,
+				}
+				history = append(history, historyPoint)
+			}
 		}
-		history = append(history, historyPoint)
+	}
+	
+	// If no historical data, create a single point with current data
+	if len(history) == 0 {
+		historyPoint := map[string]interface{}{
+			"timestamp":         time.Now(),
+			"memoryPressure":    current["memoryPressure"],
+			"cpuUsage":          current["cpuUsage"],
+			"availableMemoryGb": current["availableMemoryGb"],
+			"totalMemoryGb":     current["totalMemoryGb"],
+			"swapUsedPercent":   0.0,
+		}
+		history = []map[string]interface{}{historyPoint}
 	}
 	
 	response := map[string]interface{}{
@@ -717,10 +1426,18 @@ func main() {
 		// Continue without Redis for development
 	}
 	
+	if err := initOllama(); err != nil {
+		logger.Printf("❌ Ollama initialization failed: %v", err)
+		// Continue without Ollama for development (will fall back to simulation)
+	}
+	
 	if err := initDocker(); err != nil {
 		logger.Printf("❌ Docker initialization failed: %v", err)
 		// Continue without Docker for development
 	}
+	
+	// Start background system monitoring
+	go startSystemMonitoring()
 	
 	// Setup routes
 	r := mux.NewRouter()

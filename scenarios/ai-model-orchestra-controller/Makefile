@@ -68,4 +68,3 @@ b: build
 c: clean
 h: health
 m: models
-EOF < /dev/null

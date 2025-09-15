@@ -6,22 +6,13 @@
     <title>Agent Command Center - AI Operations Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
     <!-- Background effects -->
     <div class="cyber-grid"></div>
     <div class="scan-line"></div>
     
-    <!-- Data stream visualization -->
-    <div class="data-stream">
-        <div class="data-particle" style="animation-delay: 0s;"></div>
-        <div class="data-particle" style="animation-delay: 0.5s;"></div>
-        <div class="data-particle" style="animation-delay: 1s;"></div>
-        <div class="data-particle" style="animation-delay: 1.5s;"></div>
-        <div class="data-particle" style="animation-delay: 2s;"></div>
-        <div class="data-particle" style="animation-delay: 2.5s;"></div>
-    </div>
-
     <!-- Agent Radar Visualization -->
     <div class="radar-container" id="agentRadar">
         <!-- Radar content will be dynamically generated -->
@@ -46,17 +37,17 @@
             
             <div class="system-status">
                 <div class="status-indicator">
-                    <div class="status-dot active"></div>
+                    <i data-lucide="shield-check" class="status-icon active"></i>
                     <span>SYSTEM ONLINE</span>
                 </div>
                 <div class="status-indicator">
-                    <div class="status-dot warning"></div>
+                    <i data-lucide="cpu" class="status-icon warning"></i>
                     <span id="agentCount">0 AGENTS ACTIVE</span>
                 </div>
-                <div class="status-indicator">
-                    <div class="status-dot active"></div>
-                    <span>CPU: 42%</span>
-                </div>
+                <button class="logs-button" id="logsButton">
+                    <span class="logs-icon"><i data-lucide="terminal"></i></span>
+                    <span>LOGS</span>
+                </button>
             </div>
         </header>
 
@@ -64,25 +55,29 @@
         <div class="dashboard-grid" id="agentGrid">
             <!-- Agent cards will be dynamically inserted here -->
         </div>
+    </div>
 
-
-        <!-- Command Terminal -->
-        <div class="command-terminal">
-            <div class="terminal-header">
+    <!-- Logs Modal Dialog -->
+    <div class="logs-modal" id="logsModal">
+        <div class="logs-modal-content">
+            <div class="logs-modal-header">
                 <span class="terminal-title">[AGENT-COMMAND-TERMINAL v2.0.1]</span>
+                <button class="logs-close-btn" id="logsCloseBtn">&times;</button>
             </div>
-            <div class="terminal-content" id="terminalOutput">
-                <div class="terminal-line">
-                    <span class="terminal-prompt">$></span> System initialized...
-                </div>
-                <div class="terminal-line" style="animation-delay: 0.5s;">
-                    <span class="terminal-prompt">$></span> Connecting to agent network...
-                </div>
-                <div class="terminal-line" style="animation-delay: 1s;">
-                    <span class="terminal-prompt">$></span> Loading agent manifests...
-                </div>
-                <div class="terminal-line" style="animation-delay: 1.5s;">
-                    <span class="terminal-prompt">$></span> Ready for operations.
+            <div class="logs-modal-body">
+                <div class="terminal-content" id="terminalOutput">
+                    <div class="terminal-line">
+                        <span class="terminal-prompt">$></span> System initialized...
+                    </div>
+                    <div class="terminal-line" style="animation-delay: 0.5s;">
+                        <span class="terminal-prompt">$></span> Connecting to agent network...
+                    </div>
+                    <div class="terminal-line" style="animation-delay: 1s;">
+                        <span class="terminal-prompt">$></span> Loading agent manifests...
+                    </div>
+                    <div class="terminal-line" style="animation-delay: 1.5s;">
+                        <span class="terminal-prompt">$></span> Ready for operations.
+                    </div>
                 </div>
             </div>
         </div>
@@ -90,5 +85,9 @@
 
     <script src="radar.js"></script>
     <script src="script.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
 </body>
 </html>

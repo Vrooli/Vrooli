@@ -119,6 +119,9 @@ body {
     padding: 20px;
     max-width: 1800px;
     margin: 0 auto;
+    height: calc(100vh - 40px);
+    display: flex;
+    flex-direction: column;
 }
 
 /* Header Styles */
@@ -221,23 +224,68 @@ body {
     font-size: 14px;
 }
 
-.status-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+.status-icon {
+    width: 18px;
+    height: 18px;
     animation: pulse 2s infinite;
+    filter: drop-shadow(0 0 8px currentColor);
 }
 
-.status-dot.active { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
-.status-dot.warning { background: var(--accent-orange); box-shadow: 0 0 10px var(--accent-orange); }
-.status-dot.error { background: var(--accent-red); box-shadow: 0 0 10px var(--accent-red); }
+.status-icon.active { 
+    color: var(--accent-green); 
+}
+.status-icon.warning { 
+    color: var(--accent-orange); 
+}
+.status-icon.error { 
+    color: var(--accent-red); 
+}
+
+/* Logs Button */
+.logs-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    color: var(--text-primary);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+}
+
+.logs-button:hover {
+    background: rgba(0, 255, 255, 0.2);
+    border-color: var(--primary-cyan);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3);
+}
+
+.logs-button:active {
+    transform: translateY(0);
+}
+
+.logs-icon {
+    font-size: 16px;
+}
 
 /* Dashboard Grid */
 .dashboard-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 20px;
-    margin-bottom: 30px;
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 20px;
+    min-height: 0; /* Allow flex child to shrink */
+}
+
+/* Dashboard Grid when empty (no agents) */
+.dashboard-grid.empty {
+    display: flex;
 }
 
 /* Agent Cards */
@@ -400,7 +448,11 @@ body {
 
 /* No Agents State */
 .no-agents {
-    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    height: 100%;
     text-align: center;
     padding: 60px 20px;
     color: var(--text-secondary);
@@ -463,28 +515,107 @@ body {
     color: var(--primary-cyan);
 }
 
-/* Data Stream Visualization */
-.data-stream {
+/* Logs Modal */
+.logs-modal {
+    display: none;
     position: fixed;
-    right: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 60px;
-    height: 400px;
-    background: rgba(0, 0, 0, 0.8);
-    border: 1px solid rgba(0, 255, 255, 0.3);
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.logs-modal-content {
+    position: relative;
+    background: var(--dark-surface);
+    margin: 5% auto;
+    padding: 0;
+    border: 2px solid var(--primary-cyan);
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+}
+
+.logs-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: var(--dark-panel);
+    border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.logs-modal-header .terminal-title {
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--accent-green);
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.logs-close-btn {
+    background: none;
+    border: none;
+    color: var(--primary-cyan);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.logs-close-btn:hover {
+    color: var(--accent-red);
+    transform: scale(1.1);
+}
+
+.logs-modal-body {
+    padding: 20px;
+    height: calc(100% - 70px);
     overflow: hidden;
 }
 
-.data-particle {
-    position: absolute;
-    width: 4px;
-    height: 20px;
-    background: linear-gradient(180deg, transparent, var(--primary-cyan), transparent);
-    animation: dataStream 3s linear infinite;
+.logs-modal-body .terminal-content {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--accent-green);
+    height: 100%;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 15px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 4px;
 }
 
-/* Radar Container (for future radar component) */
+/* Modal Animation */
+.logs-modal.show {
+    display: block;
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Data Stream Visualization - Removed (was appearing as empty rectangle) */
+
+/* Agent Radar Visualization Container */
 .radar-container {
     position: fixed;
     bottom: 20px;
@@ -494,7 +625,7 @@ body {
     background: rgba(0, 0, 0, 0.9);
     border: 2px solid var(--primary-cyan);
     border-radius: 50%;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to allow tooltips to extend outside */
     z-index: 100;
 }
 
@@ -606,16 +737,30 @@ body {
     
     .header {
         flex-direction: column;
-        gap: 20px;
+        gap: 15px;
+        padding: 15px 20px;
+    }
+    
+    .logo {
+        justify-content: center;
     }
     
     .system-status {
-        flex-direction: column;
+        flex-direction: row; /* Keep horizontal on mobile */
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
         width: 100%;
     }
     
-    .data-stream {
-        display: none;
+    .status-indicator {
+        flex: 0 1 auto;
+        min-width: max-content;
+    }
+    
+    .logs-button {
+        flex: 0 1 auto;
+        min-width: max-content;
     }
     
     .radar-container {

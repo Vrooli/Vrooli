@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
     // Inject API port configuration
     const configScript = `
     <script>
-        window.API_PORT = '${process.env.API_PORT || '20000'}';
+        window.API_PORT = '${process.env.API_PORT}';
     </script>`;
     
     html = html.replace('<script src="script.js"></script>', configScript + '\n    <script src="script.js"></script>');
