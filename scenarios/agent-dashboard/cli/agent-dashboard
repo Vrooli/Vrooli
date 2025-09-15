@@ -6,9 +6,21 @@
 set -e
 
 # Configuration
-API_HOST="${API_HOST:-localhost}"
-API_PORT="${API_PORT:-8100}"
-API_URL="http://${API_HOST}:${API_PORT}"
+SCENARIO_NAME="agent-dashboard"
+
+# Dynamic port discovery
+get_api_url() {
+    local api_port
+    api_port=$(vrooli scenario port "${SCENARIO_NAME}" API_PORT 2>/dev/null)
+    
+    if [[ -z "$api_port" ]]; then
+        echo -e "${RED}❌ Error: ${SCENARIO_NAME} is not running${NC}" >&2
+        echo "   Start it with: vrooli scenario run ${SCENARIO_NAME}" >&2
+        exit 1
+    fi
+    
+    echo "http://localhost:${api_port}"
+}
 
 # Color codes for output
 RED='\033[0;31m'
@@ -42,8 +54,7 @@ Commands:
     --help, -h          Show this help message
 
 Environment Variables:
-    API_HOST    API host (default: localhost)
-    API_PORT    API port (default: 8100)
+    VROOLI_ROOT    Vrooli installation directory
 
 Examples:
     agent-dashboard list
@@ -59,15 +70,18 @@ api_call() {
     local endpoint="$1"
     local method="${2:-GET}"
     local data="${3:-}"
+    local api_url
+    
+    api_url=$(get_api_url)
     
     if [ -n "$data" ]; then
         curl -s -X "$method" \
             -H "Content-Type: application/json" \
             -d "$data" \
-            "${API_URL}${endpoint}" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}"
+            "${api_url}/api/v1${endpoint}" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}"
     else
         curl -s -X "$method" \
-            "${API_URL}${endpoint}" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}"
+            "${api_url}/api/v1${endpoint}" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}"
     fi
 }
 
@@ -189,7 +203,6 @@ get_metrics() {
         "",
         "Resource Usage:",
         "  API Calls: \(.api_calls)",
-        "  Database Queries: \(.db_queries)",
         "  Cache Hits: \(.cache_hits)"
     '
 }
@@ -267,7 +280,9 @@ stop_agent() {
 # Check system health
 check_health() {
     echo -e "${CYAN}Checking dashboard system health...${NC}"
-    response=$(api_call "/health")
+    local api_url
+    api_url=$(get_api_url)
+    response=$(curl -s "${api_url}/health" 2>/dev/null || echo "{\"error\": \"Failed to connect to API\"}")
     
     if echo "$response" | grep -q "\"status\":\"healthy\""; then
         echo -e "${GREEN}✓ Dashboard API is healthy${NC}"
@@ -279,15 +294,6 @@ check_health() {
             "  \(.key): \(.value.status) (v\(.value.version))"
         ' 2>/dev/null || echo "  No resource data available"
         
-        # Check database
-        if echo "$response" | jq -e '.database.connected' >/dev/null 2>&1; then
-            echo -e "\n${BLUE}Database:${NC}"
-            echo "$response" | jq -r '
-                "  Connected: \(.database.connected)",
-                "  Agents: \(.database.agent_count)",
-                "  Tasks: \(.database.task_count)"
-            ' 2>/dev/null
-        fi
     else
         echo -e "${RED}✗ Dashboard API is not healthy${NC}"
         echo "$response" | jq . 2>/dev/null || echo "$response"

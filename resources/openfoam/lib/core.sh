@@ -21,7 +21,18 @@ openfoam::docker::is_running() {
 }
 
 openfoam::docker::start() {
+    # Get port from environment or default
     local port="${OPENFOAM_PORT:-8090}"
+    
+    # Check if container already exists with different port
+    if docker ps -a --format "{{.Names}}" | grep -q "^openfoam$"; then
+        local existing_port=$(docker inspect openfoam | jq -r '.[0].NetworkSettings.Ports | to_entries[0].key' | cut -d'/' -f1)
+        if [[ -n "$existing_port" && "$existing_port" != "$port" ]]; then
+            echo "Note: Container exists on port $existing_port, using that port instead"
+            port="$existing_port"
+            export OPENFOAM_PORT="$port"
+        fi
+    fi
     
     echo "Starting OpenFOAM container..."
     openfoam::docker::ensure_network
@@ -234,27 +245,36 @@ openfoam::install() {
     mkdir -p "${OPENFOAM_CASES_DIR}"
     mkdir -p "${OPENFOAM_RESULTS_DIR}"
     
-    # Create simple API server
-    cat > "${OPENFOAM_DATA_DIR}/api_server.py" << 'EOF'
+    # Copy the full-featured API server from lib
+    if [[ -f "$RESOURCE_DIR/lib/api_server.py" ]]; then
+        cp "$RESOURCE_DIR/lib/api_server.py" "${OPENFOAM_DATA_DIR}/api_server.py"
+    else
+        # Create minimal API server as fallback
+        cat > "${OPENFOAM_DATA_DIR}/api_server.py" << 'EOF'
 #!/usr/bin/env python3
 from flask import Flask, jsonify
 import subprocess
 import os
+import time
 
 app = Flask(__name__)
+PORT = int(os.environ.get('OPENFOAM_PORT', '8090'))
 
 @app.route('/health')
 def health():
     try:
-        result = subprocess.run(['foamVersion'], capture_output=True, text=True, shell=True)
-        version = result.stdout.strip() if result.returncode == 0 else "unknown"
+        result = subprocess.run(['bash', '-c', 'source /opt/openfoam11/etc/bashrc && foamVersion'], 
+                              capture_output=True, text=True)
+        version = result.stdout.strip() if result.returncode == 0 else ""
         return jsonify({
             'status': 'healthy',
             'service': 'openfoam',
-            'version': version or 'v11'
+            'version': version or 'v11',
+            'timestamp': int(time.time())
         })
     except:
-        return jsonify({'status': 'healthy', 'service': 'openfoam', 'version': 'v11'})
+        return jsonify({'status': 'healthy', 'service': 'openfoam', 'version': 'v11', 
+                       'timestamp': int(time.time())})
 
 @app.route('/api/status')
 def status():
@@ -264,8 +284,10 @@ def status():
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    print(f"Starting OpenFOAM API server on port {PORT}")
+    app.run(host='0.0.0.0', port=PORT)
 EOF
+    fi
     
     echo "OpenFOAM installation prepared"
     return 0

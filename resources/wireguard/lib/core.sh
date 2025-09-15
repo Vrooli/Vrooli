@@ -146,6 +146,8 @@ start_wireguard() {
             --name "$CONTAINER_NAME" \
             --cap-add=NET_ADMIN \
             --cap-add=SYS_MODULE \
+            --cap-add=SYS_ADMIN \
+            --privileged \
             --sysctl="net.ipv4.conf.all.src_valid_mark=1" \
             --sysctl="net.ipv4.ip_forward=1" \
             -p "${WIREGUARD_PORT}:51820/udp" \
@@ -938,6 +940,267 @@ rotation_status() {
             echo '  No backups available'
         fi
     "
+    
+    return 0
+}
+# ====================
+# Network Isolation Management (Docker-based)
+# ====================
+handle_namespace_command() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        create)
+            create_isolated_network "$@"
+            ;;
+        list)
+            list_isolated_networks "$@"
+            ;;
+        delete)
+            delete_isolated_network "$@"
+            ;;
+        connect)
+            connect_to_network "$@"
+            ;;
+        status)
+            network_isolation_status "$@"
+            ;;
+        *)
+            echo "Error: Unknown namespace subcommand: $subcommand" >&2
+            echo "Usage: resource-wireguard namespace {create|list|delete|connect|status}" >&2
+            exit 1
+            ;;
+    esac
+}
+
+create_isolated_network() {
+    local network_name="${1:-}"
+    local tunnel_name="${2:-}"
+    
+    if [[ -z "$network_name" ]]; then
+        echo "Error: Network name required" >&2
+        echo "Usage: resource-wireguard namespace create <network-name> [tunnel-name]" >&2
+        return 1
+    fi
+    
+    echo "Creating isolated network: wg-${network_name}"
+    
+    # Generate unique subnet for this network
+    NS_ID=$(echo "$network_name" | cksum | cut -d' ' -f1)
+    SUBNET_NUM=$((NS_ID % 250 + 1))
+    
+    # Create Docker network with isolation
+    docker network create \
+        --driver bridge \
+        --subnet="10.200.${SUBNET_NUM}.0/24" \
+        --gateway="10.200.${SUBNET_NUM}.1" \
+        --opt "com.docker.network.bridge.enable_icc=false" \
+        --opt "com.docker.network.bridge.enable_ip_masquerade=true" \
+        --label "wireguard.network=true" \
+        --label "wireguard.tunnel=${tunnel_name:-none}" \
+        "wg-${network_name}" 2>/dev/null || {
+        echo "Error: Network wg-${network_name} already exists or subnet conflict" >&2
+        return 1
+    }
+    
+    # Connect WireGuard container to this network if tunnel specified
+    if [[ -n "$tunnel_name" ]]; then
+        docker network connect "wg-${network_name}" "$CONTAINER_NAME" 2>/dev/null || true
+        
+        # Configure routing inside WireGuard container
+        docker exec "$CONTAINER_NAME" bash -c "
+            # Add routing rule for this network through WireGuard tunnel
+            if [[ -f /config/wg${tunnel_name}.conf ]]; then
+                # Extract tunnel interface details
+                wg_interface='wg${tunnel_name}'
+                
+                # Check if tunnel is active
+                if wg show \"\$wg_interface\" &>/dev/null; then
+                    # Route this network's traffic through WireGuard
+                    ip route add 10.200.${SUBNET_NUM}.0/24 dev \"\$wg_interface\" 2>/dev/null || true
+                    echo 'Network traffic will be routed through WireGuard tunnel: $tunnel_name'
+                else
+                    echo 'Warning: Tunnel $tunnel_name not active'
+                fi
+            fi
+        "
+    fi
+    
+    # Store network config inside container
+    docker exec "$CONTAINER_NAME" bash -c "
+        mkdir -p /config/networks
+        cat > /config/networks/${network_name}.json << 'NETEOF'
+{
+    \"name\": \"${network_name}\",
+    \"docker_network\": \"wg-${network_name}\",
+    \"tunnel\": \"${tunnel_name:-none}\",
+    \"subnet\": \"10.200.${SUBNET_NUM}.0/24\",
+    \"gateway\": \"10.200.${SUBNET_NUM}.1\",
+    \"created\": \"$(date -Iseconds)\"
+}
+NETEOF
+    "
+    
+    echo "Isolated network wg-${network_name} created successfully"
+    echo "Subnet: 10.200.${SUBNET_NUM}.0/24"
+    echo ""
+    echo "To run a container in this isolated network:"
+    echo "  docker run --network=wg-${network_name} <image>"
+    
+    return 0
+}
+
+list_isolated_networks() {
+    echo "=== Isolated Networks ==="
+    echo ""
+    
+    # List Docker networks with WireGuard label
+    local networks=$(docker network ls --filter "label=wireguard.network=true" --format "{{.Name}}")
+    
+    if [[ -z "$networks" ]]; then
+        echo "No isolated networks found"
+        return 0
+    fi
+    
+    echo "Network            Tunnel            Subnet              Containers"
+    echo "-------            ------            ------              ----------"
+    
+    for network in $networks; do
+        # Get network details
+        local network_info=$(docker network inspect "$network" 2>/dev/null)
+        
+        if [[ -n "$network_info" ]]; then
+            local tunnel=$(echo "$network_info" | jq -r '.[0].Labels."wireguard.tunnel" // "none"')
+            local subnet=$(echo "$network_info" | jq -r '.[0].IPAM.Config[0].Subnet // "unknown"')
+            local container_count=$(echo "$network_info" | jq -r '.[0].Containers | length')
+            
+            # Remove wg- prefix for display
+            local display_name="${network#wg-}"
+            
+            printf "%-18s %-17s %-19s %s\n" "$display_name" "$tunnel" "$subnet" "$container_count"
+        fi
+    done
+    
+    return 0
+}
+
+delete_isolated_network() {
+    local network_name="${1:-}"
+    
+    if [[ -z "$network_name" ]]; then
+        echo "Error: Network name required" >&2
+        echo "Usage: resource-wireguard namespace delete <network-name>" >&2
+        return 1
+    fi
+    
+    local docker_network="wg-${network_name}"
+    
+    echo "Deleting isolated network: $docker_network"
+    
+    # Check if network exists
+    if ! docker network ls | grep -q "$docker_network"; then
+        echo "Error: Network $docker_network does not exist" >&2
+        return 1
+    fi
+    
+    # Check for connected containers
+    local containers=$(docker network inspect "$docker_network" 2>/dev/null | jq -r '.[0].Containers | length')
+    if [[ "$containers" -gt 0 ]]; then
+        echo "Error: Network has $containers connected container(s)" >&2
+        echo "Disconnect all containers before deleting the network" >&2
+        return 1
+    fi
+    
+    # Delete the network
+    docker network rm "$docker_network" || {
+        echo "Error: Failed to delete network" >&2
+        return 1
+    }
+    
+    # Remove config file from container
+    docker exec "$CONTAINER_NAME" rm -f "/config/networks/${network_name}.json" 2>/dev/null || true
+    
+    echo "Isolated network $docker_network deleted successfully"
+    return 0
+}
+
+connect_to_network() {
+    local container_name="${1:-}"
+    local network_name="${2:-}"
+    
+    if [[ -z "$container_name" ]] || [[ -z "$network_name" ]]; then
+        echo "Error: Container and network names required" >&2
+        echo "Usage: resource-wireguard namespace connect <container> <network>" >&2
+        return 1
+    fi
+    
+    local docker_network="wg-${network_name}"
+    
+    # Check if network exists
+    if ! docker network ls | grep -q "$docker_network"; then
+        echo "Error: Network $docker_network does not exist" >&2
+        return 1
+    fi
+    
+    # Connect container to network
+    docker network connect "$docker_network" "$container_name" || {
+        echo "Error: Failed to connect container to network" >&2
+        return 1
+    }
+    
+    echo "Container $container_name connected to isolated network $docker_network"
+    return 0
+}
+
+network_isolation_status() {
+    local network_name="${1:-}"
+    
+    if [[ -z "$network_name" ]]; then
+        echo "Error: Network name required" >&2
+        echo "Usage: resource-wireguard namespace status <network-name>" >&2
+        return 1
+    fi
+    
+    local docker_network="wg-${network_name}"
+    
+    echo "=== Network Status: $network_name ==="
+    echo ""
+    
+    # Check if network exists
+    if ! docker network ls | grep -q "$docker_network"; then
+        echo "Error: Network $docker_network does not exist" >&2
+        return 1
+    fi
+    
+    # Get network details
+    local network_info=$(docker network inspect "$docker_network" 2>/dev/null)
+    
+    if [[ -z "$network_info" ]]; then
+        echo "Error: Failed to get network information" >&2
+        return 1
+    fi
+    
+    echo "Docker Network: $docker_network"
+    echo "Subnet: $(echo "$network_info" | jq -r '.[0].IPAM.Config[0].Subnet')"
+    echo "Gateway: $(echo "$network_info" | jq -r '.[0].IPAM.Config[0].Gateway')"
+    echo "WireGuard Tunnel: $(echo "$network_info" | jq -r '.[0].Labels."wireguard.tunnel" // "none"')"
+    echo ""
+    
+    echo "Connected Containers:"
+    local containers=$(echo "$network_info" | jq -r '.[0].Containers')
+    if [[ "$containers" == "{}" ]]; then
+        echo "  None"
+    else
+        echo "$containers" | jq -r 'to_entries[] | "  \(.value.Name): \(.value.IPv4Address)"'
+    fi
+    
+    # Show config if available from container
+    if docker exec "$CONTAINER_NAME" test -f "/config/networks/${network_name}.json" 2>/dev/null; then
+        echo ""
+        echo "Configuration:"
+        docker exec "$CONTAINER_NAME" jq '.' "/config/networks/${network_name}.json" | sed 's/^/  /'
+    fi
     
     return 0
 }

@@ -17,9 +17,9 @@ Dashboard for monitoring and orchestrating all active AI agents in the Vrooli ec
 - Resource usage optimization
 
 ## Dependencies
-- **Resources**: PostgreSQL, Redis, n8n, Ollama
-- **Models**: llama3.2:3b for intelligent orchestration
-- **Shared Workflows**: ollama.json for AI reasoning
+- **Resources**: None (monitors existing resources)
+- **Models**: llama3.2:3b for intelligent orchestration (optional)
+- **Shared Workflows**: ollama.json for AI reasoning (optional)
 
 ## UX Style
 Professional, dark-themed dashboard with real-time updates. Matrix-inspired green-on-black terminal aesthetic for system monitoring views.

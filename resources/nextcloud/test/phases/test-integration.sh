@@ -131,5 +131,18 @@ else
     echo "(Collabora not running)"
 fi
 
+# Test Talk/Spreed integration
+echo -n "  Testing Talk video conferencing... "
+if docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:list | grep -q "spreed:"; then
+    # Check if Talk is properly configured
+    if docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:get spreed signaling_mode &>/dev/null; then
+        echo "✓"
+    else
+        echo "(not configured)"
+    fi
+else
+    echo "(Talk not installed)"
+fi
+
 echo "All integration tests passed!"
 exit 0

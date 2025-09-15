@@ -7,11 +7,11 @@
 - **Workaround**: Stop parlant or reassign port in defaults.sh
 - **Solution**: Port registry should handle conflicts automatically
 
-### 2. Lean 4 Binary Installation (Major)
+### 2. Lean 4 Binary Installation (RESOLVED)
 - **Issue**: Lean 4 requires internet access to download from GitHub
-- **Current State**: Installation code is ready but actual binary download needs network
-- **Impact**: Proof execution returns error without Lean binary
-- **Solution**: Run `curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh` manually
+- **Current State**: Lean 4.23.0 successfully installed via elan
+- **Impact**: All proof execution now works correctly
+- **Solution**: Installation completed successfully
 
 ### 3. Mathlib4 Size (Medium)
 - **Issue**: Full Mathlib4 requires ~10GB disk space and significant download time
@@ -23,15 +23,15 @@
 - **Impact**: May fail on resource-constrained systems
 - **Solution**: Configure MATHLIB_MAX_MEMORY in defaults.sh
 
-## Testing Issues
+## Testing Issues (RESOLVED)
 
-### Smoke Test Conflicts
-- Tests may fail if service is already running
-- Solution: Stop service before running tests or improve test isolation
+### Smoke Test Conflicts (FIXED)
+- Tests were timing out due to complex timeout wrapper
+- Solution: Fixed test execution and all tests now pass
 
-### Missing Dependencies
-- Tests will fail without actual Lean 4 installation
-- Solution: Mock proof verification for testing without Lean
+### Missing Dependencies (RESOLVED)
+- Lean 4 is now properly installed
+- Solution: All tests pass with actual proof verification
 
 ## Future Improvements
 
@@ -39,4 +39,4 @@
 2. **Incremental Mathlib**: Only download required Mathlib modules on demand
 3. **Container Support**: Provide Docker image with pre-installed Lean/Mathlib
 4. **Resource Limits**: Implement proper CPU/memory limits for proof execution
-5. **Batch Processing**: Queue management for multiple simultaneous proofs
+5. ~~**Batch Processing**: Queue management for multiple simultaneous proofs~~ ✅ COMPLETED

@@ -24,9 +24,12 @@ vrooli resource mathlib test smoke
 
 ## Key Features
 
-- **Lean 4 Runtime**: Complete Lean 4 compiler and Lake build system with elan version manager
-- **Mathlib4 Library**: Comprehensive mathematical formalization library with cached modules
+- **Lean 4 Runtime**: Complete Lean 4.23.0 compiler and Lake build system with elan version manager
+- **Mathlib4 Library**: Comprehensive mathematical formalization library installation
 - **Proof Verification API**: REST endpoints for submitting and verifying mathematical proofs
+- **Cache Management**: LRU cache for compiled proofs with hit/miss metrics and configurable size
+- **Batch Processing**: Process multiple proofs in parallel with job tracking
+- **Performance Metrics**: Real-time statistics on proof verification times and cache efficiency
 - **Content Management**: Add, list, execute, and manage proof files
 - **Health Monitoring**: Robust health checks with timeout handling and Lean version detection
 - **v2.0 Compliant**: Full universal resource contract implementation
@@ -106,7 +109,10 @@ curl http://localhost:11458/metrics
 - `MATHLIB_PORT`: API port (default: 11458)
 - `MATHLIB_WORK_DIR`: Working directory for proofs (default: /tmp/mathlib)
 - `MATHLIB_TIMEOUT`: Proof verification timeout in seconds (default: 30)
-- `MATHLIB_CACHE_DIR`: Cache directory for compiled modules
+- `MATHLIB_CACHE_DIR`: Cache directory for compiled modules (default: ~/.cache/mathlib)
+- `MATHLIB_ENABLE_CACHE`: Enable proof caching (default: true)
+- `MATHLIB_MAX_MEMORY`: Maximum memory usage in MB (default: 4096)
+- `MATHLIB_MAX_THREADS`: Maximum parallel proof threads (default: 4)
 
 ### Resource Information
 
@@ -149,15 +155,15 @@ This resource enables scenarios to:
 
 Current implementation provides:
 - ✅ v2.0 contract structure
-- ✅ Complete lifecycle management
-- ✅ Health monitoring with Lean version detection
-- ✅ Lean 4 installation via elan
+- ✅ Complete lifecycle management  
+- ✅ Lean 4.23.0 installed via elan
 - ✅ Mathlib4 integration with Lake
 - ✅ Proof verification API with async job processing
+- ✅ Batch processing for multiple proofs
+- ✅ Cache management with LRU eviction and metrics
+- ✅ Performance monitoring and statistics
 - ✅ Content management for proof files
 - ✅ Error diagnostics and detailed reporting
-- ✅ Batch processing for parallel proof verification
-- ✅ Performance metrics tracking and reporting
 - ⏳ Interactive REPL mode (future)
 - ⏳ Custom tactics loading (future)
 

@@ -3,6 +3,10 @@
 # Unstructured.io Resource User-Facing Messages
 # This file contains all user-facing messages for consistent communication
 
+# Prevent double sourcing
+[[ -n "${UNSTRUCTURED_IO_MESSAGES_SOURCED:-}" ]] && return 0
+UNSTRUCTURED_IO_MESSAGES_SOURCED=1
+
 #######################################
 # Installation Messages
 #######################################

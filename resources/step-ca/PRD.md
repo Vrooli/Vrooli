@@ -36,10 +36,10 @@ Step-CA provides a modern, open-source private certificate authority (CA) that e
   
 - **Should Have (P1)**
   - [ ] HSM/KMS integration for secure key storage
-  - [ ] Certificate revocation and CRL management
+  - [ ] Certificate revocation and CRL management (partially documented)
   - [ ] Multiple database backends (Badger, BoltDB, PostgreSQL)
   - [ ] Custom certificate templates and profiles
-  - [ ] Audit logging for all certificate operations
+  - [x] Audit logging for all certificate operations (basic implementation)
   
 - **Nice to Have (P2)**
   - [ ] Web UI for certificate management
@@ -645,9 +645,23 @@ release_management:
 
 **Status**: All P0 requirements complete and verified. Resource fully operational and production-ready.
 
+### 2025-09-14 Improvement Update
+**Progress**: P1 Partial Implementation
+- ✅ Enhanced content management functions (list, get, remove)
+- ✅ Improved status reporting with provisioner count and uptime
+- ✅ Added basic audit logging with `--audit` flag for log filtering
+- ✅ Better error messages and user guidance
+- ✅ All tests passing, no regressions introduced
+
+**Next Steps for Full P1 Completion**:
+- PostgreSQL backend integration for scalability
+- Full CRL/OCSP implementation for certificate revocation
+- HSM/KMS integration for production deployments
+- Structured JSON logging with separate audit files
+
 ---
 
 **Last Updated**: 2025-09-14  
-**Status**: Complete (100% P0 Complete - Verified)  
+**Status**: Complete (100% P0 Complete - Verified, P1 Partial)  
 **Owner**: Ecosystem Manager  
 **Review Cycle**: Monthly

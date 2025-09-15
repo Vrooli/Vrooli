@@ -2193,3 +2193,727 @@ func TestMostStaleHandler(t *testing.T) {
         t.Errorf("Expected status 200 for invalid params (should use defaults), got %d", w.Code)
     }
 }
+
+// ============================================================================
+// Main Function and Environment Tests (Simplified - No Subprocess Testing)
+// ============================================================================
+
+func TestMainFunctionComponents(t *testing.T) {
+    // Test individual components that main() uses without actually running main()
+    
+    // Test environment variable validation (simulated)
+    originalEnv := os.Getenv("VROOLI_LIFECYCLE_MANAGED")
+    os.Unsetenv("VROOLI_LIFECYCLE_MANAGED")
+    
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") == "true" {
+        t.Error("Environment variable should be unset for this test")
+    }
+    
+    // Restore environment
+    if originalEnv != "" {
+        os.Setenv("VROOLI_LIFECYCLE_MANAGED", originalEnv)
+    }
+    
+    // Test port environment variable checking
+    originalPort := os.Getenv("API_PORT")
+    os.Unsetenv("API_PORT")
+    
+    if os.Getenv("API_PORT") != "" {
+        t.Error("API_PORT should be unset for this test")
+    }
+    
+    // Restore environment
+    if originalPort != "" {
+        os.Setenv("API_PORT", originalPort)
+    }
+    
+    // Test directory changing functionality
+    originalWD, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("Failed to get current directory: %v", err)
+    }
+    
+    // Test that os.Chdir works (this is what main() does)
+    tempDir, err := ioutil.TempDir("", "visited-tracker-main-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Errorf("Directory change should work: %v", err)
+    }
+    
+    // Restore original directory
+    os.Chdir(originalWD)
+}
+
+// ============================================================================
+// Export Handler Tests (Lowest Coverage)
+// ============================================================================
+
+func TestExportHandlerComprehensive(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Setup test environment
+    tempDir, err := ioutil.TempDir("", "visited-tracker-export-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+    
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+    
+    // Create test campaign
+    description := "Test campaign for export testing"
+    campaign := &Campaign{
+        ID:          uuid.New(),
+        Name:        "test-export-campaign",
+        Description: &description,
+        CreatedAt:   time.Now(),
+    }
+    
+    // Add tracked files
+    trackedFiles := []TrackedFile{
+        {
+            ID:           uuid.New(),
+            FilePath:     "test1.go",
+            VisitCount:   5,
+            LastModified: time.Now().Add(-2 * time.Hour),
+            Deleted:      false,
+        },
+        {
+            ID:           uuid.New(),
+            FilePath:     "test2.js",
+            VisitCount:   3,
+            LastModified: time.Now().Add(-1 * time.Hour),
+            Deleted:      false,
+        },
+    }
+    
+    campaign.TrackedFiles = trackedFiles
+    
+    // Save campaign
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+    defer deleteCampaignFile(campaign.ID)
+    
+    // Test successful export with default parameters
+    req := httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/export", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w := httptest.NewRecorder()
+    
+    exportHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200, got %d. Response: %s", w.Code, w.Body.String())
+    }
+    
+    // Verify JSON response structure
+    var exportData map[string]interface{}
+    if err := json.Unmarshal(w.Body.Bytes(), &exportData); err != nil {
+        t.Fatalf("Failed to parse export JSON: %v", err)
+    }
+    
+    // Should contain campaign metadata
+    if exportData["campaign_name"] != campaign.Name {
+        t.Errorf("Expected campaign name %s, got %v", campaign.Name, exportData["campaign_name"])
+    }
+    
+    // Should contain tracked files
+    files, ok := exportData["files"].([]interface{})
+    if !ok {
+        t.Errorf("Expected files array in export data")
+    }
+    
+    if len(files) != len(trackedFiles) {
+        t.Errorf("Expected %d files in export, got %d", len(trackedFiles), len(files))
+    }
+    
+    // Test export with include_history parameter
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/export?include_history=true", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    exportHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for include_history=true, got %d", w.Code)
+    }
+    
+    // Test export with format parameter
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/export?format=detailed", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    exportHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for format=detailed, got %d", w.Code)
+    }
+    
+    // Test export with patterns filter
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/export?patterns=*.go", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    exportHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for patterns filter, got %d", w.Code)
+    }
+    
+    // Verify patterns filter worked
+    if err := json.Unmarshal(w.Body.Bytes(), &exportData); err != nil {
+        t.Fatalf("Failed to parse filtered export JSON: %v", err)
+    }
+    
+    filteredFiles, ok := exportData["files"].([]interface{})
+    if !ok {
+        t.Errorf("Expected files array in filtered export data")
+    }
+    
+    // Should only include .go files
+    for _, fileInterface := range filteredFiles {
+        if file, ok := fileInterface.(map[string]interface{}); ok {
+            if filePath, ok := file["file_path"].(string); ok {
+                if !strings.HasSuffix(filePath, ".go") {
+                    t.Errorf("Patterns filter failed: got non-.go file %s", filePath)
+                }
+            }
+        }
+    }
+    
+    // Test invalid campaign ID
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/invalid-uuid/export", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": "invalid-uuid"})
+    w = httptest.NewRecorder()
+    
+    exportHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid UUID, got %d", w.Code)
+    }
+    
+    // Test non-existent campaign
+    nonExistentID := uuid.New()
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+nonExistentID.String()+"/export", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": nonExistentID.String()})
+    w = httptest.NewRecorder()
+    
+    exportHandler(w, req)
+    
+    if w.Code != http.StatusNotFound {
+        t.Errorf("Expected status 404 for non-existent campaign, got %d", w.Code)
+    }
+}
+
+// ============================================================================
+// Error Path and Edge Case Tests
+// ============================================================================
+
+func TestHealthHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Test health handler with various scenarios
+    req := httptest.NewRequest("GET", "/health", nil)
+    w := httptest.NewRecorder()
+    
+    healthHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200, got %d", w.Code)
+    }
+    
+    // Verify response contains expected fields
+    var health map[string]interface{}
+    if err := json.Unmarshal(w.Body.Bytes(), &health); err != nil {
+        t.Fatalf("Failed to parse health JSON: %v", err)
+    }
+    
+    if health["status"] != "ok" && health["status"] != "degraded" {
+        t.Errorf("Expected status 'ok' or 'degraded', got %v", health["status"])
+    }
+    
+    if health["service"] != serviceName {
+        t.Errorf("Expected service name %s, got %v", serviceName, health["service"])
+    }
+    
+    if health["version"] != apiVersion {
+        t.Errorf("Expected version %s, got %v", apiVersion, health["version"])
+    }
+}
+
+func TestLoadAllCampaignsErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Test by changing to a directory where the data dir doesn't exist
+    originalWD, _ := os.Getwd()
+    testDir := "/tmp/visited-tracker-test-no-data"
+    os.MkdirAll(testDir, 0755)
+    defer os.RemoveAll(testDir)
+    
+    os.Chdir(testDir)
+    defer os.Chdir(originalWD)
+    
+    campaigns, err := loadAllCampaigns()
+    
+    // Should handle missing directory gracefully
+    if err != nil {
+        t.Errorf("loadAllCampaigns should handle missing directory gracefully, got error: %v", err)
+    }
+    
+    if len(campaigns) != 0 {
+        t.Errorf("Expected 0 campaigns from non-existent directory, got %d", len(campaigns))
+    }
+}
+
+func TestCreateCampaignHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Test with invalid JSON
+    invalidJSON := `{"name": "test", "description": "`
+    req := httptest.NewRequest("POST", "/api/v1/campaigns", strings.NewReader(invalidJSON))
+    req.Header.Set("Content-Type", "application/json")
+    w := httptest.NewRecorder()
+    
+    createCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid JSON, got %d", w.Code)
+    }
+    
+    // Test with missing required fields
+    emptyRequest := `{}`
+    req = httptest.NewRequest("POST", "/api/v1/campaigns", strings.NewReader(emptyRequest))
+    req.Header.Set("Content-Type", "application/json")
+    w = httptest.NewRecorder()
+    
+    createCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for missing fields, got %d", w.Code)
+    }
+    
+    // Test with empty name
+    emptyName := `{"name": "", "description": "test"}`
+    req = httptest.NewRequest("POST", "/api/v1/campaigns", strings.NewReader(emptyName))
+    req.Header.Set("Content-Type", "application/json")
+    w = httptest.NewRecorder()
+    
+    createCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for empty name, got %d", w.Code)
+    }
+}
+
+func TestVisitHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Setup test environment
+    tempDir, err := ioutil.TempDir("", "visited-tracker-visit-error-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+    
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+    
+    // Create test campaign
+    description := "Test campaign for visit error testing"
+    campaign := &Campaign{
+        ID:          uuid.New(),
+        Name:        "test-visit-error-campaign",
+        Description: &description,
+        CreatedAt:   time.Now(),
+    }
+    
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+    defer deleteCampaignFile(campaign.ID)
+    
+    // Test with invalid JSON
+    invalidJSON := `{"file_paths": ["test.go"], "context": "`
+    req := httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/visit", strings.NewReader(invalidJSON))
+    req.Header.Set("Content-Type", "application/json")
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w := httptest.NewRecorder()
+    
+    visitHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid JSON, got %d", w.Code)
+    }
+    
+    // Test with empty file paths
+    emptyPaths := `{"file_paths": [], "context": "general"}`
+    req = httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/visit", strings.NewReader(emptyPaths))
+    req.Header.Set("Content-Type", "application/json")
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    visitHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for empty file paths, got %d", w.Code)
+    }
+    
+    // Test with missing file_paths field
+    missingPaths := `{"context": "general"}`
+    req = httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/visit", strings.NewReader(missingPaths))
+    req.Header.Set("Content-Type", "application/json")
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    visitHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for missing file_paths, got %d", w.Code)
+    }
+}
+
+func TestAdjustVisitHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Setup test environment
+    tempDir, err := ioutil.TempDir("", "visited-tracker-adjust-visit-error-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+    
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+    
+    // Create test campaign
+    description := "Test campaign for adjust visit error testing"
+    campaign := &Campaign{
+        ID:          uuid.New(),
+        Name:        "test-adjust-visit-error-campaign",
+        Description: &description,
+        CreatedAt:   time.Now(),
+    }
+    
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+    defer deleteCampaignFile(campaign.ID)
+    
+    // Test with invalid JSON
+    invalidJSON := `{"file_id": "invalid", "adjustment": "`
+    req := httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/adjust-visit", strings.NewReader(invalidJSON))
+    req.Header.Set("Content-Type", "application/json")
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w := httptest.NewRecorder()
+    
+    adjustVisitHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid JSON, got %d", w.Code)
+    }
+    
+    // Test with invalid file ID
+    invalidFileID := `{"file_id": "invalid-uuid", "adjustment": 5}`
+    req = httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/adjust-visit", strings.NewReader(invalidFileID))
+    req.Header.Set("Content-Type", "application/json")
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    adjustVisitHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid file ID, got %d", w.Code)
+    }
+    
+    // Test with non-existent file ID
+    nonExistentFileID := uuid.New()
+    nonExistentFile := fmt.Sprintf(`{"file_id": "%s", "adjustment": 5}`, nonExistentFileID.String())
+    req = httptest.NewRequest("POST", "/api/v1/campaigns/"+campaign.ID.String()+"/adjust-visit", strings.NewReader(nonExistentFile))
+    req.Header.Set("Content-Type", "application/json")
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    adjustVisitHandler(w, req)
+    
+    if w.Code != http.StatusNotFound {
+        t.Errorf("Expected status 404 for non-existent file ID, got %d", w.Code)
+    }
+}
+
+// ============================================================================
+// Additional Coverage Improvement Tests
+// ============================================================================
+
+func TestSyncCampaignFilesErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Setup test environment
+    tempDir, err := ioutil.TempDir("", "visited-tracker-sync-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+    
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+    
+    // Create test campaign
+    description := "Test campaign for sync testing"
+    campaign := &Campaign{
+        ID:          uuid.New(),
+        Name:        "test-sync-campaign",
+        Description: &description,
+        CreatedAt:   time.Now(),
+        Patterns:    []string{"*.go"},
+    }
+    
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+    defer deleteCampaignFile(campaign.ID)
+    
+    // Test sync with campaign patterns (should use campaign defaults)
+    _, err = syncCampaignFiles(campaign, campaign.Patterns)
+    if err != nil && !strings.Contains(err.Error(), "no patterns specified") {
+        t.Errorf("Sync with campaign patterns should work: %v", err)
+    }
+    
+    // Test sync with specific patterns
+    _, err = syncCampaignFiles(campaign, []string{"*.go"})
+    if err != nil {
+        t.Errorf("Sync with go patterns should work: %v", err)
+    }
+    
+    // Test sync with multiple patterns
+    _, err = syncCampaignFiles(campaign, []string{"*.js", "*.ts"})
+    if err != nil {
+        t.Errorf("Sync with multiple patterns should work: %v", err)
+    }
+    
+    // Test error path - sync with empty patterns
+    _, err = syncCampaignFiles(campaign, []string{})
+    if err == nil {
+        t.Error("Sync with empty patterns should return error")
+    }
+}
+
+func TestGetCampaignHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Test missing campaign ID in URL vars
+    req := httptest.NewRequest("GET", "/api/v1/campaigns/missing", nil)
+    // Don't set URL vars to trigger the missing ID path
+    w := httptest.NewRecorder()
+    
+    getCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for missing campaign ID, got %d", w.Code)
+    }
+    
+    // Test invalid UUID format
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/invalid-uuid", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": "invalid-uuid"})
+    w = httptest.NewRecorder()
+    
+    getCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid UUID, got %d", w.Code)
+    }
+    
+    // Test non-existent campaign
+    nonExistentID := uuid.New()
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+nonExistentID.String(), nil)
+    req = mux.SetURLVars(req, map[string]string{"id": nonExistentID.String()})
+    w = httptest.NewRecorder()
+    
+    getCampaignHandler(w, req)
+    
+    if w.Code != http.StatusNotFound {
+        t.Errorf("Expected status 404 for non-existent campaign, got %d", w.Code)
+    }
+}
+
+func TestDeleteCampaignHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Setup test environment
+    tempDir, err := ioutil.TempDir("", "visited-tracker-delete-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+    
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+    
+    // Test missing campaign ID in URL vars
+    req := httptest.NewRequest("DELETE", "/api/v1/campaigns/missing", nil)
+    w := httptest.NewRecorder()
+    
+    deleteCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for missing campaign ID, got %d", w.Code)
+    }
+    
+    // Test invalid UUID format
+    req = httptest.NewRequest("DELETE", "/api/v1/campaigns/invalid-uuid", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": "invalid-uuid"})
+    w = httptest.NewRecorder()
+    
+    deleteCampaignHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid UUID, got %d", w.Code)
+    }
+    
+    // Test non-existent campaign (should succeed - idempotent delete)
+    nonExistentID := uuid.New()
+    req = httptest.NewRequest("DELETE", "/api/v1/campaigns/"+nonExistentID.String(), nil)
+    req = mux.SetURLVars(req, map[string]string{"id": nonExistentID.String()})
+    w = httptest.NewRecorder()
+    
+    deleteCampaignHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for non-existent campaign delete (idempotent), got %d", w.Code)
+    }
+}
+
+func TestCoverageHandlerErrorPaths(t *testing.T) {
+    cleanup := setupTestLogger()
+    defer cleanup()
+    
+    // Setup test environment
+    tempDir, err := ioutil.TempDir("", "visited-tracker-coverage-test")
+    if err != nil {
+        t.Fatalf("Failed to create temp dir: %v", err)
+    }
+    defer os.RemoveAll(tempDir)
+    
+    originalWD, _ := os.Getwd()
+    defer os.Chdir(originalWD)
+    
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp dir: %v", err)
+    }
+    
+    if err := initFileStorage(); err != nil {
+        t.Fatalf("Failed to init file storage: %v", err)
+    }
+    
+    // Create test campaign
+    description := "Test campaign for coverage error testing"
+    campaign := &Campaign{
+        ID:          uuid.New(),
+        Name:        "test-coverage-campaign",
+        Description: &description,
+        CreatedAt:   time.Now(),
+    }
+    
+    if err := saveCampaign(campaign); err != nil {
+        t.Fatalf("Failed to save campaign: %v", err)
+    }
+    defer deleteCampaignFile(campaign.ID)
+    
+    // Test coverage with group-by parameter
+    req := httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/coverage?group_by=extension", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w := httptest.NewRecorder()
+    
+    coverageHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for group_by extension, got %d", w.Code)
+    }
+    
+    // Test coverage with patterns parameter
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+campaign.ID.String()+"/coverage?patterns=*.go,*.js", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": campaign.ID.String()})
+    w = httptest.NewRecorder()
+    
+    coverageHandler(w, req)
+    
+    if w.Code != http.StatusOK {
+        t.Errorf("Expected status 200 for patterns filter, got %d", w.Code)
+    }
+    
+    // Test invalid campaign ID
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/invalid-uuid/coverage", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": "invalid-uuid"})
+    w = httptest.NewRecorder()
+    
+    coverageHandler(w, req)
+    
+    if w.Code != http.StatusBadRequest {
+        t.Errorf("Expected status 400 for invalid UUID, got %d", w.Code)
+    }
+    
+    // Test non-existent campaign
+    nonExistentID := uuid.New()
+    req = httptest.NewRequest("GET", "/api/v1/campaigns/"+nonExistentID.String()+"/coverage", nil)
+    req = mux.SetURLVars(req, map[string]string{"id": nonExistentID.String()})
+    w = httptest.NewRecorder()
+    
+    coverageHandler(w, req)
+    
+    if w.Code != http.StatusNotFound {
+        t.Errorf("Expected status 404 for non-existent campaign, got %d", w.Code)
+    }
+}

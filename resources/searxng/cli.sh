@@ -83,7 +83,7 @@ cli::register_subcommand "content" "lucky" "I'm Feeling Lucky search" "searxng::
 cli::register_subcommand "content" "headlines" "Get news headlines" "searxng::execute_headlines"
 cli::register_subcommand "content" "batch" "Batch search from file" "searxng::execute_batch"
 cli::register_subcommand "content" "interactive" "Interactive search mode" "searxng::interactive_search"
-cli::register_subcommand "content" "benchmark" "Run performance benchmark" "searxng::benchmark"
+cli::register_subcommand "content" "benchmark" "Run performance benchmark" "searxng::benchmark_cli"
 
 # Custom content subcommands for configuration management
 cli::register_subcommand "content" "config" "Show configuration" "searxng::show_config"

@@ -867,15 +867,13 @@ sqlite::query::insert() {
         return 1
     fi
     
-    # Build and execute INSERT query
-    local query="INSERT INTO ${table} (${columns}) VALUES (${values});"
-    sqlite3 "$db_path" "$query"
+    # Build and execute INSERT query with last_insert_rowid() in the same session
+    local query="INSERT INTO ${table} (${columns}) VALUES (${values}); SELECT last_insert_rowid();"
+    local last_id
+    last_id=$(sqlite3 "$db_path" "$query")
     
     if [[ $? -eq 0 ]]; then
         log::info "Row inserted into ${table}"
-        # Get last inserted row ID
-        local last_id
-        last_id=$(sqlite3 "$db_path" "SELECT last_insert_rowid();")
         echo "Last inserted ID: $last_id"
     fi
     
@@ -929,13 +927,12 @@ sqlite::query::update() {
         return 1
     fi
     
-    # Build and execute UPDATE query
-    local query="UPDATE ${table} SET ${set_clause} WHERE ${where};"
-    sqlite3 "$db_path" "$query"
+    # Build and execute UPDATE query with changes() in the same session
+    local query="UPDATE ${table} SET ${set_clause} WHERE ${where}; SELECT changes();"
+    local affected
+    affected=$(sqlite3 "$db_path" "$query")
     
     if [[ $? -eq 0 ]]; then
-        local affected
-        affected=$(sqlite3 "$db_path" "SELECT changes();")
         log::info "Updated ${affected} row(s) in ${table}"
     fi
     

@@ -46,6 +46,26 @@ vrooli resource wireguard content add my-tunnel
 - Automatic key generation for tunnels
 - **Key rotation system** for enhanced security
 
+### Key Rotation
+WireGuard supports comprehensive key rotation for enhanced security:
+
+```bash
+# Rotate keys immediately
+vrooli resource wireguard rotate keys my-tunnel
+
+# Schedule automatic rotation (every 30 days)
+vrooli resource wireguard rotate schedule my-tunnel --interval 30d
+
+# Check rotation status and history
+vrooli resource wireguard rotate status
+```
+
+**Key Rotation Features:**
+- Automatic backup of old configurations
+- Scheduled rotations with configurable intervals
+- Rotation history tracking
+- Seamless key replacement without downtime
+
 ### Monitoring & Statistics
 - Per-interface traffic statistics
 - Real-time bandwidth monitoring
@@ -105,13 +125,38 @@ vrooli resource wireguard content add datacenter-link
 ```
 
 ### Container Network Isolation
-```bash
-# Create isolated network for containers
-vrooli resource wireguard content add container-net
 
-# Containers connect through WireGuard
-# Complete network isolation from host
+WireGuard now provides Docker-based network isolation for enhanced container security:
+
+```bash
+# Create an isolated network
+vrooli resource wireguard namespace create secure-app
+
+# Create network with WireGuard tunnel routing
+vrooli resource wireguard namespace create prod-net site-tunnel
+
+# List isolated networks
+vrooli resource wireguard namespace list
+
+# Check network status
+vrooli resource wireguard namespace status secure-app
+
+# Connect container to isolated network
+vrooli resource wireguard namespace connect my-container secure-app
+
+# Run new container in isolated network
+docker run --network=wg-secure-app nginx
+
+# Delete network (must be empty)
+vrooli resource wireguard namespace delete secure-app
 ```
+
+**Benefits of Network Isolation:**
+- Complete container-to-container isolation
+- Optional WireGuard tunnel routing for secure traffic
+- Automatic subnet allocation to prevent conflicts
+- Easy container attachment to isolated networks
+- Full Docker compatibility
 
 ## Testing
 

@@ -213,3 +213,9 @@ resource-virustotal content get --hash $alert_hash --format json | \
   - Implemented URL report retrieval endpoint (/api/report/url/{url_id})
   - Fixed Docker health checks to work in mock mode
   - All tests passing (smoke, unit, integration)
+- 2025-09-14: Cache management and integration enhancements:
+  - Fixed Docker healthcheck by adding requests module to container
+  - Implemented automatic cache rotation (hourly, 100MB/30day/10K entry limits)
+  - Added /api/cache/info endpoint for monitoring cache status
+  - Added comprehensive integration examples with other Vrooli resources
+  - Enhanced documentation with CI/CD and security monitoring examples

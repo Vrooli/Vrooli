@@ -195,6 +195,37 @@ test_advanced_configuration() {
     fi
 }
 
+# Test 10: Direct Pandas Execution - New Feature
+test_direct_pandas_execution() {
+    log::info "Testing direct pandas code execution..."
+    
+    # Test simple pandas code execution
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/pandas/execute" \
+        -H "Content-Type: application/json" \
+        -d '{"code": "import pandas as pd\ndf = pd.DataFrame({\"A\": [1,2,3]})\nresult = df.sum()", "safe_mode": true}' 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q "success.*true" && echo "${response}" | grep -q "output_type"; then
+        log::success "Direct pandas execution works"
+        
+        # Test safety check
+        response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/pandas/execute" \
+            -H "Content-Type: application/json" \
+            -d '{"code": "import os; os.system(\"ls\")", "safe_mode": true}' 2>/dev/null)
+        
+        if echo "${response}" | grep -q "success.*false" && echo "${response}" | grep -q "Unsafe operation"; then
+            log::success "Safety checks work correctly"
+            return 0
+        else
+            log::error "Safety checks not working properly"
+            return 1
+        fi
+    else
+        log::error "Direct pandas execution failed"
+        return 1
+    fi
+}
+
 # Main integration test execution
 main() {
     log::header "Pandas-AI Integration Tests"
@@ -215,6 +246,10 @@ main() {
     test_multi_dataframe || failed=1
     test_performance_optimization || failed=1
     test_advanced_configuration || failed=1
+    
+    # Run new feature tests
+    log::info "Running new feature tests..."
+    test_direct_pandas_execution || failed=1
     
     if [[ ${failed} -eq 0 ]]; then
         log::success "All integration tests passed!"

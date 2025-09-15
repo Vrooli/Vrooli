@@ -126,3 +126,8 @@ Since SQLite is serverless, we'll provide a CLI-based API:
   - Implemented performance monitoring with statistics tracking
   - Added database analysis and optimization recommendations
   - All tests passing, no regressions introduced
+- 2025-09-14: Fixed query builder issues (P0: 100%, P1: 100%, P2: 0%)
+  - Fixed UPDATE query builder to correctly report affected rows
+  - Fixed INSERT query builder to correctly return last inserted ID
+  - Both fixes use single SQLite session for atomic operation
+  - All tests continue to pass

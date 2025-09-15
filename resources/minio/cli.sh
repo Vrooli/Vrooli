@@ -36,7 +36,7 @@ source "${MINIO_CLI_DIR}/config/defaults.sh"
 minio::export_config 2>/dev/null || true
 
 # Source MinIO libraries
-for lib in common docker install status api buckets inject core; do
+for lib in common docker install status api buckets inject core backup; do
     lib_file="${MINIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -78,6 +78,13 @@ cli::register_command "logs" "Show MinIO logs" "minio::logs"
 # ==============================================================================
 cli::register_command "credentials" "Show MinIO credentials for integration" "minio::credentials"
 cli::register_command "metrics" "Show storage metrics and statistics" "minio::metrics"
+
+# Register backup command group
+cli::register_command_group "backup" "Backup and restore MinIO data"
+cli::register_subcommand "backup" "create" "Create a backup of MinIO data" "minio::backup::create" "modifies-system"
+cli::register_subcommand "backup" "list" "List available backups" "minio::backup::list"
+cli::register_subcommand "backup" "restore" "Restore MinIO data from backup" "minio::backup::restore" "modifies-system"
+cli::register_subcommand "backup" "delete" "Delete a backup" "minio::backup::delete" "modifies-system"
 
 # Add custom content subcommands for MinIO-specific operations
 cli::register_subcommand "content" "upload" "Upload file to bucket" "minio::content::upload_file" "modifies-system"

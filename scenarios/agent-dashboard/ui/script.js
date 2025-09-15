@@ -2,13 +2,23 @@
 
 // Global agents array (populated from API)
 let currentAgents = [];
+let agentRadar = null;
 
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize radar visualization
+    initializeRadar();
+    
     await fetchAndRenderAgents();
     startRealtimeUpdates();
     initializeTerminal();
 });
+
+// Initialize the radar visualization
+function initializeRadar() {
+    agentRadar = new AgentRadar('agentRadar');
+    console.log('🎯 Agent radar initialized');
+}
 
 // Fetch agents from API and render
 async function fetchAndRenderAgents() {
@@ -34,6 +44,11 @@ function renderAgents() {
     
     if (currentAgents.length === 0) {
         grid.innerHTML = '<div class="no-agents">No active agents found. Agents will appear here when resource services start agents.</div>';
+        
+        // Update radar with empty data
+        if (agentRadar) {
+            agentRadar.updateAgents([]);
+        }
         return;
     }
     
@@ -42,6 +57,11 @@ function renderAgents() {
         card.style.animationDelay = `${index * 0.1}s`;
         grid.appendChild(card);
     });
+    
+    // Update radar with current agents
+    if (agentRadar) {
+        agentRadar.updateAgents(currentAgents);
+    }
 }
 
 function getUniqueResourceCount(agents) {
@@ -251,18 +271,27 @@ document.addEventListener('keydown', (e) => {
 // API Integration - fetch real agent data
 async function fetchAgentStatus() {
     try {
-        // Use relative path - Express proxy handles routing to API server
-        const response = await fetch('/api/agents');
+        // Use injected API_PORT from server
+        const apiPort = window.API_PORT || '20000';
+        const response = await fetch(`http://localhost:${apiPort}/api/v1/agents`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         const data = await response.json();
         
-        if (!data.success) {
-            throw new Error(data.error || 'API returned error');
+        // New API format returns AgentsResponse directly
+        // { agents: [], last_scan: "", scan_in_progress: bool, errors: [] }
+        if (data.errors && data.errors.length > 0) {
+            console.warn('Agent discovery errors:', data.errors);
+            // Log errors but don't fail completely
+            data.errors.forEach(error => {
+                addTerminalLog(`⚠ ${error.resource_name}: ${error.error}`, 'warn');
+            });
         }
         
-        return data.data || [];
+        addTerminalLog(`Last scan: ${new Date(data.last_scan).toLocaleTimeString()}, ${data.scan_in_progress ? 'scan in progress' : 'scan complete'}`, 'info');
+        
+        return data.agents || [];
     } catch (error) {
         console.error('Failed to fetch agent status:', error);
         throw error;

@@ -2,6 +2,28 @@
 
 ## Resolved Issues
 
+### 0. Recent Fixes (2025-09-14)
+
+#### Benchmark Command Parameter Parsing
+**Problem**: The benchmark command failed when using --iterations parameter.
+**Symptoms**: `searxng::benchmark: line 748: iterations: unbound variable`
+**Root Cause**: CLI framework consumed parameters before they reached the benchmark function.
+**Solution**: Created a wrapper function `searxng::benchmark_cli()` that properly parses CLI arguments and passes them to the actual benchmark function.
+
+#### Advanced Search Time Range Parameter
+**Problem**: The advanced-search command didn't recognize --time-range parameter.
+**Symptoms**: `[ERROR] Unknown option: --time-range`
+**Root Cause**: Only --time was accepted, not the more intuitive --time-range.
+**Solution**: Updated parameter parsing to accept both --time and --time-range for better user experience.
+
+#### Redis Readonly Variable Error
+**Problem**: Enabling/disabling Redis threw readonly variable error.
+**Symptoms**: `/lib/docker.sh: line 296: SEARXNG_ENABLE_REDIS: readonly variable`
+**Root Cause**: Attempting to export a variable that was declared as readonly in defaults.sh.
+**Solution**: Removed the export statements and just logged the status changes instead.
+
+## Previously Resolved Issues
+
 ### 1. Benchmark Loop Execution Failure
 **Problem**: The benchmark command would hang when executed due to bash C-style for loop incompatibility with `set -euo pipefail`.
 **Symptoms**: Command would print "Running benchmark..." and then hang indefinitely.

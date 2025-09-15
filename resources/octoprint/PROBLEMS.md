@@ -1,22 +1,24 @@
 # OctoPrint Resource - Known Problems
 
-## API Authentication Issues
-**Problem**: OctoPrint API returns 403 Forbidden even with correct API key
-**Cause**: OctoPrint's config.yaml is created inside the Docker container with root ownership, making it difficult to update with the generated API key
-**Workaround**: The web interface works and file management operations work through direct file system access
-**Solution**: Need to properly configure OctoPrint's config.yaml before starting the container, or use OctoPrint's REST API to configure the API key after startup
+## API Write Operations Require Additional Permissions
+**Problem**: OctoPrint API write operations (settings, connection control) return 403 Forbidden even with valid API key
+**Cause**: OctoPrint requires user authentication for certain operations, not just API key
+**Status**: API read operations work (version, status), web interface fully functional
+**Solution**: Would need to implement OctoPrint user authentication system or use application keys with appropriate permissions
 
 ## Permission Issues with Docker Volumes
 **Problem**: Files created inside the Docker container are owned by root
 **Cause**: OctoPrint Docker container runs as root user by default
 **Impact**: Cannot easily clean up or modify configuration files
-**Solution**: Configure Docker container to run with proper user ID mapping
+**Mitigation**: Added --user flag to Docker run command, but may cause issues with some operations
+**Solution**: Need to configure container with proper permissions and volume ownership
 
 ## Virtual Printer Configuration
-**Problem**: Virtual printer mode doesn't fully simulate temperature readings and printer state
-**Cause**: OctoPrint's virtual printer plugin requires additional configuration
-**Impact**: Temperature monitoring and print control commands return empty responses in virtual mode
-**Solution**: Need to configure virtual printer plugin with simulated responses
+**Problem**: Virtual printer requires manual connection through web interface
+**Cause**: OctoPrint's connection API requires elevated permissions
+**Impact**: Virtual printer not automatically connected, temperature data only simulated
+**Mitigation**: Added simulated temperature display when printer not connected
+**Solution**: Connect virtual printer via web interface for live data, or implement user authentication
 
 ## Integration Test Timing
 **Problem**: Integration tests occasionally fail due to service startup timing

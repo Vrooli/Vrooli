@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Prevent double sourcing
+[[ -n "${UNSTRUCTURED_IO_CACHE_SOURCED:-}" ]] && return 0
+UNSTRUCTURED_IO_CACHE_SOURCED=1
+
 # Source required utilities
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 CACHE_LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
@@ -82,6 +86,9 @@ unstructured_io::get_cached() {
     fi
     
     # Return cached content
+    if [[ "${DEBUG:-no}" == "yes" ]]; then
+        echo "[DEBUG] Returning cached content from: $cache_file" >&2
+    fi
     cat "$cache_file"
     return 0
 }

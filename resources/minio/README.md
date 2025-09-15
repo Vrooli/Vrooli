@@ -72,8 +72,15 @@ resource-minio manage restart
 
 # Monitoring and metrics
 resource-minio logs --tail 100
-resource-minio metrics                  # NEW: Show storage statistics
+resource-minio metrics                  # Show storage statistics
 resource-minio content execute --name monitor --interval 5
+
+# Backup and restore operations
+resource-minio backup create            # Create timestamped backup
+resource-minio backup create my-backup  # Create named backup  
+resource-minio backup list              # List available backups
+resource-minio backup restore my-backup # Restore from backup
+resource-minio backup delete my-backup  # Delete a backup
 
 # Bucket management
 resource-minio content list
@@ -108,11 +115,36 @@ MINIO_API_REQUESTS_MAX=1000 MINIO_REGION=us-west-1 \
 
 ## Integration Examples
 
-### With AWS CLI
+### With MinIO Client (mc) - Built-in
 ```bash
-# Configure for MinIO
-aws configure set aws_access_key_id minioadmin
-aws configure set aws_secret_access_key minio123
+# The mc client is included in the MinIO container
+# Configure alias (done automatically by resource)
+docker exec minio mc alias set local http://localhost:9000 $ACCESS_KEY $SECRET_KEY
+
+# List buckets
+docker exec minio mc ls local/
+
+# Upload file
+docker exec minio mc cp /path/to/file local/bucket-name/
+
+# Download file  
+docker exec minio mc cp local/bucket-name/file /path/to/destination
+
+# Create bucket
+docker exec minio mc mb local/new-bucket
+
+# Remove bucket
+docker exec minio mc rb --force local/old-bucket
+```
+
+### With AWS CLI (Optional - requires separate installation)
+```bash
+# Load MinIO credentials
+source ~/.minio/config/credentials
+
+# Configure AWS CLI
+aws configure set aws_access_key_id "$MINIO_ROOT_USER"
+aws configure set aws_secret_access_key "$MINIO_ROOT_PASSWORD"
 
 # Use S3 commands
 aws s3 ls --endpoint-url http://localhost:9000

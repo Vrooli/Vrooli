@@ -13,6 +13,9 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 source "${APP_ROOT}/scripts/resources/lib/credentials-utils.sh"
 
+# Source Cloudflare AI Gateway integration
+source "${OPENROUTER_RESOURCE_DIR}/lib/cloudflare.sh"
+
 # Initialize OpenRouter
 openrouter::init() {
     local verbose="${1:-false}"
@@ -26,9 +29,18 @@ openrouter::init() {
         # Try standard path first
         vault_key=$(resource-vault content get --path "resources/openrouter/api/main" --key "value" --format raw 2>/dev/null || true)
         
+        # Filter out error messages (they start with ANSI codes or [ERROR])
+        if [[ "$vault_key" == *"[ERROR]"* ]] || [[ "$vault_key" == *"[0;"* ]]; then
+            vault_key=""
+        fi
+        
         # Fallback to legacy path if not found
         if [[ -z "$vault_key" || "$vault_key" == "No value found"* ]]; then
             vault_key=$(resource-vault content get --path "vrooli/openrouter" --key "api_key" --format raw 2>/dev/null || true)
+            # Filter out error messages again
+            if [[ "$vault_key" == *"[ERROR]"* ]] || [[ "$vault_key" == *"[0;"* ]]; then
+                vault_key=""
+            fi
         fi
         
         if [[ -n "$vault_key" && "$vault_key" != "No value found"* ]]; then
@@ -76,12 +88,16 @@ openrouter::test_connection() {
         openrouter::init || return 1
     fi
     
+    # Use Cloudflare Gateway if configured
+    local api_url
+    api_url=$(openrouter::cloudflare::get_gateway_url "$OPENROUTER_API_BASE" "$model")
+    
     local response
     response=$(timeout "$timeout" curl -s -X POST \
         -H "Authorization: Bearer $OPENROUTER_API_KEY" \
         -H "Content-Type: application/json" \
         -d '{"model": "'"$model"'", "messages": [{"role": "user", "content": "test"}], "max_tokens": 1}' \
-        "${OPENROUTER_API_BASE}/chat/completions" 2>/dev/null)
+        "${api_url}/chat/completions" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
         return 1
@@ -103,9 +119,13 @@ openrouter::list_models() {
         openrouter::init || return 1
     fi
     
+    # Use Cloudflare Gateway if configured
+    local api_url
+    api_url=$(openrouter::cloudflare::get_gateway_url "$OPENROUTER_API_BASE" "")
+    
     timeout "$timeout" curl -s \
         -H "Authorization: Bearer $OPENROUTER_API_KEY" \
-        "${OPENROUTER_API_BASE}/models" 2>/dev/null | \
+        "${api_url}/models" 2>/dev/null | \
         jq -r '.data[].id' 2>/dev/null || return 1
 }
 

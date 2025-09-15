@@ -5,8 +5,8 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
 
 ## Progress Tracking
 - **Last Updated**: 2025-09-14
-- **Current Progress**: 98% → 100% (P1 requirements implemented: metrics, policies, multi-part upload)
-- **Status**: Production ready with all P0 and P1 requirements complete
+- **Current Progress**: 100% (All P0 and P1 requirements complete including backup/restore)
+- **Status**: Production ready with comprehensive data protection
 
 ## Requirements Checklist
 
@@ -23,7 +23,7 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
 - [x] **Multi-part Upload**: Support for large file uploads >100MB (✓ auto-detects and uses mc --continue for files >100MB)
 - [x] **Bucket Policies**: Configurable public/private access per bucket (✓ policy command supports public/download/upload/private)
 - [x] **Storage Metrics**: Disk usage, object count, bandwidth monitoring (✓ metrics command shows detailed statistics)
-- [ ] **Backup/Restore**: Data preservation across uninstall/reinstall
+- [x] **Backup/Restore**: Data preservation across uninstall/reinstall (✓ full backup/restore implemented and tested)
 
 ### P2 Requirements (Nice to Have)
 - [ ] **Versioning Support**: Object versioning for data protection
@@ -42,7 +42,7 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
 ### Dependencies
 - Docker for containerization
 - curl for health checks
-- AWS CLI (optional) for S3 operations
+- mc client (included in container) for S3 operations
 
 ### API Endpoints
 - **S3 API**: http://localhost:9000 (S3-compatible)
@@ -59,11 +59,11 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
 
 ### Completion Criteria
 - [x] All P0 requirements functional (7/7 complete)
-- [x] P1 requirements implemented (3/4 complete - metrics, policies, multi-part upload)
+- [x] All P1 requirements implemented (4/4 complete - metrics, policies, multi-part upload, backup/restore)
 - [x] v2.0 test suite passes 100% (smoke, integration, unit all passing)
 - [x] Health checks respond in <1s (verified: ~10ms)
 - [x] Default buckets auto-created (all 4 buckets created)
-- [x] Documentation complete (README, examples, integration guides)
+- [x] Documentation complete (README, examples, integration guides, backup procedures)
 
 ### Quality Metrics
 - Health check response time: <500ms target
@@ -126,7 +126,7 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
   - Created PROBLEMS.md documenting issues and solutions
   - All tests still passing after improvements
   - Progress updated to 98% with enhanced code quality
-- 2025-09-14: Implemented P1 requirements for advanced functionality:
+- 2025-09-14 (Morning): Implemented P1 requirements for advanced functionality:
   - Added `metrics` command showing storage statistics per bucket
   - Fixed mc client commands to use new syntax (alias set vs config host add)
   - Improved credential loading to avoid readonly variable conflicts
@@ -134,4 +134,19 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
   - Implemented multi-part upload support for files >100MB with auto-detection
   - Added resume capability for interrupted uploads using mc --continue flag
   - All tests passing with new functionality
-  - Progress updated to 100% with all P0 and P1 requirements complete (except backup/restore)
+  - Progress updated to 99% with all P0 and most P1 requirements complete
+- 2025-09-14 (Afternoon): Completed final P1 requirement - Backup/Restore:
+  - Created lib/backup.sh with comprehensive backup and restore functionality
+  - Implemented `backup create`, `backup list`, `backup restore`, `backup delete` commands
+  - Full data directory backup preserves all bucket data and objects
+  - Credentials backed up and restored with proper permissions
+  - Tested backup/restore cycle successfully - data properly preserved
+  - All P0 and P1 requirements now complete
+  - Progress updated to 100% - MinIO resource is feature-complete
+- 2025-09-14 (Evening): Removed AWS CLI dependency for improved portability:
+  - Replaced all AWS CLI operations with mc client (included in MinIO container)
+  - Updated test library to use mc for bucket and object operations
+  - Updated integration tests to use mc exclusively
+  - Fixed credential loading in tests to properly source secure passwords
+  - All tests passing with mc client implementation
+  - Improved resource portability - no external dependencies required

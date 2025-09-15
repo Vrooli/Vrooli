@@ -120,6 +120,43 @@ vrooli resource nextcloud content execute --name mount-s3 --options "bucket=mybu
 vrooli resource nextcloud content execute --name mount-s3 --options "bucket=data,endpoint=http://localhost:9000,key=minioadmin,secret=minioadmin"
 ```
 
+### Collabora Office (Document Editing)
+```bash
+# Enable Collabora Office integration
+vrooli resource nextcloud content execute --name enable-office
+
+# Access Collabora at http://localhost:9980
+# Documents can be edited directly in Nextcloud
+```
+
+### Talk (Video Conferencing & Chat)
+```bash
+# Enable Talk with video conferencing
+vrooli resource nextcloud content execute --name enable-talk
+
+# Access Talk interface
+# Visit: http://localhost:8086/apps/spreed
+
+# Features enabled:
+# - Video calls with screen sharing
+# - Audio calls
+# - Text chat with file sharing
+# - Group conversations
+```
+
+### Security Hardening
+```bash
+# Apply comprehensive security configuration
+vrooli resource nextcloud content execute --name configure-security
+
+# Features enabled:
+# - HTTPS headers configured
+# - Brute force protection
+# - Strong password policy
+# - Two-factor authentication
+# - Session security hardening
+```
+
 ## CLI Commands
 
 ### Lifecycle Management
@@ -134,7 +171,7 @@ vrooli resource nextcloud content execute --name mount-s3 --options "bucket=data
 - `content list [--filter <pattern>]` - List files
 - `content get --name <file>` - Download file
 - `content remove --name <file>` - Delete file
-- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3, enable-office, configure-security)
+- `content execute --name <operation>` - Execute operations (share, backup, restore, mount-s3, enable-office, configure-security, enable-talk)
 
 ### Testing
 - `test smoke` - Quick health check

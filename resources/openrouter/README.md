@@ -282,6 +282,38 @@ vrooli resource openrouter routing history 20
 - **max_cost_per_million**: Cost limit per million tokens
 - **response_time_target**: Target response time in ms
 
+## Cloudflare AI Gateway Integration
+
+OpenRouter can be configured to use Cloudflare AI Gateway as a proxy layer for additional features like caching, rate limiting, and analytics.
+
+### Setup Cloudflare AI Gateway
+
+```bash
+# Check current status
+vrooli resource openrouter cloudflare status
+
+# Enable with explicit gateway URL
+vrooli resource openrouter cloudflare configure true "https://gateway.ai.cloudflare.com/v1/ACCOUNT_ID/GATEWAY_ID/openrouter"
+
+# Or enable with IDs (URL will be constructed)
+vrooli resource openrouter cloudflare configure true "" "my-gateway" "abc123"
+
+# Disable integration
+vrooli resource openrouter cloudflare configure false
+
+# Test connectivity
+vrooli resource openrouter cloudflare test
+```
+
+### Benefits of Cloudflare AI Gateway
+- **Caching**: Reduce API costs by caching repeated requests
+- **Rate Limiting**: Prevent runaway costs with request limits
+- **Analytics**: Track usage patterns and costs across your organization
+- **Fallback**: Automatic failover if OpenRouter is unavailable
+- **Security**: Additional layer of protection for API keys
+
+When enabled, all OpenRouter API calls will automatically route through the configured Cloudflare AI Gateway.
+
 ## Troubleshooting
 
 ### Common Issues

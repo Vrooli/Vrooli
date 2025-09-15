@@ -32,7 +32,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${NEO4J_CLI_DIR}/config/defaults.sh"
 
 # Source Neo4j libraries
-for lib in common install start status inject core; do
+for lib in common install start status inject core test; do
     lib_file="${NEO4J_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -49,7 +49,6 @@ CLI_COMMAND_HANDLERS["manage::uninstall"]="neo4j_uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="neo4j_start"  
 CLI_COMMAND_HANDLERS["manage::stop"]="neo4j_stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="neo4j_restart"
-CLI_COMMAND_HANDLERS["test::smoke"]="neo4j_status"
 
 # Override content handlers for Neo4j-specific graph database functionality
 CLI_COMMAND_HANDLERS["content::add"]="neo4j_inject"

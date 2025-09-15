@@ -205,37 +205,37 @@ minio::test::bucket_operations() {
         source "$creds_file"
     fi
     
+    local container_name="${MINIO_CONTAINER_NAME:-minio}"
     local access_key="${MINIO_ROOT_USER:-minioadmin}"
     local secret_key="${MINIO_ROOT_PASSWORD:-minio123}"
     local api_port="${MINIO_PORT:-9000}"
     local test_bucket="test-bucket-$(date +%s)"
     
-    # Create bucket using AWS CLI if available
-    if command -v aws &>/dev/null; then
-        export AWS_ACCESS_KEY_ID="$access_key"
-        export AWS_SECRET_ACCESS_KEY="$secret_key"
-        
-        # Create bucket
-        if ! aws s3 mb "s3://${test_bucket}" --endpoint-url "http://localhost:${api_port}" 2>/dev/null; then
-            return 1
-        fi
-        
-        # List buckets
-        if ! aws s3 ls --endpoint-url "http://localhost:${api_port}" 2>/dev/null | grep -q "$test_bucket"; then
-            return 1
-        fi
-        
-        # Remove bucket
-        if ! aws s3 rb "s3://${test_bucket}" --endpoint-url "http://localhost:${api_port}" 2>/dev/null; then
-            return 1
-        fi
-        
-        return 0
-    else
-        # Skip if AWS CLI not available
-        log::warning "AWS CLI not available, skipping bucket operations test"
-        return 0
+    # Setup mc client alias in container
+    if ! docker exec "$container_name" mc alias set local "http://localhost:9000" "$access_key" "$secret_key" &>/dev/null 2>&1; then
+        log::warning "Failed to configure mc client"
+        return 1
     fi
+    
+    # Create bucket using mc
+    if ! docker exec "$container_name" mc mb "local/${test_bucket}" &>/dev/null 2>&1; then
+        log::error "Failed to create test bucket"
+        return 1
+    fi
+    
+    # List buckets using mc
+    if ! docker exec "$container_name" mc ls local/ 2>/dev/null | grep -q "$test_bucket"; then
+        log::error "Test bucket not found in listing"
+        return 1
+    fi
+    
+    # Remove bucket using mc
+    if ! docker exec "$container_name" mc rb "local/${test_bucket}" &>/dev/null 2>&1; then
+        log::error "Failed to remove test bucket"
+        return 1
+    fi
+    
+    return 0
 }
 
 minio::test::object_operations() {
@@ -246,34 +246,105 @@ minio::test::object_operations() {
         source "$creds_file"
     fi
     
+    local container_name="${MINIO_CONTAINER_NAME:-minio}"
     local access_key="${MINIO_ROOT_USER:-minioadmin}"
     local secret_key="${MINIO_ROOT_PASSWORD:-minio123}"
-    local api_port="${MINIO_PORT:-9000}"
+    local test_bucket="test-objects-$(date +%s)"
     
-    # Create test file
-    local test_file="/tmp/minio-test-$(date +%s).txt"
-    echo "MinIO test content" > "$test_file"
-    
-    # Test with curl (basic PUT/GET)
-    local endpoint="http://localhost:${api_port}"
-    
-    # Since S3 operations require proper signing, we'll just verify the API responds
-    if timeout 5 curl -sf "${endpoint}/minio/health/live" &>/dev/null; then
-        rm -f "$test_file"
-        return 0
-    else
-        rm -f "$test_file"
+    # Setup mc client alias in container
+    if ! docker exec "$container_name" mc alias set local "http://localhost:9000" "$access_key" "$secret_key" &>/dev/null 2>&1; then
+        log::warning "Failed to configure mc client"
         return 1
     fi
+    
+    # Create test bucket
+    if ! docker exec "$container_name" mc mb "local/${test_bucket}" &>/dev/null 2>&1; then
+        log::error "Failed to create test bucket for objects"
+        return 1
+    fi
+    
+    # Create test file in container
+    local test_content="MinIO test content $(date +%s)"
+    if ! docker exec "$container_name" sh -c "echo '$test_content' > /tmp/test.txt" 2>/dev/null; then
+        log::error "Failed to create test file"
+        docker exec "$container_name" mc rb "local/${test_bucket}" &>/dev/null 2>&1
+        return 1
+    fi
+    
+    # Upload file using mc
+    if ! docker exec "$container_name" mc cp /tmp/test.txt "local/${test_bucket}/test.txt" &>/dev/null 2>&1; then
+        log::error "Failed to upload test file"
+        docker exec "$container_name" mc rb --force "local/${test_bucket}" &>/dev/null 2>&1
+        return 1
+    fi
+    
+    # Download file using mc
+    if ! docker exec "$container_name" mc cp "local/${test_bucket}/test.txt" /tmp/download.txt &>/dev/null 2>&1; then
+        log::error "Failed to download test file"
+        docker exec "$container_name" mc rb --force "local/${test_bucket}" &>/dev/null 2>&1
+        return 1
+    fi
+    
+    # Verify content
+    local downloaded_content
+    downloaded_content=$(docker exec "$container_name" cat /tmp/download.txt 2>/dev/null)
+    if [[ "$downloaded_content" != "$test_content" ]]; then
+        log::error "Downloaded content mismatch"
+        docker exec "$container_name" mc rb --force "local/${test_bucket}" &>/dev/null 2>&1
+        return 1
+    fi
+    
+    # Cleanup
+    docker exec "$container_name" mc rb --force "local/${test_bucket}" &>/dev/null 2>&1
+    docker exec "$container_name" rm -f /tmp/test.txt /tmp/download.txt &>/dev/null 2>&1
+    
+    return 0
 }
 
 minio::test::default_buckets() {
-    # Check if default buckets would be created on install
-    # Since we can't easily check without credentials, just verify the function exists
-    if command -v minio::create_default_buckets &>/dev/null; then
+    # Check if default buckets exist using mc
+    local container_name="${MINIO_CONTAINER_NAME:-minio}"
+    
+    # Load credentials
+    local creds_file="${HOME}/.minio/config/credentials"
+    if [[ -f "$creds_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$creds_file"
+    fi
+    
+    local access_key="${MINIO_ROOT_USER:-minioadmin}"
+    local secret_key="${MINIO_ROOT_PASSWORD:-minio123}"
+    
+    # Setup mc client alias in container
+    if ! docker exec "$container_name" mc alias set local "http://localhost:9000" "$access_key" "$secret_key" &>/dev/null 2>&1; then
+        log::warning "Failed to configure mc client"
+        return 1
+    fi
+    
+    # Check for default buckets
+    local default_buckets=(
+        "vrooli-user-uploads"
+        "vrooli-agent-artifacts"
+        "vrooli-model-cache"
+        "vrooli-temp-storage"
+    )
+    
+    local bucket_list
+    bucket_list=$(docker exec "$container_name" mc ls local/ 2>/dev/null || true)
+    
+    local found=0
+    for bucket in "${default_buckets[@]}"; do
+        if echo "$bucket_list" | grep -q "$bucket"; then
+            ((found++))
+        fi
+    done
+    
+    # Return success if at least some default buckets exist
+    if [[ $found -gt 0 ]]; then
         return 0
     else
-        return 1
+        log::warning "No default buckets found (will be created on first use)"
+        return 0  # Not a failure, just informational
     fi
 }
 

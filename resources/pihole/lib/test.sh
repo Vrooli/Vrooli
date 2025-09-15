@@ -31,7 +31,13 @@ test_smoke() {
     
     # Test 3: DNS port accessible
     echo -n "Test: DNS port accessible... "
-    if timeout 5 nc -z localhost "${PIHOLE_DNS_PORT}" 2>/dev/null; then
+    # Load port configuration if exists
+    local dns_port="${PIHOLE_DNS_PORT}"
+    if [[ -f "${PIHOLE_DATA_DIR}/.port_config" ]]; then
+        source "${PIHOLE_DATA_DIR}/.port_config"
+        dns_port="${DNS_PORT:-${PIHOLE_DNS_PORT}}"
+    fi
+    if timeout 5 nc -z localhost "${dns_port}" 2>/dev/null; then
         echo "PASS"
     else
         echo "FAIL"
@@ -56,9 +62,9 @@ test_smoke() {
         ((failed++))
     fi
     
-    # Test 6: API responds
-    echo -n "Test: API responds... "
-    if timeout 5 curl -sf "http://localhost:${PIHOLE_API_PORT}/admin/api.php?status" >/dev/null 2>&1; then
+    # Test 6: Web interface responds
+    echo -n "Test: Web interface responds... "
+    if timeout 5 curl -If "http://localhost:${PIHOLE_API_PORT}/admin/" 2>/dev/null | grep -q "HTTP/1.1"; then
         echo "PASS"
     else
         echo "FAIL"

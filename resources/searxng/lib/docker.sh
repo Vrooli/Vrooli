@@ -292,9 +292,8 @@ searxng::enable_redis() {
         log::warn "Redis may not be fully ready yet, but container is running"
     fi
     
-    # Update environment variable
-    export SEARXNG_ENABLE_REDIS="yes"
-    
+    # Note: Redis is now enabled
+    log::success "✅ Redis is healthy and ready"
     log::info "Redis caching enabled. Restart SearXNG to use caching:"
     log::info "  resource-searxng manage restart"
     
@@ -316,9 +315,7 @@ searxng::disable_redis() {
         fi
     fi
     
-    # Update environment variable
-    export SEARXNG_ENABLE_REDIS="no"
-    
+    # Note: Redis is now disabled
     log::info "Redis caching disabled. Restart SearXNG to apply changes:"
     log::info "  resource-searxng manage restart"
     

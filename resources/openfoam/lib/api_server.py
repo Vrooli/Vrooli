@@ -273,5 +273,24 @@ def list_cases():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print(f"Starting OpenFOAM API server on port {PORT}")
-    app.run(host='0.0.0.0', port=PORT, debug=False)
+    # Use port from environment or default
+    actual_port = PORT
+    # Try to get the actual mapped port if running in Docker
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', 0))
+        available_port = s.getsockname()[1]
+        s.close()
+        # If default port is in use, find another
+        try:
+            test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            test_sock.bind(('', PORT))
+            test_sock.close()
+        except:
+            actual_port = available_port
+    except:
+        pass
+    
+    print(f"Starting OpenFOAM API server on port {actual_port}")
+    app.run(host='0.0.0.0', port=actual_port, debug=False)

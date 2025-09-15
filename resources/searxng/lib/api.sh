@@ -441,7 +441,7 @@ searxng::advanced_search() {
                 language="$2"
                 shift 2
                 ;;
-            --time|-t)
+            --time|-t|--time-range)
                 time_range="$2"
                 shift 2
                 ;;
@@ -474,7 +474,7 @@ searxng::advanced_search() {
                 echo "  --query, -q <text>       Search query (required)"
                 echo "  --category, -c <cat>     Category: general, images, videos, news, music, files, science, social, map"
                 echo "  --language, -l <lang>    Language code: en, de, fr, es, it, pt, ru, zh, ja, etc."
-                echo "  --time, -t <range>       Time range: hour, day, week, month, year"
+                echo "  --time, -t, --time-range Time range: hour, day, week, month, year"
                 echo "  --engines, -e <list>     Comma-separated list of engines to use"
                 echo "  --exclude, -x <list>     Comma-separated list of engines to exclude"
                 echo "  --page, -p <num>         Page number (default: 1)"
@@ -792,6 +792,36 @@ searxng::benchmark() {
             echo "  Performance: ❌ Poor (> 5s average)"
         fi
     fi
+}
+
+#######################################
+# CLI wrapper for benchmark command
+# Handles --iterations and --concurrency flags
+#######################################
+searxng::benchmark_cli() {
+    local iterations=10
+    local concurrency=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --iterations)
+                iterations="$2"
+                shift 2
+                ;;
+            --concurrency)
+                # Currently ignored but accepted for compatibility
+                concurrency="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # Call the actual benchmark function with the iterations count
+    searxng::benchmark "$iterations"
 }
 
 #######################################

@@ -51,6 +51,12 @@ COMMANDS:
       keys <name>       Rotate keys for a tunnel immediately
       schedule <name>   Schedule automatic key rotation
       status            Show rotation status and history
+    namespace           Network isolation management
+      create <name>     Create isolated Docker network
+      list              List all isolated networks
+      delete <name>     Delete an isolated network
+      connect <container> <network> Connect container to network
+      status <name>     Show network status
 
 EXAMPLES:
     # Install and start WireGuard
@@ -140,6 +146,9 @@ main() {
             ;;
         rotate)
             handle_rotate_command "$@"
+            ;;
+        namespace)
+            handle_namespace_command "$@"
             ;;
         *)
             echo "Error: Unknown command: $command" >&2

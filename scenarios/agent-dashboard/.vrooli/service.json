@@ -1,96 +1,44 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
     "name": "agent-dashboard",
     "displayName": "Agent Dashboard",
-    "description": "Dashboard for managing and monitoring all active agents",
+    "description": "Cyberpunk-themed monitoring dashboard for AI agents within Vrooli resources",
     "version": "1.0.0",
     "tags": [
-      "vrooli-helper",
-      "system-management",
-      "agents",
       "monitoring",
-      "orchestration",
+      "agents",
       "dashboard",
-      "nodejs-ui",
+      "cyberpunk",
+      "logs",
+      "development",
+      "real-time",
+      "developer-tools",
       "go-api",
-      "n8n-workflows",
-      "postgres-storage"
-    ],
-    "license": "MIT"
-  },
-  "resources": {
-    "n8n": {
-      "type": "n8n",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/n8n/agent-status-monitor.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/agent-health-checker.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/agent-orchestrator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/multi-agent-coordinator.json",
-          "type": "workflow"
-        },
-        {
-          "file": "initialization/n8n/agent-realtime-monitor.json",
-          "type": "workflow"
-        }
-      ]
-    },
-    "postgres": {
-      "type": "postgres",
-      "enabled": true,
-      "required": true,
-      "initialization": [
-        {
-          "file": "initialization/postgres/schema.sql",
-          "type": "schema"
-        }
-      ]
-    },
-    "redis": {
-      "type": "redis",
-      "enabled": true,
-      "required": true
-    },
-    "ollama": {
-      "type": "ollama",
-      "enabled": true,
-      "required": false,
-      "models": [
-        "llama3.2:3b"
-      ]
-    }
+      "lifecycle-management"
+    ]
   },
   "ports": {
-    "ui": {
-      "env_var": "UI_PORT",
-      "port": 30100,
-      "description": "Agent Dashboard UI port"
-    },
     "api": {
       "env_var": "API_PORT",
-      "port": 20000,
-      "description": "Agent Dashboard API port"
+      "description": "Agent Dashboard API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "Agent monitoring dashboard port",
+      "range": "35000-39999"
     }
   },
+  "resources": {},
   "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "Agent Dashboard health check configuration",
       "endpoints": {
-        "api": "/health"
+        "api": "/health",
+        "ui": "/health"
       },
       "checks": [
         {
@@ -98,6 +46,14 @@
           "type": "http",
           "target": "http://localhost:${API_PORT}/health",
           "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "critical": false,
           "timeout": 5000,
           "interval": 30000
         }
@@ -119,33 +75,13 @@
           {
             "type": "cli",
             "command": "agent-dashboard"
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
           }
         ]
       },
       "steps": [
         {
-          "name": "generate-embeddings",
-          "run": "vrooli resource qdrant embeddings refresh --force || echo \"Embeddings generation skipped (not critical)\"",
-          "description": "Generate code embeddings for AI assistance"
-        },
-        {
-          "name": "add-data",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Add app data to resources"
-        },
-        {
           "name": "install-cli",
-          "run": "chmod +x cli/agent-dashboard && ln -sf $(pwd)/cli/agent-dashboard ~/.local/bin/agent-dashboard 2>/dev/null || true",
+          "run": "cd cli && ./install.sh",
           "description": "Install CLI command globally"
         },
         {
@@ -155,18 +91,18 @@
         },
         {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && if [ -f package.json ]; then npm install; else echo 'No package.json found, skipping npm install'; fi",
           "description": "Install UI dependencies"
         },
         {
           "name": "show-urls",
-          "run": "echo 'Agent Dashboard initialized - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: agent-dashboard --help'",
+          "run": "echo -e \"🚀 Agent Dashboard initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start Agent Dashboard with API and UI servers",
+      "description": "Start agent dashboard with API and UI servers",
       "steps": [
         {
           "name": "start-api",
@@ -180,46 +116,31 @@
         {
           "name": "start-ui",
           "run": "cd ui && node server.js",
-          "description": "Start UI server in background",
-          "background": true
+          "description": "Start UI development server",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/server.js"
+          }
         },
         {
           "name": "show-running-services",
-          "run": "echo 'Services running - UI: http://localhost:${UI_PORT} - API: http://localhost:${API_PORT} - CLI: agent-dashboard --help'",
+          "run": "echo -e \"🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: agent-dashboard --help\"",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test Agent Dashboard API and CLI",
+      "description": "Comprehensive phased testing for agent-dashboard using the new testing architecture",
       "steps": [
         {
-          "name": "test-go-build",
-          "run": "cd api && go build -o test-build . && rm test-build",
-          "description": "Test Go compilation",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
-        },
-        {
-          "name": "test-api-health",
-          "run": "curl -sf http://localhost:$API_PORT/health",
-          "description": "Test API health endpoint"
-        },
-        {
-          "name": "test-agents-endpoint",
-          "run": "curl -sf http://localhost:$API_PORT/api/agents",
-          "description": "Test API agents endpoint"
-        },
-        {
-          "name": "test-cli-status",
-          "run": "agent-dashboard status",
-          "description": "Test CLI status command"
+          "name": "run-comprehensive-tests",
+          "run": "test/run-tests.sh",
+          "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)"
         }
       ]
     },
     "stop": {
-      "description": "Stop services",
+      "description": "Stop agent dashboard services",
       "steps": [
         {
           "name": "stop-api",
@@ -233,12 +154,5 @@
         }
       ]
     }
-  },
-  "dependencies": {
-    "shared_workflows": [
-      "ollama",
-      "rate-limiter",
-      "chain-of-thought-orchestrator"
-    ]
   }
 }

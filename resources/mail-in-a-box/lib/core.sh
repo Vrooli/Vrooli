@@ -73,8 +73,16 @@ mailinabox_get_status_details() {
 # Get resource URLs
 mailinabox_get_urls() {
     local urls=""
-    urls="Admin Panel: https://${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_ADMIN}/admin"
-    urls="${urls}, Webmail: https://${MAILINABOX_BIND_ADDRESS}/mail"
+    
+    # Check if Roundcube webmail is running
+    if docker inspect mailinabox-webmail &>/dev/null && [[ "$(docker inspect -f '{{.State.Running}}' mailinabox-webmail 2>/dev/null)" == "true" ]]; then
+        urls="Webmail: http://${MAILINABOX_BIND_ADDRESS}:8080"
+    else
+        urls="Webmail: Not available (install with docker-compose)"
+    fi
+    
+    urls="${urls}, SMTP: ${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_SMTP}"
+    urls="${urls}, IMAP: ${MAILINABOX_BIND_ADDRESS}:${MAILINABOX_PORT_IMAPS}"
     echo "$urls"
 }
 

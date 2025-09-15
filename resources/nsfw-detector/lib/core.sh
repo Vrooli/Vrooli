@@ -8,8 +8,8 @@ readonly RESOURCE_NAME="nsfw-detector"
 readonly RESOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 readonly CONFIG_DIR="${RESOURCE_DIR}/config"
 readonly TEST_DIR="${RESOURCE_DIR}/test"
-readonly DATA_DIR="${DATA_DIR:-${HOME}/.local/share/nsfw-detector}"
-readonly LOG_DIR="${LOG_DIR:-${HOME}/.local/share/nsfw-detector/logs}"
+readonly DATA_DIR="${NSFW_DETECTOR_DATA_DIR:-${VROOLI_DATA_DIR:-${HOME}/.vrooli/data}/nsfw-detector}"
+readonly LOG_DIR="${NSFW_DETECTOR_LOG_DIR:-${DATA_DIR}/logs}"
 
 # Load configuration
 if [[ -f "${CONFIG_DIR}/defaults.sh" ]]; then
@@ -108,10 +108,19 @@ manage_uninstall() {
 manage_start() {
     echo "Starting NSFW Detector service..."
     
+    # Ensure required directories exist
+    mkdir -p "${DATA_DIR}" "${LOG_DIR}"
+    
     # Check if already running
-    if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
-        echo "Service is already running (PID: $(cat "$PIDFILE"))"
-        return 2
+    if [[ -f "$PIDFILE" ]]; then
+        local old_pid=$(cat "$PIDFILE")
+        if ps -p "$old_pid" > /dev/null 2>&1; then
+            echo "Service is already running (PID: $old_pid)"
+            return 2
+        else
+            echo "Removing stale PID file"
+            rm -f "$PIDFILE"
+        fi
     fi
     
     # Create minimal server if not exists
@@ -123,7 +132,26 @@ manage_start() {
     cd "${RESOURCE_DIR}"
     nohup node server.js > "${LOG_DIR}/server.log" 2>&1 &
     local pid=$!
+    
+    # Wait a moment for the process to start
+    sleep 1
+    
+    # Verify the process is actually running
+    if ! ps -p "$pid" > /dev/null 2>&1; then
+        echo "Error: Service failed to start" >&2
+        rm -f "$PIDFILE"
+        return 1
+    fi
+    
     echo "$pid" > "$PIDFILE"
+    
+    # Also verify the PID was written correctly
+    if [[ ! -f "$PIDFILE" ]] || [[ $(cat "$PIDFILE") != "$pid" ]]; then
+        echo "Error: Failed to write PID file" >&2
+        kill -TERM "$pid" 2>/dev/null || true
+        rm -f "$PIDFILE"
+        return 1
+    fi
     
     # Wait for service to be ready if --wait flag
     local wait_flag=false
@@ -156,39 +184,55 @@ manage_start() {
 manage_stop() {
     echo "Stopping NSFW Detector service..."
     
-    if [[ ! -f "$PIDFILE" ]]; then
-        echo "Service is not running (no PID file)"
-        return 2
-    fi
-    
-    local pid=$(cat "$PIDFILE")
-    if ! kill -0 "$pid" 2>/dev/null; then
-        echo "Service is not running (PID $pid not found)"
-        rm -f "$PIDFILE"
-        return 2
-    fi
-    
-    # Graceful shutdown
-    kill -TERM "$pid"
-    
-    # Wait for process to stop
-    local timeout=30
-    local elapsed=0
-    while [[ $elapsed -lt $timeout ]]; do
-        if ! kill -0 "$pid" 2>/dev/null; then
+    # First try to stop using PID file
+    if [[ -f "$PIDFILE" ]]; then
+        local pid=$(cat "$PIDFILE")
+        # Check if process actually exists (more robust check)
+        if ps -p "$pid" > /dev/null 2>&1; then
+            # Process exists, stop it
+            kill -TERM "$pid" 2>/dev/null || true
+            
+            # Wait for process to stop
+            local timeout=30
+            local elapsed=0
+            while [[ $elapsed -lt $timeout ]]; do
+                if ! ps -p "$pid" > /dev/null 2>&1; then
+                    rm -f "$PIDFILE"
+                    echo "Service stopped successfully"
+                    return 0
+                fi
+                sleep 1
+                ((elapsed++))
+            done
+            
+            # Force kill if still running
+            echo "Force stopping service..."
+            kill -KILL "$pid" 2>/dev/null || true
             rm -f "$PIDFILE"
-            echo "Service stopped successfully"
+            echo "Service force stopped"
             return 0
+        else
+            echo "Service is not running (PID $pid not found)"
+            rm -f "$PIDFILE"
         fi
-        sleep 1
-        ((elapsed++))
-    done
+    else
+        echo "Service is not running (no PID file)"
+    fi
     
-    # Force kill if still running
-    echo "Force stopping service..."
-    kill -KILL "$pid" 2>/dev/null || true
-    rm -f "$PIDFILE"
-    echo "Service force stopped"
+    # Also check if something is listening on the port and kill it
+    # Use timeout to prevent hanging
+    local port_pid=$(timeout 2 lsof -ti :${NSFW_DETECTOR_PORT} 2>/dev/null | head -1)
+    if [[ -n "$port_pid" ]]; then
+        echo "Found process $port_pid on port ${NSFW_DETECTOR_PORT}, stopping it..."
+        kill -TERM "$port_pid" 2>/dev/null || true
+        sleep 2
+        # Check if still running before force kill
+        if ps -p "$port_pid" > /dev/null 2>&1; then
+            kill -KILL "$port_pid" 2>/dev/null || true
+        fi
+        echo "Stopped process on port ${NSFW_DETECTOR_PORT}"
+    fi
+    
     return 0
 }
 

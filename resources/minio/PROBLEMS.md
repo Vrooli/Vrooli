@@ -22,19 +22,22 @@
 **Solution**: Removed backup files.
 **Files Removed**: cli.backup.sh, manage.backup.sh
 
+## Issues Fixed (2025-09-14)
+
+### 5. AWS CLI Dependency
+**Problem**: Tests and examples relied on AWS CLI which might not be available on all systems.
+**Solution**: Replaced all AWS CLI operations with mc (MinIO Client) which is included in the MinIO container.
+**Files Changed**: lib/test.sh, test/phases/test-integration.sh
+**Benefit**: Improved portability - no external dependencies required for full functionality.
+
 ## Current Limitations
 
-### 1. AWS CLI Dependency
-**Impact**: Some integration tests skip when AWS CLI is not installed.
-**Workaround**: Tests pass without AWS CLI, but advanced bucket operations cannot be fully validated.
-**Future Fix**: Consider implementing native S3 client operations without AWS CLI dependency.
-
-### 2. Default Credentials
+### 1. Default Credentials
 **Impact**: Default credentials "minioadmin/minioadmin" are used if not overridden.
 **Mitigation**: The system generates secure credentials on first install and saves them with 600 permissions.
 **Recommendation**: Always use generated or custom credentials in production.
 
-### 3. Console Port Not in Registry
+### 2. Console Port Not in Registry
 **Impact**: Console port 9001 is not in the central port registry.
 **Reason**: Secondary ports are typically not registered, only primary service ports.
 **Status**: Working as designed.

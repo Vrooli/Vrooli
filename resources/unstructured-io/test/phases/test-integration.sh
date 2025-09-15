@@ -7,7 +7,7 @@
 #
 ################################################################################
 
-set -euo pipefail
+set -uo pipefail
 
 # Get directories
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,11 +40,11 @@ check_result() {
     
     if [[ $result -eq 0 ]]; then
         log::success "✓ $test_name passed"
-        ((tests_passed++))
+        tests_passed=$((tests_passed + 1))
         return 0
     else
         log::error "✗ $test_name failed"
-        ((tests_failed++))
+        tests_failed=$((tests_failed + 1))
         return 1
     fi
 }
@@ -77,12 +77,19 @@ fi
 
 # Test 3: API Endpoint Availability
 log::info "Test 3: API endpoint availability..."
-http_code=$(timeout ${TIMEOUT_API} curl -sf -o /dev/null -w "%{http_code}" -X OPTIONS "${UNSTRUCTURED_IO_BASE_URL}/general/v0/general" 2>/dev/null || echo "000")
-if [[ "$http_code" == "200" ]] || [[ "$http_code" == "204" ]] || [[ "$http_code" == "405" ]]; then
+http_code=$(timeout ${TIMEOUT_API} curl -s -o /dev/null -w "%{http_code}" -X OPTIONS "${UNSTRUCTURED_IO_BASE_URL}/general/v0/general" 2>/dev/null)
+exit_code=$?
+if [[ $exit_code -eq 0 ]] && { [[ "$http_code" == "200" ]] || [[ "$http_code" == "204" ]] || [[ "$http_code" == "405" ]]; }; then
     check_result 0 "API endpoint availability"
 else
-    log::warning "API returned HTTP code: $http_code"
-    check_result 1 "API endpoint availability"
+    log::warning "API returned HTTP code: $http_code (exit: $exit_code)"
+    # OPTIONS may not be supported, try a simple GET to health
+    http_code=$(timeout ${TIMEOUT_API} curl -s -o /dev/null -w "%{http_code}" "${UNSTRUCTURED_IO_BASE_URL}/healthcheck" 2>/dev/null || echo "000")
+    if [[ "$http_code" == "200" ]]; then
+        check_result 0 "API endpoint availability (via health check)"
+    else
+        check_result 1 "API endpoint availability"
+    fi
 fi
 
 # Test 4: Create Test Document
@@ -114,11 +121,10 @@ fi
 
 # Test 5: Process Test Document
 log::info "Test 5: Processing test document..."
-process_response=$(timeout ${TIMEOUT_API} curl -sf -X POST \
+process_response=$(timeout 30 curl -sf -X POST \
     "${UNSTRUCTURED_IO_BASE_URL}/general/v0/general" \
     -F "files=@${TEST_FILE}" \
     -F "strategy=fast" \
-    -F "output_format=text" \
     2>/dev/null || echo "")
 
 if [[ -n "$process_response" ]]; then
@@ -196,9 +202,70 @@ else
     check_result 1 "Error handling"
 fi
 
+# Test 8: Table Extraction
+log::info "Test 8: Table extraction..."
+# Create a document with table data
+cat > "${TEST_FILE}.table" <<EOF
+Name|Age|City
+John|30|New York
+Jane|25|Los Angeles
+Bob|35|Chicago
+EOF
+
+table_response=$(timeout ${TIMEOUT_API} curl -sf -X POST \
+    "${UNSTRUCTURED_IO_BASE_URL}/general/v0/general" \
+    -F "files=@${TEST_FILE}.table" \
+    -F "strategy=fast" \
+    -F "pdf_infer_table_structure=true" \
+    2>/dev/null || echo "")
+
+if [[ -n "$table_response" ]]; then
+    # For simple text files, just check if the data was extracted
+    if echo "$table_response" | grep -q "John\|Jane\|Bob"; then
+        check_result 0 "Table extraction"
+    else
+        log::warning "Table data not found in response"
+        check_result 1 "Table extraction"
+    fi
+else
+    check_result 1 "Table extraction"
+fi
+rm -f "${TEST_FILE}.table"
+
+# Test 9: Multiple Output Formats
+log::info "Test 9: Multiple output formats..."
+# Test JSON format
+json_response=$(timeout ${TIMEOUT_API} curl -sf -X POST \
+    "${UNSTRUCTURED_IO_BASE_URL}/general/v0/general" \
+    -F "files=@${TEST_FILE}" \
+    -F "strategy=fast" \
+    -F "output_format=application/json" \
+    2>/dev/null || echo "")
+
+if [[ -n "$json_response" ]] && echo "$json_response" | jq . &>/dev/null; then
+    check_result 0 "JSON output format"
+else
+    check_result 1 "JSON output format"
+fi
+
+# Test 10: Metadata Extraction
+log::info "Test 10: Metadata extraction..."
+metadata_response=$(timeout ${TIMEOUT_API} curl -sf -X POST \
+    "${UNSTRUCTURED_IO_BASE_URL}/general/v0/general" \
+    -F "files=@${TEST_FILE}" \
+    -F "strategy=hi_res" \
+    -F "include_metadata=true" \
+    2>/dev/null || echo "")
+
+if [[ -n "$metadata_response" ]] && echo "$metadata_response" | grep -q "metadata"; then
+    check_result 0 "Metadata extraction"
+else
+    check_result 1 "Metadata extraction"
+fi
+
 # Cleanup
 log::info "Cleaning up test files..."
-rm -f "$TEST_FILE" "$TEST_PDF" 2>/dev/null || true
+rm -f "$TEST_FILE" "$TEST_PDF" "${TEST_FILE}.table" 2>/dev/null || true
 
 # Summary
 log::info "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

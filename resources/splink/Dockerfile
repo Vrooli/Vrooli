@@ -2,14 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including Java for Spark
 RUN apt-get update && apt-get install -y \
     curl \
     gcc \
     g++ \
+    openjdk-11-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python packages
+# Install Python packages including PySpark
 RUN pip install --no-cache-dir \
     splink==3.9.14 \
     duckdb==0.10.0 \
@@ -21,7 +22,8 @@ RUN pip install --no-cache-dir \
     plotly==5.18.0 \
     redis==5.0.1 \
     psycopg2-binary==2.9.9 \
-    boto3==1.34.0
+    boto3==1.34.0 \
+    pyspark==3.5.0
 
 # Copy application code
 COPY api/ /app/api/

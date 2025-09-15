@@ -193,6 +193,40 @@ sagemath::content::remove() {
     fi
 }
 
+# Clean up old temporary calculation files
+sagemath::content::cleanup() {
+    local days="${1:-7}"  # Default to 7 days old
+    local SAGEMATH_SCRIPTS_DIR="${SAGEMATH_DATA_DIR}/scripts"
+    
+    echo "🧹 Cleaning up temporary calculation files older than $days days..."
+    
+    # Count files before cleanup
+    local count_before=$(find "$SAGEMATH_SCRIPTS_DIR" -name "temp_calc_*.sage*" -type f 2>/dev/null | wc -l)
+    
+    if [ "$count_before" -eq 0 ]; then
+        echo "✅ No temporary files to clean up"
+        return 0
+    fi
+    
+    # Remove temporary calculation files older than specified days
+    local deleted=0
+    while IFS= read -r file; do
+        if rm "$file" 2>/dev/null; then
+            ((deleted++))
+        fi
+    done < <(find "$SAGEMATH_SCRIPTS_DIR" -name "temp_calc_*.sage*" -type f -mtime +"$days" 2>/dev/null)
+    
+    # Also clean up any temp files without proper dates (just remove all temp_calc files for now)
+    while IFS= read -r file; do
+        if rm "$file" 2>/dev/null; then
+            ((deleted++))
+        fi
+    done < <(find "$SAGEMATH_SCRIPTS_DIR" -name "temp_calc_*.sage*" -type f 2>/dev/null)
+    
+    echo "✅ Cleaned up $deleted temporary files (was $count_before files)"
+    return 0
+}
+
 # Universal Contract v2.0 handler for content::execute
 sagemath::content::execute() {
     local expression_or_file=""
@@ -270,6 +304,9 @@ sagemath::content::execute() {
         if echo "$expression_or_file" | grep -qE "plot\(|plot3d\(|matrix_plot\(|list_plot\(|density_plot\(|contour_plot\("; then
             is_plot=true
         fi
+        
+        # Clean up old temp files first (older than 1 day)
+        find "$SAGEMATH_SCRIPTS_DIR" -name "temp_calc_*.sage*" -type f -mtime +1 -delete 2>/dev/null || true
         
         # Create temporary script
         local temp_script="$SAGEMATH_SCRIPTS_DIR/temp_calc_$$.sage"

@@ -60,6 +60,9 @@ RUN apt-get update && apt-get install -y \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Java for Spark (optional but improves performance)
+RUN apt-get update && apt-get install -y openjdk-11-jre-headless && rm -rf /var/lib/apt/lists/*
+
 # Install Python packages
 RUN pip install --no-cache-dir \
     splink==3.9.14 \
@@ -72,7 +75,8 @@ RUN pip install --no-cache-dir \
     plotly==5.18.0 \
     redis==5.0.1 \
     psycopg2-binary==2.9.9 \
-    boto3==1.34.0
+    boto3==1.34.0 \
+    pyspark==3.5.0
 
 # Copy application code
 COPY api/ /app/api/
@@ -126,6 +130,9 @@ start_service() {
         -e REDIS_PORT="${REDIS_PORT:-6380}" \
         -e MINIO_HOST="${MINIO_HOST:-localhost}" \
         -e MINIO_PORT="${MINIO_PORT:-9000}" \
+        -e SPARK_EXECUTOR_MEMORY="${SPARK_EXECUTOR_MEMORY:-4g}" \
+        -e SPARK_DRIVER_MEMORY="${SPARK_DRIVER_MEMORY:-2g}" \
+        -e SPARK_EXECUTOR_CORES="${SPARK_EXECUTOR_CORES:-2}" \
         --network "${DOCKER_NETWORK:-bridge}" \
         "$SPLINK_IMAGE" &>> "$LOG_FILE" || {
             echo "Error: Failed to start Splink container"

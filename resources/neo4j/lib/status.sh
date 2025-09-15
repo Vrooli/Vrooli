@@ -61,8 +61,8 @@ neo4j::status::collect_data() {
             healthy="true"
             health_message="Neo4j is healthy and accepting connections"
             
-            # Try to get version
-            version=$(timeout 3s docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null | grep -oP 'neo4j \K[0-9.]+' || echo "unknown")
+            # Try to get version (neo4j --version returns just the version number in 5.x)
+            version=$(timeout 3s docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null | head -1 || echo "unknown")
             
             # Try to get node/relationship count (requires auth)
             local cypher_result=$(echo 'MATCH (n) RETURN count(n) as nodes' | \

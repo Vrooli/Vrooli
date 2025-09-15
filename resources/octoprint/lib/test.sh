@@ -94,7 +94,13 @@ test_integration() {
     
     # Get version
     echo -n "Getting version via API... "
-    local version=$(timeout 5 curl -sf "http://localhost:${OCTOPRINT_PORT}/api/version" 2>/dev/null || echo "")
+    local api_key=$(get_api_key)
+    local version=""
+    if [[ -n "${api_key}" ]] && [[ "${api_key}" != "auto" ]]; then
+        version=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" "http://localhost:${OCTOPRINT_PORT}/api/version" 2>/dev/null || echo "")
+    else
+        version=$(timeout 5 curl -sf "http://localhost:${OCTOPRINT_PORT}/api/version" 2>/dev/null || echo "")
+    fi
     if [[ -n "${version}" ]]; then
         echo "✓ PASS"
     else
@@ -108,21 +114,7 @@ test_integration() {
     # First ensure the service is ready and get API key
     sleep 2  # Give OctoPrint time to fully initialize
     
-    local api_key=""
-    # Try to get API key from various sources
-    if [[ -f "${OCTOPRINT_CONFIG_DIR}/api_key" ]]; then
-        api_key=$(cat "${OCTOPRINT_CONFIG_DIR}/api_key")
-    elif [[ -f "${OCTOPRINT_DATA_DIR}/config.yaml" ]]; then
-        # Extract API key from config.yaml if it exists
-        api_key=$(grep "key:" "${OCTOPRINT_DATA_DIR}/config.yaml" 2>/dev/null | awk '{print $2}' | head -1)
-    fi
-    
-    # If still no API key, check if we need to generate one
-    if [[ -z "${api_key}" ]] || [[ "${api_key}" == "auto" ]]; then
-        # For testing, use a test API key
-        api_key="test_api_key_123456789"
-        echo "${api_key}" > "${OCTOPRINT_CONFIG_DIR}/api_key"
-    fi
+    local api_key=$(get_api_key)
     
     if [[ -n "${api_key}" ]]; then
         local printer_state=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \

@@ -261,5 +261,23 @@ neo4j_test_all() {
     fi
 }
 
+# Create wrapper functions for v2.0 framework compatibility
+neo4j::test::smoke() {
+    neo4j_test_smoke "$@"
+}
+
+neo4j::test::integration() {
+    neo4j_test_integration "$@"
+}
+
+neo4j::test::unit() {
+    neo4j_test_unit "$@"
+}
+
+neo4j::test::all() {
+    neo4j_test_all "$@"
+}
+
 # Export test functions
 export -f neo4j_test_smoke neo4j_test_integration neo4j_test_unit neo4j_test_all
+export -f neo4j::test::smoke neo4j::test::integration neo4j::test::unit neo4j::test::all

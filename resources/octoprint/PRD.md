@@ -87,7 +87,7 @@ metrics:
 
 ### Completion Targets
 - **Phase 1**: 30% - Core structure and health checks ✅
-- **Phase 2**: 60% - Printer connection and basic control (55% complete - commands work, API auth issues)
+- **Phase 2**: 60% - Printer connection and basic control (60% complete - API read works, temperature simulation added)
 - **Phase 3**: 80% - Full print management and monitoring
 - **Phase 4**: 100% - Webcam integration and plugins
 
@@ -180,11 +180,12 @@ Successfully improved with:
 - ✅ G-code file management (upload/list/remove)
 - ✅ v2.0 contract compliance
 - ✅ Smoke and unit tests passing
-- ✅ Temperature monitoring command added
+- ✅ Temperature monitoring with simulated data
 - ✅ Print control commands implemented (start/pause/resume/cancel)
 - ✅ Job status command added
-- ✅ API key generation improved
-- ⚠️ API authentication has configuration issues (see PROBLEMS.md)
+- ✅ API key extraction from running container
+- ✅ API version endpoint working with authentication
+- ⚠️ API write operations require additional permissions
 - ⚠️ Physical printer support untested
 
 ## Success Indicators

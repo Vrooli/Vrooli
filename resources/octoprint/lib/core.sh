@@ -94,6 +94,8 @@ octoprint_start() {
             "-v" "${OCTOPRINT_DATA_DIR}:/octoprint"
             "-v" "${OCTOPRINT_GCODE_DIR}:/octoprint/uploads"
             "--restart" "unless-stopped"
+            # Run as current user to avoid permission issues
+            "--user" "$(id -u):$(id -g)"
         )
         
         # Add serial port access if not using virtual printer
@@ -106,6 +108,7 @@ octoprint_start() {
         docker_args+=(
             "-e" "OCTOPRINT_PORT=5000"
             "-e" "ENABLE_MJPG_STREAMER=${OCTOPRINT_CAMERA_ENABLED}"
+            "-e" "HOME=/octoprint"
         )
         
         docker run "${docker_args[@]}" "${OCTOPRINT_DOCKER_IMAGE}"
@@ -271,8 +274,15 @@ octoprint_credentials() {
     echo "===================="
     echo "URL: http://localhost:${OCTOPRINT_PORT}"
     
-    local api_key="${OCTOPRINT_API_KEY}"
-    if [[ -f "${OCTOPRINT_CONFIG_DIR}/api_key" ]]; then
+    local api_key=""
+    
+    # Try to get API key from running container
+    if command -v docker &> /dev/null && docker ps -q -f name="${OCTOPRINT_CONTAINER_NAME}" | grep -q .; then
+        api_key=$(docker exec "${OCTOPRINT_CONTAINER_NAME}" grep "key:" /octoprint/octoprint/config.yaml 2>/dev/null | head -1 | sed 's/.*key: *//')
+    fi
+    
+    # Fall back to stored key if container not running
+    if [[ -z "${api_key}" ]] && [[ -f "${OCTOPRINT_CONFIG_DIR}/api_key" ]]; then
         api_key=$(cat "${OCTOPRINT_CONFIG_DIR}/api_key")
     fi
     
@@ -281,6 +291,9 @@ octoprint_credentials() {
         echo ""
         echo "Example API Usage:"
         echo "  curl -H \"X-Api-Key: ${api_key}\" http://localhost:${OCTOPRINT_PORT}/api/printer"
+        
+        # Store the active key for future use
+        echo "${api_key}" > "${OCTOPRINT_CONFIG_DIR}/api_key"
     else
         echo "API Key: Not configured"
     fi
@@ -387,10 +400,24 @@ content_execute() {
 
 # Helper function to get API key
 get_api_key() {
-    local api_key="${OCTOPRINT_API_KEY}"
-    if [[ -f "${OCTOPRINT_CONFIG_DIR}/api_key" ]]; then
+    local api_key=""
+    
+    # Try to get API key from running container first
+    if command -v docker &> /dev/null && docker ps -q -f name="${OCTOPRINT_CONTAINER_NAME}" | grep -q .; then
+        api_key=$(docker exec "${OCTOPRINT_CONTAINER_NAME}" grep "key:" /octoprint/octoprint/config.yaml 2>/dev/null | head -1 | sed 's/.*key: *//')
+    fi
+    
+    # Fall back to stored key if container not running
+    if [[ -z "${api_key}" ]] && [[ -f "${OCTOPRINT_CONFIG_DIR}/api_key" ]]; then
         api_key=$(cat "${OCTOPRINT_CONFIG_DIR}/api_key")
     fi
+    
+    # Store the active key for future use if we found it
+    if [[ -n "${api_key}" ]] && [[ "${api_key}" != "auto" ]] && [[ -n "${OCTOPRINT_CONFIG_DIR}" ]]; then
+        mkdir -p "${OCTOPRINT_CONFIG_DIR}"
+        echo "${api_key}" > "${OCTOPRINT_CONFIG_DIR}/api_key"
+    fi
+    
     echo "${api_key}"
 }
 
@@ -405,14 +432,49 @@ octoprint_temperature() {
         return 1
     fi
     
+    # First check printer connection status
+    local connection_status=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \
+        "http://localhost:${OCTOPRINT_PORT}/api/connection" 2>/dev/null | \
+        python3 -c "import sys, json; print(json.load(sys.stdin).get('current', {}).get('state', 'Unknown'))" 2>/dev/null)
+    
+    if [[ "${connection_status}" == "Closed" ]] || [[ "${connection_status}" == "Unknown" ]]; then
+        echo "Printer Status: Not connected"
+        if [[ "${OCTOPRINT_VIRTUAL_PRINTER}" == "true" ]]; then
+            echo ""
+            echo "Virtual Printer Mode: Simulated temperatures"
+            echo "  Hotend: 22.0°C / 0.0°C (ambient)"
+            echo "  Bed: 22.0°C / 0.0°C (ambient)"
+            echo ""
+            echo "Note: Connect virtual printer via web interface for live data"
+        else
+            echo "Note: Connect printer to see temperature data"
+        fi
+        return 0
+    fi
+    
+    # Get actual temperature data if connected
     local temp_data=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \
-        "http://localhost:${OCTOPRINT_PORT}/api/printer/tool" 2>/dev/null)
+        "http://localhost:${OCTOPRINT_PORT}/api/printer" 2>/dev/null)
     
     if [[ -n "${temp_data}" ]]; then
-        echo "${temp_data}" | python3 -m json.tool 2>/dev/null || echo "${temp_data}"
+        # Parse and display temperature data
+        echo "${temp_data}" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'temperature' in data:
+        temps = data['temperature']
+        if 'tool0' in temps:
+            print(f\"  Hotend: {temps['tool0']['actual']}°C / {temps['tool0']['target']}°C\")
+        if 'bed' in temps:
+            print(f\"  Bed: {temps['bed']['actual']}°C / {temps['bed']['target']}°C\")
+    else:
+        print('  No temperature data available')
+except:
+    print('  Error parsing temperature data')
+" 2>/dev/null || echo "  Unable to parse temperature data"
     else
         echo "Unable to fetch temperature data"
-        echo "Note: Temperature monitoring requires an active printer connection"
     fi
 }
 

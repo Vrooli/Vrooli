@@ -21,13 +21,18 @@ mailinabox_install() {
     
     # Create data directories
     log::info "Creating data directories..."
-    mkdir -p "$MAILINABOX_DATA_DIR"/{mail,config,ssl,backup}
+    mkdir -p "$MAILINABOX_DATA_DIR"/{mail,config,ssl,backup,roundcube/db,roundcube/config}
     
-    # Pull Docker image
-    log::info "Pulling Mail-in-a-Box Docker image..."
+    # Pull Docker images
+    log::info "Pulling Mail-in-a-Box Docker images..."
     if ! docker pull "$MAILINABOX_IMAGE"; then
         log::error "Failed to pull Mail-in-a-Box image"
         return 1
+    fi
+    
+    # Pull Roundcube image for webmail
+    if ! docker pull "roundcube/roundcubemail:latest"; then
+        log::warning "Failed to pull Roundcube image, continuing without webmail"
     fi
     
     # Create configuration file for docker-mailserver
@@ -46,8 +51,25 @@ ONE_DIR=0
 DMS_DEBUG=0
 EOF
     
-    # Create and start container for docker-mailserver
-    log::info "Creating Mail Server container..."
+    # Check if docker-compose is available and use it for full setup
+    if command -v docker-compose &>/dev/null && [[ -f "$APP_ROOT/resources/mail-in-a-box/docker-compose.yml" ]]; then
+        log::info "Using docker-compose for installation with webmail..."
+        
+        # Export environment variables for docker-compose
+        export MAILINABOX_DATA_DIR
+        export MAILINABOX_CONFIG_DIR
+        
+        cd "$APP_ROOT/resources/mail-in-a-box"
+        if docker-compose up -d --no-start; then
+            log::success "Mail-in-a-Box with webmail installed successfully"
+            return 0
+        else
+            log::warning "Docker-compose failed, falling back to basic installation"
+        fi
+    fi
+    
+    # Fallback: Create basic container without webmail
+    log::info "Creating Mail Server container (basic mode)..."
     docker create \
         --name "$MAILINABOX_CONTAINER_NAME" \
         --hostname "$MAILINABOX_PRIMARY_HOSTNAME" \
@@ -65,7 +87,7 @@ EOF
         "$MAILINABOX_IMAGE"
     
     if [[ $? -eq 0 ]]; then
-        log::success "Mail-in-a-Box installed successfully"
+        log::success "Mail-in-a-Box installed successfully (basic mode)"
         return 0
     else
         log::error "Failed to create Mail-in-a-Box container"

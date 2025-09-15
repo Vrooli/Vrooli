@@ -63,6 +63,11 @@ cli::register_command "status" "Show detailed resource status" "mailinabox_simpl
 cli::register_command "logs" "Show Mail-in-a-Box logs" "mailinabox_show_logs"
 cli::register_command "version" "Show Mail-in-a-Box version" "mailinabox_get_version"
 
+# Extended functionality commands
+cli::register_command "monitor" "Monitor email server metrics" "mailinabox_monitor_wrapper"
+cli::register_command "api" "REST API operations" "mailinabox_api_wrapper"
+cli::register_command "credentials" "Show access information" "mailinabox_show_credentials"
+
 # Simple status wrapper
 mailinabox_simple_status() {
     echo -e "📧 Mail-in-a-Box Status\n"
@@ -75,6 +80,54 @@ mailinabox_simple_status() {
 # Simple logs function
 mailinabox_show_logs() {
     mailinabox_is_running && docker logs "$MAILINABOX_CONTAINER_NAME" --tail 50 || echo "Mail-in-a-Box is not running"
+}
+
+# Monitor wrapper
+mailinabox_monitor_wrapper() {
+    source "${MAILINABOX_CLI_DIR}/lib/monitor.sh" 2>/dev/null || {
+        echo "Monitor module not available"
+        return 1
+    }
+    mailinabox_monitor "$@"
+}
+
+# API wrapper
+mailinabox_api_wrapper() {
+    source "${MAILINABOX_CLI_DIR}/lib/api.sh" 2>/dev/null || {
+        echo "API module not available"
+        return 1
+    }
+    local subcmd="${1:-}"
+    shift || true
+    case "$subcmd" in
+        serve)
+            mailinabox_api_serve "${1:-8543}"
+            ;;
+        health|accounts|aliases|stats)
+            mailinabox_api_handler "GET" "/$subcmd" "$@"
+            ;;
+        *)
+            echo "Available API commands: serve, health, accounts, aliases, stats"
+            ;;
+    esac
+}
+
+# Credentials display
+mailinabox_show_credentials() {
+    echo -e "📧 Mail-in-a-Box Access Information\n"
+    echo "Primary hostname: ${MAILINABOX_PRIMARY_HOSTNAME}"
+    echo "Admin email: ${MAILINABOX_ADMIN_EMAIL}"
+    echo "Data directory: ${MAILINABOX_DATA_DIR}"
+    echo ""
+    if docker inspect mailinabox-webmail &>/dev/null && [[ "$(docker inspect -f '{{.State.Running}}' mailinabox-webmail 2>/dev/null)" == "true" ]]; then
+        echo "Webmail: http://localhost:8080"
+    else
+        echo "Webmail: Not installed (use docker-compose to enable)"
+    fi
+    echo "API endpoint: http://localhost:8543/health"
+    echo ""
+    echo "Create your first email account with:"
+    echo "  vrooli resource mail-in-a-box content add user@example.com"
 }
 
 # Test wrapper functions

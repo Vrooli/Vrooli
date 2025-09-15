@@ -82,6 +82,13 @@ main() {
     run_test "openrouter::content::add function exists" "type -t openrouter::content::add"
     run_test "openrouter::content::list function exists" "type -t openrouter::content::list"
     
+    # Test 7: Cloudflare functions exist
+    source "${RESOURCE_DIR}/lib/cloudflare.sh" 2>/dev/null || true
+    run_test "openrouter::cloudflare::is_configured function exists" "type -t openrouter::cloudflare::is_configured"
+    run_test "openrouter::cloudflare::configure function exists" "type -t openrouter::cloudflare::configure"
+    run_test "openrouter::cloudflare::status function exists" "type -t openrouter::cloudflare::status"
+    run_test "openrouter::cloudflare::cli function exists" "type -t openrouter::cloudflare::cli"
+    
     # Summary
     echo
     log::info "Test Results: $(format::success "$TESTS_PASSED passed"), $(format::error "$TESTS_FAILED failed")"

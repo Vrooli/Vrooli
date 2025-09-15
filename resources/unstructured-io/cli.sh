@@ -10,7 +10,7 @@
 #
 ################################################################################
 
-set -euo pipefail
+set -uo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
 # Handle symlinks for installed CLI

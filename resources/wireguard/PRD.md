@@ -36,7 +36,7 @@ WireGuard provides modern, high-performance VPN networking that creates secure, 
   
 - **Should Have (P1)**
   - [ ] **Auto-Discovery**: Automatic peer discovery via DNS/mDNS
-  - [ ] **Network Namespaces**: Isolated network spaces for containers
+  - [x] **Network Isolation**: Isolated Docker networks for container security ✅ 2025-09-14
   - [x] **Traffic Statistics**: Monitor bandwidth usage and connection metrics ✅ 2025-09-12
   - [x] **Key Rotation**: Automatic key rotation for enhanced security ✅ 2025-09-14
   - [ ] **Multi-Interface**: Support multiple tunnel interfaces
@@ -173,7 +173,7 @@ networking:
 - Enhanced content management for store/retrieve operations
 - All tests passing (100% success rate)
 
-### 2025-09-14: v0.3.0 Key Rotation Implementation
+### 2025-09-14: v0.3.0 Key Rotation & Network Isolation
 - Implemented comprehensive key rotation system with manual and scheduled options
 - Added `rotate keys` command for immediate key rotation with automatic backup
 - Added `rotate schedule` command for automated rotation intervals (days/weeks/hours)
@@ -181,15 +181,20 @@ networking:
 - Implemented configuration backup system in /config/backups/
 - Added rotation metadata tracking with JSON and fallback text logging
 - Enhanced security posture with regular key refresh capability
+- Implemented Docker-based network isolation for enhanced container security
+- Added `namespace create` command to create isolated Docker networks
+- Added `namespace list/status/delete` commands for network management
+- Added `namespace connect` command to connect containers to isolated networks
+- Networks support WireGuard tunnel routing for secure traffic forwarding
 - Updated tests to include key rotation validation
 - All tests passing (100% success rate)
 
 ## ✅ Completion Status
 
-**Overall Progress: 74%**
+**Overall Progress: 77%**
 
 - P0 Requirements: 100% (7/7 completed) ✅
-- P1 Requirements: 43% (3/7 completed)  
+- P1 Requirements: 57% (4/7 completed)  
 - P2 Requirements: 0% (0/3 completed)
 - Documentation: 100% (PRD, README, inline docs) ✅
 - Testing: 100% (all test suites passing) ✅

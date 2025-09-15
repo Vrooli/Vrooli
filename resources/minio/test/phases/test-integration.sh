@@ -31,7 +31,7 @@ FAILED=0
 
 # Load credentials if available
 CREDS_FILE="${HOME}/.minio/config/credentials"
-if [[ -f "$CREDS_FILE" ]] && [[ -z "${MINIO_ROOT_USER:-}" ]]; then
+if [[ -f "$CREDS_FILE" ]]; then
     # shellcheck disable=SC1090
     source "$CREDS_FILE" 2>/dev/null || true
 fi
@@ -72,63 +72,66 @@ else
     log::warning "⚠ MinIO console UI not accessible (optional feature)"
 fi
 
-# Test 4: Bucket operations with AWS CLI (if available)
+# Test 4: Bucket operations with mc client
 log::info "Test 4: Bucket operations..."
 
-if command -v aws &>/dev/null; then
-    export AWS_ACCESS_KEY_ID="$ACCESS_KEY"
-    export AWS_SECRET_ACCESS_KEY="$SECRET_KEY"
-    
+CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
+
+# Setup mc client alias
+if docker exec "$CONTAINER_NAME" mc alias set local "http://localhost:9000" "$ACCESS_KEY" "$SECRET_KEY" &>/dev/null 2>&1; then
     TEST_BUCKET="integration-test-$(date +%s)"
     
     # Create bucket
-    if aws s3 mb "s3://${TEST_BUCKET}" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
+    if docker exec "$CONTAINER_NAME" mc mb "local/${TEST_BUCKET}" &>/dev/null 2>&1; then
         log::success "✓ Bucket creation works"
         
         # List buckets
-        if aws s3 ls --endpoint-url "$ENDPOINT" 2>/dev/null | grep -q "$TEST_BUCKET"; then
+        if docker exec "$CONTAINER_NAME" mc ls local/ 2>/dev/null | grep -q "$TEST_BUCKET"; then
             log::success "✓ Bucket listing works"
         else
             log::error "✗ Bucket listing failed"
             ((FAILED++))
         fi
         
-        # Upload test file
-        TEST_FILE="/tmp/minio-test-${TEST_BUCKET}.txt"
-        echo "Integration test content" > "$TEST_FILE"
-        
-        if aws s3 cp "$TEST_FILE" "s3://${TEST_BUCKET}/test.txt" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
-            log::success "✓ File upload works"
+        # Create test file in container
+        TEST_CONTENT="Integration test content $(date +%s)"
+        if docker exec "$CONTAINER_NAME" sh -c "echo '$TEST_CONTENT' > /tmp/test.txt" 2>/dev/null; then
             
-            # Download file
-            DOWNLOAD_FILE="/tmp/minio-download-${TEST_BUCKET}.txt"
-            if aws s3 cp "s3://${TEST_BUCKET}/test.txt" "$DOWNLOAD_FILE" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
-                if [[ -f "$DOWNLOAD_FILE" ]] && grep -q "Integration test content" "$DOWNLOAD_FILE"; then
-                    log::success "✓ File download works"
+            # Upload file
+            if docker exec "$CONTAINER_NAME" mc cp /tmp/test.txt "local/${TEST_BUCKET}/test.txt" &>/dev/null 2>&1; then
+                log::success "✓ File upload works"
+                
+                # Download file
+                if docker exec "$CONTAINER_NAME" mc cp "local/${TEST_BUCKET}/test.txt" /tmp/download.txt &>/dev/null 2>&1; then
+                    DOWNLOADED=$(docker exec "$CONTAINER_NAME" cat /tmp/download.txt 2>/dev/null)
+                    if [[ "$DOWNLOADED" == "$TEST_CONTENT" ]]; then
+                        log::success "✓ File download works"
+                    else
+                        log::error "✗ Downloaded file content mismatch"
+                        ((FAILED++))
+                    fi
+                    docker exec "$CONTAINER_NAME" rm -f /tmp/download.txt &>/dev/null 2>&1
                 else
-                    log::error "✗ Downloaded file content mismatch"
+                    log::error "✗ File download failed"
                     ((FAILED++))
                 fi
-                rm -f "$DOWNLOAD_FILE"
             else
-                log::error "✗ File download failed"
+                log::error "✗ File upload failed"
                 ((FAILED++))
             fi
-        else
-            log::error "✗ File upload failed"
-            ((FAILED++))
+            
+            docker exec "$CONTAINER_NAME" rm -f /tmp/test.txt &>/dev/null 2>&1
         fi
         
         # Cleanup
-        aws s3 rm "s3://${TEST_BUCKET}" --recursive --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
-        aws s3 rb "s3://${TEST_BUCKET}" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
-        rm -f "$TEST_FILE"
+        docker exec "$CONTAINER_NAME" mc rb --force "local/${TEST_BUCKET}" &>/dev/null 2>&1 || true
     else
         log::error "✗ Bucket creation failed"
         ((FAILED++))
     fi
 else
-    log::warning "⚠ AWS CLI not available, skipping advanced bucket tests"
+    log::error "✗ Failed to configure mc client"
+    ((FAILED++))
 fi
 
 # Test 5: Default Vrooli buckets
@@ -141,22 +144,20 @@ DEFAULT_BUCKETS=(
     "vrooli-temp-storage"
 )
 
-if command -v aws &>/dev/null; then
-    export AWS_ACCESS_KEY_ID="$ACCESS_KEY"
-    export AWS_SECRET_ACCESS_KEY="$SECRET_KEY"
-    
-    BUCKET_LIST=$(aws s3 ls --endpoint-url "$ENDPOINT" 2>/dev/null || true)
-    
-    for bucket in "${DEFAULT_BUCKETS[@]}"; do
-        if echo "$BUCKET_LIST" | grep -q "$bucket"; then
-            log::success "✓ Default bucket exists: $bucket"
-        else
-            log::warning "⚠ Default bucket missing: $bucket (will be created on first use)"
-        fi
-    done
-else
-    log::warning "⚠ Cannot verify default buckets without AWS CLI"
-fi
+CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
+
+# Setup mc client alias if not already done
+docker exec "$CONTAINER_NAME" mc alias set local "http://localhost:9000" "$ACCESS_KEY" "$SECRET_KEY" &>/dev/null 2>&1 || true
+
+BUCKET_LIST=$(docker exec "$CONTAINER_NAME" mc ls local/ 2>/dev/null || true)
+
+for bucket in "${DEFAULT_BUCKETS[@]}"; do
+    if echo "$BUCKET_LIST" | grep -q "$bucket"; then
+        log::success "✓ Default bucket exists: $bucket"
+    else
+        log::warning "⚠ Default bucket missing: $bucket (will be created on first use)"
+    fi
+done
 
 # Test 6: Concurrent connection handling
 log::info "Test 6: Concurrent connections..."
@@ -217,58 +218,59 @@ else
     log::warning "⚠ Performance test skipped (requires authentication)"
 fi
 
-# Large file test (10MB) - only if AWS CLI available
-if command -v aws &>/dev/null; then
-    PERF_TEST_LARGE="/tmp/minio-perf-test-10mb.dat"
-    dd if=/dev/urandom of="$PERF_TEST_LARGE" bs=1M count=10 &>/dev/null 2>&1
-    
-    export AWS_ACCESS_KEY_ID="$ACCESS_KEY"
-    export AWS_SECRET_ACCESS_KEY="$SECRET_KEY"
+# Large file test (10MB) using mc client
+log::info "Testing large file performance..."
+
+CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
+
+# Create 10MB test file in container
+if docker exec "$CONTAINER_NAME" dd if=/dev/urandom of=/tmp/10mb-test.dat bs=1M count=10 &>/dev/null 2>&1; then
     
     # Create test bucket for performance
     PERF_BUCKET="perf-test-$(date +%s)"
-    aws s3 mb "s3://${PERF_BUCKET}" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
+    docker exec "$CONTAINER_NAME" mc mb "local/${PERF_BUCKET}" &>/dev/null 2>&1 || true
     
     # Upload timing
     START_TIME=$(date +%s%N)
-    if aws s3 cp "$PERF_TEST_LARGE" "s3://${PERF_BUCKET}/10mb-test.dat" \
-        --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
+    if docker exec "$CONTAINER_NAME" mc cp /tmp/10mb-test.dat "local/${PERF_BUCKET}/10mb-test.dat" &>/dev/null 2>&1; then
         END_TIME=$(date +%s%N)
         UPLOAD_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
         
         # Calculate throughput (MB/s)
-        THROUGHPUT=$(( 10000 / UPLOAD_TIME ))
-        
-        if [[ $THROUGHPUT -gt 10 ]]; then
-            log::success "✓ Large file throughput: ~${THROUGHPUT}MB/s (>10MB/s requirement)"
-        else
-            log::warning "⚠ Large file throughput: ~${THROUGHPUT}MB/s (<10MB/s)"
+        if [[ $UPLOAD_TIME -gt 0 ]]; then
+            THROUGHPUT=$(( 10000 / UPLOAD_TIME ))
+            
+            if [[ $THROUGHPUT -gt 10 ]]; then
+                log::success "✓ Large file throughput: ~${THROUGHPUT}MB/s (>10MB/s requirement)"
+            else
+                log::warning "⚠ Large file throughput: ~${THROUGHPUT}MB/s (<10MB/s)"
+            fi
         fi
     fi
     
     # Download timing
     START_TIME=$(date +%s%N)
-    if aws s3 cp "s3://${PERF_BUCKET}/10mb-test.dat" "/tmp/download-test.dat" \
-        --endpoint-url "$ENDPOINT" &>/dev/null 2>&1; then
+    if docker exec "$CONTAINER_NAME" mc cp "local/${PERF_BUCKET}/10mb-test.dat" /tmp/download-test.dat &>/dev/null 2>&1; then
         END_TIME=$(date +%s%N)
         DOWNLOAD_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
         
         # Calculate throughput (MB/s)
-        THROUGHPUT=$(( 10000 / DOWNLOAD_TIME ))
-        
-        if [[ $THROUGHPUT -gt 10 ]]; then
-            log::success "✓ Download throughput: ~${THROUGHPUT}MB/s (>10MB/s requirement)"
-        else
-            log::warning "⚠ Download throughput: ~${THROUGHPUT}MB/s (<10MB/s)"
+        if [[ $DOWNLOAD_TIME -gt 0 ]]; then
+            THROUGHPUT=$(( 10000 / DOWNLOAD_TIME ))
+            
+            if [[ $THROUGHPUT -gt 10 ]]; then
+                log::success "✓ Download throughput: ~${THROUGHPUT}MB/s (>10MB/s requirement)"
+            else
+                log::warning "⚠ Download throughput: ~${THROUGHPUT}MB/s (<10MB/s)"
+            fi
         fi
     fi
     
     # Cleanup performance test files
-    aws s3 rm "s3://${PERF_BUCKET}" --recursive --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
-    aws s3 rb "s3://${PERF_BUCKET}" --endpoint-url "$ENDPOINT" &>/dev/null 2>&1 || true
-    rm -f "$PERF_TEST_LARGE" "/tmp/download-test.dat"
+    docker exec "$CONTAINER_NAME" mc rb --force "local/${PERF_BUCKET}" &>/dev/null 2>&1 || true
+    docker exec "$CONTAINER_NAME" rm -f /tmp/10mb-test.dat /tmp/download-test.dat &>/dev/null 2>&1
 else
-    log::warning "⚠ Skipping large file performance tests (AWS CLI required)"
+    log::warning "⚠ Could not create test file for performance testing"
 fi
 
 # Cleanup small test file

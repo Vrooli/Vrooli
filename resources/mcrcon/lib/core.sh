@@ -7,7 +7,8 @@ set -euo pipefail
 CORE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CORE_SCRIPT_DIR
 if [[ -z "${RESOURCE_DIR:-}" ]]; then
-    readonly RESOURCE_DIR="$(dirname "$CORE_SCRIPT_DIR")"
+    RESOURCE_DIR="$(dirname "$CORE_SCRIPT_DIR")"
+    readonly RESOURCE_DIR
 fi
 
 # Source configuration
@@ -65,7 +66,8 @@ install_mcrcon() {
     
     # Download mcrcon binary
     local mcrcon_url="https://github.com/Tiiffi/mcrcon/releases/download/v0.7.2/mcrcon-0.7.2-linux-x86-64.tar.gz"
-    local temp_dir=$(mktemp -d)
+    local temp_dir
+    temp_dir=$(mktemp -d)
     
     log_info "Downloading mcrcon from GitHub..."
     if ! wget -q -O "${temp_dir}/mcrcon.tar.gz" "$mcrcon_url"; then
@@ -187,7 +189,7 @@ EOF
 
 # Start health service
 start_health_service() {
-    if pgrep -f "health_server.py.*mcrcon" > /dev/null 2>&1; then
+    if pgrep -f "health_server.py" > /dev/null 2>&1; then
         log_info "Health service already running"
         return 0
     fi
@@ -213,10 +215,13 @@ start_health_service() {
 
 # Stop health service
 stop_health_service() {
-    local pid=$(pgrep -f "health_server.py.*mcrcon" 2>/dev/null || true)
+    local pid
+    pid=$(pgrep -f "health_server.py" 2>/dev/null || true)
     if [[ -n "$pid" ]]; then
         kill "$pid" 2>/dev/null || true
         log_info "Health service stopped"
+    else
+        log_debug "No health service found running"
     fi
 }
 
@@ -236,7 +241,8 @@ execute_command() {
     
     # Check if using a named server from config
     if [[ "$server" != "default" ]] && [[ -f "${MCRCON_CONFIG_FILE}" ]]; then
-        local server_config=$(jq -r --arg name "$server" '.servers[] | select(.name == $name)' "${MCRCON_CONFIG_FILE}")
+        local server_config
+        server_config=$(jq -r --arg name "$server" '.servers[] | select(.name == $name)' "${MCRCON_CONFIG_FILE}")
         if [[ -n "$server_config" ]]; then
             host=$(echo "$server_config" | jq -r '.host')
             port=$(echo "$server_config" | jq -r '.port')
@@ -269,7 +275,8 @@ execute_command() {
         if timeout "${MCRCON_TIMEOUT}" "${MCRCON_BINARY}" -H "$host" -P "$port" -p "$password" "$command" 2>/tmp/mcrcon_error.log; then
             return 0
         else
-            local error_msg=$(cat /tmp/mcrcon_error.log 2>/dev/null || echo "Unknown error")
+            local error_msg
+            error_msg=$(cat /tmp/mcrcon_error.log 2>/dev/null || echo "Unknown error")
             
             # Check for specific error types
             if echo "$error_msg" | grep -q "Connection refused"; then
@@ -314,7 +321,8 @@ execute_all() {
         return 1
     fi
     
-    local server_count=$(jq -r '.servers | length' "${MCRCON_CONFIG_FILE}")
+    local server_count
+    server_count=$(jq -r '.servers | length' "${MCRCON_CONFIG_FILE}")
     if [[ "$server_count" -eq 0 ]]; then
         log_error "No servers configured"
         return 1
@@ -1358,7 +1366,7 @@ main() {
                     ;;
                 restart)
                     stop_health_service
-                    sleep 1
+                    sleep 2
                     start_health_service
                     ;;
                 *)

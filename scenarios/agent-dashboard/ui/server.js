@@ -1,32 +1,27 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const UI_PORT = process.env.UI_PORT || process.env.PORT;
-const API_PORT = process.env.API_PORT;
+const PORT = process.env.UI_PORT || process.env.PORT;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Proxy API requests to the API server
-if (API_PORT) {
-    app.use('/api', createProxyMiddleware({
-        target: `http://localhost:${API_PORT}`,
-        changeOrigin: true,
-        pathRewrite: {
-            '^/api': '/api'
-        }
-    }));
-}
-
-app.use(express.static(__dirname));
-
-// Serve the main page
+// Serve the main page with injected config (BEFORE static files)
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    const fs = require('fs');
+    let html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+    
+    // Inject API port configuration
+    const configScript = `
+    <script>
+        window.API_PORT = '${process.env.API_PORT || '20000'}';
+    </script>`;
+    
+    html = html.replace('<script src="script.js"></script>', configScript + '\n    <script src="script.js"></script>');
+    res.send(html);
 });
 
 // Health check endpoint
@@ -34,11 +29,11 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy', service: 'agent-dashboard-ui' });
 });
 
+// Serve static files (CSS, JS, etc) AFTER custom routes
+app.use(express.static(__dirname));
+
 // Start server
-app.listen(UI_PORT, () => {
-    console.log(`Agent Dashboard UI running on http://localhost:${UI_PORT}`);
+app.listen(PORT, () => {
+    console.log(`Agent Dashboard UI running on http://localhost:${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    if (API_PORT) {
-        console.log(`Proxying /api requests to http://localhost:${API_PORT}`);
-    }
 });

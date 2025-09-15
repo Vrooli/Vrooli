@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  mail:
+    image: mailserver/docker-mailserver:latest
+    container_name: mailinabox
+    hostname: mail.local
+    env_file: ./config/mailserver.env
+    ports:
+      - "127.0.0.1:25:25"
+      - "127.0.0.1:587:587"
+      - "127.0.0.1:993:993"
+      - "127.0.0.1:995:995"
+    volumes:
+      - maildata:/var/mail
+      - mailconfig:/tmp/docker-mailserver
+      - mailssl:/etc/letsencrypt
+      - /etc/localtime:/etc/localtime:ro
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    networks:
+      - mailnet
+    healthcheck:
+      test: ["CMD", "ss", "-ltn", "|", "grep", ":25"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  roundcube:
+    image: roundcube/roundcubemail:latest
+    container_name: mailinabox-webmail
+    depends_on:
+      - mail
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      - ROUNDCUBEMAIL_DEFAULT_HOST=ssl://mail
+      - ROUNDCUBEMAIL_DEFAULT_PORT=993
+      - ROUNDCUBEMAIL_SMTP_SERVER=mail
+      - ROUNDCUBEMAIL_SMTP_PORT=587
+      - ROUNDCUBEMAIL_UPLOAD_MAX_FILESIZE=50M
+      - ROUNDCUBEMAIL_DB_TYPE=sqlite
+      - ROUNDCUBEMAIL_DB_DIR=/var/roundcube/db
+      - ROUNDCUBEMAIL_SKIN=elastic
+    volumes:
+      - roundcube_db:/var/roundcube/db
+      - roundcube_config:/var/www/html/config
+    restart: unless-stopped
+    networks:
+      - mailnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  mailnet:
+    driver: bridge
+
+volumes:
+  maildata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/mail
+  mailconfig:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}/config
+  mailssl:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/ssl
+  roundcube_db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/roundcube/db
+  roundcube_config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/roundcube/config

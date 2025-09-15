@@ -367,7 +367,12 @@ openrouter::content::execute() {
     # Execute prompt via OpenRouter API with timeout
     local response
     local timeout="${OPENROUTER_TIMEOUT:-30}"
-    response=$(timeout "$timeout" curl -s -X POST "${OPENROUTER_API_BASE}/chat/completions" \
+    
+    # Use Cloudflare Gateway if configured
+    local api_url
+    api_url=$(openrouter::cloudflare::get_gateway_url "$OPENROUTER_API_BASE" "$model")
+    
+    response=$(timeout "$timeout" curl -s -X POST "${api_url}/chat/completions" \
         -H "Authorization: Bearer ${api_key}" \
         -H "Content-Type: application/json" \
         -d "$(jq -n \

@@ -5,8 +5,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Source core library
-source "${RESOURCE_DIR}/lib/core.sh"
+# Source configuration but not core.sh to avoid port re-detection
+source "${RESOURCE_DIR}/config/defaults.sh"
+CONTAINER_NAME="${PIHOLE_CONTAINER_NAME:-vrooli-pihole}"
+PIHOLE_DATA_DIR="${PIHOLE_DATA_DIR:-${HOME}/.vrooli/pihole}"
+
+# Load saved port configuration
+DNS_PORT=53
+if [[ -f "${PIHOLE_DATA_DIR}/.port_config" ]]; then
+    source "${PIHOLE_DATA_DIR}/.port_config"
+fi
 
 echo "Pi-hole Smoke Tests"
 echo "==================="
@@ -37,16 +45,16 @@ run_test "Container exists" "docker ps -a --format '{{.Names}}' | grep -q '^${CO
 run_test "Container running" "docker ps --format '{{.Names}}' | grep -q '^${CONTAINER_NAME}$'"
 
 # Test 3: DNS port is listening
-run_test "DNS port (53) listening" "timeout 5 nc -z localhost 53"
+run_test "DNS port (${DNS_PORT}) listening" "timeout 5 nc -z localhost ${DNS_PORT}"
 
 # Test 4: API port is listening
 run_test "API port (8087) listening" "timeout 5 nc -z localhost 8087"
 
-# Test 5: Health check passes
-run_test "Health check" "check_health"
+# Test 5: Container is healthy
+run_test "Container healthy" "docker inspect ${CONTAINER_NAME} --format='{{.State.Health.Status}}' | grep -q healthy"
 
-# Test 6: API status endpoint
-run_test "API status endpoint" "timeout 5 curl -sf 'http://localhost:8087/admin/api.php?status'"
+# Test 6: Web interface accessible
+run_test "Web interface accessible" "timeout 5 curl -If 'http://localhost:8087/admin/' 2>/dev/null | grep -q 'HTTP/1.1'"
 
 # Test 7: Container logs accessible
 run_test "Container logs" "docker logs --tail 1 '${CONTAINER_NAME}'"

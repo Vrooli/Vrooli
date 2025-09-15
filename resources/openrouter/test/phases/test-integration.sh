@@ -75,6 +75,12 @@ main() {
     run_test "Manage stop (noop)" "resource-openrouter manage stop"
     run_test "Manage restart (noop)" "resource-openrouter manage restart"
     
+    # Test 9: Cloudflare AI Gateway integration
+    run_test "Cloudflare status command" "resource-openrouter cloudflare status"
+    run_test "Cloudflare configure enable" "resource-openrouter cloudflare configure true \"\" test-gateway test-account"
+    run_test "Cloudflare shows configured" "resource-openrouter cloudflare status | grep -q 'Configured: true'"
+    run_test "Cloudflare configure disable" "resource-openrouter cloudflare configure false"
+    
     # Summary
     echo
     log::info "Test Results: $(format::success "$TESTS_PASSED passed"), $(format::error "$TESTS_FAILED failed")"

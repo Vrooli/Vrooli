@@ -42,20 +42,65 @@ mathlib::manage() {
     local subcommand="${1:-}"
     shift || true
     
+    # Check for help flag
+    if [[ "${subcommand}" == "--help" ]] || [[ "${subcommand}" == "-h" ]] || [[ -z "${subcommand}" ]]; then
+        echo "Usage: vrooli resource mathlib manage <command> [options]"
+        echo ""
+        echo "Commands:"
+        echo "  install    Install Lean 4 and Mathlib dependencies"
+        echo "  uninstall  Remove installed components"
+        echo "  start      Start the Mathlib service"
+        echo "  stop       Stop the Mathlib service"
+        echo "  restart    Restart the Mathlib service"
+        echo ""
+        echo "Options:"
+        echo "  --wait     Wait for service to be healthy (for start/restart)"
+        echo "  --help     Show this help message"
+        return 0
+    fi
+    
     case "${subcommand}" in
         install)
+            # Check for help on subcommand
+            if [[ "${1:-}" == "--help" ]]; then
+                echo "Usage: vrooli resource mathlib manage install"
+                echo "Install Lean 4 compiler and Mathlib dependencies"
+                return 0
+            fi
             mathlib::install "$@"
             ;;
         uninstall)
+            if [[ "${1:-}" == "--help" ]]; then
+                echo "Usage: vrooli resource mathlib manage uninstall"
+                echo "Remove installed Lean 4 and Mathlib components"
+                return 0
+            fi
             mathlib::uninstall "$@"
             ;;
         start)
+            if [[ "${1:-}" == "--help" ]]; then
+                echo "Usage: vrooli resource mathlib manage start [--wait]"
+                echo "Start the Mathlib service"
+                echo "  --wait  Wait for service to be healthy"
+                return 0
+            fi
             mathlib::start "$@"
             ;;
         stop)
+            if [[ "${1:-}" == "--help" ]]; then
+                echo "Usage: vrooli resource mathlib manage stop"
+                echo "Stop the Mathlib service"
+                return 0
+            fi
             mathlib::stop "$@"
             ;;
         restart)
+            if [[ "${1:-}" == "--help" ]]; then
+                echo "Usage: vrooli resource mathlib manage restart [--wait]"
+                echo "Restart the Mathlib service"
+                echo "  --wait  Wait for service to be healthy"
+                return 0
+            fi
             mathlib::restart "$@"
             ;;
         *)
@@ -85,6 +130,11 @@ mathlib::install() {
     echo "Installing Lean 4 compiler and Lake build system..."
     
     # Install Lean 4 using elan (official Lean version manager)
+    # Always add elan to PATH first if it exists
+    if [[ -d "${HOME}/.elan/bin" ]]; then
+        export PATH="${HOME}/.elan/bin:${PATH}"
+    fi
+    
     if ! command -v elan &> /dev/null; then
         echo "Installing elan (Lean version manager)..."
         curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o /tmp/elan-init.sh
@@ -95,8 +145,11 @@ mathlib::install() {
         # Add elan to PATH for this session
         export PATH="${HOME}/.elan/bin:${PATH}"
     else
-        echo "Elan already installed, updating Lean..."
-        elan update
+        echo "Elan already installed, checking Lean version..."
+        # elan self-update is what updates elan itself
+        # elan update stable updates the stable toolchain
+        elan self update 2>/dev/null || true
+        elan update stable 2>/dev/null || true
     fi
     
     # Verify Lean installation
@@ -199,10 +252,16 @@ from urllib.parse import urlparse, parse_qs
 PORT = int(os.environ.get('MATHLIB_PORT', 11458))
 WORK_DIR = os.environ.get('MATHLIB_WORK_DIR', '/tmp/mathlib/work')
 CACHE_DIR = os.environ.get('MATHLIB_CACHE_DIR', '/tmp/mathlib/cache')
+ENABLE_CACHE = os.environ.get('MATHLIB_ENABLE_CACHE', 'true').lower() == 'true'
 
 # Store proof jobs
 proof_jobs = {}
 proof_lock = threading.Lock()
+
+# Cache for compiled proofs
+proof_cache = {}
+cache_lock = threading.Lock()
+MAX_CACHE_SIZE = 100  # Maximum number of cached proofs
 
 # Performance metrics
 metrics = {
@@ -214,27 +273,66 @@ metrics = {
     'min_execution_time': float('inf'),
     'max_execution_time': 0,
     'active_jobs': 0,
-    'queued_jobs': 0
+    'queued_jobs': 0,
+    'cache_hits': 0,
+    'cache_misses': 0
 }
 metrics_lock = threading.Lock()
 
 def check_lean_installation():
     """Check if Lean is properly installed"""
     try:
-        result = subprocess.run(['lean', '--version'], capture_output=True, text=True, timeout=5)
-        if result.returncode == 0:
-            return result.stdout.strip()
+        # Try to use lean from elan installation
+        lean_paths = [
+            'lean',  # System PATH
+            os.path.expanduser('~/.elan/bin/lean'),  # Elan installation
+        ]
+        
+        for lean_path in lean_paths:
+            try:
+                result = subprocess.run([lean_path, '--version'], capture_output=True, text=True, timeout=5)
+                if result.returncode == 0:
+                    return result.stdout.strip()
+            except:
+                continue
         return None
     except:
         return None
 
 def execute_lean_proof(proof_code, job_id):
     """Execute a Lean proof and update job status"""
+    import hashlib
+    
     # Update metrics
     with metrics_lock:
         metrics['total_requests'] += 1
         metrics['active_jobs'] += 1
         metrics['queued_jobs'] = max(0, metrics['queued_jobs'] - 1)
+    
+    # Check cache if enabled
+    proof_hash = None
+    if ENABLE_CACHE:
+        proof_hash = hashlib.sha256(proof_code.encode()).hexdigest()
+        with cache_lock:
+            if proof_hash in proof_cache:
+                # Cache hit
+                cached_result = proof_cache[proof_hash].copy()
+                with metrics_lock:
+                    metrics['cache_hits'] += 1
+                    metrics['active_jobs'] = max(0, metrics['active_jobs'] - 1)
+                
+                # Update job with cached result
+                with proof_lock:
+                    proof_jobs[job_id]['status'] = cached_result['status']
+                    proof_jobs[job_id]['result'] = cached_result['result']
+                    proof_jobs[job_id]['start_time'] = time.time()
+                    proof_jobs[job_id]['end_time'] = time.time()
+                    proof_jobs[job_id]['duration'] = 0.001  # Minimal time for cache hit
+                    proof_jobs[job_id]['cached'] = True
+                return
+            else:
+                with metrics_lock:
+                    metrics['cache_misses'] += 1
     
     try:
         # Create temporary file for proof
@@ -247,9 +345,13 @@ def execute_lean_proof(proof_code, job_id):
             proof_jobs[job_id]['status'] = 'running'
             proof_jobs[job_id]['start_time'] = time.time()
         
-        # Run Lean on the proof
+        # Run Lean on the proof (prefer elan installation)
+        lean_cmd = 'lean'
+        if os.path.exists(os.path.expanduser('~/.elan/bin/lean')):
+            lean_cmd = os.path.expanduser('~/.elan/bin/lean')
+        
         result = subprocess.run(
-            ['lean', proof_file],
+            [lean_cmd, proof_file],
             capture_output=True,
             text=True,
             timeout=60,
@@ -284,6 +386,20 @@ def execute_lean_proof(proof_code, job_id):
                     'output': result.stdout,
                     'message': 'Proof verified successfully'
                 }
+                
+                # Store in cache if enabled
+                if ENABLE_CACHE and proof_hash:
+                    with cache_lock:
+                        # Implement LRU eviction if cache is full
+                        if len(proof_cache) >= MAX_CACHE_SIZE:
+                            # Remove oldest entry (simple FIFO for now)
+                            oldest_key = next(iter(proof_cache))
+                            del proof_cache[oldest_key]
+                        
+                        proof_cache[proof_hash] = {
+                            'status': 'success',
+                            'result': proof_jobs[job_id]['result']
+                        }
             else:
                 proof_jobs[job_id]['status'] = 'failed'
                 proof_jobs[job_id]['result'] = {
@@ -292,6 +408,18 @@ def execute_lean_proof(proof_code, job_id):
                     'output': result.stdout,
                     'message': 'Proof verification failed'
                 }
+                
+                # Also cache failures to avoid recomputing
+                if ENABLE_CACHE and proof_hash:
+                    with cache_lock:
+                        if len(proof_cache) >= MAX_CACHE_SIZE:
+                            oldest_key = next(iter(proof_cache))
+                            del proof_cache[oldest_key]
+                        
+                        proof_cache[proof_hash] = {
+                            'status': 'failed',
+                            'result': proof_jobs[job_id]['result']
+                        }
         
         # Clean up
         os.unlink(proof_file)
@@ -391,6 +519,14 @@ class MathlibHandler(BaseHTTPRequestHandler):
                         'average_execution_time': round(metrics['average_execution_time'], 3),
                         'min_execution_time': round(metrics['min_execution_time'], 3) if metrics['min_execution_time'] != float('inf') else 0,
                         'max_execution_time': round(metrics['max_execution_time'], 3),
+                    },
+                    'cache': {
+                        'enabled': ENABLE_CACHE,
+                        'cache_hits': metrics['cache_hits'],
+                        'cache_misses': metrics['cache_misses'],
+                        'cache_hit_rate': metrics['cache_hits'] / max(1, metrics['cache_hits'] + metrics['cache_misses']) * 100,
+                        'cache_size': len(proof_cache),
+                        'max_cache_size': MAX_CACHE_SIZE
                     },
                     'current_status': {
                         'active_jobs': running_count,

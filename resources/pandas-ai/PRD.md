@@ -33,6 +33,7 @@ Pandas AI provides conversational AI-powered data analysis and manipulation infr
   - [x] Standard CLI interface (resource-pandas-ai) ✅ 2025-01-10
   - [x] Health monitoring and status reporting ✅ 2025-01-10
   - [x] Docker containerization and networking ✅ 2025-01-10
+  - [x] Direct pandas code execution API ✅ 2025-09-14
   
 - **Should Have (P1)** - ✅ 100% Complete
   - [x] Visualization generation (matplotlib, seaborn, plotly) ✅ 2025-09-12
@@ -205,6 +206,28 @@ api_endpoints:
       }
     authentication: Bearer token
     rate_limiting: 100 requests per minute
+    
+  - method: POST
+    path: /pandas/execute
+    purpose: Execute raw pandas code directly for advanced users
+    input_schema: |
+      {
+        "code": "string",
+        "data": "object/array (optional)",
+        "safe_mode": "boolean (default: true)"
+      }
+    output_schema: |
+      {
+        "result": "any",
+        "success": "boolean",
+        "output_type": "string",
+        "execution_time": "number"
+      }
+    features:
+      - Direct pandas code execution
+      - Safety checks to prevent malicious code
+      - Support for dataframes, series, and scalar outputs
+      - Execution time tracking
 ```
 
 ## 🖥️ Management Interface Contract
@@ -632,6 +655,32 @@ release_management:
 - [OpenAI API Reference](https://platform.openai.com/docs)
 
 ## 📝 Progress History
+
+### 2025-09-14: Direct Pandas Code Execution Feature
+**Improver**: resource-improver-20250912-003028
+**Progress**: P0 Requirements 100% → 100% (new feature added)
+
+**Changes Made**:
+- ✅ Added `/pandas/execute` endpoint for direct pandas code execution
+- ✅ Implemented safety checks to prevent malicious code execution
+- ✅ Support for multiple input formats (data, CSV, SQL query)
+- ✅ Automatic detection of output types (DataFrame, Series, scalar, etc.)
+- ✅ Execution time tracking and performance metrics
+- ✅ Integration tests added and passing
+
+**Testing Validation**:
+- All existing tests: ✅ Passing (no regressions)
+- Direct execution test: ✅ Working
+- Safety checks: ✅ Working (blocks dangerous operations)
+- Multiple output types: ✅ Verified
+
+**Use Cases**:
+- Advanced users can execute complex pandas operations directly
+- Scenarios can use either AI-powered analysis OR direct pandas code
+- Provides fallback when AI model is unavailable
+- Enables precise control over data transformations
+
+---
 
 ### 2025-09-12: Visualization Support & Data Handling Improvements
 **Improver**: resource-improver-20250912-003028

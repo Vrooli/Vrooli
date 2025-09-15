@@ -19,6 +19,7 @@
 - **Impact**: Health checks fail when API key is invalid or missing
 - **Workaround**: Container still responds to local API calls even when unhealthy
 - **Solution**: ✅ FIXED (2025-09-14) - Mock mode now allows health checks without API key
+- **Additional Fix**: ✅ FIXED (2025-09-14) - Added `requests` module to Docker image for health checks
 
 ## Missing Features
 
@@ -49,9 +50,13 @@
 
 ### Memory Usage
 - **Issue**: SQLite cache can grow large with extensive use
-- **Current Limit**: No automatic cache pruning
-- **Recommendation**: Periodically clear cache with `content remove` command
-- **Future Enhancement**: Implement automatic cache rotation based on age/size
+- **Solution**: ✅ FIXED (2025-09-14) - Implemented automatic cache rotation
+  - Hourly rotation checks
+  - 100MB size limit enforced
+  - 30-day age limit for entries
+  - Maximum 10,000 entries per table
+  - VACUUM runs to reclaim space
+- **Monitoring**: Use `/api/cache/info` endpoint to view cache status
 
 ### Batch Processing Speed
 - **Issue**: Rate limiting makes batch processing very slow
@@ -67,11 +72,14 @@
 - **Effort**: Would require significant refactoring of cache layer
 
 ### Scenario Integration
-- **Issue**: No direct integration examples with other scenarios yet
-- **Need**: Example integrations with:
-  - CI/CD pipelines for build validation
-  - SOC automation scenarios
-  - File upload scenarios
+- **Status**: ✅ RESOLVED (2025-09-14) - Added comprehensive integration examples
+- **Added Examples**:
+  - Integration with Unstructured-IO for document URL scanning
+  - Web scraper URL validation workflows
+  - S3/MinIO file validation before upload
+  - GitHub Actions security scanning
+  - Automated security monitoring with inotify
+  - Complete CI/CD pipeline examples
 
 ## Security Considerations
 
@@ -109,11 +117,13 @@
 ## Recommendations for Next Iteration
 
 1. **Priority 1**: ✅ COMPLETED - URL report retrieval now working
-2. **Priority 2**: Add automatic cache management with rotation
-3. **Priority 3**: Create integration examples with other scenarios
+2. **Priority 2**: ✅ COMPLETED - Automatic cache rotation implemented
+3. **Priority 3**: ✅ COMPLETED - Added comprehensive integration examples
 4. **Priority 4**: Implement remaining P2 features (YARA rules, historical analysis)
 5. **Priority 5**: Add Redis cache backend for scalability
 6. **Priority 6**: Add rate limit handling for premium API tiers
+7. **Priority 7**: Add support for file submission via S3 presigned URLs
+8. **Priority 8**: Implement threat intelligence feed exports
 
 ## Notes for Developers
 

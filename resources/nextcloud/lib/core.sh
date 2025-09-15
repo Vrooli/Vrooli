@@ -365,9 +365,12 @@ execute_content() {
         configure-security)
             execute_configure_security "$options"
             ;;
+        enable-talk)
+            execute_enable_talk "$options"
+            ;;
         *)
             echo "Error: Unknown operation: $name" >&2
-            echo "Available operations: share, backup, restore, mount-s3, enable-office, configure-security" >&2
+            echo "Available operations: share, backup, restore, mount-s3, enable-office, configure-security, enable-talk" >&2
             return 1
             ;;
     esac
@@ -765,6 +768,52 @@ execute_configure_security() {
     fi
     echo ""
     echo "For production use, configure a reverse proxy with HTTPS termination."
+    
+    return 0
+}
+
+execute_enable_talk() {
+    local options="${1:-}"
+    
+    echo "Enabling Nextcloud Talk (video conferencing and chat)..."
+    
+    # Check if Talk/Spreed is already installed
+    if docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:list | grep -q "spreed:"; then
+        echo "Talk is already installed and enabled"
+    else
+        echo "Installing Talk app..."
+        docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ app:install spreed || {
+            echo "Error: Failed to install Talk app" >&2
+            return 1
+        }
+    fi
+    
+    # Configure Talk settings
+    echo "Configuring Talk settings..."
+    
+    # Enable TURN server for better connectivity (using public TURN servers for demo)
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set spreed stun_servers --value='["stun:stun.l.google.com:19302","stun:stun1.l.google.com:19302"]' 2>/dev/null || true
+    
+    # Set signaling server mode to internal (no external signaling server required)
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set spreed signaling_mode --value="internal" 2>/dev/null || true
+    
+    # Enable screen sharing
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set spreed enable_screensharing --value="yes" 2>/dev/null || true
+    
+    # Set max call duration (0 = unlimited)
+    docker exec -u www-data "${NEXTCLOUD_CONTAINER_NAME}" php occ config:app:set spreed max_call_duration --value="0" 2>/dev/null || true
+    
+    echo "Talk configuration completed!"
+    echo ""
+    echo "Talk features enabled:"
+    echo "  ✓ Video conferencing"
+    echo "  ✓ Audio calls"
+    echo "  ✓ Text chat"
+    echo "  ✓ Screen sharing"
+    echo "  ✓ File sharing in conversations"
+    echo ""
+    echo "Access Talk at: http://localhost:${NEXTCLOUD_PORT}/apps/spreed"
+    echo "Note: For production use, configure a TURN server for better connectivity behind NAT/firewalls"
     
     return 0
 }

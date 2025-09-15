@@ -20,19 +20,34 @@
 
 ## P1 Requirements - Future Enhancements
 
-### Audit Logging (Partially Present)
-- **Current State**: Basic request logging is available in container logs
-- **Enhancement Needed**: Structured audit log with certificate lifecycle events
-- **Implementation Path**: Configure Step-CA logging to separate audit file
+### Audit Logging (Enhanced - Partial Implementation)
+- **Current State**: 
+  - Basic request logging is available in container logs
+  - Added `--audit` flag to filter certificate-related operations
+  - All certificate operations are logged with timestamps and details
+- **Enhancement Needed**: 
+  - Structured JSON logging format
+  - Separate audit file with rotation
+  - Integration with centralized logging system
+- **Implementation Path**: 
+  - Configure Step-CA with JSON logging
+  - Add PostgreSQL backend for persistent audit trail
+  - Integrate with syslog or ELK stack
 
 ### Database Backend Support
 - **Current State**: Using default embedded database
 - **Enhancement Needed**: PostgreSQL backend integration for scalability
 - **Implementation Path**: Add PostgreSQL configuration during initialization
 
-### Certificate Revocation
-- **Current State**: No CRL/OCSP support
-- **Enhancement Needed**: Certificate revocation list distribution
+### Certificate Revocation (Documented)
+- **Current State**: 
+  - Revocation API exists but requires certificate serial number
+  - No CRL/OCSP distribution configured
+  - `content remove` command provides clear documentation of requirements
+- **Enhancement Needed**: 
+  - Full CRL (Certificate Revocation List) distribution
+  - OCSP (Online Certificate Status Protocol) responder
+  - Database integration to track certificate serial numbers
 - **Workaround**: Use short-lived certificates (24-48h) to minimize risk
 
 ## Best Practices
@@ -41,6 +56,25 @@
 2. **Backup root certificate**: Store root CA certificate securely
 3. **Monitor certificate expiry**: Implement alerting for expiring certificates
 4. **Use appropriate lifetimes**: Balance security vs operational overhead
+
+## Improvements Made (2025-09-14)
+
+### Content Management Enhanced
+- ✅ `content list`: Now shows certificate info and provisioner count
+- ✅ `content get`: Can retrieve root CA certificate with `--name root_ca`
+- ✅ `content remove`: Documents revocation requirements and workarounds
+- ✅ All functions provide helpful feedback about current limitations
+
+### Status Reporting Enhanced
+- ✅ Added provisioner count to status output
+- ✅ Added container uptime information
+- ✅ Added ACME endpoint URL to status
+- ✅ Enhanced JSON output with additional fields
+
+### Audit Logging Improved
+- ✅ Added `--audit` flag to logs command for filtered output
+- ✅ Filters certificate-related operations from logs
+- ✅ Provides guidance on full audit implementation
 
 ## Testing Notes
 

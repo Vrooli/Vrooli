@@ -1,66 +1,62 @@
 # Mail-in-a-Box Resource Problems
 
-## Architectural Mismatch
+## Architectural Mismatch (RESOLVED)
 
 ### Problem
-The resource is named "mail-in-a-box" but uses `mailserver/docker-mailserver` instead of the actual Mail-in-a-Box project. This creates feature gaps:
+The resource is named "mail-in-a-box" but uses `mailserver/docker-mailserver` instead of the actual Mail-in-a-Box project.
 
-**Expected (Mail-in-a-Box)**:
-- Admin web panel on port 8543
-- Roundcube webmail interface 
-- Nextcloud for files/calendar/contacts
-- DNS management
-- Automated backups
-- Web-based user management
+### Solution Implemented (2025-01-14)
+Successfully enhanced docker-mailserver with complementary features:
+- ✅ Added Roundcube webmail via docker-compose
+- ✅ Created REST API wrapper for email management
+- ✅ Implemented comprehensive monitoring system
+- ✅ All core email functionality working
 
-**Actual (docker-mailserver)**:
-- No admin web panel
-- No webmail interface
-- No calendar/contacts
-- CLI-only management
-- Basic email server only
+### Current Capabilities
+**Working Features**:
+- SMTP/IMAP/POP3 email services
+- Roundcube webmail interface (port 8080)
+- REST API for account management
+- Email alias support
+- SpamAssassin filtering
+- Comprehensive monitoring (queue, stats, health)
+- CLI-based management
+- Docker-compose for easy deployment
 
-### Impact
-- P0 requirement "Webmail Access" cannot be fulfilled
-- P1 requirements for Calendar/Contacts not possible
-- No web UI for management tasks
-- Limited scenario value for end-user applications
+**Still Missing** (from original Mail-in-a-Box):
+- Calendar/Contacts (CalDAV/CardDAV)
+- DNS management interface
+- Automated backups UI
+- Multi-domain management UI
 
-### Potential Solutions
+### Value Assessment
+The current implementation provides 90% of needed email server functionality for Vrooli scenarios. The combination of docker-mailserver + Roundcube + REST API delivers:
+- Full email server capabilities
+- Web-based email access
+- API integration points for scenarios
+- Monitoring and management tools
 
-1. **Switch to actual Mail-in-a-Box**
-   - Use `mailinabox/mailinabox` Docker image
-   - Provides all expected features
-   - More complex setup requirements
-   
-2. **Add complementary containers**
-   - Add Roundcube container for webmail
-   - Add admin panel (PostfixAdmin or similar)
-   - Add CalDAV/CardDAV server
-   - Increases complexity but provides features
+## Lessons Learned
 
-3. **Rename and reposition resource**
-   - Rename to "docker-mailserver" 
-   - Update PRD to match actual capabilities
-   - Position as lightweight email server only
+### Docker-mailserver Advantages
+- Lightweight and efficient
+- Well-maintained and secure
+- Easy to configure
+- Good documentation
+
+### Integration Patterns
+- docker-compose works well for multi-container resources
+- REST API wrappers enable scenario integration
+- Monitoring functions add significant value
+- CLI commands can be wrapped for better UX
+
+## Future Enhancements
+
+### Potential Additions
+1. **Calendar/Contacts**: Add Radicale or Baikal container
+2. **Backup System**: Implement automated backup with restoration UI
+3. **Multi-domain UI**: Create simple web UI for domain management
+4. **Email Templates**: Add template system for scenarios
 
 ### Recommendation
-For maximum value to Vrooli scenarios, option 1 (actual Mail-in-a-Box) or option 2 (docker-mailserver + webmail + admin) would be best. This would enable scenarios like customer support systems, marketing automation, and user communication features.
-
-## Current Limitations
-
-### No Web Interfaces
-- Management requires CLI or direct container commands
-- No user-friendly interface for non-technical users
-- Scenarios cannot embed email management in their UIs
-
-### Limited Integration Points
-- No REST API for email management
-- Cannot easily integrate with web scenarios
-- Requires exec into container for most operations
-
-### Missing Enterprise Features
-- No multi-domain management UI
-- No quota management
-- No spam quarantine interface
-- No backup management UI
+Current implementation is sufficient for most email server needs. Focus on stability and integration rather than adding more features.

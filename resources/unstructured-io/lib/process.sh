@@ -3,13 +3,27 @@
 # Unstructured.io Document Processing Utilities
 # This file contains higher-level document processing functions
 
+# Prevent double sourcing
+[[ -n "${UNSTRUCTURED_IO_PROCESS_SOURCED:-}" ]] && return 0
+UNSTRUCTURED_IO_PROCESS_SOURCED=1
+
 # Source trash module for safe cleanup
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 PROCESS_LIB_DIR="${APP_ROOT}/resources/unstructured-io/lib"
+UNSTRUCTURED_IO_DIR="${APP_ROOT}/resources/unstructured-io"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
+
+# Only source if not already sourced
+if [[ -z "${UNSTRUCTURED_IO_CORE_SOURCED:-}" ]]; then
+    # shellcheck disable=SC1091
+    source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
+    source "${UNSTRUCTURED_IO_DIR}/lib/core.sh"
+    UNSTRUCTURED_IO_CORE_SOURCED=1
+fi
 
 #######################################
 # Process documents from a directory
@@ -55,7 +69,7 @@ unstructured_io::process_directory() {
         files+=("$file")
     done < <(eval "$find_cmd")
     
-    if [ ${#files[@]} -eq 0 ]; then
+    if [[ ${#files[@]} -eq 0 ]]; then
         if [[ "${QUIET:-no}" != "yes" ]]; then
             echo "No supported documents found in directory" >&2
         fi
@@ -78,15 +92,74 @@ unstructured_io::process_directory() {
             echo "─────────────────" >&2
         fi
         
-        # Temporarily set quiet mode to avoid double status messages
-        local saved_quiet="${QUIET:-no}"
-        QUIET="yes"
-        if unstructured_io::process_document "$file" "$strategy" "$output_format" >/dev/null; then
-            ((success_count++))
+        # Process document directly with explicit timeout wrapper
+        # Use simpler approach to avoid hanging on file operations
+        local result
+        local stderr_file=$(mktemp)
+        if [[ "${DEBUG:-no}" == "yes" ]]; then
+            echo "[DEBUG] Processing file: $file" >&2
+        fi
+        
+        # Call process_document with timeout wrapper to prevent hanging
+        # Source required files in subshell for function availability
+        result=$(timeout 310 bash -c "
+            source '${APP_ROOT}/resources/unstructured-io/config/defaults.sh' 2>/dev/null
+            source '${APP_ROOT}/resources/unstructured-io/lib/core.sh' 2>/dev/null
+            source '${APP_ROOT}/resources/unstructured-io/lib/api.sh' 2>/dev/null
+            unstructured_io::process_document '$file' '$strategy' '$output_format' 2>'$stderr_file'
+        ")
+        local process_exit=$?
+        
+        if [[ "${DEBUG:-no}" == "yes" ]]; then
+            echo "[DEBUG] Process exit code: $process_exit" >&2
+            echo "[DEBUG] Result length: ${#result}" >&2
+        fi
+        
+        # Display any stderr messages
+        if [[ -s "$stderr_file" ]] && [[ "${QUIET:-no}" != "yes" ]]; then
+            if [[ "${DEBUG:-no}" == "yes" ]]; then
+                echo "[DEBUG] Stderr content:" >&2
+            fi
+            cat "$stderr_file" >&2
+        fi
+        if [[ "${DEBUG:-no}" == "yes" ]]; then
+            echo "[DEBUG] Cleaning up stderr file" >&2
+        fi
+        trash::safe_remove "$stderr_file" --temp >/dev/null 2>&1
+        if [[ "${DEBUG:-no}" == "yes" ]]; then
+            echo "[DEBUG] After cleanup" >&2
+        fi
+        
+        if [[ "${DEBUG:-no}" == "yes" ]]; then
+            echo "[DEBUG] Checking process exit code: $process_exit" >&2
+        fi
+        
+        if [[ $process_exit -eq 0 ]]; then
+            if [[ "${DEBUG:-no}" == "yes" ]]; then
+                echo "[DEBUG] Incrementing success count from $success_count" >&2
+            fi
+            success_count=$((success_count + 1))
+            if [[ "${DEBUG:-no}" == "yes" ]]; then
+                echo "[DEBUG] Success count now: $success_count" >&2
+            fi
+            if [[ "${QUIET:-no}" != "yes" ]]; then
+                echo "✅ Processed successfully" >&2
+            fi
+            # Always output the result to stdout
+            if [[ -n "$result" ]]; then
+                echo "$result"
+            else
+                if [[ "${DEBUG:-no}" == "yes" ]]; then
+                    echo "[DEBUG] Warning: Empty result for file: $file" >&2
+                fi
+            fi
         else
             failed_files+=("$file")
+            if [[ "${QUIET:-no}" != "yes" ]]; then
+                echo "❌ Processing failed" >&2
+            fi
         fi
-        QUIET="$saved_quiet"
+        
         if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
         fi
@@ -101,7 +174,7 @@ unstructured_io::process_directory() {
         echo "Failed: $((${#files[@]} - success_count))" >&2
     fi
     
-    if [ ${#failed_files[@]} -gt 0 ]; then
+    if [[ ${#failed_files[@]} -gt 0 ]]; then
         if [[ "${QUIET:-no}" != "yes" ]]; then
             echo >&2
             echo "Failed files:" >&2
@@ -130,14 +203,18 @@ unstructured_io::extract_tables() {
     local response
     response=$(unstructured_io::process_document "$file" "hi_res" "json")
     
-    if [ $? -ne 0 ]; then
+    if [[ $? -ne 0 ]]; then
         return 1
     fi
     
     # First, check for explicit Table elements
-    local explicit_tables=$(echo "$response" | jq '[.[] | select(.type == "Table")] | length' 2>/dev/null)
+    local explicit_tables=$(echo "$response" | jq '[.[] | select(.type == "Table")] | length' 2>/dev/null || echo "0")
+    # Ensure it's a valid number
+    if ! [[ "$explicit_tables" =~ ^[0-9]+$ ]]; then
+        explicit_tables=0
+    fi
     
-    if [ "$explicit_tables" -gt 0 ]; then
+    if [[ $explicit_tables -gt 0 ]]; then
         # Extract explicit table elements
         echo "$response" | jq -r '
             .[] | 
@@ -155,7 +232,7 @@ unstructured_io::extract_tables() {
             [[ -n "$id" ]] && parent_ids+=("$id")
         done < <(jq -r '.[] | select(.metadata.parent_id != null) | .metadata.parent_id' "$temp_response" 2>/dev/null | sort | uniq)
         
-        if [ ${#parent_ids[@]} -ge 2 ]; then
+        if [[ ${#parent_ids[@]} -ge 2 ]]; then
             echo "Table reconstructed from structured elements:"
             echo
             
@@ -192,12 +269,12 @@ unstructured_io::extract_tables() {
             done
         fi
         
-        trash::safe_remove "$temp_response" --temp
+        trash::safe_remove "$temp_response" --temp >/dev/null 2>&1
     fi
     
     # Count tables found
     local total_table_count=0
-    if [ "$explicit_tables" -gt 0 ]; then
+    if [[ $explicit_tables -gt 0 ]]; then
         total_table_count=$explicit_tables
     else
         # Check if we found structured table data
@@ -230,36 +307,66 @@ unstructured_io::extract_metadata() {
     local response
     response=$(unstructured_io::process_document "$file" "auto" "json")
     
-    if [ $? -ne 0 ]; then
+    if [[ $? -ne 0 ]]; then
         return 1
     fi
     
-    # Extract unique metadata
+    # Extract unique metadata from all elements
     echo "Document Metadata:"
     echo "=================="
     
-    # Get first element with metadata
-    echo "$response" | jq -r '
-        .[0].metadata | 
-        to_entries | 
-        .[] | 
-        "\(.key): \(.value)"
-    ' 2>/dev/null | sort | uniq
+    # Collect all unique metadata keys and values
+    local metadata_json=$(echo "$response" | jq -r '
+        [.[] | .metadata] | 
+        map(to_entries) | 
+        flatten | 
+        group_by(.key) | 
+        map({
+            key: .[0].key,
+            values: [.[] | .value] | unique | join(", ")
+        }) | 
+        from_entries
+    ' 2>/dev/null)
+    
+    if [[ -n "$metadata_json" ]] && [[ "$metadata_json" != "{}" ]]; then
+        echo "$metadata_json" | jq -r 'to_entries | .[] | "\(.key): \(.value)"' 2>/dev/null | sort
+    else
+        echo "No metadata found (may need more complex document types like PDF or DOCX)"
+    fi
     
     # Summary statistics
     echo
     echo "Content Summary:"
     echo "==============="
     
-    local total_elements=$(echo "$response" | jq 'length' 2>/dev/null)
-    echo "Total elements: $total_elements"
+    local total_elements=$(echo "$response" | jq 'length' 2>/dev/null || echo "0")
+    echo "Total elements: ${total_elements:-0}"
     
     # Count by type
-    echo "$response" | jq -r '
+    local type_counts=$(echo "$response" | jq -r '
         group_by(.type) | 
         .[] | 
         "\(.[0].type): \(length)"
-    ' 2>/dev/null | sort
+    ' 2>/dev/null)
+    
+    if [[ -n "$type_counts" ]]; then
+        echo "$type_counts" | sort
+    else
+        echo "No typed elements found"
+    fi
+    
+    # Extract any tables found
+    local tables_count=$(echo "$response" | jq '[.[] | select(.type == "Table")] | length' 2>/dev/null || echo "0")
+    # Ensure it's a valid number
+    if ! [[ "$tables_count" =~ ^[0-9]+$ ]]; then
+        tables_count=0
+    fi
+    if [[ $tables_count -gt 0 ]]; then
+        echo
+        echo "Tables Found:"
+        echo "============="
+        echo "$response" | jq -r '.[] | select(.type == "Table") | .text' 2>/dev/null
+    fi
 }
 
 #######################################
@@ -277,7 +384,7 @@ unstructured_io::convert_to_markdown_advanced() {
     local response
     response=$(unstructured_io::process_document "$file" "hi_res" "json")
     
-    if [ $? -ne 0 ]; then
+    if [[ $? -ne 0 ]]; then
         return 1
     fi
     
@@ -352,7 +459,7 @@ unstructured_io::create_report() {
     local end_time=$(date +%s)
     local processing_time=$((end_time - start_time))
     
-    if [ $exit_code -ne 0 ]; then
+    if [[ $exit_code -ne 0 ]]; then
         echo "❌ Failed to process document"
         return 1
     fi

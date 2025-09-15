@@ -20,10 +20,12 @@ curl -X POST http://localhost:8095/analyze \
 
 ## Key Features
 - **Natural Language Analysis**: Query data using plain English
+- **Direct Pandas Execution**: Execute raw pandas code for advanced operations
 - **Multi-Source Support**: CSV, Excel, JSON, PostgreSQL, Redis, MongoDB
 - **Automated Visualizations**: Generates charts and graphs automatically
 - **Report Generation**: Creates professional data reports
 - **Code Generation**: Converts queries to pandas code for transparency
+- **Safety Controls**: Built-in safety checks for direct code execution
 
 ## Architecture
 ```
@@ -93,6 +95,41 @@ curl -X POST http://localhost:8095/analyze \
     "csv_path": "/path/to/data.csv"
   }'
 ```
+
+### Direct Pandas Code Execution (NEW)
+```bash
+# Execute raw pandas code for advanced operations
+curl -X POST http://localhost:8095/pandas/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "import pandas as pd\ndf = pd.DataFrame({\"A\": [1,2,3], \"B\": [4,5,6]})\nresult = df.corr()",
+    "safe_mode": true
+  }'
+
+# With provided data
+curl -X POST http://localhost:8095/pandas/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [{"name": "Alice", "score": 85}, {"name": "Bob", "score": 90}],
+    "code": "result = df.groupby(\"name\")[\"score\"].mean()",
+    "safe_mode": true
+  }'
+
+# Complex operations with visualizations
+curl -X POST http://localhost:8095/pandas/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {"dates": ["2024-01-01", "2024-01-02"], "values": [100, 150]},
+    "code": "df[\"dates\"] = pd.to_datetime(df[\"dates\"])\ndf[\"rolling\"] = df[\"values\"].rolling(2).mean()\nresult = df",
+    "safe_mode": true
+  }'
+```
+
+#### Direct Execution Features
+- **Safe Mode**: Blocks dangerous operations (file system, network, etc.)
+- **Auto-detection**: Automatically detects output type (DataFrame, Series, scalar)
+- **Context Variables**: Pre-loaded with `pd`, `np`, `df`, `plt`, `sns`
+- **Performance Tracking**: Returns execution time for optimization
 
 ### Available Query Operations
 - `describe` or `summary` - Get comprehensive data overview

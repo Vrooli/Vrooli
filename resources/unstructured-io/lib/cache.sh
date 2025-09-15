@@ -210,7 +210,7 @@ unstructured_io::cache_stats() {
         
         # Get TTL
         local ttl=$(redis-cli -h "$UNSTRUCTURED_IO_REDIS_HOST" -p "$UNSTRUCTURED_IO_REDIS_PORT" TTL "$key" 2>/dev/null || echo "0")
-        [[ "$ttl" -gt 0 ]] && ((total_ttl += ttl))
+        [[ $ttl -gt 0 ]] && ((total_ttl += ttl))
     done <<< "$keys"
     
     # Format size

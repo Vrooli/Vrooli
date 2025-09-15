@@ -20,6 +20,8 @@ import uvicorn
 
 # Import Splink engine
 from api.splink_engine import get_splink_engine
+# Import Spark engine for large-scale processing
+from api.spark_engine import get_spark_engine
 # Import visualization module
 from api.visualization import SpinklinkVisualization
 
@@ -80,12 +82,14 @@ class DeduplicationRequest(BaseModel):
     """Request for deduplication operation"""
     dataset_id: str
     settings: LinkageSettings = Field(default_factory=LinkageSettings)
+    backend: str = Field(default="auto", pattern="^(auto|duckdb|spark)$")
 
 class LinkRequest(BaseModel):
     """Request for linking two datasets"""
     dataset1_id: str
     dataset2_id: str
     settings: LinkageSettings = Field(default_factory=LinkageSettings)
+    backend: str = Field(default="auto", pattern="^(auto|duckdb|spark)$")
 
 class EstimationRequest(BaseModel):
     """Request for parameter estimation"""
@@ -127,6 +131,20 @@ async def root():
         "backend": SPLINK_BACKEND,
         "documentation": "/docs"
     }
+
+# Spark info endpoint
+@app.get("/spark/info")
+async def spark_info():
+    """Get Spark engine information and availability"""
+    spark_engine = get_spark_engine(DATA_DIR)
+    if spark_engine:
+        return spark_engine.get_spark_info()
+    else:
+        return {
+            "available": False,
+            "error": "Spark engine not initialized",
+            "suggestion": "Install PySpark with: pip install pyspark"
+        }
 
 # Deduplication endpoint
 @app.post("/linkage/deduplicate", response_model=JobResponse)
@@ -382,13 +400,11 @@ async def get_batch_status(batch_id: str):
 # Background processing functions using actual Splink engine
 
 async def process_deduplication(job_id: str, request: DeduplicationRequest):
-    """Process deduplication job using Splink engine"""
+    """Process deduplication job using Splink or Spark engine based on backend selection"""
     try:
         jobs[job_id]["status"] = "processing"
         jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-        
-        # Get Splink engine
-        engine = get_splink_engine(SPLINK_BACKEND, DATA_DIR)
+        jobs[job_id]["backend"] = request.backend
         
         # Define progress callback
         def update_progress(progress: int, message: str):
@@ -397,13 +413,45 @@ async def process_deduplication(job_id: str, request: DeduplicationRequest):
             jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
             logger.debug(f"Job {job_id}: {progress}% - {message}")
         
-        # Run deduplication
-        result = await asyncio.to_thread(
-            engine.deduplicate,
-            request.dataset_id,
-            request.settings.dict(),
-            update_progress
-        )
+        # Determine backend to use
+        backend_to_use = request.backend
+        if backend_to_use == "auto":
+            # Auto-select based on dataset size (would check actual size in production)
+            # For now, default to DuckDB unless explicitly requested
+            backend_to_use = "duckdb"
+        
+        # Process based on backend
+        if backend_to_use == "spark":
+            # Try Spark engine for large-scale processing
+            spark_engine = get_spark_engine(DATA_DIR)
+            if spark_engine:
+                logger.info(f"Processing job {job_id} with Spark backend")
+                result = await asyncio.to_thread(
+                    spark_engine.deduplicate_spark,
+                    request.dataset_id,
+                    request.settings.dict(),
+                    update_progress
+                )
+            else:
+                # Fallback to DuckDB if Spark not available
+                logger.warning("Spark not available, falling back to DuckDB")
+                engine = get_splink_engine("duckdb", DATA_DIR)
+                result = await asyncio.to_thread(
+                    engine.deduplicate,
+                    request.dataset_id,
+                    request.settings.dict(),
+                    update_progress
+                )
+        else:
+            # Use standard DuckDB engine
+            logger.info(f"Processing job {job_id} with DuckDB backend")
+            engine = get_splink_engine(backend_to_use, DATA_DIR)
+            result = await asyncio.to_thread(
+                engine.deduplicate,
+                request.dataset_id,
+                request.settings.dict(),
+                update_progress
+            )
         
         if result.get("success"):
             jobs[job_id]["status"] = "completed"
@@ -424,13 +472,11 @@ async def process_deduplication(job_id: str, request: DeduplicationRequest):
         logger.error(f"Failed deduplication job {job_id}: {e}")
 
 async def process_linkage(job_id: str, request: LinkRequest):
-    """Process linkage job using Splink engine"""
+    """Process linkage job using Splink or Spark engine based on backend selection"""
     try:
         jobs[job_id]["status"] = "processing"
         jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
-        
-        # Get Splink engine
-        engine = get_splink_engine(SPLINK_BACKEND, DATA_DIR)
+        jobs[job_id]["backend"] = request.backend
         
         # Define progress callback
         def update_progress(progress: int, message: str):
@@ -439,14 +485,46 @@ async def process_linkage(job_id: str, request: LinkRequest):
             jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
             logger.debug(f"Job {job_id}: {progress}% - {message}")
         
-        # Run linkage
-        result = await asyncio.to_thread(
-            engine.link_datasets,
-            request.dataset1_id,
-            request.dataset2_id,
-            request.settings.dict(),
-            update_progress
-        )
+        # Determine backend to use
+        backend_to_use = request.backend
+        if backend_to_use == "auto":
+            backend_to_use = "duckdb"  # Default for auto
+        
+        # Process based on backend
+        if backend_to_use == "spark":
+            # Try Spark engine for large-scale processing
+            spark_engine = get_spark_engine(DATA_DIR)
+            if spark_engine:
+                logger.info(f"Processing linkage job {job_id} with Spark backend")
+                result = await asyncio.to_thread(
+                    spark_engine.link_datasets_spark,
+                    request.dataset1_id,
+                    request.dataset2_id,
+                    request.settings.dict(),
+                    update_progress
+                )
+            else:
+                # Fallback to DuckDB if Spark not available
+                logger.warning("Spark not available, falling back to DuckDB")
+                engine = get_splink_engine("duckdb", DATA_DIR)
+                result = await asyncio.to_thread(
+                    engine.link_datasets,
+                    request.dataset1_id,
+                    request.dataset2_id,
+                    request.settings.dict(),
+                    update_progress
+                )
+        else:
+            # Use standard DuckDB engine
+            logger.info(f"Processing linkage job {job_id} with DuckDB backend")
+            engine = get_splink_engine(backend_to_use, DATA_DIR)
+            result = await asyncio.to_thread(
+                engine.link_datasets,
+                request.dataset1_id,
+                request.dataset2_id,
+                request.settings.dict(),
+                update_progress
+            )
         
         if result.get("success"):
             jobs[job_id]["status"] = "completed"

@@ -93,6 +93,7 @@ type ResourceInfo struct {
 	Description string `json:"description"`
 	Healthy     bool   `json:"healthy"`
 	Version     string `json:"version,omitempty"`
+	Status      string `json:"status,omitempty"` // e.g., "[UNREGISTERED]", "[MISSING]"
 }
 
 // ScenarioInfo represents information about a discovered scenario
@@ -101,10 +102,13 @@ type ScenarioInfo struct {
 	Path           string `json:"path"`
 	Category       string `json:"category"`
 	Description    string `json:"description"`
-	PRDComplete    int    `json:"prd_completion_percentage"`
-	Healthy        bool   `json:"healthy"`
-	P0Requirements int    `json:"p0_requirements"`
-	P0Completed    int    `json:"p0_completed"`
+	Version        string `json:"version,omitempty"`
+	Status         string `json:"status,omitempty"` // e.g., "available", "running"
+	// Legacy fields - kept for compatibility but not populated
+	PRDComplete    int    `json:"prd_completion_percentage,omitempty"`
+	Healthy        bool   `json:"healthy,omitempty"`
+	P0Requirements int    `json:"p0_requirements,omitempty"`
+	P0Completed    int    `json:"p0_completed,omitempty"`
 }
 
 // PRDStatus represents the status of a scenario's PRD

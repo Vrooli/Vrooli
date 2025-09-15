@@ -95,7 +95,7 @@ install_resource() {
 FROM python:3.11-slim
 
 # Install vt-cli and dependencies
-RUN pip install --no-cache-dir vt-py flask gunicorn aiohttp
+RUN pip install --no-cache-dir vt-py flask gunicorn aiohttp requests
 
 # Create app directory
 WORKDIR /app
@@ -141,12 +141,13 @@ import sqlite3
 import asyncio
 from flask import Flask, request, jsonify, send_file
 import vt
-from threading import Lock
+from threading import Lock, Thread
 from collections import deque
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import tempfile
 import base64
+import threading
 
 app = Flask(__name__)
 
@@ -222,6 +223,74 @@ def init_db():
 
 # Initialize database on startup
 init_db()
+
+def rotate_cache():
+    """Rotate cache to prevent unbounded growth"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Configuration
+    MAX_CACHE_SIZE_MB = 100  # Maximum cache size in MB
+    MAX_CACHE_AGE_DAYS = 30  # Maximum age of cached entries
+    MAX_ENTRIES = 10000  # Maximum number of entries per table
+    
+    # Get current database size
+    cursor.execute("SELECT page_count * page_size / 1024.0 / 1024.0 FROM pragma_page_count(), pragma_page_size()")
+    db_size_mb = cursor.fetchone()[0]
+    
+    # If database is too large, remove oldest entries
+    if db_size_mb > MAX_CACHE_SIZE_MB:
+        print(f"Cache size ({db_size_mb:.2f} MB) exceeds limit ({MAX_CACHE_SIZE_MB} MB), rotating...")
+        
+        # Remove entries older than MAX_CACHE_AGE_DAYS
+        cutoff_date = (datetime.now() - timedelta(days=MAX_CACHE_AGE_DAYS)).isoformat()
+        cursor.execute("DELETE FROM scan_cache WHERE timestamp < ?", (cutoff_date,))
+        cursor.execute("DELETE FROM url_cache WHERE timestamp < ?", (cutoff_date,))
+        cursor.execute("DELETE FROM ip_cache WHERE timestamp < ?", (cutoff_date,))
+        cursor.execute("DELETE FROM domain_cache WHERE timestamp < ?", (cutoff_date,))
+        
+        deleted = cursor.rowcount
+        print(f"Removed {deleted} old cache entries")
+    
+    # Also check entry count limits
+    for table in ['scan_cache', 'url_cache', 'ip_cache', 'domain_cache']:
+        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+        count = cursor.fetchone()[0]
+        
+        if count > MAX_ENTRIES:
+            # Keep only the most recent MAX_ENTRIES
+            cursor.execute(f"""
+                DELETE FROM {table} 
+                WHERE rowid NOT IN (
+                    SELECT rowid FROM {table} 
+                    ORDER BY timestamp DESC 
+                    LIMIT {MAX_ENTRIES}
+                )
+            """)
+            deleted = cursor.rowcount
+            if deleted > 0:
+                print(f"Removed {deleted} excess entries from {table}")
+    
+    # VACUUM to reclaim space
+    cursor.execute("VACUUM")
+    conn.commit()
+    conn.close()
+
+# Rotate cache on startup and periodically
+rotate_cache()
+
+# Schedule periodic rotation (every hour)
+import threading
+def periodic_rotation():
+    while True:
+        time.sleep(3600)  # Wait 1 hour
+        try:
+            rotate_cache()
+        except Exception as e:
+            print(f"Cache rotation error: {e}")
+
+rotation_thread = threading.Thread(target=periodic_rotation, daemon=True)
+rotation_thread.start()
 
 def check_rate_limit():
     """Check if we're within rate limits"""
@@ -947,6 +1016,45 @@ def clear_cache():
     conn.close()
     
     return jsonify({'message': f'Cleared {deleted} cached entries'}), 200
+
+@app.route('/api/cache/info', methods=['GET'])
+def cache_info():
+    """Get cache rotation information"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Get database size
+    cursor.execute("SELECT page_count * page_size / 1024.0 / 1024.0 FROM pragma_page_count(), pragma_page_size()")
+    db_size_mb = cursor.fetchone()[0]
+    
+    # Get entry counts
+    counts = {}
+    for table in ['scan_cache', 'url_cache', 'ip_cache', 'domain_cache']:
+        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+        counts[table] = cursor.fetchone()[0]
+    
+    # Get oldest entry timestamp
+    oldest_timestamp = None
+    for table in ['scan_cache', 'url_cache', 'ip_cache', 'domain_cache']:
+        cursor.execute(f"SELECT MIN(timestamp) FROM {table}")
+        result = cursor.fetchone()
+        if result and result[0]:
+            if not oldest_timestamp or result[0] < oldest_timestamp:
+                oldest_timestamp = result[0]
+    
+    conn.close()
+    
+    return jsonify({
+        'cache_size_mb': round(db_size_mb, 2),
+        'max_size_mb': 100,
+        'max_age_days': 30,
+        'max_entries_per_table': 10000,
+        'entry_counts': counts,
+        'total_entries': sum(counts.values()),
+        'oldest_entry': oldest_timestamp,
+        'rotation_interval_hours': 1,
+        'auto_rotation_enabled': True
+    }), 200
 
 @app.route('/api/reputation/ip/<ip>', methods=['GET'])
 def get_ip_reputation(ip):

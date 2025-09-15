@@ -51,6 +51,7 @@ curl "http://localhost:8280/search?q=tech+news&format=json&categories=general&la
 - ⚙️ [**Configuration Guide**](docs/CONFIGURATION.md) - Settings, security, performance tuning
 - 🔧 [**Troubleshooting**](docs/TROUBLESHOOTING.md) - Common issues, diagnostics, and solutions
 - 🏗️ [**Advanced Integration**](docs/ADVANCED.md) - Programming examples, automation, multi-resource workflows
+- 🔌 [**Integration Examples**](docs/INTEGRATIONS.md) - Complete n8n, Ollama, LangChain, Python, Node.js integration guides
 
 ## Service Management
 

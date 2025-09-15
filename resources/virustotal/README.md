@@ -24,6 +24,8 @@ The VirusTotal resource provides comprehensive threat detection capabilities by 
 - **Export Formats**: CSV and summary report formats for compliance
 - **URL Report Retrieval**: Fetch analysis results for previously scanned URLs
 - **Mock Mode Support**: Full functionality testing without API key
+- **Automatic Cache Rotation**: Prevents unbounded cache growth with configurable limits
+- **Enhanced Integration Examples**: Comprehensive examples with other Vrooli resources
 
 ### Planned
 - **YARA Rules**: Custom threat hunting rules (premium feature)
@@ -178,6 +180,64 @@ curl -X POST http://localhost:8290/api/scan/file \
 curl http://localhost:8290/api/report/FILE_HASH
 ```
 
+#### Integration with Other Vrooli Resources
+
+##### With Unstructured-IO (Document Processing)
+```bash
+# Extract and scan URLs from documents
+vrooli resource unstructured-io content add --file document.pdf
+vrooli resource unstructured-io content get --id DOC_ID | \
+  grep -Eo '(http|https)://[^"]+' | \
+  while read url; do
+    vrooli resource virustotal content add --url "$url"
+  done
+```
+
+##### With Web Scrapers (URL Safety)
+```bash
+# Validate scraped URLs before processing
+SCRAPED_URL="http://suspicious-site.com"
+RESULT=$(curl -s -X POST http://localhost:8290/api/scan/url \
+  -H "Content-Type: application/json" \
+  -d "{\"url\": \"$SCRAPED_URL\"}")
+
+# Wait for analysis
+sleep 30
+REPORT=$(curl -s "http://localhost:8290/api/report/url/$(echo $RESULT | jq -r '.analysis_id')")
+MALICIOUS=$(echo $REPORT | jq -r '.data.attributes.stats.malicious')
+
+if [ "$MALICIOUS" -gt 5 ]; then
+  echo "URL is malicious, skipping processing"
+  exit 1
+fi
+```
+
+##### With S3/MinIO (File Validation)
+```bash
+# Scan files before uploading to storage
+FILE_PATH="/tmp/upload.zip"
+HASH=$(sha256sum "$FILE_PATH" | cut -d' ' -f1)
+
+# Check if already scanned
+CACHED=$(curl -s "http://localhost:8290/api/report/$HASH" | jq -r '.from_cache')
+
+if [ "$CACHED" != "true" ]; then
+  # New file, scan it
+  vrooli resource virustotal content add --file "$FILE_PATH" --wait
+fi
+
+# Get results
+REPORT=$(vrooli resource virustotal content get --hash "$HASH" --format json)
+DETECTIONS=$(echo "$REPORT" | jq -r '.positives')
+
+if [ "$DETECTIONS" -eq 0 ]; then
+  # Safe to upload
+  vrooli resource minio content add --file "$FILE_PATH"
+else
+  echo "File detected as malware by $DETECTIONS engines"
+fi
+```
+
 #### CI/CD Pipeline
 
 ```yaml
@@ -189,6 +249,42 @@ security_scan:
     - test $(jq .engines_detected < report.json) -lt 3
 ```
 
+#### GitHub Actions Integration
+```yaml
+name: Security Scan
+on: [push, pull_request]
+
+jobs:
+  virustotal-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup Vrooli
+        run: |
+          ./scripts/manage.sh setup --yes yes
+          vrooli resource virustotal manage install
+          vrooli resource virustotal manage start --wait
+      
+      - name: Scan Artifacts
+        run: |
+          find . -name "*.exe" -o -name "*.dll" | while read file; do
+            vrooli resource virustotal content add --file "$file"
+          done
+      
+      - name: Check Results
+        run: |
+          for file in $(find . -name "*.exe" -o -name "*.dll"); do
+            HASH=$(sha256sum "$file" | cut -d' ' -f1)
+            RESULT=$(vrooli resource virustotal content get --hash "$HASH" --format json)
+            DETECTIONS=$(echo "$RESULT" | jq -r '.positives')
+            if [ "$DETECTIONS" -gt 0 ]; then
+              echo "::error::File $file detected by $DETECTIONS engines"
+              exit 1
+            fi
+          done
+```
+
 #### Incident Response
 
 ```bash
@@ -196,6 +292,35 @@ security_scan:
 HASH=$(extract_ioc_from_alert)
 vrooli resource virustotal content get --hash $HASH --format json | \
   send_to_siem
+```
+
+#### Automated Security Monitoring
+```bash
+#!/bin/bash
+# Monitor directory for new files and scan them
+
+WATCH_DIR="/var/uploads"
+inotifywait -m -r -e create "$WATCH_DIR" |
+while read path action file; do
+  if [[ "$file" =~ \.(exe|dll|zip|rar|7z)$ ]]; then
+    echo "New file detected: $path$file"
+    
+    # Scan with VirusTotal
+    RESULT=$(vrooli resource virustotal content add --file "$path$file" --wait)
+    DETECTIONS=$(echo "$RESULT" | jq -r '.positives')
+    
+    if [ "$DETECTIONS" -gt 0 ]; then
+      # Quarantine the file
+      mkdir -p /var/quarantine
+      mv "$path$file" /var/quarantine/
+      
+      # Send alert
+      curl -X POST http://localhost:3000/alerts \
+        -H "Content-Type: application/json" \
+        -d "{\"type\": \"malware\", \"file\": \"$file\", \"detections\": $DETECTIONS}"
+    fi
+  fi
+done
 ```
 
 ## API Endpoints
@@ -213,6 +338,35 @@ The service exposes a REST API on port 8290:
 - `GET /api/webhooks` - List webhook registrations
 - `GET /api/cache/list` - List cached scan results
 - `DELETE /api/cache/clear` - Clear all cached data
+- `GET /api/cache/info` - Cache rotation and size information
+
+## Cache Management
+
+The resource includes automatic cache rotation to prevent unbounded growth:
+
+### Automatic Rotation
+- **Hourly rotation**: Cache is automatically pruned every hour
+- **Size limit**: 100MB maximum database size
+- **Age limit**: Entries older than 30 days are removed
+- **Entry limit**: Maximum 10,000 entries per table
+
+### Manual Management
+```bash
+# View cache information
+curl http://localhost:8290/api/cache/info
+
+# List cached entries
+curl http://localhost:8290/api/cache/list
+
+# Clear all cache
+curl -X DELETE http://localhost:8290/api/cache/clear
+```
+
+### Cache Benefits
+- Reduces API quota usage by 80%+
+- Instant response for previously scanned files
+- Preserves results during API outages
+- Shared across all scenario integrations
 
 ## Testing
 

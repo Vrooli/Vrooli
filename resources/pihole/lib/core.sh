@@ -13,7 +13,16 @@ source "${CONFIG_DIR}/defaults.sh"
 CONTAINER_NAME="vrooli-pihole"
 PIHOLE_VERSION="${PIHOLE_VERSION:-latest}"
 PIHOLE_API_PORT="${PIHOLE_API_PORT:-8087}"
-PIHOLE_DNS_PORT="${PIHOLE_DNS_PORT:-53}"
+
+# Check if port 53 is available, use alternative if not
+if timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/53" 2>/dev/null; then
+    # Port 53 is in use, use alternative port
+    PIHOLE_DNS_PORT="${PIHOLE_DNS_PORT:-5353}"
+    echo "Note: Port 53 is in use, using alternative DNS port ${PIHOLE_DNS_PORT}"
+else
+    PIHOLE_DNS_PORT="${PIHOLE_DNS_PORT:-53}"
+fi
+
 PIHOLE_DATA_DIR="${HOME}/.vrooli/pihole"
 
 # Install Pi-hole
@@ -47,6 +56,20 @@ install_pihole() {
     echo "$webpassword" > "${PIHOLE_DATA_DIR}/.webpassword"
     chmod 600 "${PIHOLE_DATA_DIR}/.webpassword"
     
+    # Detect available DNS port
+    local dns_port=53
+    # Check if port 53 is in use using ss
+    if ss -tuln | grep -q ":53 "; then
+        # Port 53 is in use, use alternative
+        dns_port=5353
+        echo "Note: Port 53 is in use by system (likely systemd-resolved)"
+        echo "Using alternative DNS port ${dns_port}"
+        echo "To test DNS: dig @localhost -p ${dns_port} google.com"
+    fi
+    
+    # Save port configuration
+    echo "DNS_PORT=${dns_port}" > "${PIHOLE_DATA_DIR}/.port_config"
+    
     # Pull Docker image
     echo "Pulling Pi-hole Docker image..."
     docker pull "pihole/pihole:${PIHOLE_VERSION}"
@@ -55,8 +78,8 @@ install_pihole() {
     echo "Creating Pi-hole container..."
     docker create \
         --name "${CONTAINER_NAME}" \
-        -p "${PIHOLE_DNS_PORT}:53/tcp" \
-        -p "${PIHOLE_DNS_PORT}:53/udp" \
+        -p "${dns_port}:53/tcp" \
+        -p "${dns_port}:53/udp" \
         -p "${PIHOLE_API_PORT}:80/tcp" \
         -e TZ="$(cat /etc/timezone 2>/dev/null || echo 'UTC')" \
         -e WEBPASSWORD="$webpassword" \
@@ -221,13 +244,20 @@ check_health() {
         return 1
     fi
     
-    # Check DNS service
-    if ! timeout 5 nc -z localhost "${PIHOLE_DNS_PORT}" 2>/dev/null; then
+    # Load port configuration if exists
+    local dns_port="${PIHOLE_DNS_PORT}"
+    if [[ -f "${PIHOLE_DATA_DIR}/.port_config" ]]; then
+        source "${PIHOLE_DATA_DIR}/.port_config"
+        dns_port="${DNS_PORT:-${PIHOLE_DNS_PORT}}"
+    fi
+    
+    # Check DNS service on configured port
+    if ! timeout 5 nc -z localhost "${dns_port}" 2>/dev/null; then
         return 1
     fi
     
-    # Check API health
-    if ! timeout 5 curl -sf "http://localhost:${PIHOLE_API_PORT}/admin/api.php?status" >/dev/null 2>&1; then
+    # Check API health - just verify web server responds
+    if ! timeout 5 curl -If "http://localhost:${PIHOLE_API_PORT}/admin/" 2>/dev/null | grep -q "HTTP/1.1"; then
         return 1
     fi
     

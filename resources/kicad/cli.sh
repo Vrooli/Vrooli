@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KICAD_CLI_DIR}/config/defaults.sh"
 
 # Source KiCad libraries
-for lib in common core install status inject test content desktop version; do
+for lib in common core install status inject test content desktop version backup simulation autoroute; do
     lib_file="${KICAD_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -83,6 +83,58 @@ kicad::version::help() {
     echo "  commit <project>   - Commit project changes"
     echo "  log <project>      - Show commit history"
     echo "  backup <project>   - Create backup branch"
+}
+
+# Add cloud backup commands
+cli::register_command "backup" "Cloud backup management for KiCad projects" "kicad::backup::help"
+cli::register_subcommand "backup" "cloud" "Backup project to cloud" "kicad::backup::cloud"
+cli::register_subcommand "backup" "list" "List available backups" "kicad::backup::list"
+cli::register_subcommand "backup" "restore" "Restore from backup" "kicad::backup::restore"
+cli::register_subcommand "backup" "schedule" "Schedule automatic backups" "kicad::backup::schedule"
+
+# Backup help function
+kicad::backup::help() {
+    echo "KiCad Cloud Backup Commands (Minio):"
+    echo "  cloud <project>    - Backup project to cloud storage"
+    echo "  list [project]     - List available backups"
+    echo "  restore <project>  - Restore project from backup"
+    echo "  schedule <project> - Schedule automatic backups"
+}
+
+# Add SPICE simulation commands
+cli::register_command "simulation" "SPICE circuit simulation" "kicad::simulation::help"
+cli::register_subcommand "simulation" "extract" "Extract SPICE netlist from schematic" "kicad::simulation::extract_netlist"
+cli::register_subcommand "simulation" "run" "Run SPICE simulation" "kicad::simulation::run"
+cli::register_subcommand "simulation" "interactive" "Interactive SPICE shell" "kicad::simulation::interactive"
+cli::register_subcommand "simulation" "report" "Generate simulation report" "kicad::simulation::report"
+cli::register_subcommand "simulation" "models" "Create SPICE models library" "kicad::simulation::create_models"
+
+# Simulation help function
+kicad::simulation::help() {
+    echo "KiCad SPICE Simulation Commands:"
+    echo "  extract <schematic>   - Extract SPICE netlist from schematic"
+    echo "  run <netlist> [type]  - Run simulation (tran/dc/ac/op)"
+    echo "  interactive <netlist> - Interactive SPICE shell"
+    echo "  report <project>      - Generate simulation report"
+    echo "  models                - Create SPICE models library"
+}
+
+# Add auto-routing commands
+cli::register_command "autoroute" "Automated PCB trace routing" "kicad::autoroute::help"
+cli::register_subcommand "autoroute" "export" "Export board for auto-routing" "kicad::autoroute::export_dsn"
+cli::register_subcommand "autoroute" "run" "Run auto-router" "kicad::autoroute::run"
+cli::register_subcommand "autoroute" "import" "Import routed board" "kicad::autoroute::import_ses"
+cli::register_subcommand "autoroute" "optimize" "Auto-route with optimization" "kicad::autoroute::optimize"
+cli::register_subcommand "autoroute" "assistant" "Interactive routing assistant" "kicad::autoroute::assistant"
+
+# Autoroute help function
+kicad::autoroute::help() {
+    echo "KiCad Auto-routing Commands:"
+    echo "  export <board>        - Export board for auto-routing"
+    echo "  run <dsn> [options]   - Run auto-router"
+    echo "  import <board> <ses>  - Import routed board"
+    echo "  optimize <board>      - Auto-route with optimization"
+    echo "  assistant <board>     - Interactive routing assistant"
 }
 
 # Information commands

@@ -55,7 +55,7 @@ unstructured_io::process_document() {
     local curl_stderr
     curl_stderr=$(mktemp)
     
-    response=$(curl -s -w "\n%{http_code}" \
+    response=$(timeout "$((UNSTRUCTURED_IO_TIMEOUT_SECONDS + 5))" curl -s -w "\n%{http_code}" \
         -X POST \
         -F "files=@${file}" \
         -F "strategy=${strategy}" \
@@ -74,7 +74,7 @@ unstructured_io::process_document() {
     
     local exit_code=$?
     local curl_error=$(cat "$curl_stderr" 2>/dev/null)
-    trash::safe_remove "$curl_stderr" --temp
+    trash::safe_remove "$curl_stderr" --temp >/dev/null 2>&1
     
     # Enhanced error handling with specific codes
     if [ $exit_code -ne 0 ]; then
@@ -92,6 +92,10 @@ unstructured_io::process_document() {
                 ;;
             52)
                 echo "[ERROR:EMPTY_RESPONSE] Server returned empty response" >&2
+                ;;
+            124)
+                echo "[ERROR:TIMEOUT] Processing timed out after $UNSTRUCTURED_IO_TIMEOUT_SECONDS seconds" >&2
+                echo "       File may be too large or complex. Try using --strategy fast" >&2
                 ;;
             *)
                 echo "[ERROR:CURL_$exit_code] $MSG_PROCESSING_FAILED" >&2

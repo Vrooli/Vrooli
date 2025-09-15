@@ -12,83 +12,41 @@ import (
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
-// DiscoverScenarios scans the filesystem for available scenarios
+// DiscoverScenarios gets all available scenarios from vrooli CLI
 func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 	var scenarios []tasks.ScenarioInfo
 
-	// Step 1: Find the Vrooli root directory and scan filesystem for all scenarios
-	vrooliRoot, err := findVrooliRoot()
-	if err != nil {
-		log.Printf("Warning: Could not find Vrooli root directory: %v", err)
-		return scenarios, nil
-	}
-
-	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
-	log.Printf("Scanning for scenarios in: %s", scenariosDir)
-
-	// Get all scenario folders from filesystem
-	allScenarioFolders := make(map[string]string) // name -> path
-	if _, err := os.Stat(scenariosDir); err == nil {
-		entries, err := os.ReadDir(scenariosDir)
-		if err != nil {
-			log.Printf("Warning: Failed to read scenarios directory: %v", err)
-		} else {
-			for _, entry := range entries {
-				if entry.IsDir() {
-					scenarioName := entry.Name()
-					scenarioPath := filepath.Join(scenariosDir, scenarioName)
-					allScenarioFolders[scenarioName] = scenarioPath
-				}
-			}
-		}
-	}
-
-	// Step 2: Get registered scenarios from vrooli CLI (with status info)
-	registeredScenarios := make(map[string]tasks.ScenarioInfo)
-	cmd := exec.Command("vrooli", "scenario", "list", "--json", "--verbose")
+	// Get all scenarios from vrooli CLI (now includes unregistered scenarios)
+	cmd := exec.Command("vrooli", "scenario", "list", "--json")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Printf("Warning: Failed to run 'vrooli scenario list --json --verbose': %v", err)
-		// Try without verbose flag as fallback
-		cmd = exec.Command("vrooli", "scenario", "list", "--json")
-		output, err = cmd.Output()
-		if err != nil {
-			log.Printf("Warning: Failed to get vrooli scenarios: %v", err)
-		}
+		log.Printf("Error: Failed to get vrooli scenarios: %v", err)
+		return scenarios, err
 	}
 
-	if err == nil {
-		var vrooliResponse struct {
-			Scenarios []map[string]interface{} `json:"scenarios"`
-		}
-		if err := json.Unmarshal(output, &vrooliResponse); err == nil {
-			for _, vs := range vrooliResponse.Scenarios {
-				scenarioName := getStringField(vs, "name")
-				if scenarioName != "" {
-					registeredScenarios[scenarioName] = tasks.ScenarioInfo{
-						Name:           scenarioName,
-						Path:           getStringField(vs, "path"),
-						Category:       getStringField(vs, "category"),
-						Description:    getStringField(vs, "description"),
-						PRDComplete:    getIntField(vs, "prd_completion"),
-						Healthy:        getBoolField(vs, "healthy"),
-						P0Requirements: getIntField(vs, "p0_requirements"),
-						P0Completed:    getIntField(vs, "p0_completed"),
-					}
-				}
+	var vrooliResponse struct {
+		Scenarios []map[string]interface{} `json:"scenarios"`
+	}
+	
+	if err := json.Unmarshal(output, &vrooliResponse); err != nil {
+		log.Printf("Error: Failed to parse vrooli scenario list output: %v", err)
+		return scenarios, err
+	}
+
+	for _, vs := range vrooliResponse.Scenarios {
+		scenarioName := getStringField(vs, "name")
+		if scenarioName != "" {
+			scenario := tasks.ScenarioInfo{
+				Name:           scenarioName,
+				Path:           getStringField(vs, "path"),
+				Category:       inferScenarioCategory(scenarioName), // Still infer category from name
+				Description:    getStringField(vs, "description"),
+				Version:        getStringField(vs, "version"),
+				Status:         getStringField(vs, "status"),
+				// Note: Scenarios don't have completion/health metrics - these are process-level concerns
+				// PRDComplete, Healthy, P0Requirements, P0Completed are omitted (will default to 0/false)
 			}
-		}
-	}
-
-	// Step 3: Merge filesystem and CLI data
-	for scenarioName, scenarioPath := range allScenarioFolders {
-		if registeredInfo, exists := registeredScenarios[scenarioName]; exists {
-			// Use registered info with CLI status
-			scenarios = append(scenarios, registeredInfo)
-		} else {
-			// Create info from filesystem scan for unregistered scenarios
-			scenarioInfo := extractScenarioInfoFromFilesystem(scenarioName, scenarioPath)
-			scenarios = append(scenarios, scenarioInfo)
+			scenarios = append(scenarios, scenario)
 		}
 	}
 
@@ -97,8 +55,7 @@ func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
 		return scenarios[i].Name < scenarios[j].Name
 	})
 
-	log.Printf("Discovered %d scenarios (%d registered, %d unregistered)", 
-		len(scenarios), len(registeredScenarios), len(allScenarioFolders)-len(registeredScenarios))
+	log.Printf("Discovered %d scenarios from vrooli CLI", len(scenarios))
 	return scenarios, nil
 }
 
@@ -265,29 +222,34 @@ func max(a, b int) int {
 	return b
 }
 
-// extractScenarioInfoFromFilesystem creates ScenarioInfo from filesystem scan
-func extractScenarioInfoFromFilesystem(name, path string) tasks.ScenarioInfo {
-	scenario := tasks.ScenarioInfo{
-		Name:        name,
-		Path:        path,
-		Category:    InferScenarioCategory(name, ""),
-		Description: extractScenarioDescription(path),
-		Healthy:     false, // Unregistered scenarios are considered unhealthy
+// Helper functions are defined in resources.go
+
+// inferScenarioCategory attempts to categorize a scenario based on its name
+func inferScenarioCategory(name string) string {
+	lower := strings.ToLower(name)
+
+	if strings.Contains(lower, "ai") || strings.Contains(lower, "ml") || strings.Contains(lower, "llm") {
+		return "ai-tools"
+	}
+	if strings.Contains(lower, "business") || strings.Contains(lower, "invoice") || strings.Contains(lower, "finance") {
+		return "business"
+	}
+	if strings.Contains(lower, "automat") || strings.Contains(lower, "workflow") {
+		return "automation"
+	}
+	if strings.Contains(lower, "personal") || strings.Contains(lower, "life") {
+		return "personal"
+	}
+	if strings.Contains(lower, "game") || strings.Contains(lower, "entertainment") {
+		return "entertainment"
 	}
 
-	// Try to get PRD status if PRD.md exists
-	prdPath := filepath.Join(path, "PRD.md")
-	if _, err := os.Stat(prdPath); err == nil {
-		prdStatus := GetScenarioPRDStatus(name, prdPath)
-		scenario.PRDComplete = prdStatus.CompletionPercentage
-		scenario.P0Requirements = prdStatus.P0Requirements
-		scenario.P0Completed = prdStatus.P0Completed
-	}
-
-	return scenario
+	return "productivity" // default
 }
 
-// extractScenarioDescription tries to get description from scenario files
+// Obsolete filesystem functions kept for compatibility
+// TODO: Remove these once fully migrated to CLI-based discovery
+
 func extractScenarioDescription(scenarioPath string) string {
 	// Try to read PRD.md first
 	prdPath := filepath.Join(scenarioPath, "PRD.md")

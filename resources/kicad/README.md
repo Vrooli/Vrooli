@@ -92,6 +92,99 @@ vrooli resource kicad version log my-project
 vrooli resource kicad version backup my-project
 ```
 
+### Cloud Backup (Minio Integration)
+```bash
+# Backup project to cloud storage
+vrooli resource kicad backup cloud my-project
+
+# List available backups
+vrooli resource kicad backup list
+vrooli resource kicad backup list my-project  # For specific project
+
+# Restore project from backup
+vrooli resource kicad backup restore my-project  # Latest backup
+vrooli resource kicad backup restore my-project 20250114-120000  # Specific timestamp
+
+# Schedule automatic backups
+vrooli resource kicad backup schedule my-project daily
+```
+
+### SPICE Circuit Simulation
+```bash
+# Extract SPICE netlist from schematic
+vrooli resource kicad simulation extract circuit.kicad_sch
+
+# Run simulation (transient, DC, AC, or operating point)
+vrooli resource kicad simulation run circuit.net tran
+vrooli resource kicad simulation run circuit.net dc
+vrooli resource kicad simulation run circuit.net ac
+
+# Interactive SPICE shell (requires ngspice)
+vrooli resource kicad simulation interactive circuit.net
+
+# Generate simulation report
+vrooli resource kicad simulation report my-project
+
+# Create SPICE models library
+vrooli resource kicad simulation models
+```
+
+### Auto-routing (PCB Trace Routing)
+```bash
+# Export board for auto-routing
+vrooli resource kicad autoroute export board.kicad_pcb
+
+# Run auto-router with options
+vrooli resource kicad autoroute run board.dsn --layers 2 --via-cost 50
+
+# Import routed board back
+vrooli resource kicad autoroute import board.kicad_pcb routed.ses
+
+# One-step optimization (fast, balanced, or quality)
+vrooli resource kicad autoroute optimize board.kicad_pcb balanced
+
+# Interactive routing assistant
+vrooli resource kicad autoroute assistant board.kicad_pcb
+```
+
+## Features
+
+### Core Capabilities (P0 - Complete)
+- ✅ **Project Management**: Import, organize, and export KiCad projects
+- ✅ **Library Management**: Symbol and footprint libraries
+- ✅ **Manufacturing Export**: Gerber, drill files, pick & place data
+- ✅ **Python API**: Programmatic control via Python scripts
+- ✅ **CLI Interface**: Full command-line automation
+
+### Enhanced Features (P1 - Complete)
+- ✅ **3D Visualization**: Generate 3D renders of PCB designs
+- ✅ **BOM Generation**: Automated bill of materials with cost analysis
+- ✅ **Design Rule Checking**: Automated DRC validation
+- ✅ **Git Integration**: Version control optimized for KiCad files
+
+### Advanced Features (P2 - Complete)
+- ✅ **Cloud Backup**: Automated backup to Minio object storage
+  - Versioned backups with retention policies
+  - One-command restore from cloud
+  - Scheduled backup automation
+  
+- ✅ **SPICE Simulation**: Full circuit simulation capabilities
+  - ngspice integration for analog/digital simulation
+  - Pre-built component models library
+  - Interactive simulation shell
+  - HTML simulation reports
+  
+- ✅ **Auto-routing**: Intelligent PCB trace routing
+  - Freerouting integration
+  - Multi-layer support (2, 4, 6 layers)
+  - Optimization presets (fast/balanced/quality)
+  - Interactive routing assistant with recommendations
+
+### Development Features
+- ✅ **Mock Mode**: Full development capabilities without KiCad installation
+- ✅ **v2.0 Contract**: Full compliance with Vrooli resource standards
+- ✅ **Comprehensive Testing**: 63 tests (smoke, integration, unit)
+
 ## Architecture
 
 ```
@@ -106,7 +199,11 @@ kicad/
 │   ├── inject.sh       # File injection
 │   ├── python.sh       # Python API functions
 │   ├── content.sh      # Content management
-│   └── test.sh         # Test runner
+│   ├── test.sh         # Test runner
+│   ├── version.sh      # Git version control
+│   ├── backup.sh       # Cloud backup (Minio)
+│   ├── simulation.sh   # SPICE circuit simulation
+│   └── autoroute.sh    # PCB auto-routing
 ├── test/
 │   └── integration.bats # Integration tests
 ├── examples/           # Example circuits

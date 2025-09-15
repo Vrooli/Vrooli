@@ -32,18 +32,29 @@ openfoam::test::smoke() {
     
     # Test 2: Health check
     echo -n "  2. Health check... "
-    if timeout 5 curl -sf "http://localhost:${OPENFOAM_PORT:-8090}/health" &>/dev/null; then
+    # Try to find the actual port being used
+    local test_port="${OPENFOAM_PORT:-8090}"
+    if openfoam::docker::is_running; then
+        local container_port=$(docker port openfoam 2>/dev/null | grep -oP '\d+$' | head -1)
+        if [[ -n "$container_port" ]]; then
+            test_port="$container_port"
+        fi
+    fi
+    
+    if timeout 5 curl -sf "http://localhost:${test_port}/health" &>/dev/null; then
         echo "PASS"
         ((passed++))
     else
-        echo "FAIL - Health endpoint not responding"
+        echo "FAIL - Health endpoint not responding on port ${test_port}"
         ((failed++))
     fi
     
     # Test 3: OpenFOAM version check
     echo -n "  3. OpenFOAM version... "
     if openfoam::docker::is_running; then
-        if docker exec openfoam bash -c "source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc && foamVersion" &>/dev/null; then
+        # Try both possible OpenFOAM installation paths
+        if docker exec openfoam bash -c "source /opt/openfoam11/etc/bashrc && foamVersion" &>/dev/null || \
+           docker exec openfoam bash -c "source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc && foamVersion" &>/dev/null; then
             echo "PASS"
             ((passed++))
         else
@@ -114,16 +125,16 @@ openfoam::test::integration() {
     if [[ -d "${OPENFOAM_CASES_DIR}/test_cavity" ]]; then
         # Modify controlDict for quick test
         docker exec openfoam bash -c "
-            source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
+            source /opt/openfoam11/etc/bashrc 2>/dev/null || source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
             cd /cases/test_cavity
-            sed -i 's/endTime.*/endTime 0.1;/' system/controlDict
-            sed -i 's/writeInterval.*/writeInterval 0.1;/' system/controlDict
+            sed -i 's/endTime.*/endTime 0.1;/' system/controlDict 2>/dev/null || true
+            sed -i 's/writeInterval.*/writeInterval 0.1;/' system/controlDict 2>/dev/null || true
         " &>/dev/null || true
         
         if timeout 30 docker exec openfoam bash -c "
-            source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
+            source /opt/openfoam11/etc/bashrc 2>/dev/null || source /opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc
             cd /cases/test_cavity
-            simpleFoam -case . &>/dev/null
+            simpleFoam -case . &>/dev/null || icoFoam -case . &>/dev/null
         "; then
             echo "PASS"
             ((passed++))

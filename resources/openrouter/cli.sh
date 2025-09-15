@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OPENROUTER_CLI_DIR}/config/defaults.sh"
 
 # Source OpenRouter libraries
-for lib in core status install configure content test info models usage ratelimit benchmark agents routing; do
+for lib in core status install configure content test info models usage ratelimit benchmark agents routing cloudflare credentials; do
     lib_file="${OPENROUTER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -107,6 +107,12 @@ cli::register_command "agents" "Manage running openrouter agents" "openrouter::a
 
 # Add routing rules commands
 cli::register_command "routing" "Manage custom model routing rules" "openrouter::routing::cli"
+
+# Add Cloudflare AI Gateway integration commands
+cli::register_command "cloudflare" "Manage Cloudflare AI Gateway integration" "openrouter::cloudflare::cli"
+
+# Add credentials command (optional per v2.0 contract)
+cli::register_command "credentials" "Display integration credentials" "openrouter::credentials"
 
 # API service helper functions for manage group (compact)
 openrouter::service::noop_start() { echo "OpenRouter is an API service (no start needed)"; }
