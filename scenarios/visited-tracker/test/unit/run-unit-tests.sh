@@ -6,7 +6,7 @@ set -euo pipefail
 # Get paths
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
-TESTING_LIB="$APP_ROOT/scripts/lib/testing/unit"
+TESTING_LIB="$APP_ROOT/scripts/scenarios/testing/unit"
 
 # Source the centralized unit test runner
 source "$TESTING_LIB/run-all.sh"

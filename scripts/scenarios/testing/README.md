@@ -5,7 +5,7 @@ A comprehensive, modular testing framework for Vrooli scenarios that provides bo
 ## 📁 Directory Structure
 
 ```
-scripts/lib/testing/
+scripts/scenarios/testing/
 ├── shell/                    # Sourceable shell libraries
 │   ├── core.sh              # Scenario detection, configuration
 │   ├── connectivity.sh      # API/UI connectivity testing
@@ -36,13 +36,13 @@ scripts/lib/testing/
 # In your test script
 
 # Source the modules you need
-source "${APP_ROOT}/scripts/lib/testing/shell/orchestration.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/orchestration.sh"
 
 # Run comprehensive tests
 testing::orchestration::run_comprehensive_tests
 
 # Or use individual modules
-source "${APP_ROOT}/scripts/lib/testing/shell/connectivity.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 testing::connectivity::test_api "my-scenario"
 ```
 
@@ -50,7 +50,7 @@ testing::connectivity::test_api "my-scenario"
 
 ```bash
 # Source the universal runner
-source "${APP_ROOT}/scripts/lib/testing/unit/run-all.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/unit/run-all.sh"
 
 # Run all language tests
 testing::unit::run_all_tests --coverage-warn 80 --coverage-error 70
@@ -60,7 +60,7 @@ testing::unit::run_all_tests --coverage-warn 80 --coverage-error 70
 
 ```bash
 # Copy Go templates to your scenario
-cp scripts/lib/testing/templates/go/test_helpers.go.template \
+cp scripts/scenarios/testing/templates/go/test_helpers.go.template \
    scenarios/my-scenario/api/test_helpers.go
 
 # Customize for your needs (change package, add helpers, etc.)
@@ -176,7 +176,7 @@ See [templates/README.md](templates/README.md) for detailed usage instructions.
 #!/bin/bash
 # test/phases/test-integration.sh
 
-source "${APP_ROOT}/scripts/lib/testing/shell/connectivity.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
 # Get dynamic API URL
 API_URL=$(testing::connectivity::get_api_url)
@@ -193,7 +193,7 @@ fi
 #!/bin/bash
 # test/run-comprehensive.sh
 
-source "${APP_ROOT}/scripts/lib/testing/shell/orchestration.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/orchestration.sh"
 
 # Run everything with custom thresholds
 testing::orchestration::run_comprehensive_tests "my-scenario" 85 75
@@ -205,7 +205,7 @@ testing::orchestration::run_comprehensive_tests "my-scenario" 85 75
 #!/bin/bash
 # test/test-resources.sh
 
-source "${APP_ROOT}/scripts/lib/testing/shell/resources.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/resources.sh"
 
 # Test specific resources
 testing::resources::test_postgres "my-scenario"
@@ -218,11 +218,11 @@ testing::resources::test_redis "my-scenario"
 
 ```bash
 # Old way
-source "$APP_ROOT/scripts/lib/testing/abstraction/portable-helpers.sh"
+source "$APP_ROOT/scripts/scenarios/testing/abstraction/portable-helpers.sh"
 testing::abstraction::test_api_connectivity
 
 # New way
-source "$APP_ROOT/scripts/lib/testing/shell/connectivity.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
 testing::connectivity::test_api
 ```
 
@@ -233,8 +233,29 @@ testing::connectivity::test_api
 API_URL="http://localhost:17695"
 
 # New way
-source "$APP_ROOT/scripts/lib/testing/shell/connectivity.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
 API_URL=$(testing::connectivity::get_api_url)
+```
+
+## 🔒 Safety First
+
+**CRITICAL:** Before using any testing templates or writing test scripts, review our [Safety Guidelines](SAFETY-GUIDELINES.md) to prevent data loss.
+
+### Quick Safety Checklist
+- [ ] BATS `teardown()` functions validate variables before `rm` commands
+- [ ] Test files are isolated under `/tmp` directories  
+- [ ] Wildcard patterns (`*`) are never used with empty variables
+- [ ] Use our safe BATS template: `templates/bats/cli-test.bats.template`
+
+### Safety Linter
+Run the safety linter on your test scripts:
+
+```bash
+# Lint all test scripts in current directory
+scripts/scenarios/testing/lint-tests.sh
+
+# Lint specific scenario
+scripts/scenarios/testing/lint-tests.sh scenarios/my-scenario/
 ```
 
 ## ✅ Best Practices
@@ -245,10 +266,10 @@ Only source the modules you need:
 
 ```bash
 # Just need connectivity testing?
-source "${APP_ROOT}/scripts/lib/testing/shell/connectivity.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
 # Need everything?
-source "${APP_ROOT}/scripts/lib/testing/shell/orchestration.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/orchestration.sh"
 ```
 
 ### 2. Leverage Auto-Detection

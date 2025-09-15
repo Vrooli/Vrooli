@@ -25,7 +25,7 @@ cleanup() {
 trap cleanup EXIT
 
 # Source connectivity testing module
-source "$APP_ROOT/scripts/lib/testing/shell/connectivity.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
 
 # Get dynamic URLs using the testing library
 API_BASE_URL=$(testing::connectivity::get_api_url "$scenario_name" 2>/dev/null || echo "")

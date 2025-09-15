@@ -7,14 +7,14 @@
 ################################################################################
 
 setup() {
+    # Always set TEST_FILE_PREFIX first to prevent teardown issues
+    export API_PORT="${API_PORT:-17695}"
+    export TEST_FILE_PREFIX="/tmp/visited-tracker-cli-test"
+    
     # Ensure CLI is available
     if ! command -v visited-tracker >/dev/null 2>&1; then
         skip "visited-tracker CLI not installed"
     fi
-    
-    # Set up test environment
-    export API_PORT="${API_PORT:-17695}"
-    export TEST_FILE_PREFIX="/tmp/visited-tracker-cli-test"
     
     # Create test files for scenarios that need them
     mkdir -p "${TEST_FILE_PREFIX}-dir"
@@ -24,9 +24,11 @@ setup() {
 }
 
 teardown() {
-    # Clean up test files
-    rm -rf "${TEST_FILE_PREFIX}-dir" 2>/dev/null || true
-    rm -f "${TEST_FILE_PREFIX}"* 2>/dev/null || true
+    # Clean up test files - but only if TEST_FILE_PREFIX is set to prevent accidental deletion
+    if [ -n "${TEST_FILE_PREFIX:-}" ]; then
+        rm -rf "${TEST_FILE_PREFIX}-dir" 2>/dev/null || true
+        rm -f "${TEST_FILE_PREFIX}"* 2>/dev/null || true
+    fi
 }
 
 # Helper function to check if service is running

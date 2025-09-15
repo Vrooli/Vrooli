@@ -23,7 +23,7 @@ A comprehensive template for Go HTTP testing utilities. Copy this to your scenar
 **Usage:**
 ```bash
 # Copy to your scenario
-cp scripts/lib/testing/templates/go/test_helpers.go.template \
+cp scripts/scenarios/testing/templates/go/test_helpers.go.template \
    scenarios/my-scenario/api/test_helpers.go
 
 # Customize the package name and adapt to your needs
@@ -48,7 +48,7 @@ Sophisticated error testing patterns for comprehensive test coverage.
 **Usage:**
 ```bash
 # Copy to your scenario
-cp scripts/lib/testing/templates/go/error_patterns.go.template \
+cp scripts/scenarios/testing/templates/go/error_patterns.go.template \
    scenarios/my-scenario/api/test_patterns.go
 
 # Customize the package name

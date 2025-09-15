@@ -15,7 +15,7 @@ test_count=0
 scenario_name=$(basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)")
 
 # Source connectivity testing module
-source "$APP_ROOT/scripts/lib/testing/shell/connectivity.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/connectivity.sh"
 
 # Get dynamic URLs using the testing library
 API_BASE_URL=$(testing::connectivity::get_api_url "$scenario_name" 2>/dev/null || echo "")

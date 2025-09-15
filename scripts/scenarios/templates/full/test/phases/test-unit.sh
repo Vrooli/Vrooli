@@ -14,7 +14,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 cd "$SCENARIO_DIR"
 
 # Source the testing orchestration module
-source "$APP_ROOT/scripts/lib/testing/shell/orchestration.sh"
+source "$APP_ROOT/scripts/scenarios/testing/shell/orchestration.sh"
 
 # Run unit tests with coverage thresholds
 # Auto-detects scenario and languages
