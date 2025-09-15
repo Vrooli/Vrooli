@@ -789,9 +789,12 @@ mathlib::content() {
         execute)
             mathlib::content::execute "$@"
             ;;
+        tactics)
+            mathlib::content::tactics "$@"
+            ;;
         *)
             echo "Error: Unknown content command '${subcommand}'"
-            echo "Valid commands: list, add, get, remove, execute"
+            echo "Valid commands: list, add, get, remove, execute, tactics"
             return 1
             ;;
     esac
@@ -822,6 +825,143 @@ mathlib::content::list() {
             mathlib::content::list proofs
             echo ""
             mathlib::content::list tactics
+            ;;
+    esac
+}
+
+# Custom tactics management
+mathlib::content::tactics() {
+    local action="${1:-list}"
+    shift || true
+    
+    # Source tactics library
+    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    source "${resource_dir}/lib/tactics.sh"
+    
+    case "${action}" in
+        load)
+            local tactic_file="${1:-}"
+            local tactic_name="${2:-}"
+            if [[ -z "$tactic_file" ]]; then
+                echo "Error: Please provide a tactic file to load"
+                echo "Usage: vrooli resource mathlib content tactics load <file> [name]"
+                return 1
+            fi
+            load_tactic "$tactic_file" "$tactic_name"
+            ;;
+        list)
+            list_custom_tactics
+            ;;
+        remove)
+            local tactic_name="${1:-}"
+            if [[ -z "$tactic_name" ]]; then
+                echo "Error: Please provide a tactic name to remove"
+                echo "Usage: vrooli resource mathlib content tactics remove <name>"
+                return 1
+            fi
+            remove_tactic "$tactic_name"
+            ;;
+        test)
+            local tactic_name="${1:-}"
+            local proof_code="${2:-}"
+            if [[ -z "$tactic_name" ]] || [[ -z "$proof_code" ]]; then
+                echo "Error: Please provide both tactic name and proof code"
+                echo "Usage: vrooli resource mathlib content tactics test <name> <proof>"
+                return 1
+            fi
+            test_tactic "$tactic_name" "$proof_code"
+            ;;
+        export)
+            export_tactics "$@"
+            ;;
+        import)
+            local bundle_file="${1:-}"
+            if [[ -z "$bundle_file" ]]; then
+                echo "Error: Please provide a bundle file to import"
+                echo "Usage: vrooli resource mathlib content tactics import <bundle>"
+                return 1
+            fi
+            import_tactics "$bundle_file"
+            ;;
+        help|--help|-h)
+            echo "Custom Tactics Management"
+            echo ""
+            echo "USAGE:"
+            echo "    vrooli resource mathlib content tactics <action> [options]"
+            echo ""
+            echo "ACTIONS:"
+            echo "    load    - Load a custom tactic file"
+            echo "    list    - List loaded custom tactics"
+            echo "    remove  - Remove a custom tactic"
+            echo "    test    - Test a custom tactic with a proof"
+            echo "    export  - Export tactics to a bundle"
+            echo "    import  - Import tactics from a bundle"
+            echo "    help    - Show this help message"
+            echo ""
+            echo "EXAMPLES:"
+            echo "    # Load a custom tactic"
+            echo "    vrooli resource mathlib content tactics load my_tactic.lean"
+            echo ""
+            echo "    # List all custom tactics"
+            echo "    vrooli resource mathlib content tactics list"
+            echo ""
+            echo "    # Test a custom tactic"
+            echo "    vrooli resource mathlib content tactics test my_tactic 'theorem test : 2 + 2 = 4 := by my_custom_tactic'"
+            ;;
+        *)
+            echo "Error: Unknown tactics action '${action}'"
+            echo "Run 'vrooli resource mathlib content tactics help' for usage"
+            return 1
+            ;;
+    esac
+}
+
+# Interactive REPL mode
+mathlib::interactive() {
+    local subcommand="${1:-start}"
+    shift || true
+    
+    # Source the REPL library
+    local resource_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    source "${resource_dir}/lib/repl.sh"
+    
+    case "${subcommand}" in
+        start)
+            echo "Starting Mathlib interactive REPL..."
+            start_repl
+            ;;
+        replay)
+            local proof_file="${1:-}"
+            if [[ -z "$proof_file" ]]; then
+                echo "Error: Please provide a proof file to replay"
+                echo "Usage: vrooli resource mathlib interactive replay <file>"
+                return 1
+            fi
+            replay_proof "$proof_file"
+            ;;
+        help|--help|-h)
+            echo "Mathlib Interactive REPL"
+            echo ""
+            echo "USAGE:"
+            echo "    vrooli resource mathlib interactive [command] [options]"
+            echo ""
+            echo "COMMANDS:"
+            echo "    start   - Start interactive REPL session (default)"
+            echo "    replay  - Replay a proof file step by step"
+            echo "    help    - Show this help message"
+            echo ""
+            echo "REPL COMMANDS:"
+            echo "    :help    - Show REPL help"
+            echo "    :tactics - List available tactics"
+            echo "    :check   - Check type of expression"
+            echo "    :eval    - Evaluate expression"
+            echo "    :quit    - Exit REPL"
+            echo "    :clear   - Clear screen"
+            ;;
+        *)
+            echo "Error: Unknown interactive command '${subcommand}'"
+            echo "Run 'vrooli resource mathlib interactive help' for usage"
+            return 1
             ;;
     esac
 }

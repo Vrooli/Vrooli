@@ -55,6 +55,31 @@ services:
       timeout: 5s
       retries: 3
 
+  radicale:
+    image: tomsquest/docker-radicale:latest
+    container_name: mailinabox-caldav
+    ports:
+      - "127.0.0.1:5232:5232"
+    environment:
+      - RADICALE_SERVER_HOSTS=0.0.0.0:5232
+      - RADICALE_AUTH_TYPE=htpasswd
+      - RADICALE_AUTH_HTPASSWD_FILENAME=/data/users
+      - RADICALE_AUTH_HTPASSWD_ENCRYPTION=bcrypt
+      - RADICALE_RIGHTS_TYPE=owner_only
+      - RADICALE_STORAGE_FILESYSTEM_FOLDER=/data/collections
+      - RADICALE_LOGGING_LEVEL=info
+    volumes:
+      - radicale_data:/data
+      - radicale_config:/config:ro
+    restart: unless-stopped
+    networks:
+      - mailnet
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5232/.web/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 networks:
   mailnet:
     driver: bridge
@@ -90,3 +115,15 @@ volumes:
       type: none
       o: bind
       device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/roundcube/config
+  radicale_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/radicale/data
+  radicale_config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}/radicale/config

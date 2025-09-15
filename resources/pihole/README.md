@@ -36,7 +36,7 @@ vrooli resource pihole test all
 ## Configuration
 
 Pi-hole runs on:
-- **DNS Port**: 53 (TCP/UDP) - DNS service
+- **DNS Port**: 53 (TCP/UDP) - DNS service (uses 5353 if 53 is occupied)
 - **API Port**: 8087 - Web interface and REST API
 - **DHCP Port**: 67 (UDP) - Optional DHCP server
 
@@ -50,6 +50,8 @@ Default credentials:
 - Supports regex patterns for advanced filtering
 - Custom whitelist/blacklist management
 - Local DNS record definitions
+- DHCP server with static reservations
+- Common pattern library for quick setup
 
 ### API Access
 - Full REST API for automation
@@ -83,6 +85,59 @@ vrooli resource pihole content logs --tail 100
 
 # Disable blocking temporarily
 vrooli resource pihole content disable --duration 300
+
+# Manage custom DNS records
+vrooli resource pihole content dns add myserver.local 192.168.1.100
+vrooli resource pihole content dns remove myserver.local
+vrooli resource pihole content dns list
+```
+
+## DHCP Server Management
+
+```bash
+# Enable DHCP server
+vrooli resource pihole content dhcp enable 192.168.1.100 192.168.1.200
+
+# Check DHCP status
+vrooli resource pihole content dhcp status
+
+# View active leases
+vrooli resource pihole content dhcp leases
+
+# Add static reservation
+vrooli resource pihole content dhcp reserve aa:bb:cc:dd:ee:ff 192.168.1.50 mydevice
+
+# List reservations
+vrooli resource pihole content dhcp reservations
+
+# Disable DHCP
+vrooli resource pihole content dhcp disable
+```
+
+## Regex Filtering
+
+```bash
+# Add regex patterns
+vrooli resource pihole content regex add '^ad[0-9]*[-.]'
+vrooli resource pihole content regex add-white '^(www\.)?mysite\.com$'
+
+# List patterns
+vrooli resource pihole content regex list
+vrooli resource pihole content regex list black
+vrooli resource pihole content regex list white
+
+# Test a pattern
+vrooli resource pihole content regex test '^ad[0-9]*[-.]' 'ad123.example.com'
+
+# Add common pattern sets
+vrooli resource pihole content regex common basic      # Basic ad blocking
+vrooli resource pihole content regex common aggressive # More aggressive
+vrooli resource pihole content regex common social     # Social media tracking
+vrooli resource pihole content regex common malware    # Malware patterns
+
+# Import/export patterns
+vrooli resource pihole content regex export patterns.txt
+vrooli resource pihole content regex import patterns.txt
 ```
 
 ## Network Configuration
@@ -128,15 +183,28 @@ dig @localhost doubleclick.net
 
 ## API Examples
 
+### Using the New API v2
 ```bash
+# Get statistics (using pihole CLI which handles auth)
+docker exec vrooli-pihole pihole api stats/summary
+
+# Get query log
+docker exec vrooli-pihole pihole api queries
+
+# Get top domains
+docker exec vrooli-pihole pihole api stats/top_domains
+```
+
+### Direct API Access (Legacy)
+```bash
+# Note: The API has moved from /admin/api.php to /api in newer versions
+# Authentication is now handled internally by the pihole CLI
+
 # Get status
-curl -s "http://localhost:8087/admin/api.php?status&auth=${PIHOLE_API_TOKEN}"
+curl -s "http://localhost:8087/api/stats/summary"
 
-# Get statistics
-curl -s "http://localhost:8087/admin/api.php?summary&auth=${PIHOLE_API_TOKEN}"
-
-# Disable for 5 minutes
-curl -s "http://localhost:8087/admin/api.php?disable=300&auth=${PIHOLE_API_TOKEN}"
+# View blocked domains count
+curl -s "http://localhost:8087/api/stats/summary" | jq '.gravity.domains_being_blocked'
 ```
 
 ## Security Notes

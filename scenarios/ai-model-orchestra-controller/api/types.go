@@ -173,4 +173,8 @@ type AppState struct {
 	DockerClient *client.Client
 	OllamaClient *OllamaClient
 	Mutex        sync.RWMutex
+	// Database reconnection management
+	DBMutex           sync.RWMutex
+	DBLastHealthCheck time.Time
+	DBReconnecting    bool
 }

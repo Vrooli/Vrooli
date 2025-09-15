@@ -228,6 +228,58 @@ api_endpoints:
       - Safety checks to prevent malicious code
       - Support for dataframes, series, and scalar outputs
       - Execution time tracking
+      
+  - method: POST
+    path: /data/profile
+    purpose: Generate comprehensive data profile with recommendations
+    input_schema: |
+      {
+        "data": "object/array (optional)",
+        "csv_path": "string (optional)",
+        "sql_query": "string (optional)",
+        "profile_type": "string (basic/advanced/correlation/distribution)"
+      }
+    output_schema: |
+      {
+        "success": "boolean",
+        "profile": {
+          "basic_info": "object",
+          "column_types": "object",
+          "missing_data": "object",
+          "statistics": "object"
+        },
+        "recommendations": "array<string>",
+        "execution_time": "number"
+      }
+    features:
+      - Comprehensive data profiling
+      - Data quality scoring
+      - Actionable recommendations
+      - Multiple profile types
+      
+  - method: GET
+    path: /cache/stats
+    purpose: Get detailed cache statistics
+    output_schema: |
+      {
+        "cache_enabled": "boolean",
+        "total_entries": "number",
+        "cache_hit_rate": "string",
+        "total_requests": "number",
+        "cache_hits": "number",
+        "cache_misses": "number",
+        "total_evictions": "number"
+      }
+      
+  - method: POST
+    path: /cache/clear
+    purpose: Clear execution cache and reset statistics
+    output_schema: |
+      {
+        "success": "boolean",
+        "cleared_entries": "number",
+        "message": "string"
+      }
 ```
 
 ## 🖥️ Management Interface Contract
@@ -655,6 +707,72 @@ release_management:
 - [OpenAI API Reference](https://platform.openai.com/docs)
 
 ## 📝 Progress History
+
+### 2025-09-15: Data Profiling & Enhanced Cache Statistics
+**Improver**: resource-improver-20250912-003028
+**Progress**: Added comprehensive data profiling and monitoring
+
+**New Features Added**:
+- ✅ **Data Profiling API**: New `/data/profile` endpoint for comprehensive data analysis
+  - Basic profiling: column types, missing data, statistics
+  - Advanced profiling: outliers, data quality scoring
+  - Correlation analysis: identify relationships between variables
+  - Distribution analysis: normality tests, histograms
+- ✅ **Smart Recommendations**: Actionable insights from data profiles
+  - Missing data handling suggestions
+  - Outlier investigation priorities
+  - High cardinality column detection
+  - Data quality improvement paths
+- ✅ **Enhanced Cache Statistics**: Improved tracking with hit/miss rates
+  - Real-time cache hit rate calculation
+  - Total requests/hits/misses tracking
+  - Cache eviction monitoring
+  - Cache size estimation
+  - `/cache/clear` endpoint for cache management
+
+**Data Quality Features**:
+- Automatic quality scoring (0-100 scale)
+- Issue detection and reporting
+- Cardinality analysis for categorical data
+- Skewness and kurtosis calculations
+- Memory usage profiling
+
+**Performance**:
+- Data profiling completes in <1 second for typical datasets
+- All NumPy types properly serialized
+- Efficient memory usage estimation
+
+**Testing Results**:
+- Smoke tests: ✅ All passing
+- Integration tests: ✅ All 17 tests passing
+- Data profiling: ✅ Verified working
+- Cache statistics: ✅ Enhanced tracking working
+- No regressions detected
+
+---
+
+### 2025-09-15: Enhanced Direct Pandas Execution with Caching
+**Improver**: resource-improver-20250912-003028
+**Progress**: Performance & Security improvements
+
+**Enhancements Made**:
+- ✅ **Input Validation**: Added comprehensive input validation with clear error messages
+- ✅ **Timeout Protection**: Added 10-second execution timeout to prevent infinite loops
+- ✅ **Enhanced Safety**: Expanded unsafe operation detection (socket, urllib, requests, shutil)
+- ✅ **Matplotlib Support**: Direct plot generation and return as base64 images
+- ✅ **Smart Caching**: In-memory result caching with TTL and size limits
+- ✅ **Cache Statistics**: New `/cache/stats` endpoint for monitoring cache performance
+- ✅ **Improved Error Handling**: Better error messages with optional traceback in non-safe mode
+- ✅ **NumPy Type Handling**: Proper conversion of numpy types to Python scalars
+- ✅ **Large DataFrame Handling**: Automatic truncation to 1000 rows for API responses
+
+**Performance Improvements**:
+- Cache hit reduces execution time from ~1ms to 0ms
+- TTL-based cache expiry (1 hour default)
+- Size-limited cache (100 entries max)
+- LRU eviction when cache is full
+
+---
 
 ### 2025-09-14: Direct Pandas Code Execution Feature
 **Improver**: resource-improver-20250912-003028

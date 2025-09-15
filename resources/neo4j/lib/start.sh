@@ -30,6 +30,13 @@ neo4j_start() {
     fi
     
     echo "Starting Neo4j..."
+    
+    # Persist password for future use
+    CREDS_FILE="${var_ROOT_DIR}/data/resources/neo4j/.credentials"
+    mkdir -p "$(dirname "$CREDS_FILE")"
+    echo "${NEO4J_AUTH#*/}" > "$CREDS_FILE"
+    chmod 600 "$CREDS_FILE"
+    
     docker run -d \
         --name "$NEO4J_CONTAINER_NAME" \
         --restart unless-stopped \
@@ -53,7 +60,7 @@ neo4j_start() {
     local max_attempts=30
     local attempt=0
     while (( attempt < max_attempts )); do
-        if curl -s "http://localhost:$NEO4J_HTTP_PORT/" | grep -q "neo4j_version"; then
+        if timeout 5 curl -s "http://localhost:$NEO4J_HTTP_PORT/" | grep -q "neo4j_version"; then
             echo "Neo4j is ready"
             return 0
         fi

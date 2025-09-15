@@ -101,7 +101,29 @@ main() {
     run_test "CLI content execute" \
         "${CLI} content execute --file ${test_img} | jq -e '.safe'"
     
-    # Test 9: Service restart
+    # Test 9: Configuration update
+    run_test "configuration update" \
+        "timeout $TIMEOUT curl -X POST -H 'Content-Type: application/json' \
+            -d '{\"thresholds\": {\"adult\": 0.5}}' \
+            ${BASE_URL}/config | jq -e '.thresholds.adult' | grep -q '0.5'"
+    
+    # Test 10: Model loading
+    run_test "model loading" \
+        "timeout $TIMEOUT curl -X POST -H 'Content-Type: application/json' \
+            -d '{\"model\": \"nsfwjs\"}' \
+            ${BASE_URL}/models/load | jq -e '.message'"
+    
+    # Test 11: Model unloading
+    run_test "model unloading" \
+        "timeout $TIMEOUT curl -X POST -H 'Content-Type: application/json' \
+            -d '{\"model\": \"nsfwjs\"}' \
+            ${BASE_URL}/models/unload | jq -e '.message'"
+    
+    # Test 12: Metrics tracking
+    run_test "metrics tracking" \
+        "timeout $TIMEOUT curl -sf ${BASE_URL}/metrics | jq -e '.requests_processed,.average_latency_ms'"
+    
+    # Test 13: Service restart
     echo -e "${YELLOW}Testing service restart...${NC}"
     if ${CLI} manage restart --wait > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Service restart successful${NC}"
@@ -111,7 +133,7 @@ main() {
         TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
     
-    # Test 10: Health after restart
+    # Test 14: Health after restart
     sleep 2
     run_test "health after restart" \
         "timeout $TIMEOUT curl -sf ${BASE_URL}/health"

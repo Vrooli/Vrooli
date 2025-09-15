@@ -31,7 +31,7 @@ source "${var_RESOURCES_COMMON_FILE}"
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source Haystack libraries
-for lib in lifecycle status install inject common; do
+for lib in lifecycle status install inject common test; do
     lib_file="${HAYSTACK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -49,8 +49,11 @@ CLI_COMMAND_HANDLERS["manage::start"]="haystack::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="haystack::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="haystack::restart"
 
-# Test handlers (health checks only)
+# Test handlers
 CLI_COMMAND_HANDLERS["test::smoke"]="haystack::test_smoke"
+CLI_COMMAND_HANDLERS["test::integration"]="haystack::test_integration"
+CLI_COMMAND_HANDLERS["test::unit"]="haystack::test_unit"
+CLI_COMMAND_HANDLERS["test::all"]="haystack::test_all"
 
 # Content handlers for Haystack-specific RAG functionality
 CLI_COMMAND_HANDLERS["content::add"]="haystack::inject"

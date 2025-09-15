@@ -276,8 +276,59 @@ fi
 # Cleanup small test file
 rm -f "$PERF_TEST_FILE"
 
-# Test 9: Memory usage check
-log::info "Test 9: Resource usage check..."
+# Test 9: Versioning functionality
+log::info "Test 9: Versioning functionality..."
+
+TEST_VERSION_BUCKET="test-versioning-bucket"
+CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
+
+# Create test bucket for versioning
+if docker exec "$CONTAINER_NAME" mc mb "local/${TEST_VERSION_BUCKET}" &>/dev/null; then
+    # Check initial versioning status (should be unversioned)
+    VERSION_STATUS=$(docker exec "$CONTAINER_NAME" mc version info "local/${TEST_VERSION_BUCKET}" 2>/dev/null | grep -o "un-versioned\|enabled\|suspended" || echo "unknown")
+    if [[ "$VERSION_STATUS" == "un-versioned" ]]; then
+        log::success "✓ New bucket is unversioned by default"
+    else
+        log::error "✗ Unexpected versioning status: $VERSION_STATUS"
+        ((FAILED++))
+    fi
+    
+    # Enable versioning
+    if docker exec "$CONTAINER_NAME" mc version enable "local/${TEST_VERSION_BUCKET}" &>/dev/null; then
+        VERSION_STATUS=$(docker exec "$CONTAINER_NAME" mc version info "local/${TEST_VERSION_BUCKET}" 2>/dev/null | grep -o "enabled" || echo "")
+        if [[ "$VERSION_STATUS" == "enabled" ]]; then
+            log::success "✓ Versioning can be enabled"
+        else
+            log::error "✗ Failed to enable versioning"
+            ((FAILED++))
+        fi
+    else
+        log::error "✗ Could not enable versioning"
+        ((FAILED++))
+    fi
+    
+    # Suspend versioning
+    if docker exec "$CONTAINER_NAME" mc version suspend "local/${TEST_VERSION_BUCKET}" &>/dev/null; then
+        VERSION_STATUS=$(docker exec "$CONTAINER_NAME" mc version info "local/${TEST_VERSION_BUCKET}" 2>/dev/null | grep -o "suspended" || echo "")
+        if [[ "$VERSION_STATUS" == "suspended" ]]; then
+            log::success "✓ Versioning can be suspended"
+        else
+            log::error "✗ Failed to suspend versioning"
+            ((FAILED++))
+        fi
+    else
+        log::error "✗ Could not suspend versioning"
+        ((FAILED++))
+    fi
+    
+    # Cleanup test bucket
+    docker exec "$CONTAINER_NAME" mc rb --force "local/${TEST_VERSION_BUCKET}" &>/dev/null 2>&1
+else
+    log::warning "⚠ Could not create test bucket for versioning"
+fi
+
+# Test 10: Memory usage check
+log::info "Test 10: Resource usage check..."
 
 CONTAINER_NAME="${MINIO_CONTAINER_NAME:-minio}"
 if docker stats --no-stream "$CONTAINER_NAME" 2>/dev/null | grep -v CONTAINER; then

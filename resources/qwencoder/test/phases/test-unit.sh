@@ -23,10 +23,10 @@ echo -n "1. Testing qwencoder_get_port... "
 port=$(qwencoder_get_port)
 if [[ "${port}" =~ ^[0-9]+$ ]] && [[ ${port} -ge 1024 ]] && [[ ${port} -le 65535 ]]; then
     echo " (port: ${port})"
-    ((tests_passed++))
+    tests_passed=$((tests_passed + 1))
 else
     echo " (invalid port: ${port})"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 2: qwencoder_get_model_path function
@@ -34,20 +34,20 @@ echo -n "2. Testing qwencoder_get_model_path... "
 model_path=$(qwencoder_get_model_path "qwencoder-1.5b")
 if [[ -n "${model_path}" ]] && [[ "${model_path}" == *"models"* ]]; then
     echo ""
-    ((tests_passed++))
+    tests_passed=$((tests_passed + 1))
 else
     echo ""
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 3: qwencoder_validate_model function
 echo -n "3. Testing qwencoder_validate_model... "
 if qwencoder_validate_model "qwencoder-1.5b"; then
     echo " (valid model)"
-    ((tests_passed++))
+    tests_passed=$((tests_passed + 1))
 else
     echo " (validation failed)"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 4: qwencoder_get_config function
@@ -55,14 +55,14 @@ echo -n "4. Testing qwencoder_get_config... "
 if config=$(qwencoder_get_config); then
     if echo "${config}" | jq -e '.port' > /dev/null 2>&1; then
         echo ""
-        ((tests_passed++))
+        tests_passed=$((tests_passed + 1))
     else
         echo " (invalid JSON)"
-        ((tests_failed++))
+        tests_failed=$((tests_failed + 1))
     fi
 else
     echo " (function failed)"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 5: qwencoder_is_port_available function
@@ -70,10 +70,10 @@ echo -n "5. Testing qwencoder_is_port_available... "
 # Test with a likely available high port
 if qwencoder_is_port_available 54321; then
     echo ""
-    ((tests_passed++))
+    tests_passed=$((tests_passed + 1))
 else
     echo ""
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 6: Model size validation
@@ -82,16 +82,16 @@ sizes=("0.5b" "1.5b" "7b" "32b")
 size_valid=0
 for size in "${sizes[@]}"; do
     if qwencoder_get_model_size_gb "qwencoder-${size}" > /dev/null 2>&1; then
-        ((size_valid++))
+        size_valid=$((size_valid + 1))
     fi
 done
 
 if [[ ${size_valid} -eq ${#sizes[@]} ]]; then
     echo " (${size_valid}/${#sizes[@]})"
-    ((tests_passed++))
+    tests_passed=$((tests_passed + 1))
 else
     echo " (${size_valid}/${#sizes[@]})"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Summary

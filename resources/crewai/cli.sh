@@ -29,6 +29,12 @@ source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/crewai/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/crewai/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
 # shellcheck disable=SC1091
 source "${CREWAI_CLI_DIR}/config/defaults.sh"
 
@@ -69,6 +75,18 @@ CLI_COMMAND_HANDLERS["content::execute"]="crewai::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed CrewAI status" "crewai::status"
 cli::register_command "logs" "Show CrewAI logs" "crewai::logs"
+
+# Create wrapper for agents command that delegates to manager
+crewai::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="crewai" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f crewai::agents::command
+
 cli::register_command "agents" "Manage running crewai agents" "crewai::agents::command"
 
 # ==============================================================================

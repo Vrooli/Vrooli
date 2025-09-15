@@ -164,6 +164,29 @@ neo4j_logs() {
     docker logs "${NEO4J_CONTAINER_NAME}" --tail 50 2>&1 || echo "Neo4j container not running"
 }
 
+neo4j_credentials() {
+    if ! neo4j_is_running; then
+        echo "Neo4j is not running"
+        return 1
+    fi
+    
+    echo "Neo4j Connection Details:"
+    echo "========================="
+    echo "HTTP URL: http://localhost:${NEO4J_HTTP_PORT}"
+    echo "Bolt URL: bolt://localhost:${NEO4J_BOLT_PORT}"
+    echo "Username: neo4j"
+    
+    # Read password from credentials file
+    CREDS_FILE="${var_ROOT_DIR}/data/resources/neo4j/.credentials"
+    if [[ -f "$CREDS_FILE" ]]; then
+        echo "Password: $(cat "$CREDS_FILE")"
+    else
+        echo "Password: ${NEO4J_AUTH#*/}"
+    fi
+    echo ""
+    echo "Cypher Shell: docker exec -it $NEO4J_CONTAINER_NAME cypher-shell -u neo4j"
+}
+
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"

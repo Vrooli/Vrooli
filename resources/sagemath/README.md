@@ -9,11 +9,13 @@ SageMath is a comprehensive open-source mathematics software system that provide
 - **Graph Theory**: Network analysis, combinatorics
 - **Number Theory**: Cryptography, prime numbers, factorization
 - **Visualization**: 2D/3D plotting, animations, interactive graphics
+- **Export Capabilities**: LaTeX, MathML, and PNG image export for equations
 - **GPU Acceleration**: CUDA support for numerical computations
 - **Parallel Computing**: Multi-core distributed processing
 - **v2.0 Contract Compliant**: Full CLI standardization with manage/test/content groups
 - **Health Monitoring**: JSON health endpoint with component status
 - **Extended Math CLI**: Specialized commands for common mathematical operations
+- **Result Caching**: Automatic caching of computation results for performance
 
 ## Architecture
 - Docker-based deployment using official SageMath images
@@ -71,6 +73,25 @@ vrooli resource sagemath content add --file analysis.ipynb
 vrooli resource sagemath content notebook  # Opens Jupyter interface
 ```
 
+### Export Capabilities
+```bash
+# Export to LaTeX format
+vrooli resource sagemath export latex "solve(x^2 - 4 == 0, x)"
+vrooli resource sagemath export latex "integrate(sin(x), x, 0, pi)" output.tex
+
+# Export to MathML format (web-friendly)
+vrooli resource sagemath export mathml "x^2 + y^2"
+
+# Render equation to PNG image
+vrooli resource sagemath export image "sum(1/n^2, n, 1, infinity)" equation.png
+
+# Export to all formats at once
+vrooli resource sagemath export all "factorial(10)" factorial_outputs
+
+# List available export formats
+vrooli resource sagemath export formats
+```
+
 ### GPU Acceleration
 ```bash
 # Check GPU availability
@@ -96,6 +117,34 @@ vrooli resource sagemath parallel compute "@parallel\ndef f(n): return is_prime(
 
 # Test parallel processing
 vrooli resource sagemath test parallel
+```
+
+### Visualization & Plotting
+```bash
+# Create 2D plots
+vrooli resource sagemath plot 2d "sin(x) + cos(2*x)" -pi pi "Trigonometric Functions"
+vrooli resource sagemath plot 2d "x^3 - 3*x" -3 3 "Cubic Function"
+
+# Create 3D plots
+vrooli resource sagemath plot 3d "x^2 + y^2" "(-3,3)" "(-3,3)" "Paraboloid"
+vrooli resource sagemath plot 3d "sin(x)*cos(y)" "(-pi,pi)" "(-pi,pi)" "Wave Surface"
+
+# Create parametric plots
+vrooli resource sagemath plot parametric "cos(t)" "sin(t)" 0 "2*pi" "Circle"
+vrooli resource sagemath plot parametric "t*cos(t)" "t*sin(t)" 0 "6*pi" "Spiral"
+
+# Create polar plots
+vrooli resource sagemath plot polar "1 + cos(theta)" 0 "2*pi" "Cardioid"
+vrooli resource sagemath plot polar "sin(3*theta)" 0 "2*pi" "Rose Curve"
+```
+
+### Cache Management
+```bash
+# View cache statistics
+vrooli resource sagemath cache stats
+
+# Clear all cached results
+vrooli resource sagemath cache clear
 ```
 
 ### Testing

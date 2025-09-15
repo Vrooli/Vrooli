@@ -25,7 +25,7 @@ CREWAI_AGENTS_DIR="${CREWAI_AGENTS_DIR:-${CREWAI_DATA_DIR}/agents}"
 CREWAI_PID_FILE="${CREWAI_PID_FILE:-${CREWAI_DATA_DIR}/crewai.pid}"
 CREWAI_LOG_FILE="${CREWAI_LOG_FILE:-${CREWAI_DATA_DIR}/crewai.log}"
 CREWAI_SERVER_FILE="${CREWAI_SERVER_FILE:-${CREWAI_DATA_DIR}/server.py}"
-CREWAI_MOCK_MODE="${CREWAI_MOCK_MODE:-true}"  # Use mock mode for now until Flask is installed
+CREWAI_MOCK_MODE="${CREWAI_MOCK_MODE:-false}"  # Try to use Flask server with tools
 CREWAI_VENV_DIR="${CREWAI_VENV_DIR:-${CREWAI_DATA_DIR}/venv}"
 
 # Check if Python is available
@@ -55,8 +55,8 @@ install_crewai() {
     
     log::info "Installing CrewAI with mode=${mode}"
     
-    # For now, force mock mode since Flask is not installed
-    mode="true"
+    # Try to use Flask mode if requested
+    # mode="true"  # Removed forced mock mode
     
     if [[ "${mode}" == "true" ]]; then
         log::info "Installing CrewAI in mock mode..."
@@ -1193,8 +1193,8 @@ start_crewai() {
     
     init_directories
     
-    # Force mock mode for now
-    local mode="true"
+    # Use configured mode (defaults to Flask/real mode)
+    local mode="${CREWAI_MOCK_MODE}"
     
     if [[ ! -f "${CREWAI_SERVER_FILE}" ]]; then
         if [[ "${mode}" == "true" ]]; then
@@ -1209,12 +1209,18 @@ start_crewai() {
         # Start server directly with python3
         nohup python3 "${CREWAI_SERVER_FILE}" > "${CREWAI_LOG_FILE}" 2>&1 &
     else
-        log::info "Starting CrewAI service with real library..."
-        # Use virtual environment if available
-        if [[ -f "${CREWAI_VENV_DIR}/bin/python" ]]; then
+        log::info "Starting CrewAI service with Flask server..."
+        # Check if Flask is available
+        if python3 -c "import flask" 2>/dev/null; then
+            log::info "Flask is available, starting Flask server..."
+            nohup python3 "${CREWAI_SERVER_FILE}" > "${CREWAI_LOG_FILE}" 2>&1 &
+        elif [[ -f "${CREWAI_VENV_DIR}/bin/python" ]]; then
+            log::info "Using virtual environment..."
             nohup "${CREWAI_VENV_DIR}/bin/python" "${CREWAI_SERVER_FILE}" > "${CREWAI_LOG_FILE}" 2>&1 &
         else
-            # Fallback to system Python
+            log::warn "Flask not available, falling back to mock mode"
+            CREWAI_MOCK_MODE="true"
+            create_server_file
             nohup python3 "${CREWAI_SERVER_FILE}" > "${CREWAI_LOG_FILE}" 2>&1 &
         fi
     fi

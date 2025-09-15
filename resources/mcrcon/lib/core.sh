@@ -180,7 +180,11 @@ class HealthHandler(http.server.SimpleHTTPRequestHandler):
         # Suppress default logging
         pass
 
-with socketserver.TCPServer(("", PORT), HealthHandler) as httpd:
+# Allow port reuse to prevent "Address already in use" errors
+class ReuseAddrTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
+with ReuseAddrTCPServer(("", PORT), HealthHandler) as httpd:
     print(f"Health server running on port {PORT}")
     httpd.serve_forever()
 EOF
@@ -215,10 +219,37 @@ start_health_service() {
 
 # Stop health service
 stop_health_service() {
+    # Find Python process listening on our health port
     local pid
-    pid=$(pgrep -f "health_server.py" 2>/dev/null || true)
+    pid=$(ss -tlnp 2>/dev/null | grep ":${MCRCON_HEALTH_PORT}" | grep -oP 'pid=\K[0-9]+' | head -1 || true)
+    
     if [[ -n "$pid" ]]; then
+        # Send TERM signal
         kill "$pid" 2>/dev/null || true
+        
+        # Wait for process to terminate (max 5 seconds)
+        local count=0
+        while kill -0 "$pid" 2>/dev/null; do
+            sleep 0.5
+            count=$((count + 1))
+            if [[ $count -ge 10 ]]; then
+                # Force kill if still running
+                kill -9 "$pid" 2>/dev/null || true
+                sleep 0.5
+                break
+            fi
+        done
+        
+        # Wait for port to be freed (max 2 seconds)
+        count=0
+        while ss -tlnp 2>/dev/null | grep -q ":${MCRCON_HEALTH_PORT}"; do
+            sleep 0.5
+            count=$((count + 1))
+            if [[ $count -ge 4 ]]; then
+                break
+            fi
+        done
+        
         log_info "Health service stopped"
     else
         log_debug "No health service found running"
@@ -1366,8 +1397,14 @@ main() {
                     ;;
                 restart)
                     stop_health_service
-                    sleep 2
-                    start_health_service
+                    # Give time for port to fully release
+                    sleep 1
+                    # Try to start, with retry if needed
+                    if ! start_health_service; then
+                        log_info "Retrying start after additional delay..."
+                        sleep 2
+                        start_health_service
+                    fi
                     ;;
                 *)
                     echo "Unknown manage subcommand: $subcommand" >&2

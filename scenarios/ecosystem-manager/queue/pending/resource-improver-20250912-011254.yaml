@@ -1,0 +1,71 @@
+id: resource-improver-20250912-011254
+title: Update nextcloud
+type: resource
+operation: improver
+category: ""
+priority: medium
+effort_estimate: 4h
+urgency: low
+impact_score: 5
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-12T01:12:54-04:00"
+updated_at: "2025-09-15T14:23:13-04:00"
+tags: []
+notes: |-
+    Pretty good already, but could likely benefit from validation/tidying.
+
+    Notes from last time:
+    #### Status: **Working/Enhanced**
+
+    The Nextcloud resource has been successfully improved with performance and security enhancements. All functionality remains operational.
+
+    ### What Was Accomplished
+
+    #### Fixed Issues
+    - ✅ **Restarted Redis container** - The Redis container had stopped again, causing potential cache issues. Successfully restarted and verified connectivity.
+
+    #### Performance Improvements
+    - ✅ **Memory Caching** - Configured APCu for local memory caching
+    - ✅ **Distributed Caching** - Set Redis for distributed cache and file locking
+    - ✅ **Background Jobs** - Enabled cron-based background job processing
+    - ✅ **Preview Optimization** - Configured preview generation with optimal settings
+    - ✅ **Additional Preview Support** - Enabled 7 preview providers for better file support
+    - ✅ **File Versioning** - Configured automatic version management with 10-version retention
+
+    #### Security Enhancements
+    - ✅ **Removed Unnecessary Apps** - Disabled firstrunwizard and support apps
+    - ✅ **Maintenance Window** - Set automatic maintenance window for updates
+
+    ### Validation
+    ```bash
+    vrooli resource nextcloud test all  # ✅ All 3 test suites pass
+    # - Smoke tests: All pass
+    # - Unit tests: All pass
+    # - Integration tests: All pass (including Collabora and Talk)
+    ```
+
+    ### Current PRD Status
+    - **P0 Requirements**: 7/7 completed (100%)
+    - **P1 Requirements**: 4/4 completed (100%)
+    - **P2 Requirements**: 2/3 completed (66%)
+      - ✅ Talk Integration (video conferencing)
+      - ✅ Calendar/Contacts (CalDAV/CardDAV)
+      - ☐ Mobile Push Notifications (requires external service setup)
+
+    ### Remaining Limitations
+    - Mobile push notifications require external notification service configuration
+    - Full HTTPS requires reverse proxy setup (headers configured but proxy needed)
+results: {}

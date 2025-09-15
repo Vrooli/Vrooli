@@ -8,6 +8,14 @@ RESOURCE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # Source core library
 source "${RESOURCE_DIR}/lib/core.sh"
 
+# Get actual DNS port from configuration
+DNS_PORT="${PIHOLE_DNS_PORT:-53}"
+if [[ -f "${PIHOLE_DATA_DIR}/.port_config" ]]; then
+    source "${PIHOLE_DATA_DIR}/.port_config"
+    DNS_PORT="${DNS_PORT:-${PIHOLE_DNS_PORT}}"
+fi
+echo "Using DNS port: ${DNS_PORT}"
+
 echo "Pi-hole Integration Tests"
 echo "========================="
 
@@ -38,16 +46,16 @@ if ! check_health; then
 fi
 
 # Test 1: DNS resolution for legitimate domain
-run_test "DNS resolves google.com" "timeout 5 dig @localhost google.com +short | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'"
+run_test "DNS resolves google.com" "timeout 5 dig @localhost -p ${DNS_PORT} google.com +short | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'"
 
 # Test 2: DNS resolution for localhost
-run_test "DNS resolves localhost" "timeout 5 dig @localhost localhost +short | grep -q '127.0.0.1'"
+run_test "DNS resolves localhost" "timeout 5 dig @localhost -p ${DNS_PORT} localhost +short | grep -q '127.0.0.1'"
 
 # Test 3: API summary endpoint
-run_test "API summary data" "timeout 5 curl -sf 'http://localhost:8087/admin/api.php?summary' | jq -e '.domains_being_blocked'"
+run_test "API summary data" "docker exec '${CONTAINER_NAME}' pihole api stats/summary | jq -e '.gravity.domains_being_blocked'"
 
 # Test 4: API status shows enabled
-run_test "API status enabled" "timeout 5 curl -sf 'http://localhost:8087/admin/api.php?status' | grep -q 'enabled'"
+run_test "API status enabled" "docker exec '${CONTAINER_NAME}' pihole status | grep -q 'enabled'"
 
 # Test 5: Blacklist management
 TEST_DOMAIN="test-block-$(date +%s).com"
@@ -72,7 +80,7 @@ run_test "FTL daemon running" "docker exec '${CONTAINER_NAME}' pgrep pihole-FTL"
 run_test "DNS cache functional" "docker exec '${CONTAINER_NAME}' pihole-FTL dns-cache show | head -1"
 
 # Test 11: Statistics are being collected
-run_test "Statistics collection" "timeout 5 curl -sf 'http://localhost:8087/admin/api.php?summary' | jq -e '.dns_queries_today >= 0'"
+run_test "Statistics collection" "docker exec '${CONTAINER_NAME}' pihole api stats/summary | jq -e '.queries.total >= 0'"
 
 # Test 12: Password file exists
 run_test "Password file exists" "test -f '${PIHOLE_DATA_DIR}/.webpassword'"

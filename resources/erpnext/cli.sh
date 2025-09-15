@@ -39,7 +39,7 @@ if [[ -f "${ERPNEXT_CLI_DIR}/lib/main.sh" ]]; then
 fi
 
 # Source ERPNext libraries
-for lib in config docker install status inject content test workflow reporting; do
+for lib in config docker install status inject content test workflow reporting ecommerce manufacturing; do
     lib_file="${ERPNEXT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -87,6 +87,24 @@ cli::register_subcommand "report" "get" "Get report details" "erpnext::report::c
 cli::register_subcommand "report" "execute" "Execute report with filters" "erpnext::report::cli::execute"
 cli::register_subcommand "report" "create" "Create new report" "erpnext::report::cli::create"
 cli::register_subcommand "report" "export" "Export report data" "erpnext::report::cli::export"
+
+# E-commerce commands
+cli::register_command_group "ecommerce" "Manage e-commerce functionality"
+cli::register_subcommand "ecommerce" "list-products" "List online products" "erpnext::ecommerce::list_products"
+cli::register_subcommand "ecommerce" "add-product" "Add product to online store" "erpnext::ecommerce::add_product"
+cli::register_subcommand "ecommerce" "get-cart" "Get shopping cart contents" "erpnext::ecommerce::get_cart"
+cli::register_subcommand "ecommerce" "add-to-cart" "Add item to shopping cart" "erpnext::ecommerce::add_to_cart"
+cli::register_subcommand "ecommerce" "configure" "Configure store settings" "erpnext::ecommerce::configure_store"
+
+# Manufacturing commands
+cli::register_command_group "manufacturing" "Manage manufacturing operations"
+cli::register_subcommand "manufacturing" "list-boms" "List bill of materials" "erpnext::manufacturing::list_boms"
+cli::register_subcommand "manufacturing" "create-bom" "Create new BOM" "erpnext::manufacturing::create_bom"
+cli::register_subcommand "manufacturing" "add-bom-item" "Add item to BOM" "erpnext::manufacturing::add_bom_item"
+cli::register_subcommand "manufacturing" "list-work-orders" "List work orders" "erpnext::manufacturing::list_work_orders"
+cli::register_subcommand "manufacturing" "create-work-order" "Create work order" "erpnext::manufacturing::create_work_order"
+cli::register_subcommand "manufacturing" "production-plan" "Get production plan" "erpnext::manufacturing::get_production_plan"
+cli::register_subcommand "manufacturing" "stock-entries" "Get stock entries" "erpnext::manufacturing::get_stock_entry"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

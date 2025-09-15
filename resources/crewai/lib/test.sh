@@ -279,6 +279,34 @@ crewai::test::integration() {
         ((failed++))
     fi
     
+    # Test 11: Tools endpoint
+    ((test_count++))
+    log::info "Test $test_count: Tools endpoint"
+    local tools_response
+    tools_response=$(timeout 5 curl -sf "http://localhost:${CREWAI_PORT}/tools" 2>/dev/null || echo "{}")
+    if echo "$tools_response" | jq -e '.tools' &>/dev/null; then
+        log::success "✅ Tools endpoint works"
+    else
+        log::error "❌ Tools endpoint failed"
+        ((failed++))
+    fi
+    
+    # Test 12: Create agent with tools
+    ((test_count++))
+    log::info "Test $test_count: Create agent with tools"
+    local agent_with_tools_response
+    agent_with_tools_response=$(timeout 5 curl -sf -X POST "http://localhost:${CREWAI_PORT}/agents" \
+        -H "Content-Type: application/json" \
+        -d '{"name": "tooled_agent", "role": "analyst", "goal": "analyze data", "tools": ["file_reader", "api_caller"]}' 2>/dev/null || echo "{}")
+    if echo "$agent_with_tools_response" | jq -e '.agent.tools | length > 0' &>/dev/null; then
+        log::success "✅ Create agent with tools works"
+        # Clean up
+        curl -sf -X DELETE "http://localhost:${CREWAI_PORT}/agents/tooled_agent" &>/dev/null || true
+    else
+        log::error "❌ Create agent with tools failed"
+        ((failed++))
+    fi
+    
     # Summary
     if [[ $failed -eq 0 ]]; then
         log::success "All $test_count integration tests passed!"

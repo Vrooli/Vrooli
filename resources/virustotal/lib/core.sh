@@ -862,6 +862,109 @@ def scan_file():
         
         return jsonify(response), 202
 
+@app.route('/api/scan/file-url', methods=['POST'])
+def scan_file_from_url():
+    """Submit file from URL (e.g., S3 pre-signed URL) for scanning"""
+    import urllib.request
+    import urllib.error
+    
+    # Allow mock mode for testing
+    if not API_KEY or API_KEY == "test":
+        allowed, msg = check_rate_limit()
+        if not allowed:
+            return jsonify({'error': msg}), 429
+    else:
+        allowed, msg = check_rate_limit()
+        if not allowed:
+            return jsonify({'error': msg}), 429
+    
+    data = request.get_json()
+    if not data or 'url' not in data:
+        return jsonify({'error': 'No URL provided'}), 400
+    
+    file_url = data['url']
+    webhook = data.get('webhook')
+    max_size = data.get('max_size', 32 * 1024 * 1024)  # 32MB default for free tier
+    
+    try:
+        # Download file from URL
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            # Set timeout and size limit
+            req = urllib.request.Request(file_url, headers={'User-Agent': 'VirusTotal-Vrooli/1.0'})
+            
+            with urllib.request.urlopen(req, timeout=30) as response:
+                # Check content length
+                content_length = response.headers.get('Content-Length')
+                if content_length and int(content_length) > max_size:
+                    return jsonify({'error': f'File too large: {content_length} bytes (max: {max_size})'}), 413
+                
+                # Download with size limit
+                downloaded = 0
+                chunk_size = 8192
+                while True:
+                    chunk = response.read(chunk_size)
+                    if not chunk:
+                        break
+                    downloaded += len(chunk)
+                    if downloaded > max_size:
+                        os.unlink(tmp_file.name)
+                        return jsonify({'error': f'File too large (max: {max_size} bytes)'}), 413
+                    tmp_file.write(chunk)
+            
+            tmp_file.flush()
+            
+            # Calculate file hash
+            hasher = hashlib.sha256()
+            with open(tmp_file.name, 'rb') as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hasher.update(chunk)
+            file_hash = hasher.hexdigest()
+            
+            # Check if we already have a report for this hash
+            cached = get_cached_report(file_hash)
+            if cached:
+                os.unlink(tmp_file.name)
+                return jsonify({
+                    'status': 'completed',
+                    'hash': file_hash,
+                    'source_url': file_url,
+                    'cached': True,
+                    'report': cached
+                }), 200
+            
+            # Submit for scanning
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result, error = loop.run_until_complete(scan_file_async(tmp_file.name))
+            loop.close()
+            
+            os.unlink(tmp_file.name)
+            
+            if error:
+                return jsonify({'error': error}), 500
+            
+            response = {
+                'status': 'submitted',
+                'hash': file_hash,
+                'source_url': file_url,
+                'analysis': result if result else {'status': 'queued'},
+                'scan_id': result.get('analysis_id', f'scan_{file_hash[:16]}') if result else f'scan_{file_hash[:16]}'
+            }
+            
+            # Register webhook if provided
+            if webhook and result and 'analysis_id' in result:
+                webhook_id = register_webhook(result['analysis_id'], webhook)
+                response['webhook_id'] = webhook_id
+            
+            return jsonify(response), 202
+            
+    except urllib.error.HTTPError as e:
+        return jsonify({'error': f'Failed to download file: HTTP {e.code}'}), 400
+    except urllib.error.URLError as e:
+        return jsonify({'error': f'Failed to download file: {str(e)}'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Error processing file: {str(e)}'}), 500
+
 @app.route('/api/scan/url', methods=['POST'])
 def scan_url():
     """Submit URL for scanning"""
@@ -1055,6 +1158,189 @@ def cache_info():
         'rotation_interval_hours': 1,
         'auto_rotation_enabled': True
     }), 200
+
+@app.route('/api/threat-feed/export', methods=['GET'])
+def export_threat_feed():
+    """Export threat intelligence feed in various formats"""
+    format_type = request.args.get('format', 'json')
+    period_days = int(request.args.get('days', 7))
+    min_detections = int(request.args.get('min_detections', 5))
+    include_types = request.args.getlist('types') or ['files', 'urls', 'ips', 'domains']
+    
+    # Calculate cutoff date
+    cutoff_date = (datetime.now() - timedelta(days=period_days)).isoformat()
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    threat_data = {
+        'export_date': datetime.now().isoformat(),
+        'period_days': period_days,
+        'min_detections': min_detections,
+        'threats': {
+            'files': [],
+            'urls': [],
+            'ips': [],
+            'domains': []
+        }
+    }
+    
+    # Collect file threats
+    if 'files' in include_types:
+        cursor.execute('''
+            SELECT hash, report, timestamp, positives
+            FROM scan_cache
+            WHERE timestamp > ? AND positives >= ?
+            ORDER BY positives DESC
+        ''', (cutoff_date, min_detections))
+        
+        for row in cursor.fetchall():
+            try:
+                report = json.loads(row[1]) if row[1] else {}
+                threat_data['threats']['files'].append({
+                    'hash': row[0],
+                    'timestamp': row[2],
+                    'detections': row[3],
+                    'threat_names': report.get('threat_names', []) if report else []
+                })
+            except:
+                pass
+    
+    # Collect URL threats
+    if 'urls' in include_types:
+        cursor.execute('''
+            SELECT url, report, timestamp, positives
+            FROM url_cache
+            WHERE timestamp > ? AND positives >= ?
+            ORDER BY positives DESC
+        ''', (cutoff_date, min_detections))
+        
+        for row in cursor.fetchall():
+            try:
+                report = json.loads(row[1]) if row[1] else {}
+                threat_data['threats']['urls'].append({
+                    'url': row[0],
+                    'timestamp': row[2],
+                    'detections': row[3],
+                    'categories': report.get('categories', []) if report else []
+                })
+            except:
+                pass
+    
+    # Collect IP threats
+    if 'ips' in include_types:
+        cursor.execute('''
+            SELECT ip, report, timestamp, reputation_score
+            FROM ip_cache
+            WHERE timestamp > ? AND reputation_score < -5
+            ORDER BY reputation_score ASC
+        ''', (cutoff_date,))
+        
+        for row in cursor.fetchall():
+            try:
+                report = json.loads(row[1]) if row[1] else {}
+                threat_data['threats']['ips'].append({
+                    'ip': row[0],
+                    'timestamp': row[2],
+                    'reputation_score': row[3],
+                    'country': report.get('country', 'Unknown') if report else 'Unknown'
+                })
+            except:
+                pass
+    
+    # Collect domain threats
+    if 'domains' in include_types:
+        cursor.execute('''
+            SELECT domain, report, timestamp, reputation_score
+            FROM domain_cache
+            WHERE timestamp > ? AND reputation_score < -5
+            ORDER BY reputation_score ASC
+        ''', (cutoff_date,))
+        
+        for row in cursor.fetchall():
+            try:
+                report = json.loads(row[1]) if row[1] else {}
+                threat_data['threats']['domains'].append({
+                    'domain': row[0],
+                    'timestamp': row[2],
+                    'reputation_score': row[3],
+                    'categories': report.get('categories', []) if report else []
+                })
+            except:
+                pass
+    
+    conn.close()
+    
+    # Calculate statistics
+    threat_data['statistics'] = {
+        'total_threats': sum(len(threat_data['threats'][k]) for k in threat_data['threats']),
+        'file_threats': len(threat_data['threats']['files']),
+        'url_threats': len(threat_data['threats']['urls']),
+        'ip_threats': len(threat_data['threats']['ips']),
+        'domain_threats': len(threat_data['threats']['domains'])
+    }
+    
+    # Format output based on requested format
+    if format_type == 'csv':
+        import csv
+        import io
+        
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # Write header
+        writer.writerow(['Type', 'Indicator', 'Timestamp', 'Severity', 'Details'])
+        
+        # Write file threats
+        for threat in threat_data['threats']['files']:
+            writer.writerow(['File', threat['hash'], threat['timestamp'], 
+                           threat['detections'], ','.join(threat.get('threat_names', []))])
+        
+        # Write URL threats
+        for threat in threat_data['threats']['urls']:
+            writer.writerow(['URL', threat['url'], threat['timestamp'],
+                           threat['detections'], ','.join(threat.get('categories', []))])
+        
+        # Write IP threats
+        for threat in threat_data['threats']['ips']:
+            writer.writerow(['IP', threat['ip'], threat['timestamp'],
+                           threat['reputation_score'], threat.get('country', '')])
+        
+        # Write domain threats
+        for threat in threat_data['threats']['domains']:
+            writer.writerow(['Domain', threat['domain'], threat['timestamp'],
+                           threat['reputation_score'], ','.join(threat.get('categories', []))])
+        
+        output.seek(0)
+        return output.getvalue(), 200, {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': f'attachment; filename=threat_feed_{datetime.now().strftime("%Y%m%d")}.csv'
+        }
+    
+    elif format_type == 'ioc':
+        # Export as OpenIOC format (simplified)
+        ioc_output = []
+        
+        for threat in threat_data['threats']['files']:
+            ioc_output.append(f"file:hash:sha256:{threat['hash']}")
+        
+        for threat in threat_data['threats']['urls']:
+            ioc_output.append(f"url:value:{threat['url']}")
+        
+        for threat in threat_data['threats']['ips']:
+            ioc_output.append(f"ip:value:{threat['ip']}")
+        
+        for threat in threat_data['threats']['domains']:
+            ioc_output.append(f"domain:value:{threat['domain']}")
+        
+        return '\n'.join(ioc_output), 200, {
+            'Content-Type': 'text/plain',
+            'Content-Disposition': f'attachment; filename=ioc_feed_{datetime.now().strftime("%Y%m%d")}.txt'
+        }
+    
+    else:
+        # Default to JSON
+        return jsonify(threat_data), 200
 
 @app.route('/api/reputation/ip/<ip>', methods=['GET'])
 def get_ip_reputation(ip):

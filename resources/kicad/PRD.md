@@ -181,3 +181,15 @@
   - ✅ Improved command group registration using cli::register_command_group
   - ✅ All 67/67 tests now passing (increased from 63)
   - ✅ Better user feedback for missing dependencies
+- 2025-01-15: Validation and Tidying (112%)
+  - ✅ Enhanced test cleanup to remove all artifacts (.net, .log files)
+  - ✅ Improved simulation extract path handling (supports relative paths)
+  - ✅ Updated README with clearer installation notes and health monitoring section
+  - ✅ Documented operating modes (Full vs Mock) for clarity
+  - ✅ All tests passing (10 smoke, 18 integration, 39 unit)
+- 2025-09-15: Test Results Persistence Enhancement (113%)
+  - ✅ Added automatic test results persistence to JSON for status reporting
+  - ✅ Fixed outdated test results showing incorrect failures
+  - ✅ Test runner now saves results with proper timestamps
+  - ✅ Status command accurately reflects current test state
+  - ✅ All 67 tests passing with proper reporting

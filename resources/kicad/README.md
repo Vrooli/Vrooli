@@ -39,10 +39,15 @@ vrooli resource kicad manage install
 vrooli resource kicad status
 ```
 
-**Note**: The resource will attempt to automatically install KiCad:
-- **Ubuntu/Debian**: Uses APT and adds KiCad 8.0 PPA for latest version
+**Installation Notes**:
+- **Ubuntu/Debian**: Automatically installs via APT (may require sudo for first-time setup)
 - **macOS**: Uses Homebrew to install KiCad cask
-- **Other**: Provides installation instructions and falls back to mock mode
+- **Mock Mode**: If KiCad cannot be installed, the resource operates in mock mode for development/testing
+- **Full Installation**: For complete functionality, install KiCad manually from https://www.kicad.org/
+
+**Operating Modes**:
+1. **Full Mode**: With KiCad installed - all features available
+2. **Mock Mode**: Without KiCad - development/testing features only, no actual file generation
 
 ### Basic Usage
 ```bash
@@ -287,14 +292,29 @@ KiCad can be integrated with n8n/Huginn for:
 - **pos**: Pick-and-place position files
 - **drill**: Drill and route files
 
+## Health Monitoring
+
+KiCad is a desktop application without a network service, so health checks verify:
+- Installation status (binary availability)
+- Directory structure integrity
+- Configuration validity
+- Python API availability (if KiCad installed)
+
+Health is determined by the ability to execute KiCad commands, not network connectivity.
+
 ## Testing
 
 ```bash
-# Run integration tests
-resource-kicad test
+# Run all tests
+vrooli resource kicad test all
+
+# Run specific test suites
+vrooli resource kicad test smoke       # Quick health check
+vrooli resource kicad test integration # Full functionality
+vrooli resource kicad test unit        # Library functions
 
 # Test results are included in status
-resource-kicad status --format json | jq '.test_status'
+vrooli resource kicad status --format json | jq '.test_status'
 ```
 
 ## Examples

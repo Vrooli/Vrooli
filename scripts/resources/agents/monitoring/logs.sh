@@ -13,23 +13,24 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh"
 #######################################
 # Get logs for an agent using multi-source detection
 # Arguments:
-#   $1 - Configuration array name (passed by reference)
-#   $2 - Agent ID
-#   $3 - Follow mode (true/false)
-#   $4 - Number of lines to show
-#   $5 - JSON output (true/false)
+#   $1 - Registry file path
+#   $2 - Resource name
+#   $3 - Search keywords
+#   $4 - Agent ID
+#   $5 - Follow mode (true/false)
+#   $6 - Number of lines to show
+#   $7 - JSON output (true/false)
 # Returns:
 #   0 on success, 1 on error
 #######################################
 agents::logs::get() {
-    local -n config_ref=$1
-    local agent_id="$2"
-    local follow="$3"
-    local lines="$4"
-    local json_output="$5"
-    local registry_file="${config_ref[registry_file]}"
-    local resource_name="${config_ref[resource_name]}"
-    local search_keywords="${config_ref[search_keywords]}"
+    local registry_file="$1"
+    local resource_name="$2"
+    local search_keywords="$3"
+    local agent_id="$4"
+    local follow="$5"
+    local lines="$6"
+    local json_output="$7"
     
     if [[ -z "$agent_id" ]]; then
         log::error "agents::logs::get: Agent ID required"
@@ -81,7 +82,7 @@ agents::logs::get() {
     fi
     
     # Method 2: Check standard log location
-    if agents::logs::check_standard_location config_ref "$agent_id" "$follow" "$lines" "$json_output"; then
+    if agents::logs::check_standard_location "$registry_file" "$resource_name" "$agent_id" "$pid" "$follow" "$lines" "$json_output"; then
         return 0
     fi
     
@@ -160,21 +161,29 @@ agents::logs::check_stdout_redirect() {
 #######################################
 # Method 2: Check standard log location
 # Arguments:
-#   $1 - Configuration array name (passed by reference)
-#   $2 - Agent ID
-#   $3 - Follow mode
-#   $4 - Lines to show
-#   $5 - JSON output
+#   $1 - Registry file
+#   $2 - Resource name
+#   $3 - Agent ID
+#   $4 - PID
+#   $5 - Follow mode
+#   $6 - Lines to show
+#   $7 - JSON output
 # Returns:
 #   0 if logs found and displayed, 1 if not found
 #######################################
 agents::logs::check_standard_location() {
-    local -n config_ref=$1
-    local agent_id="$2"
-    local follow="$3"
-    local lines="$4"
-    local json_output="$5"
-    local log_directory="${config_ref[log_directory]}"
+    local registry_file="$1"
+    local resource_name="$2"
+    local agent_id="$3"
+    local pid="$4"
+    local follow="$5"
+    local lines="$6"
+    local json_output="$7"
+    
+    # Derive log directory from registry file path
+    local base_dir
+    base_dir=$(dirname "$registry_file")
+    local log_directory="${base_dir}/logs/resources/${resource_name}"
     
     local log_file="${log_directory}/${agent_id}.log"
     if [[ -f "$log_file" ]]; then

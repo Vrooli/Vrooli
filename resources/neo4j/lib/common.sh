@@ -10,20 +10,14 @@ NEO4J_RESOURCE_DIR="${APP_ROOT}/resources/neo4j"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${APP_ROOT}/scripts/lib/utils/format.sh"
 
-# Neo4j configuration
-export NEO4J_CONTAINER_NAME="vrooli-neo4j"
-export NEO4J_VERSION="5.15.0"
-export NEO4J_HTTP_PORT="7474"
-export NEO4J_BOLT_PORT="7687"
-export NEO4J_DATA_DIR="${var_ROOT_DIR}/data/resources/neo4j/data"
-export NEO4J_LOGS_DIR="${var_ROOT_DIR}/data/resources/neo4j/logs"
-export NEO4J_IMPORT_DIR="${var_ROOT_DIR}/data/resources/neo4j/import"
-export NEO4J_PLUGINS_DIR="${var_ROOT_DIR}/data/resources/neo4j/plugins"
-export NEO4J_CONF_DIR="${var_ROOT_DIR}/data/resources/neo4j/conf"
-export NEO4J_AUTH="neo4j/VrooliNeo4j2024!"
+# Source all configuration from defaults.sh to avoid duplication
+# This ensures single source of truth for all Neo4j configuration
+if [[ -f "${NEO4J_RESOURCE_DIR}/config/defaults.sh" ]]; then
+    source "${NEO4J_RESOURCE_DIR}/config/defaults.sh"
+fi
 
-# Docker image
-export NEO4J_IMAGE="neo4j:${NEO4J_VERSION}"
-
-# Max heap size
-export NEO4J_HEAP_SIZE="512M"
+# Verify critical variables are set
+if [[ -z "${NEO4J_HTTP_PORT}" ]] || [[ -z "${NEO4J_BOLT_PORT}" ]]; then
+    echo "ERROR: Neo4j ports not configured. Check config/defaults.sh" >&2
+    exit 1
+fi

@@ -36,10 +36,11 @@ neo4j_inject() {
     # Copy file to injected directory
     cp "$file_path" "$injected_dir/$filename"
     
-    # Execute Cypher file
+    # Execute Cypher file (use password from NEO4J_AUTH environment variable)
+    local password="${NEO4J_AUTH#*/}"  # Extract password from neo4j/password format
     echo "Injecting Cypher queries from $filename..."
     cat "$file_path" | docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
-        -u neo4j -p "VrooliNeo4j2024!" \
+        -u neo4j -p "$password" \
         --format plain || {
         echo "Error: Failed to execute Cypher queries"
         return 1
@@ -74,9 +75,10 @@ neo4j_query() {
         return 1
     fi
     
-    # Execute query
+    # Execute query (use password from NEO4J_AUTH environment variable)
+    local password="${NEO4J_AUTH#*/}"  # Extract password from neo4j/password format
     echo "$query" | docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
-        -u neo4j -p "VrooliNeo4j2024!" \
+        -u neo4j -p "$password" \
         --format plain || {
         echo "Error: Failed to execute query"
         return 1

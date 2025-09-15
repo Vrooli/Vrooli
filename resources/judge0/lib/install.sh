@@ -201,6 +201,7 @@ services:
     image: ${JUDGE0_IMAGE}:${JUDGE0_VERSION}
     command: ["./scripts/workers"]
     restart: unless-stopped
+    privileged: true
     environment:
       - JUDGE0_AUTHENTICATION_TOKEN=${JUDGE0_API_KEY}
       - ENABLE_NETWORK=${JUDGE0_ENABLE_NETWORK}
@@ -220,6 +221,7 @@ services:
     volumes:
       - ${JUDGE0_VOLUME_NAME}:/var/judge0
       - ${JUDGE0_SUBMISSIONS_DIR}:/judge0/submissions
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - ${JUDGE0_NETWORK_NAME}
     depends_on:

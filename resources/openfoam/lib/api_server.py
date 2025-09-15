@@ -129,9 +129,24 @@ def run_solver():
     if not os.path.exists(case_path):
         return jsonify({'error': f'Case {case_name} not found'}), 404
     
-    # Run solver in background for long simulations
-    def run_solver_async():
+    # Check and fix solver configuration if needed
+    def prepare_and_run_solver():
+        # First check if case is properly configured
+        fv_solution = os.path.join(case_path, 'system/fvSolution')
+        
+        # For icoFoam, ensure PISO configuration exists
+        if solver == 'icoFoam' and os.path.exists(fv_solution):
+            with open(fv_solution, 'r') as f:
+                content = f.read()
+            if 'PISO' not in content and 'PIMPLE' in content:
+                # Replace PIMPLE with PISO for icoFoam
+                content = content.replace('PIMPLE', 'PISO')
+                with open(fv_solution, 'w') as f:
+                    f.write(content)
+        
+        # Run the solver
         success, stdout, stderr = run_openfoam_command(solver, cwd=case_path)
+        
         # Save results
         result_file = os.path.join(RESULTS_DIR, f"{case_name}_result.json")
         with open(result_file, 'w') as f:
@@ -139,10 +154,14 @@ def run_solver():
                 'success': success,
                 'solver': solver,
                 'output': stdout,
-                'errors': stderr
+                'errors': stderr,
+                'timestamp': int(time.time())
             }, f)
+        
+        return success
     
-    thread = threading.Thread(target=run_solver_async)
+    # Run solver in background for long simulations
+    thread = threading.Thread(target=prepare_and_run_solver)
     thread.start()
     
     return jsonify({

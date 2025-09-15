@@ -59,6 +59,24 @@ main() {
             handle_content "$@"
             ;;
             
+        # ACME Commands
+        acme)
+            handle_acme "$@"
+            ;;
+            
+        # Database Commands
+        database|db)
+            handle_database "$@"
+            ;;
+        
+        # Convenience shortcuts for database operations
+        enable-postgres)
+            enable_postgres_backend "$@"
+            ;;
+        migrate-to-postgres)
+            migrate_to_postgres "$@"
+            ;;
+            
         # Legacy support
         install|uninstall|start|stop|restart)
             echo "ℹ️  Please use 'resource-$RESOURCE_NAME manage $command' instead"
@@ -85,7 +103,9 @@ show_help() {
     Private certificate authority with ACME protocol support
 
 🎯 COMMAND GROUPS:
+    acme                 🔒 ACME protocol operations
     content              📄 Certificate management
+    database             🗄️  Database backend management
     manage               ⚙️  Resource lifecycle management
     test                 🧪 Testing and validation
 
@@ -182,6 +202,32 @@ handle_test() {
     esac
 }
 
+# Handle database subcommands
+handle_database() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        enable)
+            enable_postgres_backend "$@"
+            ;;
+        migrate)
+            migrate_to_postgres "$@"
+            ;;
+        status)
+            show_database_status "$@"
+            ;;
+        --help|-h|"")
+            show_database_help
+            ;;
+        *)
+            echo "❌ Unknown database subcommand: $subcommand"
+            show_database_help
+            exit 1
+            ;;
+    esac
+}
+
 # Handle content subcommands
 handle_content() {
     local subcommand="${1:-}"
@@ -262,6 +308,49 @@ OPTIONS:
 EXAMPLES:
     resource-$RESOURCE_NAME test smoke
     resource-$RESOURCE_NAME test all --verbose
+EOF
+}
+
+# Show database help
+show_database_help() {
+    cat <<EOF
+🗄️  Database Commands - Backend storage management
+
+USAGE:
+    resource-$RESOURCE_NAME database <subcommand> [options]
+
+SUBCOMMANDS:
+    enable               Enable PostgreSQL backend for certificate storage
+    migrate              Migrate from file-based to PostgreSQL backend
+    status               Show current database backend status
+
+SHORTCUTS:
+    resource-$RESOURCE_NAME enable-postgres     # Same as 'database enable'
+    resource-$RESOURCE_NAME migrate-to-postgres # Same as 'database migrate'
+
+OPTIONS:
+    --force              Skip confirmation prompts
+    --keep-backup        Keep backup of old data after migration
+
+BENEFITS OF POSTGRESQL BACKEND:
+    ✅ Better certificate tracking and querying
+    ✅ Scalable to millions of certificates
+    ✅ Support for certificate revocation lists
+    ✅ Enhanced audit logging capabilities
+    ✅ Multi-instance support with shared database
+    ✅ Automatic backup and recovery
+
+EXAMPLES:
+    # Enable PostgreSQL backend
+    resource-$RESOURCE_NAME database enable
+    
+    # Check backend status
+    resource-$RESOURCE_NAME database status
+    
+    # Migrate existing certificates
+    resource-$RESOURCE_NAME database migrate --keep-backup
+
+NOTE: PostgreSQL resource must be running before enabling database backend.
 EOF
 }
 

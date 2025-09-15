@@ -59,25 +59,30 @@ async function loadDetailedMetrics() {
     for (const agent of allAgents) {
         try {
             const metrics = await window.agentAPI.fetchAgentMetrics(agent.id);
-            metricsData[agent.id] = metrics;
+            metricsData[agent.id] = processMetricsData(metrics);
         } catch (error) {
             console.error(`Failed to load metrics for agent ${agent.id}:`, error);
-            metricsData[agent.id] = generateMockMetrics();
+            // Use empty metrics on error
+            metricsData[agent.id] = processMetricsData({});
         }
     }
 }
 
-function generateMockMetrics() {
-    // Generate realistic mock metrics for demonstration
+function processMetricsData(metrics) {
+    // Process and normalize metrics data from backend
     return {
-        cpu_usage: Math.floor(Math.random() * 80),
-        memory_mb: 50 + Math.floor(Math.random() * 200),
-        response_time_ms: 20 + Math.floor(Math.random() * 100),
-        tasks_total: 100 + Math.floor(Math.random() * 500),
-        tasks_completed: 95 + Math.floor(Math.random() * 400),
-        tasks_failed: Math.floor(Math.random() * 10),
-        success_rate: 90 + Math.floor(Math.random() * 10),
-        api_calls: 1000 + Math.floor(Math.random() * 5000)
+        cpu_usage: metrics.cpu_usage || 0,
+        memory_mb: metrics.memory_mb || 0,
+        io_read_bytes: metrics.io_read_bytes || 0,
+        io_write_bytes: metrics.io_write_bytes || 0,
+        thread_count: metrics.thread_count || 1,
+        fd_count: metrics.fd_count || 0,
+        response_time_ms: metrics.response_time_ms || 0,
+        tasks_total: metrics.tasks_total || 0,
+        tasks_completed: metrics.tasks_completed || 0,
+        tasks_failed: metrics.tasks_failed || 0,
+        success_rate: metrics.success_rate || 0,
+        api_calls: metrics.api_calls || 0
     };
 }
 
@@ -136,6 +141,10 @@ function renderPerformanceTable() {
         const metrics = metricsData[agent.id] || {};
         const row = document.createElement('tr');
         
+        // Format IO stats for display
+        const ioReadMB = ((metrics.io_read_bytes || 0) / (1024 * 1024)).toFixed(1);
+        const ioWriteMB = ((metrics.io_write_bytes || 0) / (1024 * 1024)).toFixed(1);
+        
         row.innerHTML = `
             <td class="agent-name-cell">
                 <i data-lucide="bot"></i>
@@ -143,15 +152,15 @@ function renderPerformanceTable() {
             </td>
             <td>
                 <div class="cpu-indicator ${getCpuClass(metrics.cpu_usage)}">
-                    ${metrics.cpu_usage || 0}%
+                    ${(metrics.cpu_usage || 0).toFixed(1)}%
                 </div>
             </td>
-            <td>${metrics.memory_mb || 0} MB</td>
-            <td>${metrics.tasks_completed || 0}/${metrics.tasks_total || 0}</td>
-            <td>
-                <div class="success-indicator ${getSuccessClass(metrics.success_rate)}">
-                    ${metrics.success_rate || 0}%
-                </div>
+            <td>${(metrics.memory_mb || 0).toFixed(1)} MB</td>
+            <td title="Threads: ${metrics.thread_count || 1}, FDs: ${metrics.fd_count || 0}">
+                T:${metrics.thread_count || 1} / FD:${metrics.fd_count || 0}
+            </td>
+            <td title="Read: ${ioReadMB}MB, Write: ${ioWriteMB}MB">
+                ↓${ioReadMB} / ↑${ioWriteMB} MB
             </td>
         `;
         

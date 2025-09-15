@@ -11,14 +11,46 @@ vrooli resource postgis status
 # Start PostGIS if not running
 vrooli resource postgis start
 
-# Inject spatial SQL queries
-vrooli resource postgis inject /path/to/spatial.sql
+# Import spatial data (SQL format - recommended)
+vrooli resource postgis content add /path/to/spatial.sql
 
-# Import geographic data
-vrooli resource postgis import-shapefile /path/to/data.shp
+# Import GIS formats (when ogr2ogr available)
+vrooli resource postgis content import-shapefile /path/to/data.shp
+vrooli resource postgis content import-geojson /path/to/data.geojson
+vrooli resource postgis content import-kml /path/to/data.kml
+vrooli resource postgis content import-gis /path/to/data.gpx  # Auto-detects format
 
 # View example queries
 vrooli resource postgis examples
+```
+
+## Data Import
+
+PostGIS supports importing various GIS formats:
+
+### SQL Import (Recommended)
+The most reliable method for importing spatial data:
+```bash
+# Import SQL file with PostGIS geometries
+vrooli resource postgis content add /path/to/spatial.sql
+```
+
+### GIS Format Import
+When ogr2ogr is available, these formats are supported:
+- **Shapefile** (.shp) - Common GIS vector format
+- **GeoJSON** (.geojson, .json) - Web-friendly format
+- **KML/KMZ** (.kml, .kmz) - Google Earth format
+- **GPX** (.gpx) - GPS track format
+- **CSV** - With longitude/latitude columns
+
+```bash
+# Auto-detect format and import
+vrooli resource postgis content import-gis /path/to/data.geojson
+
+# Format-specific commands
+vrooli resource postgis content import-shapefile cities.shp
+vrooli resource postgis content import-geojson boundaries.geojson
+vrooli resource postgis content import-kml locations.kml
 ```
 
 ## Advanced Features (P2 Capabilities)

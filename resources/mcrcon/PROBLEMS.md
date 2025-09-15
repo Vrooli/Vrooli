@@ -5,7 +5,7 @@
 ### 1. Stop Command Not Working Properly
 **Issue**: The `manage stop` command wasn't properly stopping the health service.
 **Root Cause**: The pgrep pattern `health_server.py.*mcrcon` was too specific and didn't match the running process.
-**Solution**: Changed pattern to just `health_server.py` and added better error handling.
+**Solution**: Changed to use `ss -tlnp` to find process by port, added proper wait for termination, and force kill if needed.
 **Status**: Fixed ✅
 
 ### 2. Shellcheck Warnings in Scripts
@@ -19,6 +19,12 @@
 **Root Cause**: These were template leftovers that weren't actually needed.
 **Solution**: Left as-is for consistency with other resources, may be used in future.
 **Status**: Noted ⚠️
+
+### 4. Restart Command Timing Issues
+**Issue**: The `manage restart` command was failing with "Address already in use" error.
+**Root Cause**: The health server Python script didn't have SO_REUSEADDR set, causing port binding issues after stop.
+**Solution**: Added ReuseAddrTCPServer class with allow_reuse_address=True to the health server.
+**Status**: Fixed ✅
 
 ## Validation Status
 
@@ -42,7 +48,7 @@ These features are implemented but cannot be fully tested without a running Mine
 
 ## Recommendations for Future Improvements
 
-1. **Mock Server for Testing**: Create a mock RCON server for integration testing without requiring actual Minecraft.
+1. **Mock Server Protocol Compatibility**: The created mock RCON server needs full protocol implementation to work with the actual mcrcon binary. Current implementation has basic structure but needs packet format refinement.
 
 2. **Better Error Messages**: When MCRCON_PASSWORD is not set, provide more helpful guidance on configuration.
 
@@ -51,3 +57,5 @@ These features are implemented but cannot be fully tested without a running Mine
 4. **Event Buffering**: Add event buffering for webhook integration to handle temporary network issues.
 
 5. **Configuration Validation**: Add more robust validation for server configurations in JSON.
+
+6. **Docker-based Testing**: Consider using docker-minecraft-server for integration testing with a real Minecraft server.

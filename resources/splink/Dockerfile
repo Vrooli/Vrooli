@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     gcc \
     g++ \
-    openjdk-11-jre-headless \
+    default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages including PySpark
@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir \
     pandas==2.1.4 \
     pyarrow==14.0.2 \
     plotly==5.18.0 \
-    redis==5.0.1 \
+    redis[hiredis]==5.0.1 \
     psycopg2-binary==2.9.9 \
     boto3==1.34.0 \
     pyspark==3.5.0

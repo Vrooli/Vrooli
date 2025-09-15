@@ -31,8 +31,9 @@ EOF
     echo "Calculating: $expression"
     local output=$(docker exec "$SAGEMATH_CONTAINER_NAME" sage "/home/sage/scripts/$(basename "$temp_script")" 2>&1)
     
-    # Clean up
+    # Clean up temp files (both .sage and .sage.py)
     rm -f "$temp_script"
+    rm -f "${temp_script}.py"
     
     # Display result
     echo "$output"

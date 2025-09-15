@@ -57,6 +57,9 @@ main() {
         job-status)
             octoprint_job_status
             ;;
+        connect-printer)
+            octoprint_connect_virtual_printer
+            ;;
         *)
             echo "Error: Unknown command '${command}'"
             show_help
@@ -102,6 +105,7 @@ Commands:
     resume            Resume paused print
     cancel            Cancel print job
   job-status          Show current print job status
+  connect-printer     Connect to virtual/physical printer
 
 Environment Variables:
   OCTOPRINT_PORT              Web interface port (default: 8197)

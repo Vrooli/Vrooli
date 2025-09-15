@@ -87,7 +87,24 @@ async def health_check() -> Dict[str, Any]:
 @app.get("/nodes")
 async def list_nodes() -> Dict[str, Any]:
     """List active ROS2 nodes"""
-    # In real implementation, would query actual ROS2 nodes
+    # Try to get actual ROS2 nodes if available
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            result = subprocess.run(
+                ["docker", "exec", "vrooli-ros2", "ros2", "node", "list"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                nodes = [n.strip() for n in result.stdout.strip().split("\n") if n.strip()]
+                return {"nodes": nodes, "count": len(nodes)}
+    except Exception:
+        pass
+    
+    # Fallback to simulated state
     return {
         "nodes": list(ros2_state["nodes"].keys()),
         "count": len(ros2_state["nodes"])
@@ -123,7 +140,24 @@ async def stop_node(node_id: str) -> Dict[str, Any]:
 @app.get("/topics")
 async def list_topics() -> Dict[str, Any]:
     """List available ROS2 topics"""
-    # In real implementation, would query actual ROS2 topics
+    # Try to get actual ROS2 topics if available
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            result = subprocess.run(
+                ["docker", "exec", "vrooli-ros2", "ros2", "topic", "list"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                topics = [t.strip() for t in result.stdout.strip().split("\n") if t.strip()]
+                return {"topics": topics, "count": len(topics)}
+    except Exception:
+        pass
+    
+    # Fallback to simulated state
     return {
         "topics": list(ros2_state["topics"].keys()),
         "count": len(ros2_state["topics"])
@@ -193,11 +227,23 @@ def check_ros2_availability() -> bool:
     try:
         # Check if ROS2 environment is sourced
         ros_distro = os.environ.get("ROS_DISTRO")
-        if not ros_distro:
-            return False
         
-        # In real implementation, would check actual ROS2 daemon
-        return True
+        # Check if we're using Docker
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        
+        if use_docker:
+            # Check if Docker container is running
+            import subprocess
+            result = subprocess.run(
+                ["docker", "ps", "--filter", "name=vrooli-ros2", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            return "vrooli-ros2" in result.stdout
+        else:
+            # Check native installation
+            return ros_distro is not None
     except Exception:
         return False
 

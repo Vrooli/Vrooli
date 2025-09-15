@@ -16,6 +16,7 @@ SAGEMATH_SCRIPTS_DIR="${SAGEMATH_DATA_DIR}/scripts"
 SAGEMATH_NOTEBOOKS_DIR="${SAGEMATH_DATA_DIR}/notebooks"
 SAGEMATH_OUTPUTS_DIR="${SAGEMATH_DATA_DIR}/outputs"
 SAGEMATH_CONFIG_DIR="${SAGEMATH_DATA_DIR}/config"
+SAGEMATH_CACHE_DIR="${SAGEMATH_DATA_DIR}/cache"
 
 # Resource metadata
 SAGEMATH_RESOURCE_NAME="sagemath"
@@ -28,6 +29,7 @@ sagemath_ensure_directories() {
     mkdir -p "$SAGEMATH_NOTEBOOKS_DIR"
     mkdir -p "$SAGEMATH_OUTPUTS_DIR"
     mkdir -p "$SAGEMATH_CONFIG_DIR"
+    mkdir -p "$SAGEMATH_CACHE_DIR"
 }
 
 # Check if container exists

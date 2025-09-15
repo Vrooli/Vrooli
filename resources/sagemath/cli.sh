@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SAGEMATH_CLI_DIR}/config/defaults.sh"
 
 # Source SageMath libraries
-for lib in common docker install status content test health mathematics gpu; do
+for lib in common docker install status content test health mathematics gpu export; do
     lib_file="${SAGEMATH_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -124,6 +124,59 @@ cli::register_command "limit" "Calculate limits" "sagemath::math::limit"
 cli::register_command "series" "Series expansions" "sagemath::math::series"
 
 # ==============================================================================
+# CACHE MANAGEMENT COMMANDS
+# ==============================================================================
+cli::register_command "cache" "Cache management operations" "sagemath::cache"
+cli::register_subcommand "cache" "clear" "Clear all cached results" "sagemath::cache::clear"
+cli::register_subcommand "cache" "stats" "Show cache statistics" "sagemath::cache::stats"
+
+# Register cache handlers
+CLI_COMMAND_HANDLERS["cache::clear"]="sagemath::cache::clear"
+CLI_COMMAND_HANDLERS["cache::stats"]="sagemath::cache::stats"
+
+# ==============================================================================
+# VISUALIZATION COMMANDS
+# ==============================================================================
+cli::register_command "plot" "Create mathematical plots" "sagemath::plot"
+cli::register_subcommand "plot" "2d" "Create 2D plot" "sagemath::plot::2d"
+cli::register_subcommand "plot" "3d" "Create 3D plot" "sagemath::plot::3d"
+cli::register_subcommand "plot" "parametric" "Create parametric plot" "sagemath::plot::parametric"
+cli::register_subcommand "plot" "polar" "Create polar plot" "sagemath::plot::polar"
+
+# Register plot handlers
+CLI_COMMAND_HANDLERS["plot::2d"]="sagemath::plot::2d"
+CLI_COMMAND_HANDLERS["plot::3d"]="sagemath::plot::3d"
+CLI_COMMAND_HANDLERS["plot::parametric"]="sagemath::plot::parametric"
+CLI_COMMAND_HANDLERS["plot::polar"]="sagemath::plot::polar"
+
+# Register export command and subcommands
+cli::register_command "export" "Export mathematical expressions" "sagemath::export"
+cli::register_subcommand "export" "latex" "Export to LaTeX format" "sagemath::export::latex"
+cli::register_subcommand "export" "mathml" "Export to MathML format" "sagemath::export::mathml"
+cli::register_subcommand "export" "image" "Render equation to PNG image" "sagemath::export::image"
+cli::register_subcommand "export" "all" "Export to all formats" "sagemath::export::all"
+cli::register_subcommand "export" "formats" "List available formats" "sagemath::export::formats"
+
+# Register export handlers
+CLI_COMMAND_HANDLERS["export::latex"]="sagemath::export::latex"
+CLI_COMMAND_HANDLERS["export::mathml"]="sagemath::export::mathml"
+CLI_COMMAND_HANDLERS["export::image"]="sagemath::export::image"
+CLI_COMMAND_HANDLERS["export::all"]="sagemath::export::all"
+CLI_COMMAND_HANDLERS["export::formats"]="sagemath::export::formats"
+
+# ==============================================================================
+# EXPORT HANDLER FUNCTIONS
+# ==============================================================================
+sagemath::export() {
+    echo "Export operations:"
+    echo "  latex   - Export to LaTeX format"
+    echo "  mathml  - Export to MathML format"
+    echo "  image   - Render equation to PNG image"
+    echo "  all     - Export to all formats"
+    echo "  formats - List available export formats"
+}
+
+# ==============================================================================
 # GPU HANDLER FUNCTIONS
 # ==============================================================================
 sagemath::gpu() {
@@ -153,6 +206,44 @@ sagemath::gpu::compute() {
 
 sagemath::gpu::benchmark() {
     "${SAGEMATH_CLI_DIR}/lib/gpu.sh" benchmark
+}
+
+# ==============================================================================
+# CACHE HANDLER FUNCTIONS
+# ==============================================================================
+sagemath::cache() {
+    echo "Cache management operations:"
+    echo "  clear  - Clear all cached results"
+    echo "  stats  - Show cache statistics"
+}
+
+sagemath::cache::clear() {
+    echo "Clearing SageMath calculation cache..."
+    local cache_dir="/home/matthalloran8/Vrooli/data/resources/sagemath/cache"
+    if [ -d "$cache_dir" ]; then
+        local count=$(find "$cache_dir" -name "*.cache" -type f 2>/dev/null | wc -l)
+        rm -f "$cache_dir"/*.cache 2>/dev/null || true
+        echo "✅ Cleared $count cached results"
+    else
+        echo "✅ No cache to clear"
+    fi
+}
+
+sagemath::cache::stats() {
+    local cache_dir="/home/matthalloran8/Vrooli/data/resources/sagemath/cache"
+    if [ -d "$cache_dir" ]; then
+        local count=$(find "$cache_dir" -name "*.cache" -type f 2>/dev/null | wc -l)
+        local size=$(du -sh "$cache_dir" 2>/dev/null | cut -f1)
+        local fresh=$(find "$cache_dir" -name "*.cache" -type f -mmin -60 2>/dev/null | wc -l)
+        local stale=$(find "$cache_dir" -name "*.cache" -type f -mmin +60 2>/dev/null | wc -l)
+        echo "Cache Statistics:"
+        echo "  Total entries: $count"
+        echo "  Fresh (<1hr): $fresh"
+        echo "  Stale (>1hr): $stale"
+        echo "  Total size: $size"
+    else
+        echo "Cache not initialized"
+    fi
 }
 
 # ==============================================================================
@@ -200,6 +291,125 @@ for r in results:
     
     "${SAGEMATH_CLI_DIR}/lib/gpu.sh" parallel "$test_code" 4
     echo "Parallel processing test complete!"
+}
+
+# ==============================================================================
+# PLOT HANDLER FUNCTIONS
+# ==============================================================================
+sagemath::plot() {
+    echo "Plot creation operations:"
+    echo "  2d         - Create 2D plot"
+    echo "  3d         - Create 3D plot"
+    echo "  parametric - Create parametric plot"
+    echo "  polar      - Create polar plot"
+}
+
+sagemath::plot::2d() {
+    local expression="${1:-}"
+    local xmin="${2:--5}"
+    local xmax="${3:-5}"
+    local title="${4:-2D Plot}"
+    
+    if [[ -z "$expression" ]]; then
+        echo "Usage: resource-sagemath plot 2d \"expression\" [xmin] [xmax] [title]"
+        echo "Example: resource-sagemath plot 2d \"sin(x) + cos(2*x)\" -pi pi \"Trig Functions\""
+        return 1
+    fi
+    
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/plot_2d_${timestamp}.png"
+    
+    local code="
+import matplotlib
+matplotlib.use('Agg')
+p = plot($expression, (x, $xmin, $xmax), title='$title', legend_label='f(x)')
+p.save('$output_file')
+print('Plot saved to: $output_file')
+"
+    sagemath::content::calculate "$code"
+    echo "📊 Plot saved: $output_file"
+}
+
+sagemath::plot::3d() {
+    local expression="${1:-}"
+    local xrange="${2:-(-5,5)}"
+    local yrange="${3:-(-5,5)}"
+    local title="${4:-3D Plot}"
+    
+    if [[ -z "$expression" ]]; then
+        echo "Usage: resource-sagemath plot 3d \"expression\" [xrange] [yrange] [title]"
+        echo "Example: resource-sagemath plot 3d \"x^2 + y^2\" \"(-3,3)\" \"(-3,3)\" \"Paraboloid\""
+        return 1
+    fi
+    
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/plot_3d_${timestamp}.png"
+    
+    local code="
+import matplotlib
+matplotlib.use('Agg')
+var('x,y')
+p = plot3d($expression, (x, $xrange), (y, $yrange))
+p.save('$output_file')
+print('3D plot saved to: $output_file')
+"
+    sagemath::content::calculate "$code"
+    echo "📊 3D plot saved: $output_file"
+}
+
+sagemath::plot::parametric() {
+    local x_expr="${1:-}"
+    local y_expr="${2:-}"
+    local tmin="${3:-0}"
+    local tmax="${4:-2*pi}"
+    local title="${5:-Parametric Plot}"
+    
+    if [[ -z "$x_expr" ]] || [[ -z "$y_expr" ]]; then
+        echo "Usage: resource-sagemath plot parametric \"x(t)\" \"y(t)\" [tmin] [tmax] [title]"
+        echo "Example: resource-sagemath plot parametric \"cos(t)\" \"sin(t)\" 0 \"2*pi\" \"Circle\""
+        return 1
+    fi
+    
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/plot_parametric_${timestamp}.png"
+    
+    local code="
+import matplotlib
+matplotlib.use('Agg')
+var('t')
+p = parametric_plot(($x_expr, $y_expr), (t, $tmin, $tmax), title='$title')
+p.save('$output_file')
+print('Parametric plot saved to: $output_file')
+"
+    sagemath::content::calculate "$code"
+    echo "📊 Parametric plot saved: $output_file"
+}
+
+sagemath::plot::polar() {
+    local r_expr="${1:-}"
+    local theta_min="${2:-0}"
+    local theta_max="${3:-2*pi}"
+    local title="${4:-Polar Plot}"
+    
+    if [[ -z "$r_expr" ]]; then
+        echo "Usage: resource-sagemath plot polar \"r(theta)\" [theta_min] [theta_max] [title]"
+        echo "Example: resource-sagemath plot polar \"1 + cos(theta)\" 0 \"2*pi\" \"Cardioid\""
+        return 1
+    fi
+    
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local output_file="/home/matthalloran8/Vrooli/data/resources/sagemath/outputs/plot_polar_${timestamp}.png"
+    
+    local code="
+import matplotlib
+matplotlib.use('Agg')
+var('theta')
+p = polar_plot($r_expr, (theta, $theta_min, $theta_max), title='$title')
+p.save('$output_file')
+print('Polar plot saved to: $output_file')
+"
+    sagemath::content::calculate "$code"
+    echo "📊 Polar plot saved: $output_file"
 }
 
 # Only execute if script is run directly (not sourced)

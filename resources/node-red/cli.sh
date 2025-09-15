@@ -12,13 +12,10 @@
 
 set -euo pipefail
 
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
-# Handle symlinks for installed CLI
-if [[ -L "${BASH_SOURCE[0]}" ]]; then
-    NODE_RED_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
-    APP_ROOT="$(builtin cd "${NODE_RED_CLI_SCRIPT%/*}/../.." && builtin pwd)"
-fi
-NODE_RED_CLI_DIR="${APP_ROOT}/resources/node-red"
+# Determine the actual directory of this script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+NODE_RED_CLI_DIR="$SCRIPT_DIR"
 
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/var.sh"

@@ -74,12 +74,26 @@ vrooli resource gridlabd content execute \
 
 The GridLAB-D resource exposes a REST API on port 9511:
 
+### Core Endpoints
 - `GET /health` - Service health check
 - `GET /version` - GridLAB-D version information
+- `GET /examples` - List available example models
 - `POST /simulate` - Execute simulation model
 - `POST /powerflow` - Run power flow analysis
 - `GET /results/{id}` - Retrieve simulation results
 - `POST /validate` - Validate GLM model syntax
+- `GET /dashboard` - Interactive visualization dashboard
+
+### DER Analysis Endpoints
+- `POST /der/analyze` - Analyze distributed energy resource impact
+- `POST /der/optimize` - Optimize DER placement and sizing
+- `POST /der/demand_response` - Simulate demand response programs
+
+### Market Simulation Endpoints
+- `POST /market/simulate` - Run day-ahead energy market
+- `POST /market/transactive` - Simulate peer-to-peer energy trading
+- `POST /market/ancillary` - Ancillary services market simulation
+- `POST /market/capacity` - Capacity market auction simulation
 
 ## Configuration
 
@@ -94,11 +108,26 @@ Environment variables:
 
 The resource includes several example models:
 
+### Traditional Grid Models
 - **IEEE Test Feeders**: Standard IEEE 4, 13, 34, 37, 123 bus test systems
 - **Residential Models**: Typical residential distribution feeders
 - **Commercial Models**: Commercial building and campus grids
 - **Microgrid Models**: Islanded and grid-connected microgrids
-- **Market Models**: Transactive energy and demand response
+
+### Distributed Energy Resources
+- **der_solar**: Solar PV system with inverter integration
+- **der_battery**: Battery energy storage system (BESS)
+- **der_ev_charging**: Electric vehicle charging stations (Level 2 and DC fast)
+- **der_microgrid**: Complete microgrid with solar, battery, and backup generation
+
+## Visualization Dashboard
+
+Access the interactive dashboard at `http://localhost:9511/dashboard` for:
+- Real-time grid monitoring
+- Power flow visualization
+- DER impact analysis
+- Market price charts
+- Voltage profile monitoring
 
 ## Integration with Vrooli
 

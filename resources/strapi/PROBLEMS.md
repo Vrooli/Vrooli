@@ -94,6 +94,67 @@ vrooli resource strapi manage install
 - Use development mode for faster iteration
 - Consider using Docker pre-built images
 
+## Storage Issues
+
+### MinIO Connection Failed
+**Problem**: S3 storage enable fails with connection error
+**Solution**: Ensure MinIO is running and accessible
+```bash
+# Start MinIO
+vrooli resource minio manage start
+
+# Test MinIO connection
+curl -I http://localhost:9000/minio/health/live
+
+# Then enable storage
+vrooli resource strapi storage enable
+```
+
+### S3 Bucket Creation Failed
+**Problem**: Cannot create or access S3 bucket
+**Solution**: Check MinIO credentials and permissions
+```bash
+# Verify MinIO credentials match
+export MINIO_ACCESS_KEY=minioadmin
+export MINIO_SECRET_KEY=minioadmin
+
+# Test storage integration
+vrooli resource strapi storage test
+```
+
+## Backup/Restore Issues
+
+### Backup Fails - Database Export
+**Problem**: pg_dump command not found
+**Solution**: Use Docker-based backup or install PostgreSQL client
+```bash
+# Install PostgreSQL client
+sudo apt-get install postgresql-client
+
+# Or use Docker if PostgreSQL is containerized
+docker exec postgres pg_dump -U postgres strapi > backup.sql
+```
+
+### Restore Fails - Permission Denied
+**Problem**: Cannot write to restore directories
+**Solution**: Check file permissions and ownership
+```bash
+# Fix permissions
+chmod 755 /app/public/uploads
+chown -R $USER:$USER /app
+```
+
+### Scheduled Backups Not Running
+**Problem**: Cron job not executing
+**Solution**: Verify crontab entry and script permissions
+```bash
+# Check crontab
+crontab -l | grep strapi
+
+# Test backup script manually
+~/.vrooli/backups/strapi/auto-backup.sh
+```
+
 ## Troubleshooting Commands
 
 ```bash

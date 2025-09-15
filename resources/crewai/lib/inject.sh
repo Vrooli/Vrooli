@@ -8,7 +8,7 @@ INJECT_LIB_DIR="${APP_ROOT}/resources/crewai/lib"
 # Source utilities and core
 source "${INJECT_LIB_DIR}/core.sh"
 source "${INJECT_LIB_DIR}/status.sh"
-source "${INJECT_LIB_DIR}/agents.sh"
+# Agent management is now handled via unified system (see cli.sh)
 
 # Show usage
 show_usage() {

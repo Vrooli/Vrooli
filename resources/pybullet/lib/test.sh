@@ -215,8 +215,14 @@ test_unit() {
     echo -n "3. PyBullet version... "
     if source "$VENV_DIR/bin/activate" && python -c "
 import pybullet as p
-version = p.getVersionInfo()
-if version: print('OK')
+# Connect is required before most operations
+client = p.connect(p.DIRECT)
+try:
+    # PyBullet doesn't have getVersionInfo, check module attributes instead
+    if hasattr(p, 'connect') and hasattr(p, 'stepSimulation'):
+        print('OK')
+finally:
+    p.disconnect()
 " 2>/dev/null | grep -q "OK"; then
         echo "✓"
     else

@@ -31,17 +31,15 @@
       "properties": {
         "http": {
           "type": "integer",
-          "description": "HTTP browser port",
+          "description": "HTTP browser port (from port registry)",
           "minimum": 1024,
-          "maximum": 65535,
-          "default": 7474
+          "maximum": 65535
         },
         "bolt": {
           "type": "integer",
-          "description": "Bolt protocol port",
+          "description": "Bolt protocol port (from port registry)",
           "minimum": 1024,
-          "maximum": 65535,
-          "default": 7687
+          "maximum": 65535
         }
       }
     },
@@ -56,9 +54,8 @@
         },
         "password": {
           "type": "string",
-          "description": "Admin password",
-          "minLength": 8,
-          "default": "VrooliNeo4j2024!"
+          "description": "Admin password (from environment variable)",
+          "minLength": 8
         }
       }
     },

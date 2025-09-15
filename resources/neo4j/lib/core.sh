@@ -45,9 +45,16 @@ neo4j_query() {
     
     # Try cypher-shell first
     local result
-    result=$(echo "$query" | docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
-        -u neo4j -p "${NEO4J_AUTH#*/}" \
-        --format plain 2>/dev/null)
+    if [[ "$NEO4J_AUTH" == "none" ]]; then
+        # No authentication
+        result=$(echo "$query" | docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
+            --format plain 2>/dev/null)
+    else
+        # With authentication
+        result=$(echo "$query" | docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
+            -u neo4j -p "${NEO4J_AUTH#*/}" \
+            --format plain 2>/dev/null)
+    fi
     
     if [[ $? -eq 0 ]] && [[ -n "$result" ]]; then
         echo "$result"
@@ -55,7 +62,10 @@ neo4j_query() {
     fi
     
     # Fallback to HTTP API if cypher-shell fails
-    local auth_header="neo4j:${NEO4J_AUTH#*/}"
+    local auth_header=""
+    if [[ "$NEO4J_AUTH" != "none" ]]; then
+        auth_header="-u neo4j:${NEO4J_AUTH#*/}"
+    fi
     # Escape the query for JSON
     local escaped_query=$(echo "$query" | sed 's/"/\\"/g' | tr '\n' ' ')
     local json_query=$(cat <<EOF
@@ -68,7 +78,7 @@ neo4j_query() {
 EOF
     )
     
-    local response=$(curl -sf -u "$auth_header" \
+    local response=$(timeout 5 curl -sf $auth_header \
         -H "Content-Type: application/json" \
         -d "$json_query" \
         "http://localhost:${NEO4J_HTTP_PORT}/db/neo4j/tx/commit" 2>/dev/null)
@@ -271,15 +281,9 @@ neo4j_get_performance_metrics() {
         return 1
     fi
     
-    # Query JMX metrics for performance data
-    local metrics_query="CALL dbms.queryJmx('org.neo4j:instance=kernel#0,name=Store file sizes') YIELD attributes 
-                         RETURN attributes"
-    
-    # Get transaction metrics
-    local tx_count=$(neo4j_query "CALL dbms.listTransactions() YIELD transactionId RETURN count(transactionId)" 2>/dev/null | tail -1 || echo "0")
-    
-    # Get query statistics
-    local query_stats=$(neo4j_query "CALL db.stats.retrieve('QUERIES') YIELD data RETURN data LIMIT 1" 2>/dev/null || echo "{}")
+    # Get basic database stats (Community Edition compatible)
+    local node_count=$(neo4j_query "MATCH (n) RETURN count(n) as count" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
+    local rel_count=$(neo4j_query "MATCH ()-[r]->() RETURN count(r) as count" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
     
     # Get memory usage from container
     local memory_stats=$(docker stats "$NEO4J_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | sed 's/[^0-9.]//g' | head -1 || echo "0")
@@ -287,9 +291,18 @@ neo4j_get_performance_metrics() {
     # Get database size
     local db_size=$(docker exec "$NEO4J_CONTAINER_NAME" du -sh /data/databases/neo4j 2>/dev/null | awk '{print $1}' || echo "unknown")
     
+    # Try to get transaction info if available
+    local tx_info=$(neo4j_query "SHOW TRANSACTIONS" 2>/dev/null || echo "")
+    local tx_count=0
+    if [[ -n "$tx_info" ]] && [[ "$tx_info" != *"Error"* ]]; then
+        tx_count=$(echo "$tx_info" | grep -c "transaction" || echo "0")
+    fi
+    
     # Build metrics JSON
     cat <<EOF
 {
+    "node_count": ${node_count:-0},
+    "relationship_count": ${rel_count:-0},
     "active_transactions": ${tx_count:-0},
     "memory_usage_mb": ${memory_stats:-0},
     "database_size": "${db_size}",

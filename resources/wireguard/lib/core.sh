@@ -943,6 +943,274 @@ rotation_status() {
     
     return 0
 }
+
+# ====================
+# NAT Traversal Management
+# ====================
+handle_nat_command() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        enable)
+            enable_nat_traversal "$@"
+            ;;
+        disable)
+            disable_nat_traversal "$@"
+            ;;
+        status)
+            nat_traversal_status "$@"
+            ;;
+        test)
+            test_nat_traversal "$@"
+            ;;
+        *)
+            echo "Error: Unknown NAT subcommand: $subcommand" >&2
+            echo "Usage: resource-wireguard nat {enable|disable|status|test}" >&2
+            exit 1
+            ;;
+    esac
+}
+
+enable_nat_traversal() {
+    local tunnel_name="${1:-}"
+    local persistent_keepalive="${2:-25}"
+    
+    if [[ -z "$tunnel_name" ]]; then
+        echo "Error: Tunnel name required" >&2
+        echo "Usage: resource-wireguard nat enable <tunnel-name> [keepalive-interval]" >&2
+        return 1
+    fi
+    
+    echo "Enabling NAT traversal for tunnel: $tunnel_name"
+    echo "Setting PersistentKeepalive to ${persistent_keepalive} seconds"
+    
+    # Check if tunnel exists
+    if ! docker exec "$CONTAINER_NAME" test -f "/config/wg_confs/wg${tunnel_name}.conf" 2>/dev/null; then
+        echo "Error: Tunnel configuration not found: wg${tunnel_name}.conf" >&2
+        return 1
+    fi
+    
+    # Enable NAT traversal with PersistentKeepalive
+    docker exec "$CONTAINER_NAME" bash -c "
+        # Backup current config
+        cp /config/wg_confs/wg${tunnel_name}.conf /config/wg_confs/wg${tunnel_name}.conf.nat-backup
+        
+        # Add or update PersistentKeepalive for all peers
+        sed -i '/\[Peer\]/,/\[/{
+            /PersistentKeepalive/d
+        }' /config/wg_confs/wg${tunnel_name}.conf
+        
+        # Add PersistentKeepalive to each peer section
+        awk '/\[Peer\]/{print; print \"PersistentKeepalive = ${persistent_keepalive}\"; next}1' \
+            /config/wg_confs/wg${tunnel_name}.conf > /config/wg_confs/wg${tunnel_name}.conf.tmp
+        mv /config/wg_confs/wg${tunnel_name}.conf.tmp /config/wg_confs/wg${tunnel_name}.conf
+        
+        # Enable IP forwarding for NAT
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+        
+        # Add NAT rules for the tunnel network
+        tunnel_subnet=\$(grep 'Address' /config/wg_confs/wg${tunnel_name}.conf | head -1 | cut -d'=' -f2 | xargs | cut -d'/' -f1)
+        tunnel_subnet_prefix=\$(echo \$tunnel_subnet | cut -d'.' -f1-3)
+        
+        # Setup iptables rules for NAT
+        iptables -t nat -A POSTROUTING -s \${tunnel_subnet_prefix}.0/24 -o eth0 -j MASQUERADE 2>/dev/null || true
+        iptables -A FORWARD -i wg${tunnel_name} -j ACCEPT 2>/dev/null || true
+        iptables -A FORWARD -o wg${tunnel_name} -j ACCEPT 2>/dev/null || true
+        
+        # Save NAT configuration
+        echo '{
+            \"tunnel\": \"${tunnel_name}\",
+            \"persistent_keepalive\": ${persistent_keepalive},
+            \"nat_enabled\": true,
+            \"timestamp\": \"'\$(date -Iseconds)'\"
+        }' > /config/nat_${tunnel_name}.json
+        
+        # Reload tunnel if it's active
+        if ip link show wg${tunnel_name} &>/dev/null; then
+            wg-quick down wg${tunnel_name} 2>/dev/null || true
+            wg-quick up wg${tunnel_name} 2>/dev/null || true
+            echo 'Reloaded tunnel with NAT traversal enabled'
+        fi
+    " || {
+        echo "Error: Failed to enable NAT traversal" >&2
+        return 1
+    }
+    
+    echo "NAT traversal enabled successfully"
+    echo ""
+    echo "Benefits:"
+    echo "  - Automatic keep-alive packets every ${persistent_keepalive} seconds"
+    echo "  - Maintains connection through NAT/firewall"
+    echo "  - Automatic hole-punching for bidirectional traffic"
+    echo "  - IP forwarding and masquerading enabled"
+    return 0
+}
+
+disable_nat_traversal() {
+    local tunnel_name="${1:-}"
+    
+    if [[ -z "$tunnel_name" ]]; then
+        echo "Error: Tunnel name required" >&2
+        echo "Usage: resource-wireguard nat disable <tunnel-name>" >&2
+        return 1
+    fi
+    
+    echo "Disabling NAT traversal for tunnel: $tunnel_name"
+    
+    docker exec "$CONTAINER_NAME" bash -c "
+        # Restore backup if exists
+        if [[ -f /config/wg_confs/wg${tunnel_name}.conf.nat-backup ]]; then
+            cp /config/wg_confs/wg${tunnel_name}.conf.nat-backup /config/wg_confs/wg${tunnel_name}.conf
+        else
+            # Remove PersistentKeepalive manually
+            sed -i '/PersistentKeepalive/d' /config/wg_confs/wg${tunnel_name}.conf
+        fi
+        
+        # Remove NAT configuration
+        rm -f /config/nat_${tunnel_name}.json
+        
+        # Reload tunnel if active
+        if ip link show wg${tunnel_name} &>/dev/null; then
+            wg-quick down wg${tunnel_name} 2>/dev/null || true
+            wg-quick up wg${tunnel_name} 2>/dev/null || true
+            echo 'Reloaded tunnel with NAT traversal disabled'
+        fi
+    " || {
+        echo "Error: Failed to disable NAT traversal" >&2
+        return 1
+    }
+    
+    echo "NAT traversal disabled successfully"
+    return 0
+}
+
+nat_traversal_status() {
+    echo "=== NAT Traversal Status ==="
+    echo ""
+    
+    # Check if container is running
+    if ! docker ps -q -f name="$CONTAINER_NAME" | grep -q .; then
+        echo "Error: WireGuard container not running" >&2
+        return 1
+    fi
+    
+    # Check IP forwarding
+    echo "IP Forwarding:"
+    docker exec "$CONTAINER_NAME" bash -c "
+        if [[ \$(cat /proc/sys/net/ipv4/ip_forward) -eq 1 ]]; then
+            echo '  ✓ Enabled'
+        else
+            echo '  ✗ Disabled'
+        fi
+    "
+    
+    echo ""
+    echo "NAT-Enabled Tunnels:"
+    docker exec "$CONTAINER_NAME" bash -c "
+        for nat_file in /config/nat_*.json; do
+            if [[ -f \$nat_file ]]; then
+                tunnel=\$(basename \$nat_file | sed 's/nat_//;s/.json//')
+                keepalive=\$(grep persistent_keepalive \$nat_file | cut -d':' -f2 | tr -d ' ,')
+                echo \"  \$tunnel: PersistentKeepalive=\${keepalive}s\"
+            fi
+        done
+        
+        # If no NAT configs found
+        if ! ls /config/nat_*.json &>/dev/null; then
+            echo '  None configured'
+        fi
+    " 2>/dev/null
+    
+    echo ""
+    echo "Active NAT Rules:"
+    docker exec "$CONTAINER_NAME" bash -c "
+        iptables -t nat -L POSTROUTING -n -v 2>/dev/null | grep MASQUERADE | head -3 | sed 's/^/  /' || echo '  No NAT rules active'
+    "
+    
+    return 0
+}
+
+test_nat_traversal() {
+    local tunnel_name="${1:-}"
+    
+    if [[ -z "$tunnel_name" ]]; then
+        echo "Error: Tunnel name required" >&2
+        echo "Usage: resource-wireguard nat test <tunnel-name>" >&2
+        return 1
+    fi
+    
+    echo "Testing NAT traversal for tunnel: $tunnel_name"
+    echo ""
+    
+    # Check if tunnel is active
+    if ! docker exec "$CONTAINER_NAME" ip link show "wg${tunnel_name}" &>/dev/null; then
+        echo "Error: Tunnel not active. Start it first with:"
+        echo "  resource-wireguard content execute $tunnel_name"
+        return 1
+    fi
+    
+    # Run connectivity tests
+    docker exec "$CONTAINER_NAME" bash -c "
+        echo 'Checking tunnel interface...'
+        if ip link show wg${tunnel_name} &>/dev/null; then
+            echo '  ✓ Tunnel interface active'
+        else
+            echo '  ✗ Tunnel interface not found'
+            exit 1
+        fi
+        
+        echo ''
+        echo 'Checking PersistentKeepalive...'
+        keepalive=\$(wg show wg${tunnel_name} dump | tail -n +2 | awk '{print \$7}' | head -1)
+        if [[ \$keepalive -gt 0 ]]; then
+            echo \"  ✓ PersistentKeepalive enabled: \${keepalive}s\"
+        else
+            echo '  ✗ PersistentKeepalive not configured'
+        fi
+        
+        echo ''
+        echo 'Checking latest handshake...'
+        latest_handshake=\$(wg show wg${tunnel_name} latest-handshakes | tail -n +2 | awk '{print \$2}' | head -1)
+        if [[ -n \$latest_handshake ]] && [[ \$latest_handshake -ne 0 ]]; then
+            now=\$(date +%s)
+            diff=\$((now - latest_handshake))
+            echo \"  ✓ Last handshake: \${diff}s ago\"
+            if [[ \$diff -lt 180 ]]; then
+                echo '  ✓ Connection is fresh (< 3 minutes)'
+            else
+                echo '  ⚠ Connection might be stale (> 3 minutes)'
+            fi
+        else
+            echo '  ✗ No handshake recorded'
+        fi
+        
+        echo ''
+        echo 'Checking transfer statistics...'
+        transfer=\$(wg show wg${tunnel_name} transfer)
+        if [[ -n \$transfer ]]; then
+            echo '  Transfer data available:'
+            echo \"\$transfer\" | sed 's/^/    /'
+        else
+            echo '  No transfer data available'
+        fi
+    " || {
+        echo "Error: NAT traversal test failed" >&2
+        return 1
+    }
+    
+    echo ""
+    echo "NAT Traversal Test Complete"
+    echo ""
+    echo "Tips for troubleshooting NAT issues:"
+    echo "  1. Ensure PersistentKeepalive is set (25-30 seconds recommended)"
+    echo "  2. Check firewall allows UDP port ${WIREGUARD_PORT}"
+    echo "  3. Verify both peers have correct endpoint addresses"
+    echo "  4. Monitor handshake times - should update regularly"
+    
+    return 0
+}
+
 # ====================
 # Network Isolation Management (Docker-based)
 # ====================

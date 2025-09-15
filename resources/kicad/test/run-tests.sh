@@ -78,6 +78,32 @@ run_test_phase() {
     fi
 }
 
+# Function to save test results to JSON
+save_test_results() {
+    local exit_code=0
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        exit_code=1
+    fi
+    
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local kicad_data_dir="${APP_ROOT}/data/resources/kicad"
+    
+    # Ensure data directory exists
+    mkdir -p "$kicad_data_dir"
+    
+    # Create JSON results file
+    cat > "${kicad_data_dir}/test_results.json" <<EOF
+{
+  "timestamp": "${timestamp}",
+  "total": ${TOTAL_TESTS},
+  "passed": ${PASSED_TESTS},
+  "failed": ${FAILED_TESTS},
+  "exit_code": ${exit_code},
+  "resource": "kicad"
+}
+EOF
+}
+
 # Function to display results summary
 display_summary() {
     echo -e "\n=================================="
@@ -86,6 +112,9 @@ display_summary() {
     echo "Total tests run: ${TOTAL_TESTS}"
     echo -e "Passed: ${GREEN}${PASSED_TESTS}${NC}"
     echo -e "Failed: ${RED}${FAILED_TESTS}${NC}"
+    
+    # Save results to JSON for status reporting
+    save_test_results
     
     if [[ $FAILED_TESTS -eq 0 ]]; then
         echo -e "\n${GREEN}✅ All tests passed!${NC}"

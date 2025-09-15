@@ -2,7 +2,35 @@
 
 ## Fixed Issues
 
-### 1. Query Builder Row Count Reporting (FIXED: 2025-09-14)
+### 1. Input Validation Security (FIXED: 2025-09-15)
+**Problem**: Database and table names were not validated, potentially allowing path traversal attacks.
+- No validation on database names could allow `../../../etc/passwd` as a database name
+- Special characters in names could cause command injection
+
+**Root Cause**: Missing input validation in all database operation functions.
+
+**Solution**: Added `sqlite::validate_name()` function that checks for:
+- Empty names
+- Path traversal attempts (`..` or `/`)
+- Special characters (only alphanumeric, underscore, dot, and hyphen allowed)
+- Maximum length (255 characters)
+
+**Test Commands**:
+```bash
+# Test path traversal protection
+vrooli resource sqlite content create "../../../etc/passwd"
+# Should show: "Invalid database name: contains path characters"
+
+# Test special character protection  
+vrooli resource sqlite content create "test;rm -rf /"
+# Should show: "Invalid database name: contains path characters"
+
+# Test valid name
+vrooli resource sqlite content create "test_valid_db"
+# Should work normally
+```
+
+### 2. Query Builder Row Count Reporting (FIXED: 2025-09-14)
 **Problem**: UPDATE and INSERT query builders were reporting incorrect affected rows and last insert IDs.
 - UPDATE always showed 0 rows affected even when rows were updated
 - INSERT always showed last ID as 0

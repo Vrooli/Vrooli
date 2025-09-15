@@ -91,6 +91,7 @@ cli::register_subcommand "content" "upload" "Upload file to bucket" "minio::cont
 cli::register_subcommand "content" "download" "Download file from bucket" "minio::content::download_file"
 cli::register_subcommand "content" "configure" "Configure MinIO client" "minio::content::configure"
 cli::register_subcommand "content" "policy" "Set bucket access policy" "minio::content::set_policy" "modifies-system"
+cli::register_subcommand "content" "versioning" "Enable/disable bucket versioning" "minio::content::versioning" "modifies-system"
 
 # ==============================================================================
 # CONTENT COMMAND IMPLEMENTATIONS
@@ -319,6 +320,82 @@ minio::content::set_policy() {
         log::error "Bucket policy functionality not available"
         return 1
     fi
+}
+
+# Enable or disable versioning for a bucket
+minio::content::versioning() {
+    local bucket="${1:-}"
+    local action="${2:-}"
+    
+    if [[ -z "$bucket" || -z "$action" ]]; then
+        log::error "Bucket name and action required"
+        echo "Usage: resource-minio content versioning <bucket-name> <enable|disable|status>"
+        echo ""
+        echo "Actions:"
+        echo "  enable   - Enable versioning for the bucket"
+        echo "  disable  - Suspend versioning for the bucket"
+        echo "  status   - Show current versioning status"
+        echo ""
+        echo "Examples:"
+        echo "  resource-minio content versioning my-bucket enable"
+        echo "  resource-minio content versioning my-bucket status"
+        echo ""
+        echo "Note: Once enabled, versioning cannot be completely removed,"
+        echo "      only suspended. Objects will retain version IDs."
+        return 1
+    fi
+    
+    # Check if MinIO is running
+    if ! minio::is_running 2>/dev/null; then
+        log::error "MinIO is not running"
+        return 1
+    fi
+    
+    local container_name="${MINIO_CONTAINER_NAME:-minio}"
+    
+    case "$action" in
+        enable)
+            log::info "Enabling versioning for bucket '$bucket'..."
+            if docker exec "$container_name" mc version enable local/"$bucket" 2>/dev/null; then
+                log::success "Versioning enabled for bucket '$bucket'"
+                echo "Note: All new objects will be versioned. Existing objects retain their current state."
+                return 0
+            else
+                log::error "Failed to enable versioning for bucket '$bucket'"
+                echo "Make sure the bucket exists: resource-minio content list"
+                return 1
+            fi
+            ;;
+            
+        disable|suspend)
+            log::info "Suspending versioning for bucket '$bucket'..."
+            if docker exec "$container_name" mc version suspend local/"$bucket" 2>/dev/null; then
+                log::success "Versioning suspended for bucket '$bucket'"
+                echo "Note: Existing versions are preserved. New objects won't be versioned."
+                return 0
+            else
+                log::error "Failed to suspend versioning for bucket '$bucket'"
+                return 1
+            fi
+            ;;
+            
+        status|info)
+            log::info "Checking versioning status for bucket '$bucket'..."
+            if docker exec "$container_name" mc version info local/"$bucket" 2>/dev/null; then
+                return 0
+            else
+                log::error "Failed to get versioning status for bucket '$bucket'"
+                echo "Make sure the bucket exists: resource-minio content list"
+                return 1
+            fi
+            ;;
+            
+        *)
+            log::error "Invalid action: $action"
+            echo "Valid actions: enable, disable (or suspend), status (or info)"
+            return 1
+            ;;
+    esac
 }
 
 # ==============================================================================

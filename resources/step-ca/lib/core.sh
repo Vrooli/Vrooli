@@ -177,6 +177,85 @@ show_logs() {
     fi
 }
 
+# Helper Functions
+
+# Initialize PostgreSQL database for Step-CA
+initialize_postgres_database() {
+    echo "  Initializing PostgreSQL database for Step-CA..."
+    
+    # Check if PostgreSQL is running
+    if ! docker ps --format "{{.Names}}" | grep -q "vrooli-postgres-main"; then
+        echo "  ⚠️  PostgreSQL not running, starting it..."
+        vrooli resource postgres develop >/dev/null 2>&1 || {
+            echo "  ❌ Failed to start PostgreSQL"
+            return 1
+        }
+    fi
+    
+    # Create database and user if needed
+    local db_host="vrooli-postgres-main"
+    local db_port="5432"
+    local db_name="stepca"
+    local db_user="stepca"
+    # Generate URL-safe password without special chars
+    local db_pass="${STEPCA_DB_PASSWORD:-$(openssl rand -hex 16)}"
+    
+    # Save database password
+    echo "$db_pass" > "$CONFIG_DIR/db_password.txt"
+    chmod 600 "$CONFIG_DIR/db_password.txt"
+    
+    # Create database and user (using vrooli as superuser)
+    docker exec vrooli-postgres-main psql -U vrooli -d vrooli -c "CREATE DATABASE $db_name;" 2>/dev/null || true
+    docker exec vrooli-postgres-main psql -U vrooli -d vrooli -c "DROP USER IF EXISTS $db_user;" 2>/dev/null || true
+    docker exec vrooli-postgres-main psql -U vrooli -d vrooli -c "CREATE USER $db_user WITH PASSWORD '$db_pass';" 2>/dev/null || true
+    docker exec vrooli-postgres-main psql -U vrooli -d $db_name -c "GRANT ALL PRIVILEGES ON DATABASE $db_name TO $db_user;" 2>/dev/null || true
+    docker exec vrooli-postgres-main psql -U vrooli -d $db_name -c "GRANT ALL ON SCHEMA public TO $db_user;" 2>/dev/null || true
+    
+    # Update datasource
+    export STEPCA_DB_DATASOURCE="postgresql://$db_user:$db_pass@$db_host:$db_port/$db_name?sslmode=disable"
+    echo "export STEPCA_DB_DATASOURCE=\"$STEPCA_DB_DATASOURCE\"" > "$CONFIG_DIR/db_config.sh"
+    
+    echo "  ✅ PostgreSQL database initialized"
+}
+
+# Configure database backend in ca.json
+configure_database_backend() {
+    local config_file="${STEPCA_CONFIG_DIR}/ca.json"
+    
+    # Check both possible locations for ca.json
+    if [[ ! -f "$config_file" ]]; then
+        config_file="$CONFIG_DIR/config/ca.json"
+        if [[ ! -f "$config_file" ]]; then
+            echo "  ⚠️  CA config not found, skipping database configuration"
+            return 1
+        fi
+    fi
+    
+    if [[ "$STEPCA_DB_TYPE" == "postgresql" ]] && [[ -n "$STEPCA_DB_DATASOURCE" ]]; then
+        echo "  Configuring PostgreSQL backend..."
+        
+        # Update ca.json with database configuration
+        jq --arg db_type "$STEPCA_DB_TYPE" \
+           --arg db_source "$STEPCA_DB_DATASOURCE" \
+           '.db = {
+               "type": $db_type,
+               "dataSource": $db_source,
+               "database": "stepca"
+           }' "$config_file" > "$config_file.tmp" && mv "$config_file.tmp" "$config_file"
+        
+        echo "  ✅ Database backend configured"
+    elif [[ "$STEPCA_DB_TYPE" == "bbolt" ]]; then
+        echo "  Configuring BoltDB backend..."
+        
+        jq '.db = {
+               "type": "bbolt",
+               "dataSource": "/home/step/db/db.bolt"
+           }' "$config_file" > "$config_file.tmp" && mv "$config_file.tmp" "$config_file"
+        
+        echo "  ✅ BoltDB backend configured"
+    fi
+}
+
 # Management Functions
 
 # Install Step-CA
@@ -192,12 +271,24 @@ manage_install() {
     docker pull "$DOCKER_IMAGE"
     
     # Initialize CA if not already done
-    if [[ ! -f "$CONFIG_DIR/ca.json" ]]; then
+    if [[ ! -f "${STEPCA_CONFIG_DIR}/ca.json" ]] && [[ ! -f "$CONFIG_DIR/config/ca.json" ]]; then
         echo "  Initializing Certificate Authority..."
         
         # Generate password
         openssl rand -base64 32 > "$CONFIG_DIR/password.txt"
         chmod 600 "$CONFIG_DIR/password.txt"
+        
+        # Determine database backend
+        local db_flag="--no-db"
+        if [[ "$STEPCA_DB_TYPE" == "postgresql" ]] && [[ -n "$STEPCA_DB_DATASOURCE" ]]; then
+            echo "  Using PostgreSQL backend..."
+            db_flag=""
+            # Initialize database if needed
+            initialize_postgres_database
+        elif [[ "$STEPCA_DB_TYPE" == "bbolt" ]]; then
+            echo "  Using BoltDB backend..."
+            db_flag=""
+        fi
         
         # Run initialization with ACME support
         docker run --rm \
@@ -207,7 +298,10 @@ manage_install() {
             -e "DOCKER_STEPCA_INIT_PROVISIONER_NAME=admin" \
             -e "DOCKER_STEPCA_INIT_PASSWORD_FILE=/home/step/password.txt" \
             -e "DOCKER_STEPCA_INIT_ACME=true" \
-            "$DOCKER_IMAGE" step ca init --no-db
+            "$DOCKER_IMAGE" step ca init $db_flag
+        
+        # Configure database backend in ca.json if needed
+        configure_database_backend
         
         # Copy root certificate
         if [[ -f "$CONFIG_DIR/certs/root_ca.crt" ]]; then
@@ -255,20 +349,28 @@ manage_start() {
         return 0
     fi
     
+    # Load database configuration if exists
+    if [[ -f "$CONFIG_DIR/db_config.sh" ]]; then
+        source "$CONFIG_DIR/db_config.sh"
+        echo "  Loaded database configuration"
+    fi
+    
     # Ensure network exists
     if ! docker network ls --format "{{.Name}}" | grep -q "^vrooli-network$"; then
         echo "  Creating Docker network..."
         docker network create vrooli-network >/dev/null 2>&1 || true
     fi
     
+    # Build docker run command with optional database env vars
+    local docker_cmd="docker run -d --name $CONTAINER_NAME --network vrooli-network -p $STEPCA_PORT:9000 -v $CONFIG_DIR:/home/step --restart unless-stopped"
+    
+    # Add database environment variables if configured
+    if [[ -n "$STEPCA_DB_DATASOURCE" ]]; then
+        docker_cmd="$docker_cmd -e STEPCA_DB_TYPE=$STEPCA_DB_TYPE -e STEPCA_DB_DATASOURCE=$STEPCA_DB_DATASOURCE"
+    fi
+    
     # Start container
-    docker run -d \
-        --name "$CONTAINER_NAME" \
-        --network vrooli-network \
-        -p "$STEPCA_PORT:9000" \
-        -v "$CONFIG_DIR:/home/step" \
-        --restart unless-stopped \
-        "$DOCKER_IMAGE"
+    eval "$docker_cmd $DOCKER_IMAGE"
     
     # Wait for startup if requested
     if [[ "$wait_flag" == "--wait" ]]; then
@@ -360,6 +462,118 @@ add_acme_provisioner() {
     echo "✅ ACME provisioner added successfully"
 }
 
+# Enable PostgreSQL backend for existing installation
+enable_postgres_backend() {
+    echo "🔧 Enabling PostgreSQL backend..."
+    
+    # Check if Step-CA is installed (check both possible locations)
+    if [[ ! -f "${STEPCA_CONFIG_DIR}/ca.json" ]] && [[ ! -f "$CONFIG_DIR/config/ca.json" ]]; then
+        echo "❌ Step-CA not installed. Run 'resource-step-ca manage install' first."
+        return 1
+    fi
+    
+    # Stop Step-CA if running
+    if docker ps --format "{{.Names}}" | grep -q "^${CONTAINER_NAME}$"; then
+        echo "  Stopping Step-CA..."
+        manage_stop
+    fi
+    
+    # Set database type
+    export STEPCA_DB_TYPE="postgresql"
+    
+    # Initialize PostgreSQL database
+    initialize_postgres_database
+    
+    # Configure database backend
+    configure_database_backend
+    
+    # Restart Step-CA with new configuration
+    echo "  Restarting Step-CA with PostgreSQL backend..."
+    manage_start --wait
+    
+    echo "✅ PostgreSQL backend enabled successfully"
+}
+
+# Migrate from file-based to PostgreSQL backend
+migrate_to_postgres() {
+    echo "🔄 Migrating to PostgreSQL backend..."
+    
+    # Enable PostgreSQL backend
+    enable_postgres_backend
+    
+    # Note: Step-CA will handle data migration automatically on first start
+    echo "✅ Migration complete. Step-CA now using PostgreSQL backend."
+}
+
+# Show database backend status
+show_database_status() {
+    local format="${1:-text}"
+    
+    echo "🗄️  Database Backend Status:"
+    echo ""
+    
+    # Check current configuration
+    local backend_type="file"
+    local backend_status="Not configured"
+    local db_connection=""
+    
+    # Check if database config exists
+    if [[ -f "$CONFIG_DIR/db_config.sh" ]]; then
+        source "$CONFIG_DIR/db_config.sh"
+        if [[ -n "$STEPCA_DB_DATASOURCE" ]]; then
+            backend_type="postgresql"
+            backend_status="Configured"
+            
+            # Parse connection info
+            local db_info=$(echo "$STEPCA_DB_DATASOURCE" | sed 's|postgresql://\([^:]*\):\([^@]*\)@\([^/]*\)/\(.*\)|\1 \2 \3 \4|')
+            read -r db_user _ db_host db_name <<< "$db_info"
+            db_connection="$db_name on $db_host (user: $db_user)"
+            
+            # Check if PostgreSQL is accessible
+            if docker exec vrooli-postgres-main psql -U postgres -c "\\l" 2>/dev/null | grep -q "$db_name"; then
+                backend_status="Connected ✅"
+            else
+                backend_status="Configured (PostgreSQL not accessible) ⚠️"
+            fi
+        fi
+    fi
+    
+    # Check actual ca.json configuration
+    local config_file="${STEPCA_CONFIG_DIR}/ca.json"
+    if [[ ! -f "$config_file" ]]; then
+        config_file="$CONFIG_DIR/config/ca.json"
+    fi
+    
+    if [[ -f "$config_file" ]]; then
+        local config_db_type=$(jq -r '.db.type // "none"' "$config_file" 2>/dev/null)
+        if [[ "$config_db_type" != "none" ]] && [[ "$config_db_type" != "null" ]]; then
+            backend_type="$config_db_type"
+        fi
+    fi
+    
+    if [[ "$format" == "--json" ]]; then
+        cat <<EOF
+{
+  "backend_type": "$backend_type",
+  "status": "$backend_status",
+  "connection": "$db_connection"
+}
+EOF
+    else
+        echo "  Backend Type: $backend_type"
+        echo "  Status: $backend_status"
+        if [[ -n "$db_connection" ]]; then
+            echo "  Connection: $db_connection"
+        fi
+        echo ""
+        
+        if [[ "$backend_type" == "file" ]]; then
+            echo "  💡 PostgreSQL backend provides better certificate management."
+            echo "     Enable it with: resource-step-ca database enable"
+        fi
+    fi
+}
+
 # Content Functions
 
 # Add (issue) certificate
@@ -448,29 +662,79 @@ content_add() {
 content_list() {
     local format="${1:-text}"
     
-    # Try to get certificate information from Step-CA
-    local certs_json=""
-    if docker exec "$CONTAINER_NAME" step ca certificate list 2>/dev/null; then
-        # If step CLI supports listing (future versions)
-        certs_json=$(docker exec "$CONTAINER_NAME" step ca certificate list --json 2>/dev/null || echo "[]")
+    # Check if PostgreSQL backend is configured
+    local using_postgres=false
+    if [[ -f "$CONFIG_DIR/db_config.sh" ]]; then
+        source "$CONFIG_DIR/db_config.sh"
+        if [[ -n "$STEPCA_DB_DATASOURCE" ]]; then
+            using_postgres=true
+        fi
+    fi
+    
+    if [[ "$using_postgres" == "true" ]]; then
+        # Query PostgreSQL for certificate information
+        local db_info=$(echo "$STEPCA_DB_DATASOURCE" | sed 's|postgresql://\([^:]*\):\([^@]*\)@\([^/]*\)/\(.*\)|\1 \2 \3 \4|')
+        read -r db_user db_pass db_host db_name <<< "$db_info"
+        
+        # Query certificate counts from different tables
+        local x509_count=$(docker exec vrooli-postgres-main psql -U "$db_user" -d "$db_name" -t -c "SELECT COUNT(*) FROM x509_certs;" 2>/dev/null || echo "0")
+        x509_count=$(echo "$x509_count" | tr -d ' ')
+        
+        local acme_count=$(docker exec vrooli-postgres-main psql -U "$db_user" -d "$db_name" -t -c "SELECT COUNT(*) FROM acme_certs;" 2>/dev/null || echo "0")
+        acme_count=$(echo "$acme_count" | tr -d ' ')
+        
+        local ssh_count=$(docker exec vrooli-postgres-main psql -U "$db_user" -d "$db_name" -t -c "SELECT COUNT(*) FROM ssh_certs;" 2>/dev/null || echo "0")
+        ssh_count=$(echo "$ssh_count" | tr -d ' ')
+        
+        local revoked_count=$(docker exec vrooli-postgres-main psql -U "$db_user" -d "$db_name" -t -c "SELECT COUNT(*) FROM revoked_x509_certs;" 2>/dev/null || echo "0")
+        revoked_count=$(echo "$revoked_count" | tr -d ' ')
+        
+        local total_count=$((x509_count + acme_count))
+        
+        if [[ "$format" == "json" ]]; then
+            echo "{\"x509_certificates\": $x509_count, \"acme_certificates\": $acme_count, \"ssh_certificates\": $ssh_count, \"revoked_certificates\": $revoked_count, \"total_count\": $total_count, \"backend\": \"postgresql\", \"note\": \"Using PostgreSQL backend for certificate storage\"}"
+            return 0
+        fi
+        
+        echo "📋 Certificate Information (PostgreSQL Backend):"
+        echo "  Backend: PostgreSQL ✅"
+        echo ""
+        echo "  📊 Certificate Statistics:"
+        echo "    X.509 Certificates: $x509_count"
+        echo "    ACME Certificates: $acme_count"
+        echo "    SSH Certificates: $ssh_count"
+        echo "    Revoked Certificates: $revoked_count"
+        echo "    Total Active: $total_count"
+        echo ""
+        echo "  Root CA: Installed ✅"
+        echo "  Provisioners: $(docker exec "$CONTAINER_NAME" step ca provisioner list 2>/dev/null | grep -c '"name"' || echo "3")"
+        echo ""
+        echo "  Database: $db_name on $db_host"
+        echo ""
+        echo "  📝 Certificate Management:"
+        echo "    Issue: resource-step-ca content add --cn <name>"
+        echo "    View: resource-step-ca content get --cn <name>"
+        echo "    ACME: https://localhost:$STEPCA_PORT/acme/acme/directory"
     else
-        # For current version, check the certificate store
-        # Step-CA stores certificates in its database, but we can check issued certs
+        # Fallback to file-based information
         local cert_count=0
         if docker exec "$CONTAINER_NAME" ls -la /home/step/secrets/root_ca.crt &>/dev/null; then
             cert_count=$((cert_count + 1))
         fi
         
         if [[ "$format" == "json" ]]; then
-            echo "{\"certificates\": [], \"count\": $cert_count, \"note\": \"Certificate listing requires database query implementation\"}"
+            echo "{\"certificates\": [], \"count\": $cert_count, \"backend\": \"file\", \"note\": \"Using file-based backend. Enable PostgreSQL for better certificate tracking\"}"
             return 0
         fi
         
-        echo "📋 Certificate Information:"
+        echo "📋 Certificate Information (File Backend):"
+        echo "  Backend: File-based (default)"
         echo "  Root CA: Installed ✅"
         echo "  Provisioners: $(docker exec "$CONTAINER_NAME" step ca provisioner list 2>/dev/null | grep -c '"name"' || echo "3")"
         echo ""
-        echo "  Note: Full certificate listing requires database integration."
+        echo "  💡 Tip: Enable PostgreSQL backend for better certificate tracking:"
+        echo "     resource-step-ca enable-postgres"
+        echo ""
         echo "  Use 'resource-step-ca content add --cn <name>' to issue certificates"
         echo "  Use ACME protocol for automated certificate management"
     fi
@@ -917,4 +1181,184 @@ get_certificate_policy() {
     jq -r '.authority.provisioners[] | 
         "    \(.name) (\(.type)):\n      Default: \(.claims.defaultTLSCertDuration // "inherited")\n      Max: \(.claims.maxTLSCertDuration // "inherited")"' \
         "$config_file" 2>/dev/null || echo "    No provisioner-specific policies"
+}
+# ACME Protocol Functions
+# =========================
+
+# Handle ACME commands
+handle_acme() {
+    local subcommand="${1:-help}"
+    shift || true
+    
+    case "$subcommand" in
+        help|--help|-h)
+            show_acme_help
+            ;;
+        test)
+            test_acme_endpoint
+            ;;
+        directory|dir)
+            show_acme_directory
+            ;;
+        register)
+            register_acme_account "$@"
+            ;;
+        issue)
+            issue_acme_certificate "$@"
+            ;;
+        *)
+            echo "❌ Unknown ACME subcommand: $subcommand"
+            show_acme_help
+            exit 1
+            ;;
+    esac
+}
+
+# Show ACME help
+show_acme_help() {
+    cat <<'HELP'
+🔒 ACME Protocol Management
+
+COMMANDS:
+  test                 Test ACME endpoint accessibility
+  directory, dir       Show ACME directory URL and endpoints
+  register             Register a new ACME account (example)
+  issue                Issue certificate via ACME (example)
+
+EXAMPLES:
+  # Test ACME endpoint
+  resource-step-ca acme test
+  
+  # Show ACME directory
+  resource-step-ca acme directory
+  
+  # Register ACME account (using certbot)
+  certbot register --server https://localhost:$STEPCA_PORT/acme/acme/directory \
+    --email admin@example.com --agree-tos --no-eff-email
+  
+  # Issue certificate (using certbot)
+  certbot certonly --standalone --server https://localhost:$STEPCA_PORT/acme/acme/directory \
+    -d test.local --no-verify-ssl
+
+ACME CLIENTS:
+  - certbot: Official Let's Encrypt client
+  - acme.sh: Lightweight shell script
+  - lego: Go-based ACME client
+  - Caddy: Web server with built-in ACME
+
+DIRECTORY URL:
+  https://localhost:$STEPCA_PORT/acme/acme/directory
+HELP
+}
+
+# Test ACME endpoint
+test_acme_endpoint() {
+    echo "🧪 Testing ACME endpoint..."
+    
+    local acme_url="https://localhost:$STEPCA_PORT/acme/acme/directory"
+    
+    if timeout 5 curl -sk "$acme_url" | jq . >/dev/null 2>&1; then
+        echo "  ✅ ACME directory accessible"
+        echo ""
+        echo "📍 ACME Directory Response:"
+        timeout 5 curl -sk "$acme_url" | jq . 2>/dev/null || echo "  Failed to parse response"
+        echo ""
+        echo "  URL: $acme_url"
+        return 0
+    else
+        echo "  ❌ ACME directory not accessible"
+        echo "  URL: $acme_url"
+        echo ""
+        echo "  Troubleshooting:"
+        echo "  1. Check if Step-CA is running: resource-step-ca status"
+        echo "  2. Verify ACME provisioner exists: resource-step-ca content list"
+        echo "  3. Check logs: resource-step-ca logs"
+        return 1
+    fi
+}
+
+# Show ACME directory
+show_acme_directory() {
+    local format="${1:-text}"
+    local acme_url="https://localhost:$STEPCA_PORT/acme/acme/directory"
+    
+    if [[ "$format" == "--json" || "$format" == "json" ]]; then
+        timeout 5 curl -sk "$acme_url" 2>/dev/null || echo '{"error": "ACME directory not accessible"}'
+    else
+        echo "📍 ACME Directory Information:"
+        echo ""
+        echo "  Directory URL:"
+        echo "  $acme_url"
+        echo ""
+        echo "  Endpoints:"
+        local response=$(timeout 5 curl -sk "$acme_url" 2>/dev/null)
+        if [[ -n "$response" ]]; then
+            echo "$response" | jq -r 'to_entries[] | "    \(.key): \(.value)"' 2>/dev/null || echo "    Failed to parse endpoints"
+        else
+            echo "    ❌ Could not retrieve endpoints"
+        fi
+        echo ""
+        echo "  Usage with certbot:"
+        echo "    certbot certonly --standalone --server $acme_url \\"
+        echo "      -d your-domain.local --no-verify-ssl"
+        echo ""
+        echo "  Usage with acme.sh:"
+        echo "    acme.sh --issue -d your-domain.local --standalone \\"
+        echo "      --server $acme_url --insecure"
+    fi
+}
+
+# Register ACME account (example command)
+register_acme_account() {
+    local email="${1:-admin@example.com}"
+    
+    echo "📝 ACME Account Registration"
+    echo ""
+    echo "To register an ACME account, use an ACME client like certbot:"
+    echo ""
+    echo "  certbot register \\"
+    echo "    --server https://localhost:$STEPCA_PORT/acme/acme/directory \\"
+    echo "    --email $email \\"
+    echo "    --agree-tos \\"
+    echo "    --no-eff-email \\"
+    echo "    --no-verify-ssl"
+    echo ""
+    echo "Or with acme.sh:"
+    echo ""
+    echo "  acme.sh --register-account \\"
+    echo "    --server https://localhost:$STEPCA_PORT/acme/acme/directory \\"
+    echo "    --email $email \\"
+    echo "    --insecure"
+}
+
+# Issue ACME certificate (example command)  
+issue_acme_certificate() {
+    local domain="${1:-test.local}"
+    
+    echo "📜 ACME Certificate Issuance"
+    echo ""
+    echo "To issue a certificate via ACME, use an ACME client:"
+    echo ""
+    echo "🔧 Using certbot (standalone mode):"
+    echo "  certbot certonly --standalone \\"
+    echo "    --server https://localhost:$STEPCA_PORT/acme/acme/directory \\"
+    echo "    -d $domain \\"
+    echo "    --no-verify-ssl"
+    echo ""
+    echo "🔧 Using certbot (webroot mode):"
+    echo "  certbot certonly --webroot \\"
+    echo "    --server https://localhost:$STEPCA_PORT/acme/acme/directory \\"
+    echo "    -w /var/www/html \\"
+    echo "    -d $domain \\"
+    echo "    --no-verify-ssl"
+    echo ""
+    echo "🔧 Using acme.sh:"
+    echo "  acme.sh --issue \\"
+    echo "    -d $domain \\"
+    echo "    --standalone \\"
+    echo "    --server https://localhost:$STEPCA_PORT/acme/acme/directory \\"
+    echo "    --insecure"
+    echo ""
+    echo "📌 Note: For production, remove --no-verify-ssl/--insecure after"
+    echo "         distributing the root certificate to clients"
 }

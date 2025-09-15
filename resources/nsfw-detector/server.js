@@ -26,6 +26,11 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 
+// Request tracking
+let requestsProcessed = 0;
+let totalLatency = 0;
+let lastError = null;
+
 // Load NSFW.js lazily
 let nsfwjs = null;
 let model = null;
@@ -161,13 +166,16 @@ app.get('/metrics', (req, res) => {
         uptime: process.uptime(),
         memory: process.memoryUsage(),
         model_loaded: !!model,
-        requests_processed: 0 // Would track this in production
+        requests_processed: requestsProcessed,
+        average_latency_ms: requestsProcessed > 0 ? Math.round(totalLatency / requestsProcessed) : 0,
+        last_error: lastError
     });
 });
 
 // Classification endpoint
 app.post('/classify', upload.single('image'), async (req, res) => {
     let filePath = null;
+    const startTime = Date.now();
     
     try {
         // For testing without file upload
@@ -194,10 +202,18 @@ app.post('/classify', upload.single('image'), async (req, res) => {
         // Convert to our format
         const result = convertPredictions(predictions);
         
+        // Track metrics
+        requestsProcessed++;
+        totalLatency += (Date.now() - startTime);
+        
         res.json(result);
         
     } catch (error) {
         console.error('Classification error:', error);
+        lastError = { 
+            message: error.message, 
+            timestamp: new Date().toISOString() 
+        };
         res.status(500).json({ 
             error: 'Classification failed',
             message: error.message 
@@ -218,6 +234,7 @@ app.post('/classify', upload.single('image'), async (req, res) => {
 app.post('/classify/batch', upload.array('images', 10), async (req, res) => {
     const files = req.files || [];
     const results = [];
+    const startTime = Date.now();
     
     try {
         // Load model if not already loaded
@@ -233,6 +250,10 @@ app.post('/classify/batch', upload.array('images', 10), async (req, res) => {
                 results.push({ error: error.message });
             }
         }
+        
+        // Track metrics
+        requestsProcessed += files.length;
+        totalLatency += (Date.now() - startTime);
         
         res.json(results);
         
@@ -254,12 +275,81 @@ app.post('/classify/batch', upload.array('images', 10), async (req, res) => {
     }
 });
 
+// Model loading endpoint
+app.post('/models/load', express.json(), async (req, res) => {
+    const { model: modelName } = req.body;
+    
+    try {
+        if (modelName === 'nsfwjs' || !modelName) {
+            await loadModel();
+            res.json({
+                message: 'Model loaded successfully',
+                model: 'nsfwjs'
+            });
+        } else {
+            res.status(400).json({
+                error: 'Unsupported model',
+                available: ['nsfwjs']
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            error: 'Failed to load model',
+            message: error.message
+        });
+    }
+});
+
+// Model unloading endpoint
+app.post('/models/unload', express.json(), (req, res) => {
+    const { model: modelName } = req.body;
+    
+    if (modelName === 'nsfwjs' || !modelName) {
+        model = null;
+        res.json({
+            message: 'Model unloaded successfully',
+            model: 'nsfwjs'
+        });
+    } else {
+        res.status(400).json({
+            error: 'Model not loaded',
+            available: ['nsfwjs']
+        });
+    }
+});
+
 // Configuration endpoint
 app.post('/config', express.json(), (req, res) => {
-    // In production, would update configuration
+    const { thresholds } = req.body;
+    
+    if (thresholds) {
+        // Update thresholds in environment
+        if (thresholds.adult !== undefined) {
+            process.env.NSFW_DETECTOR_ADULT_THRESHOLD = thresholds.adult;
+        }
+        if (thresholds.racy !== undefined) {
+            process.env.NSFW_DETECTOR_RACY_THRESHOLD = thresholds.racy;
+        }
+        if (thresholds.gore !== undefined) {
+            process.env.NSFW_DETECTOR_GORE_THRESHOLD = thresholds.gore;
+        }
+        if (thresholds.violence !== undefined) {
+            process.env.NSFW_DETECTOR_VIOLENCE_THRESHOLD = thresholds.violence;
+        }
+        if (thresholds.safe !== undefined) {
+            process.env.NSFW_DETECTOR_SAFE_THRESHOLD = thresholds.safe;
+        }
+    }
+    
     res.json({
         message: 'Configuration updated',
-        config: req.body
+        thresholds: {
+            adult: parseFloat(process.env.NSFW_DETECTOR_ADULT_THRESHOLD) || 0.7,
+            racy: parseFloat(process.env.NSFW_DETECTOR_RACY_THRESHOLD) || 0.6,
+            gore: parseFloat(process.env.NSFW_DETECTOR_GORE_THRESHOLD) || 0.8,
+            violence: parseFloat(process.env.NSFW_DETECTOR_VIOLENCE_THRESHOLD) || 0.8,
+            safe: parseFloat(process.env.NSFW_DETECTOR_SAFE_THRESHOLD) || 0.5
+        }
     });
 });
 

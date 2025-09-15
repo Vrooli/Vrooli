@@ -14,10 +14,7 @@ source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${OPENROUTER_LIB_DIR}/models.sh"
 source "${OPENROUTER_RESOURCE_DIR}/config/defaults.sh"
 
-# Source agents library if available
-if [[ -f "${OPENROUTER_LIB_DIR}/agents.sh" ]]; then
-    source "${OPENROUTER_LIB_DIR}/agents.sh"
-fi
+# Agent management is now handled via unified system (see cli.sh)
 
 # Initialize benchmark directory
 openrouter::benchmark::init() {

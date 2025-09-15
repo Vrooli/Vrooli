@@ -2,7 +2,14 @@
 
 ## Active Issues
 
-None currently identified. All major functionality is working.
+### 1. Let's Encrypt CLI Integration Disabled
+**Identified**: 2025-09-15
+**Impact**: Low - alternative TLS functionality available
+**Issue**: Let's Encrypt integration temporarily disabled in CLI due to source order issues
+**Workaround**: Let's Encrypt commands commented out in cli.sh (lines 267-289)
+**Root Cause**: Conflict between CLI framework and letsencrypt.sh library initialization
+**Fix Applied**: Added conditional source guards to prevent duplicate loading
+**Status**: Core functionality works, CLI registration needs refinement
 
 
 ## Resolved Issues
@@ -62,9 +69,18 @@ None currently identified. All major functionality is working.
 - Follows v2.0 universal contract requirements
 - All existing tests still pass with new structure
 
+### 8. Core.sh Library Path Issues ✅
+**Resolution Date**: 2025-09-15
+**Solution**: Fixed incorrect library paths in core.sh
+- Changed logging.sh to utils/log.sh
+- Changed port-management.sh to port_registry.sh
+- Fixed system::load_port to resources::get_port function call
+
 ## Lessons Learned
 
 1. **Test Structure is Critical**: Having proper test phases makes validation much easier
 2. **Port Registry Integration**: Don't rely on sourcing functions in test subshells - use direct values
 3. **Content Management Complexity**: Keycloak's API requires careful handling of authentication tokens
 4. **Documentation First**: PRD helps track progress and prioritize work
+5. **Library Dependencies**: Be careful with circular dependencies when sourcing shell libraries
+6. **CLI Path Resolution**: Always use proper path resolution for BASH_SOURCE to handle both direct and sourced execution

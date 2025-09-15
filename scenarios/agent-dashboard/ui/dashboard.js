@@ -107,7 +107,10 @@ function createAgentCard(agent) {
                     <span>PID:</span> ${agent.pid || 'N/A'}
                 </div>
                 <div class="metric-mini">
-                    <span>Started:</span> ${formatTime(agent.start_time)}
+                    <span>CPU:</span> ${agent.metrics && agent.metrics.cpu_percent ? agent.metrics.cpu_percent.toFixed(1) + '%' : 'N/A'}
+                </div>
+                <div class="metric-mini">
+                    <span>Memory:</span> ${agent.metrics && agent.metrics.memory_mb ? agent.metrics.memory_mb.toFixed(0) + 'MB' : 'N/A'}
                 </div>
             </div>
             

@@ -263,6 +263,36 @@ vrooli resource keycloak tls renew
 vrooli resource keycloak tls disable
 ```
 
+### Let's Encrypt Certificate Automation
+
+```bash
+# Initialize Let's Encrypt with email
+vrooli resource keycloak letsencrypt init "admin@example.com"
+
+# Request certificate for domain
+vrooli resource keycloak letsencrypt request "yourdomain.com" "admin@example.com"
+
+# Renew certificates
+vrooli resource keycloak letsencrypt renew
+
+# Setup automatic renewal (daily/weekly/monthly)
+vrooli resource keycloak letsencrypt auto-renew daily
+vrooli resource keycloak letsencrypt auto-renew weekly
+vrooli resource keycloak letsencrypt auto-renew monthly
+
+# Disable automatic renewal
+vrooli resource keycloak letsencrypt disable-auto-renew
+
+# Check certificate status
+vrooli resource keycloak letsencrypt status
+
+# Revoke certificate
+vrooli resource keycloak letsencrypt revoke "yourdomain.com" "keycompromise"
+
+# Test ACME challenge setup
+vrooli resource keycloak letsencrypt test 8899
+```
+
 ## Multi-Factor Authentication (MFA)
 
 ```bash

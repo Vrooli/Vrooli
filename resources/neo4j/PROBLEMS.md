@@ -47,10 +47,12 @@ Adjust memory settings in container environment variables if needed:
 ## Authentication
 
 ### Current Implementation
-Uses hardcoded password "VrooliNeo4j2024!" for simplicity.
+Uses environment variable NEO4J_AUTH for authentication configuration.
+- Defaults to "none" for development environments (no authentication)
+- Can be set to "neo4j/yourpassword" for production use
 
 ### Security Note
-For production deployments, credentials should be:
-- Stored in environment variables
-- Rotated regularly
-- Use stronger passwords
+For production deployments:
+- Always set NEO4J_AUTH environment variable explicitly
+- Use strong passwords and rotate regularly
+- Consider using secrets management tools like Vault

@@ -57,6 +57,11 @@ COMMANDS:
       delete <name>     Delete an isolated network
       connect <container> <network> Connect container to network
       status <name>     Show network status
+    nat                 NAT traversal management
+      enable <name>     Enable NAT traversal for tunnel
+      disable <name>    Disable NAT traversal for tunnel
+      status            Show NAT traversal status
+      test <name>       Test NAT connectivity
 
 EXAMPLES:
     # Install and start WireGuard
@@ -149,6 +154,9 @@ main() {
             ;;
         namespace)
             handle_namespace_command "$@"
+            ;;
+        nat)
+            handle_nat_command "$@"
             ;;
         *)
             echo "Error: Unknown command: $command" >&2

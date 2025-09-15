@@ -26,7 +26,7 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
 - [x] **Backup/Restore**: Data preservation across uninstall/reinstall (✓ full backup/restore implemented and tested)
 
 ### P2 Requirements (Nice to Have)
-- [ ] **Versioning Support**: Object versioning for data protection
+- [x] **Versioning Support**: Object versioning for data protection (✓ CLI command implemented and tested)
 - [ ] **Replication**: Multi-instance data replication
 - [ ] **Performance Tuning**: Configurable thread pools and cache sizes
 
@@ -150,3 +150,9 @@ MinIO provides high-performance, S3-compatible object storage for Vrooli's ecosy
   - Fixed credential loading in tests to properly source secure passwords
   - All tests passing with mc client implementation
   - Improved resource portability - no external dependencies required
+- 2025-09-15: Implemented versioning support (P2 requirement):
+  - Added `content versioning` CLI command with enable/disable/status actions
+  - Integrated with existing mc client in MinIO container
+  - Added comprehensive integration tests for versioning functionality
+  - All tests passing including new versioning tests
+  - Enables object version history for data protection and recovery

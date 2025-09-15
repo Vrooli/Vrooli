@@ -27,6 +27,10 @@ The VirusTotal resource provides comprehensive threat detection capabilities by 
 - **Automatic Cache Rotation**: Prevents unbounded cache growth with configurable limits
 - **Enhanced Integration Examples**: Comprehensive examples with other Vrooli resources
 
+### New Features (Latest Update)
+- **URL-Based File Submission**: Download and scan files from URLs (S3 pre-signed URLs, etc.)
+- **Threat Intelligence Feed Export**: Export aggregated threat data in JSON, CSV, or IOC formats
+
 ### Planned
 - **YARA Rules**: Custom threat hunting rules (premium feature)
 - **Historical Analysis**: Track threat evolution over time
@@ -323,12 +327,53 @@ while read path action file; do
 done
 ```
 
+#### Scanning Files from S3/MinIO URLs
+```bash
+# Scan a file from S3 pre-signed URL
+curl -X POST http://localhost:8290/api/scan/file-url \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://s3.amazonaws.com/bucket/file.exe?presigned-url-params",
+    "webhook": "http://localhost:3000/scan-complete",
+    "max_size": 33554432
+  }'
+
+# The endpoint will:
+# 1. Download the file from the URL
+# 2. Calculate its hash
+# 3. Check cache for existing results
+# 4. Submit to VirusTotal if not cached
+# 5. Call webhook when analysis completes
+```
+
+#### Threat Intelligence Feed Export
+```bash
+# Export threats from last 7 days as JSON
+curl "http://localhost:8290/api/threat-feed/export?format=json&days=7&min_detections=5"
+
+# Export as CSV for SIEM import
+curl "http://localhost:8290/api/threat-feed/export?format=csv&days=30" \
+  -o threat_feed.csv
+
+# Export as IOC (Indicators of Compromise) format
+curl "http://localhost:8290/api/threat-feed/export?format=ioc&days=14" \
+  -o indicators.txt
+
+# Filter by threat type
+curl "http://localhost:8290/api/threat-feed/export?format=json&types=files&types=urls"
+
+# Integration with SIEM
+*/15 * * * * curl -s "http://localhost:8290/api/threat-feed/export?format=json&days=1" | \
+  /usr/local/bin/send-to-siem.sh
+```
+
 ## API Endpoints
 
 The service exposes a REST API on port 8290:
 
 - `GET /api/health` - Service health status
 - `POST /api/scan/file` - Submit file for scanning (supports webhook param)
+- `POST /api/scan/file-url` - Submit file from URL for scanning (NEW)
 - `POST /api/scan/url` - Submit URL for analysis (supports webhook param)
 - `GET /api/report/{hash}` - Get file report by hash
 - `GET /api/report/url/{id}` - Get URL analysis report
@@ -339,6 +384,7 @@ The service exposes a REST API on port 8290:
 - `GET /api/cache/list` - List cached scan results
 - `DELETE /api/cache/clear` - Clear all cached data
 - `GET /api/cache/info` - Cache rotation and size information
+- `GET /api/threat-feed/export` - Export threat intelligence feed (NEW)
 
 ## Cache Management
 

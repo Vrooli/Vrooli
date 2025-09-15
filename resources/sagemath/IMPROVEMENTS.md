@@ -1,5 +1,104 @@
 # SageMath Resource Improvements
 
+## Date: 2025-09-15
+## Improver Task: resource-improver-20250912-003003
+
+## Summary
+
+Successfully added comprehensive export capabilities to the SageMath resource, enabling export of mathematical expressions to LaTeX, MathML, and PNG image formats.
+
+## Improvements Implemented
+
+### 1. Export Functionality Implementation
+**Purpose**: Enable export of mathematical expressions to various formats for documentation and presentation.
+
+**Solution**:
+- Created lib/export.sh with functions for LaTeX, MathML, and image export
+- Implemented sagemath::export::latex for LaTeX format export
+- Implemented sagemath::export::mathml for web-friendly MathML export
+- Implemented sagemath::export::image for PNG equation rendering
+- Added sagemath::export::all to export to all formats simultaneously
+- Integrated export commands into CLI framework
+
+**Validation**:
+```bash
+# Export to LaTeX
+bash -c 'source /home/matthalloran8/Vrooli/resources/sagemath/cli.sh && sagemath::export::latex "x^2 + y^2"'
+# Result: Creates .tex file with LaTeX representation
+
+# Export to all formats
+bash -c 'source /home/matthalloran8/Vrooli/resources/sagemath/cli.sh && sagemath::export::all "integrate(sin(x), x, 0, pi)" "integral"'
+# Result: Creates .tex, .xml, and .png files
+```
+
+### 2. CLI Integration
+**Problem**: Export commands needed to be accessible through the CLI.
+
+**Solution**:
+- Registered export command group in cli.sh
+- Added subcommands for latex, mathml, image, all, and formats
+- Sourced export.sh library in CLI initialization
+- Commands accessible via bash direct invocation
+
+**Note**: Due to CLI framework limitations, subcommands show help but must be invoked directly via bash.
+
+## Test Results
+
+All existing tests continue to pass:
+- ✅ Smoke tests: All pass
+- ✅ Unit tests: All pass  
+- ✅ Integration tests: All pass
+- ✅ Export functions: Working correctly
+
+## Files Modified/Created
+
+1. `/resources/sagemath/lib/export.sh` (created)
+   - Complete export functionality implementation
+   - Support for LaTeX, MathML, and PNG formats
+
+2. `/resources/sagemath/cli.sh` (modified)
+   - Added export command registration
+   - Sourced export.sh library
+
+3. `/resources/sagemath/README.md` (modified)
+   - Added export capabilities documentation
+   - Included usage examples
+
+4. `/resources/sagemath/PRD.md` (modified)
+   - Updated implementation history
+   - Documented export enhancement
+
+## Net Progress
+
+- **Features Added**: 5 (LaTeX export, MathML export, image export, all export, formats listing)
+- **Features Fixed**: 0
+- **Features Broken**: 0
+- **Net Progress**: +5 features
+
+## Usage Examples
+
+```bash
+# Export mathematical expression to LaTeX
+bash -c 'source /home/matthalloran8/Vrooli/resources/sagemath/cli.sh && \
+  sagemath::export::latex "solve(x^2 - 4 == 0, x)"'
+
+# Export to PNG image for presentations
+bash -c 'source /home/matthalloran8/Vrooli/resources/sagemath/cli.sh && \
+  sagemath::export::image "sum(1/n^2, n, 1, infinity)"'
+
+# Export to all formats at once
+bash -c 'source /home/matthalloran8/Vrooli/resources/sagemath/cli.sh && \
+  sagemath::export::all "factorial(10)" "factorial"'
+```
+
+## Lessons Learned
+
+1. **Variable Declaration**: SageMath requires explicit variable declaration for symbolic expressions
+2. **CLI Framework**: Some v2.0 CLI framework features have limitations with nested subcommands
+3. **Export Formats**: LaTeX is most robust, MathML needs basic wrapper, image rendering uses matplotlib
+
+---
+
 ## Date: 2025-09-12
 ## Improver Task: resource-improver-20250912-003229
 
@@ -306,3 +405,105 @@ resource-sagemath test parallel
 ## Conclusion
 
 The SageMath resource is fully operational with 100% PRD completion. All P0, P1, and P2 requirements are functional. The resource provides comprehensive mathematical computation capabilities with excellent performance and reliability. Documentation is complete and the resource is ready for production use.
+
+---
+
+## Date: 2025-09-15
+## Improver Task: resource-improver-20250912-003003
+
+## Summary
+
+Enhanced SageMath resource with performance improvements and better reliability through result caching and proper temporary file cleanup.
+
+## Improvements Implemented
+
+### 1. Fixed Temporary File Cleanup
+**Problem**: Temporary calculation files (.sage.py) were accumulating in the scripts directory.
+
+**Solution**:
+- Enhanced cleanup to remove both .sage and .sage.py files
+- Fixed cleanup in both content.sh and calculate.sh
+- Cleaned up 10+ existing accumulated temp files
+
+**Validation**:
+```bash
+resource-sagemath content calculate "2+2"
+ls /data/resources/sagemath/scripts/temp_calc_*
+# No temp files remain
+```
+
+### 2. Implemented Result Caching
+**Problem**: Repeated calculations were re-computed unnecessarily, impacting performance.
+
+**Solution**:
+- Added cache directory to store calculation results
+- Implemented SHA256-based cache key generation
+- Cache entries valid for 1 hour
+- Automatic cleanup of stale cache entries
+- Added SAGEMATH_NO_CACHE environment variable to bypass cache
+
+**Validation**:
+```bash
+resource-sagemath content calculate "factor(1234567891)"
+# First run: calculates
+resource-sagemath content calculate "factor(1234567891)"
+# Second run: "📋 Using cached result"
+```
+
+### 3. Added Cache Management Commands
+**Problem**: No way to manage or monitor the calculation cache.
+
+**Solution**:
+- Added `cache` command group with `clear` and `stats` subcommands
+- `cache stats` shows total entries, fresh/stale counts, and size
+- `cache clear` removes all cached results
+- Note: Commands work but not yet visible in CLI help (framework limitation)
+
+**Validation**:
+```bash
+bash -c 'source /resources/sagemath/cli.sh && sagemath::cache::stats'
+# Shows cache statistics
+bash -c 'source /resources/sagemath/cli.sh && sagemath::cache::clear'
+# Clears cache
+```
+
+## Test Results
+
+All tests continue to pass:
+- ✅ Smoke tests: All pass
+- ✅ Unit tests: All pass
+- ✅ Integration tests: All pass
+- ✅ Performance: No degradation
+- ✅ Health checks: Respond correctly
+
+## Files Modified
+
+1. `/resources/sagemath/lib/content.sh`
+   - Added cache checking and saving logic
+   - Fixed temp file cleanup
+
+2. `/resources/sagemath/lib/calculate.sh`
+   - Fixed temp file cleanup for .sage.py files
+
+3. `/resources/sagemath/lib/common.sh`
+   - Added SAGEMATH_CACHE_DIR variable
+   - Updated directory creation function
+
+4. `/resources/sagemath/cli.sh`
+   - Added cache command handlers (clear, stats)
+
+5. `/resources/sagemath/PRD.md`
+   - Updated implementation history
+
+## Net Progress
+
+- **Features Added**: 2 (result caching, cache management)
+- **Features Fixed**: 1 (temp file cleanup)
+- **Features Broken**: 0
+- **Net Progress**: +3 improvements
+
+## Lessons Learned
+
+1. **File Extensions**: SageMath automatically creates .py files from .sage files - cleanup must handle both
+2. **Caching Strategy**: SHA256 hashing provides reliable cache keys for mathematical expressions
+3. **CLI Framework**: The v2.0 CLI framework auto-discovers functions but may not show all in help

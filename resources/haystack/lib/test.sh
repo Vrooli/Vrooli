@@ -42,11 +42,13 @@ haystack::test_smoke() {
 
 # Run integration tests
 haystack::test_integration() {
+    log::info "Running Haystack integration tests..."
+    
     if [[ -f "${HAYSTACK_TEST_DIR}/phases/test-integration.sh" ]]; then
         bash "${HAYSTACK_TEST_DIR}/phases/test-integration.sh"
     else
-        log::info "Integration tests not implemented for haystack"
-        return 0
+        log::warning "Integration test file not found"
+        return 1
     fi
 }
 
@@ -116,6 +118,10 @@ haystack::validate_installation() {
     log::info "Validating Haystack installation..."
     
     local issues=()
+    
+    # Define paths if not already set
+    local HAYSTACK_VENV_DIR="${HAYSTACK_VENV_DIR:-${HAYSTACK_DIR}/venv}"
+    local HAYSTACK_SCRIPTS_DIR="${HAYSTACK_SCRIPTS_DIR:-${HAYSTACK_DIR}/scripts}"
     
     # Check Python environment
     if [[ ! -d "${HAYSTACK_VENV_DIR}" ]]; then

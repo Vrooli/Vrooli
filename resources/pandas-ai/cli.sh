@@ -32,6 +32,12 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # shellcheck disable=SC1091
 source "${PANDAS_AI_CLI_DIR}/config/defaults.sh"
 
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/pandas-ai/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/pandas-ai/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
+
 # Source pandas-ai libraries
 for lib in common status install lifecycle docker content test agents; do
     lib_file="${PANDAS_AI_CLI_DIR}/lib/${lib}.sh"
@@ -70,6 +76,17 @@ cli::register_command "status" "Show detailed resource status" "pandas_ai::statu
 cli::register_command "logs" "Show pandas-ai logs" "pandas_ai::docker::logs"
 
 # Agent management commands
+# Create wrapper for agents command that delegates to manager
+pandas_ai::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="pandas-ai" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f pandas_ai::agents::command
+
 cli::register_command "agents" "Manage running pandas-ai agents" "pandas_ai::agents::command"
 
 ################################################################################
@@ -89,8 +106,8 @@ pandas_ai::setup_agent_cleanup() {
     
     # Cleanup function that uses the exported variable
     pandas_ai::agent_cleanup() {
-        if [[ -n "${PANDAS_AI_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
-            agents::unregister "${PANDAS_AI_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        if [[ -n "${PANDAS_AI_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
+            agent_manager::unregister "${PANDAS_AI_CURRENT_AGENT_ID}" >/dev/null 2>&1
         fi
         exit 0
     }

@@ -33,6 +33,12 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # Source resource configuration
 source "${GEMINI_CLI_DIR}/config/defaults.sh"
 
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/gemini/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/gemini/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
+
 # Source resource libraries (only what exists)
 for lib in core install status content inject test agents; do
     lib_file="${GEMINI_CLI_DIR}/lib/${lib}.sh"
@@ -84,6 +90,17 @@ CLI_COMMAND_HANDLERS["content::execute"]="gemini::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed resource status" "gemini::status"
 cli::register_command "logs" "Show resource logs (N/A for API service)" "gemini::logs_noop"
+# Create wrapper for agents command that delegates to manager
+gemini::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="gemini" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f gemini::agents::command
+
 cli::register_command "agents" "Manage running gemini agents" "gemini::agents::command"
 
 # ==============================================================================
@@ -131,8 +148,8 @@ gemini::setup_agent_cleanup() {
     
     # Cleanup function that uses the exported variable
     gemini::agent_cleanup() {
-        if [[ -n "${GEMINI_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
-            agents::unregister "${GEMINI_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        if [[ -n "${GEMINI_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
+            agent_manager::unregister "${GEMINI_CURRENT_AGENT_ID}" >/dev/null 2>&1
         fi
         exit 0
     }
@@ -153,10 +170,10 @@ gemini::generate_cli() {
     
     # Register agent if tracking is available
     local agent_id
-    if type -t agents::register &>/dev/null; then
-        agent_id=$(agents::generate_id)
+    if type -t agent_manager::register &>/dev/null; then
+        agent_id=$(agent_manager::generate_id)
         local command_string="resource-gemini generate \"$prompt\" \"$model\""
-        if agents::register "$agent_id" $$ "$command_string"; then
+        if agent_manager::register "$agent_id" $$ "$command_string"; then
             export GEMINI_CURRENT_AGENT_ID="$agent_id"
             gemini::setup_agent_cleanup "$agent_id"
         fi
@@ -168,8 +185,8 @@ gemini::generate_cli() {
     local exit_code=$?
     
     # Clean up agent registration
-    if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
-        agents::unregister "$agent_id" >/dev/null 2>&1
+    if [[ -n "$agent_id" ]] && type -t agent_manager::unregister &>/dev/null; then
+        agent_manager::unregister "$agent_id" >/dev/null 2>&1
     fi
     
     # Output result and return exit code

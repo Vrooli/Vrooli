@@ -212,3 +212,6 @@ vrooli resource earthly configure --list
 - 2025-01-14: Fixed integration test failures by unsetting EARTHLY_PLATFORMS variable during tests
 - 2025-01-14: All tests now passing (smoke, unit, integration) - 100% test success rate
 - 2025-01-14: Verified all P0, P1, and P2 requirements working correctly
+- 2025-01-15: Fixed EARTHLY_PLATFORMS configuration causing command-line execution errors
+- 2025-01-15: Fixed argument parsing for --target= style arguments in execute_build function
+- 2025-01-15: Verified build execution and caching work correctly with artifacts being generated

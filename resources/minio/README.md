@@ -85,7 +85,9 @@ resource-minio backup delete my-backup  # Delete a backup
 # Bucket management
 resource-minio content list
 resource-minio content add my-bucket    # Create bucket
-resource-minio content policy my-bucket download  # NEW: Set access policy
+resource-minio content policy my-bucket download  # Set access policy
+resource-minio content versioning my-bucket enable  # Enable versioning
+resource-minio content versioning my-bucket status  # Check versioning status
 resource-minio content remove my-bucket
 
 # File operations
@@ -133,6 +135,12 @@ docker exec minio mc cp local/bucket-name/file /path/to/destination
 # Create bucket
 docker exec minio mc mb local/new-bucket
 
+# Enable versioning on bucket
+docker exec minio mc version enable local/bucket-name
+
+# Check versioning status
+docker exec minio mc version info local/bucket-name
+
 # Remove bucket
 docker exec minio mc rb --force local/old-bucket
 ```
@@ -177,12 +185,13 @@ curl -X PUT --data-binary @screenshot.png \
   http://localhost:9000/vrooli-agent-artifacts/task-screenshot.png
 ```
 
-## New Features (v2.1)
+## New Features (v2.2)
 
 - **Storage Metrics**: `metrics` command shows per-bucket usage statistics
 - **Bucket Policies**: `content policy` command for public/private access control
 - **Multi-part Upload**: Automatic for files >100MB with resume capability
 - **MC Client Integration**: Updated to latest MinIO client syntax
+- **Object Versioning**: `content versioning` command for bucket-level version control
 
 ## Security Features
 

@@ -30,6 +30,8 @@ vrooli resource mathlib test smoke
 - **Cache Management**: LRU cache for compiled proofs with hit/miss metrics and configurable size
 - **Batch Processing**: Process multiple proofs in parallel with job tracking
 - **Performance Metrics**: Real-time statistics on proof verification times and cache efficiency
+- **Interactive REPL**: Interactive theorem proving with step-by-step proof development
+- **Custom Tactics**: Load, manage, and test custom proof tactics
 - **Content Management**: Add, list, execute, and manage proof files
 - **Health Monitoring**: Robust health checks with timeout handling and Lean version detection
 - **v2.0 Compliant**: Full universal resource contract implementation
@@ -100,6 +102,49 @@ curl http://localhost:11458/tactics
 
 # View performance metrics
 curl http://localhost:11458/metrics
+```
+
+### Interactive REPL
+
+```bash
+# Start interactive theorem proving session
+vrooli resource mathlib interactive start
+
+# Replay a proof file step-by-step
+vrooli resource mathlib interactive replay proof.lean
+
+# Get REPL help
+vrooli resource mathlib interactive help
+```
+
+REPL commands:
+- `:help` - Show help
+- `:tactics` - List available tactics
+- `:check <expr>` - Check type of expression
+- `:eval <expr>` - Evaluate expression
+- `:quit` - Exit REPL
+- `:clear` - Clear screen
+
+### Custom Tactics Management
+
+```bash
+# Load a custom tactic file
+vrooli resource mathlib content tactics load my_tactic.lean
+
+# List loaded custom tactics
+vrooli resource mathlib content tactics list
+
+# Test a custom tactic
+vrooli resource mathlib content tactics test my_tactic "theorem test : 2 + 2 = 4 := by my_tactic"
+
+# Remove a custom tactic
+vrooli resource mathlib content tactics remove my_tactic
+
+# Export tactics to bundle
+vrooli resource mathlib content tactics export tactics.tar.gz
+
+# Import tactics from bundle
+vrooli resource mathlib content tactics import tactics.tar.gz
 ```
 
 ## Configuration

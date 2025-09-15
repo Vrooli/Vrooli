@@ -4,8 +4,23 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="${SCRIPT_DIR}"  # Store original resource directory
-source "${SCRIPT_DIR}/lib/core.sh"
-source "${SCRIPT_DIR}/lib/test.sh"
+
+# Source libraries
+source "${RESOURCE_DIR}/lib/core.sh"
+source "${RESOURCE_DIR}/lib/test.sh"
+
+# Restore SCRIPT_DIR after test.sh changes it
+SCRIPT_DIR="${RESOURCE_DIR}"
+
+# Source additional libraries
+source "${RESOURCE_DIR}/lib/api.sh"
+
+# Source DHCP library
+source "${RESOURCE_DIR}/lib/dhcp.sh"
+
+# Source Regex library
+source "${RESOURCE_DIR}/lib/regex.sh"
+source "${RESOURCE_DIR}/lib/content.sh"
 
 # Main command handler
 main() {
@@ -75,6 +90,7 @@ COMMANDS:
         logs            Query DNS logs
         disable         Temporarily disable blocking
         enable          Re-enable blocking
+        dns             Manage custom DNS records
     status              Show service status
     logs                View service logs
     credentials         Display API credentials
@@ -218,9 +234,94 @@ handle_content() {
         enable)
             enable_blocking "$@"
             ;;
+        dns)
+            manage_custom_dns "$@"
+            ;;
+        dhcp)
+            handle_dhcp "$@"
+            ;;
+        regex)
+            handle_regex "$@"
+            ;;
         *)
             echo "Error: Unknown content command: $subcmd" >&2
-            echo "Valid commands: stats, update, blacklist, whitelist, logs, disable, enable" >&2
+            echo "Valid commands: stats, update, blacklist, whitelist, logs, disable, enable, dns, dhcp, regex" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle DHCP commands
+handle_dhcp() {
+    local action="${1:-status}"
+    shift || true
+    
+    case "$action" in
+        enable)
+            enable_dhcp "$@"
+            ;;
+        disable)
+            disable_dhcp
+            ;;
+        status)
+            get_dhcp_status
+            ;;
+        leases)
+            get_dhcp_leases
+            ;;
+        reserve)
+            add_dhcp_reservation "$@"
+            ;;
+        unreserve)
+            remove_dhcp_reservation "$@"
+            ;;
+        reservations)
+            list_dhcp_reservations
+            ;;
+        *)
+            echo "Error: Unknown DHCP command: $action" >&2
+            echo "Valid commands: enable, disable, status, leases, reserve, unreserve, reservations" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle regex commands
+handle_regex() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        add)
+            add_regex_blacklist "$@"
+            ;;
+        remove)
+            remove_regex_blacklist "$@"
+            ;;
+        add-white)
+            add_regex_whitelist "$@"
+            ;;
+        remove-white)
+            remove_regex_whitelist "$@"
+            ;;
+        list)
+            list_regex_patterns "$@"
+            ;;
+        test)
+            test_regex_pattern "$@"
+            ;;
+        import)
+            import_regex_patterns "$@"
+            ;;
+        export)
+            export_regex_patterns "$@"
+            ;;
+        common)
+            add_common_regex_patterns "$@"
+            ;;
+        *)
+            echo "Error: Unknown regex command: $action" >&2
+            echo "Valid commands: add, remove, add-white, remove-white, list, test, import, export, common" >&2
             exit 1
             ;;
     esac

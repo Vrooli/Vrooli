@@ -87,9 +87,16 @@ test_integration() {
     echo "Running Pi-hole integration tests..."
     local failed=0
     
+    # Get actual DNS port from configuration
+    local dns_port="${PIHOLE_DNS_PORT}"
+    if [[ -f "${PIHOLE_DATA_DIR}/.port_config" ]]; then
+        source "${PIHOLE_DATA_DIR}/.port_config"
+        dns_port="${DNS_PORT:-${PIHOLE_DNS_PORT}}"
+    fi
+    
     # Test 1: DNS resolution works
     echo -n "Test: DNS resolution... "
-    if timeout 5 dig @localhost google.com +short >/dev/null 2>&1; then
+    if timeout 5 dig @localhost -p ${dns_port} google.com +short >/dev/null 2>&1; then
         echo "PASS"
     else
         echo "FAIL"
@@ -99,7 +106,7 @@ test_integration() {
     # Test 2: Known ad domain is blocked
     echo -n "Test: Ad domain blocked... "
     local result
-    result=$(timeout 5 dig @localhost doubleclick.net +short 2>/dev/null || echo "failed")
+    result=$(timeout 5 dig @localhost -p ${dns_port} doubleclick.net +short 2>/dev/null || echo "failed")
     if [[ "$result" == "0.0.0.0" ]] || [[ "$result" == "" ]]; then
         echo "PASS"
     else

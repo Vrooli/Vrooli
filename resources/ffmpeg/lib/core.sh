@@ -449,25 +449,32 @@ ffmpeg::web::start() {
     
     log::info "Starting FFmpeg web interface on port $port"
     
-    # Start the API server in background
-    nohup "${FFMPEG_CLI_DIR}/lib/api.sh" start > /tmp/ffmpeg-web.log 2>&1 &
-    local pid=$!
-    echo "$pid" > "$WEB_PID_FILE"
+    # Start the API server (it will run in background)
+    export FFMPEG_API_PORT="$port"
+    "${FFMPEG_CLI_DIR}/lib/api.sh" start 
     
-    # Wait for server to start
-    local max_wait=10
-    local waited=0
-    while [[ $waited -lt $max_wait ]]; do
-        if timeout 1 curl -sf "http://localhost:$port" >/dev/null 2>&1; then
-            log::success "Web interface started successfully on http://localhost:$port"
-            return 0
-        fi
-        sleep 1
-        waited=$((waited + 1))
-    done
-    
-    log::error "Failed to start web interface"
-    return 1
+    # Check if PID file was created
+    if [[ -f /tmp/ffmpeg-api.pid ]]; then
+        local pid=$(cat /tmp/ffmpeg-api.pid)
+        cp /tmp/ffmpeg-api.pid "$WEB_PID_FILE"
+        
+        # Wait for server to be ready
+        local max_wait=10
+        local waited=0
+        while [[ $waited -lt $max_wait ]]; do
+            if timeout 1 curl -sf "http://localhost:$port" >/dev/null 2>&1; then
+                log::success "Web interface started successfully on http://localhost:$port"
+                return 0
+            fi
+            sleep 1
+            waited=$((waited + 1))
+        done
+        log::error "Web interface failed to respond after $max_wait seconds"
+        return 1
+    else
+        log::error "Failed to start web interface - PID file not created"
+        return 1
+    fi
 }
 
 # Stop web interface server

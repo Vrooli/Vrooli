@@ -71,7 +71,13 @@ unstructured_io::content::execute() {
 
 # Process document (alias for execute)
 unstructured_io::content::process() {
-    unstructured_io::content::execute "$@"
+    # The CLI framework sometimes passes subcommand index as extra arg
+    # If we get exactly 2 args and the second is a number, skip it
+    if [[ $# -eq 2 ]] && [[ "$2" =~ ^[0-9]+$ ]]; then
+        unstructured_io::content::execute "$1"
+    else
+        unstructured_io::content::execute "$@"
+    fi
 }
 
 # Process directory of documents

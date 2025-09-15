@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OBS_CLI_DIR}/config/defaults.sh"
 
 # Source OBS Studio libraries
-for lib in common core install status start stop content test streaming sources; do
+for lib in common core install status start stop content test streaming sources docker; do
     lib_file="${OBS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -91,6 +91,16 @@ cli::register_subcommand "sources" "cameras" "List available cameras" "obs::sour
 cli::register_subcommand "sources" "audio" "List audio devices" "obs::sources::audio_devices"
 cli::register_subcommand "sources" "preview" "Preview a source" "obs::sources::preview"
 cli::register_subcommand "sources" "visibility" "Set source visibility" "obs::sources::visibility"
+
+# Register docker command group (P2 feature)
+cli::register_command_group "docker" "Docker deployment management"
+cli::register_subcommand "docker" "build" "Build OBS Studio Docker image" "docker::build_image"
+cli::register_subcommand "docker" "run" "Run OBS Studio in Docker" "docker::run_container"
+cli::register_subcommand "docker" "stop" "Stop Docker container" "docker::stop_container"
+cli::register_subcommand "docker" "remove" "Remove Docker container" "docker::remove_container"
+cli::register_subcommand "docker" "status" "Show Docker container status" "docker::get_status"
+cli::register_subcommand "docker" "logs" "Show Docker container logs" "docker::get_logs"
+cli::register_subcommand "docker" "cleanup" "Clean up Docker resources" "docker::cleanup"
 
 # Additional information commands
 cli::register_command "status" "Show detailed OBS Studio status" "obs::get_status"

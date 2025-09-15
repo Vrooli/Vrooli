@@ -2,19 +2,23 @@
 
 ## Current Issues
 
-### 1. Limited Format Support for Spatial Data Import
-**Problem**: Only SQL file import is fully tested, shapefile/GeoJSON import needs more work
-**Impact**: Medium - Basic SQL import works but advanced GIS format support incomplete
-**Solution**: Implement ogr2ogr wrapper functions for full format support
-**Workaround**: Convert data to SQL format before importing
-
-### 2. Spatial Routing Initialization Error
-**Problem**: `vrooli resource postgis spatial init-routing` command exits without proper feedback
-**Impact**: Low - Other spatial analysis features work fine
-**Solution**: Debug the routing table initialization SQL
-**Workaround**: Use other spatial analysis features that are working
+### 1. ogr2ogr Not Available in Container
+**Problem**: The gdal-bin package with ogr2ogr is not installed in the PostGIS container
+**Impact**: Low - SQL import works perfectly as an alternative
+**Solution**: Either install gdal-bin in container or use SQL import (recommended)
+**Workaround**: Use SQL import which is fully functional and tested
 
 ## Resolved Issues
+
+### 1. Spatial Routing Initialization Feedback (RESOLVED - 2025-09-15)
+**Problem**: `vrooli resource postgis spatial init-routing` command exited without proper feedback
+**Solution**: Enhanced error handling to show table creation status and pgRouting availability
+**Status**: ✅ Resolved - Command now provides clear feedback about what was created
+
+### 2. GIS Format Import Support (RESOLVED - 2025-09-15)  
+**Problem**: Only SQL file import was working, needed support for GeoJSON, KML, shapefile formats
+**Solution**: Added wrapper functions for ogr2ogr with graceful fallback to SQL import
+**Status**: ✅ Resolved - Functions ready for when ogr2ogr is available, SQL import works great now
 
 ### 1. v2.0 Contract Compliance (RESOLVED)
 **Problem**: Missing test structure, schema.json, and proper test phases

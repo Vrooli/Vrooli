@@ -1,0 +1,27 @@
+{
+  "name": "strapi-v5",
+  "version": "5.0.0",
+  "description": "Strapi v5 Headless CMS for Vrooli",
+  "scripts": {
+    "develop": "strapi develop",
+    "start": "strapi start",
+    "build": "strapi build",
+    "strapi": "strapi",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "@strapi/strapi": "5.23.4",
+    "@strapi/plugin-users-permissions": "5.23.4",
+    "@strapi/plugin-i18n": "5.23.4",
+    "@strapi/plugin-cloud": "5.23.4",
+    "@strapi/provider-upload-aws-s3": "5.1.0",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=20.0.0 <=22.x.x",
+    "npm": ">=10.0.0"
+  },
+  "strapi": {
+    "uuid": "vrooli-strapi-v5"
+  }
+}

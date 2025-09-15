@@ -38,13 +38,11 @@ postgis_inject() {
             log::info "Injecting SQL file: $source_path"
             postgis_execute_sql "$source_path" "$database"
             return $?
-        elif [[ "$source_path" == *.shp ]]; then
-            log::info "Importing shapefile: $source_path"
-            postgis_import_shapefile "$source_path" "$database"
-            return $?
         else
-            log::error "Unsupported file type. Use .sql or .shp files"
-            return 1
+            # Use universal GIS importer for all spatial formats
+            log::info "Importing GIS file: $source_path"
+            postgis_import_gis "$source_path" "$database"
+            return $?
         fi
     fi
     
@@ -65,15 +63,18 @@ postgis_inject() {
             fi
         done < <(find "$source_path" -name "*.sql" -type f -print0 | sort -z)
         
-        # Process shapefiles
-        while IFS= read -r -d '' shp_file; do
-            format_info "Processing: $(basename "$shp_file")"
-            if postgis_import_shapefile "$shp_file" "$database"; then
-                ((success++))
-            else
-                ((failed++))
-            fi
-        done < <(find "$source_path" -name "*.shp" -type f -print0 | sort -z)
+        # Process all supported GIS formats
+        local gis_extensions="shp geojson json kml kmz gpx csv"
+        for ext in $gis_extensions; do
+            while IFS= read -r -d '' gis_file; do
+                format_info "Processing: $(basename "$gis_file")"
+                if postgis_import_gis "$gis_file" "$database"; then
+                    ((success++))
+                else
+                    ((failed++))
+                fi
+            done < <(find "$source_path" -name "*.$ext" -type f -print0 | sort -z)
+        done
         
         format_info "Injection complete: $success succeeded, $failed failed"
         

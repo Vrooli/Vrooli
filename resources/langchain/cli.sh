@@ -32,6 +32,12 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 # shellcheck disable=SC1091
 source "${LANGCHAIN_CLI_DIR}/config/defaults.sh"
 
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/langchain/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/langchain/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
+
 # Source LangChain libraries
 for lib in core install status content agents; do
     lib_file="${LANGCHAIN_CLI_DIR}/lib/${lib}.sh"
@@ -57,8 +63,8 @@ langchain::setup_agent_cleanup() {
     
     # Cleanup function that uses the exported variable
     langchain::agent_cleanup() {
-        if [[ -n "${LANGCHAIN_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
-            agents::unregister "${LANGCHAIN_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        if [[ -n "${LANGCHAIN_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
+            agent_manager::unregister "${LANGCHAIN_CURRENT_AGENT_ID}" >/dev/null 2>&1
         fi
         exit 0
     }
@@ -89,6 +95,17 @@ CLI_COMMAND_HANDLERS["content::execute"]="langchain::content::execute"
 # ==============================================================================
 cli::register_command "status" "Show detailed resource status" "langchain::status"
 cli::register_command "logs" "Show LangChain logs" "langchain::logs"
+# Create wrapper for agents command that delegates to manager
+langchain::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="langchain" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f langchain::agents::command
+
 cli::register_command "agents" "Manage running langchain agents" "langchain::agents::command"
 
 # Only execute if script is run directly (not sourced)

@@ -1,0 +1,28 @@
+id: resource-improver-20250912-010256
+title: Update earthly
+type: resource
+operation: improver
+category: ""
+priority: medium
+effort_estimate: 4h
+urgency: low
+impact_score: 5
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-12T01:02:56-04:00"
+updated_at: "2025-09-15T14:22:08-04:00"
+tags: []
+notes: Allegedly complete, but could benefit from validation/tidying
+results: {}

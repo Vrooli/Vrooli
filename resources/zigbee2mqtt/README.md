@@ -91,6 +91,45 @@ vrooli resource zigbee2mqtt device unpair "device_name"
 vrooli resource zigbee2mqtt device rename "old_name" "new_name"
 ```
 
+### Device Control
+
+#### Basic On/Off Control
+```bash
+# Turn device on
+vrooli resource zigbee2mqtt device control "living_room_light" on
+
+# Turn device off
+vrooli resource zigbee2mqtt device control "living_room_light" off
+
+# Toggle device state
+vrooli resource zigbee2mqtt device control "living_room_light" toggle
+```
+
+#### Brightness Control
+```bash
+# Set brightness (0-255)
+vrooli resource zigbee2mqtt device brightness "bedroom_lamp" 128
+
+# Dim to 20%
+vrooli resource zigbee2mqtt device brightness "bedroom_lamp" 51
+```
+
+#### Color Control
+```bash
+# Set color using hex
+vrooli resource zigbee2mqtt device color "rgb_bulb" "#FF0000"  # Red
+
+# Set color using RGB values
+vrooli resource zigbee2mqtt device color "rgb_bulb" "0,255,0"  # Green
+```
+
+#### Color Temperature
+```bash
+# Set color temperature in Kelvin
+vrooli resource zigbee2mqtt device temperature "white_bulb" 2700  # Warm white
+vrooli resource zigbee2mqtt device temperature "white_bulb" 6500  # Cool white
+```
+
 ### Network Management
 
 #### View Network Map

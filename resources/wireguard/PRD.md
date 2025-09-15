@@ -40,7 +40,7 @@ WireGuard provides modern, high-performance VPN networking that creates secure, 
   - [x] **Traffic Statistics**: Monitor bandwidth usage and connection metrics ✅ 2025-09-12
   - [x] **Key Rotation**: Automatic key rotation for enhanced security ✅ 2025-09-14
   - [ ] **Multi-Interface**: Support multiple tunnel interfaces
-  - [ ] **NAT Traversal**: Automatic hole-punching for NAT/firewall traversal
+  - [x] **NAT Traversal**: Automatic hole-punching for NAT/firewall traversal ✅ 2025-09-15
   - [x] **Content Management**: Store/retrieve tunnel configurations ✅ 2025-09-12
   
 - **Nice to Have (P2)**
@@ -189,12 +189,24 @@ networking:
 - Updated tests to include key rotation validation
 - All tests passing (100% success rate)
 
+### 2025-09-15: v0.4.0 NAT Traversal Implementation
+- Implemented comprehensive NAT traversal support with PersistentKeepalive
+- Added `nat enable` command to enable NAT traversal for tunnels with configurable keepalive
+- Added `nat disable` command to disable NAT traversal and restore original config
+- Added `nat status` command to show NAT-enabled tunnels and active rules
+- Added `nat test` command to verify NAT connectivity and handshake status
+- Automatic IP forwarding and iptables MASQUERADE rules configuration
+- Backup and restore mechanism for tunnel configurations
+- Support for custom keepalive intervals (default 25 seconds)
+- Enhanced hole-punching for bidirectional traffic through NAT/firewall
+- All tests passing (100% success rate)
+
 ## ✅ Completion Status
 
-**Overall Progress: 77%**
+**Overall Progress: 81%**
 
 - P0 Requirements: 100% (7/7 completed) ✅
-- P1 Requirements: 57% (4/7 completed)  
+- P1 Requirements: 71% (5/7 completed)  
 - P2 Requirements: 0% (0/3 completed)
 - Documentation: 100% (PRD, README, inline docs) ✅
 - Testing: 100% (all test suites passing) ✅

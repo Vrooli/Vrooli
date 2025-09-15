@@ -258,7 +258,7 @@ This testing pattern integrates with Vrooli's centralized testing library:
 ### Centralized Testing
 ```bash
 # Use centralized Go testing
-source "$APP_ROOT/scripts/lib/testing/unit/go.sh"
+source "$APP_ROOT/scripts/scenarios/testing/unit/go.sh"
 testing::unit::run_go_tests --dir api --coverage-warn 80 --coverage-error 50
 ```
 

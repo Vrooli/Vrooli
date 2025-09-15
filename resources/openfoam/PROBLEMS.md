@@ -7,10 +7,10 @@
 **Cause**: Port conflicts or environment variable not properly propagated
 **Solution**: Test scripts now auto-detect the actual port being used
 
-### 2. API Server Slow Response Times
-**Problem**: Case creation API calls can take 60+ seconds
-**Cause**: OpenFOAM tutorial copying and initialization is resource-intensive
-**Solution**: Consider implementing async operations with status polling
+### 2. API Server Slow Response Times (RESOLVED)
+**Problem**: Case creation API calls were reported to take 60+ seconds
+**Investigation**: Testing shows case creation actually takes <1 second
+**Resolution**: False report - performance is within acceptable limits
 
 ### 3. Docker Image Inconsistency
 **Problem**: Multiple OpenFOAM Docker images referenced (openfoam11-paraview510 vs opencfd/openfoam:v2312)
@@ -24,10 +24,10 @@
 - `/opt/OpenFOAM/OpenFOAM-v2312/etc/bashrc` (OpenCFD)
 **Solution**: Test scripts now check both paths
 
-### 5. Solver Execution Issues
-**Problem**: Some solvers may not be available or have different names
-**Example**: `foamRun` vs `simpleFoam` vs `icoFoam`
-**Solution**: Use solver availability checks before execution
+### 5. Solver Execution Issues (RESOLVED)
+**Problem**: Some solvers fail due to missing configuration (e.g., PISO vs PIMPLE)
+**Example**: icoFoam requires PISO but some cases have PIMPLE
+**Solution**: API now auto-fixes solver configuration before execution
 
 ### 6. Memory and Resource Limits
 **Problem**: Complex simulations can exceed default resource limits

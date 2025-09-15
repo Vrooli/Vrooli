@@ -379,40 +379,144 @@ huginn::import_scenario_file() {
         return 1
     fi
     
-    # Import scenario via Rails
+    # Escape JSON for Ruby
+    scenario_json=$(echo "$scenario_json" | sed "s/'/\\\\'/g")
+    
+    # Import scenario via Rails with complete agent reconstruction
     local import_code="
+    require 'json'
+    
     scenario_data = '$scenario_json'
     
     begin
       data = JSON.parse(scenario_data)
       user = User.find_by(username: 'admin') || User.first
       
-      # Create scenario
-      scenario = Scenario.new(
-        name: data['name'],
-        description: data['description'],
-        user: user
-      )
-      
-      if scenario.save
-        puts \"✅ Scenario imported: #{scenario.name}\"
+      # Handle single scenario or multiple scenarios
+      scenarios_to_import = []
+      if data['scenario']
+        scenarios_to_import << data['scenario']
+      elsif data['scenarios']
+        scenarios_to_import = data['scenarios']
       else
-        puts \"❌ Failed to import scenario: #{scenario.errors.full_messages.join(', ')}\"
+        puts \"❌ Invalid format: missing 'scenario' or 'scenarios' key\"
+        exit 1
       end
+      
+      imported_count = 0
+      failed_count = 0
+      
+      scenarios_to_import.each do |scenario_data|
+        # Create scenario
+        scenario = Scenario.new(
+          name: scenario_data['name'] || 'Imported Scenario',
+          description: scenario_data['description'],
+          user: user,
+          tag_bg_color: scenario_data['tag_bg_color'],
+          tag_fg_color: scenario_data['tag_fg_color'],
+          icon: scenario_data['icon']
+        )
+        
+        if scenario.save
+          puts \"✅ Created scenario: #{scenario.name}\"
+          
+          # Create agents and track GUID to ID mapping
+          guid_to_agent = {}
+          
+          if scenario_data['agents'] && scenario_data['agents'].any?
+            scenario_data['agents'].each do |agent_data|
+              # Skip if agent type is not available
+              unless Object.const_defined?(agent_data['type'])
+                puts \"   ⚠️  Skipping agent #{agent_data['name']}: Unknown type #{agent_data['type']}\"
+                next
+              end
+              
+              agent_class = agent_data['type'].constantize
+              agent = agent_class.new(
+                user: user,
+                name: agent_data['name'],
+                disabled: agent_data['disabled'] || false,
+                options: agent_data['options'] || {},
+                schedule: agent_data['schedule'],
+                keep_events_for: agent_data['keep_events_for'] || 0,
+                propagate_immediately: agent_data['propagate_immediately'] || false,
+                memory: agent_data['memory'] || {}
+              )
+              
+              # Assign to scenario
+              agent.scenario_ids = [scenario.id]
+              
+              if agent.save
+                guid_to_agent[agent_data['guid']] = agent
+                puts \"   ✅ Created agent: #{agent.name} (#{agent.type.split('::')[-1]})\"
+              else
+                puts \"   ❌ Failed to create agent #{agent_data['name']}: #{agent.errors.full_messages.join(', ')}\"
+              end
+            end
+            
+            # Now establish agent relationships
+            scenario_data['agents'].each do |agent_data|
+              next unless guid_to_agent[agent_data['guid']]
+              agent = guid_to_agent[agent_data['guid']]
+              
+              # Connect source agents
+              if agent_data['source_agent_guids'] && agent_data['source_agent_guids'].any?
+                agent_data['source_agent_guids'].each do |source_guid|
+                  if source_agent = guid_to_agent[source_guid]
+                    agent.sources << source_agent
+                    puts \"   🔗 Connected #{source_agent.name} → #{agent.name}\"
+                  end
+                end
+              end
+              
+              # Connect receiver agents
+              if agent_data['receiver_agent_guids'] && agent_data['receiver_agent_guids'].any?
+                agent_data['receiver_agent_guids'].each do |receiver_guid|
+                  if receiver_agent = guid_to_agent[receiver_guid]
+                    agent.receivers << receiver_agent
+                    puts \"   🔗 Connected #{agent.name} → #{receiver_agent.name}\"
+                  end
+                end
+              end
+              
+              agent.save
+            end
+          end
+          
+          imported_count += 1
+        else
+          puts \"❌ Failed to import scenario: #{scenario.errors.full_messages.join(', ')}\"
+          failed_count += 1
+        end
+      end
+      
+      puts \"\"
+      puts \"📊 Import Summary:\"
+      puts \"   ✅ Imported: #{imported_count} scenario(s)\"
+      puts \"   ❌ Failed: #{failed_count} scenario(s)\" if failed_count > 0
+      
+      exit(failed_count > 0 && imported_count == 0 ? 1 : 0)
+      
     rescue => e
       puts \"❌ Import error: #{e.message}\"
+      puts e.backtrace.first(5).join(\"\\n\")
+      exit 1
     end
     "
     
+    log::info "📦 Importing scenario from $scenario_file..."
+    
     local result
-    result=$(huginn::rails_runner "$import_code" 2>/dev/null)
+    result=$(huginn::rails_runner "$import_code" 2>&1)
     
     # Cleanup tracking agent
     if [[ -n "$tracking_agent_id" ]] && type -t agents::unregister &>/dev/null; then
         agents::unregister "$tracking_agent_id" >/dev/null 2>&1
     fi
     
-    if [[ "$result" == *"✅"* ]]; then
+    echo "$result"
+    
+    if [[ "$result" == *"✅ Imported:"* ]] || [[ "$result" == *"✅ Created scenario:"* ]]; then
         return 0
     else
         return 1

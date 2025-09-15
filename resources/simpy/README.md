@@ -14,6 +14,9 @@ vrooli resource simpy manage start --wait
 # Check status
 vrooli resource simpy status
 
+# Access the visualization dashboard
+open http://localhost:9510/dashboard
+
 # Run tests
 vrooli resource simpy test all
 
@@ -40,6 +43,7 @@ SimPy runs as an enhanced Python-based REST API service with:
 - **Supply Chain Modeling**: Multi-echelon networks with inventory management
 - **Real-time Monitoring**: WebSocket support for live simulation progress tracking
 - **Pattern Storage**: Qdrant integration for storing and searching simulation patterns
+- **Visualization Dashboard**: Interactive web interface for monitoring and analytics
 
 ## Core Capabilities
 
@@ -86,6 +90,10 @@ SimPy runs as an enhanced Python-based REST API service with:
 - `GET /version` - Version information and capabilities
 - `POST /simulate` - Run a simulation with custom code
 - `GET /examples` - List available example simulations
+
+### Visualization Dashboard
+- `GET /dashboard` - Interactive web dashboard for visualization
+- `GET /` - Redirects to dashboard
 
 ### Monitoring Endpoints
 - `GET /simulations` - List active simulations

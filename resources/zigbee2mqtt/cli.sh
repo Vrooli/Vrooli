@@ -68,6 +68,10 @@ COMMANDS:
         pair              Enable pairing mode
         unpair <device>   Remove device
         rename <old> <new> Rename device
+        control <dev> <state> Set device on/off/toggle
+        brightness <dev> <val> Set brightness (0-255)
+        color <dev> <color>   Set color (hex or RGB)
+        temperature <dev> <K> Set color temperature
         configure <device> Update device settings
     
     network <action>       Network management:
@@ -191,12 +195,24 @@ handle_device() {
         rename)
             zigbee2mqtt::device::rename "$@"
             ;;
+        control)
+            zigbee2mqtt::device::control "$@"
+            ;;
+        brightness)
+            zigbee2mqtt::device::brightness "$@"
+            ;;
+        color)
+            zigbee2mqtt::device::color "$@"
+            ;;
+        temperature)
+            zigbee2mqtt::device::temperature "$@"
+            ;;
         configure)
             zigbee2mqtt::device::configure "$@"
             ;;
         *)
             log::error "Unknown device action: $action"
-            echo "Valid actions: pair, unpair, rename, configure"
+            echo "Valid actions: pair, unpair, rename, control, brightness, color, temperature, configure"
             return 1
             ;;
     esac

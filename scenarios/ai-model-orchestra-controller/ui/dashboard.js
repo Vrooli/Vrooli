@@ -49,13 +49,13 @@ async function loadInitialData() {
 
 async function loadOverviewData() {
     try {
-        const response = await fetch('/api/health');
+        const response = await fetch('/api/v1/health');
         const data = await response.json();
         
         updateSystemStatus(data);
         
         // Load additional metrics
-        const metricsResponse = await fetch('/api/ai/resources/metrics');
+        const metricsResponse = await fetch('/api/v1/ai/resources/metrics');
         const metricsData = await metricsResponse.json();
         
         updateOverviewMetrics(metricsData);
@@ -67,7 +67,7 @@ async function loadOverviewData() {
 
 async function loadModelsData() {
     try {
-        const response = await fetch('/api/ai/models/status');
+        const response = await fetch('/api/v1/ai/models/status');
         const data = await response.json();
         
         updateModelsDisplay(data);
@@ -79,7 +79,7 @@ async function loadModelsData() {
 
 async function loadResourcesData() {
     try {
-        const response = await fetch('/api/ai/resources/metrics');
+        const response = await fetch('/api/v1/ai/resources/metrics');
         const data = await response.json();
         
         updateResourcesDisplay(data);
@@ -109,6 +109,29 @@ function updateSystemStatus(data) {
     
     statusElement.textContent = isHealthy ? 'System Healthy' : 'System Issues';
     statusElement.className = `status-badge ${isHealthy ? 'status-healthy' : 'status-error'}`;
+    
+    // Update circuit breaker status if available
+    if (data.system && data.system.circuit_breaker_state) {
+        const cbStatusEl = document.getElementById('circuit-breaker-status');
+        const cbFailuresEl = document.getElementById('circuit-breaker-failures');
+        
+        if (cbStatusEl) {
+            cbStatusEl.textContent = data.system.circuit_breaker_state.toUpperCase();
+            cbStatusEl.className = `status-badge ${data.system.circuit_breaker_state === 'closed' ? 'status-healthy' : data.system.circuit_breaker_state === 'open' ? 'status-error' : 'status-warning'}`;
+        }
+        
+        if (cbFailuresEl) {
+            cbFailuresEl.textContent = data.system.circuit_breaker_failures || 0;
+        }
+    }
+    
+    // Update available models count
+    if (data.system && data.system.available_models !== undefined) {
+        const modelsCountEl = document.getElementById('available-models-count');
+        if (modelsCountEl) {
+            modelsCountEl.textContent = data.system.available_models;
+        }
+    }
 }
 
 function updateOverviewMetrics(data) {
@@ -125,8 +148,8 @@ function updateOverviewMetrics(data) {
 
     // Update system metrics
     if (data.current) {
-        const memoryPressure = data.current.memoryPressure || 0;
-        const cpuUsage = data.current.cpu?.usage || 0;
+        const memoryPressure = data.current.memoryPressure || data.memoryPressure || 0;
+        const cpuUsage = data.current.cpuUsage || 0;
         
         document.getElementById('memory-pressure').textContent = Math.round(memoryPressure * 100) + '%';
         document.getElementById('cpu-usage').textContent = Math.round(cpuUsage) + '%';
@@ -135,11 +158,15 @@ function updateOverviewMetrics(data) {
         const memoryProgress = document.getElementById('memory-progress');
         const cpuProgress = document.getElementById('cpu-progress');
         
-        memoryProgress.style.width = (memoryPressure * 100) + '%';
-        memoryProgress.className = `progress-fill ${memoryPressure > 0.8 ? 'danger' : memoryPressure > 0.6 ? 'warning' : ''}`;
+        if (memoryProgress) {
+            memoryProgress.style.width = (memoryPressure * 100) + '%';
+            memoryProgress.className = `progress-fill ${memoryPressure > 0.8 ? 'danger' : memoryPressure > 0.6 ? 'warning' : ''}`;
+        }
         
-        cpuProgress.style.width = cpuUsage + '%';
-        cpuProgress.className = `progress-fill ${cpuUsage > 80 ? 'danger' : cpuUsage > 60 ? 'warning' : ''}`;
+        if (cpuProgress) {
+            cpuProgress.style.width = cpuUsage + '%';
+            cpuProgress.className = `progress-fill ${cpuUsage > 80 ? 'danger' : cpuUsage > 60 ? 'warning' : ''}`;
+        }
     }
 }
 
@@ -190,13 +217,21 @@ function createModelCard(model) {
 }
 
 function updateResourcesDisplay(data) {
-    if (data.current && data.current.memory) {
-        document.getElementById('memory-available').textContent = data.current.memory.available_gb.toFixed(1) + 'GB';
-        document.getElementById('memory-total').textContent = data.current.memory.total_gb.toFixed(1) + 'GB';
-    }
-    
-    if (data.current && data.current.cpu) {
-        document.getElementById('cpu-load').textContent = data.current.cpu.load.toFixed(2);
+    if (data.current) {
+        const availableMemory = data.current.availableMemoryGb || 0;
+        const totalMemory = data.current.totalMemoryGb || 0;
+        const cpuUsage = data.current.cpuUsage || 0;
+        const memoryPressure = data.current.memoryPressure || data.memoryPressure || 0;
+        
+        const memAvailableEl = document.getElementById('memory-available');
+        const memTotalEl = document.getElementById('memory-total');
+        const cpuLoadEl = document.getElementById('cpu-load');
+        const memPressureEl = document.getElementById('resource-memory-pressure');
+        
+        if (memAvailableEl) memAvailableEl.textContent = availableMemory.toFixed(1) + 'GB';
+        if (memTotalEl) memTotalEl.textContent = totalMemory.toFixed(1) + 'GB';
+        if (cpuLoadEl) cpuLoadEl.textContent = cpuUsage.toFixed(1) + '%';
+        if (memPressureEl) memPressureEl.textContent = Math.round(memoryPressure * 100) + '%';
     }
     
     // Mock swap usage

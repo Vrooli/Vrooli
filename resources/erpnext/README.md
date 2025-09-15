@@ -2,7 +2,7 @@
 
 Complete open-source ERP with accounting, inventory, HR, CRM, and project management capabilities.
 
-**Status**: ✅ v2.0 Contract Compliant | 71% PRD Complete | All Tests Passing
+**Status**: ✅ v2.0 Contract Compliant | 86% PRD Complete | All Tests Passing
 
 ## Overview
 
@@ -104,6 +104,42 @@ vrooli resource erpnext report export "Sales Register" csv
 
 # Create custom report from JSON
 vrooli resource erpnext report create report.json
+```
+
+## E-commerce Module
+
+Manage online store and shopping cart functionality:
+
+```bash
+# Product management
+vrooli resource erpnext ecommerce list-products       # List online products
+vrooli resource erpnext ecommerce add-product "ITEM-001" "Product Name" 99.99 "Description"
+
+# Shopping cart operations
+vrooli resource erpnext ecommerce get-cart           # View cart contents
+vrooli resource erpnext ecommerce add-to-cart "ITEM-001" 2  # Add 2 units
+
+# Store configuration
+vrooli resource erpnext ecommerce configure "My Store" "USD"
+```
+
+## Manufacturing Module
+
+Production planning and control features:
+
+```bash
+# Bill of Materials (BOM) management
+vrooli resource erpnext manufacturing list-boms       # List all BOMs
+vrooli resource erpnext manufacturing create-bom "PROD-001" 1
+vrooli resource erpnext manufacturing add-bom-item "BOM-001" "COMP-001" 5
+
+# Work order management
+vrooli resource erpnext manufacturing list-work-orders  # List work orders
+vrooli resource erpnext manufacturing create-work-order "PROD-001" 10 "BOM-001"
+
+# Production planning
+vrooli resource erpnext manufacturing production-plan "2025-01-01" "2025-01-31"
+vrooli resource erpnext manufacturing stock-entries "WO-001"
 ```
 
 ## API Access

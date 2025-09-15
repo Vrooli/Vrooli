@@ -119,11 +119,13 @@
 1. **Priority 1**: ✅ COMPLETED - URL report retrieval now working
 2. **Priority 2**: ✅ COMPLETED - Automatic cache rotation implemented
 3. **Priority 3**: ✅ COMPLETED - Added comprehensive integration examples
-4. **Priority 4**: Implement remaining P2 features (YARA rules, historical analysis)
-5. **Priority 5**: Add Redis cache backend for scalability
-6. **Priority 6**: Add rate limit handling for premium API tiers
-7. **Priority 7**: Add support for file submission via S3 presigned URLs
-8. **Priority 8**: Implement threat intelligence feed exports
+4. **Priority 4**: ✅ COMPLETED - File submission via URL (S3 presigned URLs) implemented
+5. **Priority 5**: ✅ COMPLETED - Threat intelligence feed export implemented
+6. **Priority 6**: Implement remaining P2 features (YARA rules, historical analysis)
+7. **Priority 7**: Add Redis cache backend for scalability
+8. **Priority 8**: Add rate limit handling for premium API tiers
+9. **Priority 9**: Add support for scanning archives (ZIP, RAR, 7z) with member extraction
+10. **Priority 10**: Implement threat correlation and clustering features
 
 ## Notes for Developers
 

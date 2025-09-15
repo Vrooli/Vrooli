@@ -10,18 +10,18 @@ KEYCLOAK_ROOT="${APP_ROOT}/resources/keycloak"
 
 # Source dependencies if not already loaded
 if ! declare -f log::info &>/dev/null; then
-    source "${APP_ROOT}/scripts/lib/logging.sh"
+    source "${APP_ROOT}/scripts/lib/utils/log.sh"
 fi
 
-if ! declare -f system::load_port &>/dev/null; then
-    source "${APP_ROOT}/scripts/lib/port-management.sh"
+if ! declare -f resources::get_port &>/dev/null; then
+    source "${APP_ROOT}/scripts/resources/port_registry.sh"
 fi
 
 # Load configuration
 source "${KEYCLOAK_ROOT}/config/defaults.sh"
 
 # Get port from registry
-KEYCLOAK_PORT="${KEYCLOAK_PORT:-$(system::load_port keycloak)}"
+KEYCLOAK_PORT="${KEYCLOAK_PORT:-$(resources::get_port keycloak)}"
 
 # Core container operations
 keycloak::is_running() {

@@ -108,7 +108,7 @@
   },
   "environment": {
     "ORCHESTRATOR_PORT": "${API_PORT}",
-    "ORCHESTRATOR_HOST": "localhost",
+    "ORCHESTRATOR_HOST": "${ORCHESTRATOR_HOST}",
     "ORCHESTRATOR_LOG_LEVEL": "info",
     "RESOURCE_MONITOR_INTERVAL": "5000",
     "MODEL_HEALTH_CHECK_INTERVAL": "30000",
@@ -118,14 +118,14 @@
   "health_checks": [
     {
       "name": "api_endpoint",
-      "url": "http://localhost:${API_PORT}/health",
+      "url": "http://${ORCHESTRATOR_HOST}:${API_PORT}/health",
       "interval": 30,
       "timeout": 10,
       "retries": 3
     },
     {
       "name": "model_availability",
-      "url": "http://localhost:${API_PORT}/api/v1/ai/models/status",
+      "url": "http://${ORCHESTRATOR_HOST}:${API_PORT}/api/v1/ai/models/status",
       "interval": 60,
       "timeout": 15,
       "retries": 2
@@ -142,7 +142,7 @@
         {
           "name": "api_endpoint",
           "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
+          "target": "http://${ORCHESTRATOR_HOST}:${API_PORT}/health",
           "critical": true,
           "timeout": 5000,
           "interval": 30000
@@ -190,7 +190,7 @@
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  CLI: ai-orchestra --help\\n  Health: curl http://localhost:${API_PORT}/health'",
+          "run": "echo '🚀 AI Model Orchestra Controller initialized\\n  API port: ${API_PORT}\\n  Dashboard endpoint: /dashboard\\n  CLI: ai-orchestra --help\\n  Health endpoints: /health and /api/v1/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -218,7 +218,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API: http://localhost:${API_PORT}\\n  Dashboard: http://localhost:${API_PORT}/dashboard\\n  UI Server: http://localhost:${UI_PORT}\\n  Model Selection: POST http://localhost:${API_PORT}/api/v1/ai/select-model\\n  Route Request: POST http://localhost:${API_PORT}/api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
+          "run": "echo '🚀 AI Model Orchestra Controller running:\\n  API port: ${API_PORT}\\n  Dashboard: /dashboard\\n  UI port: ${UI_PORT}\\n  Model Selection: POST /api/v1/ai/select-model\\n  Route Request: POST /api/v1/ai/route-request\\n  CLI: ai-orchestra --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -232,14 +232,6 @@
           "description": "Execute comprehensive phased testing (structure, dependencies, unit, integration, business, performance)",
           "condition": {
             "file_exists": "test/run-tests.sh"
-          }
-        },
-        {
-          "name": "fallback-basic-tests",
-          "run": "echo '⚠️  Comprehensive test runner not found, running basic tests...' && cd api && go build -o test-build . && rm test-build && curl -sf http://localhost:$API_PORT/health && curl -sf -X POST http://localhost:$API_PORT/api/v1/ai/select-model -H 'Content-Type: application/json' -d '{\"taskType\": \"completion\"}'",
-          "description": "Fallback to basic tests if comprehensive runner not available",
-          "condition": {
-            "file_not_exists": "test/run-tests.sh"
           }
         }
       ]

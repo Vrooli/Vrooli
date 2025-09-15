@@ -61,10 +61,10 @@ CLI_COMMAND_HANDLERS["content::add"]="unstructured_io::content::add"
 CLI_COMMAND_HANDLERS["content::list"]="unstructured_io::content::list"
 CLI_COMMAND_HANDLERS["content::get"]="unstructured_io::content::get"
 CLI_COMMAND_HANDLERS["content::remove"]="unstructured_io::content::remove"
-CLI_COMMAND_HANDLERS["content::execute"]="unstructured_io::process_document"
+CLI_COMMAND_HANDLERS["content::execute"]="unstructured_io::content::execute"
+CLI_COMMAND_HANDLERS["content::process"]="unstructured_io::content::process"
 
 # Add document-specific content subcommands
-cli::register_subcommand "content" "process" "Process document" "unstructured_io::content::process" "modifies-system"
 cli::register_subcommand "content" "process-directory" "Process directory" "unstructured_io::content::process_directory" "modifies-system"
 cli::register_subcommand "content" "extract-tables" "Extract tables" "unstructured_io::extract_tables"
 cli::register_subcommand "content" "extract-metadata" "Extract metadata" "unstructured_io::extract_metadata"

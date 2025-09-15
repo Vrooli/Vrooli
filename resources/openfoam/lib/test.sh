@@ -32,17 +32,26 @@ openfoam::test::smoke() {
     
     # Test 2: Health check
     echo -n "  2. Health check... "
-    # Try to find the actual port being used
+    # Try to find the actual port being used from the running container
     local test_port="${OPENFOAM_PORT:-8090}"
     if openfoam::docker::is_running; then
-        local container_port=$(docker port openfoam 2>/dev/null | grep -oP '\d+$' | head -1)
+        # Get the actual mapped port from docker
+        local container_port=$(docker port openfoam 8091/tcp 2>/dev/null | grep -oP '\d+$' | head -1)
         if [[ -n "$container_port" ]]; then
             test_port="$container_port"
+        else
+            # Try common ports if mapping not found
+            for port in 8091 8090; do
+                if timeout 2 curl -sf "http://localhost:${port}/health" &>/dev/null; then
+                    test_port="$port"
+                    break
+                fi
+            done
         fi
     fi
     
     if timeout 5 curl -sf "http://localhost:${test_port}/health" &>/dev/null; then
-        echo "PASS"
+        echo "PASS (port ${test_port})"
         ((passed++))
     else
         echo "FAIL - Health endpoint not responding on port ${test_port}"

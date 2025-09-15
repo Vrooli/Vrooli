@@ -239,7 +239,7 @@ API_URL=$(testing::connectivity::get_api_url)
 
 ## 🔒 Safety First
 
-**CRITICAL:** Before using any testing templates or writing test scripts, review our [Safety Guidelines](SAFETY-GUIDELINES.md) to prevent data loss.
+**CRITICAL:** Before using any testing templates or writing test scripts, review our [Safety Guidelines](/home/matthalloran8/Vrooli/docs/testing/safety/GUIDELINES.md) to prevent data loss.
 
 ### Quick Safety Checklist
 - [ ] BATS `teardown()` functions validate variables before `rm` commands
@@ -331,7 +331,7 @@ cp templates/go/test_helpers.go.template api/test_helpers.go
 ## 📚 See Also
 
 - [templates/README.md](templates/README.md) - Template usage guide
-- [docs/PHASED_TESTING_ARCHITECTURE.md](/home/matthalloran8/Vrooli/docs/PHASED_TESTING_ARCHITECTURE.md) - Phased testing documentation
+- [docs/testing/architecture/PHASED_TESTING.md](/home/matthalloran8/Vrooli/docs/testing/architecture/PHASED_TESTING.md) - Phased testing documentation
 - [scenarios/visited-tracker/](../../scenarios/visited-tracker/) - Example implementation
 
 ## 🎯 Philosophy

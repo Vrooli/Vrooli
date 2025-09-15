@@ -72,6 +72,17 @@ if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_MAX_CONCURRE
     readonly UNSTRUCTURED_IO_MAX_CONCURRENT_REQUESTS=5
 fi
 
+# Cache configuration
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CACHE_ENABLED="; then
+    readonly UNSTRUCTURED_IO_CACHE_ENABLED="${UNSTRUCTURED_IO_CACHE_ENABLED:-yes}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CACHE_TTL="; then
+    readonly UNSTRUCTURED_IO_CACHE_TTL="${UNSTRUCTURED_IO_CACHE_TTL:-3600}"  # 1 hour in seconds
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CACHE_DIR="; then
+    readonly UNSTRUCTURED_IO_CACHE_DIR="${UNSTRUCTURED_IO_CACHE_DIR:-/tmp/unstructured-cache}"
+fi
+
 # Health check configuration
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_HEALTH_ENDPOINT="; then
     readonly UNSTRUCTURED_IO_HEALTH_ENDPOINT="/healthcheck"
@@ -151,6 +162,7 @@ unstructured_io::export_config() {
     export UNSTRUCTURED_IO_TIMEOUT_SECONDS UNSTRUCTURED_IO_MAX_CONCURRENT_REQUESTS
     export UNSTRUCTURED_IO_HEALTH_ENDPOINT UNSTRUCTURED_IO_HEALTH_INTERVAL
     export UNSTRUCTURED_IO_PROCESS_ENDPOINT UNSTRUCTURED_IO_BATCH_ENDPOINT
+    export UNSTRUCTURED_IO_CACHE_ENABLED UNSTRUCTURED_IO_CACHE_TTL UNSTRUCTURED_IO_CACHE_DIR
     # The formats array is already readonly, just export the reference
 }
 

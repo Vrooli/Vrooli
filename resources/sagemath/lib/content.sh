@@ -299,10 +299,27 @@ sagemath::content::execute() {
         # It's an expression - calculate directly
         echo "🧮 Calculating: $expression_or_file"
         
+        # Check cache first (for non-plot calculations)
+        local cache_key=$(echo -n "$expression_or_file" | sha256sum | cut -d' ' -f1)
+        local cache_file="$SAGEMATH_CACHE_DIR/${cache_key}.cache"
+        
         # Check if it's a plot command
         local is_plot=false
         if echo "$expression_or_file" | grep -qE "plot\(|plot3d\(|matrix_plot\(|list_plot\(|density_plot\(|contour_plot\("; then
             is_plot=true
+        fi
+        
+        # Use cache for non-plot calculations
+        if [ "$is_plot" = false ] && [ -f "$cache_file" ] && [ -z "${SAGEMATH_NO_CACHE:-}" ]; then
+            # Check if cache is fresh (less than 1 hour old)
+            if [ $(find "$cache_file" -mmin -60 2>/dev/null | wc -l) -gt 0 ]; then
+                echo "📋 Using cached result"
+                cat "$cache_file"
+                return 0
+            else
+                # Cache is stale, remove it
+                rm -f "$cache_file"
+            fi
         fi
         
         # Clean up old temp files first (older than 1 day)
@@ -316,6 +333,9 @@ sagemath::content::execute() {
             # For plot operations, save to file
             local plot_file="/home/sage/outputs/plot_${timestamp}.png"
             cat > "$temp_script" << EOF
+import sys
+import traceback
+
 try:
     # Execute the full expression
     exec(compile('''$expression_or_file''', '<string>', 'exec'))
@@ -348,28 +368,62 @@ try:
         print("Result:", plot_obj)
     else:
         print("Result:", plot_obj if plot_obj else "Plot generation attempted")
+except SyntaxError as e:
+    print(f"Syntax Error: {e}")
+    print("Hint: Check parentheses, quotes, and mathematical operators")
+except NameError as e:
+    print(f"Name Error: {e}")
+    print("Hint: Variable or function may not be defined. Try 'var(\"x\")' to declare variables")
+except TypeError as e:
+    print(f"Type Error: {e}")
+    print("Hint: Check that arguments match function requirements")
 except Exception as e:
-    print("Error:", str(e))
+    print(f"Error: {str(e)}")
+    traceback.print_exc()
 EOF
         else
             # For non-plot operations
             cat > "$temp_script" << EOF
+import sys
+import traceback
+
 try:
     result = $expression_or_file
     print("Result:", result)
+except SyntaxError as e:
+    print(f"Syntax Error: {e}")
+    print("Hint: Check parentheses, quotes, and mathematical operators")
+except NameError as e:
+    print(f"Name Error: {e}")
+    print("Hint: Variable or function may not be defined. Try 'var(\"x\")' to declare variables")
+except TypeError as e:
+    print(f"Type Error: {e}")
+    print("Hint: Check that arguments match function requirements")
+except ZeroDivisionError as e:
+    print(f"Math Error: Division by zero")
+    print("Hint: Check denominators and divisors in your expression")
 except Exception as e:
-    print("Error:", str(e))
+    print(f"Error: {str(e)}")
+    traceback.print_exc()
 EOF
         fi
         
         # Execute calculation
         local output=$(docker exec "$SAGEMATH_CONTAINER_NAME" sage "/home/sage/scripts/$(basename "$temp_script")" 2>&1)
         
-        # Clean up
+        # Clean up temp files (both .sage and .sage.py)
         rm -f "$temp_script"
+        rm -f "${temp_script}.py"
         
         # Display result
         echo "📊 $output"
+        
+        # Save to cache for non-plot calculations
+        if [ "$is_plot" = false ] && [ -z "${SAGEMATH_NO_CACHE:-}" ]; then
+            echo "📊 $output" > "$cache_file"
+            # Clean up old cache files (older than 1 day)
+            find "$SAGEMATH_CACHE_DIR" -name "*.cache" -type f -mtime +1 -delete 2>/dev/null || true
+        fi
         
         # If plot was generated, show the file path
         if [ "$is_plot" = true ] && [ -f "$SAGEMATH_OUTPUTS_DIR/plot_${timestamp}.png" ]; then

@@ -161,6 +161,9 @@ main() {
     echo "Cleaning up test files..."
     rm -f "$test_project"
     rm -rf "${KICAD_DATA_DIR}/libraries/spice_models"
+    # Clean up any test artifacts from simulation tests
+    rm -f "${KICAD_DIR}"/*.net 2>/dev/null || true
+    rm -f "${KICAD_DIR}"/*.log 2>/dev/null || true
     
     # Summary
     echo

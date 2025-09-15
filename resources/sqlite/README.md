@@ -283,10 +283,13 @@ psql -d myapp -f myapp.sql
 
 ## Security Considerations
 
-- Databases are stored with 600 permissions (owner read/write only)
-- No network exposure (local filesystem only)
-- Use parameterized queries to prevent SQL injection
-- Consider encryption for sensitive data
+- **Input Validation**: All database and table names are validated to prevent path traversal attacks
+- **File Permissions**: Databases are stored with 600 permissions (owner read/write only)
+- **No Network Exposure**: Local filesystem only, no remote access
+- **SQL Injection Protection**: Query builders automatically escape values
+- **Name Restrictions**: Only alphanumeric characters, underscores, dots, and hyphens allowed in names
+- **Path Traversal Prevention**: Names containing `..` or `/` are rejected
+- **Consider encryption for sensitive data** (not yet implemented)
 
 ## Support
 

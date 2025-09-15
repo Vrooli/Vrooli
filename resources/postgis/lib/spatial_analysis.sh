@@ -11,7 +11,8 @@ set -euo pipefail
 postgis::spatial::init_routing() {
     echo "Initializing routing tables..."
     
-    local init_query="
+    # First create tables and indices
+    local tables_query="
         -- Create routing network table
         CREATE TABLE IF NOT EXISTS road_network (
             id SERIAL PRIMARY KEY,
@@ -48,14 +49,38 @@ postgis::spatial::init_routing() {
         
         CREATE INDEX IF NOT EXISTS idx_road_vertices_geom 
         ON road_vertices USING GIST(geom);
-        
-        -- Enable pgRouting extension if available
-        CREATE EXTENSION IF NOT EXISTS pgrouting;
     "
     
-    docker exec -i postgis-main psql -U vrooli -d spatial -c "$init_query" >/dev/null 2>&1
+    # Execute table creation
+    local result
+    if ! result=$(docker exec -i postgis-main psql -U vrooli -d spatial -c "$tables_query" 2>&1); then
+        echo "❌ Failed to create routing tables"
+        echo "Error: $result"
+        return 1
+    fi
     
-    echo "✅ Routing tables initialized"
+    # Try to enable pgRouting extension (optional)
+    local pgrouting_query="CREATE EXTENSION IF NOT EXISTS pgrouting;"
+    local pgrouting_available=false
+    
+    if docker exec -i postgis-main psql -U vrooli -d spatial -c "$pgrouting_query" &>/dev/null; then
+        pgrouting_available=true
+    fi
+    
+    # Check what was created
+    local table_count=$(docker exec -i postgis-main psql -U vrooli -d spatial -t -A -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_name IN ('road_network', 'road_vertices')" 2>/dev/null)
+    
+    echo "✅ Routing tables initialized successfully"
+    echo "  - Created road_network table with spatial indices"
+    echo "  - Created road_vertices table"
+    echo "  - Tables created: $table_count"
+    
+    if [ "$pgrouting_available" = true ]; then
+        echo "  - pgRouting extension: ✅ Enabled"
+    else
+        echo "  - pgRouting extension: ⚠️  Not available (advanced routing limited)"
+    fi
+    
     return 0
 }
 

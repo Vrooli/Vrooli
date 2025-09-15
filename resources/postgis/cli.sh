@@ -71,6 +71,9 @@ cli::register_command "logs" "Show PostGIS container logs" "postgis::docker::log
 # ==============================================================================
 # Add spatial-specific content subcommands
 cli::register_subcommand "content" "import-shapefile" "Import shapefile to PostGIS" "postgis_import_shapefile" "modifies-system"
+cli::register_subcommand "content" "import-geojson" "Import GeoJSON to PostGIS" "postgis_import_geojson" "modifies-system"
+cli::register_subcommand "content" "import-kml" "Import KML/KMZ to PostGIS" "postgis_import_kml" "modifies-system"
+cli::register_subcommand "content" "import-gis" "Import any supported GIS format" "postgis_import_gis" "modifies-system"
 cli::register_subcommand "content" "export-shapefile" "Export PostGIS table to shapefile" "postgis_export_shapefile" "modifies-system"
 cli::register_subcommand "content" "enable-database" "Enable PostGIS in specific database" "postgis_enable_database" "modifies-system"
 cli::register_subcommand "content" "disable-database" "Disable PostGIS in specific database" "postgis_disable_database" "modifies-system"

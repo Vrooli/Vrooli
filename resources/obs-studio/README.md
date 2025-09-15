@@ -27,6 +27,8 @@ OBS Studio enables automated content production through:
 - **Device Discovery**: List available cameras and audio devices
 - **Source Properties**: Configure detailed source settings
 - **Visibility Control**: Show/hide sources dynamically
+- **Docker Deployment**: Run OBS in containers with specific version tags (no 'latest')
+- **VNC/NoVNC Access**: Remote control via VNC or web browser
 
 ## Use Cases
 
@@ -145,10 +147,26 @@ Default configuration at `~/.vrooli/obs-studio/config.json`:
 - Default scene: "Main"
 - Recording path: `~/Videos/obs-recordings`
 
+### Docker Deployment
+
+Run OBS Studio in Docker with specific versions:
+```bash
+# Build and run with version 30.2.3 (no 'latest' tags)
+vrooli resource obs-studio docker build
+vrooli resource obs-studio docker run
+
+# Access via VNC or web browser
+# VNC: vnc://localhost:5900
+# Web: http://localhost:6080
+```
+
 ## Documentation
 
 - [Scene Injection Guide](docs/INJECTION.md) - Programmatic scene and source injection
-- [API Reference](docs/api.md) - Complete WebSocket API documentation
+- [API Reference](docs/API.md) - Complete WebSocket API documentation
+- [Scene Configuration Guide](docs/SCENE_CONFIGURATION.md) - Templates and best practices
+- [Streaming Setup Guide](docs/STREAMING_SETUP.md) - Platform-specific configurations
+- [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) - Container deployment with version management
 - [Troubleshooting](docs/troubleshooting.md) - Common issues and solutions
 
 ## Examples

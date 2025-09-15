@@ -158,6 +158,35 @@ vrooli resource wireguard namespace delete secure-app
 - Easy container attachment to isolated networks
 - Full Docker compatibility
 
+### NAT Traversal
+
+WireGuard provides comprehensive NAT traversal support for connections through firewalls and NAT devices:
+
+```bash
+# Enable NAT traversal for a tunnel (default 25s keepalive)
+vrooli resource wireguard nat enable my-tunnel
+
+# Enable with custom keepalive interval (30 seconds)
+vrooli resource wireguard nat enable my-tunnel 30
+
+# Check NAT traversal status
+vrooli resource wireguard nat status
+
+# Test NAT connectivity for a tunnel
+vrooli resource wireguard nat test my-tunnel
+
+# Disable NAT traversal
+vrooli resource wireguard nat disable my-tunnel
+```
+
+**NAT Traversal Features:**
+- Automatic PersistentKeepalive configuration
+- IP forwarding and masquerading setup
+- Hole-punching for bidirectional traffic
+- Custom keepalive intervals (recommended 25-30s)
+- Configuration backup and restore
+- Real-time handshake monitoring
+
 ## Testing
 
 ```bash

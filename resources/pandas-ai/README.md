@@ -96,7 +96,7 @@ curl -X POST http://localhost:8095/analyze \
   }'
 ```
 
-### Direct Pandas Code Execution (NEW)
+### Direct Pandas Code Execution (Enhanced)
 ```bash
 # Execute raw pandas code for advanced operations
 curl -X POST http://localhost:8095/pandas/execute \
@@ -115,6 +115,15 @@ curl -X POST http://localhost:8095/pandas/execute \
     "safe_mode": true
   }'
 
+# Generate matplotlib plots (returns base64 PNG)
+curl -X POST http://localhost:8095/pandas/execute \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [{"x": 1, "y": 2}, {"x": 2, "y": 4}, {"x": 3, "y": 6}],
+    "code": "import matplotlib.pyplot as plt\nplt.figure()\nplt.plot(df[\"x\"], df[\"y\"])\nplt.title(\"My Plot\")",
+    "safe_mode": true
+  }'
+
 # Complex operations with visualizations
 curl -X POST http://localhost:8095/pandas/execute \
   -H "Content-Type: application/json" \
@@ -126,10 +135,71 @@ curl -X POST http://localhost:8095/pandas/execute \
 ```
 
 #### Direct Execution Features
-- **Safe Mode**: Blocks dangerous operations (file system, network, etc.)
-- **Auto-detection**: Automatically detects output type (DataFrame, Series, scalar)
+- **Safe Mode**: Enhanced safety checks (blocks file, network, subprocess operations)
+- **Timeout Protection**: 10-second execution timeout prevents infinite loops
+- **Plot Support**: Returns matplotlib figures as base64-encoded PNG images
+- **Smart Caching**: Results cached for repeated queries (1-hour TTL)
+- **Auto-detection**: Automatically detects output type (DataFrame, Series, scalar, plot)
 - **Context Variables**: Pre-loaded with `pd`, `np`, `df`, `plt`, `sns`
 - **Performance Tracking**: Returns execution time for optimization
+- **Error Handling**: Detailed error messages with optional traceback
+
+#### Cache Management
+```bash
+# Check cache statistics with hit rates
+curl http://localhost:8095/cache/stats
+
+# Clear cache and reset statistics
+curl -X POST http://localhost:8095/cache/clear
+```
+
+### Data Profiling (NEW)
+```bash
+# Basic data profiling
+curl -X POST http://localhost:8095/data/profile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [
+      {"id": 1, "value": 100, "category": "A"},
+      {"id": 2, "value": 150, "category": "B"},
+      {"id": 3, "value": null, "category": "A"}
+    ],
+    "profile_type": "basic"
+  }'
+
+# Advanced profiling with quality scoring
+curl -X POST http://localhost:8095/data/profile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "csv_path": "/path/to/data.csv",
+    "profile_type": "advanced"
+  }'
+
+# Correlation analysis
+curl -X POST http://localhost:8095/data/profile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {"x": [1,2,3,4,5], "y": [2,4,6,8,10], "z": [1,1,2,2,3]},
+    "profile_type": "correlation"
+  }'
+
+# Distribution analysis
+curl -X POST http://localhost:8095/data/profile \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": {"values": [1,2,2,3,3,3,4,4,5]},
+    "profile_type": "distribution"
+  }'
+```
+
+#### Data Profiling Features
+- **Basic Profile**: Column types, missing data, basic statistics
+- **Advanced Profile**: Outlier detection, data quality scoring, cardinality analysis
+- **Correlation Profile**: Correlation matrix, strong correlations identification
+- **Distribution Profile**: Histogram bins, normality tests, skewness/kurtosis
+- **Smart Recommendations**: Actionable insights for data improvement
+- **Quality Scoring**: 0-100 scale automatic data quality assessment
+- **Memory Profiling**: Dataset memory usage estimation
 
 ### Available Query Operations
 - `describe` or `summary` - Get comprehensive data overview

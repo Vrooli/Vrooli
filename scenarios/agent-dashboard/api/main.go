@@ -7,6 +7,7 @@ import (
     "net/http"
     "os"
     "os/exec"
+    "strconv"
     "strings"
     "sync"
     "time"
@@ -295,10 +296,12 @@ func scanHandler(w http.ResponseWriter, r *http.Request) {
     jsonResponse(w, response, http.StatusOK)
 }
 
-// List of resources that commonly exist in Vrooli installations and could have agents
+// List of resources that have agent support (found via: grep 'cli::register_command "agents"')
 var supportedResources = []string{
-    "ollama", "claude-code", "n8n", "postgres", "redis", "qdrant",
-    "huginn", "litellm", "whisper", "comfyui",
+    "claude-code", "ollama", "opencode", "pandas-ai", "cline", 
+    "whisper", "litellm", "autogen-studio", "autogpt", "langchain",
+    "gemini", "crewai", "huginn", "openrouter", "comfyui", 
+    "codex", "agent-s2",
 }
 
 
@@ -512,6 +515,14 @@ func convertResourceAgent(resourceName, agentID string, resourceAgent ResourceAg
     // Generate unique full ID
     fullID := fmt.Sprintf("%s:%s", resourceName, agentID)
     
+    // Get real process metrics using PID
+    var metrics map[string]interface{}
+    if resourceAgent.PID > 0 {
+        metrics = getProcessMetrics(resourceAgent.PID)
+    } else {
+        metrics = getDefaultMetrics()
+    }
+    
     agent := &Agent{
         ID:        fullID,
         Name:      fmt.Sprintf("%s Agent", strings.Title(resourceName)),
@@ -523,7 +534,7 @@ func convertResourceAgent(resourceName, agentID string, resourceAgent ResourceAg
         Uptime:    uptime,
         Command:   resourceAgent.Command,
         Capabilities: getResourceCapabilities(resourceName),
-        Metrics:     getDefaultMetrics(),
+        Metrics:     metrics,
         RadarPosition: generateRadarPosition(),
     }
     
@@ -559,6 +570,163 @@ func generateRadarPosition() *RadarPosition {
         TargetX: 50 + (float64(time.Now().UnixNano()%60) - 30), // Random target position
         TargetY: 50 + (float64(time.Now().UnixNano()%60) - 30),
     }
+}
+
+// getProcessMetrics retrieves real metrics for a process by PID
+func getProcessMetrics(pid int) map[string]interface{} {
+    metrics := make(map[string]interface{})
+    
+    // Get CPU usage
+    cpuPercent := getProcessCPU(pid)
+    metrics["cpu_percent"] = cpuPercent
+    
+    // Get memory usage
+    memoryMB := getProcessMemory(pid)
+    metrics["memory_mb"] = memoryMB
+    
+    // Get IO stats if available
+    ioStats := getProcessIO(pid)
+    metrics["io_read_bytes"] = ioStats["read_bytes"]
+    metrics["io_write_bytes"] = ioStats["write_bytes"]
+    
+    // Get thread count
+    threadCount := getProcessThreads(pid)
+    metrics["thread_count"] = threadCount
+    
+    // Get open file descriptors
+    fdCount := getProcessFDs(pid)
+    metrics["fd_count"] = fdCount
+    
+    return metrics
+}
+
+// getProcessCPU calculates CPU usage percentage for a process
+func getProcessCPU(pid int) float64 {
+    statPath := fmt.Sprintf("/proc/%d/stat", pid)
+    data, err := os.ReadFile(statPath)
+    if err != nil {
+        log.Printf("Failed to read CPU stats for PID %d: %v", pid, err)
+        return 0.0
+    }
+    
+    // Parse stat file - fields are space-separated
+    // Field 14 (utime) and 15 (stime) are CPU time in clock ticks
+    fields := strings.Fields(string(data))
+    if len(fields) < 15 {
+        return 0.0
+    }
+    
+    // For simplicity, return a calculated percentage based on current snapshot
+    // In production, you'd want to track deltas over time
+    utime, _ := strconv.ParseFloat(fields[13], 64)
+    stime, _ := strconv.ParseFloat(fields[14], 64)
+    
+    // Get system uptime for reference
+    uptimeData, err := os.ReadFile("/proc/uptime")
+    if err != nil {
+        return 0.0
+    }
+    uptimeFields := strings.Fields(string(uptimeData))
+    uptime, _ := strconv.ParseFloat(uptimeFields[0], 64)
+    
+    // Simple CPU percentage calculation
+    totalTime := (utime + stime) / 100 // Convert from clock ticks to seconds (assuming 100Hz)
+    if uptime > 0 {
+        return (totalTime / uptime) * 100
+    }
+    return 0.0
+}
+
+// getProcessMemory gets memory usage in MB for a process
+func getProcessMemory(pid int) float64 {
+    statusPath := fmt.Sprintf("/proc/%d/status", pid)
+    data, err := os.ReadFile(statusPath)
+    if err != nil {
+        log.Printf("Failed to read memory stats for PID %d: %v", pid, err)
+        return 0.0
+    }
+    
+    // Find VmRSS line (Resident Set Size - actual physical memory used)
+    lines := strings.Split(string(data), "\n")
+    for _, line := range lines {
+        if strings.HasPrefix(line, "VmRSS:") {
+            fields := strings.Fields(line)
+            if len(fields) >= 2 {
+                // Value is in KB, convert to MB
+                kb, _ := strconv.ParseFloat(fields[1], 64)
+                return kb / 1024.0
+            }
+        }
+    }
+    return 0.0
+}
+
+// getProcessIO gets IO statistics for a process
+func getProcessIO(pid int) map[string]interface{} {
+    ioPath := fmt.Sprintf("/proc/%d/io", pid)
+    data, err := os.ReadFile(ioPath)
+    if err != nil {
+        // IO stats might not be available for all processes
+        return map[string]interface{}{
+            "read_bytes":  0,
+            "write_bytes": 0,
+        }
+    }
+    
+    stats := map[string]interface{}{
+        "read_bytes":  0,
+        "write_bytes": 0,
+    }
+    
+    lines := strings.Split(string(data), "\n")
+    for _, line := range lines {
+        if strings.HasPrefix(line, "read_bytes:") {
+            fields := strings.Fields(line)
+            if len(fields) >= 2 {
+                bytes, _ := strconv.ParseInt(fields[1], 10, 64)
+                stats["read_bytes"] = bytes
+            }
+        } else if strings.HasPrefix(line, "write_bytes:") {
+            fields := strings.Fields(line)
+            if len(fields) >= 2 {
+                bytes, _ := strconv.ParseInt(fields[1], 10, 64)
+                stats["write_bytes"] = bytes
+            }
+        }
+    }
+    
+    return stats
+}
+
+// getProcessThreads gets the number of threads for a process
+func getProcessThreads(pid int) int {
+    statusPath := fmt.Sprintf("/proc/%d/status", pid)
+    data, err := os.ReadFile(statusPath)
+    if err != nil {
+        return 1
+    }
+    
+    lines := strings.Split(string(data), "\n")
+    for _, line := range lines {
+        if strings.HasPrefix(line, "Threads:") {
+            fields := strings.Fields(line)
+            if len(fields) >= 2 {
+                count, _ := strconv.Atoi(fields[1])
+                return count
+            }
+        }
+    }
+    return 1
+}
+
+// getProcessFDs counts open file descriptors for a process
+func getProcessFDs(pid int) int {
+    fdPath := fmt.Sprintf("/proc/%d/fd", pid)
+    entries, err := os.ReadDir(fdPath)
+    if err != nil {
+        return 0
+    }
+    return len(entries)
 }
 
 // resolveAgentIdentifier resolves an agent name or ID to the actual agent ID
@@ -861,17 +1029,31 @@ func getAgentMetrics(w http.ResponseWriter, r *http.Request, agentID string) {
         return
     }
     
-    // Generate enhanced metrics for CLI display
+    // Get real-time process metrics using PID
+    var currentMetrics map[string]interface{}
+    if agent.PID > 0 {
+        currentMetrics = getProcessMetrics(agent.PID)
+    } else {
+        // Fallback to stored metrics if PID is invalid
+        currentMetrics = agent.Metrics
+    }
+    
+    // Build comprehensive metrics response
     metrics := map[string]interface{}{
-        "cpu_usage":       agent.Metrics["cpu_percent"],
-        "memory_mb":       agent.Metrics["memory_mb"],
-        "response_time_ms": 50 + time.Now().UnixNano()%200, // Mock response time
-        "tasks_total":     100 + time.Now().UnixNano()%500,
-        "tasks_completed": 95 + time.Now().UnixNano()%400,
-        "tasks_failed":    int(time.Now().UnixNano()%10),
-        "success_rate":    95.0 + float64(time.Now().UnixNano()%5),
-        "api_calls":       1000 + time.Now().UnixNano()%5000,
-        "cache_hits":      800 + time.Now().UnixNano()%3000,
+        "cpu_usage":       currentMetrics["cpu_percent"],
+        "memory_mb":       currentMetrics["memory_mb"],
+        "io_read_bytes":   currentMetrics["io_read_bytes"],
+        "io_write_bytes":  currentMetrics["io_write_bytes"],
+        "thread_count":    currentMetrics["thread_count"],
+        "fd_count":        currentMetrics["fd_count"],
+        // These would need actual tracking in production:
+        "response_time_ms": 50,  // Would need request tracking
+        "tasks_total":     0,     // Would need task tracking
+        "tasks_completed": 0,     // Would need task tracking
+        "tasks_failed":    0,     // Would need task tracking
+        "success_rate":    100.0, // Would need calculation from tasks
+        "api_calls":       0,     // Would need API call tracking
+        "cache_hits":      0,     // Would need cache tracking
     }
     
     w.Header().Set("Content-Type", "application/json")

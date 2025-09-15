@@ -23,6 +23,10 @@ mailinabox_start() {
         fi
     fi
     
+    # Create directories for Radicale if needed
+    mkdir -p "${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/radicale/data"
+    mkdir -p "${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}/radicale/config"
+    
     # Check if already running
     if mailinabox_is_running; then
         log::info "Mail-in-a-Box is already running"

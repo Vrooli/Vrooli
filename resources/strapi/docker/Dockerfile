@@ -7,27 +7,29 @@ RUN apk add --no-cache build-base gcc autoconf automake zlib-dev libpng-dev vips
 # Set working directory
 WORKDIR /app
 
-# Install PM2 globally
-RUN npm install -g pm2
+# Install PM2 and Strapi CLI globally
+RUN npm install -g pm2 @strapi/strapi@^5
 
-# Copy package files (will be generated dynamically)
-COPY package*.json ./
+# Copy package file first for better caching
+COPY package.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install
 
-# Copy app files
-COPY . .
+# Copy initialization scripts
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Build Strapi
-RUN npm run build
+# Create necessary directories
+RUN mkdir -p /app/public /app/config /app/src/api
 
 # Expose port
 EXPOSE 1337
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:1337/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:1337/_health', (r) => {process.exit(r.statusCode === 204 ? 0 : 1)})" || exit 1
 
-# Start Strapi
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+# Start Strapi using entrypoint
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["npm", "run", "start"]

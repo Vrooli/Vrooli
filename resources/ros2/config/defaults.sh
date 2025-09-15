@@ -9,7 +9,7 @@ export ROS2_HEALTH_PORT="${ROS2_PORT}"
 # ROS2 specific configuration
 export ROS2_DOMAIN_ID="${ROS2_DOMAIN_ID:-0}"
 export ROS2_MIDDLEWARE="${ROS2_MIDDLEWARE:-fastdds}"
-export ROS2_DISTRO="${ROS2_DISTRO:-humble}"
+export ROS2_DISTRO="${ROS2_DISTRO:-jazzy}"
 export ROS2_WORKSPACE="${ROS2_WORKSPACE:-/opt/ros2/workspace}"
 
 # Installation paths
@@ -33,7 +33,7 @@ export ROS2_MAX_TOPICS="${ROS2_MAX_TOPICS:-500}"
 export ROS2_BUFFER_SIZE="${ROS2_BUFFER_SIZE:-65536}"
 
 # Docker settings (if using containerized ROS2)
-export ROS2_USE_DOCKER="${ROS2_USE_DOCKER:-false}"
+export ROS2_USE_DOCKER="${ROS2_USE_DOCKER:-true}"
 export ROS2_DOCKER_IMAGE="${ROS2_DOCKER_IMAGE:-osrf/ros:${ROS2_DISTRO}-desktop}"
 export ROS2_CONTAINER_NAME="${ROS2_CONTAINER_NAME:-vrooli-ros2}"
 

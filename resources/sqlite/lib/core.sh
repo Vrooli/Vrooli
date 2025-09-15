@@ -7,6 +7,38 @@
 
 set -euo pipefail
 
+# Validate database name to prevent path traversal
+sqlite::validate_name() {
+    local name="${1:-}"
+    local type="${2:-database}"
+    
+    # Check for empty name
+    if [[ -z "$name" ]]; then
+        log::error "Empty $type name provided"
+        return 1
+    fi
+    
+    # Check for path traversal attempts
+    if [[ "$name" =~ \.\. ]] || [[ "$name" =~ / ]]; then
+        log::error "Invalid $type name: contains path characters"
+        return 1
+    fi
+    
+    # Check for special characters that could cause issues
+    if [[ ! "$name" =~ ^[a-zA-Z0-9_.-]+$ ]]; then
+        log::error "Invalid $type name: contains special characters"
+        return 1
+    fi
+    
+    # Check reasonable length
+    if [[ ${#name} -gt 255 ]]; then
+        log::error "Invalid $type name: too long (max 255 characters)"
+        return 1
+    fi
+    
+    return 0
+}
+
 # Ensure required directories exist
 sqlite::ensure_directories() {
     local dirs=(
@@ -170,6 +202,11 @@ sqlite::content::create() {
         return 1
     fi
     
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
     # Add extension if not present
     if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
         db_name="${db_name}.db"
@@ -210,6 +247,11 @@ sqlite::content::execute() {
     if [[ -z "$db_name" ]] || [[ -z "$query" ]]; then
         log::error "Database name and query required"
         echo "Usage: resource-sqlite content execute <database_name> <query>"
+        return 1
+    fi
+    
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
         return 1
     fi
     
@@ -306,6 +348,11 @@ sqlite::content::backup() {
         return 1
     fi
     
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
     # Add extension if not present
     if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
         db_name="${db_name}.db"
@@ -347,6 +394,16 @@ sqlite::content::restore() {
     if [[ -z "$db_name" ]] || [[ -z "$backup_file" ]]; then
         log::error "Database name and backup file required"
         echo "Usage: resource-sqlite content restore <database_name> <backup_file>"
+        return 1
+    fi
+    
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
+    # Validate backup file name
+    if ! sqlite::validate_name "$backup_file" "backup file"; then
         return 1
     fi
     
@@ -759,6 +816,14 @@ sqlite::query::select() {
         return 1
     fi
     
+    # Validate database and table names
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    if ! sqlite::validate_name "$table" "table"; then
+        return 1
+    fi
+    
     # Add extension if not present
     if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
         db_name="${db_name}.db"
@@ -830,6 +895,14 @@ sqlite::query::insert() {
         return 1
     fi
     
+    # Validate database and table names
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    if ! sqlite::validate_name "$table" "table"; then
+        return 1
+    fi
+    
     # Add extension if not present
     if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
         db_name="${db_name}.db"
@@ -890,6 +963,14 @@ sqlite::query::update() {
     if [[ -z "$db_name" ]] || [[ -z "$table" ]] || [[ -z "$where" ]]; then
         log::error "Database name, table, and WHERE clause required"
         echo "Usage: resource-sqlite query update <database> <table> <where_clause> <column=value> ..."
+        return 1
+    fi
+    
+    # Validate database and table names
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    if ! sqlite::validate_name "$table" "table"; then
         return 1
     fi
     

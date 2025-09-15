@@ -277,16 +277,28 @@ func getSystemMetrics() map[string]interface{} {
 	}
 }
 
-// Background monitoring
-func startSystemMonitoring(db *sql.DB, logger *log.Logger) {
-	ticker := time.NewTicker(30 * time.Second) // Store metrics every 30 seconds
-	defer ticker.Stop()
+// Background monitoring with health checks and reconnection
+func startSystemMonitoring(app *AppState) {
+	metricsTicker := time.NewTicker(30 * time.Second) // Store metrics every 30 seconds
+	healthTicker := time.NewTicker(10 * time.Second)  // Health check every 10 seconds
+	defer metricsTicker.Stop()
+	defer healthTicker.Stop()
 	
-	logger.Printf("🔄 Started background system monitoring")
+	app.Logger.Printf("🔄 Started background system monitoring with health checks")
 	
 	for {
 		select {
-		case <-ticker.C:
+		case <-healthTicker.C:
+			// Check database health and reconnect if needed
+			go checkAndReconnectDatabase(app)
+			// Check Redis health and reconnect if needed
+			go checkAndReconnectRedis(app)
+			
+		case <-metricsTicker.C:
+			app.DBMutex.RLock()
+			db := app.DB
+			app.DBMutex.RUnlock()
+			
 			if db != nil {
 				metrics := getSystemMetrics()
 				
@@ -298,9 +310,105 @@ func startSystemMonitoring(db *sql.DB, logger *log.Logger) {
 					metrics["cpuUsage"].(float64),
 					0.0, // swap usage - would need to implement proper swap monitoring
 				); err != nil {
-					logger.Printf("⚠️  Failed to store system resources: %v", err)
+					app.Logger.Printf("⚠️  Failed to store system resources: %v", err)
 				}
 			}
+		}
+	}
+}
+
+// Check database health and reconnect if needed
+func checkAndReconnectDatabase(app *AppState) {
+	app.DBMutex.Lock()
+	defer app.DBMutex.Unlock()
+	
+	// Skip if already reconnecting
+	if app.DBReconnecting {
+		return
+	}
+	
+	// Test current connection
+	if app.DB != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		
+		if err := app.DB.PingContext(ctx); err == nil {
+			app.DBLastHealthCheck = time.Now()
+			return // Connection is healthy
+		}
+		
+		app.Logger.Printf("⚠️  Database health check failed, attempting reconnection")
+		app.DB.Close()
+		app.DB = nil
+	}
+	
+	// Mark as reconnecting
+	app.DBReconnecting = true
+	defer func() { app.DBReconnecting = false }()
+	
+	// Attempt reconnection with exponential backoff
+	maxRetries := 5
+	backoffBase := time.Second
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		newDB, err := initDatabase(app.Logger)
+		if err == nil {
+			app.DB = newDB
+			app.DBLastHealthCheck = time.Now()
+			app.Logger.Printf("✅ Database reconnected successfully on attempt %d", attempt)
+			
+			// Reinitialize schema if needed
+			if err := initSchema(app.DB); err != nil {
+				app.Logger.Printf("⚠️  Schema reinitialization failed: %v", err)
+			}
+			return
+		}
+		
+		if attempt < maxRetries {
+			backoff := time.Duration(math.Pow(2, float64(attempt-1))) * backoffBase
+			if backoff > 30*time.Second {
+				backoff = 30 * time.Second
+			}
+			app.Logger.Printf("⚠️  Database reconnection failed (attempt %d/%d), retrying in %v", 
+				attempt, maxRetries, backoff)
+			time.Sleep(backoff)
+		}
+	}
+	
+	app.Logger.Printf("❌ Database reconnection failed after %d attempts", maxRetries)
+}
+
+// Check Redis health and reconnect if needed
+func checkAndReconnectRedis(app *AppState) {
+	app.Mutex.Lock()
+	defer app.Mutex.Unlock()
+	
+	if app.Redis == nil {
+		// Attempt to connect if Redis is nil
+		newRedis, err := initRedis(app.Logger)
+		if err == nil {
+			app.Redis = newRedis
+			app.Logger.Printf("✅ Redis connected successfully")
+		}
+		return
+	}
+	
+	// Test current connection
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	
+	if err := app.Redis.Ping(ctx).Err(); err != nil {
+		app.Logger.Printf("⚠️  Redis health check failed: %v, attempting reconnection", err)
+		app.Redis.Close()
+		
+		// Attempt reconnection
+		newRedis, err := initRedis(app.Logger)
+		if err == nil {
+			app.Redis = newRedis
+			app.Logger.Printf("✅ Redis reconnected successfully")
+		} else {
+			app.Redis = nil
+			app.Logger.Printf("❌ Redis reconnection failed: %v", err)
 		}
 	}
 }

@@ -28,10 +28,10 @@ assert_equals() {
     
     if [[ "$expected" == "$actual" ]]; then
         log::success "✓ $test_name"
-        ((tests_passed++))
+        tests_passed=$((tests_passed + 1))
     else
         log::error "✗ $test_name - Expected: '$expected', Got: '$actual'"
-        ((tests_failed++))
+        tests_failed=$((tests_failed + 1))
     fi
 }
 
@@ -41,10 +41,10 @@ assert_true() {
     
     if eval "$condition"; then
         log::success "✓ $test_name"
-        ((tests_passed++))
+        tests_passed=$((tests_passed + 1))
     else
         log::error "✗ $test_name - Condition failed: $condition"
-        ((tests_failed++))
+        tests_failed=$((tests_failed + 1))
     fi
 }
 
@@ -68,7 +68,7 @@ if [[ -f "${N8N_DIR}/lib/core.sh" ]]; then
     assert_true "declare -f n8n::status > /dev/null" "Status function exists"
 else
     log::error "Core library not found"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 3: Content management functions
@@ -83,7 +83,7 @@ if [[ -f "${N8N_DIR}/lib/content.sh" ]]; then
     assert_true "declare -f n8n::content::execute > /dev/null" "Content execute function exists"
 else
     log::error "Content library not found"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Test 4: API functions
@@ -131,7 +131,7 @@ if [[ -f "${N8N_DIR}/lib/test.sh" ]]; then
     assert_true "declare -f n8n::test::unit > /dev/null" "Test unit function exists"
 else
     log::error "Test library not found"
-    ((tests_failed++))
+    tests_failed=$((tests_failed + 1))
 fi
 
 # Summary

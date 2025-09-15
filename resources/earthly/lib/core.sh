@@ -453,13 +453,25 @@ execute_build() {
     
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --target=*)
+                target="${1#*=}"
+                shift
+                ;;
             --target)
                 target="$2"
                 shift 2
                 ;;
+            --file=*)
+                earthfile="${1#*=}"
+                shift
+                ;;
             --file)
                 earthfile="$2"
                 shift 2
+                ;;
+            --platform=*)
+                platform="--platform=${1#*=}"
+                shift
                 ;;
             --platform)
                 platform="--platform=$2"

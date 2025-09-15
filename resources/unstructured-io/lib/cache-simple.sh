@@ -17,9 +17,9 @@ source "${var_LIB_UTILS_DIR}/hash.sh"
 # Simplified caching implementation without Redis dependency
 # Uses filesystem-based caching for simplicity
 
-# Cache configuration
-readonly UNSTRUCTURED_IO_CACHE_DIR="${UNSTRUCTURED_IO_CACHE_DIR:-$HOME/.vrooli/cache/unstructured-io}"
-readonly UNSTRUCTURED_IO_CACHE_TTL="${UNSTRUCTURED_IO_CACHE_TTL:-3600}"  # 1 hour default
+# Cache configuration - use values from defaults.sh if not already set
+: "${UNSTRUCTURED_IO_CACHE_DIR:=/tmp/unstructured-cache}"
+: "${UNSTRUCTURED_IO_CACHE_TTL:=3600}"  # 1 hour default
 
 #######################################
 # Initialize cache directory

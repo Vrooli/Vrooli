@@ -39,7 +39,7 @@ judge0::export_config 2>/dev/null || true
 judge0::export_messages 2>/dev/null || true
 
 # Source Judge0 libraries
-for lib in common docker status install api languages security usage content; do
+for lib in common docker status install api languages security usage content batch analytics; do
     lib_file="${JUDGE0_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -69,6 +69,8 @@ CLI_COMMAND_HANDLERS["content::execute"]="judge0::content::execute"
 cli::register_subcommand "content" "submit" "Submit code for execution" "judge0::api::submit"
 cli::register_subcommand "content" "languages" "List supported languages" "judge0::languages::list"
 cli::register_subcommand "content" "usage" "Show usage statistics" "judge0::usage::show"
+cli::register_subcommand "content" "batch" "Submit batch of codes" "judge0::batch::submit"
+cli::register_subcommand "content" "analytics" "View execution analytics" "judge0::analytics::dashboard"
 
 # Add Judge0-specific test subcommands
 cli::register_subcommand "test" "api" "Test API connectivity" "judge0::api::test"

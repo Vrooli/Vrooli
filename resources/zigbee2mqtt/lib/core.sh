@@ -7,6 +7,9 @@
 
 set -euo pipefail
 
+# Source logging utilities
+source "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/lib/utils/log.sh"
+
 # Configuration
 ZIGBEE2MQTT_VERSION="${ZIGBEE2MQTT_VERSION:-latest}"
 ZIGBEE2MQTT_PORT="${ZIGBEE2MQTT_PORT:-8090}"
@@ -29,6 +32,36 @@ source "${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"
 ################################################################################
 # Core Functions
 ################################################################################
+
+# Check for MQTT broker availability with helpful guidance
+zigbee2mqtt::check_mqtt_broker() {
+    log::info "Checking for MQTT broker at ${MQTT_HOST}:${MQTT_PORT}..."
+    
+    if timeout 5 nc -zv "${MQTT_HOST}" "${MQTT_PORT}" &>/dev/null; then
+        log::success "MQTT broker is available"
+        return 0
+    fi
+    
+    log::error "MQTT broker not available at ${MQTT_HOST}:${MQTT_PORT}"
+    echo ""
+    echo "Zigbee2MQTT requires an MQTT broker to function. You have several options:"
+    echo ""
+    echo "Option 1: Install Mosquitto locally (recommended):"
+    echo "  sudo apt-get update && sudo apt-get install -y mosquitto mosquitto-clients"
+    echo "  sudo systemctl start mosquitto"
+    echo ""
+    echo "Option 2: Run Mosquitto in Docker:"
+    echo "  docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto"
+    echo ""
+    echo "Option 3: Use an existing MQTT broker:"
+    echo "  Set MQTT_HOST and MQTT_PORT environment variables:"
+    echo "  export MQTT_HOST=your-broker-host"
+    echo "  export MQTT_PORT=1883"
+    echo ""
+    echo "After setting up MQTT, retry: vrooli resource zigbee2mqtt manage start"
+    
+    return 1
+}
 
 # Display resource information
 zigbee2mqtt::info() {
@@ -138,21 +171,29 @@ zigbee2mqtt::start() {
         return 0
     fi
     
-    # Ensure MQTT broker is available
-    if ! timeout 5 nc -zv "${MQTT_HOST}" "${MQTT_PORT}" &>/dev/null; then
-        log::error "MQTT broker not available at ${MQTT_HOST}:${MQTT_PORT}"
-        log::info "Please start an MQTT broker first (e.g., mosquitto)"
+    # Check for MQTT broker with helpful guidance
+    if ! zigbee2mqtt::check_mqtt_broker; then
         return 1
     fi
     
-    # Start container
+    # Check if adapter exists before adding device flag
+    local device_flag=""
+    if [[ -e "${ZIGBEE_ADAPTER}" ]]; then
+        device_flag="--device ${ZIGBEE_ADAPTER}:/dev/ttyACM0"
+        log::info "Using Zigbee adapter: ${ZIGBEE_ADAPTER}"
+    else
+        log::warning "Zigbee adapter not found at ${ZIGBEE_ADAPTER}, starting in mock mode"
+        log::info "You can test configuration but device control won't work without hardware"
+    fi
+    
+    # Start container (with or without device)
     docker run -d \
         --name "${ZIGBEE2MQTT_CONTAINER}" \
         --restart unless-stopped \
         -p "${ZIGBEE2MQTT_PORT}:8080" \
         -v "${ZIGBEE2MQTT_DATA_DIR}:/app/data" \
         -v /run/udev:/run/udev:ro \
-        --device "${ZIGBEE_ADAPTER}:/dev/ttyACM0" \
+        ${device_flag} \
         -e TZ="${TZ:-UTC}" \
         "koenkk/zigbee2mqtt:${ZIGBEE2MQTT_VERSION}"
     
@@ -414,6 +455,162 @@ zigbee2mqtt::device::configure() {
     
     # TODO: Implement device-specific configuration
     log::warning "Device configuration not yet implemented"
+}
+
+# Control device state (on/off)
+zigbee2mqtt::device::control() {
+    local device="${1:-}"
+    local state="${2:-}"
+    
+    if [[ -z "$device" ]]; then
+        log::error "Usage: device control <device> <on|off|toggle>"
+        return 1
+    fi
+    
+    if [[ -z "$state" ]]; then
+        log::error "State required: on, off, or toggle"
+        return 1
+    fi
+    
+    # Validate state
+    case "$state" in
+        on|off|toggle)
+            ;;
+        *)
+            log::error "Invalid state: $state (use on, off, or toggle)"
+            return 1
+            ;;
+    esac
+    
+    log::info "Setting $device to $state"
+    
+    # Send command via API
+    local payload
+    if [[ "$state" == "toggle" ]]; then
+        payload='{"state": "TOGGLE"}'
+    else
+        payload="{\"state\": \"${state^^}\"}"
+    fi
+    
+    if curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/device/${device}/set" \
+        -H "Content-Type: application/json" \
+        -d "$payload" 2>/dev/null | jq -e '.' &>/dev/null; then
+        log::success "Device $device set to $state"
+    else
+        log::error "Failed to control device"
+        return 1
+    fi
+}
+
+# Set device brightness
+zigbee2mqtt::device::brightness() {
+    local device="${1:-}"
+    local brightness="${2:-}"
+    
+    if [[ -z "$device" ]] || [[ -z "$brightness" ]]; then
+        log::error "Usage: device brightness <device> <0-255>"
+        return 1
+    fi
+    
+    # Validate brightness value
+    if ! [[ "$brightness" =~ ^[0-9]+$ ]] || [[ $brightness -lt 0 ]] || [[ $brightness -gt 255 ]]; then
+        log::error "Brightness must be between 0 and 255"
+        return 1
+    fi
+    
+    log::info "Setting $device brightness to $brightness"
+    
+    # Send command via API
+    if curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/device/${device}/set" \
+        -H "Content-Type: application/json" \
+        -d "{\"brightness\": $brightness}" 2>/dev/null | jq -e '.' &>/dev/null; then
+        log::success "Brightness set to $brightness"
+    else
+        log::error "Failed to set brightness"
+        return 1
+    fi
+}
+
+# Set device color
+zigbee2mqtt::device::color() {
+    local device="${1:-}"
+    local color="${2:-}"
+    
+    if [[ -z "$device" ]] || [[ -z "$color" ]]; then
+        log::error "Usage: device color <device> <hex-color|r,g,b>"
+        echo "Examples:"
+        echo "  device color living_room_bulb '#FF0000'  # Red"
+        echo "  device color bedroom_light '255,0,0'     # Red (RGB)"
+        return 1
+    fi
+    
+    local payload
+    
+    # Check if hex color (starts with #)
+    if [[ "$color" =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+        payload="{\"color\": {\"hex\": \"$color\"}}"
+    # Check if RGB format (r,g,b)
+    elif [[ "$color" =~ ^[0-9]+,[0-9]+,[0-9]+$ ]]; then
+        IFS=',' read -r r g b <<< "$color"
+        if [[ $r -le 255 ]] && [[ $g -le 255 ]] && [[ $b -le 255 ]]; then
+            payload="{\"color\": {\"rgb\": \"$r,$g,$b\"}}"
+        else
+            log::error "RGB values must be between 0 and 255"
+            return 1
+        fi
+    else
+        log::error "Invalid color format. Use hex (#RRGGBB) or RGB (r,g,b)"
+        return 1
+    fi
+    
+    log::info "Setting $device color to $color"
+    
+    # Send command via API
+    if curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/device/${device}/set" \
+        -H "Content-Type: application/json" \
+        -d "$payload" 2>/dev/null | jq -e '.' &>/dev/null; then
+        log::success "Color set to $color"
+    else
+        log::error "Failed to set color"
+        return 1
+    fi
+}
+
+# Set device temperature (color temperature)
+zigbee2mqtt::device::temperature() {
+    local device="${1:-}"
+    local temp="${2:-}"
+    
+    if [[ -z "$device" ]] || [[ -z "$temp" ]]; then
+        log::error "Usage: device temperature <device> <kelvin>"
+        echo "Common values: 2700K (warm), 4000K (neutral), 6500K (cool)"
+        return 1
+    fi
+    
+    # Remove K suffix if present
+    temp="${temp%K}"
+    temp="${temp%k}"
+    
+    # Validate temperature value (typical range 2000-6500)
+    if ! [[ "$temp" =~ ^[0-9]+$ ]] || [[ $temp -lt 2000 ]] || [[ $temp -gt 7000 ]]; then
+        log::error "Temperature must be between 2000K and 7000K"
+        return 1
+    fi
+    
+    log::info "Setting $device color temperature to ${temp}K"
+    
+    # Convert Kelvin to mired (Zigbee uses mired)
+    local mired=$((1000000 / temp))
+    
+    # Send command via API
+    if curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/device/${device}/set" \
+        -H "Content-Type: application/json" \
+        -d "{\"color_temp\": $mired}" 2>/dev/null | jq -e '.' &>/dev/null; then
+        log::success "Color temperature set to ${temp}K"
+    else
+        log::error "Failed to set color temperature"
+        return 1
+    fi
 }
 
 ################################################################################

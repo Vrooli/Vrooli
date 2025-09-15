@@ -23,6 +23,12 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/comfyui/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/comfyui/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
 source "${COMFYUI_CLI_DIR}/config/defaults.sh"
 
 for lib in common docker install status gpu models workflows agents; do
@@ -52,6 +58,17 @@ cli::register_command "status" "Show detailed resource status" "comfyui::status"
 cli::register_command "logs" "Show ComfyUI logs" "comfyui::docker::logs"
 cli::register_command "credentials" "Show ComfyUI credentials for integration" "comfyui::credentials"
 cli::register_command "gpu-info" "Show GPU information for AI workloads" "gpu::get_gpu_info"
+# Create wrapper for agents command that delegates to manager
+comfyui::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="comfyui" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f comfyui::agents::command
+
 cli::register_command "agents" "Manage running comfyui agents" "comfyui::agents::command"
 
 comfyui::test::integration() {

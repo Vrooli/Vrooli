@@ -586,6 +586,316 @@ async def process_estimation(job_id: str, request: EstimationRequest):
         jobs[job_id]["updated_at"] = datetime.utcnow().isoformat()
         logger.error(f"Failed estimation job {job_id}: {e}")
 
+# Stream processing endpoints
+
+# Import stream processing module
+from api.stream_processor import (
+    StreamConfig, StreamRecord, StreamMatch,
+    get_stream_processor, cleanup_stream_processors
+)
+
+# Store active stream processors
+active_streams: Dict[str, Dict] = {}
+
+@app.post("/stream/create")
+async def create_stream(config: StreamConfig):
+    """Create a new stream processor for real-time record matching"""
+    try:
+        # Check if stream already exists
+        if config.stream_name in active_streams:
+            return {
+                "success": False,
+                "error": f"Stream {config.stream_name} already exists"
+            }
+        
+        # Create and start stream processor
+        processor = await get_stream_processor(config)
+        
+        # Start processing in background
+        asyncio.create_task(processor.start())
+        
+        # Store stream info
+        active_streams[config.stream_name] = {
+            "config": config.dict(),
+            "created_at": datetime.utcnow().isoformat(),
+            "status": "active"
+        }
+        
+        logger.info(f"Created stream processor: {config.stream_name}")
+        
+        return {
+            "success": True,
+            "stream_name": config.stream_name,
+            "message": "Stream processor created and started"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to create stream: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/stream/{stream_name}/record")
+async def add_stream_record(stream_name: str, record: Dict[str, Any]):
+    """Add a record to a stream for matching"""
+    try:
+        if stream_name not in active_streams:
+            raise HTTPException(status_code=404, detail=f"Stream {stream_name} not found")
+        
+        # Get stream processor
+        config = StreamConfig(**active_streams[stream_name]["config"])
+        processor = await get_stream_processor(config)
+        
+        # Add record to stream
+        message_id = await processor.add_record(record)
+        
+        return {
+            "success": True,
+            "stream_name": stream_name,
+            "message_id": message_id,
+            "message": "Record added to stream"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to add record to stream: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stream/{stream_name}/stats")
+async def get_stream_stats(stream_name: str):
+    """Get statistics for a stream processor"""
+    try:
+        if stream_name not in active_streams:
+            raise HTTPException(status_code=404, detail=f"Stream {stream_name} not found")
+        
+        # Get stream processor
+        config = StreamConfig(**active_streams[stream_name]["config"])
+        processor = await get_stream_processor(config)
+        
+        # Get stats
+        stats = await processor.get_stats()
+        
+        return {
+            "stream_name": stream_name,
+            "status": active_streams[stream_name]["status"],
+            "created_at": active_streams[stream_name]["created_at"],
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get stream stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/stream/{stream_name}/matches")
+async def get_stream_matches(stream_name: str, limit: int = 100):
+    """Get recent matches from a stream"""
+    try:
+        if stream_name not in active_streams:
+            raise HTTPException(status_code=404, detail=f"Stream {stream_name} not found")
+        
+        # Get stream processor
+        config = StreamConfig(**active_streams[stream_name]["config"])
+        processor = await get_stream_processor(config)
+        
+        # Get recent matches
+        matches = await processor.get_recent_matches(limit)
+        
+        return {
+            "stream_name": stream_name,
+            "total_matches": len(matches),
+            "matches": [m.dict() for m in matches]
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to get stream matches: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/stream/{stream_name}")
+async def stop_stream(stream_name: str):
+    """Stop and remove a stream processor"""
+    try:
+        if stream_name not in active_streams:
+            raise HTTPException(status_code=404, detail=f"Stream {stream_name} not found")
+        
+        # Get and stop stream processor
+        config = StreamConfig(**active_streams[stream_name]["config"])
+        processor = await get_stream_processor(config)
+        await processor.stop()
+        
+        # Remove from active streams
+        del active_streams[stream_name]
+        
+        logger.info(f"Stopped stream processor: {stream_name}")
+        
+        return {
+            "success": True,
+            "stream_name": stream_name,
+            "message": "Stream processor stopped"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to stop stream: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/streams")
+async def list_streams():
+    """List all active stream processors"""
+    return {
+        "total": len(active_streams),
+        "streams": [
+            {
+                "name": name,
+                "status": info["status"],
+                "created_at": info["created_at"],
+                "config": info["config"]
+            }
+            for name, info in active_streams.items()
+        ]
+    }
+
+# Cleanup on shutdown
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup stream processors on shutdown"""
+    await cleanup_stream_processors()
+
+# Custom Blocking Rules endpoints
+
+# Import blocking rules module
+from api.blocking_rules import (
+    BlockingRule, BlockingRuleSet, BlockingRulesEngine,
+    BlockingStrategy, get_template
+)
+
+# Initialize blocking rules engine
+blocking_engine = BlockingRulesEngine(DATA_DIR)
+
+@app.post("/blocking/rules/create")
+async def create_blocking_rule_set(rule_set: BlockingRuleSet):
+    """Create a new custom blocking rule set"""
+    result = blocking_engine.create_rule_set(rule_set)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.put("/blocking/rules/{name}")
+async def update_blocking_rule_set(name: str, rule_set: BlockingRuleSet):
+    """Update an existing blocking rule set"""
+    result = blocking_engine.update_rule_set(name, rule_set)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["error"])
+    
+    return result
+
+@app.delete("/blocking/rules/{name}")
+async def delete_blocking_rule_set(name: str):
+    """Delete a blocking rule set"""
+    result = blocking_engine.delete_rule_set(name)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["error"])
+    
+    return result
+
+@app.get("/blocking/rules/{name}")
+async def get_blocking_rule_set(name: str):
+    """Get a specific blocking rule set"""
+    rule_set = blocking_engine.get_rule_set(name)
+    
+    if not rule_set:
+        raise HTTPException(status_code=404, detail=f"Rule set '{name}' not found")
+    
+    return rule_set
+
+@app.get("/blocking/rules")
+async def list_blocking_rule_sets():
+    """List all blocking rule sets"""
+    return {
+        "rule_sets": blocking_engine.list_rule_sets(),
+        "total": len(blocking_engine.rule_sets)
+    }
+
+@app.post("/blocking/rules/{name}/apply")
+async def apply_blocking_rules(name: str, dataset_info: Dict[str, Any]):
+    """Apply a blocking rule set to generate SQL"""
+    result = blocking_engine.apply_rule_set(name, dataset_info)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.post("/blocking/rules/validate")
+async def validate_blocking_rule(rule: BlockingRule, sample_data: Dict[str, Any]):
+    """Validate a blocking rule against sample data"""
+    result = blocking_engine.validate_rule(rule, sample_data)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.post("/blocking/rules/{name}/optimize")
+async def optimize_blocking_rules(name: str, performance_data: Dict[str, Any]):
+    """Get optimization suggestions for a blocking rule set"""
+    result = blocking_engine.optimize_rules(name, performance_data)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=404, detail=result["error"])
+    
+    return result
+
+@app.get("/blocking/templates")
+async def list_blocking_templates():
+    """List available blocking rule templates"""
+    from api.blocking_rules import RULE_TEMPLATES
+    
+    return {
+        "templates": [
+            {
+                "name": name,
+                "description": template.description,
+                "rules_count": len(template.rules),
+                "combination_logic": template.combination_logic
+            }
+            for name, template in RULE_TEMPLATES.items()
+        ]
+    }
+
+@app.get("/blocking/templates/{name}")
+async def get_blocking_template(name: str):
+    """Get a specific blocking rule template"""
+    template = get_template(name)
+    
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template '{name}' not found")
+    
+    return template
+
+@app.get("/blocking/strategies")
+async def list_blocking_strategies():
+    """List available blocking strategies"""
+    return {
+        "strategies": [
+            {
+                "name": strategy.value,
+                "description": {
+                    "exact": "Exact match on field value",
+                    "soundex": "Phonetic matching using Soundex algorithm",
+                    "first_n": "Match on first N characters",
+                    "last_n": "Match on last N characters",
+                    "substring": "Match on substring range",
+                    "regex": "Regular expression pattern matching",
+                    "date_range": "Date within specified range",
+                    "numeric_range": "Number within tolerance",
+                    "token_set": "Token set similarity",
+                    "custom_sql": "Custom SQL expression"
+                }.get(strategy.value, "")
+            }
+            for strategy in BlockingStrategy
+        ]
+    }
+
 # Visualization endpoints
 
 # Initialize visualization module

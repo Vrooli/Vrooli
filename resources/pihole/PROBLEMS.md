@@ -1,5 +1,11 @@
 # Pi-hole Known Issues and Solutions
 
+## Current Status (2025-09-15)
+- **Status**: Working/Improved
+- **Health**: All core functionality operational  
+- **DNS Port**: Using 5353 due to system conflict on port 53
+- **Improvements**: Fixed DNS port detection, added API auth, implemented custom DNS
+
 ## Port 53 Conflict with systemd-resolved
 
 ### Problem
@@ -71,18 +77,20 @@ Pi-hole uses significant memory (>512MB) with millions of blocked domains.
 ## API Authentication Failures
 
 ### Problem
-API calls fail with authentication errors.
+API calls fail with authentication errors. Pi-hole v6 has changed API structure.
 
-### Solution
-Always retrieve current API token:
+### Solution (UPDATED 2025-09-15)
+Authentication module implemented in lib/api.sh:
 ```bash
 # Get API credentials
 vrooli resource pihole credentials
 
-# Use in API calls
-PIHOLE_TOKEN=$(vrooli resource pihole credentials | grep "API Token" | cut -d: -f2 | xargs)
-curl "http://localhost:8087/admin/api.php?status&auth=${PIHOLE_TOKEN}"
+# API functions now handle auth automatically
+vrooli resource pihole content stats
+vrooli resource pihole content dns list
 ```
+
+**Note**: Pi-hole v6 API endpoints have changed. Legacy /admin/api.php endpoints may not work.
 
 ## DHCP Service Conflicts
 
@@ -144,3 +152,25 @@ rm -rf ~/.vrooli/pihole/etc-pihole/pihole-FTL.conf
 vrooli resource pihole manage uninstall
 vrooli resource pihole manage install
 ```
+
+## Recent Improvements (2025-09-15)
+
+### Fixed Issues
+1. **DNS Port Detection**: Tests now properly detect and use port 5353
+2. **API Authentication**: Created lib/api.sh module with auth token management
+3. **Custom DNS Records**: Implemented add/remove/list functionality
+4. **Integration Tests**: Fixed port configuration issues
+5. **API v2 Migration**: Updated to use new Pi-hole API v2 via CLI commands
+6. **DHCP Server**: Added full DHCP management with leases and reservations
+7. **Regex Filtering**: Implemented regex pattern management and testing
+
+### Remaining Issues
+1. **Regex CLI Commands**: Some pihole --regex commands have readonly variable errors
+2. **SQLite Dependency**: Container lacks sqlite3 for direct database queries
+3. **Test Coverage**: Some integration tests need updating for new API
+
+### New Features Added
+1. **DHCP Management**: Enable/disable DHCP, manage leases and static reservations
+2. **Regex Patterns**: Add/remove regex patterns, test patterns, import/export
+3. **Common Patterns**: Pre-defined pattern sets (basic, aggressive, social, malware)
+4. **API v2 Support**: Using pihole CLI for authenticated API access

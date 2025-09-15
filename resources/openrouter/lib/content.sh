@@ -11,10 +11,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${OPENROUTER_LIB_DIR}/core.sh"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
-# Source agents library if available
-if [[ -f "${OPENROUTER_LIB_DIR}/agents.sh" ]]; then
-    source "${OPENROUTER_LIB_DIR}/agents.sh"
-fi
+# Agent management is now handled via unified system (see cli.sh)
 
 # Content directory for storing prompts and configurations
 OPENROUTER_CONTENT_DIR="${var_ROOT_DIR}/data/resources/openrouter/content"

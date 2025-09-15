@@ -56,7 +56,8 @@ export EARTHLY_MAX_ARTIFACT_SIZE_MB="${EARTHLY_MAX_ARTIFACT_SIZE_MB:-1024}"
 export EARTHLY_ARTIFACT_RETENTION_DAYS="${EARTHLY_ARTIFACT_RETENTION_DAYS:-7}"
 
 # Platform support
-export EARTHLY_PLATFORMS="${EARTHLY_PLATFORMS:-linux/amd64,linux/arm64}"
+# Platform specification moved to individual builds to avoid command-line conflicts
+# export EARTHLY_PLATFORMS="${EARTHLY_PLATFORMS:-linux/amd64,linux/arm64}"
 
 # Resource limits
 export EARTHLY_CPU_LIMIT="${EARTHLY_CPU_LIMIT:-}"

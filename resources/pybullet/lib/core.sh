@@ -127,6 +127,12 @@ install_pybullet() {
         return 2
     fi
     
+    # Clean up any partial installation
+    if [[ "$force" == "--force" ]] && [[ -d "$VENV_DIR" ]]; then
+        echo "Removing existing installation..."
+        rm -rf "$VENV_DIR"
+    fi
+    
     # Check Python requirements
     if ! command -v python3 &> /dev/null; then
         echo "Error: Python 3 is not installed"
@@ -134,59 +140,58 @@ install_pybullet() {
         return 1
     fi
     
-    # Create virtual environment (fallback if venv module not available)
-    echo "Creating Python virtual environment..."
-    if python3 -m venv "$VENV_DIR" 2>/dev/null; then
-        echo "Virtual environment created successfully"
-    else
-        echo "Note: python3-venv package may not be installed"
-        echo "Attempting to use pip directly..."
-        # Fallback: use system pip with --user flag
-        mkdir -p "$VENV_DIR/bin"
-        cat > "$VENV_DIR/bin/activate" << 'ACTIVATE_EOF'
-# Minimal activation script for fallback mode
-export PYBULLET_VENV="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
-export PATH="$PYBULLET_VENV/bin:$PATH"
-export PYTHONPATH="$PYBULLET_VENV/lib:$PYTHONPATH"
-alias python="python3"
-alias pip="python3 -m pip"
-ACTIVATE_EOF
-    fi
-    
-    # Install packages (handle both venv and fallback modes)
-    if [[ -f "$VENV_DIR/bin/activate" ]]; then
-        source "$VENV_DIR/bin/activate"
-    fi
-    
-    echo "Installing Python packages..."
-    
     # Check if pip is available
-    if command -v pip3 &> /dev/null; then
-        PIP_CMD="pip3"
-    elif command -v python3 -m pip &> /dev/null; then
-        PIP_CMD="python3 -m pip"
-    else
+    if ! python3 -m pip --version &> /dev/null; then
         echo "Error: pip is not installed"
         echo "Please install python3-pip package"
         return 1
     fi
     
-    # Install to venv or user location
-    if [[ -d "$VENV_DIR/lib" ]]; then
-        # Real venv exists
-        $PIP_CMD install --upgrade pip
-        $PIP_CMD install pybullet numpy scipy fastapi uvicorn httpx
+    # Try to create virtual environment, fallback to custom directory if needed
+    echo "Setting up Python environment..."
+    if python3 -m venv "$VENV_DIR" 2>/dev/null; then
+        echo "Virtual environment created successfully"
+        # Activate and install packages
+        source "$VENV_DIR/bin/activate"
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pybullet numpy scipy fastapi uvicorn httpx
     else
-        # Fallback mode - install to custom prefix
-        mkdir -p "$VENV_DIR/lib"
-        $PIP_CMD install --target="$VENV_DIR/lib" --upgrade pip
-        $PIP_CMD install --target="$VENV_DIR/lib" pybullet numpy scipy fastapi uvicorn httpx
+        echo "Note: python3-venv not available, using alternative installation"
+        # Create custom Python environment structure
+        mkdir -p "$VENV_DIR/bin" "$VENV_DIR/lib"
         
-        # Create wrapper scripts
+        # Install packages to custom location
+        echo "Installing packages to custom location..."
+        python3 -m pip install --target="$VENV_DIR/lib" --upgrade pip
+        python3 -m pip install --target="$VENV_DIR/lib" pybullet numpy scipy fastapi uvicorn httpx
+        
+        # Create activation script for custom environment
+        cat > "$VENV_DIR/bin/activate" << 'ACTIVATE_EOF'
+#!/bin/bash
+# Custom activation script for PyBullet environment
+export PYBULLET_VENV="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+export PYBULLET_ORIGINAL_PATH="$PATH"
+export PYBULLET_ORIGINAL_PYTHONPATH="${PYTHONPATH:-}"
+export PATH="$PYBULLET_VENV/bin:$PATH"
+export PYTHONPATH="$PYBULLET_VENV/lib:${PYTHONPATH:-}"
+
+# Create deactivate function
+deactivate() {
+    export PATH="$PYBULLET_ORIGINAL_PATH"
+    export PYTHONPATH="$PYBULLET_ORIGINAL_PYTHONPATH"
+    unset PYBULLET_VENV
+    unset PYBULLET_ORIGINAL_PATH
+    unset PYBULLET_ORIGINAL_PYTHONPATH
+    unset -f deactivate
+}
+ACTIVATE_EOF
+        chmod +x "$VENV_DIR/bin/activate"
+        
+        # Create wrapper scripts for custom environment
         cat > "$VENV_DIR/bin/python" << 'EOF'
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export PYTHONPATH="$SCRIPT_DIR/../lib:$PYTHONPATH"
+export PYTHONPATH="$SCRIPT_DIR/../lib:${PYTHONPATH:-}"
 exec python3 "$@"
 EOF
         chmod +x "$VENV_DIR/bin/python"
@@ -194,7 +199,7 @@ EOF
         cat > "$VENV_DIR/bin/uvicorn" << 'EOF'
 #!/bin/bash
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export PYTHONPATH="$SCRIPT_DIR/../lib:$PYTHONPATH"
+export PYTHONPATH="$SCRIPT_DIR/../lib:${PYTHONPATH:-}"
 exec python3 -m uvicorn "$@"
 EOF
         chmod +x "$VENV_DIR/bin/uvicorn"
@@ -256,10 +261,28 @@ start_pybullet() {
         return 2
     fi
     
-    # Start API server
-    source "$VENV_DIR/bin/activate"
-    nohup uvicorn api.server:app --host 0.0.0.0 --port "$PYBULLET_PORT" \
-        --app-dir "$RESOURCE_DIR" > "$RESOURCE_DIR/pybullet.log" 2>&1 &
+    # Check if API server exists
+    if [[ ! -f "$API_DIR/server.py" ]]; then
+        echo "API server not found. Creating it..."
+        mkdir -p "$API_DIR"
+        create_api_server
+    fi
+    
+    # Start API server (handle both venv and custom installation)
+    if [[ -f "$VENV_DIR/bin/activate" ]]; then
+        source "$VENV_DIR/bin/activate"
+    else
+        export PYTHONPATH="$VENV_DIR/lib:${PYTHONPATH:-}"
+    fi
+    
+    # Use custom uvicorn wrapper if it exists, otherwise use python -m uvicorn
+    if [[ -x "$VENV_DIR/bin/uvicorn" ]]; then
+        nohup "$VENV_DIR/bin/uvicorn" api.server:app --host 0.0.0.0 --port "$PYBULLET_PORT" \
+            --app-dir "$RESOURCE_DIR" > "$RESOURCE_DIR/pybullet.log" 2>&1 &
+    else
+        nohup python3 -m uvicorn api.server:app --host 0.0.0.0 --port "$PYBULLET_PORT" \
+            --app-dir "$RESOURCE_DIR" > "$RESOURCE_DIR/pybullet.log" 2>&1 &
+    fi
     
     local pid=$!
     echo $pid > "$RESOURCE_DIR/pybullet.pid"
@@ -347,7 +370,16 @@ handle_content() {
 list_content() {
     echo "Available simulations:"
     echo "====================="
-    ls -1 "$EXAMPLES_DIR"/*.py 2>/dev/null | xargs -n1 basename | sed 's/\.py$//'
+    if [[ -d "$EXAMPLES_DIR" ]]; then
+        local files=$(ls -1 "$EXAMPLES_DIR"/*.py 2>/dev/null)
+        if [[ -n "$files" ]]; then
+            echo "$files" | xargs -n1 basename 2>/dev/null | sed 's/\.py$//'
+        else
+            echo "(No simulations found. Use 'resource-pybullet content add' to add one)"
+        fi
+    else
+        echo "(Examples directory not found)"
+    fi
 }
 
 # Execute simulation

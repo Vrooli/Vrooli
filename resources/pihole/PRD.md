@@ -19,10 +19,10 @@
 - [x] **Whitelist/Blacklist**: Manage custom domain allow/deny lists (2025-09-14)
 
 ### P1 Requirements (Should Have)
-- [ ] **Statistics API**: Query blocking statistics and performance metrics
-- [ ] **Custom DNS Records**: Define local DNS entries for internal services
-- [ ] **DHCP Server**: Optional DHCP service for complete network control
-- [ ] **Regex Filtering**: Support regex patterns for advanced blocking
+- [x] **Statistics API**: Query blocking statistics and performance metrics (2025-09-15)
+- [x] **Custom DNS Records**: Define local DNS entries for internal services (2025-09-15)
+- [x] **DHCP Server**: Optional DHCP service for complete network control (2025-09-15)
+- [x] **Regex Filtering**: Support regex patterns for advanced blocking (2025-09-15)
 
 ### P2 Requirements (Nice to Have)
 - [ ] **Web Interface**: Optional web dashboard for visual management
@@ -70,9 +70,9 @@ runtime:
 
 ### Completion Metrics
 - **P0 Completion**: 100% (7/7 requirements implemented)
-- **P1 Completion**: 0% (0/4 requirements implemented)
+- **P1 Completion**: 100% (4/4 requirements implemented)
 - **P2 Completion**: 0% (0/3 requirements implemented)
-- **Overall Progress**: 50% (7/14 total requirements)
+- **Overall Progress**: 79% (11/14 total requirements)
 
 ### Quality Metrics
 - DNS resolution time < 50ms for cached queries
@@ -113,6 +113,12 @@ Justification: Network-wide ad blocking is a fundamental service that enhances e
 - Support both IPv4 and IPv6 DNS resolution
 - Include common blocklists by default
 - Provide clear documentation for network configuration
+- DNS port automatically detects conflicts and uses 5353 if port 53 is occupied
+- API authentication implemented for secure access
+- Custom DNS records management fully functional
+- DHCP server functionality added with lease management and static reservations
+- Regex filtering support with pattern testing and common pattern library
+- Updated to use new Pi-hole API v2 where available
 
 ## Testing Requirements
 - Verify DNS resolution works correctly
@@ -120,6 +126,8 @@ Justification: Network-wide ad blocking is a fundamental service that enhances e
 - Validate API authentication and endpoints
 - Ensure proper cleanup on uninstall
 - Test high query load scenarios
+- Test DHCP server enable/disable and lease management
+- Verify regex pattern matching and filtering
 
 ## Documentation Requirements
 - Network configuration guide

@@ -138,29 +138,159 @@ postgis_execute_sql() {
     fi
 }
 
-# Import shapefile
+# Import shapefile with enhanced ogr2ogr support
 postgis_import_shapefile() {
     local shapefile="$1"
     local database="${2:-$POSTGIS_PG_DATABASE}"
     local table_name="${3:-$(basename "$shapefile" .shp)}"
     
     if [ ! -f "$shapefile" ]; then
-        format_error "Shapefile not found: $shapefile"
+        log::error "Shapefile not found: $shapefile"
         return 1
     fi
     
-    format_info "Importing shapefile: $shapefile"
+    log::info "Importing shapefile: $shapefile"
     
-    # Use shp2pgsql to convert and import
+    # Try ogr2ogr first (better format support)
+    if command -v ogr2ogr >/dev/null 2>&1; then
+        local conn_string="PG:host=$POSTGIS_PG_HOST port=$POSTGIS_PG_PORT dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
+        if ogr2ogr -f "PostgreSQL" "$conn_string" "$shapefile" -nln "$table_name" -overwrite -lco GEOMETRY_NAME=geom -lco FID=id -lco SPATIAL_INDEX=GIST 2>&1; then
+            log::success "Shapefile imported to table: $table_name (using ogr2ogr)"
+            return 0
+        fi
+    fi
+    
+    # Fallback to shp2pgsql
     if command -v shp2pgsql >/dev/null 2>&1; then
         shp2pgsql -I -s "$POSTGIS_DEFAULT_SRID" "$shapefile" "$table_name" | \
             PGPASSWORD="$POSTGIS_PG_PASSWORD" psql -h "$POSTGIS_PG_HOST" -p "$POSTGIS_PG_PORT" -U "$POSTGIS_PG_USER" -d "$database" 2>&1
-        format_success "Shapefile imported to table: $table_name"
+        log::success "Shapefile imported to table: $table_name (using shp2pgsql)"
         return 0
     else
-        format_error "shp2pgsql not found. Install postgis-client package."
+        log::error "Neither ogr2ogr nor shp2pgsql found. Install gdal-bin or postgis-client package."
         return 1
     fi
+}
+
+# Import GeoJSON file
+postgis_import_geojson() {
+    local geojson_file="$1"
+    local database="${2:-$POSTGIS_PG_DATABASE}"
+    local table_name="${3:-$(basename "$geojson_file" .geojson | sed 's/\.json$//')}"
+    
+    if [ ! -f "$geojson_file" ]; then
+        log::error "GeoJSON file not found: $geojson_file"
+        return 1
+    fi
+    
+    log::info "Importing GeoJSON: $geojson_file"
+    
+    # Use ogr2ogr for GeoJSON import
+    if command -v ogr2ogr >/dev/null 2>&1; then
+        local conn_string="PG:host=$POSTGIS_PG_HOST port=$POSTGIS_PG_PORT dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
+        if ogr2ogr -f "PostgreSQL" "$conn_string" "$geojson_file" -nln "$table_name" -overwrite -lco GEOMETRY_NAME=geom -lco FID=id -lco SPATIAL_INDEX=GIST 2>&1; then
+            log::success "GeoJSON imported to table: $table_name"
+            return 0
+        else
+            log::error "Failed to import GeoJSON using ogr2ogr"
+            return 1
+        fi
+    else
+        log::error "ogr2ogr not found. Install gdal-bin package for GeoJSON support."
+        return 1
+    fi
+}
+
+# Import KML/KMZ file
+postgis_import_kml() {
+    local kml_file="$1"
+    local database="${2:-$POSTGIS_PG_DATABASE}"
+    local table_name="${3:-$(basename "$kml_file" .kml | sed 's/\.kmz$//')}"
+    
+    if [ ! -f "$kml_file" ]; then
+        log::error "KML/KMZ file not found: $kml_file"
+        return 1
+    fi
+    
+    log::info "Importing KML/KMZ: $kml_file"
+    
+    # Use ogr2ogr for KML import
+    if command -v ogr2ogr >/dev/null 2>&1; then
+        local conn_string="PG:host=$POSTGIS_PG_HOST port=$POSTGIS_PG_PORT dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
+        if ogr2ogr -f "PostgreSQL" "$conn_string" "$kml_file" -nln "$table_name" -overwrite -lco GEOMETRY_NAME=geom -lco FID=id -lco SPATIAL_INDEX=GIST 2>&1; then
+            log::success "KML/KMZ imported to table: $table_name"
+            return 0
+        else
+            log::error "Failed to import KML/KMZ using ogr2ogr"
+            return 1
+        fi
+    else
+        log::error "ogr2ogr not found. Install gdal-bin package for KML support."
+        return 1
+    fi
+}
+
+# Universal GIS format importer
+postgis_import_gis() {
+    local input_file="$1"
+    local database="${2:-$POSTGIS_PG_DATABASE}"
+    local table_name="${3:-}"
+    
+    if [ ! -f "$input_file" ]; then
+        log::error "Input file not found: $input_file"
+        return 1
+    fi
+    
+    # Detect file type and call appropriate importer
+    local extension="${input_file##*.}"
+    extension="${extension,,}" # Convert to lowercase
+    
+    # Generate table name if not provided
+    if [ -z "$table_name" ]; then
+        table_name="$(basename "$input_file" ".$extension" | sed 's/[^a-zA-Z0-9_]/_/g')"
+    fi
+    
+    case "$extension" in
+        shp)
+            postgis_import_shapefile "$input_file" "$database" "$table_name"
+            ;;
+        geojson|json)
+            postgis_import_geojson "$input_file" "$database" "$table_name"
+            ;;
+        kml|kmz)
+            postgis_import_kml "$input_file" "$database" "$table_name"
+            ;;
+        gpx)
+            # GPX files (GPS tracks)
+            log::info "Importing GPX: $input_file"
+            if command -v ogr2ogr >/dev/null 2>&1; then
+                local conn_string="PG:host=$POSTGIS_PG_HOST port=$POSTGIS_PG_PORT dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
+                ogr2ogr -f "PostgreSQL" "$conn_string" "$input_file" -nln "$table_name" -overwrite -lco GEOMETRY_NAME=geom -lco FID=id -lco SPATIAL_INDEX=GIST 2>&1
+                log::success "GPX imported to table: $table_name"
+            else
+                log::error "ogr2ogr not found. Install gdal-bin package."
+                return 1
+            fi
+            ;;
+        csv)
+            # CSV with coordinates
+            log::info "Importing CSV with coordinates: $input_file"
+            if command -v ogr2ogr >/dev/null 2>&1; then
+                local conn_string="PG:host=$POSTGIS_PG_HOST port=$POSTGIS_PG_PORT dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
+                # Assume X,Y or lon,lat columns
+                ogr2ogr -f "PostgreSQL" "$conn_string" "$input_file" -nln "$table_name" -overwrite -oo X_POSSIBLE_NAMES=lon,longitude,x -oo Y_POSSIBLE_NAMES=lat,latitude,y -lco GEOMETRY_NAME=geom -lco FID=id 2>&1
+                log::success "CSV imported to table: $table_name"
+            else
+                log::error "ogr2ogr not found. Install gdal-bin package."
+                return 1
+            fi
+            ;;
+        *)
+            log::error "Unsupported file format: .$extension"
+            echo "Supported formats: shp, geojson, json, kml, kmz, gpx, csv"
+            return 1
+            ;;
+    esac
 }
 
 # Export table to shapefile

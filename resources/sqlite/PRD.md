@@ -131,3 +131,8 @@ Since SQLite is serverless, we'll provide a CLI-based API:
   - Fixed INSERT query builder to correctly return last inserted ID
   - Both fixes use single SQLite session for atomic operation
   - All tests continue to pass
+- 2025-09-15: Security hardening (P0: 100%, P1: 100%, P2: 0%)
+  - Added input validation to prevent path traversal attacks
+  - Protected against special characters in database/table names
+  - All database operations now validate names before execution
+  - Security improvements tested and verified, all tests pass

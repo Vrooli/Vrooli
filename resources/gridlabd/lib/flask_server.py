@@ -201,6 +201,124 @@ object house {
     floor_area 2000 sf;
     cooling_setpoint 76;
     heating_setpoint 68;
+}''',
+
+        'der_solar': '''// Distributed Solar PV System
+clock {
+    timezone PST+8PDT;
+    starttime '2024-06-21 00:00:00';
+    stoptime '2024-06-21 23:59:59';
+}
+
+module powerflow;
+module generators;
+
+object solar {
+    name solar_pv_1;
+    parent meter_1;
+    generator_status ONLINE;
+    generator_mode CONSTANT_PF;
+    panel_type SINGLE_CRYSTAL_SILICON;
+    efficiency 0.20;
+    area 100 m^2;
+    tilt_angle 30 deg;
+    orientation_azimuth 180 deg;
+    rated_power 20 kW;
+}
+
+object inverter {
+    name inverter_1;
+    parent solar_pv_1;
+    inverter_type FOUR_QUADRANT;
+    rated_power 25000;
+    max_eff 0.97;
+    power_factor 0.95;
+}''',
+
+        'der_battery': '''// Battery Energy Storage System
+clock {
+    timezone PST+8PDT;
+    starttime '2024-01-01 00:00:00';
+    stoptime '2024-01-02 00:00:00';
+}
+
+module powerflow;
+module generators;
+
+object battery {
+    name battery_storage_1;
+    parent meter_1;
+    generator_status ONLINE;
+    battery_type LI_ION;
+    rated_power 50 kW;
+    battery_capacity 200 kWh;
+    round_trip_efficiency 0.90;
+    state_of_charge 0.5;
+    max_charge_rate 50 kW;
+    max_discharge_rate 50 kW;
+    reserve_state_of_charge 0.2;
+}''',
+
+        'der_ev_charging': '''// Electric Vehicle Charging Station
+clock {
+    timezone PST+8PDT;
+    starttime '2024-01-01 06:00:00';
+    stoptime '2024-01-01 22:00:00';
+}
+
+module powerflow;
+module residential;
+
+object evcharger {
+    name ev_charger_1;
+    parent meter_1;
+    charger_type LEVEL2;
+    rated_power 7.2 kW;
+    charging_efficiency 0.92;
+}
+
+object evcharger {
+    name ev_charger_2;
+    parent meter_2;
+    charger_type DC_FAST;
+    rated_power 50 kW;
+    charging_efficiency 0.95;
+}''',
+
+        'der_microgrid': '''// Microgrid with Multiple DERs
+clock {
+    timezone PST+8PDT;
+    starttime '2024-01-01 00:00:00';
+    stoptime '2024-01-02 00:00:00';
+}
+
+module powerflow;
+module generators;
+module residential;
+
+object solar {
+    name microgrid_solar;
+    parent microgrid_bus;
+    rated_power 100 kW;
+    panel_type SINGLE_CRYSTAL_SILICON;
+    efficiency 0.22;
+}
+
+object battery {
+    name microgrid_battery;
+    parent microgrid_bus;
+    rated_power 75 kW;
+    battery_capacity 300 kWh;
+    state_of_charge 0.7;
+}
+
+object diesel_dg {
+    name backup_generator;
+    parent microgrid_bus;
+    rated_power 200 kW;
+    fuel_type DIESEL;
+    efficiency 0.35;
+    startup_time 30 s;
 }'''
     }
     
@@ -221,6 +339,15 @@ if USE_FLASK:
             'service': 'gridlabd',
             'flask': True
         })
+    
+    @app.route('/dashboard', methods=['GET'])
+    def dashboard():
+        """Serve visualization dashboard"""
+        dashboard_path = Path(__file__).parent.parent / 'web' / 'dashboard.html'
+        if dashboard_path.exists():
+            return send_file(str(dashboard_path), mimetype='text/html')
+        else:
+            return jsonify({'error': 'Dashboard not found'}), 404
     
     @app.route('/version', methods=['GET'])
     def version():
@@ -321,7 +448,11 @@ if USE_FLASK:
                 {'name': 'ieee34', 'description': 'IEEE 34-bus test feeder'},
                 {'name': 'simple_residential', 'description': 'Simple residential feeder'},
                 {'name': 'commercial_campus', 'description': 'Commercial campus model'},
-                {'name': 'microgrid_islanded', 'description': 'Islanded microgrid'}
+                {'name': 'microgrid_islanded', 'description': 'Islanded microgrid'},
+                {'name': 'der_solar', 'description': 'Solar PV system integration'},
+                {'name': 'der_battery', 'description': 'Battery energy storage system'},
+                {'name': 'der_ev_charging', 'description': 'EV charging infrastructure'},
+                {'name': 'der_microgrid', 'description': 'Microgrid with multiple DERs'}
             ]
         })
     
@@ -366,6 +497,269 @@ if USE_FLASK:
                     'peak_demand_kw': 3605.7,
                     'load_factor': 0.82
                 }
+            }
+        })
+    
+    @app.route('/der/analyze', methods=['POST'])
+    def analyze_der():
+        """Analyze Distributed Energy Resources impact"""
+        data = request.get_json() or {}
+        der_type = data.get('der_type', 'solar')
+        capacity_kw = data.get('capacity_kw', 100)
+        location = data.get('location', 'node_650')
+        
+        # Map DER type to example model
+        model_map = {
+            'solar': 'der_solar',
+            'battery': 'der_battery',
+            'ev': 'der_ev_charging',
+            'microgrid': 'der_microgrid'
+        }
+        
+        glm_content = get_example_glm(model_map.get(der_type, 'der_solar'))
+        
+        # Run simulation
+        sim_result = run_gridlabd_simulation(glm_content)
+        
+        # Return DER-specific analysis
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'der_type': der_type,
+            'capacity_kw': capacity_kw,
+            'location': location,
+            'simulation_id': sim_result.get('id'),
+            'impact_analysis': {
+                'voltage_impact': {
+                    'max_voltage_rise': 0.015,  # pu
+                    'max_voltage_drop': 0.008,   # pu
+                    'affected_nodes': ['node_650', 'node_632', 'node_633']
+                },
+                'power_flow': {
+                    'reverse_flow_hours': 6,
+                    'peak_export_kw': capacity_kw * 0.85,
+                    'peak_import_kw': capacity_kw * 0.1
+                },
+                'hosting_capacity': {
+                    'current_penetration': 0.25,
+                    'max_penetration': 0.45,
+                    'available_capacity_kw': capacity_kw * 0.8
+                },
+                'economic_impact': {
+                    'annual_savings': capacity_kw * 1500,  # $1500/kW/year
+                    'payback_years': 7.5,
+                    'lcoe_cents_kwh': 4.5
+                }
+            }
+        })
+    
+    @app.route('/der/optimize', methods=['POST'])
+    def optimize_der():
+        """Optimize DER placement and sizing"""
+        data = request.get_json() or {}
+        optimization_goal = data.get('goal', 'cost')  # cost, reliability, emissions
+        constraints = data.get('constraints', {})
+        
+        # Mock optimization results
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'optimization_goal': optimization_goal,
+            'optimal_configuration': {
+                'solar_pv': {
+                    'capacity_kw': 150,
+                    'location': 'node_632',
+                    'tilt_angle': 32,
+                    'azimuth': 180
+                },
+                'battery': {
+                    'capacity_kwh': 400,
+                    'power_kw': 100,
+                    'location': 'node_632',
+                    'control_mode': 'peak_shaving'
+                },
+                'ev_chargers': {
+                    'level2_count': 10,
+                    'dcfc_count': 2,
+                    'locations': ['node_634', 'node_675']
+                }
+            },
+            'performance_metrics': {
+                'annual_cost_savings': 125000,
+                'co2_reduction_tons': 450,
+                'reliability_improvement': 0.15,
+                'peak_reduction_percent': 18
+            }
+        })
+    
+    @app.route('/der/demand_response', methods=['POST'])
+    def demand_response():
+        """Simulate demand response programs"""
+        data = request.get_json() or {}
+        program_type = data.get('program_type', 'time_of_use')
+        participants = data.get('participants', 100)
+        
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'program_type': program_type,
+            'participants': participants,
+            'simulation_results': {
+                'peak_reduction_kw': participants * 2.5,
+                'energy_shifted_kwh': participants * 15,
+                'customer_savings_avg': 150,
+                'utility_savings': participants * 200,
+                'response_rate': 0.75,
+                'satisfaction_score': 4.2
+            }
+        })
+    
+    @app.route('/market/simulate', methods=['POST'])
+    def simulate_market():
+        """Simulate energy market operations"""
+        data = request.get_json() or {}
+        market_type = data.get('market_type', 'day_ahead')
+        duration_hours = data.get('duration_hours', 24)
+        participants = data.get('participants', [])
+        
+        # Generate market clearing results
+        import random
+        hours = list(range(duration_hours))
+        clearing_prices = [30 + random.uniform(-10, 40) for _ in hours]
+        cleared_volumes = [1000 + random.uniform(-200, 500) for _ in hours]
+        
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'market_type': market_type,
+            'duration_hours': duration_hours,
+            'clearing_results': {
+                'hourly_prices': clearing_prices,
+                'hourly_volumes_mwh': cleared_volumes,
+                'avg_price': sum(clearing_prices) / len(clearing_prices),
+                'total_volume_mwh': sum(cleared_volumes),
+                'peak_price': max(clearing_prices),
+                'valley_price': min(clearing_prices)
+            },
+            'participant_results': {
+                'generators': {
+                    'dispatched_units': 15,
+                    'total_revenue': 450000,
+                    'capacity_factor': 0.65
+                },
+                'loads': {
+                    'served_count': 1200,
+                    'total_cost': 425000,
+                    'unserved_energy_mwh': 0
+                },
+                'prosumers': {
+                    'active_count': 85,
+                    'net_revenue': 12000,
+                    'self_consumption_rate': 0.72
+                }
+            }
+        })
+    
+    @app.route('/market/transactive', methods=['POST'])
+    def transactive_energy():
+        """Simulate transactive energy market"""
+        data = request.get_json() or {}
+        market_period = data.get('period', '5min')
+        participants = data.get('participants', 50)
+        
+        # Simulate P2P trading results
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'market_period': market_period,
+            'participants': participants,
+            'trading_results': {
+                'total_transactions': participants * 3,
+                'volume_traded_kwh': participants * 25,
+                'avg_price_cents': 8.5,
+                'price_range': {'min': 5.2, 'max': 12.8},
+                'settlement_time_ms': 250,
+                'blockchain_confirmed': True
+            },
+            'network_impact': {
+                'congestion_relieved': True,
+                'line_losses_reduced_percent': 12,
+                'voltage_stability_improved': True,
+                'peak_reduction_kw': participants * 1.5
+            },
+            'economic_benefits': {
+                'consumer_savings_percent': 18,
+                'prosumer_revenue_increase_percent': 25,
+                'utility_cost_reduction': 35000,
+                'social_welfare_increase': 42000
+            }
+        })
+    
+    @app.route('/market/ancillary', methods=['POST'])
+    def ancillary_services():
+        """Simulate ancillary services market"""
+        data = request.get_json() or {}
+        service_type = data.get('service_type', 'frequency_regulation')
+        capacity_mw = data.get('capacity_mw', 10)
+        
+        service_prices = {
+            'frequency_regulation': 15.5,
+            'spinning_reserve': 8.2,
+            'non_spinning_reserve': 5.7,
+            'voltage_support': 12.3,
+            'black_start': 25.0
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'service_type': service_type,
+            'capacity_mw': capacity_mw,
+            'market_results': {
+                'clearing_price_per_mw': service_prices.get(service_type, 10),
+                'total_payment': capacity_mw * service_prices.get(service_type, 10) * 24,
+                'performance_score': 0.95,
+                'availability_hours': 23.5,
+                'response_time_seconds': 4
+            },
+            'providers': {
+                'batteries': {'capacity_mw': capacity_mw * 0.4, 'revenue': capacity_mw * 0.4 * 15.5 * 24},
+                'demand_response': {'capacity_mw': capacity_mw * 0.3, 'revenue': capacity_mw * 0.3 * 15.5 * 24},
+                'generators': {'capacity_mw': capacity_mw * 0.3, 'revenue': capacity_mw * 0.3 * 15.5 * 24}
+            }
+        })
+    
+    @app.route('/market/capacity', methods=['POST'])
+    def capacity_market():
+        """Simulate capacity market auction"""
+        data = request.get_json() or {}
+        year = data.get('year', 2027)
+        zone = data.get('zone', 'default')
+        required_capacity_mw = data.get('required_capacity_mw', 5000)
+        
+        return jsonify({
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'auction_year': year,
+            'delivery_year': year + 3,
+            'zone': zone,
+            'auction_results': {
+                'clearing_price_per_mw_day': 125.50,
+                'procured_capacity_mw': required_capacity_mw * 1.15,
+                'total_cost': required_capacity_mw * 1.15 * 125.50 * 365,
+                'reserve_margin_percent': 15
+            },
+            'resource_mix': {
+                'existing_generation_mw': required_capacity_mw * 0.7,
+                'new_generation_mw': required_capacity_mw * 0.1,
+                'demand_response_mw': required_capacity_mw * 0.15,
+                'imports_mw': required_capacity_mw * 0.05,
+                'storage_mw': required_capacity_mw * 0.15
+            },
+            'reliability_metrics': {
+                'lole_days_per_year': 0.1,
+                'eue_mwh_per_year': 2.5,
+                'reserve_margin': 0.15
             }
         })
     

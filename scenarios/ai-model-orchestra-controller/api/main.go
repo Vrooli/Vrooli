@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -14,16 +16,77 @@ const (
 	serviceName = "ai-model-orchestra-controller"
 )
 
+// validateEnvironment checks all required environment variables at startup
+func validateEnvironment(logger *log.Logger) error {
+	required := map[string]string{
+		"API_PORT":                "API server port",
+		"ORCHESTRATOR_HOST":       "Host for orchestrator services",
+		"RESOURCE_PORTS_POSTGRES": "PostgreSQL port",
+		"RESOURCE_PORTS_REDIS":    "Redis port",
+		"RESOURCE_PORTS_OLLAMA":   "Ollama port",
+		"POSTGRES_USER":           "PostgreSQL username",
+		"POSTGRES_PASSWORD":       "PostgreSQL password",
+	}
+	
+	optional := map[string]string{
+		"POSTGRES_DB":                "PostgreSQL database name (defaults to 'orchestrator')",
+		"REDIS_PASSWORD":             "Redis password (optional)",
+		"ORCHESTRATOR_LOG_LEVEL":     "Log level (defaults to 'info')",
+		"RESOURCE_MONITOR_INTERVAL":  "Resource monitoring interval (defaults to 5000ms)",
+		"MODEL_HEALTH_CHECK_INTERVAL": "Model health check interval (defaults to 30000ms)",
+		"MAX_RETRY_ATTEMPTS":         "Maximum retry attempts (defaults to 3)",
+		"REQUEST_TIMEOUT":            "Request timeout (defaults to 30000ms)",
+		"UI_PORT":                    "UI server port",
+	}
+	
+	missingRequired := []string{}
+	
+	// Check required variables
+	for env, description := range required {
+		if os.Getenv(env) == "" {
+			missingRequired = append(missingRequired, fmt.Sprintf("  - %s: %s", env, description))
+		}
+	}
+	
+	if len(missingRequired) > 0 {
+		logger.Printf("❌ Missing required environment variables:")
+		for _, missing := range missingRequired {
+			logger.Println(missing)
+		}
+		return fmt.Errorf("missing %d required environment variables", len(missingRequired))
+	}
+	
+	// Log optional variables status
+	logger.Printf("✅ All required environment variables are set")
+	logger.Printf("📋 Optional environment variables:")
+	for env, description := range optional {
+		value := os.Getenv(env)
+		if value != "" {
+			// Don't log sensitive values
+			if strings.Contains(strings.ToLower(env), "password") || strings.Contains(strings.ToLower(env), "secret") {
+				logger.Printf("  ✓ %s: [SET] - %s", env, description)
+			} else {
+				logger.Printf("  ✓ %s: %s - %s", env, value, description)
+			}
+		} else {
+			logger.Printf("  ○ %s: [NOT SET] - %s", env, description)
+		}
+	}
+	
+	return nil
+}
+
 func main() {
 	logger := log.New(os.Stdout, "[ai-orchestrator] ", log.LstdFlags)
 	
 	logger.Printf("🚀 Starting AI Model Orchestra Controller v%s", apiVersion)
 	
-	// Validate required environment variables
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		logger.Fatalf("❌ API_PORT environment variable is required")
+	// Validate all required environment variables
+	if err := validateEnvironment(logger); err != nil {
+		logger.Fatalf("❌ Environment validation failed: %v", err)
 	}
+	
+	port := os.Getenv("API_PORT")
 	
 	// Initialize application state
 	app := &AppState{
@@ -65,8 +128,8 @@ func main() {
 		// Continue without Docker for development
 	}
 	
-	// Start background system monitoring
-	go startSystemMonitoring(app.DB, logger)
+	// Start background system monitoring with health checks
+	go startSystemMonitoring(app)
 	
 	// Initialize handlers
 	handlers := NewHandlers(app)
@@ -93,9 +156,9 @@ func main() {
 	r.Use(corsMiddleware)
 	
 	logger.Printf("🎛️  API server starting on port %s", port)
-	logger.Printf("📊 Dashboard available at: http://localhost:%s/dashboard", port)
-	logger.Printf("🔗 Health check: http://localhost:%s/health", port)
-	logger.Printf("🔗 Health check (v1): http://localhost:%s/api/v1/health", port)
+	logger.Printf("📊 Dashboard endpoint: /dashboard")
+	logger.Printf("🔗 Health check endpoints: /health and /api/v1/health")
+	logger.Printf("🚀 Service: %s v%s", serviceName, apiVersion)
 	
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		logger.Fatalf("❌ Server failed to start: %v", err)

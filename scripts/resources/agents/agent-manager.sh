@@ -15,6 +15,10 @@ source "${APP_ROOT}/scripts/lib/utils/format.sh"
 source "${APP_ROOT}/scripts/resources/agents/core/registry.sh"
 source "${APP_ROOT}/scripts/resources/agents/core/lifecycle.sh"
 source "${APP_ROOT}/scripts/resources/agents/monitoring/logs.sh"
+source "${APP_ROOT}/scripts/resources/agents/monitoring/health.sh"
+source "${APP_ROOT}/scripts/resources/agents/monitoring/metrics.sh"
+source "${APP_ROOT}/scripts/resources/agents/monitoring/dashboard.sh"
+source "${APP_ROOT}/scripts/resources/agents/lib/wrapper.sh"
 
 #######################################
 # Load resource configuration
@@ -60,6 +64,12 @@ agent_manager::load_config() {
         fi
     done
     
+    # Set defaults for optional monitoring configuration
+    HEALTH_CHECK_ENABLED="${HEALTH_CHECK_ENABLED:-false}"
+    HEALTH_CHECK_INTERVAL="${HEALTH_CHECK_INTERVAL:-30}"
+    METRICS_ENABLED="${METRICS_ENABLED:-true}"
+    MONITOR_PIDFILE="${MONITOR_PIDFILE:-${APP_ROOT}/.vrooli/${resource}.monitor.pid}"
+    
     return 0
 }
 
@@ -78,8 +88,16 @@ agent_manager::init_registry() {
     fi
     
     # Create empty registry if it doesn't exist
+    # Use pretty-printed JSON format for consistency
     if [[ ! -f "$REGISTRY_FILE" ]]; then
-        echo '{"agents": {}}' > "$REGISTRY_FILE" || return 1
+        cat > "$REGISTRY_FILE" <<-'EOF'
+{
+  "agents": {}
+}
+EOF
+        if [[ $? -ne 0 ]]; then
+            return 1
+        fi
     fi
     
     return 0
@@ -104,7 +122,20 @@ agent_manager::generate_id() {
 #   0 on success, 1 on error
 #######################################
 agent_manager::register() {
-    agents::registry::register "$REGISTRY_FILE" "$RESOURCE_NAME" "$1" "$2" "$3"
+    # Register the agent
+    agents::registry::register "$REGISTRY_FILE" "$RESOURCE_NAME" "$1" "$2" "$3" || return 1
+    
+    # Initialize metrics if enabled
+    if [[ "$METRICS_ENABLED" == "true" ]]; then
+        agents::metrics::init "$REGISTRY_FILE" "$1"
+    fi
+    
+    # Start health monitor if enabled and not already running
+    if [[ "$HEALTH_CHECK_ENABLED" == "true" ]]; then
+        agents::health::start_monitor "$REGISTRY_FILE" "$RESOURCE_NAME" "$HEALTH_CHECK_INTERVAL" "$MONITOR_PIDFILE"
+    fi
+    
+    return 0
 }
 
 #######################################
@@ -455,98 +486,8 @@ agent_manager::logs() {
     local lines="$3"
     local json_output="$4"
     
-    if [[ -z "$agent_id" ]]; then
-        log::error "agent_manager::logs: Agent ID required"
-        return 1
-    fi
-    
-    [[ -f "$REGISTRY_FILE" ]] || {
-        if [[ "$json_output" == "true" ]]; then
-            echo '{"error": "No agents registry found"}'
-        else
-            log::error "No $RESOURCE_NAME agents registry found"
-        fi
-        return 1
-    }
-    
-    # Get agent info including PID
-    local agent_data
-    agent_data=$(jq --arg id "$agent_id" '.agents[$id] // empty' "$REGISTRY_FILE" 2>/dev/null)
-    
-    if [[ -z "$agent_data" || "$agent_data" == "null" ]]; then
-        if [[ "$json_output" == "true" ]]; then
-            echo '{"error": "Agent not found"}'
-        else
-            log::error "$RESOURCE_NAME agent not found: $agent_id"
-        fi
-        return 1
-    fi
-    
-    local pid
-    pid=$(echo "$agent_data" | jq -r '.pid')
-    
-    if [[ -z "$pid" || "$pid" == "null" ]]; then
-        if [[ "$json_output" == "true" ]]; then
-            echo '{"error": "No PID found for agent"}'
-        else
-            log::error "No PID found for $RESOURCE_NAME agent: $agent_id"
-        fi
-        return 1
-    fi
-    
-    # Use framework for multi-source log detection
-    
-    # Check stdout redirection
-    if agents::logs::check_stdout_redirect "$pid" "$follow" "$lines" "$json_output"; then
-        return 0
-    fi
-    
-    # Check standard log location  
-    local log_file="${LOG_DIR}/${agent_id}.log"
-    if [[ -f "$log_file" ]]; then
-        if [[ "$follow" == "true" ]]; then
-            if [[ "$json_output" == "true" ]]; then
-                echo "{\"source\": \"logfile\", \"file\": \"$log_file\", \"following\": true}"
-            fi
-            tail -f -n "$lines" "$log_file"
-        else
-            if [[ "$json_output" == "true" ]]; then
-                local log_content
-                log_content=$(tail -n "$lines" "$log_file" | jq -Rs '.')
-                echo "{\"source\": \"logfile\", \"file\": \"$log_file\", \"content\": $log_content}"
-            else
-                tail -n "$lines" "$log_file"
-            fi
-        fi
-        return 0
-    fi
-    
-    # Check parent process using framework (THE CROWN JEWEL)
-    if agents::logs::check_parent_process "$pid" "$agent_id" "$SEARCH_PATTERNS" "$follow" "$lines" "$json_output"; then
-        return 0
-    fi
-    
-    # Check journal
-    if agents::logs::check_journal "$pid" "$follow" "$lines" "$json_output"; then
-        return 0
-    fi
-    
-    # Check command line hints
-    if agents::logs::check_cmdline_hints "$pid" "$follow" "$lines" "$json_output"; then
-        return 0
-    fi
-    
-    # No logs found
-    if [[ "$json_output" == "true" ]]; then
-        echo "{\"error\": \"No logs found for agent\", \"pid\": $pid, \"suggestions\": [\"Process may not be logging to file\", \"Try checking process output directly\"]}"
-    else
-        log::warn "No logs found for $RESOURCE_NAME agent: $agent_id (PID: $pid)"
-        log::info "Suggestions:"
-        log::info "  - Process may not be logging to file"
-        log::info "  - Try running agent with explicit log redirection"
-        log::info "  - Check if process is still running: kill -0 $pid"
-    fi
-    return 1
+    # Delegate to the shared logs implementation with explicit parameters
+    agents::logs::get "$REGISTRY_FILE" "$RESOURCE_NAME" "$SEARCH_PATTERNS" "$agent_id" "$follow" "$lines" "$json_output"
 }
 
 #######################################
@@ -732,6 +673,69 @@ main() {
             agent_manager::logs "$agent_id" "$follow" "$lines" "$json_output"
             ;;
             
+        "monitor")
+            local refresh_interval="5"
+            local output_format="terminal"
+            local show_metrics="false"
+            
+            # Parse arguments
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --interval)
+                        if [[ -z "$2" || ! "$2" =~ ^[0-9]+$ ]]; then
+                            log::error "Invalid interval value: $2"
+                            return 1
+                        fi
+                        refresh_interval="$2"
+                        shift 2
+                        ;;
+                    --json)
+                        output_format="json"
+                        shift
+                        ;;
+                    --metrics)
+                        show_metrics="true"
+                        shift
+                        ;;
+                    *)
+                        log::error "Unknown option: $1"
+                        return 1
+                        ;;
+                esac
+            done
+            
+            # Display dashboard
+            agents::dashboard::display "$REGISTRY_FILE" "$RESOURCE_NAME" "$refresh_interval" "$output_format"
+            ;;
+            
+        "metrics")
+            local agent_id="$1"
+            local output_format="text"
+            shift || true
+            
+            if [[ -z "$agent_id" ]]; then
+                log::error "Usage: agents metrics <agent-id> [--json]"
+                return 1
+            fi
+            
+            # Parse arguments
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --json)
+                        output_format="json"
+                        shift
+                        ;;
+                    *)
+                        log::error "Unknown option: $1"
+                        return 1
+                        ;;
+                esac
+            done
+            
+            # Show metrics for agent
+            agents::metrics::get_summary "$REGISTRY_FILE" "$agent_id" "$output_format"
+            ;;
+            
         "help"|"-h"|"--help")
             echo "Usage: agent-manager.sh --config=<resource> <subcommand> [options]"
             echo ""
@@ -741,12 +745,18 @@ main() {
             echo "  cleanup                                    Remove dead agents from registry"
             echo "  info <agent-id> [--json]                  Show detailed information about an agent"
             echo "  logs <agent-id> [-f] [-n N] [--json]      Show agent logs"
+            echo "  monitor [--interval N] [--json]           Real-time monitoring dashboard"
+            echo "  metrics <agent-id> [--json]               Show metrics for specific agent"
             echo "  help                                       Show this help message"
             echo ""
             echo "Logs options:"
             echo "  -f, --follow     Follow log output (like tail -f)"
             echo "  -n, --lines N    Show last N lines (default: 100)"
             echo "  --json           Output in JSON format"
+            echo ""
+            echo "Monitor options:"
+            echo "  --interval N     Refresh interval in seconds (default: 5)"
+            echo "  --json          Output as JSON instead of dashboard"
             echo ""
             echo "Status filters: running, stopped, crashed"
             ;;

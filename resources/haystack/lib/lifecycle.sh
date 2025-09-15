@@ -51,26 +51,48 @@ haystack::start() {
         fi
     fi
     
+    # Ensure log directory exists
+    mkdir -p "${HAYSTACK_LOG_DIR}"
+    
     # Start the server in background
     nohup "${HAYSTACK_VENV_DIR}/bin/python" "${HAYSTACK_SCRIPTS_DIR}/server.py" \
-        > "${HAYSTACK_LOG_FILE}" 2>&1 &
+        >> "${HAYSTACK_LOG_FILE}" 2>&1 &
     
     local pid=$!
     echo "${pid}" > "${HAYSTACK_PID_FILE}"
     
+    # Give the process a moment to start before checking
+    sleep 2
+    
     # Wait for service to be ready
     local max_attempts=30
     local attempt=0
+    log::info "Waiting for Haystack to become healthy (up to ${max_attempts} seconds)..."
+    
     while [[ ${attempt} -lt ${max_attempts} ]]; do
+        # Check if process is still running
+        if ! kill -0 "${pid}" 2>/dev/null; then
+            log::error "Haystack process died during startup"
+            rm -f "${HAYSTACK_PID_FILE}"
+            return 1
+        fi
+        
+        # Try health check
         if timeout 5 curl -sf "http://localhost:${port}/health" &>/dev/null; then
             log::success "Haystack started successfully"
             return 0
         fi
+        
+        # Show progress every 5 attempts
+        if [[ $((attempt % 5)) -eq 0 ]] && [[ ${attempt} -gt 0 ]]; then
+            log::info "Still waiting for Haystack to start (${attempt}/${max_attempts})..."
+        fi
+        
         sleep 1
         ((attempt++))
     done
     
-    log::error "Failed to start Haystack service"
+    log::error "Failed to start Haystack service - health check never responded"
     haystack::stop
     return 1
 }
@@ -101,6 +123,16 @@ haystack::stop() {
         echo "${pids}" | xargs kill -9 2>/dev/null || true
     fi
     
+    # Wait for port to be free
+    local retries=10
+    while [[ $retries -gt 0 ]]; do
+        if ! lsof -ti:${port} &>/dev/null; then
+            break
+        fi
+        sleep 1
+        retries=$((retries - 1))
+    done
+    
     log::success "Haystack stopped"
     return 0
 }
@@ -108,7 +140,17 @@ haystack::stop() {
 # Restart Haystack
 haystack::restart() {
     log::info "Restarting Haystack"
+    
+    # Stop the service and ensure it's fully stopped
     haystack::stop
-    sleep 2
-    haystack::start
+    
+    # Give a bit more time for port to be released
+    sleep 3
+    
+    # Pass any arguments to start (like --wait)
+    # The start function already handles --wait by default
+    haystack::start "$@"
+    
+    # Explicitly return the start command's exit code
+    return $?
 }

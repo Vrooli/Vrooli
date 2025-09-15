@@ -43,14 +43,17 @@
 
 ### API Endpoints (Local Wrapper)
 ```
-POST /api/scan/file              # Submit file for scanning
-POST /api/scan/url               # Submit URL for analysis
-GET  /api/report/{hash}          # Get file report by hash
-GET  /api/report/url/{id}        # Get URL analysis report
-GET  /api/reputation/ip/{ip}     # IP reputation check
-GET  /api/reputation/domain/{d}  # Domain reputation check
-GET  /api/health                 # Service health and quota status
-GET  /api/stats                  # Usage statistics and cache metrics
+POST /api/scan/file                 # Submit file for scanning
+POST /api/scan/file-url             # Submit file from URL for scanning (S3/MinIO)
+POST /api/scan/url                  # Submit URL for analysis
+GET  /api/report/{hash}             # Get file report by hash
+GET  /api/report/url/{id}           # Get URL analysis report
+GET  /api/reputation/ip/{ip}        # IP reputation check
+GET  /api/reputation/domain/{d}     # Domain reputation check
+GET  /api/health                    # Service health and quota status
+GET  /api/stats                     # Usage statistics and cache metrics
+GET  /api/cache/info                # Cache rotation and size information
+GET  /api/threat-feed/export        # Export threat intelligence feed
 ```
 
 ### CLI Commands
@@ -219,3 +222,8 @@ resource-virustotal content get --hash $alert_hash --format json | \
   - Added /api/cache/info endpoint for monitoring cache status
   - Added comprehensive integration examples with other Vrooli resources
   - Enhanced documentation with CI/CD and security monitoring examples
+- 2025-09-15: Advanced features implementation:
+  - Added URL-based file submission endpoint (/api/scan/file-url) for S3/MinIO integration
+  - Implemented threat intelligence feed export (/api/threat-feed/export) with JSON, CSV, and IOC formats
+  - Enhanced integration capabilities for cloud storage and SIEM systems
+  - All tests passing, no regressions introduced

@@ -1,21 +1,24 @@
 # Huginn Workflow Automation Platform
 
-Huginn is an agent-based workflow automation platform that helps you build automated workflows using connected components.
+Huginn is an agent-based workflow automation platform that helps you build automated workflows using connected components. Now with AI-powered event filtering and performance monitoring!
 
 ## Quick Start
 
 ```bash
 # Install Huginn
-./manage.sh --action install
+vrooli resource huginn manage install
+
+# Start the service
+vrooli resource huginn manage start
 
 # Check status
-./manage.sh --action status
+vrooli resource huginn status
 
 # List agents
-./manage.sh --action agents --operation list
+vrooli resource huginn content list
 
-# View recent events
-./manage.sh --action events --operation recent
+# View performance metrics
+vrooli resource huginn performance dashboard
 ```
 
 ## Web Interface
@@ -60,46 +63,69 @@ Huginn is an agent-based workflow automation platform that helps you build autom
 - `integration` - Check integration with other Vrooli resources
 - `monitor --interval <seconds>` - Real-time monitoring
 
+## New Features
+
+### AI-Powered Event Filtering (Ollama Integration)
+```bash
+# Test Ollama connectivity
+vrooli resource huginn ollama test
+
+# Create an AI filter agent
+vrooli resource huginn ollama create-filter "Critical Alert Filter" "only critical severity events"
+
+# List AI filter agents
+vrooli resource huginn ollama list-filters
+
+# Analyze event with AI
+vrooli resource huginn ollama analyze '{"message":"CPU at 95%"}' "critical events only"
+```
+
+### Performance Monitoring
+```bash
+# View performance dashboard
+vrooli resource huginn performance dashboard
+
+# Get metrics as JSON
+vrooli resource huginn performance metrics
+
+# Export metrics to file
+vrooli resource huginn performance export metrics.json
+```
+
 ## Examples
 
 ### Basic System Check
 ```bash
 # Check if Huginn is running and healthy
-./manage.sh --action status
-./manage.sh --action health
+vrooli resource huginn status
+vrooli resource huginn test smoke
 ```
 
 ### Agent Operations
 ```bash
-# List all agents with their status
-./manage.sh --action agents --operation list
+# List all agents
+vrooli resource huginn content list
 
-# Show detailed information for agent ID 5
-./manage.sh --action agents --operation show --agent-id 5
+# Export agents to JSON
+vrooli resource huginn export agents all agents-backup.json
 
-# Run agent ID 10 manually
-./manage.sh --action agents --operation run --agent-id 10
+# Import agents from JSON
+vrooli resource huginn import agents-backup.json
 ```
 
-### Monitoring
+### Monitoring and Backup
 ```bash
-# View recent system activity
-./manage.sh --action events --operation recent --count 20
-
-# Monitor system in real-time (30-second intervals)
-./manage.sh --action monitor --interval 30
-
-# View application logs
-./manage.sh --action logs --container app --lines 100
-```
-
-### Integration
-```bash
-# Check integration with other Vrooli resources
-./manage.sh --action integration
+# Real-time monitoring dashboard
+vrooli resource huginn monitor
 
 # Create system backup
-./manage.sh --action backup
+vrooli resource huginn backup /tmp/huginn-backup
+
+# Restore from backup
+vrooli resource huginn restore /tmp/huginn-backup.tar.gz
+
+# View logs
+vrooli resource huginn logs
 ```
 
 ## Directory Structure

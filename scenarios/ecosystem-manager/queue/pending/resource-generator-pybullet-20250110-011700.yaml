@@ -2,11 +2,11 @@ id: resource-generator-pybullet-20250110-011700
 title: PyBullet Physics Simulation
 type: resource
 operation: generator
-category: simulation
+category: ""
 priority: low
-effort_estimate: 6h
-urgency: ""
-impact_score: 0
+effort_estimate: 1h
+urgency: low
+impact_score: 5
 requirements: {}
 dependencies: []
 blocks: []
@@ -22,10 +22,7 @@ estimated_completion: ""
 validation_criteria: []
 created_by: ""
 created_at: "2025-01-10T01:17:00Z"
-updated_at: "2025-09-13T09:40:48-04:00"
-tags:
-    - physics
-    - simulation
-    - robotics
-notes: '- **What it does:** Python-based physics simulation engine for robotics, reinforcement learning, and multi-physics simulations. Provides forward/inverse dynamics, collision detection, and VR/rendering capabilities. - **Use when:** Scenarios need physics-based simulation, robotics testing, game physics, or reinforcement learning environments. Essential for validating robotic behaviors before real-world deployment. - **Technical requirements:** - Python 3.7+ with NumPy/SciPy stack - OpenGL for visualization - URDF/SDF model loading support - Integration with ML frameworks (TensorFlow, PyTorch) - Real-time and headless execution modes'
+updated_at: "2025-09-15T12:37:32-04:00"
+tags: []
+notes: Already pretty good, but could probably benefit from additional validation/tidying.
 results: {}

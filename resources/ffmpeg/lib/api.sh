@@ -231,6 +231,7 @@ import cgi
 import os
 import subprocess
 import tempfile
+import sys
 from urllib.parse import parse_qs, urlparse
 
 PORT = int(os.environ.get('API_PORT', 8080))
@@ -342,21 +343,45 @@ class FFmpegAPIHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
-with socketserver.TCPServer(("", PORT), FFmpegAPIHandler) as httpd:
-    print(f"FFmpeg API server running on port {PORT}")
-    httpd.serve_forever()
+try:
+    # Set socket reuse before creating server
+    socketserver.TCPServer.allow_reuse_address = True
+    with socketserver.TCPServer(("", PORT), FFmpegAPIHandler) as httpd:
+        print(f"FFmpeg API server running on port {PORT}")
+        httpd.serve_forever()
+except OSError as e:
+    if "Address already in use" in str(e):
+        print(f"[ERROR] Port {PORT} is already in use. Try a different port.")
+        sys.exit(1)
+    else:
+        raise
 EOF
     
     # Make executable
     chmod +x /tmp/ffmpeg_api_server.py
     
-    # Start the server
+    # Start the server in background
     export API_PORT="$API_PORT"
     export WEB_ROOT="$WEB_ROOT"
     export UPLOAD_DIR="$UPLOAD_DIR"
     export SCRIPT_DIR="$SCRIPT_DIR"
     
-    python3 /tmp/ffmpeg_api_server.py
+    # Start in background and return
+    python3 /tmp/ffmpeg_api_server.py &
+    local server_pid=$!
+    
+    # Wait a moment for server to start
+    sleep 2
+    
+    # Check if server started successfully
+    if kill -0 $server_pid 2>/dev/null; then
+        echo "[SUCCESS] FFmpeg API server started on port $API_PORT (PID: $server_pid)"
+        echo $server_pid > /tmp/ffmpeg-api.pid
+        return 0
+    else
+        echo "[ERROR] Failed to start FFmpeg API server"
+        return 1
+    fi
 }
 
 # CLI handler

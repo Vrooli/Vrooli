@@ -11,9 +11,15 @@ readonly SCRIPT_DIR
 # Source core library
 source "${SCRIPT_DIR}/lib/core.sh"
 
-# Source Docker library if available
+# Source additional libraries
 if [[ -f "${SCRIPT_DIR}/lib/docker.sh" ]]; then
     source "${SCRIPT_DIR}/lib/docker.sh"
+fi
+if [[ -f "${SCRIPT_DIR}/lib/storage.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/storage.sh"
+fi
+if [[ -f "${SCRIPT_DIR}/lib/backup.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/backup.sh"
 fi
 
 # Resource metadata
@@ -58,6 +64,16 @@ COMMANDS:
       logs              View Docker logs
     admin               Admin management
       create            Create admin user
+    storage             S3/MinIO storage management
+      enable            Configure S3 storage provider
+      disable           Revert to local storage
+      test              Test S3 integration
+      list              List uploaded files
+    backup              Backup and restore operations
+      create [name]     Create full backup
+      restore <file>    Restore from backup
+      list              List available backups
+      schedule <freq>   Schedule automatic backups (daily/weekly/monthly)
     status              Show service status
     logs                View service logs
     credentials         Display admin credentials
@@ -268,6 +284,56 @@ main() {
                 *)
                     core::error "Unknown admin subcommand: $subcommand"
                     echo "Available: create"
+                    exit 1
+                    ;;
+            esac
+            ;;
+            
+        storage)
+            local subcommand="${1:-}"
+            shift || true
+            
+            case "$subcommand" in
+                enable)
+                    storage::enable "$@"
+                    ;;
+                disable)
+                    storage::disable "$@"
+                    ;;
+                test)
+                    storage::test "$@"
+                    ;;
+                list)
+                    storage::list_files "$@"
+                    ;;
+                *)
+                    core::error "Unknown storage subcommand: $subcommand"
+                    echo "Available: enable, disable, test, list"
+                    exit 1
+                    ;;
+            esac
+            ;;
+            
+        backup)
+            local subcommand="${1:-}"
+            shift || true
+            
+            case "$subcommand" in
+                create)
+                    backup::create "$@"
+                    ;;
+                restore)
+                    backup::restore "$@"
+                    ;;
+                list)
+                    backup::list "$@"
+                    ;;
+                schedule)
+                    backup::schedule "$@"
+                    ;;
+                *)
+                    core::error "Unknown backup subcommand: $subcommand"
+                    echo "Available: create, restore, list, schedule"
                     exit 1
                     ;;
             esac

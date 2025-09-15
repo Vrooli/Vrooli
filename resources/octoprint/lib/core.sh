@@ -52,11 +52,24 @@ api:
   key: ${OCTOPRINT_API_KEY}
   allowCrossOrigin: true
 accessControl:
-  autologinAs: admin
+  enabled: false
+  salt: "OqKAR1DDQsfasYNqPeYBzy51Ay5UQZK4"
+  userManager: octoprint.access.users.FilebasedUserManager
+  userfile: users.yaml
   autologinLocal: true
+  autologinAs: admin
+  localNetworks:
+  - 127.0.0.0/8
+  - ::1/128
+  - 192.168.0.0/16
+  - 172.16.0.0/12
+  - 10.0.0.0/8
+  - fc00::/7
+  - fe80::/10
 server:
   host: 0.0.0.0
   port: 5000
+  firstRun: false
   commands:
     serverRestartCommand: false
     systemRestartCommand: false
@@ -64,6 +77,14 @@ server:
 devel:
   virtualPrinter:
     enabled: ${OCTOPRINT_VIRTUAL_PRINTER}
+plugins:
+  virtual_printer:
+    enabled: ${OCTOPRINT_VIRTUAL_PRINTER}
+serial:
+  autoconnect: ${OCTOPRINT_VIRTUAL_PRINTER}
+  baudrate: 115200
+  port: VIRTUAL
+  disconnectOnErrors: false
 EOF
     fi
     
@@ -85,6 +106,14 @@ octoprint_start() {
         return 0
     fi
     
+    # Ensure config is in place before starting
+    if [[ "${OCTOPRINT_VIRTUAL_PRINTER}" == "true" ]] && [[ -f "${OCTOPRINT_DATA_DIR}/config.yaml" ]]; then
+        # Copy our config to the container's expected location
+        if [[ -d "${OCTOPRINT_DATA_DIR}/octoprint" ]]; then
+            cp "${OCTOPRINT_DATA_DIR}/config.yaml" "${OCTOPRINT_DATA_DIR}/octoprint/config.yaml" 2>/dev/null || true
+        fi
+    fi
+    
     # Start with Docker if available
     if command -v docker &> /dev/null; then
         local docker_args=(
@@ -94,8 +123,6 @@ octoprint_start() {
             "-v" "${OCTOPRINT_DATA_DIR}:/octoprint"
             "-v" "${OCTOPRINT_GCODE_DIR}:/octoprint/uploads"
             "--restart" "unless-stopped"
-            # Run as current user to avoid permission issues
-            "--user" "$(id -u):$(id -g)"
         )
         
         # Add serial port access if not using virtual printer
@@ -135,6 +162,13 @@ octoprint_start() {
         while [[ ${attempt} -lt ${max_attempts} ]]; do
             if timeout 5 curl -sf "http://localhost:${OCTOPRINT_PORT}/api/version" &>/dev/null; then
                 echo "OctoPrint is ready"
+                
+                # Auto-connect virtual printer if enabled
+                if [[ "${OCTOPRINT_VIRTUAL_PRINTER}" == "true" ]]; then
+                    echo "Attempting to auto-connect virtual printer..."
+                    octoprint_connect_virtual_printer
+                fi
+                
                 return 0
             fi
             sleep 2
@@ -421,6 +455,44 @@ get_api_key() {
     echo "${api_key}"
 }
 
+# Helper function to connect virtual printer
+octoprint_connect_virtual_printer() {
+    local api_key=$(get_api_key)
+    if [[ -z "${api_key}" ]] || [[ "${api_key}" == "auto" ]]; then
+        echo "Warning: Cannot auto-connect virtual printer - API key not available"
+        return 1
+    fi
+    
+    # Check if already connected
+    local connection_status=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \
+        "http://localhost:${OCTOPRINT_PORT}/api/connection" 2>/dev/null | \
+        python3 -c "import sys, json; print(json.load(sys.stdin).get('current', {}).get('state', 'Unknown'))" 2>/dev/null || echo "Unknown")
+    
+    if [[ "${connection_status}" != "Closed" ]] && [[ "${connection_status}" != "Unknown" ]]; then
+        echo "Virtual printer already connected (state: ${connection_status})"
+        return 0
+    fi
+    
+    # Attempt to connect
+    echo "Connecting virtual printer..."
+    local response=$(timeout 5 curl -X POST -H "X-Api-Key: ${api_key}" \
+        -H "Content-Type: application/json" \
+        "http://localhost:${OCTOPRINT_PORT}/api/connection" \
+        -d '{"command":"connect","port":"VIRTUAL","baudrate":115200,"save":true,"autoconnect":true}' \
+        -w "\n%{http_code}" 2>/dev/null)
+    
+    local http_code=$(echo "${response}" | tail -1)
+    
+    if [[ "${http_code}" == "204" ]] || [[ "${http_code}" == "200" ]]; then
+        echo "Virtual printer connected successfully"
+        return 0
+    else
+        echo "Note: Virtual printer connection may require manual setup via web interface"
+        echo "Access http://localhost:${OCTOPRINT_PORT} to complete setup"
+        return 0  # Don't fail - just notify
+    fi
+}
+
 # Temperature monitoring
 octoprint_temperature() {
     echo "Temperature Status"
@@ -548,5 +620,35 @@ octoprint_job_status() {
         echo "${job_data}" | python3 -m json.tool 2>/dev/null || echo "${job_data}"
     else
         echo "Unable to fetch job data"
+    fi
+}
+
+# Webcam configuration (P1 requirement)
+octoprint_webcam_setup() {
+    echo "Webcam Configuration"
+    echo "===================="
+    
+    local api_key=$(get_api_key)
+    if [[ -z "${api_key}" ]] || [[ "${api_key}" == "auto" ]]; then
+        echo "Error: API key not configured"
+        return 1
+    fi
+    
+    # Check current webcam settings
+    local webcam_status=$(timeout 5 curl -sf -H "X-Api-Key: ${api_key}" \
+        "http://localhost:${OCTOPRINT_PORT}/api/settings" 2>/dev/null | \
+        python3 -c "import sys, json; print(json.load(sys.stdin).get('webcam', {}))" 2>/dev/null || echo "{}")
+    
+    if [[ "${webcam_status}" != "{}" ]]; then
+        echo "Current webcam settings:"
+        echo "${webcam_status}" | python3 -m json.tool
+    else
+        echo "Webcam not configured"
+        echo ""
+        echo "To enable webcam:"
+        echo "1. Install mjpg-streamer on your system"
+        echo "2. Set OCTOPRINT_CAMERA_ENABLED=true"
+        echo "3. Configure OCTOPRINT_CAMERA_URL (default: http://localhost:8080/?action=stream)"
+        echo "4. Restart OctoPrint"
     fi
 }

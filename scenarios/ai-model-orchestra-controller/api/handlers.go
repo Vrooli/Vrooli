@@ -26,9 +26,13 @@ func (h *Handlers) handleHealthCheck(w http.ResponseWriter, r *http.Request) {
 	status := "healthy"
 	services := make(map[string]string)
 	
-	// Check database
-	if h.app.DB != nil {
-		if err := h.app.DB.Ping(); err != nil {
+	// Check database with thread-safe access
+	h.app.DBMutex.RLock()
+	db := h.app.DB
+	h.app.DBMutex.RUnlock()
+	
+	if db != nil {
+		if err := db.Ping(); err != nil {
 			services["database"] = "error"
 			status = "degraded"
 		} else {
@@ -167,7 +171,12 @@ func (h *Handlers) handleRouteRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	response, err := routeAIRequest(&req, h.app.DB, h.app.OllamaClient, h.app.Logger)
+	// Get database with thread-safe access
+	h.app.DBMutex.RLock()
+	db := h.app.DB
+	h.app.DBMutex.RUnlock()
+	
+	response, err := routeAIRequest(&req, db, h.app.OllamaClient, h.app.Logger)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
@@ -180,8 +189,12 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 	var models []ModelMetric
 	healthyCount := 0
 	
-	// Get real model data from database
-	if h.app.DB != nil {
+	// Get real model data from database with thread-safe access
+	h.app.DBMutex.RLock()
+	db := h.app.DB
+	h.app.DBMutex.RUnlock()
+	
+	if db != nil {
 		query := `
 			SELECT model_name, request_count, success_count, error_count, 
 				   avg_response_time_ms, current_load, memory_usage_mb, 
@@ -189,7 +202,7 @@ func (h *Handlers) handleModelsStatus(w http.ResponseWriter, r *http.Request) {
 			FROM model_metrics 
 			ORDER BY last_used DESC`
 		
-		rows, err := h.app.DB.Query(query)
+		rows, err := db.Query(query)
 		if err != nil {
 			h.app.Logger.Printf("⚠️  Failed to query model metrics: %v", err)
 		} else {
@@ -316,7 +329,12 @@ func (h *Handlers) handleResourceMetrics(w http.ResponseWriter, r *http.Request)
 	// Get historical data from database
 	var history []map[string]interface{}
 	
-	if h.app.DB != nil {
+	// Get database with thread-safe access
+	h.app.DBMutex.RLock()
+	db := h.app.DB
+	h.app.DBMutex.RUnlock()
+	
+	if db != nil {
 		query := `
 			SELECT memory_available_gb, memory_free_gb, memory_total_gb, 
 				   cpu_usage_percent, swap_used_percent, recorded_at
@@ -324,7 +342,7 @@ func (h *Handlers) handleResourceMetrics(w http.ResponseWriter, r *http.Request)
 			WHERE recorded_at >= NOW() - INTERVAL '%d hours'
 			ORDER BY recorded_at DESC`
 		
-		rows, err := h.app.DB.Query(fmt.Sprintf(query, hours))
+		rows, err := db.Query(fmt.Sprintf(query, hours))
 		if err != nil {
 			h.app.Logger.Printf("⚠️  Failed to query resource metrics: %v", err)
 		} else {

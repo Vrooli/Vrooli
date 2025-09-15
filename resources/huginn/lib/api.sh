@@ -44,6 +44,235 @@ huginn::list_agents() {
 }
 
 #######################################
+# Export scenario to JSON file
+# Arguments:
+#   $1 - scenario ID or "all" for all scenarios
+#   $2 - output file path (optional, defaults to scenario-{id}.json)
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::export_scenario() {
+    local scenario_id="${1:-}"
+    local output_file="${2:-}"
+    
+    if ! huginn::is_running; then
+        huginn::show_not_running
+        return 1
+    fi
+    
+    # Set default output file if not provided
+    if [[ -z "$output_file" ]]; then
+        if [[ "$scenario_id" == "all" ]]; then
+            output_file="huginn-scenarios-export-$(date +%Y%m%d-%H%M%S).json"
+        else
+            output_file="scenario-${scenario_id}.json"
+        fi
+    fi
+    
+    local export_code
+    if [[ "$scenario_id" == "all" ]]; then
+        export_code='
+        scenarios = Scenario.includes(:agents)
+        export_data = {
+          "version" => "1.0",
+          "exported_at" => Time.now.iso8601,
+          "scenarios" => scenarios.map do |scenario|
+            {
+              "id" => scenario.id,
+              "name" => scenario.name,
+              "description" => scenario.description,
+              "guid" => scenario.guid,
+              "tag_bg_color" => scenario.tag_bg_color,
+              "tag_fg_color" => scenario.tag_fg_color,
+              "icon" => scenario.icon,
+              "agents" => scenario.agents.map do |agent|
+                {
+                  "type" => agent.type,
+                  "name" => agent.name,
+                  "guid" => agent.guid,
+                  "disabled" => agent.disabled,
+                  "options" => agent.options,
+                  "schedule" => agent.schedule,
+                  "keep_events_for" => agent.keep_events_for,
+                  "propagate_immediately" => agent.propagate_immediately,
+                  "memory" => agent.memory
+                }
+              end
+            }
+          end
+        }
+        puts export_data.to_json
+        '
+    else
+        if ! huginn::validate_scenario_id "$scenario_id"; then
+            log::error "Invalid scenario ID format: $scenario_id"
+            return 1
+        fi
+        
+        export_code="
+        scenario = Scenario.includes(:agents).find($scenario_id) rescue nil
+        if scenario.nil?
+          puts \"ERROR: Scenario $scenario_id not found\"
+          exit 1
+        else
+          export_data = {
+            \"version\" => \"1.0\",
+            \"exported_at\" => Time.now.iso8601,
+            \"scenario\" => {
+              \"id\" => scenario.id,
+              \"name\" => scenario.name,
+              \"description\" => scenario.description,
+              \"guid\" => scenario.guid,
+              \"tag_bg_color\" => scenario.tag_bg_color,
+              \"tag_fg_color\" => scenario.tag_fg_color,
+              \"icon\" => scenario.icon,
+              \"agents\" => scenario.agents.map do |agent|
+                {
+                  \"type\" => agent.type,
+                  \"name\" => agent.name,
+                  \"guid\" => agent.guid,
+                  \"disabled\" => agent.disabled,
+                  \"options\" => agent.options,
+                  \"schedule\" => agent.schedule,
+                  \"keep_events_for\" => agent.keep_events_for,
+                  \"propagate_immediately\" => agent.propagate_immediately,
+                  \"memory\" => agent.memory,
+                  \"source_agent_guids\" => agent.sources.pluck(:guid),
+                  \"receiver_agent_guids\" => agent.receivers.pluck(:guid)
+                }
+              end
+            }
+          }
+          puts export_data.to_json
+        end
+        "
+    fi
+    
+    log::info "📦 Exporting scenario(s) to $output_file..."
+    
+    local result
+    if result=$(huginn::rails_runner "$export_code" 2>&1); then
+        if [[ "$result" == "ERROR:"* ]]; then
+            log::error "${result#ERROR: }"
+            return 1
+        fi
+        
+        echo "$result" > "$output_file"
+        log::success "✅ Scenario(s) exported successfully to $output_file"
+        log::info "📊 File size: $(du -h "$output_file" | cut -f1)"
+        return 0
+    else
+        log::error "Failed to export scenario(s)"
+        return 1
+    fi
+}
+
+#######################################
+# Export agents to JSON file
+# Arguments:
+#   $1 - agent ID, comma-separated IDs, or "all"
+#   $2 - output file path (optional)
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::export_agents() {
+    local agent_ids="${1:-}"
+    local output_file="${2:-}"
+    
+    if ! huginn::is_running; then
+        huginn::show_not_running
+        return 1
+    fi
+    
+    # Set default output file if not provided
+    if [[ -z "$output_file" ]]; then
+        if [[ "$agent_ids" == "all" ]]; then
+            output_file="huginn-agents-export-$(date +%Y%m%d-%H%M%S).json"
+        else
+            output_file="agents-export-$(date +%Y%m%d-%H%M%S).json"
+        fi
+    fi
+    
+    local export_code
+    if [[ "$agent_ids" == "all" ]]; then
+        export_code='
+        agents = Agent.all
+        export_data = {
+          "version" => "1.0",
+          "exported_at" => Time.now.iso8601,
+          "agents" => agents.map do |agent|
+            {
+              "id" => agent.id,
+              "type" => agent.type,
+              "name" => agent.name,
+              "guid" => agent.guid,
+              "disabled" => agent.disabled,
+              "options" => agent.options,
+              "schedule" => agent.schedule,
+              "keep_events_for" => agent.keep_events_for,
+              "propagate_immediately" => agent.propagate_immediately,
+              "memory" => agent.memory,
+              "source_agent_guids" => agent.sources.pluck(:guid),
+              "receiver_agent_guids" => agent.receivers.pluck(:guid)
+            }
+          end
+        }
+        puts export_data.to_json
+        '
+    else
+        # Convert comma-separated IDs to array
+        local ids_array="[${agent_ids//,/, }]"
+        export_code="
+        agent_ids = $ids_array
+        agents = Agent.where(id: agent_ids)
+        
+        if agents.empty?
+          puts \"ERROR: No agents found with IDs: #{agent_ids.join(', ')}\"
+          exit 1
+        else
+          export_data = {
+            \"version\" => \"1.0\",
+            \"exported_at\" => Time.now.iso8601,
+            \"agents\" => agents.map do |agent|
+              {
+                \"id\" => agent.id,
+                \"type\" => agent.type,
+                \"name\" => agent.name,
+                \"guid\" => agent.guid,
+                \"disabled\" => agent.disabled,
+                \"options\" => agent.options,
+                \"schedule\" => agent.schedule,
+                \"keep_events_for\" => agent.keep_events_for,
+                \"propagate_immediately\" => agent.propagate_immediately,
+                \"memory\" => agent.memory,
+                \"source_agent_guids\" => agent.sources.pluck(:guid),
+                \"receiver_agent_guids\" => agent.receivers.pluck(:guid)
+              }
+            end
+          }
+          puts export_data.to_json
+        end
+        "
+    fi
+    
+    log::info "📦 Exporting agent(s) to $output_file..."
+    
+    local result
+    if result=$(huginn::rails_runner "$export_code" 2>&1); then
+        if [[ "$result" == "ERROR:"* ]]; then
+            log::error "${result#ERROR: }"
+            return 1
+        fi
+        
+        echo "$result" > "$output_file"
+        log::success "✅ Agent(s) exported successfully to $output_file"
+        log::info "📊 File size: $(du -h "$output_file" | cut -f1)"
+        return 0
+    else
+        log::error "Failed to export agent(s)"
+        return 1
+    fi
+}
+
+#######################################
 # Show detailed agent information
 # Arguments:
 #   $1 - agent ID
@@ -451,6 +680,298 @@ huginn::api_import_scenario() {
         log::error "Failed to import scenario"
         return 1
     fi
+}
+
+#######################################
+# Show monitoring dashboard
+# Displays real-time agent activity and system metrics
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::monitoring_dashboard() {
+    if ! huginn::is_running; then
+        huginn::show_not_running
+        return 1
+    fi
+    
+    log::header "📊 Huginn Monitoring Dashboard"
+    echo ""
+    
+    # System overview
+    local overview_code='
+    total_agents = Agent.count
+    active_agents = Agent.where(disabled: false).count
+    disabled_agents = Agent.where(disabled: true).count
+    total_events = Event.count
+    recent_events = Event.where("created_at > ?", 24.hours.ago).count
+    failed_jobs = Agent.where("last_error_log_at > ?", 24.hours.ago).count
+    
+    puts "📈 System Overview"
+    puts "=" * 40
+    puts "👥 Total Agents: #{total_agents} (Active: #{active_agents}, Disabled: #{disabled_agents})"
+    puts "📊 Total Events: #{total_events} (Last 24h: #{recent_events})"
+    puts "⚠️  Failed Jobs (24h): #{failed_jobs}"
+    puts ""
+    
+    # Active agents
+    puts "🔥 Recently Active Agents"
+    puts "=" * 40
+    active = Agent.where("last_check_at > ?", 1.hour.ago)
+                  .where(disabled: false)
+                  .order(last_check_at: :desc)
+                  .limit(5)
+    
+    if active.any?
+      active.each do |agent|
+        last_run = agent.last_check_at.strftime("%H:%M")
+        events = agent.events.where("created_at > ?", 1.hour.ago).count
+        status = agent.last_error_log_at && agent.last_error_log_at > 1.hour.ago ? "⚠️" : "✅"
+        puts "#{status} #{agent.name} (#{agent.type.split("::")[-1]})"
+        puts "   Last Run: #{last_run} | Recent Events: #{events}"
+      end
+    else
+      puts "📭 No recently active agents"
+    end
+    puts ""
+    
+    # Recent errors
+    puts "❌ Recent Errors"
+    puts "=" * 40
+    errors = Agent.where("last_error_log_at > ?", 24.hours.ago)
+                  .order(last_error_log_at: :desc)
+                  .limit(3)
+    
+    if errors.any?
+      errors.each do |agent|
+        error_time = agent.last_error_log_at.strftime("%H:%M")
+        error_msg = agent.last_error || "Unknown error"
+        puts "⚠️  [#{error_time}] #{agent.name}: #{error_msg[0..60]}..."
+      end
+    else
+      puts "✅ No recent errors"
+    end
+    puts ""
+    
+    # Performance metrics
+    puts "⚡ Performance Metrics"
+    puts "=" * 40
+    
+    # Calculate average event processing time (simplified)
+    recent_checks = Agent.where("last_check_at > ?", 1.hour.ago)
+                         .where(disabled: false)
+    
+    if recent_checks.any?
+      avg_events = (recent_events.to_f / recent_checks.count).round(1)
+      puts "📊 Avg Events/Agent (1h): #{avg_events}"
+    end
+    
+    # Memory/database stats
+    db_size = ActiveRecord::Base.connection.execute("SELECT pg_database_size(current_database())").first["pg_database_size"].to_i rescue 0
+    if db_size > 0
+      db_mb = (db_size / 1024.0 / 1024.0).round(1)
+      puts "💾 Database Size: #{db_mb} MB"
+    end
+    
+    event_retention = Event.where("created_at < ?", 30.days.ago).count
+    if event_retention > 0
+      puts "🗑️  Old Events (>30d): #{event_retention}"
+    end
+    '
+    
+    if ! huginn::rails_runner "$overview_code" 2>/dev/null; then
+        log::error "Failed to retrieve monitoring data"
+        return 1
+    fi
+    
+    return 0
+}
+
+#######################################
+# Backup Huginn data
+# Creates a full backup of database and configuration
+# Arguments:
+#   $1 - backup directory (optional, defaults to /tmp/huginn-backup-{timestamp})
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::backup() {
+    local backup_dir="${1:-/tmp/huginn-backup-$(date +%Y%m%d-%H%M%S)}"
+    
+    if ! huginn::is_running; then
+        log::warn "⚠️  Service not running - backing up configuration only"
+    fi
+    
+    log::info "📦 Creating Huginn backup..."
+    log::info "   Backup directory: $backup_dir"
+    
+    # Create backup directory
+    mkdir -p "$backup_dir" || {
+        log::error "Failed to create backup directory"
+        return 1
+    }
+    
+    # Export all agents and scenarios
+    log::info "   Exporting agents and scenarios..."
+    local export_code='
+    require "json"
+    
+    backup_data = {
+      version: "1.0",
+      timestamp: Time.now.iso8601,
+      agents: [],
+      scenarios: [],
+      users: []
+    }
+    
+    # Export all agents with full details
+    Agent.all.each do |agent|
+      backup_data[:agents] << {
+        id: agent.id,
+        type: agent.type,
+        name: agent.name,
+        guid: agent.guid,
+        disabled: agent.disabled,
+        options: agent.options,
+        schedule: agent.schedule,
+        keep_events_for: agent.keep_events_for,
+        propagate_immediately: agent.propagate_immediately,
+        memory: agent.memory,
+        source_agent_guids: agent.sources.pluck(:guid),
+        receiver_agent_guids: agent.receivers.pluck(:guid)
+      }
+    end
+    
+    # Export scenarios if they exist
+    if defined?(Scenario)
+      Scenario.all.each do |scenario|
+        backup_data[:scenarios] << {
+          id: scenario.id,
+          name: scenario.name,
+          description: scenario.description,
+          agent_ids: scenario.agents.pluck(:id)
+        }
+      end
+    end
+    
+    # Export user info (sanitized)
+    User.all.each do |user|
+      backup_data[:users] << {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }
+    end
+    
+    puts backup_data.to_json
+    '
+    
+    if huginn::rails_runner "$export_code" > "$backup_dir/data.json" 2>/dev/null; then
+        log::success "✅ Data exported successfully"
+    else
+        log::warn "⚠️  Could not export data (service may not be running)"
+    fi
+    
+    # Backup configuration files
+    log::info "   Backing up configuration..."
+    cp -r "${HUGINN_DIR}/config" "$backup_dir/" 2>/dev/null || true
+    
+    # Create backup metadata
+    cat > "$backup_dir/metadata.txt" <<EOF
+Huginn Backup
+Created: $(date)
+Version: $(docker inspect huginn --format='{{.Config.Image}}' 2>/dev/null || echo "unknown")
+Container: huginn
+Data File: data.json
+Configuration: config/
+EOF
+    
+    # Compress backup
+    local backup_archive="${backup_dir}.tar.gz"
+    log::info "   Compressing backup..."
+    tar -czf "$backup_archive" -C "$(dirname "$backup_dir")" "$(basename "$backup_dir")" || {
+        log::error "Failed to compress backup"
+        return 1
+    }
+    
+    # Clean up directory
+    rm -rf "$backup_dir"
+    
+    log::success "✅ Backup completed: $backup_archive"
+    log::info "   Size: $(du -h "$backup_archive" | cut -f1)"
+    
+    return 0
+}
+
+#######################################
+# Restore Huginn from backup
+# Restores database and configuration from backup
+# Arguments:
+#   $1 - backup file path (tar.gz archive)
+# Returns: 0 if successful, 1 otherwise
+#######################################
+huginn::restore() {
+    local backup_file="$1"
+    
+    if [[ -z "$backup_file" ]]; then
+        log::error "Backup file path required"
+        echo "Usage: huginn restore <backup-file.tar.gz>"
+        return 1
+    fi
+    
+    if [[ ! -f "$backup_file" ]]; then
+        log::error "Backup file not found: $backup_file"
+        return 1
+    fi
+    
+    log::warn "⚠️  This will replace all current Huginn data!"
+    echo -n "Continue? (y/N): "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        log::info "Restore cancelled"
+        return 0
+    fi
+    
+    log::info "📦 Restoring Huginn from backup..."
+    
+    # Extract backup
+    local temp_dir="/tmp/huginn-restore-$$"
+    mkdir -p "$temp_dir"
+    
+    log::info "   Extracting backup..."
+    tar -xzf "$backup_file" -C "$temp_dir" || {
+        log::error "Failed to extract backup"
+        rm -rf "$temp_dir"
+        return 1
+    }
+    
+    # Find the backup directory
+    local backup_dir
+    backup_dir=$(find "$temp_dir" -name "data.json" -type f | head -1 | xargs dirname)
+    
+    if [[ -z "$backup_dir" || ! -f "$backup_dir/data.json" ]]; then
+        log::error "Invalid backup file - missing data.json"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+    
+    # Import data
+    log::info "   Importing data..."
+    if [[ -f "$backup_dir/data.json" ]]; then
+        # Use the existing import functionality
+        if huginn::import_scenario "$backup_dir/data.json"; then
+            log::success "✅ Data imported successfully"
+        else
+            log::error "Failed to import data"
+            rm -rf "$temp_dir"
+            return 1
+        fi
+    fi
+    
+    # Clean up
+    rm -rf "$temp_dir"
+    
+    log::success "✅ Restore completed successfully"
+    log::info "   You may need to restart Huginn for all changes to take effect"
+    
+    return 0
 }
 
 #######################################

@@ -36,6 +36,14 @@ kicad::simulation::extract_netlist() {
         return 1
     fi
     
+    # Check for absolute or relative path
+    if [[ ! "$schematic" = /* ]]; then
+        # If relative path, check in projects directory first
+        if [[ -f "${KICAD_DATA_DIR}/projects/$schematic" ]]; then
+            schematic="${KICAD_DATA_DIR}/projects/$schematic"
+        fi
+    fi
+    
     # Check if schematic file exists
     if [[ ! -f "$schematic" ]]; then
         log::error "Schematic file not found: $schematic"
@@ -43,7 +51,8 @@ kicad::simulation::extract_netlist() {
     fi
     
     if [[ -z "$output" ]]; then
-        output="${schematic%.kicad_sch}.net"
+        # Handle any extension, not just .kicad_sch
+        output="${schematic%.*}.net"
     fi
     
     kicad::init_dirs

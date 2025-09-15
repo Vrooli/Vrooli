@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GridLAB-D Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #2d3748; 
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        .subtitle { color: #718096; font-size: 1.1em; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online { background: #48bb78; }
+        .status-offline { background: #f56565; }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .metric:last-child { border-bottom: none; }
+        .metric-label { color: #718096; }
+        .metric-value { 
+            font-weight: 600; 
+            color: #2d3748;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 5px;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5a67d8; }
+        .btn-secondary {
+            background: #48bb78;
+        }
+        .btn-secondary:hover { background: #38a169; }
+        .plot-container {
+            margin-top: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab:hover { background: #f7fafc; }
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 GridLAB-D Power System Dashboard</h1>
+            <div class="subtitle">Real-time grid monitoring and analysis</div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('overview')">Overview</div>
+            <div class="tab" onclick="switchTab('der')">DER Analysis</div>
+            <div class="tab" onclick="switchTab('market')">Market Simulation</div>
+            <div class="tab" onclick="switchTab('powerflow')">Power Flow</div>
+        </div>
+
+        <div id="overview" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <h2><span class="status-indicator status-online"></span>System Status</h2>
+                    <div id="system-status">
+                        <div class="loading">Loading...</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Grid Metrics</h2>
+                    <div id="grid-metrics">
+                        <div class="metric">
+                            <span class="metric-label">Total Load</span>
+                            <span class="metric-value">3,490 kW</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Total Generation</span>
+                            <span class="metric-value">3,605 kW</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">System Losses</span>
+                            <span class="metric-value">115.7 kW</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Power Factor</span>
+                            <span class="metric-value">0.92</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Load Profile</h2>
+                <div id="load-plot" class="plot-container"></div>
+            </div>
+        </div>
+
+        <div id="der" class="tab-content" style="display:none;">
+            <div class="grid">
+                <div class="card">
+                    <h2>DER Analysis</h2>
+                    <button class="btn" onclick="analyzeDER('solar')">Analyze Solar</button>
+                    <button class="btn btn-secondary" onclick="analyzeDER('battery')">Analyze Battery</button>
+                    <button class="btn" onclick="analyzeDER('ev')">Analyze EV</button>
+                    <div id="der-results" style="margin-top: 20px;"></div>
+                </div>
+
+                <div class="card">
+                    <h2>DER Impact</h2>
+                    <div id="der-impact-plot" class="plot-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="market" class="tab-content" style="display:none;">
+            <div class="grid">
+                <div class="card">
+                    <h2>Market Simulation</h2>
+                    <button class="btn" onclick="simulateMarket()">Run Day-Ahead Market</button>
+                    <button class="btn btn-secondary" onclick="simulateTransactive()">Transactive Energy</button>
+                    <div id="market-results" style="margin-top: 20px;"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Price Forecast</h2>
+                    <div id="price-plot" class="plot-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="powerflow" class="tab-content" style="display:none;">
+            <div class="card">
+                <h2>Power Flow Analysis</h2>
+                <button class="btn" onclick="runPowerFlow()">Run Power Flow</button>
+                <div id="powerflow-results" style="margin-top: 20px;"></div>
+            </div>
+            <div class="card" style="margin-top: 20px;">
+                <h2>Voltage Profile</h2>
+                <div id="voltage-plot" class="plot-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:9511';
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabName).style.display = 'block';
+            event.target.classList.add('active');
+        }
+
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                document.getElementById('system-status').innerHTML = `
+                    <div class="metric">
+                        <span class="metric-label">Status</span>
+                        <span class="metric-value">${data.status}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Version</span>
+                        <span class="metric-value">${data.version}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Service</span>
+                        <span class="metric-value">${data.service}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Last Update</span>
+                        <span class="metric-value">${new Date(data.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('system-status').innerHTML = 
+                    `<div class="error">Failed to connect to GridLAB-D service</div>`;
+            }
+        }
+
+        async function analyzeDER(derType) {
+            try {
+                const response = await fetch(`${API_URL}/der/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ der_type: derType, capacity_kw: 200 })
+                });
+                const data = await response.json();
+                
+                document.getElementById('der-results').innerHTML = `
+                    <h3>${derType.toUpperCase()} Analysis Results</h3>
+                    <div class="metric">
+                        <span class="metric-label">Annual Savings</span>
+                        <span class="metric-value">$${data.impact_analysis.economic_impact.annual_savings.toLocaleString()}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Payback Period</span>
+                        <span class="metric-value">${data.impact_analysis.economic_impact.payback_years} years</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Max Voltage Rise</span>
+                        <span class="metric-value">${(data.impact_analysis.voltage_impact.max_voltage_rise * 100).toFixed(1)}%</span>
+                    </div>
+                `;
+
+                // Plot DER impact
+                plotDERImpact(data);
+            } catch (error) {
+                document.getElementById('der-results').innerHTML = 
+                    `<div class="error">Failed to analyze DER: ${error.message}</div>`;
+            }
+        }
+
+        async function simulateMarket() {
+            try {
+                const response = await fetch(`${API_URL}/market/simulate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ market_type: 'day_ahead', duration_hours: 24 })
+                });
+                const data = await response.json();
+                
+                document.getElementById('market-results').innerHTML = `
+                    <h3>Day-Ahead Market Results</h3>
+                    <div class="metric">
+                        <span class="metric-label">Average Price</span>
+                        <span class="metric-value">$${data.clearing_results.avg_price.toFixed(2)}/MWh</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Peak Price</span>
+                        <span class="metric-value">$${data.clearing_results.peak_price.toFixed(2)}/MWh</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Volume</span>
+                        <span class="metric-value">${data.clearing_results.total_volume_mwh.toFixed(0)} MWh</span>
+                    </div>
+                `;
+
+                // Plot prices
+                plotMarketPrices(data);
+            } catch (error) {
+                document.getElementById('market-results').innerHTML = 
+                    `<div class="error">Failed to simulate market: ${error.message}</div>`;
+            }
+        }
+
+        async function simulateTransactive() {
+            try {
+                const response = await fetch(`${API_URL}/market/transactive`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ participants: 100 })
+                });
+                const data = await response.json();
+                
+                document.getElementById('market-results').innerHTML = `
+                    <h3>Transactive Energy Results</h3>
+                    <div class="metric">
+                        <span class="metric-label">Total Transactions</span>
+                        <span class="metric-value">${data.trading_results.total_transactions}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Average Price</span>
+                        <span class="metric-value">${data.trading_results.avg_price_cents}¢/kWh</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Consumer Savings</span>
+                        <span class="metric-value">${data.economic_benefits.consumer_savings_percent}%</span>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('market-results').innerHTML = 
+                    `<div class="error">Failed to simulate transactive energy: ${error.message}</div>`;
+            }
+        }
+
+        async function runPowerFlow() {
+            try {
+                const response = await fetch(`${API_URL}/powerflow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: 'ieee13' })
+                });
+                const data = await response.json();
+                
+                document.getElementById('powerflow-results').innerHTML = `
+                    <h3>Power Flow Results</h3>
+                    <div class="metric">
+                        <span class="metric-label">Convergence</span>
+                        <span class="metric-value">${data.convergence ? 'Success' : 'Failed'}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Iterations</span>
+                        <span class="metric-value">${data.iterations}</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Total Losses</span>
+                        <span class="metric-value">${data.summary.total_losses_kw.toFixed(1)} kW</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Computation Time</span>
+                        <span class="metric-value">${data.computation_time_ms} ms</span>
+                    </div>
+                `;
+
+                // Plot voltage profile
+                plotVoltageProfile(data);
+            } catch (error) {
+                document.getElementById('powerflow-results').innerHTML = 
+                    `<div class="error">Failed to run power flow: ${error.message}</div>`;
+            }
+        }
+
+        function plotLoadProfile() {
+            const hours = Array.from({length: 24}, (_, i) => i);
+            const load = hours.map(h => 3000 + 1500 * Math.sin((h - 6) * Math.PI / 12) + Math.random() * 200);
+            
+            const trace = {
+                x: hours,
+                y: load,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Load (kW)',
+                line: { color: '#667eea', width: 2 },
+                marker: { size: 6 }
+            };
+            
+            const layout = {
+                title: '24-Hour Load Profile',
+                xaxis: { title: 'Hour' },
+                yaxis: { title: 'Load (kW)' },
+                margin: { t: 40, r: 20, b: 40, l: 60 },
+                height: 300
+            };
+            
+            Plotly.newPlot('load-plot', [trace], layout, {responsive: true});
+        }
+
+        function plotDERImpact(data) {
+            const categories = ['Voltage Rise', 'Voltage Drop', 'Peak Export', 'Peak Import'];
+            const values = [
+                data.impact_analysis.voltage_impact.max_voltage_rise * 100,
+                data.impact_analysis.voltage_impact.max_voltage_drop * 100,
+                data.impact_analysis.power_flow.peak_export_kw / 10,
+                data.impact_analysis.power_flow.peak_import_kw
+            ];
+            
+            const trace = {
+                x: categories,
+                y: values,
+                type: 'bar',
+                marker: { color: ['#48bb78', '#f56565', '#667eea', '#ed8936'] }
+            };
+            
+            const layout = {
+                title: 'DER Impact Analysis',
+                yaxis: { title: 'Impact (%)' },
+                margin: { t: 40, r: 20, b: 60, l: 60 },
+                height: 300
+            };
+            
+            Plotly.newPlot('der-impact-plot', [trace], layout, {responsive: true});
+        }
+
+        function plotMarketPrices(data) {
+            const hours = Array.from({length: data.clearing_results.hourly_prices.length}, (_, i) => i);
+            
+            const trace = {
+                x: hours,
+                y: data.clearing_results.hourly_prices,
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Price ($/MWh)',
+                line: { color: '#48bb78', width: 2 },
+                fill: 'tozeroy',
+                fillcolor: 'rgba(72, 187, 120, 0.2)'
+            };
+            
+            const layout = {
+                title: 'Hourly Market Clearing Prices',
+                xaxis: { title: 'Hour' },
+                yaxis: { title: 'Price ($/MWh)' },
+                margin: { t: 40, r: 20, b: 40, l: 60 },
+                height: 300
+            };
+            
+            Plotly.newPlot('price-plot', [trace], layout, {responsive: true});
+        }
+
+        function plotVoltageProfile(data) {
+            const nodes = Object.keys(data.bus_results || {});
+            const voltages = nodes.map(node => 
+                data.bus_results[node]?.voltage_a?.magnitude || 1.0
+            );
+            
+            const trace = {
+                x: nodes.length > 0 ? nodes : ['Node1', 'Node2', 'Node3', 'Node4'],
+                y: voltages.length > 0 ? voltages : [0.98, 0.97, 0.99, 0.96],
+                type: 'bar',
+                marker: { 
+                    color: voltages.map(v => v < 0.95 || v > 1.05 ? '#f56565' : '#48bb78')
+                }
+            };
+            
+            const layout = {
+                title: 'Bus Voltage Profile',
+                xaxis: { title: 'Bus' },
+                yaxis: { title: 'Voltage (p.u.)', range: [0.9, 1.1] },
+                margin: { t: 40, r: 20, b: 60, l: 60 },
+                height: 300,
+                shapes: [
+                    {
+                        type: 'line',
+                        x0: 0, x1: 1, xref: 'paper',
+                        y0: 1.05, y1: 1.05,
+                        line: { color: 'red', width: 1, dash: 'dash' }
+                    },
+                    {
+                        type: 'line',
+                        x0: 0, x1: 1, xref: 'paper',
+                        y0: 0.95, y1: 0.95,
+                        line: { color: 'red', width: 1, dash: 'dash' }
+                    }
+                ]
+            };
+            
+            Plotly.newPlot('voltage-plot', [trace], layout, {responsive: true});
+        }
+
+        // Initialize dashboard
+        checkHealth();
+        plotLoadProfile();
+        setInterval(checkHealth, 30000); // Update every 30 seconds
+    </script>
+</body>
+</html>

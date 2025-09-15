@@ -31,12 +31,12 @@ k6::test::unit() {
         local test_func="$2"
         shift 2
         
-        ((tests_run++))
+        tests_run=$((tests_run + 1))
         log::info "Testing: $test_name"
         
         if $test_func "$@" >/dev/null 2>&1; then
             log::success "✓ $test_name"
-            ((tests_passed++))
+            tests_passed=$((tests_passed + 1))
         else
             log::error "✗ $test_name"
             overall_status=1
@@ -67,12 +67,12 @@ k6::test::unit() {
     # Test CLI framework integration
     if declare -f cli::dispatch >/dev/null 2>&1; then
         log::success "✓ CLI framework integration available"
-        ((tests_passed++))
+        tests_passed=$((tests_passed + 1))
     else
         log::error "✗ CLI framework integration missing"
         overall_status=1
     fi
-    ((tests_run++))
+    tests_run=$((tests_run + 1))
     
     # Test library sourcing
     local required_functions=(

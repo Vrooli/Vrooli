@@ -49,6 +49,9 @@ vrooli resource strapi docker stop
 - **Internationalization**: Multi-language content support
 - **Docker Support**: Full Docker Compose deployment option
 - **Automated Admin Creation**: Programmatic admin user setup
+- **S3/MinIO Storage**: External media storage integration
+- **Backup/Restore**: Complete data and configuration backup
+- **Scheduled Backups**: Automatic daily/weekly/monthly backups
 
 ## Configuration
 
@@ -140,6 +143,60 @@ vrooli resource strapi test unit        # Library functions
 - **GraphQL**: http://localhost:1337/graphql
 - **Health Check**: http://localhost:1337/health
 
+## Storage Management
+
+### Enable S3/MinIO Storage
+```bash
+# Start MinIO
+vrooli resource minio manage start
+
+# Enable S3 storage for Strapi
+vrooli resource strapi storage enable
+
+# Test S3 integration
+vrooli resource strapi storage test
+
+# List uploaded files
+vrooli resource strapi storage list
+```
+
+### Disable S3 Storage (revert to local)
+```bash
+vrooli resource strapi storage disable
+```
+
+## Backup and Restore
+
+### Create Backup
+```bash
+# Create backup with auto-generated name
+vrooli resource strapi backup create
+
+# Create backup with custom name
+vrooli resource strapi backup create my-backup-2025
+
+# List available backups
+vrooli resource strapi backup list
+```
+
+### Restore from Backup
+```bash
+# Restore from specific backup
+vrooli resource strapi backup restore /path/to/backup.tar.gz
+```
+
+### Schedule Automatic Backups
+```bash
+# Schedule daily backups (2 AM)
+vrooli resource strapi backup schedule daily
+
+# Schedule weekly backups (Sunday 2 AM)
+vrooli resource strapi backup schedule weekly
+
+# Schedule monthly backups (1st day, 2 AM)
+vrooli resource strapi backup schedule monthly
+```
+
 ## Integration with Other Resources
 
 ### PostgreSQL (Required)
@@ -152,8 +209,8 @@ vrooli resource postgres manage start
 For S3-compatible media storage:
 ```bash
 vrooli resource minio manage start
-export STORAGE_PROVIDER=s3
-export MINIO_ENDPOINT=localhost:9000
+# Then enable S3 storage in Strapi
+vrooli resource strapi storage enable
 ```
 
 ### Redis (Optional)

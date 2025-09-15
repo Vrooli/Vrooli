@@ -39,13 +39,15 @@
 
 ### P1 Requirements (Should Have)
 
-- [ ] **Calendar/Contacts**: CalDAV/CardDAV services working
+- [x] **Calendar/Contacts**: CalDAV/CardDAV services working
   - Acceptance: Can sync calendar and contacts
   - Test: Connect calendar client to CalDAV endpoint
+  - Status: ✅ Radicale CalDAV/CardDAV server integrated (port 5232)
 
-- [ ] **Multi-domain Support**: Can handle multiple email domains
+- [x] **Multi-domain Support**: Can handle multiple email domains
   - Acceptance: Email routing works for 2+ domains
-  - Test: `resource-mail-in-a-box content add-domain example2.com`
+  - Test: `vrooli resource mail-in-a-box content add-domain example2.com`
+  - Status: ✅ Multi-domain management commands implemented
 
 - [x] **Spam Protection**: SpamAssassin filtering active
   - Acceptance: Spam emails marked/filtered
@@ -64,9 +66,10 @@
   - Test: `vrooli resource mail-in-a-box content add-alias testalias@mail.local user@mail.local`
   - Status: ✅ Alias creation working via CLI
 
-- [ ] **Auto-configuration**: Email client auto-config works
+- [x] **Auto-configuration**: Email client auto-config works
   - Acceptance: Thunderbird auto-discovers settings
-  - Test: Configure email client with autoconfig
+  - Test: `vrooli resource mail-in-a-box content setup-autoconfig example.com`
+  - Status: ✅ Autoconfig XML generation for Thunderbird/Outlook implemented
 
 - [x] **Monitoring**: Email queue and statistics monitoring
   - Acceptance: Can view queue status and email stats
@@ -165,3 +168,17 @@
 - Smoke tests: 7/7 passing ✅
 - Integration tests: 10/10 passing ✅
 - Progress: 75% → 90% (Full email server with webmail, API, monitoring)
+
+### 2025-01-15: Complete P1 and P2 Requirements
+- ✅ Added Radicale CalDAV/CardDAV server integration (lib/caldav.sh)
+- ✅ Implemented multi-domain management (lib/domains.sh)
+- ✅ Created auto-configuration support (lib/autoconfig.sh)
+- ✅ Added CalDAV user management commands
+- ✅ Added domain management commands (add/remove/list/verify)
+- ✅ Added DKIM key retrieval and DNS verification
+- ✅ Added email client auto-configuration generation
+- ✅ Created comprehensive test suites for new features
+- P0 requirements: 5/5 (100%) ✅
+- P1 requirements: 4/4 (100%) ✅
+- P2 requirements: 3/3 (100%) ✅
+- Progress: 90% → 100% (Complete email server with all features)

@@ -34,9 +34,10 @@ COMMANDS:
         integration     Full functionality test (< 120s)
         unit            Library function tests (< 60s)
         all             Run all test suites (< 600s)
-    content             Manage proof content (future)
+    content             Manage proof content
         list            List available tactics
         execute         Execute a proof file
+    interactive         Start interactive REPL for theorem proving
     status              Show service status
     logs                View service logs
     credentials         Display API credentials (if applicable)
@@ -84,6 +85,9 @@ main() {
             ;;
         content)
             mathlib::content "$@"
+            ;;
+        interactive)
+            mathlib::interactive "$@"
             ;;
         status)
             mathlib::status "$@"

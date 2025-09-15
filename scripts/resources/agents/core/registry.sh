@@ -29,8 +29,16 @@ agents::registry::init() {
     fi
     
     # Create empty registry if it doesn't exist
+    # Use pretty-printed JSON format for consistency
     if [[ ! -f "$registry_file" ]]; then
-        echo '{"agents": {}}' > "$registry_file" || return 1
+        cat > "$registry_file" <<-'EOF'
+{
+  "agents": {}
+}
+EOF
+        if [[ $? -ne 0 ]]; then
+            return 1
+        fi
     fi
     
     return 0

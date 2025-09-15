@@ -1,0 +1,86 @@
+id: resource-improver-20250912-012752
+title: Update btcpay
+type: resource
+operation: improver
+category: ""
+priority: medium
+effort_estimate: 4h
+urgency: low
+impact_score: 5
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: pending
+progress_percentage: 0
+current_phase: ""
+started_at: ""
+completed_at: ""
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-12T01:27:52-04:00"
+updated_at: "2025-09-15T16:36:27-04:00"
+tags: []
+notes: |-
+    Notes from last time:
+    ### Current Status
+    - **Working**: BTCPay Server fully operational with PostgreSQL, NBXplorer, and Lightning support
+    - **Improved**: Completed all P1 requirements and added Point of Sale system
+    - **Complete**: Progress advanced from 71% to 83% overall completion
+
+    ### Validation Evidence
+    - All smoke tests pass (5/5)
+    - All integration tests pass (8/8)
+    - Multi-currency commands functional and tested
+    - Point of Sale system fully implemented with inventory management
+    - PRD updated to reflect 83% overall progress (100% P0, 100% P1, 33% P2)
+
+    ### Key Improvements Made
+
+    1. **Multi-Currency Support (Final P1 requirement)**:
+       - Implemented complete multi-currency configuration system
+       - Added support for BTC, LTC, and ETH
+       - Updated Docker containers to support dynamic chain configuration
+       - Created multicurrency CLI command group with 6 subcommands
+       - Added configuration persistence and apply mechanism
+
+    2. **Point of Sale System (P2 requirement)**:
+       - Implemented complete POS system with inventory management
+       - Created item management with add/remove/update/import capabilities
+       - Generated HTML-based POS terminal for retail checkout
+       - Added POS configuration and status tracking
+       - Integrated with existing payment infrastructure
+
+    3. **Documentation Updates**:
+       - Updated PRD from 71% to 83% completion
+       - Enhanced README with multi-currency and POS usage examples
+       - Added comprehensive documentation for all new features
+
+    ### Test Commands That Validate the Work
+    ```bash
+    # Verify multi-currency commands
+    vrooli resource btcpay multicurrency list
+    vrooli resource btcpay multicurrency status
+
+    # Verify POS commands
+    vrooli resource btcpay pos status
+    vrooli resource btcpay pos list-items
+
+    # Run all tests
+    vrooli resource btcpay test smoke    # 5/5 pass
+    vrooli resource btcpay test integration  # 8/8 pass
+    ```
+
+    ### Remaining Limitations
+    - Crowdfunding features not implemented (P2)
+    - Payment button generator not implemented (P2)
+    - Multi-currency requires container restart to apply changes
+    - POS terminal requires manual invoice creation integration
+
+    ### Recommendations for Future Improvements
+    1. **Priority 1**: Add crowdfunding campaign support (P2)
+    2. **Priority 2**: Create payment button generator (P2)
+results: {}

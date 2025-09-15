@@ -40,9 +40,12 @@ vrooli resource pybullet content execute pendulum
 - `GET /health` - Service health check
 - `POST /simulation/create` - Create new simulation
 - `DELETE /simulation/{name}` - Destroy simulation
-- `POST /simulation/{name}/step` - Advance simulation
+- `POST /simulation/{name}/step` - Advance simulation (with real-time control)
 - `GET /simulation/{name}/state` - Get current state
-- `POST /simulation/{name}/spawn` - Add objects
+- `POST /simulation/{name}/spawn` - Add objects (box, sphere, cylinder)
+- `POST /simulation/{name}/apply_force` - Apply forces to bodies
+- `POST /simulation/{name}/set_joint` - Control robot joints
+- `GET /simulation/{name}/sensors` - Read sensor data
 
 ## Configuration
 
@@ -78,8 +81,12 @@ print(f"Bodies: {state['num_bodies']}")
 
 ### Available Demo Simulations
 
-- `pendulum` - Simple pendulum physics
-- `cartpole` - Classic cart-pole balancing
+- `pendulum` - Simple pendulum physics demonstration
+- `bouncing_ball` - Three balls with different restitution values
+- `robotic_arm` - 3-DOF robotic arm with inverse kinematics control
+- `multi_body_chain` - Chain and cloth simulation with soft constraints
+
+Run with: `vrooli resource pybullet content execute <name>`
 
 ## Testing
 
@@ -97,7 +104,8 @@ vrooli resource pybullet test all
 ## Troubleshooting
 
 ### Installation Issues
-- Ensure Python 3.8+ is installed
+- Ensure Python 3.8+ and pip are installed
+- If python3-venv is not available, the resource will use a fallback installation method
 - Check virtual environment creation: `ls -la .venv/`
 
 ### API Server Not Starting

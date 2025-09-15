@@ -26,7 +26,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 
 # Source config and libraries
 [[ -f "${MAILINABOX_CLI_DIR}/config/defaults.sh" ]] && source "${MAILINABOX_CLI_DIR}/config/defaults.sh"
-for lib in core install start stop status inject test content; do
+for lib in core install start stop status inject test content caldav domains autoconfig; do
     lib_file="${MAILINABOX_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -56,6 +56,12 @@ CLI_COMMAND_HANDLERS["content::remove"]="mailinabox_delete_account"
 # Custom content subcommands for email management
 cli::register_subcommand "content" "add-alias" "Add email alias" "mailinabox_add_alias"
 cli::register_subcommand "content" "add-domain" "Add custom domain" "mailinabox_add_domain"
+cli::register_subcommand "content" "list-domains" "List configured domains" "mailinabox_list_domains"
+cli::register_subcommand "content" "remove-domain" "Remove custom domain" "mailinabox_remove_domain"
+cli::register_subcommand "content" "get-dkim" "Get DKIM key for domain" "mailinabox_get_dkim"
+cli::register_subcommand "content" "verify-domain" "Verify domain DNS configuration" "mailinabox_verify_domain"
+cli::register_subcommand "content" "setup-autoconfig" "Setup email client auto-configuration" "mailinabox_setup_autoconfig"
+cli::register_subcommand "content" "test-autoconfig" "Test email client auto-configuration" "mailinabox_test_autoconfig"
 cli::register_subcommand "content" "import" "Import email configuration from file" "mailinabox_inject_file"
 
 # Information commands (REQUIRED)
@@ -67,6 +73,7 @@ cli::register_command "version" "Show Mail-in-a-Box version" "mailinabox_get_ver
 cli::register_command "monitor" "Monitor email server metrics" "mailinabox_monitor_wrapper"
 cli::register_command "api" "REST API operations" "mailinabox_api_wrapper"
 cli::register_command "credentials" "Show access information" "mailinabox_show_credentials"
+cli::register_command "caldav" "CalDAV/CardDAV management" "mailinabox_caldav_wrapper"
 
 # Simple status wrapper
 mailinabox_simple_status() {
@@ -112,6 +119,44 @@ mailinabox_api_wrapper() {
     esac
 }
 
+# CalDAV wrapper
+mailinabox_caldav_wrapper() {
+    source "${MAILINABOX_CLI_DIR}/lib/caldav.sh" 2>/dev/null || {
+        echo "CalDAV module not available"
+        return 1
+    }
+    local subcmd="${1:-}"
+    shift || true
+    case "$subcmd" in
+        add-user)
+            caldav_create_user "$@"
+            ;;
+        list-users)
+            caldav_list_users
+            ;;
+        delete-user)
+            caldav_delete_user "$@"
+            ;;
+        test)
+            caldav_test_connection "$@"
+            ;;
+        health)
+            caldav_health
+            ;;
+        info)
+            caldav_info
+            ;;
+        *)
+            echo "Available CalDAV commands: add-user, list-users, delete-user, test, health, info"
+            echo ""
+            echo "Examples:"
+            echo "  vrooli resource mail-in-a-box caldav add-user john@example.com password123"
+            echo "  vrooli resource mail-in-a-box caldav list-users"
+            echo "  vrooli resource mail-in-a-box caldav test john@example.com password123"
+            ;;
+    esac
+}
+
 # Credentials display
 mailinabox_show_credentials() {
     echo -e "📧 Mail-in-a-Box Access Information\n"
@@ -123,6 +168,11 @@ mailinabox_show_credentials() {
         echo "Webmail: http://localhost:8080"
     else
         echo "Webmail: Not installed (use docker-compose to enable)"
+    fi
+    if docker inspect mailinabox-caldav &>/dev/null && [[ "$(docker inspect -f '{{.State.Running}}' mailinabox-caldav 2>/dev/null)" == "true" ]]; then
+        echo "CalDAV/CardDAV: http://localhost:5232"
+    else
+        echo "CalDAV/CardDAV: Not installed (use docker-compose to enable)"
     fi
     echo "API endpoint: http://localhost:8543/health"
     echo ""

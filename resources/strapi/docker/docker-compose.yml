@@ -55,5 +55,5 @@ volumes:
 
 networks:
   vrooli-network:
-    external: true
     name: vrooli-network
+    external: false
