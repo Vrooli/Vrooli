@@ -101,9 +101,9 @@ testing::unit::run_all_tests() {
         fi
         
         if testing::unit::run_go_tests $go_args; then
-            ((test_count++))
+            ((test_count++)) || true
         else
-            ((error_count++))
+            ((error_count++)) || true
             if [ "$fail_fast" = true ]; then
                 echo "❌ Stopping due to Go test failure (fail-fast enabled)"
                 return 1
@@ -111,7 +111,7 @@ testing::unit::run_all_tests() {
         fi
         echo ""
     else
-        ((skipped_count++))
+        ((skipped_count++)) || true
     fi
     
     # Run Node.js tests
@@ -122,9 +122,9 @@ testing::unit::run_all_tests() {
         fi
         
         if testing::unit::run_node_tests $node_args; then
-            ((test_count++))
+            ((test_count++)) || true
         else
-            ((error_count++))
+            ((error_count++)) || true
             if [ "$fail_fast" = true ]; then
                 echo "❌ Stopping due to Node.js test failure (fail-fast enabled)"
                 return 1
@@ -132,7 +132,7 @@ testing::unit::run_all_tests() {
         fi
         echo ""
     else
-        ((skipped_count++))
+        ((skipped_count++)) || true
     fi
     
     # Run Python tests
@@ -144,9 +144,9 @@ testing::unit::run_all_tests() {
         
         # Note: Python test runner doesn't have coverage thresholds implemented yet
         if testing::unit::run_python_tests $python_args; then
-            ((test_count++))
+            ((test_count++)) || true
         else
-            ((error_count++))
+            ((error_count++)) || true
             if [ "$fail_fast" = true ]; then
                 echo "❌ Stopping due to Python test failure (fail-fast enabled)"
                 return 1
@@ -154,7 +154,7 @@ testing::unit::run_all_tests() {
         fi
         echo ""
     else
-        ((skipped_count++))
+        ((skipped_count++)) || true
     fi
     
     # Summary
