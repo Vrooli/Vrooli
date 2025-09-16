@@ -6,7 +6,9 @@ set -euo pipefail
 
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RESOURCE_DIR="$SCRIPT_DIR"
 RESOURCE_NAME="openemr"
+export SCRIPT_DIR RESOURCE_DIR
 
 # Source the common libraries
 source "${SCRIPT_DIR}/../../scripts/lib/utils/log.sh"

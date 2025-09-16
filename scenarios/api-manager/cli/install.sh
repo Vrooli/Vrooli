@@ -1,47 +1,39 @@
 #!/bin/bash
 
-set -e
-
 # API Manager CLI Installation Script
 
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_NAME="api-manager"
-BUILD_DIR="$(dirname "$0")"
-INSTALL_DIR="${VROOLI_CLI_DIR:-$HOME/.local/bin}"
+VROOLI_BIN_DIR="${HOME}/.vrooli/bin"
 
-echo "Installing API Manager CLI..."
+# Ensure .vrooli/bin directory exists
+mkdir -p "$VROOLI_BIN_DIR"
 
-# Create install directory if it doesn't exist
-mkdir -p "$INSTALL_DIR"
+# Create symlink to CLI
+CLI_SOURCE="${SCRIPT_DIR}/${CLI_NAME}"
+CLI_TARGET="${VROOLI_BIN_DIR}/${CLI_NAME}"
 
-# Build the CLI
-echo "Building CLI..."
-cd "$BUILD_DIR"
-go build -o "$CLI_NAME" .
-
-# Install to the target directory
-echo "Installing to $INSTALL_DIR..."
-mv "$CLI_NAME" "$INSTALL_DIR/"
-
-# Make executable
-chmod +x "$INSTALL_DIR/$CLI_NAME"
-
-# Check if install directory is in PATH
-if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-    echo ""
-    echo "⚠️  Warning: $INSTALL_DIR is not in your PATH."
-    echo "   Add this to your shell profile (.bashrc, .zshrc, etc.):"
-    echo "   export PATH=\"$INSTALL_DIR:\$PATH\""
-    echo ""
+if [[ -L "$CLI_TARGET" ]]; then
+    echo "Removing existing symlink..."
+    rm "$CLI_TARGET"
 fi
 
-echo "✅ API Manager CLI installed successfully!"
-echo ""
-echo "Usage:"
-echo "  $CLI_NAME help              # Show help"
-echo "  $CLI_NAME health            # Check API manager status"
-echo "  $CLI_NAME list scenarios    # List all scenarios"
-echo "  $CLI_NAME scan <scenario>   # Scan a scenario for issues"
-echo "  $CLI_NAME vulnerabilities  # Show all vulnerabilities"
-echo ""
-echo "Environment variables:"
-echo "  API_MANAGER_URL  # API manager base URL (default: http://localhost:8421)"
+echo "Installing ${CLI_NAME} CLI..."
+ln -s "$CLI_SOURCE" "$CLI_TARGET"
+
+# Make sure CLI is executable
+chmod +x "$CLI_SOURCE"
+
+# Check if .vrooli/bin is in PATH
+if [[ ":$PATH:" != *":$VROOLI_BIN_DIR:"* ]]; then
+    echo
+    echo "⚠️  ${VROOLI_BIN_DIR} is not in your PATH"
+    echo "Add this line to your shell profile (.bashrc, .zshrc, etc.):"
+    echo "export PATH=\"\$PATH:$VROOLI_BIN_DIR\""
+    echo
+fi
+
+echo "✅ ${CLI_NAME} CLI installed successfully"
+echo "Usage: ${CLI_NAME} --help"

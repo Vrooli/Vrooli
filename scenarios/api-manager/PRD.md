@@ -57,7 +57,7 @@ The API Manager adds the permanent capability to **automatically audit, improve,
 ### Quality Gates
 - [ ] All P0 requirements implemented and tested
 - [ ] Integration with PostgreSQL for API metadata storage
-- [ ] N8n workflows for automated scanning and fixing
+- [ ] API endpoints for automated scanning and fixing
 - [ ] CLI tools for manual API management operations
 - [ ] Web interface for API dashboard and management
 - [ ] Scenario can be invoked by other agents via API/CLI
@@ -73,7 +73,7 @@ The API Manager adds the permanent capability to **automatically audit, improve,
 
 ### Resource Dependencies
 - **PostgreSQL**: API metadata, scan results, vulnerability database
-- **N8n**: Automated scanning workflows, fix application pipelines
+- **Scheduler**: Built-in automated scanning and fix application pipelines
 - **Ollama**: AI-powered analysis and fix generation
 - **Qdrant**: Semantic search for similar API patterns and solutions
 
@@ -94,7 +94,7 @@ The API Manager adds the permanent capability to **automatically audit, improve,
 
 ## 🔄 Operational Flow
 
-### Automated Scanning (N8n Workflow)
+### Automated Scanning (Background Service)
 1. **Discovery Phase**: Inventory all scenario APIs
 2. **Analysis Phase**: Security scan + performance baseline
 3. **Documentation Phase**: Generate/update OpenAPI specs  

@@ -88,119 +88,435 @@
                 </div>
             </div>
 
-            <div class="detail-grid">
-                <!-- Status Card -->
-                <div class="detail-card">
-                    <h2 class="card-title">
-                        <i data-lucide="activity"></i>
-                        Status
-                    </h2>
-                    <div class="detail-content">
-                        <div class="detail-row">
-                            <span class="detail-label">Current Status:</span>
-                            <span id="agentStatus" class="status-badge">-</span>
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="overview">
+                    <i data-lucide="layout-dashboard"></i>
+                    Overview
+                </button>
+                <button class="tab-btn" data-tab="system">
+                    <i data-lucide="cpu"></i>
+                    System
+                </button>
+                <button class="tab-btn" data-tab="network">
+                    <i data-lucide="network"></i>
+                    Network
+                </button>
+                <button class="tab-btn" data-tab="environment">
+                    <i data-lucide="settings"></i>
+                    Environment
+                </button>
+                <button class="tab-btn" data-tab="metrics">
+                    <i data-lucide="trending-up"></i>
+                    Metrics
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Overview Tab -->
+                <div class="tab-panel active" id="overview-tab">
+                    <div class="detail-grid">
+                        <!-- Status Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="activity"></i>
+                                Status
+                            </h2>
+                            <div class="detail-content">
+                                <div class="detail-row">
+                                    <span class="detail-label">Current Status:</span>
+                                    <span id="agentStatus" class="status-badge">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Type:</span>
+                                    <span id="agentType">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">PID:</span>
+                                    <span id="agentPid" class="mono">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Uptime:</span>
+                                    <span id="agentUptime" data-uptime-live>-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Health Score:</span>
+                                    <div class="health-score">
+                                        <div class="health-bar">
+                                            <div id="healthBar" class="health-fill" style="width: 0%"></div>
+                                        </div>
+                                        <span id="healthScore">-</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Type:</span>
-                            <span id="agentType">-</span>
+
+                        <!-- Information Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="info"></i>
+                                Information
+                            </h2>
+                            <div class="detail-content">
+                                <div class="detail-row">
+                                    <span class="detail-label">Agent ID:</span>
+                                    <span id="agentId" class="mono copyable" onclick="copyToClipboard(this)">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Resource:</span>
+                                    <span id="agentResource" class="resource-badge">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Started:</span>
+                                    <span id="agentStartTime">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Last Seen:</span>
+                                    <span id="agentLastSeen">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Version:</span>
+                                    <span id="agentVersion">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">API Endpoint:</span>
+                                    <span id="agentEndpoint" class="mono copyable" onclick="copyToClipboard(this)">-</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="detail-row">
-                            <span class="detail-label">PID:</span>
-                            <span id="agentPid" class="mono">-</span>
+
+                        <!-- Capabilities Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="zap"></i>
+                                Capabilities & Features
+                            </h2>
+                            <div class="detail-content">
+                                <div id="agentCapabilities" class="capabilities-list">
+                                    <!-- Capabilities will be inserted here -->
+                                </div>
+                                <div class="capability-stats">
+                                    <div class="stat-item">
+                                        <i data-lucide="check-circle"></i>
+                                        <span id="capabilityCount">0</span> Capabilities
+                                    </div>
+                                    <div class="stat-item">
+                                        <i data-lucide="plug"></i>
+                                        <span id="integrationCount">0</span> Integrations
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Uptime:</span>
-                            <span id="agentUptime">-</span>
+
+                        <!-- Command Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="terminal"></i>
+                                Execution Details
+                            </h2>
+                            <div class="detail-content">
+                                <div class="detail-row">
+                                    <span class="detail-label">Command:</span>
+                                </div>
+                                <div class="command-display">
+                                    <code id="agentCommand">-</code>
+                                    <button class="copy-btn" onclick="copyCommand()">
+                                        <i data-lucide="copy"></i>
+                                    </button>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Working Directory:</span>
+                                    <span id="agentWorkDir" class="mono">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">User:</span>
+                                    <span id="agentUser" class="mono">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Performance Overview Card -->
+                        <div class="detail-card span-2">
+                            <h2 class="card-title">
+                                <i data-lucide="gauge"></i>
+                                Performance Overview
+                            </h2>
+                            <div class="detail-content">
+                                <div class="performance-grid">
+                                    <div class="perf-metric">
+                                        <div class="perf-header">
+                                            <i data-lucide="cpu"></i>
+                                            <span>CPU</span>
+                                        </div>
+                                        <div class="perf-value" id="perfCpu">-</div>
+                                        <div class="perf-trend" id="cpuTrend">--</div>
+                                    </div>
+                                    <div class="perf-metric">
+                                        <div class="perf-header">
+                                            <i data-lucide="hard-drive"></i>
+                                            <span>Memory</span>
+                                        </div>
+                                        <div class="perf-value" id="perfMemory">-</div>
+                                        <div class="perf-trend" id="memoryTrend">--</div>
+                                    </div>
+                                    <div class="perf-metric">
+                                        <div class="perf-header">
+                                            <i data-lucide="activity"></i>
+                                            <span>Requests/min</span>
+                                        </div>
+                                        <div class="perf-value" id="perfRequests">-</div>
+                                        <div class="perf-trend" id="requestsTrend">--</div>
+                                    </div>
+                                    <div class="perf-metric">
+                                        <div class="perf-header">
+                                            <i data-lucide="zap"></i>
+                                            <span>Response Time</span>
+                                        </div>
+                                        <div class="perf-value" id="perfLatency">-</div>
+                                        <div class="perf-trend" id="latencyTrend">--</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Information Card -->
-                <div class="detail-card">
-                    <h2 class="card-title">
-                        <i data-lucide="info"></i>
-                        Information
-                    </h2>
-                    <div class="detail-content">
-                        <div class="detail-row">
-                            <span class="detail-label">Agent ID:</span>
-                            <span id="agentId" class="mono">-</span>
+                <!-- System Tab -->
+                <div class="tab-panel" id="system-tab">
+                    <div class="detail-grid">
+                        <!-- System Information Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="server"></i>
+                                System Information
+                            </h2>
+                            <div class="detail-content">
+                                <div class="detail-row">
+                                    <span class="detail-label">Hostname:</span>
+                                    <span id="sysHostname" class="mono">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Platform:</span>
+                                    <span id="sysPlatform">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Architecture:</span>
+                                    <span id="sysArch">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">CPU Cores:</span>
+                                    <span id="sysCores">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Total Memory:</span>
+                                    <span id="sysTotalMem">-</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Started:</span>
-                            <span id="agentStartTime">-</span>
+
+                        <!-- Resource Limits Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="gauge"></i>
+                                Resource Limits
+                            </h2>
+                            <div class="detail-content">
+                                <div class="detail-row">
+                                    <span class="detail-label">CPU Limit:</span>
+                                    <span id="limitCpu">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Memory Limit:</span>
+                                    <span id="limitMemory">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Disk Quota:</span>
+                                    <span id="limitDisk">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Max Connections:</span>
+                                    <span id="limitConnections">-</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Last Seen:</span>
-                            <span id="agentLastSeen">-</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Version:</span>
-                            <span id="agentVersion">-</span>
+
+                        <!-- Process Details Card -->
+                        <div class="detail-card span-2">
+                            <h2 class="card-title">
+                                <i data-lucide="list"></i>
+                                Process Details
+                            </h2>
+                            <div class="detail-content">
+                                <div class="process-grid">
+                                    <div class="detail-row">
+                                        <span class="detail-label">Parent PID:</span>
+                                        <span id="procParentPid" class="mono">-</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Thread Count:</span>
+                                        <span id="procThreads">-</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">Nice Level:</span>
+                                        <span id="procNice">-</span>
+                                    </div>
+                                    <div class="detail-row">
+                                        <span class="detail-label">File Descriptors:</span>
+                                        <span id="procFds">-</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Capabilities Card -->
-                <div class="detail-card">
-                    <h2 class="card-title">
-                        <i data-lucide="zap"></i>
-                        Capabilities
-                    </h2>
-                    <div class="detail-content">
-                        <div id="agentCapabilities" class="capabilities-list">
-                            <!-- Capabilities will be inserted here -->
+                <!-- Network Tab -->
+                <div class="tab-panel" id="network-tab">
+                    <div class="detail-grid">
+                        <!-- Network Configuration Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="wifi"></i>
+                                Network Configuration
+                            </h2>
+                            <div class="detail-content">
+                                <div class="detail-row">
+                                    <span class="detail-label">IP Address:</span>
+                                    <span id="netIpAddress" class="mono copyable" onclick="copyToClipboard(this)">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Port:</span>
+                                    <span id="netPort" class="mono">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">Protocol:</span>
+                                    <span id="netProtocol">-</span>
+                                </div>
+                                <div class="detail-row">
+                                    <span class="detail-label">DNS Servers:</span>
+                                    <span id="netDns" class="mono">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Connections Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="link"></i>
+                                Active Connections
+                            </h2>
+                            <div class="detail-content">
+                                <div id="activeConnections" class="connections-list">
+                                    <!-- Connections will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Dependencies Card -->
+                        <div class="detail-card span-2">
+                            <h2 class="card-title">
+                                <i data-lucide="git-branch"></i>
+                                Dependencies & Integrations
+                            </h2>
+                            <div class="detail-content">
+                                <div id="agentDependencies" class="dependencies-grid">
+                                    <!-- Dependencies will be inserted here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Command Card -->
-                <div class="detail-card">
-                    <h2 class="card-title">
-                        <i data-lucide="terminal"></i>
-                        Command
-                    </h2>
-                    <div class="detail-content">
-                        <div class="command-display">
-                            <code id="agentCommand">-</code>
+                <!-- Environment Tab -->
+                <div class="tab-panel" id="environment-tab">
+                    <div class="detail-grid">
+                        <!-- Environment Variables Card -->
+                        <div class="detail-card span-2">
+                            <h2 class="card-title">
+                                <i data-lucide="code"></i>
+                                Environment Variables
+                            </h2>
+                            <div class="detail-content">
+                                <div class="env-search">
+                                    <input type="text" id="envSearch" placeholder="Search variables..." class="env-search-input">
+                                </div>
+                                <div id="envVariables" class="env-vars-list">
+                                    <!-- Environment variables will be inserted here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Configuration Card -->
+                        <div class="detail-card">
+                            <h2 class="card-title">
+                                <i data-lucide="settings"></i>
+                                Configuration
+                            </h2>
+                            <div class="detail-content">
+                                <div id="agentConfig" class="config-list">
+                                    <!-- Configuration will be inserted here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Quick Metrics Card -->
-                <div class="detail-card span-2">
-                    <h2 class="card-title">
-                        <i data-lucide="trending-up"></i>
-                        Quick Metrics
-                    </h2>
-                    <div class="detail-content">
-                        <div class="metrics-grid">
-                            <div class="metric-item">
-                                <span class="metric-label">CPU Usage</span>
-                                <span id="metricCpu" class="metric-value">-</span>
+                <!-- Metrics Tab -->
+                <div class="tab-panel" id="metrics-tab">
+                    <div class="detail-grid">
+                        <!-- Real-time Metrics Card -->
+                        <div class="detail-card span-2">
+                            <h2 class="card-title">
+                                <i data-lucide="bar-chart-2"></i>
+                                Real-time Metrics
+                            </h2>
+                            <div class="detail-content">
+                                <div class="metrics-grid">
+                                    <div class="metric-item">
+                                        <span class="metric-label">CPU Usage</span>
+                                        <span id="metricCpu" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Memory</span>
+                                        <span id="metricMemory" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Disk I/O</span>
+                                        <span id="metricDiskIo" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Network I/O</span>
+                                        <span id="metricNetworkIo" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Tasks Completed</span>
+                                        <span id="metricTasks" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Error Rate</span>
+                                        <span id="metricErrors" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Success Rate</span>
+                                        <span id="metricSuccess" class="metric-value">-</span>
+                                    </div>
+                                    <div class="metric-item">
+                                        <span class="metric-label">Queue Depth</span>
+                                        <span id="metricQueue" class="metric-value">-</span>
+                                    </div>
+                                </div>
+                                <div class="metric-actions">
+                                    <a href="/metrics.html" class="action-btn">
+                                        <i data-lucide="bar-chart"></i>
+                                        View Full Metrics
+                                    </a>
+                                    <a href="/logs.html" class="action-btn" id="viewLogsBtn2">
+                                        <i data-lucide="scroll-text"></i>
+                                        View Logs
+                                    </a>
+                                </div>
                             </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Memory</span>
-                                <span id="metricMemory" class="metric-value">-</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Tasks Completed</span>
-                                <span id="metricTasks" class="metric-value">-</span>
-                            </div>
-                            <div class="metric-item">
-                                <span class="metric-label">Success Rate</span>
-                                <span id="metricSuccess" class="metric-value">-</span>
-                            </div>
-                        </div>
-                        <div class="metric-actions">
-                            <a href="/metrics.html" class="action-btn">
-                                <i data-lucide="bar-chart"></i>
-                                View Full Metrics
-                            </a>
-                            <a href="/logs.html" class="action-btn" id="viewLogsBtn">
-                                <i data-lucide="scroll-text"></i>
-                                View Logs
-                            </a>
                         </div>
                     </div>
                 </div>

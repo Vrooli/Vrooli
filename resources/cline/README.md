@@ -45,14 +45,78 @@ vrooli resource cline status
 vrooli resource cline health
 ```
 
-### Inject Prompts
+### Terminal Integration
 
 ```bash
-# Inject custom prompts
-vrooli resource cline inject prompts /path/to/prompts/
+# List available AI models
+vrooli resource cline content execute models
 
-# Inject model configuration
-vrooli resource cline inject model gpt-4 0.7 4096
+# Switch provider
+vrooli resource cline content execute provider ollama
+
+# Send prompt from terminal (future integration)
+vrooli resource cline content execute prompt "Explain this code"
+```
+
+### Workspace Context
+
+```bash
+# Load workspace context
+vrooli resource cline content execute context load /path/to/project
+
+# Show active context
+vrooli resource cline content execute context show
+
+# List all contexts
+vrooli resource cline content execute context list
+
+# Clear context
+vrooli resource cline content execute context clear
+```
+
+### Usage Analytics
+
+```bash
+# View usage statistics
+vrooli resource cline content execute analytics show
+
+# Track a session (automatically done by Cline)
+vrooli resource cline content execute analytics track ollama llama3.2 1500 0.001
+
+# Reset analytics
+vrooli resource cline content execute analytics reset
+```
+
+### Batch Operations
+
+```bash
+# Analyze multiple files
+vrooli resource cline content execute batch analyze "*.js" /path/to/dir
+
+# Create batch processing job
+vrooli resource cline content execute batch process "*.py" refactor
+
+# Check batch job status
+vrooli resource cline content execute batch status
+```
+
+### Custom Instructions
+
+```bash
+# Add custom instruction
+vrooli resource cline content execute instructions add "code-style" "Use 2 spaces for indentation"
+
+# List instructions
+vrooli resource cline content execute instructions list
+
+# Show specific instruction
+vrooli resource cline content execute instructions show code-style
+
+# Activate instruction
+vrooli resource cline content execute instructions activate code-style
+
+# Remove instruction
+vrooli resource cline content execute instructions remove code-style
 ```
 
 ### Update

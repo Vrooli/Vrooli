@@ -14,10 +14,19 @@ This scenario adds the **permanent capability** to automatically audit, improve,
 
 ## 🚀 Quick Start
 
+### Recent Refactoring (2024)
+This scenario has been refactored to follow Vrooli best practices:
+- **Modular UI**: Split monolithic HTML into separate JS/CSS modules (`js/api.js`, `js/dashboard.js`, `styles/main.css`)
+- **Lifecycle Configuration**: Added `.vrooli/service.json` with ranged ports (API: 8100-8199, UI: 31100-31199)
+- **No External Workflows**: Removed N8n dependency - all automation is now built-in
+- **Enhanced Discovery**: Functional API discovery endpoint that scans and catalogs scenario APIs
+- **Environment Variables**: All configuration uses environment variables (no hardcoded values)
+- **Proper Error Handling**: Database connection with exponential backoff, structured error responses
+
 ### Prerequisites
 - PostgreSQL running (for API metadata storage)
 - Ollama with llama3.1:8b model (for AI-powered analysis)
-- N8n (for automated workflows)
+- Qdrant (for semantic search and pattern matching)
 
 ### Installation & Setup
 
@@ -61,7 +70,7 @@ api-manager vulnerabilities my-scenario
 
 ## 📊 Web Dashboard
 
-Access the web interface at: http://localhost:8420
+Access the web interface at: http://localhost:31100-31199 (port assigned by lifecycle)
 
 The dashboard provides:
 - **System overview** with key metrics
@@ -146,14 +155,14 @@ Uses Ollama's llama3.1:8b model to provide:
 ### As a Service Provider
 Other scenarios can leverage API Manager via:
 ```bash
-# From scenario workflows
-resource-n8n execute-workflow "api-scanner" '{"scenario": "my-scenario"}'
+# From scenario API calls
+curl -X POST http://localhost:8100/api/v1/scenarios/my-scenario/scan
 
 # From CLI tools  
 api-manager scan my-scenario
 
 # Via direct API calls
-curl -X POST http://localhost:8421/api/v1/scenarios/my-scenario/scan
+curl -X POST http://localhost:${API_PORT}/api/v1/scenarios/my-scenario/scan
 ```
 
 ### As a Capability Multiplier
@@ -178,8 +187,8 @@ The API Manager uses PostgreSQL to store:
 ```bash
 # Start database and dependencies
 vrooli resource postgres start
-vrooli resource ollama start  
-vrooli resource n8n start
+vrooli resource ollama start
+vrooli resource qdrant start
 
 # Run API server
 cd api && go run main.go
@@ -192,7 +201,7 @@ cd cli && go run main.go health
 ```
 
 ### Adding New Analysis Types
-1. Create new N8n workflow in `initialization/automation/n8n/`
+1. Add new background service in API server
 2. Add corresponding API endpoints in `api/main.go`
 3. Update database schema if needed
 4. Add CLI commands for new functionality

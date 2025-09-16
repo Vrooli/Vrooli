@@ -1,97 +1,127 @@
 {
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "2.0.0",
-  "name": "api-manager",
-  "description": "Automated API analysis, security auditing, and improvement system for Vrooli scenarios",
-  "type": "scenario",
-  "main": {
-    "ui": {
-      "enabled": true,
-      "path": "ui/server.js",
-      "port": 8420,
-      "environment": {
-        "API_PORT": "8421",
-        "NODE_ENV": "development"
+  "service": {
+    "name": "api-manager",
+    "displayName": "API Manager",
+    "description": "Comprehensive API auditing and improvement system for discovering, analyzing, and enhancing APIs across the Vrooli ecosystem",
+    "version": "1.0.0",
+    "tags": [
+      "api-management",
+      "security-audit",
+      "performance-monitoring",
+      "vulnerability-scanning",
+      "api-discovery",
+      "standardization",
+      "intelligence-amplification",
+      "vrooli-core"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com"
       }
-    },
+    ]
+  },
+  "ports": {
     "api": {
-      "enabled": true,
-      "path": "api/main.go",
-      "port": 8421,
-      "build": "go build -o api-manager-api .",
-      "environment": {
-        "API_PORT": "8421",
-        "POSTGRES_HOST": "localhost",
-        "POSTGRES_PORT": "5433",
-        "POSTGRES_DB": "vrooli_api_manager",
-        "POSTGRES_USER": "postgres",
-        "POSTGRES_PASSWORD": "",
-        "OLLAMA_URL": "http://localhost:11434"
-      }
+      "env_var": "API_PORT",
+      "range": "8100-8199",
+      "description": "API Manager REST API port"
     },
-    "cli": {
-      "enabled": true,
-      "path": "cli/api-manager",
-      "install_script": "cli/install.sh"
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "31100-31199",
+      "description": "API Manager dashboard UI port"
     }
   },
   "resources": {
     "postgres": {
+      "type": "postgres",
       "enabled": true,
-      "databases": [
-        "vrooli_api_manager"
-      ]
+      "required": true,
+      "description": "Stores API inventory, vulnerability data, scan history, and performance metrics",
+      "schema": "api_manager"
     },
     "ollama": {
+      "type": "ollama",
       "enabled": true,
-      "models": [
-        "llama3.1:8b",
-        "nomic-embed-text"
-      ]
+      "required": true,
+      "description": "Security pattern analysis, vulnerability detection, and fix generation"
     },
     "qdrant": {
+      "type": "qdrant",
       "enabled": true,
-      "collections": [
-        "api_patterns",
-        "vulnerability_signatures"
-      ]
+      "required": true,
+      "description": "API pattern embeddings, vulnerability signatures, and similarity search"
     }
   },
-  "initialization": {
-    "storage": {
-      "postgres": [
-        {
-          "file": "initialization/storage/postgres/schema.sql",
-          "database": "vrooli_api_manager"
-        }
-      ]
-    }
+  "environment": {
+    "API_MANAGER_URL": "http://localhost:${API_PORT}",
+    "POSTGRES_HOST": "${POSTGRES_HOST:-localhost}",
+    "POSTGRES_PORT": "${POSTGRES_PORT:-5432}",
+    "POSTGRES_DB": "${POSTGRES_DB:-vrooli}",
+    "POSTGRES_USER": "${POSTGRES_USER:-postgres}",
+    "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}",
+    "OLLAMA_URL": "${OLLAMA_URL:-http://localhost:11434}",
+    "QDRANT_URL": "${QDRANT_URL:-http://localhost:6333}",
+    "VROOLI_LIFECYCLE_MANAGED": "true"
   },
   "lifecycle": {
-    "setup": {
-      "description": "Initialize API manager with database and workflows",
-      "steps": [
+    "version": "2.0.0",
+    "health": {
+      "description": "API Manager health check configuration",
+      "endpoints": {
+        "api": "/api/v1/health",
+        "ui": "/",
+        "metrics": "/api/v1/metrics"
+      },
+      "checks": [
         {
-          "name": "create-directories",
-          "run": "mkdir -p api cli ui initialization/storage/postgres data",
-          "description": "Create required directories"
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
         },
         {
-          "name": "initialize-database",
-          "run": "resource-postgres content execute --database vrooli_api_manager --file initialization/storage/postgres/schema.sql",
-          "description": "Create database schema",
-          "condition": {
-            "file_exists": "initialization/storage/postgres/schema.sql"
-          }
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
         }
-      ]
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
     },
-    "build": {
-      "description": "Build API manager components",
+    "setup": {
+      "description": "Initialize API Manager",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/api-manager-api",
+              "cli/api-manager"
+            ]
+          },
+          {
+            "type": "dependencies",
+            "targets": [
+              "ui/node_modules"
+            ]
+          }
+        ]
+      },
       "steps": [
         {
           "name": "build-api",
-          "run": "cd api && go build -o api-manager-api .",
-          "description": "Build Go API server"
+          "run": "cd api && go mod download && go build -o api-manager-api .",
+          "description": "Build API server binary"
         },
         {
           "name": "build-cli",
@@ -99,39 +129,71 @@
           "description": "Build CLI tool"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
           "description": "Install UI dependencies"
+        },
+        {
+          "name": "init-database",
+          "run": "if [ -f initialization/storage/postgres/schema.sql ]; then PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vrooli} -f initialization/storage/postgres/schema.sql 2>/dev/null || echo 'Schema already applied or database not ready'; else echo 'No schema file found'; fi",
+          "description": "Apply database schema if available"
         }
       ]
     },
-    "start": {
-      "description": "Start API manager services",
+    "develop": {
+      "description": "Start API Manager services in development mode",
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && ./api-manager-api",
-          "description": "Start API server",
+          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./api-manager-api",
           "background": true,
-          "health_check": {
-            "url": "http://localhost:8421/api/v1/health",
-            "timeout": 10
-          }
+          "description": "Start API server"
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 3",
+          "description": "Wait for API to initialize"
         },
         {
           "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start web interface",
+          "run": "cd ui && UI_PORT=${UI_PORT} PORT=${UI_PORT} API_MANAGER_URL=http://localhost:${API_PORT} npm run dev",
           "background": true,
-          "health_check": {
-            "url": "http://localhost:8420/health",
-            "timeout": 10
-          }
+          "description": "Start Vite dev server"
+        },
+        {
+          "name": "show-status",
+          "run": "echo \"✅ API Manager is running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}/api/v1\\n  Health: http://localhost:${API_PORT}/api/v1/health\""
+        }
+      ]
+    },
+    "test": {
+      "description": "Run API Manager test suite",
+      "steps": [
+        {
+          "name": "test-api",
+          "run": "cd api && go test -v ./...",
+          "description": "Run API tests"
+        },
+        {
+          "name": "test-cli",
+          "run": "cd cli && go test -v ./...",
+          "description": "Run CLI tests"
+        },
+        {
+          "name": "test-ui",
+          "run": "cd ui && npm test",
+          "description": "Run UI tests",
+          "optional": true
         }
       ]
     },
     "stop": {
-      "description": "Stop API manager services",
+      "description": "Stop API Manager services",
       "steps": [
         {
           "name": "stop-api",
@@ -140,41 +202,30 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"scenarios/api-manager.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/api-manager.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
+          "run": "pkill -f \"vite.*api-manager\" || true; sleep 1; pkill -9 -f \"vite.*api-manager\" 2>/dev/null || true",
+          "description": "Stop Vite dev server"
         }
       ]
     },
-    "develop": {
-      "description": "Development mode - build and start services",
-      "depends_on": [
-        "setup"
-      ],
-      "phases": [
-        "build",
-        "start"
+    "shutdown": {
+      "description": "Graceful shutdown of API Manager",
+      "steps": [
+        {
+          "name": "save-state",
+          "run": "curl -X POST http://localhost:${API_PORT}/api/v1/shutdown 2>/dev/null || true",
+          "description": "Save current state before shutdown"
+        },
+        {
+          "name": "stop-services",
+          "run": "pkill -SIGTERM -f api-manager-api || true; pkill -SIGTERM -f 'vite.*api-manager' || true",
+          "description": "Send termination signals"
+        },
+        {
+          "name": "wait-for-cleanup",
+          "run": "sleep 2",
+          "description": "Wait for graceful shutdown"
+        }
       ]
     }
-  },
-  "metadata": {
-    "tags": [
-      "api",
-      "security",
-      "automation",
-      "analysis",
-      "documentation",
-      "maintenance"
-    ],
-    "category": "infrastructure",
-    "priority": "high",
-    "author": "AI Agent",
-    "status": "development",
-    "capabilities": [
-      "api-scanning",
-      "security-auditing",
-      "documentation-generation",
-      "performance-analysis",
-      "automated-fixes"
-    ]
   }
 }

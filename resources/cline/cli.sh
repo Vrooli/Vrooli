@@ -29,6 +29,12 @@ source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/cline/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/cline/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
 # shellcheck disable=SC1091
 source "${CLINE_CLI_DIR}/config/defaults.sh"
 
@@ -71,6 +77,17 @@ cli::register_command "logs" "Show Cline logs" "cline::logs"
 cli::register_command "config" "View/update configuration" "cline::config"
 
 # Agent management commands
+# Create wrapper for agents command that delegates to manager
+cline::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="cline" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f cline::agents::command
+
 cli::register_command "agents" "Manage running Cline agents" "cline::agents::command"
 
 # Only execute if script is run directly (not sourced)

@@ -49,9 +49,9 @@ function updateSummaryCards() {
         }
     });
     
-    const avgCpu = totalAgents > 0 ? Math.round(totalCpu / totalAgents) : 0;
-    document.getElementById('avgCpu').textContent = `${avgCpu}%`;
-    document.getElementById('totalMemory').textContent = `${totalMemory} MB`;
+    const avgCpu = totalAgents > 0 ? (totalCpu / totalAgents) : 0;
+    document.getElementById('avgCpu').textContent = `${Number(avgCpu).toFixed(1)}%`;
+    document.getElementById('totalMemory').textContent = `${Number(totalMemory).toFixed(0)} MB`;
 }
 
 async function loadDetailedMetrics() {
@@ -142,8 +142,8 @@ function renderPerformanceTable() {
         const row = document.createElement('tr');
         
         // Format IO stats for display
-        const ioReadMB = ((metrics.io_read_bytes || 0) / (1024 * 1024)).toFixed(1);
-        const ioWriteMB = ((metrics.io_write_bytes || 0) / (1024 * 1024)).toFixed(1);
+        const ioReadMB = Number((metrics.io_read_bytes || 0) / (1024 * 1024)).toFixed(1);
+        const ioWriteMB = Number((metrics.io_write_bytes || 0) / (1024 * 1024)).toFixed(1);
         
         row.innerHTML = `
             <td class="agent-name-cell">
@@ -152,10 +152,10 @@ function renderPerformanceTable() {
             </td>
             <td>
                 <div class="cpu-indicator ${getCpuClass(metrics.cpu_usage)}">
-                    ${(metrics.cpu_usage || 0).toFixed(1)}%
+                    ${Number(metrics.cpu_usage || 0).toFixed(1)}%
                 </div>
             </td>
-            <td>${(metrics.memory_mb || 0).toFixed(1)} MB</td>
+            <td>${Number(metrics.memory_mb || 0).toFixed(0)} MB</td>
             <td title="Threads: ${metrics.thread_count || 1}, FDs: ${metrics.fd_count || 0}">
                 T:${metrics.thread_count || 1} / FD:${metrics.fd_count || 0}
             </td>

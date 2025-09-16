@@ -4,7 +4,7 @@ description: API Manager scenario validation tests
 setup:
   - name: Check database connection
     type: api
-    endpoint: http://localhost:8421/api/v1/health
+    endpoint: http://localhost:${API_PORT}/api/v1/health
     method: GET
     expect:
       status: 200
@@ -14,7 +14,7 @@ setup:
 
   - name: Check UI accessibility
     type: http
-    url: http://localhost:8420/health
+    url: http://localhost:${UI_PORT}/health
     method: GET
     expect:
       status: 200
@@ -25,7 +25,7 @@ setup:
 tests:
   - name: List scenarios endpoint
     type: api
-    endpoint: http://localhost:8421/api/v1/scenarios
+    endpoint: http://localhost:${API_PORT}/api/v1/scenarios
     method: GET
     expect:
       status: 200
@@ -35,7 +35,7 @@ tests:
 
   - name: System status endpoint
     type: api
-    endpoint: http://localhost:8421/api/v1/system/status
+    endpoint: http://localhost:${API_PORT}/api/v1/system/status
     method: GET
     expect:
       status: 200
@@ -45,7 +45,7 @@ tests:
 
   - name: Vulnerabilities endpoint
     type: api
-    endpoint: http://localhost:8421/api/v1/vulnerabilities
+    endpoint: http://localhost:${API_PORT}/api/v1/vulnerabilities
     method: GET
     expect:
       status: 200
@@ -55,7 +55,7 @@ tests:
 
   - name: Discovery trigger
     type: api
-    endpoint: http://localhost:8421/api/v1/system/discover
+    endpoint: http://localhost:${API_PORT}/api/v1/system/discover
     method: POST
     expect:
       status: 200
@@ -78,7 +78,7 @@ tests:
 
   - name: Web dashboard accessibility
     type: http
-    url: http://localhost:8420
+    url: http://localhost:${UI_PORT}
     method: GET
     expect:
       status: 200
@@ -99,37 +99,31 @@ validation:
       - /api/v1/scenarios
       - /api/v1/vulnerabilities
       - /api/v1/system/status
-    base_url: http://localhost:8421
+    base_url: http://localhost:${API_PORT}
     expect_all:
       status: 200
 
 integration:
-  - name: N8n workflow deployment
-    type: command
-    command: resource-n8n list-workflows | grep -E "(API Scanner|Security Audit)"
-    expect:
-      exit_code: 0
-
   - name: Resource connectivity
     type: multi_command
     commands:
       - resource-postgres status
-      - resource-ollama status  
-      - resource-n8n status
+      - resource-ollama status
+      - resource-qdrant status
     expect_all:
       exit_code: 0
 
 performance:
   - name: API response time
     type: api
-    endpoint: http://localhost:8421/api/v1/health
+    endpoint: http://localhost:${API_PORT}/api/v1/health
     method: GET
     expect:
       response_time_ms: < 500
 
   - name: UI load time
     type: http
-    url: http://localhost:8420
+    url: http://localhost:${UI_PORT}
     method: GET
     expect:
       response_time_ms: < 1000

@@ -8,8 +8,7 @@ CLINE_LIB_DIR="${APP_ROOT}/resources/cline/lib"
 # Source required utilities
 # shellcheck disable=SC1091
 source "${CLINE_LIB_DIR}/common.sh"
-# shellcheck disable=SC1091
-source "${CLINE_LIB_DIR}/agents.sh" 2>/dev/null || true
+# Agent management is now handled via unified system (see cli.sh)
 
 #######################################
 # Add content to Cline (templates, configs, etc.)
@@ -350,13 +349,434 @@ cline::content::execute() {
                     ;;
             esac
             ;;
+        context)
+            # Workspace context management
+            local subaction="${1:-load}"
+            shift || true
+            case "$subaction" in
+                load)
+                    # Load workspace context
+                    local workspace_path="${1:-$(pwd)}"
+                    if [[ ! -d "$workspace_path" ]]; then
+                        log::error "Invalid workspace path: $workspace_path"
+                        return 1
+                    fi
+                    
+                    log::info "Loading workspace context from: $workspace_path"
+                    
+                    # Create context file for the workspace
+                    local context_file="$CLINE_DATA_DIR/contexts/$(basename "$workspace_path").json"
+                    mkdir -p "$CLINE_DATA_DIR/contexts"
+                    
+                    # Analyze workspace structure
+                    local file_count=$(find "$workspace_path" -type f -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.go" 2>/dev/null | wc -l)
+                    local total_size=$(du -sh "$workspace_path" 2>/dev/null | cut -f1)
+                    
+                    # Create context JSON
+                    cat > "$context_file" <<EOF
+{
+  "workspace": "$workspace_path",
+  "loaded_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "statistics": {
+    "file_count": $file_count,
+    "total_size": "$total_size",
+    "languages": $(find "$workspace_path" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.go" \) -exec basename {} \; 2>/dev/null | sed 's/.*\.//' | sort -u | jq -R . | jq -s .)
+  },
+  "important_files": [
+    $(find "$workspace_path" -maxdepth 3 -type f \( -name "package.json" -o -name "README.md" -o -name "Makefile" -o -name "go.mod" -o -name "requirements.txt" \) 2>/dev/null | head -10 | jq -R . | jq -s 'join(",\n    ")')
+  ],
+  "active": true
+}
+EOF
+                    log::success "Workspace context loaded: $(basename "$workspace_path")"
+                    log::info "  Files: $file_count"
+                    log::info "  Size: $total_size"
+                    log::info "Context saved to: $context_file"
+                    ;;
+                
+                show)
+                    # Show current context
+                    if [[ -d "$CLINE_DATA_DIR/contexts" ]]; then
+                        local active_context=$(find "$CLINE_DATA_DIR/contexts" -name "*.json" -exec jq -r 'select(.active == true) | .workspace' {} \; 2>/dev/null | head -1)
+                        if [[ -n "$active_context" ]]; then
+                            log::info "Active workspace context: $active_context"
+                            local context_file="$CLINE_DATA_DIR/contexts/$(basename "$active_context").json"
+                            if [[ -f "$context_file" ]]; then
+                                jq '.' "$context_file"
+                            fi
+                        else
+                            log::info "No active workspace context"
+                        fi
+                    else
+                        log::info "No workspace contexts loaded"
+                    fi
+                    ;;
+                
+                clear)
+                    # Clear context
+                    if [[ -d "$CLINE_DATA_DIR/contexts" ]]; then
+                        find "$CLINE_DATA_DIR/contexts" -name "*.json" -exec jq '.active = false' {} \; -exec sponge {} \; 2>/dev/null || {
+                            # Fallback if sponge is not available
+                            for file in "$CLINE_DATA_DIR/contexts"/*.json; do
+                                if [[ -f "$file" ]]; then
+                                    local tmp_file=$(mktemp)
+                                    jq '.active = false' "$file" > "$tmp_file" && mv "$tmp_file" "$file"
+                                fi
+                            done
+                        }
+                        log::success "Workspace context cleared"
+                    else
+                        log::info "No workspace contexts to clear"
+                    fi
+                    ;;
+                
+                list)
+                    # List all contexts
+                    if [[ -d "$CLINE_DATA_DIR/contexts" ]]; then
+                        log::info "Available workspace contexts:"
+                        for context_file in "$CLINE_DATA_DIR/contexts"/*.json; do
+                            if [[ -f "$context_file" ]]; then
+                                local workspace=$(jq -r '.workspace' "$context_file")
+                                local loaded_at=$(jq -r '.loaded_at' "$context_file")
+                                local active=$(jq -r '.active' "$context_file")
+                                local marker=""
+                                [[ "$active" == "true" ]] && marker=" [ACTIVE]"
+                                echo "  - $(basename "$workspace"): $workspace (loaded: $loaded_at)$marker"
+                            fi
+                        done
+                    else
+                        log::info "No workspace contexts found"
+                    fi
+                    ;;
+                
+                *)
+                    log::error "Unknown context action: $subaction"
+                    log::info "Available: load <path>, show, clear, list"
+                    return 1
+                    ;;
+            esac
+            ;;
+        
+        instructions)
+            # Custom instructions management
+            local subaction="${1:-list}"
+            shift || true
+            
+            case "$subaction" in
+                add)
+                    # Add custom instruction
+                    local name="${1:-}"
+                    local instruction="${2:-}"
+                    
+                    if [[ -z "$name" ]] || [[ -z "$instruction" ]]; then
+                        log::error "Usage: instructions add <name> <instruction>"
+                        return 1
+                    fi
+                    
+                    mkdir -p "$CLINE_DATA_DIR/instructions"
+                    echo "$instruction" > "$CLINE_DATA_DIR/instructions/$name.txt"
+                    
+                    # Also save metadata
+                    cat > "$CLINE_DATA_DIR/instructions/$name.json" <<EOF
+{
+  "name": "$name",
+  "instruction": "$instruction",
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "active": true
+}
+EOF
+                    log::success "Custom instruction added: $name"
+                    ;;
+                
+                list)
+                    # List custom instructions
+                    log::info "Custom Instructions:"
+                    if [[ -d "$CLINE_DATA_DIR/instructions" ]]; then
+                        for inst_file in "$CLINE_DATA_DIR/instructions"/*.json; do
+                            if [[ -f "$inst_file" ]]; then
+                                local name=$(jq -r '.name' "$inst_file")
+                                local active=$(jq -r '.active' "$inst_file")
+                                local marker=""
+                                [[ "$active" == "true" ]] && marker=" [ACTIVE]"
+                                echo "  - $name$marker"
+                            fi
+                        done 2>/dev/null || echo "  No custom instructions found"
+                    else
+                        echo "  No custom instructions found"
+                    fi
+                    ;;
+                
+                show)
+                    # Show specific instruction
+                    local name="${1:-}"
+                    if [[ -z "$name" ]]; then
+                        log::error "Usage: instructions show <name>"
+                        return 1
+                    fi
+                    
+                    if [[ -f "$CLINE_DATA_DIR/instructions/$name.txt" ]]; then
+                        log::info "Instruction: $name"
+                        echo "---"
+                        cat "$CLINE_DATA_DIR/instructions/$name.txt"
+                    else
+                        log::error "Instruction not found: $name"
+                        return 1
+                    fi
+                    ;;
+                
+                remove)
+                    # Remove instruction
+                    local name="${1:-}"
+                    if [[ -z "$name" ]]; then
+                        log::error "Usage: instructions remove <name>"
+                        return 1
+                    fi
+                    
+                    if [[ -f "$CLINE_DATA_DIR/instructions/$name.txt" ]]; then
+                        rm -f "$CLINE_DATA_DIR/instructions/$name.txt"
+                        rm -f "$CLINE_DATA_DIR/instructions/$name.json"
+                        log::success "Instruction removed: $name"
+                    else
+                        log::error "Instruction not found: $name"
+                        return 1
+                    fi
+                    ;;
+                
+                activate)
+                    # Activate an instruction
+                    local name="${1:-}"
+                    if [[ -z "$name" ]]; then
+                        log::error "Usage: instructions activate <name>"
+                        return 1
+                    fi
+                    
+                    if [[ -f "$CLINE_DATA_DIR/instructions/$name.json" ]]; then
+                        local tmp_file=$(mktemp)
+                        jq '.active = true' "$CLINE_DATA_DIR/instructions/$name.json" > "$tmp_file" && mv "$tmp_file" "$CLINE_DATA_DIR/instructions/$name.json"
+                        log::success "Instruction activated: $name"
+                    else
+                        log::error "Instruction not found: $name"
+                        return 1
+                    fi
+                    ;;
+                
+                *)
+                    log::error "Unknown instructions action: $subaction"
+                    log::info "Available: add <name> <instruction>, list, show <name>, remove <name>, activate <name>"
+                    return 1
+                    ;;
+            esac
+            ;;
+        
+        batch)
+            # Batch operations on multiple files
+            local operation="${1:-analyze}"
+            shift || true
+            
+            case "$operation" in
+                analyze)
+                    # Analyze multiple files
+                    local pattern="${1:-*.js}"
+                    local search_dir="${2:-$(pwd)}"
+                    
+                    log::info "Analyzing files matching: $pattern in $search_dir"
+                    
+                    local batch_report="$CLINE_DATA_DIR/batch_reports/$(date +%Y%m%d_%H%M%S).json"
+                    mkdir -p "$CLINE_DATA_DIR/batch_reports"
+                    
+                    # Find matching files
+                    local files_found=0
+                    local total_lines=0
+                    local file_list=()
+                    
+                    while IFS= read -r file; do
+                        ((files_found++))
+                        file_list+=("$file")
+                        local lines=$(wc -l < "$file" 2>/dev/null || echo 0)
+                        ((total_lines+=lines))
+                    done < <(find "$search_dir" -type f -name "$pattern" 2>/dev/null | head -100)
+                    
+                    # Create batch report
+                    {
+                        echo "{"
+                        echo "  \"timestamp\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\","
+                        echo "  \"pattern\": \"$pattern\","
+                        echo "  \"directory\": \"$search_dir\","
+                        echo "  \"files_found\": $files_found,"
+                        echo "  \"total_lines\": $total_lines,"
+                        echo "  \"files\": ["
+                        
+                        local first=true
+                        for file in "${file_list[@]}"; do
+                            [[ "$first" == "true" ]] && first=false || echo ","
+                            echo -n "    \"$file\""
+                        done
+                        
+                        echo ""
+                        echo "  ]"
+                        echo "}"
+                    } > "$batch_report"
+                    
+                    log::success "Batch analysis complete:"
+                    log::info "  Files found: $files_found"
+                    log::info "  Total lines: $total_lines"
+                    log::info "  Report saved: $batch_report"
+                    ;;
+                
+                process)
+                    # Process files with AI operations (stub for now)
+                    local pattern="${1:-*.js}"
+                    local operation_type="${2:-refactor}"
+                    
+                    log::info "Batch processing files: $pattern"
+                    log::info "Operation: $operation_type"
+                    
+                    # Create batch job
+                    local batch_id="batch_$(date +%Y%m%d_%H%M%S)"
+                    local batch_dir="$CLINE_DATA_DIR/batch_jobs/$batch_id"
+                    mkdir -p "$batch_dir"
+                    
+                    # Find files to process
+                    local files_count=0
+                    find "$(pwd)" -type f -name "$pattern" 2>/dev/null | head -20 | while read -r file; do
+                        ((files_count++))
+                        echo "$file" >> "$batch_dir/files.txt"
+                    done
+                    
+                    # Create batch configuration
+                    cat > "$batch_dir/config.json" <<EOF
+{
+  "batch_id": "$batch_id",
+  "pattern": "$pattern",
+  "operation": "$operation_type",
+  "status": "queued",
+  "created_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "files_count": $(wc -l < "$batch_dir/files.txt" 2>/dev/null || echo 0)
+}
+EOF
+                    
+                    log::success "Batch job created: $batch_id"
+                    log::info "Files queued: $(wc -l < "$batch_dir/files.txt" 2>/dev/null || echo 0)"
+                    log::info "Use 'content execute batch status $batch_id' to check progress"
+                    ;;
+                
+                status)
+                    # Check batch job status
+                    local batch_id="${1:-}"
+                    
+                    if [[ -z "$batch_id" ]]; then
+                        # List all batch jobs
+                        log::info "Batch jobs:"
+                        if [[ -d "$CLINE_DATA_DIR/batch_jobs" ]]; then
+                            for job_dir in "$CLINE_DATA_DIR/batch_jobs"/batch_*; do
+                                if [[ -f "$job_dir/config.json" ]]; then
+                                    local id=$(basename "$job_dir")
+                                    local status=$(jq -r '.status' "$job_dir/config.json")
+                                    local files=$(jq -r '.files_count' "$job_dir/config.json")
+                                    echo "  $id: $status ($files files)"
+                                fi
+                            done
+                        else
+                            echo "  No batch jobs found"
+                        fi
+                    else
+                        # Show specific batch job
+                        local batch_dir="$CLINE_DATA_DIR/batch_jobs/$batch_id"
+                        if [[ -f "$batch_dir/config.json" ]]; then
+                            log::info "Batch job: $batch_id"
+                            jq '.' "$batch_dir/config.json"
+                        else
+                            log::error "Batch job not found: $batch_id"
+                            return 1
+                        fi
+                    fi
+                    ;;
+                
+                *)
+                    log::error "Unknown batch operation: $operation"
+                    log::info "Available: analyze <pattern>, process <pattern> <operation>, status [batch_id]"
+                    return 1
+                    ;;
+            esac
+            ;;
+        
+        analytics|usage)
+            # Usage analytics tracking
+            local subaction="${1:-show}"
+            shift || true
+            
+            # Initialize analytics file if needed
+            local analytics_file="$CLINE_DATA_DIR/analytics.json"
+            if [[ ! -f "$analytics_file" ]]; then
+                mkdir -p "$CLINE_DATA_DIR"
+                echo '{"sessions": [], "total_tokens": 0, "total_cost": 0}' > "$analytics_file"
+            fi
+            
+            case "$subaction" in
+                show)
+                    log::info "Cline Usage Analytics:"
+                    if [[ -f "$analytics_file" ]]; then
+                        local total_tokens=$(jq -r '.total_tokens // 0' "$analytics_file")
+                        local total_cost=$(jq -r '.total_cost // 0' "$analytics_file")
+                        local session_count=$(jq -r '.sessions | length' "$analytics_file")
+                        
+                        echo "  Total sessions: $session_count"
+                        echo "  Total tokens: $total_tokens"
+                        echo "  Estimated cost: \$$total_cost"
+                        
+                        # Show recent sessions
+                        if [[ $session_count -gt 0 ]]; then
+                            echo ""
+                            echo "Recent sessions:"
+                            jq -r '.sessions | sort_by(.timestamp) | reverse | .[0:5] | .[] | "  \(.timestamp): \(.provider) - \(.tokens) tokens (\(.model))"' "$analytics_file" 2>/dev/null || echo "  No session details available"
+                        fi
+                    else
+                        log::info "No analytics data available yet"
+                    fi
+                    ;;
+                
+                track)
+                    # Track a new session (would be called by Cline integration)
+                    local provider="${1:-ollama}"
+                    local model="${2:-unknown}"
+                    local tokens="${3:-0}"
+                    local cost="${4:-0}"
+                    
+                    local new_session=$(jq -n \
+                        --arg ts "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+                        --arg prov "$provider" \
+                        --arg mod "$model" \
+                        --argjson tok "$tokens" \
+                        --argjson cst "$cost" \
+                        '{timestamp: $ts, provider: $prov, model: $mod, tokens: $tok, cost: $cst}')
+                    
+                    jq --argjson session "$new_session" \
+                        '.sessions += [$session] | .total_tokens += $session.tokens | .total_cost += $session.cost' \
+                        "$analytics_file" > "${analytics_file}.tmp" && mv "${analytics_file}.tmp" "$analytics_file"
+                    
+                    log::success "Session tracked: $provider/$model - $tokens tokens"
+                    ;;
+                
+                reset)
+                    echo '{"sessions": [], "total_tokens": 0, "total_cost": 0}' > "$analytics_file"
+                    log::success "Analytics data reset"
+                    ;;
+                
+                *)
+                    log::error "Unknown analytics action: $subaction"
+                    log::info "Available: show, track <provider> <model> <tokens> <cost>, reset"
+                    return 1
+                    ;;
+            esac
+            ;;
+        
         status)
             # Show detailed status for execution context
             cline::status
             ;;
         *)
             log::error "Unknown execute action: $action"
-            log::info "Available actions: open, configure, chat, prompt, provider, models, status"
+            log::info "Available actions: open, configure, chat, prompt, provider, models, context, analytics, batch, instructions, status"
             return 1
             ;;
     esac

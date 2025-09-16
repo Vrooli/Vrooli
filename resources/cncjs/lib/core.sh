@@ -120,7 +120,8 @@ cncjs::start() {
     
     # Ensure image exists
     if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${CNCJS_IMAGE}$"; then
-        log::error "CNCjs image not found. Run 'manage install' first"
+        log::error "CNCjs image not found"
+        log::info "Recovery hint: Run 'vrooli resource cncjs manage install' to download the image"
         return 1
     fi
     
@@ -138,8 +139,18 @@ cncjs::start() {
         "${CNCJS_IMAGE}" \
         --port 8000 \
         --host 0.0.0.0 \
-        --allow-remote-access; then
+        --allow-remote-access 2>&1; then
+        local error_msg=$(docker logs "${CNCJS_CONTAINER_NAME}" 2>&1 | tail -n 5)
         log::error "Failed to start CNCjs container"
+        
+        # Check for common issues
+        if echo "${error_msg}" | grep -q "port is already allocated"; then
+            log::info "Recovery hint: Port ${CNCJS_PORT} is in use. Stop the conflicting service or change the port"
+        elif echo "${error_msg}" | grep -q "permission denied"; then
+            log::info "Recovery hint: Docker requires elevated permissions for serial port access"
+        else
+            log::info "Recovery hint: Check Docker logs with 'docker logs ${CNCJS_CONTAINER_NAME}'"
+        fi
         return 1
     fi
     
@@ -224,6 +235,63 @@ cncjs::health_check() {
 }
 
 #######################################
+# Provide health endpoint response
+#######################################
+cncjs::health() {
+    local start_time=$(date +%s%3N)
+    local status="unhealthy"
+    local controller_state="unknown"
+    local message="Service not available"
+    local uptime="0s"
+    
+    # Check if container is running
+    if docker ps --format "{{.Names}}" | grep -q "^${CNCJS_CONTAINER_NAME}$"; then
+        # Get container uptime
+        uptime=$(docker ps --format "table {{.Status}}" --filter "name=${CNCJS_CONTAINER_NAME}" | tail -n 1)
+        
+        # Check web interface (using v2.0 standard timeout)
+        if timeout 5 curl -sf "http://localhost:${CNCJS_PORT}/" &>/dev/null; then
+            status="healthy"
+            message="CNCjs web interface is accessible"
+            
+            # Check for controller connection (simulated since we don't have hardware)
+            if [[ -e "${CNCJS_SERIAL_PORT}" ]]; then
+                controller_state="connected"
+            else
+                controller_state="disconnected (no hardware)"
+            fi
+        else
+            status="degraded"
+            message="Container running but web interface not responding"
+        fi
+    fi
+    
+    local end_time=$(date +%s%3N)
+    local response_time=$((end_time - start_time))
+    
+    # Output JSON health response
+    cat <<EOF
+{
+  "status": "${status}",
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "response_time_ms": ${response_time},
+  "service": {
+    "name": "cncjs",
+    "version": "latest",
+    "uptime": "${uptime}",
+    "port": ${CNCJS_PORT}
+  },
+  "controller": {
+    "type": "${CNCJS_CONTROLLER}",
+    "state": "${controller_state}",
+    "port": "${CNCJS_SERIAL_PORT}"
+  },
+  "message": "${message}"
+}
+EOF
+}
+
+#######################################
 # Show CNCjs status
 #######################################
 cncjs::status() {
@@ -247,7 +315,7 @@ cncjs::status() {
             
             # Try to get controller state
             # Note: API requires authentication, so we check if service is responding
-            if timeout 2 curl -sf "http://localhost:${CNCJS_PORT}/" &>/dev/null; then
+            if timeout 5 curl -sf "http://localhost:${CNCJS_PORT}/" &>/dev/null; then
                 # Controller state requires actual hardware connection
                 controller_state="service ready (controller not connected)"
             fi
@@ -293,9 +361,14 @@ cncjs::logs() {
         return 1
     fi
     
-    if [[ "$follow" == "--follow" ]]; then
+    if [[ "$follow" == "--follow" || "$follow" == "-f" ]]; then
+        log::info "Following CNCjs logs (Ctrl+C to exit)..."
         docker logs -f "${CNCJS_CONTAINER_NAME}"
+    elif [[ "$follow" == "--tail" ]]; then
+        local lines="${2:-50}"
+        docker logs --tail "$lines" "${CNCJS_CONTAINER_NAME}"
     else
+        log::info "Showing last 50 lines of CNCjs logs (use --follow for live logs)..."
         docker logs --tail 50 "${CNCJS_CONTAINER_NAME}"
     fi
 }
@@ -2216,7 +2289,8 @@ EOF
                 jq '.active = true' "$queue_status_file" > "${queue_status_file}.tmp" && \
                     mv "${queue_status_file}.tmp" "$queue_status_file"
                 
-                log::info "Queue processor started (PID: $$)"
+                # Redirect output to avoid subshell issues
+                exec &>/dev/null
                 
                 while [[ -f "$queue_lock_file" ]]; do
                     # Find next job by priority
@@ -2258,12 +2332,11 @@ EOF
                         rm "${queue_dir}/running/${job_name}.job"
                         
                         # Update statistics
-                        local completed=$(jq -r '.stats.completed' "$queue_status_file")
-                        jq ".stats.completed = $((completed + 1)) | .current_job = null" \
+                        local completed=$(jq -r '.stats.completed // 0' "$queue_status_file")
+                        local total=$(jq -r '.stats.total // 0' "$queue_status_file")
+                        jq ".stats.completed = $((completed + 1)) | .stats.total = $((total + 1)) | .current_job = null" \
                             "$queue_status_file" > "${queue_status_file}.tmp" && \
                             mv "${queue_status_file}.tmp" "$queue_status_file"
-                        
-                        log::success "Job $job_name completed"
                     else
                         # No jobs to process, wait
                         sleep 2
@@ -2284,8 +2357,22 @@ EOF
             if [[ -f "$queue_lock_file" ]]; then
                 local pid=$(cat "$queue_lock_file")
                 if kill -0 "$pid" 2>/dev/null; then
-                    kill "$pid"
-                    rm "$queue_lock_file"
+                    # Send termination signal
+                    kill "$pid" 2>/dev/null || true
+                    
+                    # Wait briefly for graceful shutdown
+                    local wait_count=0
+                    while [[ $wait_count -lt 3 ]] && kill -0 "$pid" 2>/dev/null; do
+                        sleep 0.5
+                        ((wait_count++))
+                    done
+                    
+                    # Force kill if still running
+                    if kill -0 "$pid" 2>/dev/null; then
+                        kill -9 "$pid" 2>/dev/null || true
+                    fi
+                    
+                    rm -f "$queue_lock_file"
                     
                     # Update status
                     jq '.active = false' "$queue_status_file" > "${queue_status_file}.tmp" && \
@@ -2293,7 +2380,7 @@ EOF
                     
                     log::success "Queue processor stopped"
                 else
-                    rm "$queue_lock_file"
+                    rm -f "$queue_lock_file"
                     log::warning "Queue processor was not running"
                 fi
             else
@@ -2364,4 +2451,583 @@ EOF
             return 1
             ;;
     esac
+}
+
+#######################################
+# Real-time position tracking
+#######################################
+cncjs::position() {
+    local subcommand="${1:-current}"
+    shift || true
+    
+    local position_file="${CNCJS_DATA_DIR}/position.json"
+    local tracking_file="${CNCJS_DATA_DIR}/tracking.pid"
+    
+    # Initialize position file if not exists
+    if [[ ! -f "$position_file" ]]; then
+        cat > "$position_file" << EOF
+{
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0,
+    "feedrate": 0,
+    "spindle": 0,
+    "status": "idle",
+    "work_offset": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+    },
+    "machine_position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+    },
+    "controller_state": "disconnected",
+    "last_update": "$(date -Iseconds)"
+}
+EOF
+    fi
+    
+    case "$subcommand" in
+        current|get)
+            # Return current position
+            if [[ "${1:-}" == "--json" ]]; then
+                cat "$position_file"
+            else
+                local x=$(jq -r '.x' "$position_file")
+                local y=$(jq -r '.y' "$position_file")
+                local z=$(jq -r '.z' "$position_file")
+                local status=$(jq -r '.status' "$position_file")
+                local controller=$(jq -r '.controller_state' "$position_file")
+                
+                echo "Machine Position:"
+                echo "  X: ${x}mm"
+                echo "  Y: ${y}mm"
+                echo "  Z: ${z}mm"
+                echo "  Status: $status"
+                echo "  Controller: $controller"
+            fi
+            ;;
+            
+        track|start)
+            # Start position tracking
+            if [[ -f "$tracking_file" ]]; then
+                local pid=$(cat "$tracking_file")
+                if kill -0 "$pid" 2>/dev/null; then
+                    log::warning "Position tracking already running (PID: $pid)"
+                    return 0
+                fi
+                rm "$tracking_file"
+            fi
+            
+            log::info "Starting position tracking..."
+            
+            # Start tracking in background (with error handling disabled for subshell)
+            (
+                set +e  # Disable error exit in subshell
+                echo $$ > "$tracking_file"
+                local history_file="${CNCJS_DATA_DIR}/position_history.jsonl"
+                local history_counter=0
+                
+                while [[ -f "$tracking_file" ]]; do
+                    # In a real implementation, this would query the controller
+                    # For now, simulate movement if a job is running
+                    local current_job=$(jq -r '.current_job // "none"' "${CNCJS_DATA_DIR}/queue/status.json" 2>/dev/null || echo "none")
+                    
+                    if [[ "$current_job" != "none" && "$current_job" != "null" && -n "$current_job" ]]; then
+                        # Simulate movement during job
+                        local x=$(jq -r '.x' "$position_file" 2>/dev/null || echo "0")
+                        local y=$(jq -r '.y' "$position_file" 2>/dev/null || echo "0")
+                        local z=$(jq -r '.z' "$position_file" 2>/dev/null || echo "0")
+                        
+                        # Small simulated movements
+                        x=$(awk "BEGIN {print $x + 0.1}")
+                        y=$(awk "BEGIN {print $y + 0.05}")
+                        
+                        jq ".x = $x | .y = $y | .z = $z | .status = \"running\" | .last_update = \"$(date -Iseconds)\"" \
+                            "$position_file" > "${position_file}.tmp" 2>/dev/null && \
+                            mv "${position_file}.tmp" "$position_file" 2>/dev/null
+                    else
+                        # Update idle status
+                        jq ".status = \"idle\" | .last_update = \"$(date -Iseconds)\"" \
+                            "$position_file" > "${position_file}.tmp" 2>/dev/null && \
+                            mv "${position_file}.tmp" "$position_file" 2>/dev/null
+                    fi
+                    
+                    # Record to history every 10 updates (1 second at 10Hz)
+                    ((history_counter++))
+                    if [[ $((history_counter % 10)) -eq 0 ]]; then
+                        local current_data=$(cat "$position_file" 2>/dev/null)
+                        if [[ -n "$current_data" ]]; then
+                            echo "$current_data" | jq -c '.timestamp = .last_update' >> "$history_file" 2>/dev/null
+                            
+                            # Keep history file size manageable (max 10000 entries)
+                            local line_count=$(wc -l < "$history_file" 2>/dev/null || echo "0")
+                            if [[ $line_count -gt 10000 ]]; then
+                                tail -n 9000 "$history_file" > "${history_file}.tmp" 2>/dev/null && \
+                                    mv "${history_file}.tmp" "$history_file" 2>/dev/null
+                            fi
+                        fi
+                    fi
+                    
+                    sleep 0.1  # 10Hz update rate
+                done
+            ) > /dev/null 2>&1 &
+            
+            log::success "Position tracking started"
+            ;;
+            
+        stop)
+            # Stop position tracking
+            if [[ -f "$tracking_file" ]]; then
+                local pid=$(cat "$tracking_file")
+                if kill -0 "$pid" 2>/dev/null; then
+                    kill "$pid"
+                    rm "$tracking_file"
+                    log::success "Position tracking stopped"
+                else
+                    rm "$tracking_file"
+                    log::warning "Position tracking was not running"
+                fi
+            else
+                log::warning "Position tracking is not active"
+            fi
+            ;;
+            
+        zero|home)
+            # Zero/home position
+            log::info "Setting position to zero..."
+            jq '.x = 0 | .y = 0 | .z = 0 | .work_offset.x = 0 | .work_offset.y = 0 | .work_offset.z = 0' \
+                "$position_file" > "${position_file}.tmp" && \
+                mv "${position_file}.tmp" "$position_file"
+            log::success "Position zeroed"
+            ;;
+            
+        set)
+            # Set position manually
+            local axis="${2:-}"
+            local value="${3:-0}"
+            
+            if [[ -z "$axis" ]]; then
+                log::error "Usage: position set <axis> <value>"
+                return 1
+            fi
+            
+            case "$axis" in
+                x|X) axis="x" ;;
+                y|Y) axis="y" ;;
+                z|Z) axis="z" ;;
+                *)
+                    log::error "Invalid axis: $axis (use x, y, or z)"
+                    return 1
+                    ;;
+            esac
+            
+            jq ".${axis} = $value | .last_update = \"$(date -Iseconds)\"" \
+                "$position_file" > "${position_file}.tmp" && \
+                mv "${position_file}.tmp" "$position_file"
+            
+            log::success "Position $axis set to $value"
+            ;;
+            
+        history)
+            # Show position history
+            local history_file="${CNCJS_DATA_DIR}/position_history.jsonl"
+            local limit="${2:-100}"
+            local format="${3:-text}"
+            
+            if [[ ! -f "$history_file" ]]; then
+                log::warning "No position history available"
+                return 0
+            fi
+            
+            if [[ "$format" == "--json" || "$format" == "json" ]]; then
+                # Output last N entries as JSON array
+                tail -n "$limit" "$history_file" | jq -s '.'
+            else
+                echo "Position History (last $limit entries):"
+                echo "========================================="
+                tail -n "$limit" "$history_file" | while IFS= read -r line; do
+                    local timestamp=$(echo "$line" | jq -r '.timestamp')
+                    local x=$(echo "$line" | jq -r '.x')
+                    local y=$(echo "$line" | jq -r '.y')
+                    local z=$(echo "$line" | jq -r '.z')
+                    local status=$(echo "$line" | jq -r '.status')
+                    printf "[%s] X:%.3f Y:%.3f Z:%.3f Status:%s\n" "$timestamp" "$x" "$y" "$z" "$status"
+                done
+            fi
+            ;;
+            
+        clear-history)
+            # Clear position history
+            local history_file="${CNCJS_DATA_DIR}/position_history.jsonl"
+            if [[ -f "$history_file" ]]; then
+                > "$history_file"
+                log::success "Position history cleared"
+            else
+                log::warning "No position history to clear"
+            fi
+            ;;
+            
+        export-history)
+            # Export position history as CSV or JSON
+            local history_file="${CNCJS_DATA_DIR}/position_history.jsonl"
+            local output="${2:-position_history.csv}"
+            local format="${3:-csv}"
+            
+            if [[ ! -f "$history_file" ]]; then
+                log::error "No position history to export"
+                return 1
+            fi
+            
+            if [[ "$format" == "json" ]]; then
+                cat "$history_file" | jq -s '.' > "$output"
+                log::success "Position history exported to $output (JSON)"
+            else
+                # Export as CSV
+                echo "timestamp,x,y,z,status,feedrate,spindle" > "$output"
+                while IFS= read -r line; do
+                    echo "$line" | jq -r '[.timestamp, .x, .y, .z, .status, .feedrate // 0, .spindle // 0] | @csv' >> "$output"
+                done < "$history_file"
+                log::success "Position history exported to $output (CSV)"
+            fi
+            ;;
+            
+        *)
+            log::error "Unknown position subcommand: $subcommand"
+            echo "Available subcommands: current, track, stop, zero, set, history, clear-history, export-history"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Emergency stop functionality
+#######################################
+cncjs::emergency_stop() {
+    log::error "EMERGENCY STOP ACTIVATED!"
+    
+    local queue_lock="${CNCJS_DATA_DIR}/queue/processor.lock"
+    local position_tracking="${CNCJS_DATA_DIR}/tracking.pid"
+    local position_file="${CNCJS_DATA_DIR}/position.json"
+    local queue_status="${CNCJS_DATA_DIR}/queue/status.json"
+    
+    # Stop queue processor immediately
+    if [[ -f "$queue_lock" ]]; then
+        local pid=$(cat "$queue_lock")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid"
+            log::warning "Queue processor killed (PID: $pid)"
+        fi
+        rm "$queue_lock"
+    fi
+    
+    # Stop position tracking
+    if [[ -f "$position_tracking" ]]; then
+        local pid=$(cat "$position_tracking")
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid"
+            log::warning "Position tracking killed (PID: $pid)"
+        fi
+        rm "$position_tracking"
+    fi
+    
+    # Update status files
+    if [[ -f "$position_file" ]]; then
+        jq '.status = "emergency_stop" | .controller_state = "halted"' \
+            "$position_file" > "${position_file}.tmp" && \
+            mv "${position_file}.tmp" "$position_file"
+    fi
+    
+    if [[ -f "$queue_status" ]]; then
+        jq '.active = false | .current_job = null | .emergency_stop = true' \
+            "$queue_status" > "${queue_status}.tmp" && \
+            mv "${queue_status}.tmp" "$queue_status"
+    fi
+    
+    # Move any running jobs to failed state
+    local running_dir="${CNCJS_DATA_DIR}/queue/running"
+    local failed_dir="${CNCJS_DATA_DIR}/queue/failed"
+    
+    if [[ -d "$running_dir" ]]; then
+        for job in "$running_dir"/*.job; do
+            if [[ -f "$job" ]]; then
+                local job_name=$(basename "$job")
+                jq '.status = "failed" | .error = "Emergency stop" | .end_time = "'"$(date -Iseconds)"'"' \
+                    "$job" > "$failed_dir/$job_name"
+                rm "$job"
+                log::warning "Job moved to failed: $job_name"
+            fi
+        done
+    fi
+    
+    # In a real implementation, would send immediate halt command to controller
+    # For simulation, just log the action
+    log::warning "Controller halt command sent (simulated)"
+    
+    log::error "Emergency stop complete. System halted."
+    echo ""
+    echo "To resume operations:"
+    echo "  1. Clear the emergency condition"
+    echo "  2. Run: vrooli resource cncjs reset"
+    echo "  3. Re-home the machine if needed"
+    echo "  4. Restart queue processing if desired"
+    
+    return 0
+}
+
+#######################################
+# Safety zones management
+#######################################
+cncjs::safety_zones() {
+    local subcommand="${1:-list}"
+    shift || true
+    
+    local zones_file="${CNCJS_DATA_DIR}/safety_zones.json"
+    
+    # Initialize zones file if not exists
+    if [[ ! -f "$zones_file" ]]; then
+        cat > "$zones_file" << 'EOF'
+{
+    "soft_limits": {
+        "x_min": -500,
+        "x_max": 500,
+        "y_min": -500,
+        "y_max": 500,
+        "z_min": -100,
+        "z_max": 100,
+        "enabled": true
+    },
+    "no_go_zones": [],
+    "safe_retract_height": 10,
+    "boundary_buffer": 5
+}
+EOF
+    fi
+    
+    case "$subcommand" in
+        list|show)
+            # Show current safety zones
+            if [[ "${1:-}" == "--json" ]]; then
+                cat "$zones_file"
+            else
+                echo "Safety Zones Configuration:"
+                echo "==========================="
+                echo ""
+                echo "Soft Limits:"
+                local x_min=$(jq -r '.soft_limits.x_min' "$zones_file")
+                local x_max=$(jq -r '.soft_limits.x_max' "$zones_file")
+                local y_min=$(jq -r '.soft_limits.y_min' "$zones_file")
+                local y_max=$(jq -r '.soft_limits.y_max' "$zones_file")
+                local z_min=$(jq -r '.soft_limits.z_min' "$zones_file")
+                local z_max=$(jq -r '.soft_limits.z_max' "$zones_file")
+                local enabled=$(jq -r '.soft_limits.enabled' "$zones_file")
+                
+                echo "  X: $x_min to $x_max mm"
+                echo "  Y: $y_min to $y_max mm"
+                echo "  Z: $z_min to $z_max mm"
+                echo "  Enabled: $enabled"
+                echo ""
+                
+                echo "No-Go Zones:"
+                local zone_count=$(jq '.no_go_zones | length' "$zones_file")
+                if [[ $zone_count -eq 0 ]]; then
+                    echo "  None defined"
+                else
+                    jq -r '.no_go_zones[] | "  [\(.name)]: X:\(.x_min)-\(.x_max) Y:\(.y_min)-\(.y_max) Z:\(.z_min)-\(.z_max)"' "$zones_file"
+                fi
+                echo ""
+                
+                local retract=$(jq -r '.safe_retract_height' "$zones_file")
+                local buffer=$(jq -r '.boundary_buffer' "$zones_file")
+                echo "Safe Retract Height: ${retract}mm"
+                echo "Boundary Buffer: ${buffer}mm"
+            fi
+            ;;
+            
+        set-limits)
+            # Set soft limits
+            local axis="${1:-}"
+            local min="${2:-}"
+            local max="${3:-}"
+            
+            if [[ -z "$axis" || -z "$min" || -z "$max" ]]; then
+                log::error "Usage: safety-zones set-limits <axis> <min> <max>"
+                return 1
+            fi
+            
+            case "$axis" in
+                x|X) axis="x" ;;
+                y|Y) axis="y" ;;
+                z|Z) axis="z" ;;
+                *)
+                    log::error "Invalid axis: $axis (use x, y, or z)"
+                    return 1
+                    ;;
+            esac
+            
+            jq ".soft_limits.${axis}_min = $min | .soft_limits.${axis}_max = $max" \
+                "$zones_file" > "${zones_file}.tmp" && \
+                mv "${zones_file}.tmp" "$zones_file"
+            
+            log::success "Soft limits for $axis axis set to [$min, $max]"
+            ;;
+            
+        enable-limits)
+            # Enable soft limits
+            jq '.soft_limits.enabled = true' "$zones_file" > "${zones_file}.tmp" && \
+                mv "${zones_file}.tmp" "$zones_file"
+            log::success "Soft limits enabled"
+            ;;
+            
+        disable-limits)
+            # Disable soft limits
+            jq '.soft_limits.enabled = false' "$zones_file" > "${zones_file}.tmp" && \
+                mv "${zones_file}.tmp" "$zones_file"
+            log::warning "Soft limits disabled - machine can move outside safe boundaries"
+            ;;
+            
+        add-zone)
+            # Add a no-go zone
+            local name="${1:-}"
+            local x_min="${2:-}"
+            local x_max="${3:-}"
+            local y_min="${4:-}"
+            local y_max="${5:-}"
+            local z_min="${6:-}"
+            local z_max="${7:-}"
+            
+            if [[ -z "$name" || -z "$x_min" || -z "$x_max" || -z "$y_min" || -z "$y_max" || -z "$z_min" || -z "$z_max" ]]; then
+                log::error "Usage: safety-zones add-zone <name> <x_min> <x_max> <y_min> <y_max> <z_min> <z_max>"
+                return 1
+            fi
+            
+            local new_zone=$(jq -n \
+                --arg name "$name" \
+                --argjson x_min "$x_min" \
+                --argjson x_max "$x_max" \
+                --argjson y_min "$y_min" \
+                --argjson y_max "$y_max" \
+                --argjson z_min "$z_min" \
+                --argjson z_max "$z_max" \
+                '{name: $name, x_min: $x_min, x_max: $x_max, y_min: $y_min, y_max: $y_max, z_min: $z_min, z_max: $z_max, enabled: true}')
+            
+            jq ".no_go_zones += [$new_zone]" "$zones_file" > "${zones_file}.tmp" && \
+                mv "${zones_file}.tmp" "$zones_file"
+            
+            log::success "No-go zone '$name' added"
+            ;;
+            
+        remove-zone)
+            # Remove a no-go zone
+            local name="${1:-}"
+            
+            if [[ -z "$name" ]]; then
+                log::error "Usage: safety-zones remove-zone <name>"
+                return 1
+            fi
+            
+            jq "del(.no_go_zones[] | select(.name == \"$name\"))" "$zones_file" > "${zones_file}.tmp" && \
+                mv "${zones_file}.tmp" "$zones_file"
+            
+            log::success "No-go zone '$name' removed"
+            ;;
+            
+        check)
+            # Check if a position is safe
+            local x="${1:-0}"
+            local y="${2:-0}"
+            local z="${3:-0}"
+            
+            local limits_enabled=$(jq -r '.soft_limits.enabled' "$zones_file")
+            local is_safe=true
+            local violations=()
+            
+            # Check soft limits
+            if [[ "$limits_enabled" == "true" ]]; then
+                local x_min=$(jq -r '.soft_limits.x_min' "$zones_file")
+                local x_max=$(jq -r '.soft_limits.x_max' "$zones_file")
+                local y_min=$(jq -r '.soft_limits.y_min' "$zones_file")
+                local y_max=$(jq -r '.soft_limits.y_max' "$zones_file")
+                local z_min=$(jq -r '.soft_limits.z_min' "$zones_file")
+                local z_max=$(jq -r '.soft_limits.z_max' "$zones_file")
+                
+                if (( $(echo "$x < $x_min || $x > $x_max" | bc -l) )); then
+                    violations+=("X position $x outside limits [$x_min, $x_max]")
+                    is_safe=false
+                fi
+                if (( $(echo "$y < $y_min || $y > $y_max" | bc -l) )); then
+                    violations+=("Y position $y outside limits [$y_min, $y_max]")
+                    is_safe=false
+                fi
+                if (( $(echo "$z < $z_min || $z > $z_max" | bc -l) )); then
+                    violations+=("Z position $z outside limits [$z_min, $z_max]")
+                    is_safe=false
+                fi
+            fi
+            
+            # Check no-go zones
+            while IFS= read -r zone; do
+                local zone_name=$(echo "$zone" | jq -r '.name')
+                local zone_enabled=$(echo "$zone" | jq -r '.enabled')
+                
+                if [[ "$zone_enabled" == "true" ]]; then
+                    local zone_x_min=$(echo "$zone" | jq -r '.x_min')
+                    local zone_x_max=$(echo "$zone" | jq -r '.x_max')
+                    local zone_y_min=$(echo "$zone" | jq -r '.y_min')
+                    local zone_y_max=$(echo "$zone" | jq -r '.y_max')
+                    local zone_z_min=$(echo "$zone" | jq -r '.z_min')
+                    local zone_z_max=$(echo "$zone" | jq -r '.z_max')
+                    
+                    if (( $(echo "$x >= $zone_x_min && $x <= $zone_x_max && $y >= $zone_y_min && $y <= $zone_y_max && $z >= $zone_z_min && $z <= $zone_z_max" | bc -l) )); then
+                        violations+=("Position inside no-go zone '$zone_name'")
+                        is_safe=false
+                    fi
+                fi
+            done < <(jq -c '.no_go_zones[]' "$zones_file" 2>/dev/null)
+            
+            if [[ "$is_safe" == "true" ]]; then
+                log::success "Position (X:$x, Y:$y, Z:$z) is SAFE"
+            else
+                log::error "Position (X:$x, Y:$y, Z:$z) is UNSAFE"
+                for violation in "${violations[@]}"; do
+                    echo "  - $violation"
+                done
+            fi
+            
+            return $([ "$is_safe" == "true" ] && echo 0 || echo 1)
+            ;;
+            
+        *)
+            log::error "Unknown safety-zones subcommand: $subcommand"
+            echo "Available subcommands: list, set-limits, enable-limits, disable-limits, add-zone, remove-zone, check"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Reset after emergency stop
+#######################################
+cncjs::reset() {
+    log::info "Resetting CNCjs after emergency stop..."
+    
+    local position_file="${CNCJS_DATA_DIR}/position.json"
+    local queue_status="${CNCJS_DATA_DIR}/queue/status.json"
+    
+    # Clear emergency stop flag
+    if [[ -f "$queue_status" ]]; then
+        jq 'del(.emergency_stop)' "$queue_status" > "${queue_status}.tmp" && \
+            mv "${queue_status}.tmp" "$queue_status"
+    fi
+    
+    # Reset position status
+    if [[ -f "$position_file" ]]; then
+        jq '.status = "idle" | .controller_state = "ready"' \
+            "$position_file" > "${position_file}.tmp" && \
+            mv "${position_file}.tmp" "$position_file"
+    fi
+    
+    log::success "System reset complete. Ready for operation."
 }

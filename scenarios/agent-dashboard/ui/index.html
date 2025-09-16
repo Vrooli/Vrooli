@@ -68,6 +68,46 @@
                 <!-- Radar content will be dynamically generated -->
             </div>
 
+            <!-- Dashboard Controls -->
+            <div class="dashboard-controls">
+                <div class="controls-section">
+                    <div class="search-container">
+                        <i data-lucide="search" class="search-icon"></i>
+                        <input type="text" 
+                               id="agentSearch" 
+                               class="search-input" 
+                               placeholder="Search agents..."
+                               autocomplete="off">
+                        <button class="search-clear" id="searchClear" style="display: none;">
+                            <i data-lucide="x"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="sort-container">
+                        <label class="sort-label">
+                            <i data-lucide="arrow-up-down"></i>
+                            Sort by:
+                        </label>
+                        <select id="agentSort" class="sort-select">
+                            <option value="name-asc">Name (A-Z)</option>
+                            <option value="name-desc">Name (Z-A)</option>
+                            <option value="type-asc">Type (A-Z)</option>
+                            <option value="type-desc">Type (Z-A)</option>
+                            <option value="status-active">Status (Active First)</option>
+                            <option value="status-inactive">Status (Inactive First)</option>
+                            <option value="uptime-newest">Uptime (Newest First)</option>
+                            <option value="uptime-oldest">Uptime (Oldest First)</option>
+                            <option value="memory-high">Memory (High to Low)</option>
+                            <option value="memory-low">Memory (Low to High)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="agent-counter">
+                        <span id="visibleAgentCount">0</span> of <span id="totalAgentCount">0</span> agents
+                    </div>
+                </div>
+            </div>
+
             <!-- Agent Dashboard Grid -->
             <div class="dashboard-grid" id="agentGrid">
                 <!-- Agent cards will be dynamically inserted here -->

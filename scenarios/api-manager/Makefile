@@ -65,20 +65,25 @@ status: ## Check if scenario is running
 
 clean: ## Clean build artifacts
 	@echo "$(YELLOW)🧹 Cleaning $(SCENARIO_NAME) build artifacts...$(RESET)"
-	@rm -rf build/ dist/ *.log api/$(SCENARIO_NAME) api/$(SCENARIO_NAME)-api
+	@rm -rf build/ dist/ *.log
+	@if [ -f api/api-manager-api ]; then rm -f api/api-manager-api; fi
+	@if [ -f cli/api-manager ]; then rm -f cli/api-manager; fi
 	@if [ -d api ]; then cd api && go clean 2>/dev/null || true; fi
 	@if [ -d ui/dist ]; then rm -rf ui/dist; fi
 	@if [ -d ui/build ]; then rm -rf ui/build; fi
+	@if [ -d ui/node_modules ]; then rm -rf ui/node_modules; fi
 	@echo "$(GREEN)✓ Cleaned$(RESET)"
 
 build: ## Build the scenario (if applicable)
 	@echo "$(BLUE)🏗️  Building $(SCENARIO_NAME)...$(RESET)"
 	@if [ -f api/go.mod ]; then \
-		cd api && go build -o $(SCENARIO_NAME)-api ./cmd/server/main.go 2>/dev/null || go build -o $(SCENARIO_NAME)-api main.go 2>/dev/null || echo "Could not build Go API"; \
-	elif [ -f ui/package.json ]; then \
-		cd ui && npm run build 2>/dev/null || echo "Could not build UI"; \
-	else \
-		echo "$(YELLOW)No build needed for this scenario$(RESET)"; \
+		cd api && go build -o api-manager-api . && echo "$(GREEN)✓ Built API server$(RESET)"; \
+	fi
+	@if [ -f ui/package.json ]; then \
+		cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error && echo "$(GREEN)✓ Installed UI dependencies$(RESET)"; \
+	fi
+	@if [ -f cli/go.mod ] || [ -f cli/main.go ]; then \
+		cd cli && go build -o api-manager . && echo "$(GREEN)✓ Built CLI tool$(RESET)"; \
 	fi
 
 # Code Quality Targets

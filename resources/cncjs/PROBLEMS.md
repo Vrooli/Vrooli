@@ -1,5 +1,14 @@
 # CNCjs Known Problems and Limitations
 
+## Update: 2025-09-16 Improvements
+
+### Latest Enhancements
+- **Error Handling**: Added recovery hints for common startup issues (port conflicts, permissions)
+- **Health Check Compliance**: Updated all timeouts to v2.0 standard (5 seconds)
+- **Logs Command**: Enhanced with --follow, --tail options and better user guidance
+- **PRD Accuracy**: Updated to reflect actual working features (position tracking, emergency stop)
+- **Code Robustness**: Improved error detection and user feedback throughout
+
 ## Update: 2025-09-12 Improvements
 
 ### What Was Implemented

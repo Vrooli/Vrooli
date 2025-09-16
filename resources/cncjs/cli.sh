@@ -33,6 +33,7 @@ USAGE:
 COMMANDS:
     help                    Show this help message
     info                    Show resource information and configuration
+    health                  Show health status in JSON format
     manage                  Lifecycle management commands
         install             Install CNCjs and dependencies
         uninstall           Remove CNCjs completely
@@ -100,6 +101,25 @@ COMMANDS:
         stop                Stop queue processor
         clear [state]       Clear queue (pending/completed/failed/all)
         status [job_id]     Show job or queue status
+    position                Real-time position tracking
+        current             Show current machine position
+        track               Start position tracking (10Hz updates)
+        stop                Stop position tracking
+        zero                Zero/home the machine position
+        set <axis> <value>  Set position for specific axis
+        history [limit]     Show position history (default: 100 entries)
+        clear-history       Clear position history
+        export-history [file] [format] Export history (csv/json)
+    emergency-stop|estop    Immediate emergency stop (halts all operations)
+    reset                   Reset system after emergency stop
+    safety-zones            Manage safety zones and soft limits
+        list|show           Show current safety zones configuration
+        set-limits <axis> <min> <max> Set soft limits for axis
+        enable-limits       Enable soft limit checking
+        disable-limits      Disable soft limit checking
+        add-zone <name> <x_min> <x_max> <y_min> <y_max> <z_min> <z_max> Add no-go zone
+        remove-zone <name>  Remove no-go zone
+        check <x> <y> <z>   Check if position is safe
     status                  Show detailed service status
     logs                    View CNCjs logs
     credentials             Display connection information
@@ -215,6 +235,9 @@ main() {
             shift || true
             cncjs::content "$subcommand" "$@"
             ;;
+        health)
+            cncjs::health
+            ;;
         status)
             cncjs::status "$@"
             ;;
@@ -258,6 +281,22 @@ main() {
             local subcommand="${1:-list}"
             shift || true
             cncjs::jobqueue "$subcommand" "$@"
+            ;;
+        position)
+            local subcommand="${1:-current}"
+            shift || true
+            cncjs::position "$subcommand" "$@"
+            ;;
+        emergency-stop|estop)
+            cncjs::emergency_stop "$@"
+            ;;
+        reset)
+            cncjs::reset "$@"
+            ;;
+        safety-zones)
+            local subcommand="${1:-list}"
+            shift || true
+            cncjs::safety_zones "$subcommand" "$@"
             ;;
         *)
             echo "Unknown command: $command" >&2

@@ -3,9 +3,13 @@
 
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCE_DIR="$(dirname "$SCRIPT_DIR")"
+# Get script directory (only if not already set)
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+if [[ -z "${RESOURCE_DIR:-}" ]]; then
+    RESOURCE_DIR="$(dirname "$SCRIPT_DIR")"
+fi
 
 # Source dependencies
 source "${RESOURCE_DIR}/../../scripts/lib/utils/log.sh"

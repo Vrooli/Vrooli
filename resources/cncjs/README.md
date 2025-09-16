@@ -9,6 +9,9 @@ CNCjs provides a modern web interface for controlling CNC machines, featuring:
 - **Macro automation**: Define and execute repetitive task sequences
 - **Workflow management**: Chain multiple G-code files for production runs
 - **Job queue management**: Automated scheduling with priority-based execution
+- **Position tracking**: Real-time machine position monitoring with history recording
+- **Safety zones**: Define no-go areas and soft limits for safe operation
+- **Emergency stop**: Immediate halt capability for safety
 - **Camera integration**: Real-time monitoring with snapshot and timelapse
 - **Custom widgets**: Extensible UI with gauges, buttons, charts, and terminals
 - **Multi-controller support**: Grbl, Marlin, Smoothieware, and TinyG
@@ -135,6 +138,68 @@ vrooli resource cncjs controller test
 vrooli resource cncjs controller remove 3d_printer
 ```
 
+### Position Tracking and History
+
+```bash
+# Show current machine position
+vrooli resource cncjs position current
+
+# Start real-time position tracking (10Hz updates)
+vrooli resource cncjs position track
+
+# Stop position tracking
+vrooli resource cncjs position stop
+
+# View position history (last 50 entries)
+vrooli resource cncjs position history 50
+
+# Clear position history
+vrooli resource cncjs position clear-history
+
+# Export position history to CSV
+vrooli resource cncjs position export-history positions.csv csv
+
+# Export position history to JSON
+vrooli resource cncjs position export-history positions.json json
+
+# Zero/home the machine position
+vrooli resource cncjs position zero
+
+# Set position for specific axis
+vrooli resource cncjs position set x 100
+vrooli resource cncjs position set y 50
+vrooli resource cncjs position set z 10
+```
+
+### Safety Zones Management
+
+```bash
+# Show current safety zones configuration
+vrooli resource cncjs safety-zones list
+
+# Set soft limits for each axis
+vrooli resource cncjs safety-zones set-limits x -500 500
+vrooli resource cncjs safety-zones set-limits y -500 500
+vrooli resource cncjs safety-zones set-limits z -100 100
+
+# Enable/disable soft limits
+vrooli resource cncjs safety-zones enable-limits
+vrooli resource cncjs safety-zones disable-limits
+
+# Add no-go zones (areas machine should avoid)
+vrooli resource cncjs safety-zones add-zone "fixture-area" 50 150 25 75 -10 10
+vrooli resource cncjs safety-zones add-zone "clamp-zone" -100 -50 200 250 0 50
+
+# Remove a no-go zone
+vrooli resource cncjs safety-zones remove-zone "clamp-zone"
+
+# Check if a position is safe
+vrooli resource cncjs safety-zones check 100 50 0
+
+# View zones in JSON format
+vrooli resource cncjs safety-zones list --json
+```
+
 ### Camera Monitoring
 
 ```bash
@@ -192,6 +257,35 @@ vrooli resource cncjs widget uninstall spindle-speed
 
 # Remove widget definition
 vrooli resource cncjs widget remove spindle-speed
+```
+
+### Position Tracking & Safety
+
+```bash
+# Get current machine position
+vrooli resource cncjs position current
+
+# Start real-time position tracking (10Hz updates)
+vrooli resource cncjs position track
+
+# Stop position tracking
+vrooli resource cncjs position stop
+
+# Zero/home the machine
+vrooli resource cncjs position zero
+
+# Set specific axis position
+vrooli resource cncjs position set x 100
+vrooli resource cncjs position set y 50
+vrooli resource cncjs position set z 10
+
+# Emergency stop - immediately halts all operations
+vrooli resource cncjs emergency-stop
+# or
+vrooli resource cncjs estop
+
+# Reset system after emergency stop
+vrooli resource cncjs reset
 ```
 
 ### Job Queue Management

@@ -16,10 +16,10 @@ vrooli resource openemr status
 vrooli resource openemr content add patient --name "John Doe" --dob "1980-01-01"
 
 # Schedule appointment  
-vrooli resource openemr content add appointment --patient-id 1 --provider "Dr. Smith" --date "2025-01-20"
+vrooli resource openemr content add appointment --patient 1 --provider 1 --date "2025-01-20" --time "10:00"
 
-# Export encounter data
-vrooli resource openemr content export encounters --format fhir
+# Export data via FHIR
+vrooli resource openemr content export fhir
 ```
 
 ## Features
@@ -36,11 +36,12 @@ vrooli resource openemr content export encounters --format fhir
 ## Architecture
 
 OpenEMR runs as a containerized stack with:
-- Web interface on port 8080 (patient portal on 8081)
-- REST API on port 8082
-- FHIR API on port 8083  
-- MySQL database for clinical data storage
-- Demo clinic data pre-loaded for testing
+- Web interface on port 8010
+- REST API on port 8011
+- FHIR API on port 8012
+- MySQL database on port 3316
+- Docker Compose orchestration
+- Health check monitoring
 
 ## Use Cases
 
@@ -99,9 +100,10 @@ vrooli resource openemr test [smoke|integration|all]
 ## Configuration
 
 Key environment variables:
-- `OPENEMR_PORT`: Web interface port (default: 8080)
-- `OPENEMR_API_PORT`: REST API port (default: 8082)
-- `OPENEMR_FHIR_PORT`: FHIR API port (default: 8083)
+- `OPENEMR_PORT`: Web interface port (default: 8010)
+- `OPENEMR_API_PORT`: REST API port (default: 8011)
+- `OPENEMR_FHIR_PORT`: FHIR API port (default: 8012)
+- `OPENEMR_DB_PORT`: MySQL port (default: 3316)
 - `OPENEMR_DB_NAME`: Database name (default: openemr)
 - `OPENEMR_ADMIN_USER`: Admin username
 - `OPENEMR_ADMIN_PASS`: Admin password
@@ -110,8 +112,9 @@ Key environment variables:
 
 ### Stack won't start
 - Check Docker is running: `docker ps`
-- Verify ports are available: `lsof -i :8080,8082,8083`
+- Verify ports are available: `lsof -i :8010,8011,8012`
 - Check logs: `vrooli resource openemr logs`
+- Ensure Docker Compose is installed: `docker-compose --version`
 
 ### API authentication fails
 - Ensure JWT token is valid
@@ -122,6 +125,22 @@ Key environment variables:
 - Confirm MySQL container is running
 - Check database credentials
 - Review connection logs
+
+## Implementation Status
+
+✅ **Implemented**:
+- Docker Compose stack with OpenEMR 7.0.2
+- MySQL 8.0 database with health checks
+- CLI lifecycle commands (install, start, stop, restart)
+- Health check endpoints
+- Content management framework
+- Port allocation in registry
+
+⏳ **In Progress**:
+- OAuth2 API authentication
+- FHIR endpoint configuration
+- Demo data seeding
+- Appointment scheduling
 
 ## Resources
 

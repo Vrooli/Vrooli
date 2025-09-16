@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	version     = "1.0.0"
-	defaultHost = "http://localhost:8421"
+	version = "1.0.0"
 )
 
 type APIClient struct {
@@ -73,7 +72,14 @@ func main() {
 		return
 	}
 
-	baseURL := getEnv("API_MANAGER_URL", defaultHost)
+	baseURL := os.Getenv("API_MANAGER_URL")
+	if baseURL == "" {
+		fmt.Fprintf(os.Stderr, "❌ API_MANAGER_URL environment variable is required\n")
+		fmt.Fprintf(os.Stderr, "\nSet the API Manager URL:\n")
+		fmt.Fprintf(os.Stderr, "  export API_MANAGER_URL=http://localhost:<port>\n")
+		fmt.Fprintf(os.Stderr, "\nThe port is dynamically allocated by the Vrooli lifecycle system.\n")
+		os.Exit(1)
+	}
 	client := NewAPIClient(baseURL)
 
 	command := os.Args[1]
@@ -126,7 +132,7 @@ COMMANDS:
         <scenario>          Show vulnerabilities for specific scenario
 
 ENVIRONMENT VARIABLES:
-    API_MANAGER_URL        Base URL for API manager (default: %s)
+    API_MANAGER_URL        Base URL for API manager (required)
 
 EXAMPLES:
     api-manager list scenarios
@@ -135,7 +141,7 @@ EXAMPLES:
     api-manager vulnerabilities my-scenario
     api-manager status
 
-`, version, defaultHost)
+`, version)
 }
 
 func handleHealth(client *APIClient) {
@@ -440,9 +446,3 @@ func handleDiscover(client *APIClient) {
 	fmt.Printf("✓ %s\n", response["message"].(string))
 }
 
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
