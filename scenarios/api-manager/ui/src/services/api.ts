@@ -37,11 +37,11 @@ class ApiService {
     const summary = await this.getHealthSummary()
     return {
       status: summary.status as any,
-      health_score: summary.system_health_score,
-      scenarios: summary.scenarios.active,
-      vulnerabilities: summary.vulnerabilities.total,
-      endpoints: summary.endpoints.total,
-      timestamp: summary.timestamp,
+      health_score: summary.system_health_score || 0,
+      scenarios: (typeof summary.scenarios === 'object' ? summary.scenarios?.total : summary.scenarios) || 0,
+      vulnerabilities: (typeof summary.vulnerabilities === 'object' ? summary.vulnerabilities?.total : summary.vulnerabilities) || 0,
+      endpoints: 0, // This field doesn't exist in current API response
+      timestamp: summary.timestamp || new Date().toISOString(),
     }
   }
 

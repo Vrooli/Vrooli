@@ -154,12 +154,13 @@
                                     <th>VAULT INFO</th>
                                     <th>TYPE</th>
                                     <th>STATUS</th>
+                                    <th>HOW TO GET</th>
                                     <th>ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody id="secrets-table-body">
                                 <tr class="loading-row">
-                                    <td colspan="6">
+                                    <td colspan="7">
                                         <div class="loading-animation">
                                             <span>SCANNING SECURITY MATRIX</span>
                                             <div class="loading-dots">
@@ -205,6 +206,42 @@
                         <label for="secret-key">SECRET KEY</label>
                         <input type="text" id="secret-key" class="chrome-input" readonly>
                     </div>
+                    
+                    <!-- Secret Guidance Panel -->
+                    <div id="secret-guidance" class="guidance-panel" style="display: none;">
+                        <div class="guidance-header">📋 SECRET INFORMATION</div>
+                        <div class="guidance-content">
+                            <div id="secret-description" class="guidance-item" style="display: none;">
+                                <strong>Description:</strong>
+                                <span class="guidance-value"></span>
+                            </div>
+                            <div id="secret-acquisition" class="guidance-item" style="display: none;">
+                                <strong>Get Secret:</strong>
+                                <a href="#" target="_blank" class="chrome-btn secondary-btn" style="padding: 2px 8px; font-size: 10px; text-decoration: none;">
+                                    OPEN CONSOLE ↗
+                                </a>
+                            </div>
+                            <div id="secret-documentation" class="guidance-item" style="display: none;">
+                                <strong>Documentation:</strong>
+                                <a href="#" target="_blank" class="chrome-btn secondary-btn" style="padding: 2px 8px; font-size: 10px; text-decoration: none;">
+                                    VIEW DOCS ↗
+                                </a>
+                            </div>
+                            <div id="secret-instructions" class="guidance-item" style="display: none;">
+                                <strong>Setup Instructions:</strong>
+                                <div class="guidance-value" style="margin-top: 5px; padding: 8px; background: rgba(0, 255, 65, 0.05); border: 1px solid var(--matrix-dim); border-radius: 3px;"></div>
+                            </div>
+                            <div id="secret-example" class="guidance-item" style="display: none;">
+                                <strong>Example:</strong>
+                                <code class="guidance-value" style="color: var(--matrix-green);"></code>
+                            </div>
+                            <div id="secret-validation" class="guidance-item" style="display: none;">
+                                <strong>Validation:</strong>
+                                <span class="guidance-value" style="color: var(--matrix-dim);"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="secret-value">SECRET VALUE</label>
                         <input type="password" id="secret-value" class="chrome-input" placeholder="Enter secure value...">

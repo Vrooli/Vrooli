@@ -260,7 +260,7 @@ class SecretsManager {
         }
         
         this.showNotification('Scanning for security vulnerabilities...', 'info');
-        this.showTableSkeleton();
+        // Don't show skeleton - security scan doesn't affect the vault secrets table
         
         try {
             const response = await fetch(`${this.apiUrl}/api/v1/security/scan`);
@@ -461,7 +461,7 @@ class SecretsManager {
         if (!this.vaultStatus || !this.vaultStatus.resource_statuses) {
             tbody.innerHTML = `
                 <tr class="loading-row">
-                    <td colspan="6">
+                    <td colspan="7">
                         <div class="loading-animation">
                             <span>NO VAULT DATA - Click the refresh button (⟳) to scan resources</span>
                         </div>
@@ -477,7 +477,7 @@ class SecretsManager {
             const resourceRow = document.createElement('tr');
             resourceRow.style.backgroundColor = 'rgba(0, 255, 65, 0.05)';
             resourceRow.innerHTML = `
-                <td colspan="6" style="padding: 8px 15px; font-weight: bold; color: var(--matrix-green); border-bottom: 1px solid var(--matrix-dim);">
+                <td colspan="7" style="padding: 8px 15px; font-weight: bold; color: var(--matrix-green); border-bottom: 1px solid var(--matrix-dim);">
                     <span class="component-badge resource">RES</span> 
                     ${resource.resource_name.toUpperCase()} 
                     (${resource.secrets_found}/${resource.secrets_total} configured)
@@ -510,6 +510,33 @@ class SecretsManager {
                     const statusBadge = secret.configured ? 'valid' : (secret.required ? 'missing' : 'discovered');
                     const statusText = secret.configured ? 'SET' : (secret.required ? 'REQUIRED' : 'OPTIONAL');
                     
+                    // Build guidance content for "HOW TO GET" column
+                    let guidanceHtml = '';
+                    if (secret.acquisition_url) {
+                        guidanceHtml = `<a href="${secret.acquisition_url}" target="_blank" class="chrome-btn secondary-btn" 
+                                          style="padding: 2px 6px; font-size: 9px; text-decoration: none;">
+                                          GET KEY ↗
+                                       </a>`;
+                    } else if (secret.documentation_url) {
+                        guidanceHtml = `<a href="${secret.documentation_url}" target="_blank" class="chrome-btn secondary-btn" 
+                                          style="padding: 2px 6px; font-size: 9px; text-decoration: none;">
+                                          DOCS ↗
+                                       </a>`;
+                    } else if (secret.setup_instructions) {
+                        // Extract URL from setup instructions if it exists
+                        const urlMatch = secret.setup_instructions.match(/https?:\/\/[^\s\)]+/);
+                        if (urlMatch) {
+                            guidanceHtml = `<a href="${urlMatch[0]}" target="_blank" class="chrome-btn secondary-btn" 
+                                              style="padding: 2px 6px; font-size: 9px; text-decoration: none;">
+                                              GET KEY ↗
+                                           </a>`;
+                        } else {
+                            guidanceHtml = `<span class="info-icon" title="${secret.setup_instructions}">ⓘ</span>`;
+                        }
+                    } else {
+                        guidanceHtml = '<span style="color: var(--matrix-dim); font-size: 10px;">—</span>';
+                    }
+                    
                     secretRow.innerHTML = `
                         <td>
                             <input type="checkbox" class="row-checkbox" data-resource="${resource.resource_name}" data-secret="${secret.name}">
@@ -518,6 +545,7 @@ class SecretsManager {
                         <td><code>${secret.configured ? 'Configured' : 'Not configured'}</code></td>
                         <td>${secret.type ? secret.type.toUpperCase().replace('_', ' ') : 'SECRET'}</td>
                         <td><span class="status-badge ${statusBadge}">${statusText}</span></td>
+                        <td style="text-align: center;">${guidanceHtml}</td>
                         <td>
                             <button class="chrome-btn secondary-btn provision-btn" 
                                     data-resource="${resource.resource_name}" 
@@ -534,7 +562,7 @@ class SecretsManager {
                     const provisionBtn = secretRow.querySelector('.provision-btn');
                     if (provisionBtn) {
                         provisionBtn.addEventListener('click', () => {
-                            this.showProvisionModal(resource.resource_name, true, secret.name);
+                            this.showProvisionModal(resource.resource_name, true, secret.name, secret);
                         });
                     }
                     
@@ -1251,7 +1279,7 @@ ${vuln.code}</pre>
         */
     }
     
-    showProvisionModal(resourceOrKey, isResource = false, secretName = null) {
+    showProvisionModal(resourceOrKey, isResource = false, secretName = null, secretData = null) {
         if (isResource) {
             // For resource-based provisioning, show specific secret name if provided
             const displayKey = secretName ? secretName : `Resource: ${resourceOrKey}`;
@@ -1260,12 +1288,100 @@ ${vuln.code}</pre>
             if (secretName) {
                 document.getElementById('secret-key').dataset.secretName = secretName;
             }
+            
+            // Populate guidance information if available
+            if (secretData) {
+                this.populateGuidancePanel(secretData);
+            } else {
+                // Try to find secret data from vaultStatus
+                if (this.vaultStatus && this.vaultStatus.resource_statuses) {
+                    const resource = this.vaultStatus.resource_statuses.find(r => r.resource_name === resourceOrKey);
+                    if (resource && resource.all_secrets) {
+                        const secret = resource.all_secrets.find(s => s.name === secretName);
+                        if (secret) {
+                            this.populateGuidancePanel(secret);
+                        }
+                    }
+                }
+            }
         } else {
             document.getElementById('secret-key').value = resourceOrKey;
+            // Hide guidance panel for non-resource secrets
+            document.getElementById('secret-guidance').style.display = 'none';
         }
         document.getElementById('secret-value').value = '';
         document.getElementById('storage-method').value = 'vault';
         document.getElementById('provision-modal').classList.add('show');
+    }
+    
+    populateGuidancePanel(secret) {
+        const guidancePanel = document.getElementById('secret-guidance');
+        
+        if (!secret || (!secret.description && !secret.acquisition_url && !secret.documentation_url && 
+                        !secret.setup_instructions && !secret.example && !secret.validation_hint)) {
+            guidancePanel.style.display = 'none';
+            return;
+        }
+        
+        guidancePanel.style.display = 'block';
+        
+        // Description
+        const descElement = document.getElementById('secret-description');
+        if (secret.description) {
+            descElement.style.display = 'block';
+            descElement.querySelector('.guidance-value').textContent = secret.description;
+        } else {
+            descElement.style.display = 'none';
+        }
+        
+        // Acquisition URL
+        const acqElement = document.getElementById('secret-acquisition');
+        if (secret.acquisition_url) {
+            acqElement.style.display = 'block';
+            const link = acqElement.querySelector('a');
+            link.href = secret.acquisition_url;
+            link.textContent = 'GET API KEY ↗';
+        } else {
+            acqElement.style.display = 'none';
+        }
+        
+        // Documentation URL
+        const docElement = document.getElementById('secret-documentation');
+        if (secret.documentation_url) {
+            docElement.style.display = 'block';
+            const link = docElement.querySelector('a');
+            link.href = secret.documentation_url;
+            link.textContent = 'VIEW DOCS ↗';
+        } else {
+            docElement.style.display = 'none';
+        }
+        
+        // Setup Instructions
+        const instrElement = document.getElementById('secret-instructions');
+        if (secret.setup_instructions) {
+            instrElement.style.display = 'block';
+            instrElement.querySelector('.guidance-value').textContent = secret.setup_instructions;
+        } else {
+            instrElement.style.display = 'none';
+        }
+        
+        // Example
+        const exampleElement = document.getElementById('secret-example');
+        if (secret.example) {
+            exampleElement.style.display = 'block';
+            exampleElement.querySelector('.guidance-value').textContent = secret.example;
+        } else {
+            exampleElement.style.display = 'none';
+        }
+        
+        // Validation Hint
+        const validElement = document.getElementById('secret-validation');
+        if (secret.validation_hint) {
+            validElement.style.display = 'block';
+            validElement.querySelector('.guidance-value').textContent = secret.validation_hint;
+        } else {
+            validElement.style.display = 'none';
+        }
     }
     
     hideModal() {
@@ -1361,7 +1477,7 @@ ${vuln.code}</pre>
                     <polyline points="1 20 1 14 7 14"></polyline>
                     <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                 </svg>`;
-            this.showTableSkeleton();
+            // Don't show skeleton - preserve existing table content during scans
         } else {
             scanBtn.disabled = false;
             scanBtn.innerHTML = `

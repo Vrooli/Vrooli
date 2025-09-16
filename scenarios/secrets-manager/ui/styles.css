@@ -566,6 +566,34 @@ html, body {
     opacity: 0.5;
 }
 
+/* Ensure anchor tags with chrome-btn class get the same styling */
+a.chrome-btn {
+    display: inline-block;
+    text-decoration: none;
+}
+
+a.chrome-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.2), transparent);
+    transition: left 0.6s ease;
+}
+
+a.chrome-btn:hover {
+    border-color: var(--matrix-green);
+    color: var(--matrix-green);
+    text-shadow: var(--glow-matrix);
+    box-shadow: var(--glow-chrome);
+}
+
+a.chrome-btn:hover::before {
+    left: 100%;
+}
+
 .chrome-btn.primary-btn:disabled {
     background: var(--bg-medium);
     color: var(--chrome-dark);
@@ -1111,3 +1139,65 @@ html, body {
     color: var(--cyber-purple);
     border-color: var(--cyber-purple);
 }
+/* Guidance Panel Styles for Provision Modal */
+.guidance-panel {
+    margin: 15px 0;
+    border: 1px solid var(--matrix-dim);
+    border-radius: 4px;
+    background: rgba(0, 255, 65, 0.02);
+    overflow: hidden;
+}
+
+.guidance-header {
+    background: rgba(0, 255, 65, 0.1);
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--matrix-dim);
+    color: var(--matrix-green);
+    font-weight: bold;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.guidance-content {
+    padding: 15px;
+}
+
+.guidance-item {
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.guidance-item:last-child {
+    margin-bottom: 0;
+}
+
+.guidance-item strong {
+    color: var(--matrix-green);
+    display: inline-block;
+    margin-bottom: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.guidance-item .guidance-value {
+    color: var(--chrome-silver);
+    display: block;
+    margin-top: 2px;
+}
+
+.guidance-item code {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 2px;
+}
+
+.guidance-item a.chrome-btn {
+    display: inline-block;
+    margin-top: 4px;
+}
+

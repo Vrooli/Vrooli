@@ -12,10 +12,12 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Server
 } from 'lucide-react'
 import clsx from 'clsx'
 import Dashboard from './components/Dashboard'
+import ScenariosList from './components/ScenariosList'
 import ScenarioDetail from './components/ScenarioDetail'
 import VulnerabilityScanner from './components/VulnerabilityScanner'
 import HealthMonitor from './components/HealthMonitor'
@@ -40,14 +42,23 @@ export default function App() {
     return saved !== null ? JSON.parse(saved) : false
   })
   
-  const { data: systemStatus } = useQuery({
+  const { 
+    data: systemStatus, 
+    error: systemStatusError, 
+    isLoading: systemStatusLoading,
+    isError: systemStatusIsError,
+    isFetching: systemStatusIsFetching 
+  } = useQuery({
     queryKey: ['systemStatus'],
-    queryFn: apiService.getSystemStatus,
+    queryFn: () => apiService.getSystemStatus(),
     refetchInterval: 30000,
+    retry: 3,
   })
+
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3, path: '/' },
+    { id: 'scenarios', name: 'Scenarios', icon: Server, path: '/scenarios' },
     { id: 'vulnerabilities', name: 'Security Scanner', icon: Shield, path: '/vulnerabilities' },
     { id: 'health', name: 'Health Monitor', icon: Activity, path: '/health' },
     { id: 'performance', name: 'Performance', icon: Zap, path: '/performance' },
@@ -86,52 +97,69 @@ export default function App() {
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         sidebarCollapsed ? 'w-20' : 'w-72'
       )}>
-        <div className="flex h-full flex-col gap-y-5 overflow-y-auto bg-white/95 backdrop-blur-xl px-6 pb-4 shadow-xl border-r border-dark-200">
+        <div className={clsx(
+          "flex h-full flex-col gap-y-5 overflow-y-auto bg-white/95 backdrop-blur-xl pb-4 shadow-xl border-r border-dark-200",
+          sidebarCollapsed ? "px-3" : "px-6"
+        )}>
           {/* Logo and Collapse Button */}
           <div className="flex h-16 items-center justify-between">
-            <div className={clsx(
-              'flex items-center gap-2 transition-opacity duration-300',
-              sidebarCollapsed && 'opacity-0 pointer-events-none'
-            )}>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-dark-900">API Manager</h2>
-                <p className="text-xs text-dark-500">Security & Intelligence</p>
-              </div>
-            </div>
-            
-            {/* Desktop collapse toggle */}
-            <button
-              className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-dark-100 transition-colors"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="h-4 w-4 text-dark-600" />
-              ) : (
-                <ChevronLeft className="h-4 w-4 text-dark-600" />
-              )}
-            </button>
-            
-            {/* Mobile close button */}
-            <button
-              className="md:hidden"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5 text-dark-500" />
-            </button>
+            {!sidebarCollapsed ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white">
+                    <Shield className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-dark-900">API Manager</h2>
+                    <p className="text-xs text-dark-500">Security & Intelligence</p>
+                  </div>
+                </div>
+                
+                {/* Desktop collapse toggle - expanded state */}
+                <button
+                  className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-dark-100 transition-colors"
+                  onClick={() => setSidebarCollapsed(true)}
+                  title="Collapse sidebar"
+                >
+                  <ChevronLeft className="h-4 w-4 text-dark-600" />
+                </button>
+                
+                {/* Mobile close button */}
+                <button
+                  className="md:hidden"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="h-5 w-5 text-dark-500" />
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Collapsed state - just the logo and expand button */}
+                <div className="flex w-full items-center justify-between">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white">
+                    <Shield className="h-6 w-6" />
+                  </div>
+                  
+                  {/* Desktop expand toggle - collapsed state */}
+                  <button
+                    className="hidden md:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-dark-100 transition-colors"
+                    onClick={() => setSidebarCollapsed(false)}
+                    title="Expand sidebar"
+                  >
+                    <ChevronRight className="h-4 w-4 text-dark-600" />
+                  </button>
+                </div>
+                
+                {/* Mobile close button - still needed when collapsed on mobile */}
+                <button
+                  className="md:hidden absolute top-4 right-3"
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  <X className="h-5 w-5 text-dark-500" />
+                </button>
+              </>
+            )}
           </div>
-          
-          {/* Centered logo when collapsed */}
-          {sidebarCollapsed && (
-            <div className="hidden md:flex justify-center -mt-4 mb-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 text-white">
-                <Shield className="h-6 w-6" />
-              </div>
-            </div>
-          )}
 
           {/* System Status */}
           {!sidebarCollapsed ? (
@@ -158,7 +186,7 @@ export default function App() {
               </div>
               <div className="mt-3 space-y-1">
                 <div className="flex justify-between text-xs">
-                  <span className="opacity-90">Active Scenarios</span>
+                  <span className="opacity-90">Scenarios</span>
                   <span className="font-semibold">{systemStatus?.scenarios || 0}</span>
                 </div>
                 <div className="flex justify-between text-xs">
@@ -185,7 +213,10 @@ export default function App() {
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1">
+          <nav className={clsx(
+            "flex-1",
+            sidebarCollapsed ? "space-y-2 flex flex-col items-center" : "space-y-1"
+          )}>
             {navigation.map((item) => {
               const Icon = item.icon
               const isActive = currentView === item.id
@@ -201,11 +232,13 @@ export default function App() {
                     }
                   }}
                   className={clsx(
-                    'group flex w-full items-center gap-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all',
+                    'group flex items-center rounded-lg text-sm font-medium transition-all relative',
                     isActive
                       ? 'bg-primary-500 text-white shadow-lg shadow-primary-500/25'
                       : 'text-dark-700 hover:bg-dark-100 hover:text-dark-900',
-                    sidebarCollapsed && 'justify-center px-2'
+                    sidebarCollapsed 
+                      ? 'justify-center p-3 h-12 w-12 flex-shrink-0' 
+                      : 'gap-x-3 px-3 py-2.5 w-full'
                   )}
                   title={sidebarCollapsed ? item.name : undefined}
                 >
@@ -213,7 +246,7 @@ export default function App() {
                     'h-5 w-5 flex-shrink-0',
                     isActive ? 'text-white' : 'text-dark-400 group-hover:text-dark-600'
                   )} />
-                  {!sidebarCollapsed && (
+{!sidebarCollapsed && (
                     <>
                       <span>{item.name}</span>
                       {item.id === 'automated-fixes' && (
@@ -222,6 +255,9 @@ export default function App() {
                         </span>
                       )}
                     </>
+                  )}
+                  {sidebarCollapsed && item.id === 'automated-fixes' && (
+                    <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-danger-500" title="Automated fixes inactive" />
                   )}
                 </button>
               )
@@ -279,8 +315,21 @@ export default function App() {
               {/* Quick stats */}
               <div className="hidden sm:flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-success-500 animate-pulse"></div>
-                  <span className="text-sm text-dark-600">System Online</span>
+                  <div className={clsx(
+                    'h-2 w-2 rounded-full animate-pulse',
+                    systemStatus?.status === 'healthy' ? 'bg-success-500' :
+                    systemStatus?.status === 'degraded' ? 'bg-warning-500' :
+                    systemStatus?.status === 'unhealthy' ? 'bg-danger-500' :
+                    'bg-dark-400'
+                  )}></div>
+                  <span className="text-sm text-dark-600">
+                    {systemStatusIsFetching ? 'Loading...' :
+                     systemStatusIsError ? `Error: ${systemStatusError?.message || 'Unknown error'}` :
+                     systemStatus?.status === 'healthy' ? 'System Online' :
+                     systemStatus?.status === 'degraded' ? 'System Degraded' :
+                     systemStatus?.status === 'unhealthy' ? 'System Unhealthy' :
+                     'System Status Unknown'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -292,6 +341,7 @@ export default function App() {
           <div className="mx-auto max-w-7xl">
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/scenarios" element={<ScenariosList />} />
               <Route path="/scenario/:id" element={<ScenarioDetail />} />
               <Route path="/vulnerabilities" element={<VulnerabilityScanner />} />
               <Route path="/health" element={<HealthMonitor />} />

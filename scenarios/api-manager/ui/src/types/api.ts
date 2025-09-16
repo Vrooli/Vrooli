@@ -9,27 +9,32 @@ export interface SystemStatus {
 
 export interface HealthSummary {
   status: string
-  system_health_score: number
+  system_health_score: number | null  // null when no scans have been performed
   health_trend?: 'up' | 'down' | 'stable'
-  scenarios: {
+  scenarios: number // Updated to match API response
+  scenarios_detail?: {
     total: number
-    active: number
+    available: number
+    running: number
     healthy: number
-    degraded: number
-    unhealthy: number
+    critical: number
   }
-  vulnerabilities: {
+  vulnerabilities: number // Updated to match API response
+  vulnerabilities_detail?: {
     total: number
     critical: number
     high: number
-    medium: number
-    low: number
-    trend?: 'up' | 'down' | 'stable'
   }
-  endpoints: {
+  endpoints?: {
     total: number
     monitored: number
     unmonitored: number
+  }
+  scan_status?: {
+    has_scans: boolean
+    total_scans: number
+    last_scan: string | null
+    message: string
   }
   timestamp: string
 }
@@ -64,8 +69,10 @@ export interface Vulnerability {
 }
 
 export interface SecurityScan {
-  id: string
-  scenario_name: string
+  id?: string
+  scan_id?: string
+  scenario_name?: string
+  scenarios_scanned?: number | string
   scan_type: 'full' | 'quick' | 'targeted'
   status: 'running' | 'completed' | 'failed'
   vulnerabilities: {
@@ -75,9 +82,16 @@ export interface SecurityScan {
     medium: number
     low: number
   }
+  files_scanned?: {
+    total: number
+    code_files: number
+    config_files: number
+  }
   started_at: string
   completed_at?: string
   duration_seconds?: number
+  message?: string
+  scan_notes?: string
 }
 
 export interface HealthAlert {

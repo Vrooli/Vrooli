@@ -20,53 +20,64 @@ import { Card } from './common/Card'
 import { Badge } from './common/Badge'
 
 export default function Dashboard() {
-  const { data: summary, isLoading: loadingSummary, refetch: refetchSummary } = useQuery({
-    queryKey: ['healthSummary'],
-    queryFn: apiService.getHealthSummary,
+  const { data: summary, isLoading: loadingSummary, error: summaryError, refetch: refetchSummary } = useQuery({
+    queryKey: ['healthSummary', 'v4'], // Changed key to clear cache
+    queryFn: () => apiService.getHealthSummary(), // Fixed: wrap in arrow function to preserve 'this'
     refetchInterval: 30000,
+    staleTime: 0, // Always refetch
+    retry: 1, // Reduce retries for faster debugging
   })
 
   const { data: scenarios, isLoading: loadingScenarios } = useQuery({
     queryKey: ['scenarios'],
-    queryFn: apiService.getScenarios,
+    queryFn: () => apiService.getScenarios(), // Fixed: wrap in arrow function
     refetchInterval: 60000,
   })
 
   const { data: recentScans, isLoading: loadingScans } = useQuery({
     queryKey: ['recentScans'],
-    queryFn: apiService.getRecentScans,
+    queryFn: () => apiService.getRecentScans(), // Fixed: wrap in arrow function
   })
 
   const { data: alerts } = useQuery({
     queryKey: ['healthAlerts'],
-    queryFn: apiService.getHealthAlerts,
+    queryFn: () => apiService.getHealthAlerts(), // Fixed: wrap in arrow function
     refetchInterval: 30000,
   })
+
+  const hasScans = summary?.scan_status?.has_scans ?? false
+  const scanWarningMessage = "No security scans performed yet. Run a scan to assess system health and detect vulnerabilities."
 
   const stats = [
     {
       title: 'System Health',
-      value: summary?.system_health_score || 0,
-      unit: '%',
+      value: summary?.system_health_score,
+      unit: summary?.system_health_score !== null ? '%' : undefined,
       icon: Activity,
-      trend: summary?.health_trend || 'stable',
-      color: summary?.system_health_score >= 80 ? 'success' : 
-              summary?.system_health_score >= 60 ? 'warning' : 'danger',
+      trend: hasScans ? (summary?.health_trend || 'stable') : undefined,
+      color: !hasScans ? 'warning' : 
+             summary?.system_health_score >= 80 ? 'success' : 
+             summary?.system_health_score >= 60 ? 'warning' : 'danger',
+      hasWarning: !hasScans,
+      warningMessage: !hasScans ? scanWarningMessage : undefined,
     },
     {
-      title: 'Active Scenarios',
-      value: summary?.scenarios?.active || 0,
+      title: 'Scenarios',
+      value: summary?.scenarios || 0,
       icon: Server,
       trend: 'up',
       color: 'primary',
     },
     {
       title: 'Vulnerabilities',
-      value: summary?.vulnerabilities?.total || 0,
+      value: hasScans ? (summary?.vulnerabilities || 0) : null,
       icon: Shield,
-      detail: `${summary?.vulnerabilities?.critical || 0} critical`,
-      trend: summary?.vulnerabilities?.trend || 'stable',
-      color: summary?.vulnerabilities?.critical > 0 ? 'danger' : 'warning',
+      detail: hasScans ? `${summary?.vulnerabilities_detail?.critical || 0} critical` : 'No scans performed',
+      trend: hasScans ? (summary?.vulnerabilities?.trend || 'stable') : undefined,
+      color: !hasScans ? 'warning' : 
+             (summary?.vulnerabilities_detail?.critical || 0) > 0 ? 'danger' : 'success',
+      hasWarning: !hasScans,
+      warningMessage: !hasScans ? scanWarningMessage : undefined,
     },
     {
       title: 'API Endpoints',
@@ -113,6 +124,7 @@ export default function Dashboard() {
         </button>
       </div>
 
+
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
@@ -125,7 +137,7 @@ export default function Dashboard() {
         {/* Scenarios List */}
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-dark-900">Active Scenarios</h2>
+            <h2 className="text-lg font-semibold text-dark-900">Scenarios</h2>
             <Link
               to="/scenarios"
               className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"

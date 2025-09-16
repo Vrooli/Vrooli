@@ -1359,21 +1359,26 @@ class EcosystemManager {
                     optionText += ` (${target.category})`;
                 }
                 
-                // Add completion percentage for scenarios
-                if (type === 'scenario' && target.prd_completion_percentage !== undefined) {
-                    optionText += ` - ${target.prd_completion_percentage}% complete`;
+                // Add health status for resources only (scenarios don't have runtime health)
+                if (type === 'resource') {
+                    if (target.healthy === true) {
+                        optionText += ' ✓';
+                        option.style.color = '#28a745'; // Green for healthy/running
+                    } else if (target.healthy === false) {
+                        optionText += ' ✗';
+                        option.style.color = '#6c757d'; // Gray for stopped
+                    }
                 }
                 
-                // Add health status
-                if (target.healthy === true) {
-                    optionText += ' ✓';
-                    option.style.color = '#28a745'; // Green for healthy
-                } else if (target.healthy === false) {
-                    optionText += ' ✗ [UNHEALTHY]';
-                    option.style.color = '#dc3545'; // Red for unhealthy
-                } else {
-                    optionText += ' ? [UNKNOWN]';
-                    option.style.color = '#ffc107'; // Yellow for unknown
+                // Add version or status for scenarios  
+                if (type === 'scenario') {
+                    if (target.version) {
+                        optionText += ` v${target.version}`;
+                    }
+                    // Set color based on availability
+                    if (target.status === 'available') {
+                        option.style.color = '#28a745'; // Green for available
+                    }
                 }
                 
                 // Add running status for resources

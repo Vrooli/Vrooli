@@ -89,11 +89,17 @@ type VaultMissingSecret struct {
 }
 
 type VaultSecret struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Required    bool   `json:"required"`
-	Configured  bool   `json:"configured"`
-	SecretType  string `json:"type"` // api_key, endpoint, quota
+	Name               string `json:"name"`
+	Description        string `json:"description"`
+	Required           bool   `json:"required"`
+	Configured         bool   `json:"configured"`
+	SecretType         string `json:"type"` // api_key, endpoint, quota
+	// Guidance fields for user assistance
+	DocumentationURL   string `json:"documentation_url,omitempty"`
+	AcquisitionURL     string `json:"acquisition_url,omitempty"`
+	SetupInstructions  string `json:"setup_instructions,omitempty"`
+	Example            string `json:"example,omitempty"`
+	ValidationHint     string `json:"validation_hint,omitempty"`
 }
 
 type VaultResourceStatus struct {
