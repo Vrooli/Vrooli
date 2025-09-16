@@ -4,151 +4,140 @@ set -euo pipefail
 echo "=== Integration Tests Phase ==="
 echo "Comprehensive integration testing: API, CLI (BATS), and Database"
 
-# Setup paths and utilities
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-# Test counters
-error_count=0
-test_count=0
-skipped_count=0
+SCENARIO_NAME=$(basename "$SCENARIO_DIR")
+TEST_CAMPAIGN_ID=""
+API_URL=""
 
-# API Port (should match service configuration)
-API_PORT="${API_PORT:-17695}"
+cleanup_campaign() {
+    if [ -n "$TEST_CAMPAIGN_ID" ]; then
+        curl -sf -X DELETE "$API_URL/api/v1/campaigns/$TEST_CAMPAIGN_ID" >/dev/null 2>&1 || true
+    fi
+}
+
+trap cleanup_campaign EXIT
+
+if testing::core::ensure_runtime_or_skip "$SCENARIO_NAME" "integration tests"; then
+    :
+else
+    status=$?
+    if [ "$status" -eq 200 ]; then
+        exit 200
+    else
+        exit 1
+    fi
+fi
+
+if ! testing::core::wait_for_scenario "$SCENARIO_NAME" 30; then
+    log::error "❌ Scenario '$SCENARIO_NAME' did not become ready in time"
+    exit 1
+fi
+
+if ! API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
+    log::error "❌ Could not resolve API URL for $SCENARIO_NAME"
+    exit 1
+fi
+
+# Ensure downstream phases inherit the resolved ports
+API_PORT="${API_URL##*:}"
+if UI_URL=$(testing::connectivity::get_ui_url "$SCENARIO_NAME" 2>/dev/null); then
+    UI_PORT="${UI_URL##*:}"
+fi
 
 echo ""
 echo "🌐 Testing API Integration..."
-if timeout 10 curl -sf --max-time 5 "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
-    echo "✅ API health check passed"
-    test_count=$((test_count + 1))
-    
-    # Test key API endpoints
-    echo "🔍 Testing API endpoints..."
-    
-    # Test campaigns endpoint
-    if timeout 5 curl -sf "http://localhost:${API_PORT}/api/v1/campaigns" >/dev/null 2>&1; then
-        echo "  ✅ Campaigns endpoint accessible"
-    else
-        echo "  ⚠️  Campaigns endpoint failed"
-        error_count=$((error_count + 1))
-    fi
-    
-    # Test health endpoint content
-    health_response=$(timeout 5 curl -sf "http://localhost:${API_PORT}/health" 2>/dev/null || echo "")
-    if [[ "$health_response" =~ "status" ]] || [[ "$health_response" =~ "ok" ]] || [[ "$health_response" =~ "healthy" ]]; then
-        echo "  ✅ Health endpoint returns valid response"
-    else
-        echo "  ⚠️  Health endpoint response unclear: $health_response"
-        error_count=$((error_count + 1))
-    fi
-    
+if curl -sf --max-time 10 "$API_URL/health" >/dev/null 2>&1; then
+    echo "✅ API health check passed ($API_URL/health)"
 else
     echo "❌ API integration tests failed - service not responding"
-    echo "   Expected API at: http://localhost:${API_PORT}"
-    echo "   💡 Tip: Start with 'vrooli scenario run visited-tracker'"
-    error_count=$((error_count + 1))
+    echo "   Expected API at: $API_URL"
+    echo "   💡 Tip: Start with 'vrooli scenario run $SCENARIO_NAME'"
+    exit 1
+fi
+
+echo "🔍 Testing API endpoints..."
+if curl -sf --max-time 10 "$API_URL/api/v1/campaigns" >/dev/null 2>&1; then
+    echo "  ✅ Campaigns endpoint accessible"
+else
+    echo "  ❌ Campaigns endpoint failed"
+    exit 1
+fi
+
+health_response=$(curl -sf --max-time 10 "$API_URL/health" 2>/dev/null || echo "")
+if [[ "$health_response" =~ "status" ]]; then
+    echo "  ✅ Health endpoint returns valid response"
+else
+    echo "  ❌ Health endpoint response unexpected"
+    exit 1
+fi
+
+if command -v jq >/dev/null 2>&1; then
+    campaign_payload=$(jq -n --arg name "integration-suite-$(date +%s)" --arg from_agent "integration-tests" --argjson patterns '["**/*.js","**/*.md"]' '{name:$name, from_agent:$from_agent, patterns:$patterns}')
+else
+    campaign_payload='{"name":"integration-suite","from_agent":"integration-tests","patterns":["**/*.js"]}'
+fi
+
+campaign_response=$(curl -sf --max-time 15 -X POST -H "Content-Type: application/json" -d "$campaign_payload" "$API_URL/api/v1/campaigns" 2>/dev/null || echo "")
+if echo "$campaign_response" | jq -e '.id' >/dev/null 2>&1; then
+    TEST_CAMPAIGN_ID=$(echo "$campaign_response" | jq -r '.id')
+    export VISITED_TRACKER_CAMPAIGN_ID="$TEST_CAMPAIGN_ID"
+    echo "✅ Test campaign prepared: $TEST_CAMPAIGN_ID"
+else
+    echo "❌ Failed to create campaign for integration tests"
+    exit 1
 fi
 
 echo ""
-echo "🖥️  Testing CLI Integration with Comprehensive BATS Suite..."
+echo "🖥️  Testing CLI Integration with BATS..."
 CLI_TEST_SCRIPT="$SCENARIO_DIR/test/cli/run-cli-tests.sh"
-
-if [ -f "$CLI_TEST_SCRIPT" ] && [ -x "$CLI_TEST_SCRIPT" ]; then
-    echo "🔧 Running comprehensive CLI BATS tests..."
-    
-    # Set environment for CLI tests
-    export API_PORT="$API_PORT"
-    
-    if "$CLI_TEST_SCRIPT"; then
+if [ -x "$CLI_TEST_SCRIPT" ]; then
+    if API_PORT="$API_PORT" UI_PORT="${UI_PORT:-}" "$CLI_TEST_SCRIPT"; then
         echo "✅ CLI BATS integration tests passed"
-        test_count=$((test_count + 1))
     else
         echo "❌ CLI BATS integration tests failed"
-        error_count=$((error_count + 1))
+        exit 1
     fi
 else
-    echo "⚠️  CLI test runner not found at $CLI_TEST_SCRIPT"
-    echo "   Falling back to basic CLI test..."
-    
-    # Fallback to basic CLI test
-    CLI_BINARY="$SCENARIO_DIR/cli/visited-tracker"
-    if [ -f "$CLI_BINARY" ] && [ -x "$CLI_BINARY" ]; then
-        if "$CLI_BINARY" version >/dev/null 2>&1; then
-            echo "✅ Basic CLI test passed"
-            test_count=$((test_count + 1))
-        else
-            echo "❌ Basic CLI test failed"
-            error_count=$((error_count + 1))
-        fi
-    else
-        echo "⚠️  CLI not available at $CLI_BINARY - skipping"
-        skipped_count=$((skipped_count + 1))
-    fi
+    echo "❌ CLI test runner missing or not executable: $CLI_TEST_SCRIPT"
+    exit 1
 fi
 
 echo ""
-echo "🗄️  Testing Database Integration..."
+echo "🗄️  Testing resource connectivity (PostgreSQL if configured)..."
 if command -v resource-postgres >/dev/null 2>&1; then
-    echo "🔍 Running PostgreSQL resource smoke tests..."
-    if timeout 30 resource-postgres test smoke >/dev/null 2>&1; then
+    if resource-postgres test smoke >/dev/null 2>&1; then
         echo "✅ Database integration tests passed"
-        test_count=$((test_count + 1))
     else
         echo "❌ Database integration tests failed"
-        error_count=$((error_count + 1))
+        exit 1
     fi
 else
-    echo "⚠️  PostgreSQL resource not available - skipping database tests"
-    echo "   💡 Tip: Install with 'vrooli resource start postgres'"
-    skipped_count=$((skipped_count + 1))
+    echo "ℹ️  PostgreSQL resource CLI not available; skipping"
 fi
 
 echo ""
-echo "🔄 Testing End-to-End Workflow (if API is running)..."
-if timeout 5 curl -sf "http://localhost:${API_PORT}/health" >/dev/null 2>&1; then
-    echo "🧪 Running end-to-end workflow test..."
-    
-    # Create test campaign via API
-    campaign_response=$(timeout 10 curl -sf -X POST \
-        -H "Content-Type: application/json" \
-        -d '{"name":"integration-test-campaign","description":"Test campaign for integration tests"}' \
-        "http://localhost:${API_PORT}/api/v1/campaigns" 2>/dev/null || echo "")
-    
-    if [[ "$campaign_response" =~ "id" ]] || [[ "$campaign_response" =~ "success" ]]; then
-        echo "✅ End-to-end workflow test passed"
-        test_count=$((test_count + 1))
-    else
-        echo "⚠️  End-to-end workflow test had issues: $campaign_response"
-        error_count=$((error_count + 1))
-    fi
+echo "🔄 Testing end-to-end workflow..."
+sync_payload='{"patterns":["**/*.js"]}'
+workflow_response=$(curl -sf --max-time 15 -X POST -H "Content-Type: application/json" -d "$sync_payload" "$API_URL/api/v1/campaigns/${TEST_CAMPAIGN_ID}/structure/sync" 2>/dev/null || echo "")
+if echo "$workflow_response" | jq -e '.total' >/dev/null 2>&1; then
+    echo "✅ End-to-end workflow test passed"
 else
-    echo "⚠️  Skipping end-to-end workflow test - API not available"
-    skipped_count=$((skipped_count + 1))
+    echo "❌ End-to-end workflow test failed: $workflow_response"
+    exit 1
 fi
 
 echo ""
 echo "📊 Integration Test Summary:"
 echo "════════════════════════════"
-echo "   Tests passed: $test_count"
-echo "   Tests failed: $error_count"
-echo "   Tests skipped: $skipped_count"
-echo "   Total coverage: $((test_count + error_count + skipped_count)) integration scenarios"
+echo "   API health: passed"
+echo "   CLI integration: passed"
+echo "   Resource checks: completed"
+echo "   Workflow sync: passed"
 
-if [ $error_count -eq 0 ]; then
-    echo ""
-    echo "✅ SUCCESS: All integration tests passed!"
-    if [ $skipped_count -gt 0 ]; then
-        echo "   ℹ️  Note: $skipped_count tests were skipped due to missing dependencies"
-    fi
-    exit 0
-else
-    echo ""
-    echo "❌ ERROR: $error_count integration tests failed"
-    echo ""
-    echo "🔧 Troubleshooting:"
-    echo "   • Ensure service is running: vrooli scenario run visited-tracker"
-    echo "   • Check service logs: vrooli scenario logs visited-tracker"
-    echo "   • Verify PostgreSQL: vrooli resource start postgres"
-    echo "   • Install CLI: cd cli && ./install.sh"
-    exit 1
-fi
+echo ""
+log::success "✅ SUCCESS: All integration tests passed!"

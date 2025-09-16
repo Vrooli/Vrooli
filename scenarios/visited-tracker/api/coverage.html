@@ -55,7 +55,7 @@
 			<div id="nav">
 				<select id="files">
 				
-				<option value="file0">visited-tracker-api/main.go (79.4%)</option>
+				<option value="file0">visited-tracker-api/main.go (79.7%)</option>
 				
 				</select>
 			</div>
@@ -397,7 +397,7 @@ func loadAllCampaigns() ([]Campaign, error) <span class="cov8" title="1">{
                 }</span>
                 
                 <span class="cov8" title="1">var campaign Campaign
-                if err := json.Unmarshal(data, &amp;campaign); err != nil </span><span class="cov0" title="0">{
+                if err := json.Unmarshal(data, &amp;campaign); err != nil </span><span class="cov8" title="1">{
                         logger.Printf("⚠️ Failed to unmarshal campaign file %s: %v", path, err)
                         return nil // Continue with other files
                 }</span>

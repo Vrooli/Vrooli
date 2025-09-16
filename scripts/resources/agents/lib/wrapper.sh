@@ -225,11 +225,47 @@ agents::auto_track() {
     fi
 }
 
-# Provide a default cleanup implementation so exports succeed even when
-# agents::with_agent hasn't registered a cleanup handler yet. The function is
-# redefined on demand within agents::with_agent when registration succeeds.
-agents::cleanup_current_agent() {
-    return 0
+#######################################
+# Compatibility layer for old agent API
+# Many resources use the old agents:: prefix instead of agent_manager::
+# This provides backward compatibility
+#######################################
+
+# Compatibility functions that map old API to new API
+agents::register() {
+    agent_manager::register "$@"
+}
+
+agents::unregister() {
+    agent_manager::unregister "$@"
+}
+
+agents::generate_id() {
+    agent_manager::generate_id "$@"
+}
+
+agents::heartbeat() {
+    agent_manager::heartbeat "$@"
+}
+
+agents::cleanup() {
+    agent_manager::cleanup "$@"
+}
+
+agents::list() {
+    agent_manager::list "$@"
+}
+
+agents::stop() {
+    agent_manager::stop "$@"
+}
+
+agents::info() {
+    agent_manager::info "$@"
+}
+
+agents::logs() {
+    agent_manager::logs "$@"
 }
 
 # Export functions for use by resources
@@ -237,4 +273,17 @@ export -f agents::with_agent
 export -f agents::track_operation
 export -f agents::should_track
 export -f agents::auto_track
-export -f agents::cleanup_current_agent
+if type -t agents::cleanup_current_agent &>/dev/null; then
+    export -f agents::cleanup_current_agent
+fi
+
+# Export compatibility functions
+export -f agents::register
+export -f agents::unregister
+export -f agents::generate_id
+export -f agents::heartbeat
+export -f agents::cleanup
+export -f agents::list
+export -f agents::stop
+export -f agents::info
+export -f agents::logs

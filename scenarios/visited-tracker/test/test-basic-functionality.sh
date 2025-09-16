@@ -16,6 +16,7 @@ fi
 API_URL="http://localhost:${API_PORT}"
 TEST_DIR="/tmp/visited-tracker-test-$$"
 CLI_PATH="visited-tracker"  # Should be installed globally
+CAMPAIGN_ID=""
 
 # Colors
 GREEN='\033[0;32m'
@@ -30,6 +31,9 @@ echo -e "${CYAN}🧪 Testing Visited Tracker Functionality${NC}"
 # Cleanup function
 cleanup() {
     rm -rf "$TEST_DIR"
+    if [[ -n "$CAMPAIGN_ID" ]]; then
+        curl -sf -X DELETE "$API_URL/api/v1/campaigns/$CAMPAIGN_ID" >/dev/null 2>&1 || true
+    fi
 }
 trap cleanup EXIT
 
@@ -49,6 +53,18 @@ echo "# Documentation" > "$TEST_DIR/README.md"
 echo "{ \"name\": \"test\" }" > "$TEST_DIR/package.json"
 
 echo "✓ Test files created in $TEST_DIR"
+
+# Create dedicated test campaign
+campaign_payload=$(jq -n --arg name "cli-functional-$(date +%s)" --arg from_agent "test-cli" --argjson patterns '["**/*.js","**/*.md"]' '{name:$name, from_agent:$from_agent, patterns:$patterns}')
+campaign_response=$(curl -sf -X POST "$API_URL/api/v1/campaigns" -H "Content-Type: application/json" -d "$campaign_payload" 2>/dev/null || echo "")
+if echo "$campaign_response" | jq -e '.id' >/dev/null 2>&1; then
+    CAMPAIGN_ID=$(echo "$campaign_response" | jq -r '.id')
+    export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+    echo "✓ Test campaign created: $CAMPAIGN_ID"
+else
+    echo "❌ Failed to create test campaign"
+    exit 1
+fi
 
 # Test 1: Check API health
 echo
@@ -71,7 +87,7 @@ echo
 echo -e "${BLUE}Test 2: Sync File Structure${NC}"
 cd "$TEST_DIR"
 
-sync_response=$($CLI_PATH sync --patterns "**/*.js" --patterns "**/*.md" --json 2>&1)
+sync_response=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" sync --patterns "**/*.js" --patterns "**/*.md" --json 2>&1)
 if echo "$sync_response" | jq -e '.added' > /dev/null; then
     added=$(echo "$sync_response" | jq -r '.added')
     total=$(echo "$sync_response" | jq -r '.total')
@@ -87,7 +103,7 @@ echo
 echo -e "${BLUE}Test 3: Record File Visits${NC}"
 
 # Visit some files
-visit_response=$($CLI_PATH visit "src/main.js" "src/components/App.js" --context security --agent "test-cli" --json 2>&1)
+visit_response=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" visit "src/main.js" "src/components/App.js" --context security --agent "test-cli" --json 2>&1)
 if echo "$visit_response" | jq -e '.recorded' > /dev/null; then
     recorded=$(echo "$visit_response" | jq -r '.recorded')
     echo -e "${GREEN}✓ Recorded $recorded visits with security context${NC}"
@@ -102,10 +118,10 @@ echo
 echo -e "${BLUE}Test 4: Verify Visit Counts${NC}"
 
 # Visit main.js again
-$CLI_PATH visit "src/main.js" --context performance > /dev/null 2>&1
+$CLI_PATH --campaign-id "$CAMPAIGN_ID" visit "src/main.js" --context performance > /dev/null 2>&1
 
 # Check the visit count increased
-visit_response=$($CLI_PATH visit "src/main.js" --context bug --json 2>&1)
+visit_response=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" visit "src/main.js" --context bug --json 2>&1)
 if echo "$visit_response" | jq -e '.files[0].visit_count' > /dev/null; then
     visit_count=$(echo "$visit_response" | jq -r '.files[0].visit_count')
     if [[ $visit_count -ge 3 ]]; then
@@ -123,7 +139,7 @@ fi
 echo
 echo -e "${BLUE}Test 5: Get Least Visited Files${NC}"
 
-least_visited=$($CLI_PATH least-visited --limit 5 --json 2>&1)
+least_visited=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" least-visited --limit 5 --json 2>&1)
 if echo "$least_visited" | jq -e '.files' > /dev/null; then
     file_count=$(echo "$least_visited" | jq '.files | length')
     echo -e "${GREEN}✓ Retrieved $file_count least visited files${NC}"
@@ -148,9 +164,9 @@ sleep 1
 echo "// Modified" >> "$TEST_DIR/src/utils/helper.js"
 
 # Sync to update modification times
-$CLI_PATH sync --patterns "**/*.js" > /dev/null 2>&1
+$CLI_PATH --campaign-id "$CAMPAIGN_ID" sync --patterns "**/*.js" > /dev/null 2>&1
 
-stale_files=$($CLI_PATH most-stale --limit 5 --json 2>&1)
+stale_files=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" most-stale --limit 5 --json 2>&1)
 if echo "$stale_files" | jq -e '.files' > /dev/null; then
     avg_staleness=$(echo "$stale_files" | jq -r '.average_staleness')
     echo -e "${GREEN}✓ Staleness detection working: avg score $avg_staleness${NC}"
@@ -164,7 +180,7 @@ fi
 echo
 echo -e "${BLUE}Test 7: Coverage Statistics${NC}"
 
-coverage=$($CLI_PATH coverage --json 2>&1)
+coverage=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" coverage --json 2>&1)
 if echo "$coverage" | jq -e '.coverage_percentage' > /dev/null; then
     percentage=$(echo "$coverage" | jq -r '.coverage_percentage')
     visited=$(echo "$coverage" | jq -r '.visited_files')
@@ -182,14 +198,14 @@ echo
 echo -e "${BLUE}Test 8: Export and Import Data${NC}"
 
 export_file="$TEST_DIR/export.json"
-$CLI_PATH export "$export_file" --format json > /dev/null 2>&1
+$CLI_PATH --campaign-id "$CAMPAIGN_ID" export "$export_file" --format json > /dev/null 2>&1
 
 if [[ -f "$export_file" ]]; then
     export_count=$(jq '.exported_count' "$export_file")
     echo -e "${GREEN}✓ Exported $export_count files to $export_file${NC}"
     
     # Test import (would need a fresh database to truly test)
-    import_response=$($CLI_PATH import "$export_file" --json 2>&1)
+import_response=$($CLI_PATH import "$export_file" --json 2>&1)
     if echo "$import_response" | jq -e '.message' > /dev/null; then
         echo -e "${YELLOW}⚠ Import endpoint placeholder working${NC}"
     fi
@@ -202,7 +218,7 @@ fi
 echo
 echo -e "${BLUE}Test 9: CLI Status Command${NC}"
 
-if $CLI_PATH status | grep -q "Service: visited-tracker"; then
+if $CLI_PATH --campaign-id "$CAMPAIGN_ID" status | grep -q "Service: visited-tracker"; then
     echo -e "${GREEN}✓ Status command working${NC}"
 else
     echo -e "${RED}✗ Status command failed${NC}"
@@ -214,7 +230,7 @@ echo
 echo -e "${BLUE}Test 10: Context Filtering${NC}"
 
 # Get files visited with security context
-security_files=$($CLI_PATH least-visited --context security --limit 10 --json 2>&1)
+security_files=$($CLI_PATH --campaign-id "$CAMPAIGN_ID" least-visited --context security --limit 10 --json 2>&1)
 if echo "$security_files" | jq -e '.files' > /dev/null; then
     echo -e "${GREEN}✓ Context filtering working${NC}"
 else

@@ -541,6 +541,83 @@ func TestLoadAllCampaigns(t *testing.T) {
     }
 }
 
+func TestLoadAllCampaignsDirectoryMissing(t *testing.T) {
+    teardownLogger := setupTestLogger()
+    defer teardownLogger()
+
+    originalWd, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("Failed to determine working directory: %v", err)
+    }
+    tempDir := t.TempDir()
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp directory: %v", err)
+    }
+    defer os.Chdir(originalWd)
+
+    campaigns, err := loadAllCampaigns()
+    if err != nil {
+        t.Fatalf("Expected no error when campaigns directory missing, got %v", err)
+    }
+    if len(campaigns) != 0 {
+        t.Fatalf("Expected 0 campaigns, got %d", len(campaigns))
+    }
+}
+
+func TestLoadAllCampaignsSkipsInvalidFiles(t *testing.T) {
+    teardownLogger := setupTestLogger()
+    defer teardownLogger()
+
+    originalWd, err := os.Getwd()
+    if err != nil {
+        t.Fatalf("Failed to determine working directory: %v", err)
+    }
+    tempDir := t.TempDir()
+    if err := os.Chdir(tempDir); err != nil {
+        t.Fatalf("Failed to change to temp directory: %v", err)
+    }
+    defer os.Chdir(originalWd)
+
+    campaignsDir := filepath.Join("scenarios", "visited-tracker", dataDir)
+    if err := os.MkdirAll(campaignsDir, 0o755); err != nil {
+        t.Fatalf("Failed to create campaigns directory: %v", err)
+    }
+
+    // Invalid JSON file should be ignored gracefully
+    if err := os.WriteFile(filepath.Join(campaignsDir, "invalid.json"), []byte("{invalid"), 0o644); err != nil {
+        t.Fatalf("Failed to write invalid campaign file: %v", err)
+    }
+
+    validCampaign := Campaign{
+        ID:        uuid.New(),
+        Name:      "valid-campaign",
+        FromAgent: "unit-test",
+        Patterns:  []string{"**/*.go"},
+        CreatedAt: time.Now().UTC(),
+        UpdatedAt: time.Now().UTC(),
+        Status:    "active",
+    }
+
+    data, err := json.Marshal(validCampaign)
+    if err != nil {
+        t.Fatalf("Failed to marshal valid campaign: %v", err)
+    }
+    if err := os.WriteFile(filepath.Join(campaignsDir, "valid.json"), data, 0o644); err != nil {
+        t.Fatalf("Failed to write valid campaign file: %v", err)
+    }
+
+    campaigns, err := loadAllCampaigns()
+    if err != nil {
+        t.Fatalf("Expected no error when loading campaigns, got %v", err)
+    }
+    if len(campaigns) != 1 {
+        t.Fatalf("Expected 1 valid campaign, got %d", len(campaigns))
+    }
+    if campaigns[0].Name != validCampaign.Name {
+        t.Fatalf("Expected campaign name %q, got %q", validCampaign.Name, campaigns[0].Name)
+    }
+}
+
 // Test deleteCampaignFile function
 func TestDeleteCampaignFile(t *testing.T) {
     // Create a temporary directory for testing

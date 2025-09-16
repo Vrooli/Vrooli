@@ -358,6 +358,44 @@ claude_code::content::remove() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
+# Internal execution function (wrapped by agent manager)
+claude_code::content::execute_internal() {
+    local type="$1"
+    local name="$2"
+    local model="$3"
+    local session="$4"
+    
+    # Get content
+    local content
+    content=$(claude_code::content::get --type "$type" --name "$name")
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    
+    # Build Claude command
+    local claude_cmd="claude"
+    
+    if [[ -n "$model" ]]; then
+        claude_cmd="$claude_cmd --model $model"
+    fi
+    
+    if [[ -n "$session" ]]; then
+        claude_cmd="$claude_cmd --session $session"
+    fi
+    
+    # Execute based on type
+    if [[ "$type" == "template" ]]; then
+        # Templates are code files to be processed
+        echo "$content" | $claude_cmd --execute
+    else
+        # Prompts are text to be sent as messages
+        echo "$content" | $claude_cmd
+    fi
+    
+    return $?
+}
+
+#######################################
 claude_code::content::execute() {
     local type=""
     local name=""
@@ -402,34 +440,13 @@ claude_code::content::execute() {
         return 1
     fi
     
-    # Get content
-    local content
-    content=$(claude_code::content::get --type "$type" --name "$name")
-    if [[ $? -ne 0 ]]; then
-        return 1
-    fi
-    
-    # Build Claude command
-    local claude_cmd="claude"
-    
-    if [[ -n "$model" ]]; then
-        claude_cmd="$claude_cmd --model $model"
-    fi
-    
-    if [[ -n "$session" ]]; then
-        claude_cmd="$claude_cmd --session $session"
-    fi
-    
-    # Execute based on type
-    if [[ "$type" == "template" ]]; then
-        # Templates are code files to be processed
-        echo "$content" | $claude_cmd --execute
+    # Use agent wrapper for execution (AI processing operation)
+    if type -t agents::with_agent &>/dev/null; then
+        agents::with_agent "content-execute" "claude_code::content::execute_internal" "$type" "$name" "$model" "$session"
     else
-        # Prompts are text to be sent as messages
-        echo "$content" | $claude_cmd
+        # Fallback if agent management not available
+        claude_code::content::execute_internal "$type" "$name" "$model" "$session"
     fi
-    
-    return $?
 }
 
 #######################################

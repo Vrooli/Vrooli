@@ -21,13 +21,38 @@ scenario::run() {
     local phase="${1:-develop}"
     shift || true
     
-    # Check for --clean-stale flag
+    # Check for optional flags
     local clean_stale=false
+    local allow_skip_missing_runtime=false
+    local manage_runtime=false
+    local had_prior_allow_var=false
+    local prior_allow_value=""
+    local had_prior_manage_var=false
+    local prior_manage_value=""
+
+    if [[ -n "${TEST_ALLOW_SKIP_MISSING_RUNTIME+x}" ]]; then
+        had_prior_allow_var=true
+        prior_allow_value="${TEST_ALLOW_SKIP_MISSING_RUNTIME}"
+    fi
+
+    if [[ -n "${TEST_MANAGE_RUNTIME+x}" ]]; then
+        had_prior_manage_var=true
+        prior_manage_value="${TEST_MANAGE_RUNTIME}"
+    fi
+
     local -a remaining_args=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --clean-stale)
                 clean_stale=true
+                shift
+                ;;
+            --allow-skip-missing-runtime)
+                allow_skip_missing_runtime=true
+                shift
+                ;;
+            --manage-runtime)
+                manage_runtime=true
                 shift
                 ;;
             *)
@@ -36,6 +61,11 @@ scenario::run() {
                 ;;
         esac
     done
+
+    if [[ "$allow_skip_missing_runtime" == "true" && "$manage_runtime" == "true" ]]; then
+        log::warning "⚠️  --manage-runtime overrides --allow-skip-missing-runtime"
+        allow_skip_missing_runtime=false
+    fi
     
     # For develop phase, check if already running and healthy
     if [[ "$phase" == "develop" ]]; then
@@ -98,12 +128,37 @@ scenario::run() {
     # Call lifecycle.sh directly, capturing output to both console and log file
     log::info "Running scenario '$scenario_name' with direct lifecycle execution"
     
+    # Optionally allow skipping runtime-dependent phases (tests only)
+    if [[ "$allow_skip_missing_runtime" == "true" ]]; then
+        export TEST_ALLOW_SKIP_MISSING_RUNTIME="true"
+    fi
+
+    if [[ "$manage_runtime" == "true" ]]; then
+        export TEST_MANAGE_RUNTIME="true"
+    fi
+
     # Use tee to show output on console AND write to log file
     # This preserves real-time output while capturing for later review
     "${SCRIPT_DIR}/../utils/lifecycle.sh" "$scenario_name" "$phase" "${remaining_args[@]}" 2>&1 | tee -a "$lifecycle_log"
-    
-    # Preserve the exit code from the pipeline
-    return "${PIPESTATUS[0]}"
+    local run_exit="${PIPESTATUS[0]}"
+
+    if [[ "$allow_skip_missing_runtime" == "true" ]]; then
+        if [[ "$had_prior_allow_var" == "true" ]]; then
+            export TEST_ALLOW_SKIP_MISSING_RUNTIME="${prior_allow_value}"
+        else
+            unset TEST_ALLOW_SKIP_MISSING_RUNTIME || true
+        fi
+    fi
+
+    if [[ "$manage_runtime" == "true" ]]; then
+        if [[ "$had_prior_manage_var" == "true" ]]; then
+            export TEST_MANAGE_RUNTIME="${prior_manage_value}"
+        else
+            unset TEST_MANAGE_RUNTIME || true
+        fi
+    fi
+
+    return "$run_exit"
 }
 scenario::list() {
     local json_output=false

@@ -18,9 +18,12 @@ declare -g -A RESOURCE_PORTS=(
     ["nsfw-detector"]="11451"  # NSFW content detection and moderation AI
     ["qwencoder"]="11452"      # QwenCoder code generation LLM
     ["deepstack"]="11453"      # DeepStack computer vision AI (object detection, face recognition)
+    ["segment-anything"]="11454"  # Segment Anything Model (SAM2/HQ-SAM) foundation segmentation service
+    ["ultralytics-yolo"]="11455"  # Ultralytics YOLOv8 vision intelligence suite (detection, segmentation, tracking)
     ["gazebo"]="11456"         # Gazebo robotics simulation platform (3D physics, sensors, robot modeling)
     ["godot"]="11457"          # Godot Engine game development platform (GDScript, 2D/3D engine)
     ["mathlib"]="11458"        # Mathlib4 formal mathematical theorem proving with Lean 4
+    ["papermc"]="11459"        # PaperMC Minecraft server health endpoint
     ["ros2"]="11501"           # ROS2 Robot Operating System middleware for distributed robotics
     
     # Automation Services (56xx range)
@@ -67,10 +70,13 @@ declare -g -A RESOURCE_PORTS=(
     ["autogen-studio"]="8081"  # Multi-agent conversation framework
     ["pandas-ai"]="8095"       # AI-powered data analysis and manipulation
     ["splink"]="8096"          # Probabilistic record linkage and deduplication at scale
+    ["sagemath"]="8888"        # Open-source mathematics software system (Jupyter interface)
+    ["sagemath-api"]="8889"    # SageMath REST API endpoint
     ["haystack"]="8075"        # End-to-end framework for question answering and search
     ["crewai"]="8084"          # Multi-agent AI framework for collaborative AI systems
     ["keycloak"]="8070"        # Enterprise identity and access management
     ["erpnext"]="8020"         # Complete open-source ERP suite
+    ["mifos"]="8030"           # Mifos X digital finance platform (Apache Fineract)
     ["blender"]="8093"         # 3D creation suite with Python API
     ["vocr"]="9420"            # Vision OCR - Advanced screen recognition and AI-powered image analysis
     ["matrix-synapse"]="8008"  # Matrix Synapse federated communication server
@@ -78,6 +84,8 @@ declare -g -A RESOURCE_PORTS=(
     ["cncjs"]="8194"           # Web-based CNC controller for Grbl, Marlin, Smoothieware, TinyG
     ["esphome"]="6587"         # ESPHome IoT firmware framework for ESP32/ESP8266 microcontrollers
     ["freecad"]="8195"         # Parametric 3D CAD modeler with Python API for engineering design
+    ["elmer-fem"]="8192"       # Elmer FEM multiphysics finite element solver for coupled simulations
+    ["meep"]="8193"            # MEEP electromagnetic FDTD simulation engine with Python bindings
     ["octoprint"]="8197"       # Web-based 3D printer management platform with REST API
     ["ggwave"]="8196"          # Air-gapped data transmission via FSK-modulated audio signals
     ["lnbits"]="5001"          # Lightning Network Bitcoin micropayments and wallet system
@@ -89,15 +97,47 @@ declare -g -A RESOURCE_PORTS=(
     # Simulation Services (95xx range)
     ["simpy"]="9510"           # SimPy discrete-event simulation framework (existing)
     ["gridlabd"]="9511"        # GridLAB-D power distribution system simulator
+    ["mesa"]="9512"            # Mesa agent-based modeling framework for complex adaptive systems
+    ["openrocket"]="9513"      # OpenRocket model rocket design and flight simulation
+    ["su2"]="9514"             # SU2 aerospace CFD and optimization platform
     
     # Collaboration Services (80xx range)
     ["nextcloud"]="8086"       # Self-hosted file sync, share, and collaboration platform
     ["wikijs"]="3010"          # Wiki.js documentation platform with Git backend
     
+    # Transportation Services (80xx range)
+    ["opentripplanner"]="8080" # OpenTripPlanner multimodal routing engine
+    ["traccar"]="8082"         # Traccar GPS tracking and fleet management server
+    ["geonode"]="8100"         # GeoNode geospatial content management system (Django portal)
+    ["geonode-geoserver"]="8101" # GeoNode GeoServer for OGC map services
+    ["open-data-cube"]="8850"  # Open Data Cube Earth observation analytics platform
+    ["open-data-cube-db"]="5450" # Open Data Cube PostGIS database
+    ["open-data-cube-ows"]="8851" # Open Data Cube OGC Web Services (WMS/WCS)
+    
     # Data Integration Services (80xx range)
     ["airbyte"]="8002"         # Airbyte ELT platform webapp (moved from 8000)
     ["airbyte-server"]="8003"  # Airbyte API server (moved from 8001)
+    
+    # Agricultural Management Services (80xx range)
+    ["farmos"]="8004"          # farmOS agricultural management platform
     ["airbyte-temporal"]="8006" # Airbyte workflow orchestration
+    
+    # IoT Services (80xx range)
+    ["eclipse-ditto"]="8089"   # Eclipse Ditto Digital Twin Platform for IoT
+    
+    # Energy Management Services (80xx range)
+    ["openems"]="8084"         # OpenEMS HTTP API and Web UI
+    ["openems-jsonrpc"]="8085" # OpenEMS JSON-RPC WebSocket
+    ["openems-backend"]="8086" # OpenEMS Backend API
+    ["openems-modbus"]="502"   # OpenEMS Modbus TCP (standard port)
+    
+    # Healthcare Services (80xx range)
+    ["openmrs"]="8005"         # OpenMRS web interface
+    ["openmrs-api"]="8006"     # OpenMRS REST API
+    ["openmrs-fhir"]="8007"    # OpenMRS FHIR API
+    ["openemr"]="8010"         # OpenEMR web interface
+    ["openemr-api"]="8011"     # OpenEMR REST API
+    ["openemr-fhir"]="8012"    # OpenEMR FHIR R4 API
     
     # Interactive Computing Services (80xx range)
     ["jupyterhub"]="8000"      # JupyterHub multi-user notebook server
@@ -109,6 +149,12 @@ declare -g -A RESOURCE_PORTS=(
     ["grafana"]="3030"         # Grafana visualization (non-standard port to avoid conflicts)
     ["alertmanager"]="9093"    # Prometheus Alertmanager
     ["node-exporter"]="9100"   # Node metrics exporter
+    ["openmct"]="8099"         # NASA Open MCT mission control telemetry visualization
+    
+    # Analytics Services (80xx range)  
+    ["apache-superset"]="8088"        # Apache Superset analytics platform
+    ["apache-superset-postgres"]="5436" # Superset metadata database
+    ["apache-superset-redis"]="6381"    # Superset cache and message broker
     
     # Future services can use:
     # - 11xxx for AI services

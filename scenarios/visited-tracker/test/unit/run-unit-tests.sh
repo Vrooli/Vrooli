@@ -24,6 +24,8 @@ cd "$SCENARIO_DIR"
 testing::unit::run_all_tests \
     --go-dir "api" \
     --node-dir "ui" \
-    --skip-python  # visited-tracker doesn't have Python components
+    --skip-python \
+    --coverage-warn 78 \
+    "$@"
 
 exit $?

@@ -556,8 +556,8 @@ test_scenario_integration() {
         
         # Use universal test runner that handles both formats
         # Source it only once at the beginning of the loop
-        if [[ $current -eq 1 ]] && [[ -f "$PROJECT_ROOT/scripts/lib/testing/legacy/run-scenario-tests.sh" ]]; then
-            source "$PROJECT_ROOT/scripts/lib/testing/legacy/run-scenario-tests.sh"
+        if [[ $current -eq 1 ]] && [[ -f "$PROJECT_ROOT/scripts/scenarios/testing/legacy/run-scenario-tests.sh" ]]; then
+            source "$PROJECT_ROOT/scripts/scenarios/testing/legacy/run-scenario-tests.sh"
         fi
         
         # Try to run tests using the universal runner

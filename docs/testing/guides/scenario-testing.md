@@ -55,6 +55,10 @@ make logs     # View test logs
 # Test a specific scenario
 vrooli scenario test <scenario-name>
 
+# Allow runtime-dependent phases to skip when the scenario isn't running
+vrooli scenario test <scenario-name> --allow-skip-missing-runtime
+vrooli scenario test <scenario-name> --manage-runtime
+
 # Or from scenario directory  
 cd scenarios/<scenario-name>
 make test
@@ -1077,6 +1081,11 @@ If you have an old `scenario-test.yaml`:
 - [ ] Performance baselines established
 - [ ] Safety linter run on all test scripts
 - [ ] Dynamic port discovery implemented
+- [ ] Optional: set `TEST_ALLOW_SKIP_MISSING_RUNTIME=true` (or use
+      `--allow-skip-missing-runtime`) when you intentionally want integration
+      phases to report skips without auto-starting services. Use `--manage-runtime`
+      when you want the CLI to bring the scenario up for those phases and tear it
+      down afterward (unless it was already running).
 - [ ] Makefile with test target
 
 ## See Also

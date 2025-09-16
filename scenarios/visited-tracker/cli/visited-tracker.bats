@@ -7,9 +7,11 @@
 ################################################################################
 
 setup() {
-    # Always set TEST_FILE_PREFIX first to prevent teardown issues
     export API_PORT="${API_PORT:-17695}"
-    export TEST_FILE_PREFIX="/tmp/visited-tracker-cli-test"
+    export API_BASE_URL="http://localhost:${API_PORT}"
+    export TEST_CAMPAIGN_ID=""
+    export VISITED_TRACKER_TEST_ROOT="$(mktemp -d /tmp/visited-tracker-cli-XXXXXX)"
+    export TEST_FILE_DIR="${VISITED_TRACKER_TEST_ROOT}/files"
     
     # Ensure CLI is available
     if ! command -v visited-tracker >/dev/null 2>&1; then
@@ -17,17 +19,41 @@ setup() {
     fi
     
     # Create test files for scenarios that need them
-    mkdir -p "${TEST_FILE_PREFIX}-dir"
-    echo "// Test file content" > "${TEST_FILE_PREFIX}-dir/test1.js"
-    echo "/* Another test file */" > "${TEST_FILE_PREFIX}-dir/test2.js"
-    echo "console.log('test');" > "${TEST_FILE_PREFIX}-dir/test3.js"
+    mkdir -p "$TEST_FILE_DIR"
+    echo "// Test file content" > "$TEST_FILE_DIR/test1.js"
+    echo "/* Another test file */" > "$TEST_FILE_DIR/test2.js"
+    echo "console.log('test');" > "$TEST_FILE_DIR/test3.js"
+
+    # Create a disposable campaign when service is running
+    if service_running; then
+        if ! command -v jq >/dev/null 2>&1; then
+            skip "jq is required for CLI tests"
+        fi
+
+        local payload
+        payload=$(jq -n --arg name "cli-bats-$(date +%s)" --arg from_agent "cli-tests" --argjson patterns '["**/*.js"]' '{name:$name, from_agent:$from_agent, patterns:$patterns}')
+        local response
+        response=$(curl -sf -X POST "$API_BASE_URL/api/v1/campaigns" -H "Content-Type: application/json" -d "$payload" 2>/dev/null || echo "")
+        if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
+            TEST_CAMPAIGN_ID=$(echo "$response" | jq -r '.id')
+            export TEST_CAMPAIGN_ID
+            export VISITED_TRACKER_CAMPAIGN_ID="$TEST_CAMPAIGN_ID"
+        else
+            skip "Unable to create test campaign via API"
+        fi
+    fi
 }
 
 teardown() {
-    # Clean up test files - but only if TEST_FILE_PREFIX is set to prevent accidental deletion
-    if [ -n "${TEST_FILE_PREFIX:-}" ]; then
-        rm -rf "${TEST_FILE_PREFIX}-dir" 2>/dev/null || true
-        rm -f "${TEST_FILE_PREFIX}"* 2>/dev/null || true
+    if [ -n "${VISITED_TRACKER_TEST_ROOT:-}" ]; then
+        rm -rf "${VISITED_TRACKER_TEST_ROOT}" 2>/dev/null || true
+        unset VISITED_TRACKER_TEST_ROOT
+        unset TEST_FILE_DIR
+    fi
+
+    if [ -n "${TEST_CAMPAIGN_ID:-}" ]; then
+        curl -sf -X DELETE "$API_BASE_URL/api/v1/campaigns/$TEST_CAMPAIGN_ID" >/dev/null 2>&1 || true
+        unset VISITED_TRACKER_CAMPAIGN_ID
     fi
 }
 
@@ -85,7 +111,7 @@ is_valid_json() {
 @test "CLI version shows correct format" {
     run visited-tracker version
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "v[0-9]+\.[0-9]+\.[0-9]+" ]]
+    [[ "$output" =~ v[0-9]+\.[0-9]+\.[0-9]+ ]]
 }
 
 @test "CLI version works even if service is down" {
@@ -131,7 +157,7 @@ is_valid_json() {
         skip "Service is running - cannot test service down scenario"
     fi
     
-    run visited-tracker visit "${TEST_FILE_PREFIX}-dir/test1.js"
+    run visited-tracker visit "${TEST_FILE_DIR}/test1.js"
     [ "$status" -ne 0 ]
     [[ "$output" =~ "not running" ]] || [[ "$output" =~ "Error" ]]
 }
@@ -336,7 +362,7 @@ is_valid_json() {
     run visited-tracker status
     [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
     # Output should indicate if service is running or not
-    [[ "$output" =~ "running" ]] || [[ "$output" =~ "stopped" ]] || [[ "$output" =~ "not" ]] || [[ "$output" =~ "status" ]]
+    [[ "$output" =~ "running" ]] || [[ "$output" =~ "stopped" ]] || [[ "$output" =~ "not" ]] || [[ "$output" =~ "Status" ]]
 }
 
 ################################################################################
@@ -364,7 +390,7 @@ is_valid_json() {
         skip "Service not running"
     fi
     
-    run visited-tracker export "${TEST_FILE_PREFIX}-export.json" --format json
+    run visited-tracker export "${VISITED_TRACKER_TEST_ROOT}/export.json" --format json
     [ "$status" -eq 0 ] || [[ "$output" =~ "exported" ]]
 }
 
@@ -373,7 +399,7 @@ is_valid_json() {
         skip "Service not running"
     fi
     
-    run visited-tracker export "${TEST_FILE_PREFIX}-export.json" --include-history
+    run visited-tracker export "${VISITED_TRACKER_TEST_ROOT}/export.json" --include-history
     [ "$status" -eq 0 ] || [[ "$output" =~ "exported" ]]
 }
 
@@ -391,7 +417,7 @@ is_valid_json() {
     [ "$status" -eq 0 ]
     
     # Visit a file
-    run visited-tracker visit "${TEST_FILE_PREFIX}-dir/test1.js" --context security
+    run visited-tracker visit "${TEST_FILE_DIR}/test1.js" --context security
     [ "$status" -eq 0 ] || [[ "$output" =~ "visited" ]] || [[ "$output" =~ "recorded" ]]
     
     # Check least-visited

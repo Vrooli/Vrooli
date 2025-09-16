@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visited Tracker - Campaign Management</title>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         :root {
             --bg-primary: #0d1117;
@@ -64,6 +65,13 @@
 
         .logo-icon {
             font-size: 28px;
+            display: inline-flex;
+            align-items: center;
+        }
+        
+        .logo-icon svg {
+            width: 28px;
+            height: 28px;
         }
 
         .header-controls {
@@ -121,6 +129,11 @@
             align-items: center;
             gap: 6px;
         }
+        
+        .logs-btn svg {
+            width: 16px;
+            height: 16px;
+        }
 
         .logs-btn:hover {
             background: var(--bg-secondary);
@@ -174,6 +187,11 @@
             align-items: center;
             gap: 6px;
         }
+        
+        .btn svg {
+            width: 16px;
+            height: 16px;
+        }
 
         .btn:hover {
             background: var(--bg-secondary);
@@ -223,6 +241,13 @@
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-muted);
+            display: flex;
+            align-items: center;
+        }
+        
+        .search-icon svg {
+            width: 16px;
+            height: 16px;
         }
 
         .filter-group {
@@ -288,6 +313,11 @@
             display: flex;
             align-items: center;
             gap: 4px;
+        }
+        
+        .campaign-from svg {
+            width: 12px;
+            height: 12px;
         }
 
         .campaign-status {
@@ -399,6 +429,11 @@
             padding: 6px 12px;
             font-size: 13px;
         }
+        
+        .btn-small svg {
+            width: 14px;
+            height: 14px;
+        }
 
         .modal {
             display: none;
@@ -493,6 +528,13 @@
             font-size: 48px;
             margin-bottom: 16px;
             opacity: 0.5;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .empty-icon svg {
+            width: 48px;
+            height: 48px;
         }
 
         .empty-title {
@@ -538,6 +580,11 @@
             align-items: center;
             gap: 8px;
         }
+        
+        .error-message svg {
+            width: 20px;
+            height: 20px;
+        }
 
         .success-message {
             background: var(--accent-primary);
@@ -548,6 +595,11 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+        
+        .success-message svg {
+            width: 20px;
+            height: 20px;
         }
 
         .logs-modal {
@@ -649,7 +701,7 @@
     <div class="header">
         <div class="header-top">
             <div class="logo">
-                <span class="logo-icon">📋</span>
+                <i data-lucide="clipboard-list" class="logo-icon"></i>
                 <span>Visited Tracker Campaigns</span>
             </div>
             <div class="header-controls">
@@ -659,7 +711,8 @@
                     <span id="apiEndpoint" style="color: var(--text-muted); font-size: 11px;"></span>
                 </div>
                 <button class="logs-btn" onclick="openLogsModal()">
-                    📋 View Logs
+                    <i data-lucide="clipboard-list"></i>
+                    <span>View Logs</span>
                 </button>
             </div>
         </div>
@@ -684,11 +737,12 @@
     <div class="container">
         <div class="controls">
             <button class="btn btn-primary" onclick="openCreateModal()">
-                ➕ New Campaign
+                <i data-lucide="plus"></i>
+                <span>New Campaign</span>
             </button>
             
             <div class="search-box">
-                <span class="search-icon">🔍</span>
+                <i data-lucide="search" class="search-icon"></i>
                 <input type="text" class="input" id="searchInput" placeholder="Search campaigns..." onkeyup="searchCampaigns()">
             </div>
             
@@ -711,7 +765,8 @@
             </div>
             
             <button class="btn" onclick="refreshCampaigns()">
-                🔄 Refresh
+                <i data-lucide="refresh-cw"></i>
+                <span>Refresh</span>
             </button>
         </div>
 
@@ -906,14 +961,17 @@
         function showMessage(message, type = 'error') {
             const container = document.getElementById('messageContainer');
             const className = type === 'success' ? 'success-message' : 'error-message';
-            const icon = type === 'success' ? '✅' : '❌';
+            const iconName = type === 'success' ? 'check-circle' : 'x-circle';
             
             container.innerHTML = `
                 <div class="${className}">
-                    <span>${icon}</span>
+                    <i data-lucide="${iconName}"></i>
                     <span>${message}</span>
                 </div>
             `;
+            
+            // Re-render lucide icons for the newly added icon
+            if (typeof lucide !== 'undefined') lucide.createIcons();
             
             setTimeout(() => {
                 container.innerHTML = '';
@@ -1014,6 +1072,9 @@
                     ${campaigns.map(campaign => createCampaignCard(campaign)).join('')}
                 </div>
             `;
+            
+            // Re-render lucide icons after adding new content  
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         // Create campaign card HTML
@@ -1027,7 +1088,8 @@
                         <div>
                             <div class="campaign-name">${campaign.name}</div>
                             <div class="campaign-from">
-                                👤 ${campaign.from_agent}
+                                <i data-lucide="user"></i>
+                                <span>${campaign.from_agent}</span>
                             </div>
                         </div>
                         <span class="campaign-status status-${campaign.status}">
@@ -1083,14 +1145,19 @@
                     
                     <div class="campaign-actions" onclick="event.stopPropagation()">
                         <button class="btn btn-small" onclick="openCampaign('${campaign.id}')">
-                            📊 View
+                            <i data-lucide="bar-chart-3"></i>
+                            <span>View</span>
                         </button>
                         <button class="btn btn-small btn-danger" onclick="deleteCampaign('${campaign.id}', '${campaign.name}')">
-                            🗑️ Delete
+                            <i data-lucide="trash-2"></i>
+                            <span>Delete</span>
                         </button>
                     </div>
                 </div>
             `;
+            
+            // Re-render lucide icons after adding new content
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         // Display empty state
@@ -1098,16 +1165,22 @@
             const container = document.getElementById('campaignsContainer');
             container.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-icon">📭</div>
+                    <div class="empty-icon">
+                        <i data-lucide="inbox" style="width: 48px; height: 48px;"></i>
+                    </div>
                     <div class="empty-title">No Campaigns Yet</div>
                     <div class="empty-description">
                         Create your first campaign to start tracking file visits
                     </div>
                     <button class="btn btn-primary" onclick="openCreateModal()">
-                        ➕ Create Campaign
+                        <i data-lucide="plus"></i>
+                        <span>Create Campaign</span>
                     </button>
                 </div>
             `;
+            
+            // Re-render lucide icons after adding new content
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         // Open campaign detail view
@@ -1309,6 +1382,11 @@
 
         // Start when page loads
         init();
+        
+        // Initialize lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
     </script>
 </body>
 </html>

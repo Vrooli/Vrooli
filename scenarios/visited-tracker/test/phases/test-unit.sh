@@ -65,7 +65,7 @@ source "$TESTING_LIB/run-all.sh"
 cd "$SCENARIO_DIR"
 
 # Run unit tests
-if testing::unit::run_all_tests --go-dir "api" --node-dir "ui" --skip-python; then
+if testing::unit::run_all_tests --go-dir "api" --node-dir "ui" --skip-python --coverage-warn 78; then
     echo "SUCCESS: All unit tests passed"
     exit 0
 else

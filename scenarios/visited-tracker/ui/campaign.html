@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Campaign Dashboard - Visited Tracker</title>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <style>
         :root {
             --bg-primary: #0d1117;
@@ -64,6 +65,11 @@
             display: inline-flex;
             align-items: center;
             gap: 4px;
+        }
+        
+        .back-btn svg {
+            width: 16px;
+            height: 16px;
         }
 
         .back-btn:hover {
@@ -143,6 +149,14 @@
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn svg {
+            width: 16px;
+            height: 16px;
         }
 
         .btn:hover {
@@ -214,6 +228,11 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+        
+        .section-title svg {
+            width: 20px;
+            height: 20px;
         }
 
         .file-list {
@@ -384,6 +403,14 @@
             border-radius: 6px;
             margin-bottom: 16px;
         }
+        
+        .success {
+            background: var(--accent-primary);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
 
         .description-section {
             background: var(--bg-secondary);
@@ -427,7 +454,8 @@
     <div class="header">
         <div class="header-left">
             <a href="index.html" class="back-btn">
-                ← Back to Campaigns
+                <i data-lucide="arrow-left"></i>
+                <span>Back to Campaigns</span>
             </a>
             <div class="campaign-info">
                 <div class="campaign-name">
@@ -454,7 +482,8 @@
                 <span>Avg Staleness</span>
             </div>
             <button class="btn btn-danger" onclick="deleteCampaign()" style="margin-left: 16px;">
-                🗑️ Delete Campaign
+                <i data-lucide="trash-2"></i>
+                <span>Delete Campaign</span>
             </button>
         </div>
     </div>
@@ -475,17 +504,20 @@
                 </button>
             </div>
             <button class="btn" onclick="refreshData()">
-                🔄 Refresh
+                <i data-lucide="refresh-cw"></i>
+                <span>Refresh</span>
             </button>
             <button class="btn btn-warning" onclick="exportData()">
-                📥 Export
+                <i data-lucide="download"></i>
+                <span>Export</span>
             </button>
         </div>
 
         <div class="grid-container">
             <div class="section">
                 <h3 class="section-title">
-                    📊 Least Visited Files
+                    <i data-lucide="bar-chart-3"></i>
+                    <span>Least Visited Files</span>
                     <button class="btn" onclick="loadLeastVisited()" style="margin-left: auto;">Refresh</button>
                 </h3>
                 <div class="file-list" id="leastVisitedList">
@@ -494,7 +526,10 @@
             </div>
 
             <div class="section">
-                <h3 class="section-title">⚠️ Most Stale Files</h3>
+                <h3 class="section-title">
+                    <i data-lucide="alert-triangle"></i>
+                    <span>Most Stale Files</span>
+                </h3>
                 <div class="file-list" id="mostStaleList">
                     <div class="loading">Loading...</div>
                 </div>
@@ -502,7 +537,10 @@
         </div>
 
         <div class="section" style="margin-top: 24px;">
-            <h3 class="section-title">📈 Coverage Overview</h3>
+            <h3 class="section-title">
+                <i data-lucide="trending-up"></i>
+                <span>Coverage Overview</span>
+            </h3>
             <div class="coverage-bar">
                 <div class="coverage-fill" id="coverageBar" style="width: 0%"></div>
             </div>
@@ -527,7 +565,10 @@
         </div>
 
         <div class="section" style="margin-top: 24px;">
-            <h3 class="section-title">🗂️ Quick Visit Recording</h3>
+            <h3 class="section-title">
+                <i data-lucide="folder-open"></i>
+                <span>Quick Visit Recording</span>
+            </h3>
             <div class="input-group" style="max-width: none;">
                 <input type="text" class="input" id="visitFiles" placeholder="Enter file paths (space-separated)">
                 <select class="input" id="visitContext" style="flex: 0 0 150px;">
@@ -574,7 +615,9 @@
         // Show error message
         function showError(message) {
             const container = document.getElementById('errorContainer');
-            container.innerHTML = `<div class="error">${message}</div>`;
+            const isSuccess = message.includes('Synced') || message.includes('Recorded') || message.includes('count');
+            const className = isSuccess ? 'success' : 'error';
+            container.innerHTML = `<div class="${className}">${message}</div>`;
             setTimeout(() => {
                 container.innerHTML = '';
             }, 5000);
@@ -701,6 +744,9 @@
                     </div>
                 `).join('');
                 
+                // Re-render lucide icons after adding content
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+                
             } catch (error) {
                 console.error('Error loading least visited:', error);
                 document.getElementById('leastVisitedList').innerHTML = '<div class="loading">Failed to load</div>';
@@ -737,6 +783,9 @@
                         </div>
                     </div>
                 `).join('');
+                
+                // Re-render lucide icons after adding content
+                if (typeof lucide !== 'undefined') lucide.createIcons();
                 
             } catch (error) {
                 console.error('Error loading most stale:', error);
@@ -931,6 +980,11 @@
 
         // Start when page loads
         init();
+        
+        // Initialize lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
     </script>
 </body>
 </html>

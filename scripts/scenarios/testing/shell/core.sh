@@ -72,6 +72,54 @@ testing::core::detect_languages() {
     printf '%s\n' "${languages[@]}"
 }
 
+# === Runtime Availability Helpers ===
+
+# Check if runtime-dependent phases may be skipped when scenario is not running
+testing::core::allow_skip_missing_runtime() {
+    case "${TEST_ALLOW_SKIP_MISSING_RUNTIME:-}" in
+        1|true|TRUE|yes|YES|on|ON)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Ensure the scenario is running before executing a phase; optionally skip
+testing::core::ensure_runtime_or_skip() {
+    local scenario_name="${1:-$(testing::core::detect_scenario)}"
+    local context="${2:-tests}"
+
+    if testing::core::is_scenario_running "$scenario_name"; then
+        return 0
+    fi
+
+    if testing::core::allow_skip_missing_runtime; then
+        local message="Scenario '$scenario_name' is not running; skipping ${context}."
+        if command -v log::warning >/dev/null 2>&1; then
+            log::warning "⚠️  $message"
+        else
+            echo "⚠️  $message"
+        fi
+        if command -v log::info >/dev/null 2>&1; then
+            log::info "   Run 'vrooli scenario run $scenario_name' to execute these checks."
+        else
+            echo "   Run 'vrooli scenario run $scenario_name' to execute these checks." >&2
+        fi
+        return 200
+    fi
+
+    if command -v log::error >/dev/null 2>&1; then
+        log::error "❌ Scenario '$scenario_name' is not running"
+        log::info "   Start it with: vrooli scenario run $scenario_name"
+    else
+        echo "❌ Scenario '$scenario_name' is not running" >&2
+        echo "   Start it with: vrooli scenario run $scenario_name" >&2
+    fi
+    return 1
+}
+
 # === Utility Functions ===
 
 # Check if scenario is running
@@ -133,6 +181,8 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f testing::core::detect_scenario
     export -f testing::core::get_scenario_config
     export -f testing::core::detect_languages
+    export -f testing::core::allow_skip_missing_runtime
+    export -f testing::core::ensure_runtime_or_skip
     export -f testing::core::is_scenario_running
     export -f testing::core::wait_for_scenario
 fi

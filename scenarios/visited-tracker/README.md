@@ -55,17 +55,20 @@ vrooli scenario start visited-tracker
 
 ### Basic Usage
 ```bash
-# Create a new campaign
-visited-tracker create --name "api-analysis" --pattern "**/*.go" --from-agent "api-manager"
+# Create a new campaign (returns JSON with the new ID)
+visited-tracker campaigns create --name "api-analysis" --pattern "**/*.go" --from-agent "api-manager" --json
+
+# Export the campaign ID for subsequent commands
+export VISITED_TRACKER_CAMPAIGN_ID="<campaign-id>"
 
 # Get files to visit next (least visited first)
-visited-tracker least-visited --campaign "api-analysis" --limit 5
+visited-tracker least-visited --limit 5
 
 # Record visits after analyzing files
-visited-tracker visit --campaign "api-analysis" --files "src/main.go,src/utils.go"
+visited-tracker visit src/main.go src/utils.go --context review
 
 # Check campaign progress
-visited-tracker status --campaign "api-analysis"
+visited-tracker status
 ```
 
 ## 🧪 Testing
@@ -101,7 +104,11 @@ http://localhost:17695
 
 ## 🎨 Web Interface
 
-Access the web interface at: `http://localhost:37695`
+Access the web interface via the dynamically assigned port:
+
+```bash
+open "http://localhost:$(vrooli scenario port visited-tracker UI_PORT)"
+```
 
 Provides a visual dashboard for managing campaigns, viewing file visit statistics, monitoring staleness metrics, and tracking analysis progress across multiple projects.
 
@@ -110,13 +117,13 @@ Provides a visual dashboard for managing campaigns, viewing file visit statistic
 ### CLI Integration
 ```bash
 # Example: Get least visited files for systematic analysis
-visited-tracker least-visited --campaign my-analysis --limit 10
+visited-tracker --campaign-id "$CAMPAIGN_ID" least-visited --limit 10
 
 # Example: Record file visits after analysis
-visited-tracker visit --campaign my-analysis --files "src/*.go"
+visited-tracker --campaign-id "$CAMPAIGN_ID" visit src/*.go
 
 # Example: Export campaign data for reporting
-visited-tracker export --campaign my-analysis --format json
+visited-tracker --campaign-id "$CAMPAIGN_ID" export campaign-export.json --format json
 ```
 
 ### Programmatic Usage

@@ -3,233 +3,96 @@
 # Executes browser automation workflows using browser-automation-studio
 set -euo pipefail
 
-# Colors for output
-# Colors removed - using log.sh
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
+SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCENARIO_NAME=$(basename "$SCENARIO_DIR")
 
+log::info "🌐 Running UI automation tests for $SCENARIO_NAME..."
 
-CYAN='\033[0;36m'
-
-
-echo "🌐 Running UI automation tests for Visited Tracker..."
-
-# Get test directory paths
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKFLOWS_DIR="$TEST_DIR/workflows"
-VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$TEST_DIR/../../.." && pwd)}"
-
-# Check for browser automation studio
+VROOLI_ROOT="${VROOLI_ROOT:-$(cd "$SCENARIO_DIR/../.." && pwd)}"
 BROWSER_AUTOMATION_CLI="$VROOLI_ROOT/scenarios/browser-automation-studio/cli/browser-automation-studio"
 
 if [ ! -x "$BROWSER_AUTOMATION_CLI" ]; then
-    log::warning "⚠️  Browser automation studio not available at:"
-    echo "   $BROWSER_AUTOMATION_CLI"
-    echo ""
-    echo -e "${BLUE}💡 To enable UI testing:${NC}"
-    echo "   1. Set up browser-automation-studio scenario"
-    echo "   2. Ensure CLI is installed and executable"
-    echo "   3. Create UI workflows in $WORKFLOWS_DIR"
-    echo ""
-    log::warning "ℹ️  Skipping UI automation tests"
-    exit 0
+    log::error "❌ browser-automation-studio CLI not found or not executable at: $BROWSER_AUTOMATION_CLI"
+    echo "   Install and enable the browser-automation-studio scenario before running UI tests."
+    exit 1
 fi
 
-# Get UI port for visited-tracker
-UI_PORT="${UI_PORT:-}"
-if [ -z "$UI_PORT" ]; then
-    if command -v vrooli >/dev/null 2>&1; then
-        UI_PORT=$(vrooli scenario port visited-tracker UI_PORT 2>/dev/null || echo "3252")
+if [ ! -d "$WORKFLOWS_DIR" ]; then
+    log::error "❌ Workflow directory missing: $WORKFLOWS_DIR"
+    echo "   Add JSON workflows that describe the UI automation you expect."
+    exit 1
+fi
+
+mapfile -t workflow_files < <(find "$WORKFLOWS_DIR" -maxdepth 1 -name "*.json" -type f | sort)
+if [ ${#workflow_files[@]} -eq 0 ]; then
+    log::error "❌ No UI automation workflows found in $WORKFLOWS_DIR"
+    exit 1
+fi
+
+if testing::core::ensure_runtime_or_skip "$SCENARIO_NAME" "UI automation tests"; then
+    :
+else
+    status=$?
+    if [ "$status" -eq 200 ]; then
+        exit 200
     else
-        UI_PORT="3252"
+        exit 1
     fi
 fi
 
-UI_URL="http://localhost:${UI_PORT}"
-
-echo "🎯 UI automation target: $UI_URL"
-
-# Check if UI is running
-if ! timeout 3 nc -z localhost "$UI_PORT" 2>/dev/null; then
-    log::error "❌ Visited Tracker UI is not running on port $UI_PORT"
-    echo "   Start with: vrooli scenario start visited-tracker"
+if ! testing::core::wait_for_scenario "$SCENARIO_NAME" 20 >/dev/null 2>&1; then
+    log::error "❌ Scenario '$SCENARIO_NAME' did not become ready in time"
     exit 1
 fi
 
-# Ensure workflows directory exists
-mkdir -p "$WORKFLOWS_DIR"
-
-# Create basic workflows if they don't exist
-if [ ! -f "$WORKFLOWS_DIR/smoke-test.json" ]; then
-    echo "📝 Creating basic smoke test workflow..."
-    
-    cat > "$WORKFLOWS_DIR/smoke-test.json" << EOF
-{
-  "name": "Visited Tracker UI Smoke Test",
-  "description": "Basic smoke test for visited-tracker UI functionality",
-  "version": "1.0.0",
-  "timeout": 30000,
-  "steps": [
-    {
-      "action": "navigate",
-      "url": "$UI_URL",
-      "description": "Navigate to main page"
-    },
-    {
-      "action": "wait",
-      "selector": "title",
-      "timeout": 5000,
-      "description": "Wait for page to load"
-    },
-    {
-      "action": "assert_title_contains",
-      "text": "Visited Tracker",
-      "description": "Verify page title contains 'Visited Tracker'"
-    },
-    {
-      "action": "assert_element_exists",
-      "selector": "body",
-      "description": "Verify page body exists"
-    },
-    {
-      "action": "navigate",
-      "url": "$UI_URL/config",
-      "description": "Navigate to config endpoint"
-    },
-    {
-      "action": "assert_text_contains",
-      "selector": "body",
-      "text": "visited-tracker",
-      "description": "Verify config contains service name"
-    }
-  ]
-}
-EOF
-    log::success "✅ Created smoke test workflow"
-fi
-
-# Create user journey workflow
-if [ ! -f "$WORKFLOWS_DIR/user-journey.json" ]; then
-    echo "📝 Creating user journey workflow..."
-    
-    cat > "$WORKFLOWS_DIR/user-journey.json" << EOF
-{
-  "name": "Visited Tracker User Journey",
-  "description": "End-to-end user journey through visited-tracker UI",
-  "version": "1.0.0",
-  "timeout": 60000,
-  "steps": [
-    {
-      "action": "navigate",
-      "url": "$UI_URL",
-      "description": "Start at main page"
-    },
-    {
-      "action": "wait",
-      "timeout": 3000,
-      "description": "Wait for initial load"
-    },
-    {
-      "action": "assert_title_contains",
-      "text": "Visited Tracker",
-      "description": "Verify we're on the right page"
-    },
-    {
-      "action": "screenshot",
-      "filename": "ui-main-page.png",
-      "description": "Capture main page"
-    },
-    {
-      "action": "navigate",
-      "url": "$UI_URL/campaign.html",
-      "description": "Navigate to campaign page (if exists)"
-    },
-    {
-      "action": "screenshot", 
-      "filename": "ui-campaign-page.png",
-      "description": "Capture campaign page"
-    }
-  ]
-}
-EOF
-    log::success "✅ Created user journey workflow"
-fi
-
-# Find and execute all workflow files
-workflow_files=()
-if [ -d "$WORKFLOWS_DIR" ]; then
-    while IFS= read -r -d '' file; do
-        workflow_files+=("$file")
-    done < <(find "$WORKFLOWS_DIR" -name "*.json" -type f -print0 2>/dev/null)
-fi
-
-if [ ${#workflow_files[@]} -eq 0 ]; then
-    log::warning "⚠️  No workflow files found in $WORKFLOWS_DIR"
-    echo -e "${BLUE}💡 Create workflow JSON files in the workflows directory${NC}"
+if ! UI_URL=$(testing::connectivity::get_ui_url "$SCENARIO_NAME"); then
+    log::error "❌ Could not determine UI URL for $SCENARIO_NAME"
     exit 1
 fi
+
+if ! curl -s --max-time 5 "$UI_URL" >/dev/null 2>&1; then
+    log::error "❌ UI is not responding at $UI_URL"
+    exit 1
+fi
+
+log::info "🎯 UI automation target: $UI_URL"
 
 echo ""
-echo "🤖 Running ${#workflow_files[@]} UI automation workflows..."
+echo "🤖 Running ${#workflow_files[@]} UI automation workflow(s)..."
 
-# Execute workflows
 workflow_count=0
 failed_count=0
 
 for workflow in "${workflow_files[@]}"; do
     workflow_name=$(basename "$workflow")
     echo ""
-    echo -e "${CYAN}🚀 Executing workflow: $workflow_name${NC}"
-    
+    log::info "🚀 Executing workflow: $workflow_name"
     if "$BROWSER_AUTOMATION_CLI" execute "$workflow"; then
         log::success "✅ Workflow passed: $workflow_name"
-        ((workflow_count++))
     else
         log::error "❌ Workflow failed: $workflow_name"
-        ((failed_count++))
-        ((workflow_count++))
+        ((failed_count+=1))
     fi
+    ((workflow_count+=1))
 done
 
-# Summary
 echo ""
 echo "📊 UI Automation Test Summary:"
 echo "   Workflows executed: $workflow_count"
 echo "   Workflows passed: $((workflow_count - failed_count))"
 echo "   Workflows failed: $failed_count"
 
-# Check for screenshots and artifacts
-if [ -d "screenshots" ]; then
-    screenshot_count=$(find screenshots -name "*.png" -type f | wc -l)
-    if [ "$screenshot_count" -gt 0 ]; then
-        echo "   Screenshots captured: $screenshot_count (in screenshots/)"
-    fi
-fi
-
 if [ $failed_count -eq 0 ]; then
-    echo ""
-    log::success "✅ All $workflow_count UI automation workflows passed"
-    log::success "🎉 UI functionality validated successfully!"
-    
-    if [ $workflow_count -gt 0 ]; then
-        echo ""
-        echo -e "${BLUE}📸 UI Test Artifacts:${NC}"
-        echo "   • Workflows: $WORKFLOWS_DIR"
-        echo "   • Screenshots: screenshots/ (if generated)"
-        echo "   • Browser logs: Available via browser-automation-studio"
-    fi
-    
+    log::success "✅ All UI automation workflows passed"
     exit 0
 else
-    echo ""
-    log::error "❌ $failed_count of $workflow_count UI workflows failed"
-    
-    echo ""
-    echo -e "${BLUE}💡 UI testing troubleshooting:${NC}"
-    echo "   • Verify visited-tracker UI is fully loaded"
-    echo "   • Check browser-automation-studio is working"
-    echo "   • Review workflow definitions for accuracy"
-    echo "   • Examine screenshots for visual verification"
-    echo "   • Ensure UI elements have stable selectors"
-    
+    log::error "❌ UI automation failures detected"
     exit 1
 fi

@@ -259,35 +259,35 @@ is_shell_context() {
 # Filter shell redirection operators from arguments
 filter_shell_arguments() {
 	local filtered=()
-	local shell_context=false
-	
-	# Quick scan for shell operator indicators (single digits are suspicious)
-	for arg in "$@"; do
-		case "$arg" in
-			"2"|"1"|"0") 
-				# Single digits often indicate shell operator artifacts
-				shell_context=true 
-				;;
-		esac
-	done
+	local prev_arg=""
 	
 	# Filter based on detected context and known patterns
 	for arg in "$@"; do
 		case "$arg" in
 			# Always filter obvious shell redirection operators
 			"2>&1"|"1>&2"|"&>"|">&"|"2>"|"1>"|">"|">>"|"<"|"<<") 
+				prev_arg="redirect"
 				continue 
 				;;
-			# Filter single digits in shell context (likely file descriptors)
+			# Only filter single digits if they immediately follow a redirection operator
 			[0-9]) 
-				if [[ "$shell_context" == "true" ]]; then
-					# Additional validation: single digits at end are usually FDs
+				# Check if previous argument was a redirect operator
+				if [[ "$prev_arg" == "redirect" ]] || [[ "$prev_arg" =~ [\>\<] ]]; then
+					prev_arg=""
 					continue
 				fi
+				# Otherwise keep the digit as it's likely a legitimate argument
 				filtered+=("$arg")
+				prev_arg="$arg"
+				;;
+			[0-9]\>*|[0-9]\<*|\>\&[0-9]|\<\&[0-9])
+				# Skip file descriptor redirections
+				prev_arg=""
+				continue
 				;;
 			*)
 				filtered+=("$arg")
+				prev_arg="$arg"
 				;;
 		esac
 	done

@@ -10,6 +10,7 @@ set -e
 
 # Configuration
 SCENARIO_NAME="visited-tracker"
+CAMPAIGN_ID="${VISITED_TRACKER_CAMPAIGN_ID:-}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,7 +45,10 @@ show_help() {
     echo -e "${CYAN}🔍 Visited Tracker CLI${NC}"
     echo "Persistent file visit tracking with staleness detection for systematic code analysis"
     echo ""
-    echo "Usage: visited-tracker [command] [options]"
+    echo "Usage: visited-tracker [global options] [command] [options]"
+    echo ""
+    echo "Global Options:"
+    echo "  --campaign-id ID           Campaign ID to target (overrides VISITED_TRACKER_CAMPAIGN_ID)"
     echo ""
     echo "Commands:"
     echo -e "  ${GREEN}visit${NC} FILE1 [FILE2...]       Record file visit(s) with optional context"
@@ -52,6 +56,7 @@ show_help() {
     echo -e "  ${GREEN}least-visited${NC}                Get prioritized list of least visited files"
     echo -e "  ${GREEN}most-stale${NC}                   Get files with highest staleness scores"
     echo -e "  ${GREEN}coverage${NC}                     Show visit coverage statistics"
+    echo -e "  ${GREEN}campaigns${NC}                    Manage campaigns (list, create, delete)"
     echo -e "  ${GREEN}import${NC} FILE                  Import visited data from file"
     echo -e "  ${GREEN}export${NC} FILE                  Export visited data to file"
     echo -e "  ${GREEN}status${NC}                       Show tracking status and coverage summary"
@@ -97,17 +102,49 @@ format_json() {
     fi
 }
 
+ensure_campaign_id() {
+    if [ -n "${CAMPAIGN_ID:-}" ]; then
+        return 0
+    fi
+
+    local campaigns_json=""
+    if ! campaigns_json=$(api_request "GET" "/api/v1/campaigns" "" true); then
+        echo -e "${RED}Error: No campaign selected and unable to list campaigns.${NC}" >&2
+        echo "       Set VISITED_TRACKER_CAMPAIGN_ID or create one with 'visited-tracker campaigns create'." >&2
+        return 1
+    fi
+
+    local first_campaign
+    first_campaign=$(echo "$campaigns_json" | jq -r '.campaigns[0].id // empty' 2>/dev/null || echo "")
+    if [ -z "$first_campaign" ]; then
+        echo -e "${RED}Error: No campaigns available.${NC}" >&2
+        echo "       Create one with: visited-tracker campaigns create --name <name> --pattern '**/*.js'" >&2
+        return 1
+    fi
+
+    CAMPAIGN_ID="$first_campaign"
+    export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+    return 0
+}
+
+campaign_endpoint() {
+    local suffix="$1"
+    ensure_campaign_id || exit 1
+    echo "/api/v1/campaigns/${CAMPAIGN_ID}${suffix}"
+}
+
 # Make API request
 api_request() {
     local method="$1"
     local endpoint="$2"
     local data="${3:-}"
+    local allow_failure="${4:-false}"
     local api_url
     
     # Get the current API URL
     api_url=$(get_api_url)
     
-    local curl_args=(-s)
+    local curl_args=(-sS)
     
     if [[ "$method" != "GET" ]]; then
         curl_args+=(-X "$method")
@@ -116,18 +153,42 @@ api_request() {
     if [[ -n "$data" ]]; then
         curl_args+=(-H "Content-Type: application/json" -d "$data")
     fi
-    
-    local response
-    response=$(curl "${curl_args[@]}" "${api_url}${endpoint}")
-    
-    # Check for error
-    if echo "$response" | grep -q '"error"'; then
-        echo -e "${RED}Error:${NC}" >&2
-        echo "$response" | format_json >&2
+
+    local tmp_body
+    tmp_body=$(mktemp)
+    local http_code
+    local curl_exit=0
+
+    http_code=$(curl "${curl_args[@]}" -w "%{http_code}" -o "$tmp_body" "${api_url}${endpoint}") || curl_exit=$?
+    local body
+    body=$(cat "$tmp_body")
+    rm -f "$tmp_body"
+
+    # curl command failed (network error, etc.)
+    if [ $curl_exit -ne 0 ]; then
+        if [ "$allow_failure" = "true" ]; then
+            printf '%s' "$body"
+            return $curl_exit
+        fi
+        echo -e "${RED}Error: Request to ${endpoint} failed (curl exit $curl_exit).${NC}" >&2
+        printf '%s\n' "$body" >&2
         exit 1
     fi
-    
-    echo "$response"
+
+    # HTTP error handling
+    if [[ "$http_code" =~ ^[0-9]+$ ]] && [ "$http_code" -ge 400 ]; then
+        if [ "$allow_failure" = "true" ]; then
+            printf '%s' "$body"
+            return 1
+        fi
+        echo -e "${RED}Error: API responded with status $http_code for ${endpoint}.${NC}" >&2
+        if [ -n "$body" ]; then
+            printf '%s\n' "$body" | format_json >&2
+        fi
+        exit 1
+    fi
+
+    printf '%s' "$body"
 }
 
 ################################################################################
@@ -189,7 +250,7 @@ record_visit() {
         }')
     
     local response
-    response=$(api_request "POST" "/api/v1/visit" "$payload")
+    response=$(api_request "POST" "$(campaign_endpoint "/visit")" "$payload")
     
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
@@ -256,7 +317,7 @@ sync_structure() {
         }')
     
     local response
-    response=$(api_request "POST" "/api/v1/structure/sync" "$payload")
+    response=$(api_request "POST" "$(campaign_endpoint "/structure/sync")" "$payload")
     
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
@@ -307,6 +368,10 @@ get_least_visited() {
     
     # Build query parameters
     if [[ -n "$limit" ]]; then
+        if ! [[ "$limit" =~ ^[0-9]+$ ]]; then
+            echo -e "${RED}Error: --limit must be a positive integer.${NC}" >&2
+            return 1
+        fi
         query_params="?limit=$limit"
     fi
     
@@ -327,16 +392,22 @@ get_least_visited() {
     fi
     
     local response
-    response=$(api_request "GET" "/api/v1/prioritize/least-visited${query_params}")
+    response=$(api_request "GET" "$(campaign_endpoint "/prioritize/least-visited")${query_params}")
     
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
     else
         echo -e "${CYAN}📊 Least Visited Files${NC}"
-        echo "$response" | jq -r '.files[]? | "  \(.file_path): \(.visit_count) visits"'
+        local files_output
+        files_output=$(echo "$response" | jq -r '(.files // [])[] | "  \(.file_path): \(.visit_count // 0) visits"')
+        if [ -n "$files_output" ]; then
+            echo "$files_output"
+        else
+            echo "  No tracked files yet"
+        fi
         echo ""
         echo -e "${BLUE}Coverage Statistics:${NC}"
-        echo "$response" | jq -r '.coverage | "  Visited: \(.visited) files\n  Unvisited: \(.unvisited) files\n  Coverage: \(.percentage | round)%"'
+        echo "$response" | jq -r '(.coverage // {visited:0,unvisited:0,percentage:0}) | "  Visited: \(.visited // 0) files\n  Unvisited: \(.unvisited // 0) files\n  Coverage: \((.percentage // 0) | round)%"'
     fi
 }
 
@@ -372,6 +443,10 @@ get_most_stale() {
     fi
     
     if [[ -n "$threshold" ]]; then
+        if ! [[ "$threshold" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            echo -e "${RED}Error: --threshold must be numeric.${NC}" >&2
+            return 1
+        fi
         if [[ -z "$query_params" ]]; then
             query_params="?threshold=$threshold"
         else
@@ -380,16 +455,22 @@ get_most_stale() {
     fi
     
     local response
-    response=$(api_request "GET" "/api/v1/prioritize/most-stale${query_params}")
+    response=$(api_request "GET" "$(campaign_endpoint "/prioritize/most-stale")${query_params}")
     
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
     else
         echo -e "${YELLOW}⚠️  Most Stale Files${NC}"
-        echo "$response" | jq -r '.files[]? | "  \(.file_path): staleness=\(.staleness_score | round), visits=\(.visit_count)"'
+        local stale_output
+        stale_output=$(echo "$response" | jq -r '(.files // [])[] | "  \(.file_path): staleness=\((.staleness_score // 0) | round), visits=\(.visit_count // 0)"')
+        if [ -n "$stale_output" ]; then
+            echo "$stale_output"
+        else
+            echo "  No stale files detected"
+        fi
         echo ""
         echo -e "${BLUE}Staleness Analysis:${NC}"
-        echo "$response" | jq -r '"  Average staleness: \(.average_staleness | round)\n  Critical files: \(.critical_count)"'
+        echo "$response" | jq -r '"  Average staleness: \(((.average_staleness // 0) | round))\n  Critical files: \(.critical_count // 0)"'
     fi
 }
 
@@ -442,20 +523,176 @@ get_coverage() {
     fi
     
     local response
-    response=$(api_request "GET" "/api/v1/coverage${query_params}")
+    response=$(api_request "GET" "$(campaign_endpoint "/coverage")${query_params}")
     
     if [[ "$json_output" == "true" ]]; then
         echo "$response" | format_json
     else
         echo -e "${GREEN}📈 Coverage Report${NC}"
-        echo "$response" | jq -r '"Total files: \(.total_files)\nVisited: \(.visited_files) (\(.coverage_percentage | round)%)\nUnvisited: \(.unvisited_files)\nAverage visits: \(.average_visits | round)\nAverage staleness: \(.average_staleness | round)"'
+        echo "$response" | jq -r '"Total files: \(.total_files // 0)\nVisited: \(.visited_files // 0) (\((.coverage_percentage // 0) | round)%)\nUnvisited: \(.unvisited_files // 0)\nAverage visits: \((.average_visits // 0) | round)\nAverage staleness: \((.average_staleness // 0) | round)"'
         
         if [[ -n "$group_by" ]]; then
             echo ""
             echo -e "${BLUE}Grouped by $group_by:${NC}"
-            echo "$response" | jq -r '.groups'
+            echo "$response" | jq -r '(.groups // [])'
         fi
     fi
+}
+
+campaigns_command() {
+    local subcommand="${1:-list}"
+    shift || true
+
+    case "$subcommand" in
+        list)
+            local response
+            response=$(api_request "GET" "/api/v1/campaigns")
+            echo "$response" | format_json
+            ;;
+        create)
+            local name=""
+            local from_agent="cli"
+            local description=""
+            local patterns=()
+            local metadata="{}"
+            local json_output=false
+
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --name)
+                        name="$2"
+                        shift 2
+                        ;;
+                    --pattern)
+                        patterns+=("$2")
+                        shift 2
+                        ;;
+                    --patterns)
+                        IFS=',' read -ra ADDR <<< "$2"
+                        for i in "${ADDR[@]}"; do
+                            patterns+=("$i")
+                        done
+                        shift 2
+                        ;;
+                    --from-agent)
+                        from_agent="$2"
+                        shift 2
+                        ;;
+                    --description)
+                        description="$2"
+                        shift 2
+                        ;;
+                    --metadata)
+                        metadata="$2"
+                        shift 2
+                        ;;
+                    --json)
+                        json_output=true
+                        shift
+                        ;;
+                    *)
+                        echo -e "${RED}Error: Unknown option '$1' for campaigns create.${NC}" >&2
+                        echo "Usage: visited-tracker campaigns create --name <name> --pattern '<glob>'" >&2
+                        return 1
+                        ;;
+                esac
+            done
+
+            if [ -z "$name" ]; then
+                echo -e "${RED}Error: --name is required for campaigns create.${NC}" >&2
+                return 1
+            fi
+
+            if [ ${#patterns[@]} -eq 0 ]; then
+                echo -e "${RED}Error: At least one --pattern or --patterns value is required.${NC}" >&2
+                return 1
+            fi
+
+            local patterns_json
+            patterns_json=$(printf '%s\n' "${patterns[@]}" | jq -R . | jq -s .)
+
+            local payload
+            if [ -n "$description" ]; then
+                payload=$(jq -n \
+                    --arg name "$name" \
+                    --arg from_agent "$from_agent" \
+                    --arg description "$description" \
+                    --argjson patterns "$patterns_json" \
+                    --argjson metadata "$metadata" \
+                    '{name: $name, from_agent: $from_agent, description: $description, patterns: $patterns, metadata: $metadata}')
+            else
+                payload=$(jq -n \
+                    --arg name "$name" \
+                    --arg from_agent "$from_agent" \
+                    --argjson patterns "$patterns_json" \
+                    --argjson metadata "$metadata" \
+                    '{name: $name, from_agent: $from_agent, patterns: $patterns, metadata: $metadata}')
+            fi
+
+            local response
+            response=$(api_request "POST" "/api/v1/campaigns" "$payload")
+            local new_id
+            new_id=$(echo "$response" | jq -r '.id // empty')
+            if [ -n "$new_id" ]; then
+                CAMPAIGN_ID="$new_id"
+                export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+            fi
+
+            if [ "$json_output" = true ]; then
+                echo "$response" | format_json
+            else
+                echo -e "${GREEN}✓ Campaign created:${NC} $name"
+                echo "ID: ${new_id}"
+                echo "Patterns: ${patterns[*]}"
+            fi
+            ;;
+        delete)
+            local target_id=""
+            local json_output=false
+
+            if [[ $# -gt 0 ]]; then
+                target_id="$1"
+                shift
+            fi
+
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --json)
+                        json_output=true
+                        shift
+                        ;;
+                    *)
+                        echo -e "${RED}Error: Unknown option '$1' for campaigns delete.${NC}" >&2
+                        return 1
+                        ;;
+                esac
+            done
+
+            if [ -z "$target_id" ]; then
+                echo -e "${RED}Error: campaigns delete requires a campaign ID.${NC}" >&2
+                return 1
+            fi
+
+            local response
+            response=$(api_request "DELETE" "/api/v1/campaigns/$target_id")
+
+            if [ "$CAMPAIGN_ID" = "$target_id" ]; then
+                CAMPAIGN_ID=""
+                unset VISITED_TRACKER_CAMPAIGN_ID
+            fi
+
+            if [ "$json_output" = true ]; then
+                echo "$response" | format_json
+            else
+                echo -e "${GREEN}✓ Campaign deleted:${NC} $target_id"
+            fi
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown campaigns subcommand '$subcommand'.${NC}" >&2
+            echo "Available subcommands: list, create, delete" >&2
+            return 1
+            ;;
+    esac
 }
 
 show_status() {
@@ -464,7 +701,10 @@ show_status() {
     
     # Get health status
     local health_response
-    health_response=$(curl -s "${api_url}/health")
+    if ! health_response=$(curl -sS "${api_url}/health" 2>/dev/null); then
+        echo -e "${RED}Error: Unable to reach Visited Tracker API at ${api_url}/health.${NC}" >&2
+        return 1
+    fi
     
     echo -e "${CYAN}🔍 Visited Tracker Status${NC}"
     echo "$health_response" | jq -r '"Service: \(.service)\nVersion: \(.version)\nStatus: \(.status)\nUptime: \(.metrics.uptime_seconds // 0 | floor)s"'
@@ -472,12 +712,17 @@ show_status() {
     # Get coverage stats (if endpoint exists)
     echo ""
     echo -e "${BLUE}Coverage Overview:${NC}"
-    local coverage_response
-    coverage_response=$(curl -s "${api_url}/api/v1/coverage" 2>/dev/null)
-    if [[ $? -eq 0 ]] && echo "$coverage_response" | jq empty 2>/dev/null; then
-        echo "$coverage_response" | jq -r '"Total files: \(.total_files // 0)\nVisited: \(.visited_files // 0) (\(.coverage_percentage // 0 | round)%)\nUnvisited: \(.unvisited_files // 0)"'
+    if ensure_campaign_id; then
+        local coverage_response=""
+        local coverage_status=0
+        coverage_response=$(api_request "GET" "/api/v1/campaigns/${CAMPAIGN_ID}/coverage" "" true) || coverage_status=$?
+        if [ $coverage_status -eq 0 ] && echo "$coverage_response" | jq empty 2>/dev/null; then
+            echo "$coverage_response" | jq -r '"Total files: \(.total_files // 0)\nVisited: \(.visited_files // 0) (\(.coverage_percentage // 0 | round)%)\nUnvisited: \(.unvisited_files // 0)"'
+        else
+            echo "Coverage data not available (campaign request failed)"
+        fi
     else
-        echo "Coverage data not available"
+        echo "Coverage data not available (no campaigns found)"
     fi
 }
 
@@ -513,28 +758,14 @@ import_data() {
         exit 1
     fi
     
-    local data
-    data=$(cat "$file")
-    
-    local payload
-    payload=$(jq -n \
-        --arg format "$format" \
-        --arg merge_strategy "$merge_strategy" \
-        --argjson data "$data" \
-        '{
-            format: $format,
-            merge_strategy: $merge_strategy,
-            data: $data
-        }')
-    
-    local response
-    response=$(api_request "POST" "/api/v1/import" "$payload")
-    
+    local message
+    message=$(jq -n --arg msg "Import command placeholder – API import endpoint not yet implemented" '{message: $msg}')
+
     if [[ "$json_output" == "true" ]]; then
-        echo "$response" | format_json
+        echo "$message" | format_json
     else
-        echo -e "${GREEN}✓ Import completed${NC}"
-        echo "$response" | jq -r '"Imported: \(.imported)\nUpdated: \(.updated)\nConflicts: \(.conflicts)"'
+        echo -e "${YELLOW}⚠ Import placeholder${NC}"
+        echo "$message" | jq -r '.message'
     fi
 }
 
@@ -583,7 +814,7 @@ export_data() {
     fi
     
     local response
-    response=$(api_request "GET" "/api/v1/export${query_params}")
+    response=$(api_request "GET" "$(campaign_endpoint "/export")${query_params}")
     
     # Save to file
     echo "$response" > "$file"
@@ -595,33 +826,61 @@ export_data() {
 ################################################################################
 # Main Command Router
 ################################################################################
-case "${1:-}" in
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --campaign|--campaign-id)
+            if [[ $# -lt 2 ]]; then
+                echo -e "${RED}Error: --campaign-id requires an argument.${NC}" >&2
+                exit 1
+            fi
+            CAMPAIGN_ID="$2"
+            export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+            shift 2
+            ;;
+        --campaign=*|--campaign-id=*)
+            CAMPAIGN_ID="${1#*=}"
+            export VISITED_TRACKER_CAMPAIGN_ID="$CAMPAIGN_ID"
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+COMMAND="${1:-help}"
+if [[ $# -gt 0 ]]; then
+    shift
+fi
+
+case "$COMMAND" in
     visit)
-        shift
         record_visit "$@"
         ;;
     sync)
-        shift
         sync_structure "$@"
         ;;
     least-visited)
-        shift
         get_least_visited "$@"
         ;;
     most-stale)
-        shift
         get_most_stale "$@"
         ;;
     coverage)
-        shift
         get_coverage "$@"
         ;;
+    campaigns)
+        campaigns_command "$@"
+        ;;
     import)
-        shift
         import_data "$@"
         ;;
     export)
-        shift
         export_data "$@"
         ;;
     status)
@@ -634,7 +893,7 @@ case "${1:-}" in
         show_help
         ;;
     *)
-        echo -e "${RED}Error: Unknown command '$1'${NC}" >&2
+        echo -e "${RED}Error: Unknown command '$COMMAND'${NC}" >&2
         echo "Run 'visited-tracker help' for usage information" >&2
         exit 1
         ;;

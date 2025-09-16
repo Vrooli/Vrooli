@@ -3,9 +3,12 @@
 # Validates required files, configuration, and directory structure
 set -euo pipefail
 
-# Setup paths and utilities
-APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
+# Resolve directories early so set -e doesn't kill the script on arithmetic
+SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+
+pushd "$SCENARIO_DIR" >/dev/null
 
 echo "=== Structure Phase (Target: <15s) ==="
 start_time=$(date +%s)
@@ -24,7 +27,7 @@ missing_files=()
 for file in "${required_files[@]}"; do
     if [ ! -f "$file" ]; then
         missing_files+=("$file")
-        ((error_count++))
+        error_count=$((error_count + 1))
     fi
 done
 
@@ -42,7 +45,7 @@ missing_dirs=()
 for dir in "${required_dirs[@]}"; do
     if [ ! -d "$dir" ]; then
         missing_dirs+=("$dir")
-        ((error_count++))
+        error_count=$((error_count + 1))
     fi
 done
 
@@ -58,7 +61,7 @@ echo "🔍 Validating service.json..."
 if command -v jq >/dev/null 2>&1; then
     if ! jq empty < .vrooli/service.json >/dev/null 2>&1; then
         log::error "❌ Invalid JSON in service.json"
-        ((error_count++))
+        error_count=$((error_count + 1))
     else
         log::success "✅ service.json is valid JSON"
         
@@ -67,7 +70,7 @@ if command -v jq >/dev/null 2>&1; then
         for field in "${required_fields[@]}"; do
             if ! jq -e ".$field" < .vrooli/service.json >/dev/null 2>&1; then
                 log::error "❌ Missing required field in service.json: $field"
-                ((error_count++))
+                error_count=$((error_count + 1))
             fi
         done
         
@@ -77,7 +80,7 @@ if command -v jq >/dev/null 2>&1; then
                 log::success "✅ service.json contains correct service name"
             else
                 log::error "❌ Incorrect service name in service.json: $service_name"
-                ((error_count++))
+                error_count=$((error_count + 1))
             fi
         fi
     fi
@@ -92,11 +95,11 @@ if [ -f "api/go.mod" ]; then
         log::success "✅ Go module properly defined"
     else
         log::error "❌ Invalid go.mod structure"
-        ((error_count++))
+        error_count=$((error_count + 1))
     fi
 else
     log::error "❌ go.mod missing"
-    ((error_count++))
+    error_count=$((error_count + 1))
 fi
 
 # Check Node.js package.json structure
@@ -108,26 +111,57 @@ if [ -f "ui/package.json" ]; then
             log::success "✅ Node.js package properly defined: $package_name"
         else
             log::error "❌ Invalid package.json structure"
-            ((error_count++))
+            error_count=$((error_count + 1))
         fi
     fi
 else
     log::error "❌ ui/package.json missing"
-    ((error_count++))
+    error_count=$((error_count + 1))
 fi
 
-# Check CLI binary exists and is executable
-echo "🔍 Validating CLI binary..."
-if [ -f "cli/visited-tracker" ]; then
-    if [ -x "cli/visited-tracker" ]; then
-        log::success "✅ CLI binary exists and is executable"
+# Check CLI tooling can be installed on demand
+echo "🔍 Validating CLI tooling..."
+CLI_INSTALL_SCRIPT="cli/install.sh"
+CLI_ENTRYPOINT="cli/visited-tracker"
+
+if [ ! -f "$CLI_INSTALL_SCRIPT" ]; then
+    log::error "❌ CLI install script missing: $CLI_INSTALL_SCRIPT"
+    error_count=$((error_count + 1))
+else
+    if [ ! -x "$CLI_INSTALL_SCRIPT" ]; then
+        log::error "❌ CLI install script is not executable: $CLI_INSTALL_SCRIPT"
+        error_count=$((error_count + 1))
     else
-        log::error "❌ CLI binary is not executable"
-        ((error_count++))
+        log::success "✅ CLI install script available"
+    fi
+fi
+
+if [ -f "$CLI_ENTRYPOINT" ]; then
+    if [ ! -x "$CLI_ENTRYPOINT" ]; then
+        log::warning "⚠️  CLI entrypoint exists but is not executable; attempting to reinstall"
+        chmod +x "$CLI_ENTRYPOINT" || true
     fi
 else
-    log::error "❌ CLI binary missing"
-    ((error_count++))
+    log::warning "⚠️  CLI entrypoint missing; it will be installed dynamically"
+fi
+
+if command -v visited-tracker >/dev/null 2>&1; then
+    log::success "✅ visited-tracker CLI already installed"
+elif [ -x "$CLI_INSTALL_SCRIPT" ]; then
+    if "$CLI_INSTALL_SCRIPT" >/dev/null 2>&1; then
+        if command -v visited-tracker >/dev/null 2>&1; then
+            log::success "✅ visited-tracker CLI installed for tests"
+        else
+            log::error "❌ CLI installation script ran but CLI is still unavailable"
+            error_count=$((error_count + 1))
+        fi
+    else
+        log::error "❌ CLI installation script failed"
+        error_count=$((error_count + 1))
+    fi
+else
+    log::error "❌ CLI tooling unavailable and cannot be installed"
+    error_count=$((error_count + 1))
 fi
 
 # Check modern test structure
@@ -136,13 +170,13 @@ test_structure_valid=true
 
 if [ ! -f "test/run-tests.sh" ]; then
     log::error "❌ Modern test orchestrator missing: test/run-tests.sh"
-    ((error_count++))
+    error_count=$((error_count + 1))
     test_structure_valid=false
 fi
 
 if [ ! -x "test/run-tests.sh" ] && [ -f "test/run-tests.sh" ]; then
     log::error "❌ Test orchestrator not executable: test/run-tests.sh"
-    ((error_count++))
+    error_count=$((error_count + 1))
     test_structure_valid=false
 fi
 
@@ -150,7 +184,7 @@ required_phases=("test-structure.sh" "test-dependencies.sh" "test-unit.sh")
 for phase in "${required_phases[@]}"; do
     if [ ! -f "test/phases/$phase" ]; then
         log::error "❌ Missing test phase: test/phases/$phase"
-        ((error_count++))
+        error_count=$((error_count + 1))
         test_structure_valid=false
     fi
 done
@@ -186,6 +220,8 @@ if [ $duration -gt 15 ]; then
 fi
 
 # Exit with appropriate code
+popd >/dev/null
+
 if [ $error_count -eq 0 ]; then
     exit 0
 else

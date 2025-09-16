@@ -6,18 +6,32 @@ echo "=== Business Logic Tests Phase ==="
 echo "Testing core business functionality..."
 
 # Get dynamic API URL
-SCENARIO_NAME=$(basename "$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)")
+SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
 
-# Use vrooli command to get port
-if command -v vrooli >/dev/null 2>&1; then
-    API_PORT=$(vrooli scenario port "$SCENARIO_NAME" API_PORT 2>/dev/null || echo "")
-    if [ -n "$API_PORT" ]; then
-        API_BASE_URL="http://localhost:$API_PORT"
-    else
-        API_BASE_URL="http://localhost:17695"  # Fallback
-    fi
+SCENARIO_NAME=$(basename "$SCENARIO_DIR")
+
+if testing::core::ensure_runtime_or_skip "$SCENARIO_NAME" "business logic tests"; then
+    :
 else
-    API_BASE_URL="http://localhost:17695"  # Fallback
+    status=$?
+    if [ "$status" -eq 200 ]; then
+        exit 200
+    else
+        exit 1
+    fi
+fi
+
+if ! testing::core::wait_for_scenario "$SCENARIO_NAME" 30 >/dev/null 2>&1; then
+    echo "❌ Scenario '$SCENARIO_NAME' did not become ready"
+    exit 1
+fi
+
+if ! API_BASE_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
+    echo "❌ Unable to determine API URL for $SCENARIO_NAME"
+    exit 1
 fi
 
 echo "Using API base URL: $API_BASE_URL"
@@ -71,8 +85,6 @@ fi
 
 # Test CLI business workflows
 echo "Testing CLI business workflows..."
-# Get scenario directory
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CLI_BINARY="$SCENARIO_DIR/cli/visited-tracker"
 
 if [ -f "$CLI_BINARY" ] && [ -x "$CLI_BINARY" ]; then
