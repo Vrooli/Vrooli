@@ -1,0 +1,26 @@
+{
+  "startup_order": 600,
+  "dependencies": ["postgres"],
+  "startup_timeout": 300,
+  "startup_time_estimate": "2-3 minutes",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "category": "healthcare",
+  "description": "OpenMRS Clinical Records Platform with REST and FHIR APIs",
+  "health_check": {
+    "endpoint": "http://localhost:8005/openmrs",
+    "method": "GET",
+    "expected_status": 200,
+    "timeout": 10
+  },
+  "api_endpoints": {
+    "rest": "http://localhost:8006/openmrs/ws/rest/v1",
+    "fhir": "http://localhost:8007/openmrs/ws/fhir2/R4"
+  },
+  "requirements": {
+    "docker": true,
+    "docker_compose": true,
+    "memory_gb": 4,
+    "disk_gb": 10
+  }
+}

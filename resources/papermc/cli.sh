@@ -44,6 +44,10 @@ COMMANDS:
         backup             Backup world and config
         configure          Update server configuration
         list-plugins       List installed plugins
+        add-plugin <src>   Add plugin from URL or name
+        remove-plugin      Remove installed plugin
+        health             Show server health metrics
+        analyze-logs       Analyze server logs
     status                 Show server status
     logs                   View server logs
 
@@ -155,6 +159,18 @@ main() {
                     ;;
                 list-plugins)
                     list_plugins "$@"
+                    ;;
+                add-plugin)
+                    add_plugin "$@"
+                    ;;
+                remove-plugin)
+                    remove_plugin "$@"
+                    ;;
+                health)
+                    get_health_metrics "$@"
+                    ;;
+                analyze-logs)
+                    analyze_logs "$@"
                     ;;
                 *)
                     echo "Error: Unknown content subcommand: ${subcommand}" >&2

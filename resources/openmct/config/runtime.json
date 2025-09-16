@@ -1,0 +1,95 @@
+{
+  "name": "openmct",
+  "displayName": "NASA Open MCT",
+  "description": "Mission control telemetry visualization framework",
+  "version": "2.0.0",
+  "category": "monitoring",
+  "startup_order": 600,
+  "dependencies": [],
+  "optional_dependencies": ["postgres", "redis", "mqtt", "traccar"],
+  "startup_timeout": 30,
+  "startup_time_estimate": "10-20s",
+  "shutdown_timeout": 10,
+  "health_check_interval": 30,
+  "health_check_timeout": 5,
+  "recovery_attempts": 3,
+  "recovery_delay": 10,
+  "priority": "high",
+  "resource_limits": {
+    "memory": "1GB",
+    "cpu": "1.0",
+    "disk": "5GB"
+  },
+  "ports": {
+    "http": 8099,
+    "websocket": 8100
+  },
+  "capabilities": [
+    "telemetry_visualization",
+    "real_time_monitoring",
+    "historical_analysis",
+    "dashboard_creation",
+    "plugin_system",
+    "multi_source_integration"
+  ],
+  "supported_integrations": [
+    "mqtt",
+    "traccar",
+    "prometheus",
+    "postgres",
+    "redis",
+    "eclipse-ditto",
+    "simulations"
+  ],
+  "api_endpoints": {
+    "health": "/health",
+    "telemetry_config": "/api/telemetry/{stream}",
+    "telemetry_data": "/api/telemetry/{stream}/data",
+    "telemetry_live": "/api/telemetry/live",
+    "telemetry_history": "/api/telemetry/history"
+  },
+  "configuration_files": [
+    "config/defaults.sh",
+    "config/telemetry-providers.json",
+    "config/dashboards.json"
+  ],
+  "data_persistence": {
+    "type": "sqlite",
+    "location": "${OPENMCT_DATA_DIR}/telemetry.db",
+    "backup_enabled": true,
+    "backup_interval": "daily"
+  },
+  "monitoring": {
+    "metrics_enabled": true,
+    "metrics_port": 9199,
+    "health_endpoint": "/health",
+    "readiness_endpoint": "/ready"
+  },
+  "security": {
+    "authentication": false,
+    "authorization": false,
+    "encryption": false,
+    "audit_logging": false
+  },
+  "scaling": {
+    "horizontal": false,
+    "vertical": true,
+    "auto_scaling": false
+  },
+  "maintenance": {
+    "auto_update": false,
+    "backup_on_update": true,
+    "rolling_updates": false
+  },
+  "tags": [
+    "nasa",
+    "telemetry",
+    "monitoring",
+    "visualization",
+    "mission-control",
+    "real-time",
+    "dashboard",
+    "aerospace",
+    "iot"
+  ]
+}

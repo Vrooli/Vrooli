@@ -86,7 +86,14 @@ resource-browserless for --help
 
 ## Browser Pool Management (NEW!)
 
-Browserless now includes automatic browser pool scaling to handle varying loads efficiently:
+Browserless now includes automatic browser pool scaling to handle varying loads efficiently with enhanced reliability features:
+
+### Reliability Features
+- **Automatic Crash Recovery**: Detects and recovers from browser crashes automatically
+- **Health Monitoring**: Continuous health checks integrated into auto-scaler
+- **Session Cleanup**: Clears stuck sessions when high rejection rates detected
+- **Pre-warming After Recovery**: Automatically pre-warms pool after recovery for immediate readiness
+- **Portable Implementation**: No external dependencies (bc replaced with awk)
 
 ### Pool Management Commands
 
@@ -96,6 +103,9 @@ resource-browserless pool
 
 # Start auto-scaler
 resource-browserless pool start
+
+# Check and recover unhealthy pool
+resource-browserless pool recover
 
 # Stop auto-scaler
 resource-browserless pool stop

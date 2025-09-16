@@ -1,0 +1,44 @@
+{
+  "startup_order": 550,
+  "dependencies": ["postgres"],
+  "optional_dependencies": ["redis", "vault"],
+  "startup_timeout": 120,
+  "startup_time_estimate": "60-120s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "resource_requirements": {
+    "cpu": "2 cores",
+    "memory": "4GB",
+    "disk": "10GB"
+  },
+  "health_check": {
+    "endpoint": "/health",
+    "method": "GET",
+    "timeout": 5,
+    "interval": 10,
+    "retries": 12
+  },
+  "network": {
+    "expose_ports": true,
+    "requires_internet": true,
+    "protocols": ["http", "https"]
+  },
+  "lifecycle": {
+    "supports_hot_reload": false,
+    "graceful_shutdown_timeout": 30,
+    "data_persistence": true,
+    "state_management": "database"
+  },
+  "compatibility": {
+    "platforms": ["linux", "darwin"],
+    "architectures": ["amd64", "arm64"],
+    "min_docker_version": "20.10.0",
+    "min_docker_compose_version": "2.0.0"
+  },
+  "monitoring": {
+    "metrics_endpoint": "/metrics",
+    "logs_format": "json",
+    "trace_enabled": false
+  },
+  "tags": ["finance", "banking", "microfinance", "loans", "savings", "api"]
+}

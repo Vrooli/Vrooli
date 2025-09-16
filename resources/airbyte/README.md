@@ -84,8 +84,8 @@ vrooli resource airbyte content execute --connection-id postgres-to-s3
 ## Architecture
 
 Airbyte consists of several services:
-- **Webapp** (port 8000): Web UI for configuration
-- **Server** (port 8001): API server
+- **Webapp** (port 8002): Web UI for configuration
+- **Server** (port 8003): API server
 - **Worker**: Executes sync jobs
 - **Scheduler**: Manages job scheduling
 - **Database**: PostgreSQL for metadata
@@ -94,8 +94,8 @@ Airbyte consists of several services:
 ## Configuration
 
 Default ports (from port registry):
-- Webapp: 8000
-- API Server: 8001
+- Webapp: 8002
+- API Server: 8003
 - Temporal: 8006
 
 Environment variables:
@@ -120,7 +120,7 @@ vrooli resource airbyte test all
 
 ### Services not starting
 - Check Docker is running: `docker ps`
-- Verify port availability: `netstat -tlnp | grep 8000`
+- Verify port availability: `netstat -tlnp | grep 8002`
 - Check logs: `vrooli resource airbyte logs --service server`
 
 ### Connection failures

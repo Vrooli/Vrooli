@@ -53,11 +53,21 @@ actions::parse_universal_options() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -92,7 +102,8 @@ actions::create_temp_session() {
     if [[ -n "$SESSION_NAME" ]]; then
         echo "$SESSION_NAME"
     else
-        local temp_session="temp_$(date +%s)_$$"
+        local temp_session
+        temp_session="temp_$(date +%s)_$$"
         session::create "$temp_session" >/dev/null 2>&1
         echo "$temp_session"
     fi
@@ -129,11 +140,21 @@ actions::screenshot() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -285,11 +306,21 @@ actions::navigate() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -329,7 +360,8 @@ actions::navigate() {
     
     local result
     if result=$(browser::navigate "$url" "$session_id"); then
-        local success=$(echo "$result" | jq -r '.success // false')
+        local success
+        success=$(echo "$result" | jq -r '.success // false')
         if [[ "$success" == "true" ]]; then
             local clean_result
             clean_result=$(echo "$result" | jq '{
@@ -348,7 +380,8 @@ actions::navigate() {
             echo "Successfully navigated to: $(echo "$clean_result" | jq -r '.url')"
             echo "Page title: $(echo "$clean_result" | jq -r '.title')"
         else
-            local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+            local error
+            error=$(echo "$result" | jq -r '.error // "Unknown error"')
             echo "Error: $error" >&2
             actions::cleanup_temp_session "$session_id"
             return 1
@@ -386,11 +419,21 @@ actions::health_check() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -429,7 +472,8 @@ actions::health_check() {
     
     local result
     if result=$(browser::navigate "$url" "$session_id"); then
-        local success=$(echo "$result" | jq -r '.success // false')
+        local success
+        success=$(echo "$result" | jq -r '.success // false')
         if [[ "$success" == "true" ]]; then
             local healthy=true
             local health_result
@@ -482,7 +526,8 @@ actions::health_check() {
                 return 1
             fi
         else
-            local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+            local error
+            error=$(echo "$result" | jq -r '.error // "Unknown error"')
             echo "❌ Health check failed: $error" >&2
             actions::cleanup_temp_session "$session_id"
             return 1
@@ -526,11 +571,21 @@ actions::element_exists() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -633,11 +688,21 @@ actions::extract_text() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -740,11 +805,21 @@ actions::extract() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -806,7 +881,8 @@ actions::extract() {
                     actions::cleanup_temp_session "$session_id"
                     return 0
                 else
-                    local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+                    local error
+            error=$(echo "$result" | jq -r '.error // "Unknown error"')
                     echo "Error: Script execution failed - $error" >&2
                     actions::cleanup_temp_session "$session_id"
                     return 1
@@ -866,11 +942,21 @@ actions::interact() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -1014,11 +1100,21 @@ actions::console() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -1104,7 +1200,8 @@ actions::console() {
         };
     " "$session_id")
     
-    local success=$(echo "$result" | jq -r '.success // false')
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
     if [[ "$success" == "true" ]]; then
         local logs=$(echo "$result" | jq '.logs')
         
@@ -1162,11 +1259,21 @@ actions::performance() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -1272,7 +1379,8 @@ actions::performance() {
         };
     " "$session_id")
     
-    local success=$(echo "$result" | jq -r '.success // false')
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
     if [[ "$success" == "true" ]]; then
         if [[ -n "$OUTPUT_PATH" ]]; then
             mkdir -p "${OUTPUT_PATH%/*}"
@@ -1323,11 +1431,21 @@ actions::extract_forms() {
                 shift 2
                 ;;
             --timeout)
-                TIMEOUT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
                 shift 2
                 ;;
             --wait-ms)
-                WAIT_MS="$2"
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 2000ms" >&2
+                    WAIT_MS="2000"
+                else
+                    WAIT_MS="$2"
+                fi
                 shift 2
                 ;;
             --session)
@@ -1418,7 +1536,8 @@ actions::extract_forms() {
                     actions::cleanup_temp_session "$session_id"
                     return 0
                 else
-                    local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+                    local error
+            error=$(echo "$result" | jq -r '.error // "Unknown error"')
                     echo "Error: Form extraction failed - $error" >&2
                     actions::cleanup_temp_session "$session_id"
                     return 1
@@ -1466,6 +1585,19 @@ actions::dispatch() {
     
     local action="$1"
     shift
+    
+    # Validate action is not empty
+    if [[ -z "$action" ]]; then
+        echo "Error: Action cannot be empty" >&2
+        return 1
+    fi
+    
+    # Validate action is alphanumeric with hyphens only
+    if ! [[ "$action" =~ ^[a-zA-Z0-9-]+$ ]]; then
+        echo "Error: Invalid action format: $action" >&2
+        echo "Actions must contain only letters, numbers, and hyphens" >&2
+        return 1
+    fi
     
     case "$action" in
         screenshot)

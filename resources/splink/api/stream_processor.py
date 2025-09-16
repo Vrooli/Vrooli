@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6380"))
 STREAM_BUFFER_SIZE = int(os.getenv("STREAM_BUFFER_SIZE", "1000"))
 STREAM_BATCH_SIZE = int(os.getenv("STREAM_BATCH_SIZE", "100"))
 STREAM_BATCH_TIMEOUT = float(os.getenv("STREAM_BATCH_TIMEOUT", "5.0"))  # seconds
@@ -85,10 +85,15 @@ class StreamProcessor:
     async def initialize(self):
         """Initialize the stream processor"""
         try:
-            # Connect to Redis for stream management
-            self.redis_client = await redis.from_url(
-                f"redis://{REDIS_HOST}:{REDIS_PORT}",
-                decode_responses=True
+            # Connect to Redis for stream management with timeout
+            self.redis_client = await asyncio.wait_for(
+                redis.from_url(
+                    f"redis://{REDIS_HOST}:{REDIS_PORT}",
+                    decode_responses=True,
+                    socket_connect_timeout=2,
+                    retry_on_error=False
+                ),
+                timeout=3.0
             )
             
             # Initialize Splink engine
@@ -105,6 +110,13 @@ class StreamProcessor:
                 pass  # Stream already exists
             
             logger.info(f"Stream processor initialized for {self.config.stream_name}")
+            return True
+            
+        except (ConnectionError, asyncio.TimeoutError) as e:
+            logger.warning(f"Redis not available for stream processing: {e}")
+            # Continue without Redis - use in-memory processing only
+            self.redis_client = None
+            self.splink_engine = get_splink_engine()
             return True
             
         except Exception as e:
@@ -141,6 +153,12 @@ class StreamProcessor:
     
     async def _consume_stream(self):
         """Consume records from the stream"""
+        if not self.redis_client:
+            # If Redis is not available, just sleep
+            while self.processing:
+                await asyncio.sleep(1)
+            return
+            
         last_id = "0"
         
         while self.processing:

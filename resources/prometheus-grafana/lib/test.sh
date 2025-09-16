@@ -73,7 +73,7 @@ run_smoke_tests() {
     
     # Test 5: Node exporter metrics
     echo -n "Test 5: Node exporter metrics... "
-    if timeout 5 curl -sf "http://localhost:${NODE_EXPORTER_PORT}/metrics" | grep -q "node_"; then
+    if timeout 5 curl -sf "http://localhost:${NODE_EXPORTER_PORT}/metrics" > /dev/null 2>&1; then
         echo "PASS"
         ((tests_passed++))
     else

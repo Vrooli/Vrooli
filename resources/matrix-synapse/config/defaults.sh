@@ -2,6 +2,9 @@
 # Matrix Synapse Resource - Default Configuration
 # This file defines default values for all configuration variables
 
+# Installation Configuration - MUST BE FIRST
+export MATRIX_SYNAPSE_INSTALL_METHOD="${MATRIX_SYNAPSE_INSTALL_METHOD:-docker}"  # pip or docker
+
 # Port Configuration (from port registry)
 export MATRIX_SYNAPSE_PORT="${MATRIX_SYNAPSE_PORT:-8008}"
 export MATRIX_SYNAPSE_METRICS_PORT="${MATRIX_SYNAPSE_METRICS_PORT:-8009}"
@@ -12,8 +15,14 @@ export MATRIX_SYNAPSE_REPORT_STATS="${MATRIX_SYNAPSE_REPORT_STATS:-no}"
 export MATRIX_SYNAPSE_ENABLE_REGISTRATION="${MATRIX_SYNAPSE_ENABLE_REGISTRATION:-true}"
 
 # Database Configuration (uses postgres resource)
-export MATRIX_SYNAPSE_DB_HOST="${MATRIX_SYNAPSE_DB_HOST:-localhost}"
-export MATRIX_SYNAPSE_DB_PORT="${MATRIX_SYNAPSE_DB_PORT:-5433}"
+# Use container name when running in Docker, localhost for pip
+if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "docker" ]]; then
+    export MATRIX_SYNAPSE_DB_HOST="${MATRIX_SYNAPSE_DB_HOST:-vrooli-postgres-main}"
+    export MATRIX_SYNAPSE_DB_PORT="${MATRIX_SYNAPSE_DB_PORT:-5432}"  # Internal port in Docker network
+else
+    export MATRIX_SYNAPSE_DB_HOST="${MATRIX_SYNAPSE_DB_HOST:-localhost}"
+    export MATRIX_SYNAPSE_DB_PORT="${MATRIX_SYNAPSE_DB_PORT:-5433}"  # Host port
+fi
 export MATRIX_SYNAPSE_DB_NAME="${MATRIX_SYNAPSE_DB_NAME:-synapse}"
 export MATRIX_SYNAPSE_DB_USER="${MATRIX_SYNAPSE_DB_USER:-synapse}"
 export SYNAPSE_DB_PASSWORD="${SYNAPSE_DB_PASSWORD:-}"
@@ -44,9 +53,9 @@ export MATRIX_SYNAPSE_LOG_DIR="${MATRIX_SYNAPSE_LOG_DIR:-${MATRIX_SYNAPSE_DATA_D
 export MATRIX_SYNAPSE_PID_FILE="${MATRIX_SYNAPSE_PID_FILE:-${MATRIX_SYNAPSE_DATA_DIR}/synapse.pid}"
 export MATRIX_SYNAPSE_LOG_FILE="${MATRIX_SYNAPSE_LOG_FILE:-${MATRIX_SYNAPSE_LOG_DIR}/homeserver.log}"
 
-# Installation Configuration
-export MATRIX_SYNAPSE_INSTALL_METHOD="${MATRIX_SYNAPSE_INSTALL_METHOD:-pip}"  # pip or docker
+# Version and virtual environment
 export MATRIX_SYNAPSE_VERSION="${MATRIX_SYNAPSE_VERSION:-latest}"
+export MATRIX_SYNAPSE_VENV_DIR="${MATRIX_SYNAPSE_VENV_DIR:-${MATRIX_SYNAPSE_DATA_DIR}/venv}"
 
 # Timeout Configuration
 export MATRIX_SYNAPSE_STARTUP_TIMEOUT="${MATRIX_SYNAPSE_STARTUP_TIMEOUT:-60}"

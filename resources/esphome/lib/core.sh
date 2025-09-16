@@ -261,6 +261,12 @@ esphome::health_check() {
         return 1
     fi
     
+    # Check container health status
+    local container_health=$(docker inspect --format='{{.State.Health.Status}}' "${ESPHOME_CONTAINER_NAME}" 2>/dev/null || echo "none")
+    if [[ "$container_health" == "unhealthy" ]]; then
+        return 1
+    fi
+    
     # ESPHome doesn't have /health endpoint, check dashboard availability
     # and return a proper health response
     if timeout 5 curl -sf "${ESPHOME_BASE_URL}" > /dev/null 2>&1; then
@@ -398,18 +404,32 @@ esphome::compile() {
     
     if ! docker ps --format "{{.Names}}" | grep -q "^${ESPHOME_CONTAINER_NAME}$"; then
         log::error "ESPHome is not running"
+        echo "Start ESPHome first with: vrooli resource esphome manage start"
+        return 1
+    fi
+    
+    # Check if config file exists
+    local config_path="${ESPHOME_CONFIG_DIR}/${config_name}"
+    if [[ ! -f "$config_path" ]]; then
+        log::error "Configuration file not found: $config_name"
+        echo "Available configurations:"
+        esphome::list_configs
         return 1
     fi
     
     log::info "Compiling firmware for: $config_name"
     
-    docker exec "${ESPHOME_CONTAINER_NAME}" \
-        esphome compile "/config/${config_name}" || {
+    # Run compilation with better error output
+    if ! docker exec "${ESPHOME_CONTAINER_NAME}" \
+        esphome compile "/config/${config_name}" 2>&1; then
         log::error "Compilation failed"
+        echo "Check the YAML syntax and ensure all required fields are present"
+        echo "Common issues: missing WiFi credentials, invalid board type, syntax errors"
         return 1
-    }
+    fi
     
     log::success "Firmware compiled successfully"
+    echo "Firmware binary saved in: ${ESPHOME_BUILD_DIR}/${config_name%.yaml}"
     return 0
 }
 

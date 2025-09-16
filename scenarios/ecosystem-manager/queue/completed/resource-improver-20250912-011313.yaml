@@ -1,0 +1,36 @@
+id: resource-improver-20250912-011313
+title: Update erpnext
+type: resource
+operation: improver
+category: ""
+priority: medium
+effort_estimate: 4h
+urgency: low
+impact_score: 5
+requirements: {}
+dependencies: []
+blocks: []
+related_scenarios: []
+related_resources: []
+assigned_resources: {}
+status: completed
+progress_percentage: 100
+current_phase: completed
+started_at: ""
+completed_at: "2025-09-16T02:25:46-04:00"
+estimated_completion: ""
+validation_criteria: []
+created_by: ""
+created_at: "2025-09-12T01:13:13-04:00"
+updated_at: "2025-09-16T02:25:46-04:00"
+tags: []
+notes: Allegedly complete, but would benefit from additional validation/tidying
+results:
+    completed_at: "2025-09-16T02:25:46-04:00"
+    execution_time: 4m58s
+    message: Task completed successfully
+    output: "[HEADER]  \U0001F916 Running Claude Code\n[INFO]    Non-TTY environment detected - using automation-friendly settings\n[WARNING] ⚠️  WARNING: Permission checks are disabled!\n[INFO]    Executing: timeout 3060 claude --print --max-turns 80 --allowedTools Read,Write,Edit,Bash,LS,Glob,Grep --dangerously-skip-permissions (prompt: 34124 chars)\n\n## Task Completion Summary\n\n### What Was Accomplished\nI thoroughly validated the ERPNext resource implementation and corrected significant inaccuracies in the PRD:\n\n1. **Validated actual functionality** - Only 6 of 14 claimed features actually work\n2. **Updated PRD accuracy** - Corrected completion from claimed 100% to actual 43%\n3. **Documented API failures** - Added comprehensive documentation of module integration issues\n4. **Identified root causes** - ERPNext API methods not properly exposed or integrated\n\n### Current State\n- **Status**: Partially functional\n- **Working Features**:\n  - ✅ Health checks and v2.0 contract compliance\n  - ✅ Authentication (login/logout)\n  - ✅ Basic API access\n  - ✅ Database integration (PostgreSQL/Redis)\n  - ✅ Content management\n  - ✅ All test suites pass\n\n- **Non-functional Features**:\n  - ❌ Core ERP modules (Accounting, HR, CRM) - not exposed\n  - ❌ Workflow engine - CLI exists but API calls fail\n  - ❌ Reporting module - CLI exists but API calls fail\n  - ❌ E-commerce, Manufacturing, Multi-tenant - all CLI commands fail\n  - ❌ Mobile UI configuration - commands fail\n\n### Key Issues Discovered\nThe previous implementations created CLI command structures without validating the underlying API functionality. Most module commands timeout or fail because:\n- ERPNext Frappe API methods aren't properly exposed\n- The `frappe.desk.query_builder.run` endpoint doesn't respond\n- Authentication/session handling may need different approach for module access\n\n### Specific Evidence\n- Health check works: `timeout 5 curl -H \"Host: vrooli.local\" http://localhost:8020/api/method/frappe.ping` returns \"pong\"\n- Authentication works: Login returns valid session ID\n- Module APIs fail: All workflow/report/e-commerce queries timeout or return empty\n\n### Recommendations for Future Improvements\n1. Research correct ERPNext v15 API endpoints for each module\n2. Use REST API (`/api/resource/`) instead of method calls\n3. Implement proper error handling instead of silent failures\n4. Test each feature before marking as complete in PRD\n\nThe resource needs significant additional work to deliver the promised ERP functionality. The current implementation provides basic infrastructure but lacks actual business logic integration.\n"
+    prompt_size: 34285 chars (33.48 KB)
+    started_at: "2025-09-16T02:20:49-04:00"
+    success: true
+    timeout_allowed: 51m0s

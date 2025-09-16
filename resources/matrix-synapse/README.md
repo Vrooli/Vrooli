@@ -2,6 +2,10 @@
 
 Matrix Synapse homeserver providing federated, encrypted, real-time communication infrastructure for Vrooli scenarios.
 
+## Status: ✅ Fully Functional
+
+All P0 requirements implemented and tested. Ready for production use.
+
 ## Quick Start
 
 ```bash
@@ -13,7 +17,13 @@ vrooli resource matrix-synapse manage start
 vrooli resource matrix-synapse status
 
 # Create a user
-vrooli resource matrix-synapse content add-user alice
+vrooli resource matrix-synapse content add-user alice password123
+
+# Create a room
+vrooli resource matrix-synapse content create-room "Team Chat"
+
+# Send a message (requires room ID from create-room output)
+vrooli resource matrix-synapse content send-message "!roomid:vrooli.local" "Hello team!"
 
 # View logs
 vrooli resource matrix-synapse logs
@@ -21,12 +31,13 @@ vrooli resource matrix-synapse logs
 
 ## Features
 
-- **Federated Communication**: Connect with other Matrix servers globally
-- **End-to-End Encryption**: Secure messaging for private rooms
-- **Bot Integration**: Automate workflows with bot users
-- **Bridge Support**: Connect to Slack, Discord, IRC, and more
-- **Room Management**: Create and manage collaboration spaces
-- **PostgreSQL Backend**: Production-ready database storage
+- ✅ **User Management**: Create and authenticate users with shared secret
+- ✅ **Room Management**: Create, join, and manage collaboration rooms
+- ✅ **Message Sending**: Send and receive messages via REST API
+- ✅ **Federation Ready**: Well-known files configured for federation
+- ✅ **PostgreSQL Backend**: Production-ready database storage
+- ✅ **Health Monitoring**: Built-in health checks and status reporting
+- ✅ **v2.0 Contract**: Full compliance with universal resource contract
 
 ## Configuration
 

@@ -114,9 +114,10 @@ pool::calculate_desired_size() {
         log::debug "Scale up triggered: utilization=$utilization%, queued=$queued"
     
     # Scale down conditions (only if CPU and memory are low)
+    # Use awk instead of bc for better portability
     elif [[ $utilization -lt $POOL_SCALE_DOWN_THRESHOLD ]] && \
-         [[ $(echo "$cpu < 0.5" | bc -l) -eq 1 ]] && \
-         [[ $(echo "$memory < 0.5" | bc -l) -eq 1 ]]; then
+         [[ $(awk -v cpu="$cpu" 'BEGIN {if (cpu < 0.5) print 1; else print 0}') -eq 1 ]] && \
+         [[ $(awk -v mem="$memory" 'BEGIN {if (mem < 0.5) print 1; else print 0}') -eq 1 ]]; then
         desired_size=$((current_size - POOL_SCALE_STEP))
         log::debug "Scale down triggered: utilization=$utilization%, cpu=$cpu, memory=$memory"
     fi
@@ -200,6 +201,13 @@ pool::autoscale_loop() {
     log::info "  Monitor interval: ${POOL_MONITOR_INTERVAL}s"
     
     while true; do
+        # Check pool health and recover if needed
+        if ! pool::health_check_and_recover; then
+            log::error "Pool recovery failed - waiting before retry"
+            sleep "$POOL_MONITOR_INTERVAL"
+            continue
+        fi
+        
         # Get current metrics
         local metrics
         metrics=$(pool::get_metrics)
@@ -233,6 +241,9 @@ pool::autoscale_loop() {
                 fi
             fi
         fi
+        
+        # Check if pre-warming is needed (when system is idle)
+        pool::smart_prewarm
         
         # Wait before next check
         sleep "$POOL_MONITOR_INTERVAL"
@@ -311,6 +322,134 @@ pool::autoscaler_status() {
 }
 
 #######################################
+# Pre-warm browser instances to reduce cold start latency
+# Arguments:
+#   $1 - Number of instances to pre-warm (optional, defaults to min pool size)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+pool::prewarm() {
+    local instances="${1:-$POOL_MIN_SIZE}"
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+    
+    log::header "🔥 Pre-warming Browser Pool"
+    log::info "Pre-warming $instances browser instances..."
+    
+    # Check if browserless is running
+    if ! is_running; then
+        log::error "Browserless container is not running"
+        return 1
+    fi
+    
+    # Track successful pre-warm attempts
+    local success_count=0
+    local failed_count=0
+    
+    # Pre-warm instances by triggering lightweight operations
+    for ((i=1; i<=instances; i++)); do
+        log::debug "Pre-warming instance $i/$instances..."
+        
+        # Use a simple JavaScript evaluation to trigger browser creation
+        # This is lightweight but ensures a browser instance is created
+        local prewarm_js='JSON.stringify({status: "ready", timestamp: Date.now()})'
+        
+        # Execute the pre-warm request in background to parallelize
+        (
+            timeout 10 curl -sf \
+                -X POST "http://localhost:${browserless_port}/function" \
+                -H "Content-Type: application/json" \
+                -d "{
+                    \"code\": \"async () => { return ${prewarm_js}; }\"
+                }" &>/dev/null && echo "success" || echo "failed"
+        ) &
+        
+        # Add small delay to avoid overwhelming the service
+        sleep 0.2
+    done
+    
+    # Wait for all background jobs to complete
+    wait
+    
+    # Check pressure metrics to verify pre-warming effect
+    sleep 2
+    local metrics
+    metrics=$(pool::get_metrics)
+    
+    if [[ $(echo "$metrics" | jq -r '.error // ""') == "" ]]; then
+        local max_concurrent=$(echo "$metrics" | jq -r '.maxConcurrent // 0')
+        log::success "Pre-warming complete. Pool capacity: $max_concurrent"
+        
+        # Store pre-warm timestamp for tracking
+        echo "$(date +%s)" > "${BROWSERLESS_DATA_DIR}/last_prewarm"
+        return 0
+    else
+        log::warning "Pre-warming completed but could not verify pool status"
+        return 1
+    fi
+}
+
+#######################################
+# Get time since last pre-warm
+# Returns:
+#   Seconds since last pre-warm, or -1 if never pre-warmed
+#######################################
+pool::time_since_prewarm() {
+    local prewarm_file="${BROWSERLESS_DATA_DIR}/last_prewarm"
+    
+    if [[ ! -f "$prewarm_file" ]]; then
+        echo "-1"
+        return 0
+    fi
+    
+    local last_prewarm=$(cat "$prewarm_file")
+    local current_time=$(date +%s)
+    local elapsed=$((current_time - last_prewarm))
+    
+    echo "$elapsed"
+}
+
+#######################################
+# Intelligent pre-warming based on system state
+# Pre-warms only when:
+#   - System is idle (low utilization)
+#   - Haven't pre-warmed recently
+#   - Browserless is running
+#######################################
+pool::smart_prewarm() {
+    local prewarm_interval="${BROWSERLESS_PREWARM_INTERVAL:-300}"  # Default 5 minutes
+    local idle_threshold="${BROWSERLESS_IDLE_THRESHOLD:-20}"       # % utilization to consider idle
+    
+    # Check if pre-warming is needed
+    local time_since_last
+    time_since_last=$(pool::time_since_prewarm)
+    
+    if [[ $time_since_last -ne -1 ]] && [[ $time_since_last -lt $prewarm_interval ]]; then
+        log::debug "Skipping pre-warm (last pre-warm ${time_since_last}s ago)"
+        return 0
+    fi
+    
+    # Check current utilization
+    local metrics
+    metrics=$(pool::get_metrics)
+    
+    if [[ $(echo "$metrics" | jq -r '.error // ""') != "" ]]; then
+        log::debug "Cannot pre-warm: metrics unavailable"
+        return 1
+    fi
+    
+    local utilization=$(echo "$metrics" | jq -r '.utilization // 100')
+    
+    if [[ $utilization -gt $idle_threshold ]]; then
+        log::debug "Skipping pre-warm (utilization ${utilization}% > ${idle_threshold}%)"
+        return 0
+    fi
+    
+    # System is idle and pre-warm is due - proceed with pre-warming
+    log::info "System idle (${utilization}% utilization) - initiating pre-warm"
+    pool::prewarm "$POOL_MIN_SIZE"
+}
+
+#######################################
 # Show pool statistics
 #######################################
 pool::show_stats() {
@@ -335,8 +474,9 @@ pool::show_stats() {
     local memory=$(echo "$metrics" | jq -r '.memory')
     
     # Calculate percentages properly
-    local cpu_percent=$(echo "$cpu * 100" | bc -l | cut -d. -f1)
-    local memory_percent=$(echo "$memory * 100" | bc -l | cut -d. -f1)
+    # Use awk for portable floating point math
+    local cpu_percent=$(awk -v cpu="$cpu" 'BEGIN {printf "%.0f", cpu * 100}')
+    local memory_percent=$(awk -v mem="$memory" 'BEGIN {printf "%.0f", mem * 100}')
     
     cat <<EOF
 Pool Configuration:
@@ -367,6 +507,78 @@ EOF
     fi
 }
 
+#######################################
+# Check browser pool health and recover if needed
+# Detects and recovers from browser crashes
+# Returns:
+#   0 if healthy or recovered, 1 if recovery failed
+#######################################
+pool::health_check_and_recover() {
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+    local max_recovery_attempts=3
+    local attempt=0
+    
+    # First check if container is running
+    if ! is_running; then
+        log::error "Browserless container is not running - cannot recover pool"
+        return 1
+    fi
+    
+    # Check health endpoint
+    local health_response
+    health_response=$(timeout 5 curl -sf "http://localhost:${browserless_port}/pressure" 2>/dev/null || echo "")
+    
+    if [[ -z "$health_response" ]]; then
+        log::warning "Browser pool not responding - attempting recovery"
+        
+        while [[ $attempt -lt $max_recovery_attempts ]]; do
+            attempt=$((attempt + 1))
+            log::info "Recovery attempt $attempt/$max_recovery_attempts"
+            
+            # Try to restart the container
+            log::info "Restarting browserless container..."
+            docker restart "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1
+            
+            # Wait for container to come up
+            sleep 10
+            
+            # Check if it's healthy now
+            health_response=$(timeout 5 curl -sf "http://localhost:${browserless_port}/pressure" 2>/dev/null || echo "")
+            
+            if [[ -n "$health_response" ]]; then
+                log::success "Browser pool recovered successfully"
+                
+                # Pre-warm after recovery to ensure readiness
+                pool::prewarm "$POOL_MIN_SIZE"
+                return 0
+            fi
+            
+            sleep 5
+        done
+        
+        log::error "Failed to recover browser pool after $max_recovery_attempts attempts"
+        return 1
+    fi
+    
+    # Check for high error rate or rejected requests
+    local recently_rejected=$(echo "$health_response" | jq -r '.pressure.recentlyRejected // 0')
+    
+    if [[ $recently_rejected -gt 5 ]]; then
+        log::warning "High rejection rate detected ($recently_rejected) - clearing pool"
+        
+        # Clear any stuck sessions by restarting container
+        docker restart "$BROWSERLESS_CONTAINER_NAME" >/dev/null 2>&1
+        sleep 10
+        
+        # Pre-warm to restore capacity
+        pool::prewarm "$POOL_MIN_SIZE"
+        
+        log::success "Pool cleared and restored"
+    fi
+    
+    return 0
+}
+
 # Export functions
 export -f pool::get_metrics
 export -f pool::calculate_desired_size
@@ -377,3 +589,7 @@ export -f pool::start_autoscaler
 export -f pool::stop_autoscaler
 export -f pool::autoscaler_status
 export -f pool::show_stats
+export -f pool::prewarm
+export -f pool::time_since_prewarm
+export -f pool::smart_prewarm
+export -f pool::health_check_and_recover

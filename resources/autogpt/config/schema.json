@@ -1,0 +1,227 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AutoGPT Resource Configuration Schema",
+  "description": "Configuration schema for the AutoGPT autonomous AI agent framework",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "object",
+      "description": "Container configuration",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Container name",
+          "default": "autogpt-main"
+        },
+        "image": {
+          "type": "string",
+          "description": "Docker image",
+          "default": "significantgravitas/auto-gpt:latest"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "description": "Network configuration",
+      "properties": {
+        "api_port": {
+          "type": "integer",
+          "description": "API port",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8080
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Base data directory"
+        },
+        "agents_dir": {
+          "type": "string",
+          "description": "Agent configurations directory"
+        },
+        "tools_dir": {
+          "type": "string",
+          "description": "Custom tools directory"
+        },
+        "workspace_dir": {
+          "type": "string",
+          "description": "Agent workspace directory"
+        }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "description": "Language model configuration",
+      "properties": {
+        "provider": {
+          "type": "string",
+          "enum": ["openrouter", "ollama", "openai", "none"],
+          "description": "LLM provider",
+          "default": "none"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model name",
+          "default": "gpt-3.5-turbo"
+        },
+        "max_iterations": {
+          "type": "integer",
+          "description": "Maximum iterations per task",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 25
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Model temperature",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "Memory backend configuration",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "enum": ["redis", "postgres", "local"],
+          "description": "Memory storage backend",
+          "default": "local"
+        },
+        "redis": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 6379
+            }
+          }
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 5432
+            },
+            "database": {
+              "type": "string",
+              "default": "autogpt"
+            }
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "description": "Tool integration settings",
+      "properties": {
+        "browser": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "browserless_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "code_exec": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "judge0_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance settings",
+      "properties": {
+        "worker_threads": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 4
+        },
+        "task_timeout": {
+          "type": "integer",
+          "description": "Task timeout in seconds",
+          "minimum": 30,
+          "default": 300
+        },
+        "max_memory": {
+          "type": "integer",
+          "description": "Maximum memory in MB",
+          "minimum": 512,
+          "default": 2048
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security settings",
+      "properties": {
+        "file_access": {
+          "type": "string",
+          "enum": ["full", "restricted", "none"],
+          "default": "restricted"
+        },
+        "allowed_domains": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "hostname"
+          }
+        },
+        "api_key": {
+          "type": "string",
+          "description": "API key for AutoGPT API access"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error"],
+          "default": "info"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "default": "json"
+        }
+      }
+    }
+  },
+  "required": []
+}

@@ -34,21 +34,36 @@
   - Add PostgreSQL backend for persistent audit trail
   - Integrate with syslog or ELK stack
 
-### Database Backend Support
-- **Current State**: Using default embedded database
-- **Enhancement Needed**: PostgreSQL backend integration for scalability
-- **Implementation Path**: Add PostgreSQL configuration during initialization
+### Database Backend Support (COMPLETED ✅)
+- **Current State**: PostgreSQL backend fully integrated and operational
+- **Implemented Features**:
+  - Automatic database creation and user setup
+  - Migration from file-based to PostgreSQL backend
+  - Certificate statistics query from database
+  - 24 tables for complete certificate management
+- **Benefits**: Scalability to millions of certificates, better querying, multi-instance support
 
-### Certificate Revocation (Documented)
-- **Current State**: 
-  - Revocation API exists but requires certificate serial number
-  - No CRL/OCSP distribution configured
-  - `content remove` command provides clear documentation of requirements
-- **Enhancement Needed**: 
-  - Full CRL (Certificate Revocation List) distribution
-  - OCSP (Online Certificate Status Protocol) responder
-  - Database integration to track certificate serial numbers
+### Certificate Revocation (IMPLEMENTED ✅)
+- **Current State**: Full revocation support with PostgreSQL backend
+- **Implemented Features**:
+  - `revoke` command with serial number and reason support
+  - CRL data generation from revoked certificates table
+  - `check-revocation` command to verify certificate status
+  - Revocation reasons: unspecified, keyCompromise, affiliationChanged, superseded, cessationOfOperation
+- **Remaining Work**: 
+  - Full CRL distribution in PEM format (data export available)
+  - OCSP responder setup (Step-CA supports but needs configuration)
 - **Workaround**: Use short-lived certificates (24-48h) to minimize risk
+
+### Custom Certificate Templates (IMPLEMENTED ✅)
+- **Current State**: Template management system fully operational
+- **Implemented Features**:
+  - Pre-defined templates: web-server, client-auth, code-signing, email
+  - Custom template creation with configurable durations
+  - Template storage in local configuration
+  - Template listing and removal commands
+- **Usage**: Templates define certificate profiles for different use cases
+- **Future Enhancement**: Direct integration with Step-CA's template API when available
 
 ## Best Practices
 

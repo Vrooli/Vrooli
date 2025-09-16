@@ -11,7 +11,12 @@
 ### Rate Limiting Constraints
 - **Issue**: Free tier limited to 4 requests per minute, 500 per day
 - **Impact**: Batch processing is slow for large datasets
-- **Current Mitigation**: Built-in rate limiting with 60-second pauses
+- **Current Mitigation**: ✅ FULLY IMPLEMENTED (2025-09-16) - Enhanced rate limiting
+  - Retry-After headers included in all 429 responses (tested and working)
+  - Exponential backoff helper function available for client implementations
+  - Accurate tracking of daily and per-minute limits
+  - Graceful handling of rate limit errors with proper retry information
+  - Headers provide exact wait time in seconds
 - **Future Enhancement**: Implement intelligent queueing with priority levels
 
 ### Docker Container Health Status
@@ -30,9 +35,11 @@
    - Estimated effort: 2-3 days
 
 2. **Historical Analysis Tracking**
-   - Need persistent database for historical data
-   - Requires data retention policies
-   - Estimated effort: 1-2 days
+   - ✅ IMPLEMENTED (2025-09-16) - Historical analysis now fully functional
+   - Database table created for tracking indicator evolution
+   - Automatic tracking on all scans with caching
+   - REST API endpoints for querying historical data
+   - Evolution tracking shows threat progression over time
 
 3. **PDF Report Export**
    - Requires additional dependencies (reportlab, weasyprint)
@@ -67,9 +74,24 @@
 ## Integration Gaps
 
 ### Redis Cache Backend
-- **Status**: Not implemented, using SQLite only
-- **Impact**: Can't share cache across multiple instances
-- **Effort**: Would require significant refactoring of cache layer
+- **Status**: ✅ FULLY IMPLEMENTED (2025-09-16) - Redis cache backend added and fixed
+- **Features**:
+  - Dual-cache strategy (Redis primary + SQLite fallback)
+  - Automatic failover to SQLite if Redis unavailable
+  - Configurable via VIRUSTOTAL_USE_REDIS environment variable
+  - Shared cache across multiple instances when enabled
+  - TTL-based expiration (24 hours default, configurable)
+  - Health endpoint reports Redis cache status
+- **Configuration**:
+  - `VIRUSTOTAL_USE_REDIS=true` - Enable Redis caching
+  - `REDIS_HOST=localhost` - Redis server host
+  - `REDIS_PORT=6380` - Redis server port (Vrooli Redis default)
+  - `REDIS_DB=0` - Redis database number
+  - `VIRUSTOTAL_REDIS_TTL=86400` - Cache TTL in seconds
+- **Fix Applied (2025-09-16)**:
+  - Fixed Docker container environment variable passing for Redis configuration
+  - Updated default Redis port to match Vrooli's Redis resource (6380)
+  - Container now uses --network host for proper Redis connectivity
 
 ### Scenario Integration
 - **Status**: ✅ RESOLVED (2025-09-14) - Added comprehensive integration examples
@@ -116,16 +138,25 @@
 
 ## Recommendations for Next Iteration
 
-1. **Priority 1**: ✅ COMPLETED - URL report retrieval now working
-2. **Priority 2**: ✅ COMPLETED - Automatic cache rotation implemented
-3. **Priority 3**: ✅ COMPLETED - Added comprehensive integration examples
-4. **Priority 4**: ✅ COMPLETED - File submission via URL (S3 presigned URLs) implemented
-5. **Priority 5**: ✅ COMPLETED - Threat intelligence feed export implemented
-6. **Priority 6**: Implement remaining P2 features (YARA rules, historical analysis)
-7. **Priority 7**: Add Redis cache backend for scalability
-8. **Priority 8**: Add rate limit handling for premium API tiers
-9. **Priority 9**: Add support for scanning archives (ZIP, RAR, 7z) with member extraction
-10. **Priority 10**: Implement threat correlation and clustering features
+### Completed Improvements
+1. ✅ URL report retrieval implemented and working
+2. ✅ Automatic cache rotation with size/age/count limits
+3. ✅ Comprehensive integration examples documented
+4. ✅ File submission via URL (S3/MinIO presigned URLs) 
+5. ✅ Threat intelligence feed export with multiple formats
+6. ✅ Enhanced rate limiting with Retry-After headers (2025-09-16)
+7. ✅ Redis cache backend with automatic failover (2025-09-16)
+8. ✅ Archive scanning for ZIP, RAR, 7z, TAR formats
+9. ✅ Exponential backoff helper for client-side retry logic (2025-09-16)
+
+### Future Enhancements
+1. **Priority 1**: Add rate limit handling for premium API tiers
+2. **Priority 2**: Implement YARA rules support (requires premium API)
+3. **Priority 3**: Add historical analysis tracking
+4. **Priority 4**: Implement threat correlation and clustering
+5. **Priority 5**: Add advanced filtering and search for cached results
+6. **Priority 6**: Create webhook management UI
+7. **Priority 7**: Add ML-based threat prediction models
 
 ## Notes for Developers
 

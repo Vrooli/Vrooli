@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Segment Anything Resource - Default Configuration
+
+# Service identification
+readonly SEGMENT_ANYTHING_SERVICE_NAME="segment-anything"
+readonly SEGMENT_ANYTHING_DISPLAY_NAME="Segment Anything Model"
+readonly SEGMENT_ANYTHING_DESCRIPTION="Foundation segmentation service with SAM2/HQ-SAM"
+
+# Port configuration - from port registry
+readonly SEGMENT_ANYTHING_PORT="${SEGMENT_ANYTHING_PORT:-11454}"
+
+# Docker configuration
+readonly SEGMENT_ANYTHING_IMAGE="${SEGMENT_ANYTHING_IMAGE:-segment-anything:latest}"
+readonly SEGMENT_ANYTHING_CONTAINER="${SEGMENT_ANYTHING_CONTAINER:-vrooli-segment-anything}"
+
+# Model configuration
+readonly SEGMENT_ANYTHING_MODEL_SIZE="${SEGMENT_ANYTHING_MODEL_SIZE:-base}"  # tiny, small, base, large
+readonly SEGMENT_ANYTHING_MODEL_TYPE="${SEGMENT_ANYTHING_MODEL_TYPE:-sam2}"  # sam2, hq-sam
+readonly SEGMENT_ANYTHING_DEVICE="${SEGMENT_ANYTHING_DEVICE:-auto}"  # auto, cpu, cuda
+
+# Storage paths
+readonly SEGMENT_ANYTHING_DATA_DIR="${SEGMENT_ANYTHING_DATA_DIR:-${HOME}/.vrooli/segment-anything/data}"
+readonly SEGMENT_ANYTHING_MODEL_DIR="${SEGMENT_ANYTHING_MODEL_DIR:-${HOME}/.vrooli/segment-anything/models}"
+readonly SEGMENT_ANYTHING_CACHE_DIR="${SEGMENT_ANYTHING_CACHE_DIR:-${HOME}/.vrooli/segment-anything/cache}"
+
+# Runtime configuration
+readonly SEGMENT_ANYTHING_MAX_WORKERS="${SEGMENT_ANYTHING_MAX_WORKERS:-4}"
+readonly SEGMENT_ANYTHING_BATCH_SIZE="${SEGMENT_ANYTHING_BATCH_SIZE:-1}"
+readonly SEGMENT_ANYTHING_CACHE_TTL="${SEGMENT_ANYTHING_CACHE_TTL:-3600}"  # 1 hour
+
+# API configuration
+readonly SEGMENT_ANYTHING_API_KEY="${SEGMENT_ANYTHING_API_KEY:-}"  # Optional API key
+readonly SEGMENT_ANYTHING_CORS_ORIGINS="${SEGMENT_ANYTHING_CORS_ORIGINS:-*}"
+readonly SEGMENT_ANYTHING_MAX_REQUEST_SIZE="${SEGMENT_ANYTHING_MAX_REQUEST_SIZE:-100}"  # MB
+
+# Performance settings
+readonly SEGMENT_ANYTHING_GPU_MEMORY_FRACTION="${SEGMENT_ANYTHING_GPU_MEMORY_FRACTION:-0.8}"
+readonly SEGMENT_ANYTHING_NUM_THREADS="${SEGMENT_ANYTHING_NUM_THREADS:-4}"
+readonly SEGMENT_ANYTHING_ENABLE_COMPILE="${SEGMENT_ANYTHING_ENABLE_COMPILE:-false}"  # torch.compile
+
+# Integration settings
+readonly SEGMENT_ANYTHING_REDIS_HOST="${SEGMENT_ANYTHING_REDIS_HOST:-localhost}"
+readonly SEGMENT_ANYTHING_REDIS_PORT="${SEGMENT_ANYTHING_REDIS_PORT:-6380}"
+readonly SEGMENT_ANYTHING_MINIO_ENDPOINT="${SEGMENT_ANYTHING_MINIO_ENDPOINT:-localhost:9000}"
+readonly SEGMENT_ANYTHING_POSTGRES_HOST="${SEGMENT_ANYTHING_POSTGRES_HOST:-localhost}"
+readonly SEGMENT_ANYTHING_POSTGRES_PORT="${SEGMENT_ANYTHING_POSTGRES_PORT:-5433}"
+
+# Timeout settings
+readonly SEGMENT_ANYTHING_STARTUP_TIMEOUT="${SEGMENT_ANYTHING_STARTUP_TIMEOUT:-60}"
+readonly SEGMENT_ANYTHING_SHUTDOWN_TIMEOUT="${SEGMENT_ANYTHING_SHUTDOWN_TIMEOUT:-30}"
+readonly SEGMENT_ANYTHING_HEALTH_CHECK_INTERVAL="${SEGMENT_ANYTHING_HEALTH_CHECK_INTERVAL:-30}"
+
+# Export configuration as JSON
+export_config() {
+    cat <<EOF
+{
+  "service_name": "${SEGMENT_ANYTHING_SERVICE_NAME}",
+  "port": ${SEGMENT_ANYTHING_PORT},
+  "model": {
+    "size": "${SEGMENT_ANYTHING_MODEL_SIZE}",
+    "type": "${SEGMENT_ANYTHING_MODEL_TYPE}",
+    "device": "${SEGMENT_ANYTHING_DEVICE}"
+  },
+  "paths": {
+    "data": "${SEGMENT_ANYTHING_DATA_DIR}",
+    "models": "${SEGMENT_ANYTHING_MODEL_DIR}",
+    "cache": "${SEGMENT_ANYTHING_CACHE_DIR}"
+  },
+  "performance": {
+    "max_workers": ${SEGMENT_ANYTHING_MAX_WORKERS},
+    "batch_size": ${SEGMENT_ANYTHING_BATCH_SIZE},
+    "gpu_memory_fraction": ${SEGMENT_ANYTHING_GPU_MEMORY_FRACTION}
+  }
+}
+EOF
+}

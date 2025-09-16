@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  airbyte-db:
+    image: postgres:13-alpine
+    container_name: airbyte-db
+    environment:
+      POSTGRES_DB: airbyte
+      POSTGRES_USER: airbyte
+      POSTGRES_PASSWORD: airbyte
+    volumes:
+      - airbyte_db_data:/var/lib/postgresql/data
+    networks:
+      - airbyte
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airbyte"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  airbyte-temporal:
+    image: temporalio/auto-setup:1.13.0
+    container_name: airbyte-temporal
+    ports:
+      - "8006:7233"
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_USER=airbyte
+      - POSTGRES_PWD=airbyte
+      - POSTGRES_SEEDS=airbyte-db
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+    networks:
+      - airbyte
+    depends_on:
+      airbyte-db:
+        condition: service_healthy
+
+  airbyte-server:
+    image: airbyte/server:latest
+    container_name: airbyte-server
+    ports:
+      - "8003:8001"
+    environment:
+      DATABASE_URL: postgresql://airbyte:airbyte@airbyte-db:5432/airbyte
+      TEMPORAL_HOST: airbyte-temporal:7233
+      WEBAPP_URL: http://localhost:8002
+      WORKSPACE_ROOT: /workspace
+      LOCAL_ROOT: /local
+      TRACKING_STRATEGY: segment
+      AIRBYTE_VERSION: latest
+    volumes:
+      - /home/matthalloran8/Vrooli/resources/airbyte/data/workspace:/workspace
+      - /home/matthalloran8/Vrooli/resources/airbyte/data/local-logs:/local
+    networks:
+      - airbyte
+    depends_on:
+      - airbyte-temporal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Note: scheduler component is integrated into server in v1.x
+
+  airbyte-worker:
+    image: airbyte/worker:latest
+    container_name: airbyte-worker
+    environment:
+      DATABASE_URL: postgresql://airbyte:airbyte@airbyte-db:5432/airbyte
+      TEMPORAL_HOST: airbyte-temporal:7233
+      WORKSPACE_ROOT: /workspace
+      LOCAL_ROOT: /local
+      LOCAL_DOCKER_MOUNT: /tmp/airbyte_local
+      TRACKING_STRATEGY: segment
+      AIRBYTE_VERSION: latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/matthalloran8/Vrooli/resources/airbyte/data/workspace:/workspace
+      - /home/matthalloran8/Vrooli/resources/airbyte/data/local-logs:/local
+      - /tmp/airbyte_local:/tmp/airbyte_local
+    networks:
+      - airbyte
+    depends_on:
+      - airbyte-server
+
+  airbyte-webapp:
+    image: airbyte/webapp:latest
+    container_name: airbyte-webapp
+    ports:
+      - "8002:80"
+    environment:
+      AIRBYTE_VERSION: latest
+      API_URL: http://airbyte-server:8001/api/v1/
+      TRACKING_STRATEGY: segment
+    networks:
+      - airbyte
+    depends_on:
+      - airbyte-server
+
+networks:
+  airbyte:
+    name: airbyte_network
+
+volumes:
+  airbyte_db_data:

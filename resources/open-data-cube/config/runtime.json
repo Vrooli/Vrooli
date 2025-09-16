@@ -1,0 +1,83 @@
+{
+  "name": "open-data-cube",
+  "description": "Earth observation data cube platform for geospatial analytics",
+  "version": "1.0.0",
+  "category": "earth-systems",
+  "startup_order": 700,
+  "dependencies": ["postgres", "redis"],
+  "optional_dependencies": ["minio", "qdrant", "n8n"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "ports": {
+    "api": {
+      "description": "ODC API endpoint",
+      "protocol": "http",
+      "default": null
+    },
+    "db": {
+      "description": "PostgreSQL/PostGIS database",
+      "protocol": "tcp",
+      "default": null
+    },
+    "ows": {
+      "description": "WMS/WCS/WFS OGC services",
+      "protocol": "http",
+      "default": null
+    }
+  },
+  "health_checks": {
+    "api": {
+      "type": "http",
+      "endpoint": "/health",
+      "interval": 10,
+      "timeout": 5
+    },
+    "database": {
+      "type": "command",
+      "command": "pg_isready -U datacube",
+      "interval": 10,
+      "timeout": 5
+    }
+  },
+  "capabilities": {
+    "earth_observation": true,
+    "satellite_data": true,
+    "raster_analytics": true,
+    "time_series": true,
+    "wms_wcs": true,
+    "geotiff_export": true,
+    "netcdf_support": true,
+    "climate_data": true
+  },
+  "integrations": {
+    "minio": {
+      "enabled": false,
+      "description": "Store large raster datasets"
+    },
+    "qdrant": {
+      "enabled": false,
+      "description": "Vector embeddings for scene similarity"
+    },
+    "n8n": {
+      "enabled": false,
+      "description": "Workflow automation for ingestion"
+    },
+    "farmos": {
+      "enabled": false,
+      "description": "Agricultural monitoring integration"
+    },
+    "questdb": {
+      "enabled": false,
+      "description": "Time-series analytics"
+    }
+  },
+  "resource_requirements": {
+    "cpu": "2 cores minimum",
+    "memory": "4GB minimum, 8GB recommended",
+    "disk": "20GB minimum for sample data",
+    "gpu": "Optional for accelerated processing"
+  }
+}

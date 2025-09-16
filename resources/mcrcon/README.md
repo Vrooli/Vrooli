@@ -56,6 +56,16 @@ vrooli resource mcrcon manage start --wait
 vrooli resource mcrcon status
 ```
 
+### Quick Start with PaperMC
+
+```bash
+# If you have PaperMC installed, use the quick-start command
+vrooli resource mcrcon integration quick-start
+
+# Or auto-configure for all detected servers
+vrooli resource mcrcon integration auto-configure
+```
+
 ### Configuration
 
 Set your Minecraft server's RCON credentials:
@@ -160,6 +170,10 @@ vrooli resource mcrcon test all
 | `player give` | Give items to player |
 | `status` | Show resource status |
 | `credentials` | Display connection info |
+| `integration auto-configure` | Auto-detect and configure servers |
+| `integration quick-start` | Quick setup with PaperMC |
+| `integration detect-papermc` | Detect PaperMC installation |
+| `integration check-papermc` | Check PaperMC server status |
 
 ## Configuration Files
 

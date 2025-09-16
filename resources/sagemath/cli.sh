@@ -86,7 +86,7 @@ cli::register_subcommand "test" "parallel" "Test parallel processing capabilitie
 # ==============================================================================
 # GPU ACCELERATION COMMANDS
 # ==============================================================================
-cli::register_command "gpu" "GPU acceleration operations" "sagemath::gpu"
+cli::register_command_group "gpu" "GPU acceleration operations"
 cli::register_subcommand "gpu" "check" "Check GPU availability" "sagemath::gpu::check"
 cli::register_subcommand "gpu" "enable" "Enable GPU acceleration" "sagemath::gpu::enable"
 cli::register_subcommand "gpu" "compute" "Run GPU-accelerated computation" "sagemath::gpu::compute"
@@ -101,7 +101,7 @@ CLI_COMMAND_HANDLERS["gpu::benchmark"]="sagemath::gpu::benchmark"
 # ==============================================================================
 # PARALLEL COMPUTING COMMANDS
 # ==============================================================================
-cli::register_command "parallel" "Parallel computing operations" "sagemath::parallel"
+cli::register_command_group "parallel" "Parallel computing operations"
 cli::register_subcommand "parallel" "compute" "Run parallel computation" "sagemath::parallel::compute"
 cli::register_subcommand "parallel" "status" "Check parallel computing status" "sagemath::parallel::status"
 
@@ -127,7 +127,7 @@ cli::register_command "series" "Series expansions" "sagemath::math::series"
 # ==============================================================================
 # CACHE MANAGEMENT COMMANDS
 # ==============================================================================
-cli::register_command "cache" "Cache management operations" "sagemath::cache"
+cli::register_command_group "cache" "Cache management operations"
 cli::register_subcommand "cache" "clear" "Clear all cached results" "sagemath::cache::clear"
 cli::register_subcommand "cache" "stats" "Show cache statistics" "sagemath::cache::stats"
 
@@ -138,7 +138,7 @@ CLI_COMMAND_HANDLERS["cache::stats"]="sagemath::cache::stats"
 # ==============================================================================
 # VISUALIZATION COMMANDS
 # ==============================================================================
-cli::register_command "plot" "Create mathematical plots" "sagemath::plot"
+cli::register_command_group "plot" "Create mathematical plots"
 cli::register_subcommand "plot" "2d" "Create 2D plot" "sagemath::plot::2d"
 cli::register_subcommand "plot" "3d" "Create 3D plot" "sagemath::plot::3d"
 cli::register_subcommand "plot" "parametric" "Create parametric plot" "sagemath::plot::parametric"
@@ -150,8 +150,8 @@ CLI_COMMAND_HANDLERS["plot::3d"]="sagemath::plot::3d"
 CLI_COMMAND_HANDLERS["plot::parametric"]="sagemath::plot::parametric"
 CLI_COMMAND_HANDLERS["plot::polar"]="sagemath::plot::polar"
 
-# Register export command and subcommands
-cli::register_command "export" "Export mathematical expressions" "sagemath::export"
+# Register export command group and subcommands
+cli::register_command_group "export" "Export mathematical expressions"
 cli::register_subcommand "export" "latex" "Export to LaTeX format" "sagemath::export::latex"
 cli::register_subcommand "export" "mathml" "Export to MathML format" "sagemath::export::mathml"
 cli::register_subcommand "export" "image" "Render equation to PNG image" "sagemath::export::image"
@@ -165,28 +165,7 @@ CLI_COMMAND_HANDLERS["export::image"]="sagemath::export::image"
 CLI_COMMAND_HANDLERS["export::all"]="sagemath::export::all"
 CLI_COMMAND_HANDLERS["export::formats"]="sagemath::export::formats"
 
-# ==============================================================================
-# EXPORT HANDLER FUNCTIONS
-# ==============================================================================
-sagemath::export() {
-    echo "Export operations:"
-    echo "  latex   - Export to LaTeX format"
-    echo "  mathml  - Export to MathML format"
-    echo "  image   - Render equation to PNG image"
-    echo "  all     - Export to all formats"
-    echo "  formats - List available export formats"
-}
 
-# ==============================================================================
-# GPU HANDLER FUNCTIONS
-# ==============================================================================
-sagemath::gpu() {
-    echo "GPU acceleration operations:"
-    echo "  check     - Check GPU availability"
-    echo "  enable    - Enable GPU acceleration in container"
-    echo "  compute   - Run GPU-accelerated computation"
-    echo "  benchmark - Benchmark GPU vs CPU performance"
-}
 
 sagemath::gpu::check() {
     "${SAGEMATH_CLI_DIR}/lib/gpu.sh" check
@@ -209,14 +188,6 @@ sagemath::gpu::benchmark() {
     "${SAGEMATH_CLI_DIR}/lib/gpu.sh" benchmark
 }
 
-# ==============================================================================
-# CACHE HANDLER FUNCTIONS
-# ==============================================================================
-sagemath::cache() {
-    echo "Cache management operations:"
-    echo "  clear  - Clear all cached results"
-    echo "  stats  - Show cache statistics"
-}
 
 sagemath::cache::clear() {
     echo "Clearing SageMath calculation cache..."
@@ -247,14 +218,6 @@ sagemath::cache::stats() {
     fi
 }
 
-# ==============================================================================
-# PARALLEL HANDLER FUNCTIONS
-# ==============================================================================
-sagemath::parallel() {
-    echo "Parallel computing operations:"
-    echo "  compute - Run parallel computation"
-    echo "  status  - Check parallel computing capabilities"
-}
 
 sagemath::parallel::compute() {
     local code="${1:-}"
@@ -294,16 +257,6 @@ for r in results:
     echo "Parallel processing test complete!"
 }
 
-# ==============================================================================
-# PLOT HANDLER FUNCTIONS
-# ==============================================================================
-sagemath::plot() {
-    echo "Plot creation operations:"
-    echo "  2d         - Create 2D plot"
-    echo "  3d         - Create 3D plot"
-    echo "  parametric - Create parametric plot"
-    echo "  polar      - Create polar plot"
-}
 
 sagemath::plot::2d() {
     local expression="${1:-}"

@@ -1,0 +1,86 @@
+{
+  "dashboard_title": "Vrooli KPI Overview",
+  "description": "Executive dashboard showing key performance indicators across the Vrooli ecosystem",
+  "css": "",
+  "json_metadata": {
+    "timed_refresh_immune_slices": [],
+    "expanded_slices": {},
+    "refresh_frequency": 60,
+    "default_filters": "{}",
+    "color_scheme": "supersetColors",
+    "label_colors": {},
+    "shared_label_colors": {},
+    "color_scheme_domain": [],
+    "cross_filters_enabled": true,
+    "positions": {
+      "ROOT_ID": {
+        "type": "ROOT",
+        "id": "ROOT_ID",
+        "children": ["GRID_ID"]
+      },
+      "GRID_ID": {
+        "type": "GRID",
+        "id": "GRID_ID",
+        "children": ["ROW-1", "ROW-2"],
+        "parents": ["ROOT_ID"]
+      },
+      "ROW-1": {
+        "type": "ROW",
+        "id": "ROW-1",
+        "children": ["CHART-1", "CHART-2"],
+        "parents": ["GRID_ID"]
+      },
+      "ROW-2": {
+        "type": "ROW",
+        "id": "ROW-2",
+        "children": ["CHART-3", "CHART-4"],
+        "parents": ["GRID_ID"]
+      },
+      "CHART-1": {
+        "type": "CHART",
+        "id": "CHART-1",
+        "parents": ["ROW-1"],
+        "meta": {
+          "width": 6,
+          "height": 50,
+          "chartId": 1,
+          "sliceName": "Active Scenarios"
+        }
+      },
+      "CHART-2": {
+        "type": "CHART",
+        "id": "CHART-2",
+        "parents": ["ROW-1"],
+        "meta": {
+          "width": 6,
+          "height": 50,
+          "chartId": 2,
+          "sliceName": "Resource Utilization"
+        }
+      },
+      "CHART-3": {
+        "type": "CHART",
+        "id": "CHART-3",
+        "parents": ["ROW-2"],
+        "meta": {
+          "width": 6,
+          "height": 50,
+          "chartId": 3,
+          "sliceName": "API Request Volume"
+        }
+      },
+      "CHART-4": {
+        "type": "CHART",
+        "id": "CHART-4",
+        "parents": ["ROW-2"],
+        "meta": {
+          "width": 6,
+          "height": 50,
+          "chartId": 4,
+          "sliceName": "Error Rate Trends"
+        }
+      }
+    }
+  },
+  "published": false
+}

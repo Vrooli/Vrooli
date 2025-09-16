@@ -41,11 +41,73 @@ test_smoke() {
     fi
     
     # Test 3: Database connection
-    if PGPASSWORD="${SYNAPSE_DB_PASSWORD}" psql -h "${MATRIX_SYNAPSE_DB_HOST}" -p "${MATRIX_SYNAPSE_DB_PORT}" -U "${MATRIX_SYNAPSE_DB_USER}" -d "${MATRIX_SYNAPSE_DB_NAME}" -c "SELECT 1" &>/dev/null; then
-        test_passed "Database connection works"
+    # For Docker installations, test database through the running container
+    if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "docker" ]]; then
+        if docker exec matrix-synapse python -c "
+import psycopg2
+try:
+    # Get password from homeserver.yaml in container
+    import yaml
+    with open('/data/homeserver.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+    db_config = config.get('database', {}).get('args', {})
+    conn = psycopg2.connect(
+        host=db_config.get('host', 'vrooli-postgres-main'),
+        port=db_config.get('port', 5432),
+        database=db_config.get('database', 'synapse'),
+        user=db_config.get('user', 'synapse'),
+        password=db_config.get('password', '')
+    )
+    conn.close()
+    exit(0)
+except Exception as e:
+    exit(1)
+" 2>/dev/null; then
+            test_passed "Database connection works"
+        else
+            # Try without password (some setups use trust auth)
+            if docker exec matrix-synapse python -c "
+import psycopg2
+try:
+    conn = psycopg2.connect(
+        host='vrooli-postgres-main',
+        port=5432,
+        database='synapse',
+        user='synapse'
+    )
+    conn.close()
+    exit(0)
+except:
+    exit(1)
+" 2>/dev/null; then
+                test_passed "Database connection works"
+            else
+                test_failed "Database connection works" "Cannot connect to PostgreSQL"
+                ((failed++))
+            fi
+        fi
+    elif ! command -v psql &>/dev/null; then
+        if docker run --rm --network vrooli-network \
+            -e PGPASSWORD="${SYNAPSE_DB_PASSWORD}" \
+            postgres:16-alpine psql \
+            -h "${MATRIX_SYNAPSE_DB_HOST}" -p "${MATRIX_SYNAPSE_DB_PORT}" \
+            -U "${MATRIX_SYNAPSE_DB_USER}" -d "${MATRIX_SYNAPSE_DB_NAME}" \
+            -c "SELECT 1" &>/dev/null; then
+            test_passed "Database connection works"
+        else
+            test_failed "Database connection works" "Cannot connect to PostgreSQL"
+            ((failed++))
+        fi
     else
-        test_failed "Database connection works" "Cannot connect to PostgreSQL"
-        ((failed++))
+        if PGPASSWORD="${SYNAPSE_DB_PASSWORD}" psql \
+            -h "${MATRIX_SYNAPSE_DB_HOST}" -p "${MATRIX_SYNAPSE_DB_PORT}" \
+            -U "${MATRIX_SYNAPSE_DB_USER}" -d "${MATRIX_SYNAPSE_DB_NAME}" \
+            -c "SELECT 1" &>/dev/null; then
+            test_passed "Database connection works"
+        else
+            test_failed "Database connection works" "Cannot connect to PostgreSQL"
+            ((failed++))
+        fi
     fi
     
     # Test 4: Configuration file exists

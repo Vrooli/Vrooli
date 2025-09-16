@@ -1,0 +1,75 @@
+{
+  "name": "farmOS IoT Sensor Integration",
+  "description": "Node-RED flow for ingesting IoT sensor data into farmOS",
+  "nodes": [
+    {
+      "id": "mqtt-in",
+      "type": "mqtt in",
+      "name": "Soil Moisture Sensor",
+      "topic": "farmos/sensors/soil-moisture/+",
+      "broker": "localhost:1883"
+    },
+    {
+      "id": "parse-sensor",
+      "type": "function",
+      "name": "Parse Sensor Data",
+      "func": "const data = JSON.parse(msg.payload);\nmsg.field = data.field;\nmsg.moisture = data.value;\nmsg.timestamp = data.timestamp;\nreturn msg;"
+    },
+    {
+      "id": "threshold-check",
+      "type": "switch",
+      "name": "Check Moisture Level",
+      "property": "moisture",
+      "rules": [
+        {"t": "lt", "v": "30", "label": "Low"},
+        {"t": "btwn", "v": "30", "v2": "70", "label": "Normal"},
+        {"t": "gt", "v": "70", "label": "High"}
+      ]
+    },
+    {
+      "id": "create-log",
+      "type": "function", 
+      "name": "Create farmOS Log",
+      "func": "msg.payload = {\n  type: 'observation',\n  name: 'Soil Moisture Reading',\n  field: msg.field,\n  value: msg.moisture,\n  unit: 'percent',\n  timestamp: msg.timestamp\n};\nreturn msg;"
+    },
+    {
+      "id": "farmos-api",
+      "type": "http request",
+      "name": "Send to farmOS",
+      "method": "POST",
+      "url": "http://localhost:8004/api/log",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer {{token}}"
+      }
+    },
+    {
+      "id": "alert-low",
+      "type": "function",
+      "name": "Irrigation Alert",
+      "func": "msg.payload = {\n  alert: 'LOW_MOISTURE',\n  field: msg.field,\n  action: 'START_IRRIGATION',\n  moisture: msg.moisture\n};\nreturn msg;"
+    },
+    {
+      "id": "questdb-store",
+      "type": "http request",
+      "name": "Store in QuestDB",
+      "method": "POST",
+      "url": "http://localhost:9009/exec",
+      "payload": "INSERT INTO farm_sensors VALUES('{{field}}', {{moisture}}, '{{timestamp}}')"
+    }
+  ],
+  "flow": [
+    ["mqtt-in", "parse-sensor"],
+    ["parse-sensor", "threshold-check"],
+    ["threshold-check", "create-log"],
+    ["create-log", "farmos-api"],
+    ["create-log", "questdb-store"],
+    ["threshold-check", "alert-low"]
+  ],
+  "integration_points": {
+    "mqtt": "Sensor data ingestion",
+    "farmos": "Activity and observation logging",
+    "questdb": "Time-series storage",
+    "alerts": "Automated farm actions"
+  }
+}

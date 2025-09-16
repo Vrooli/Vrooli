@@ -67,7 +67,7 @@ find /tmp -name "sage_calc_*" -mtime +1 -delete 2>/dev/null || true
 
 **Status**: ✅ FIXED (2025-09-14)
 
-### 4. GPU Command Not Working from CLI (MINOR)
+### 4. GPU Command Not Working from CLI (SOLVED)
 **Problem**: The main GPU command shows help instead of executing check.
 
 **Symptoms**:
@@ -75,12 +75,19 @@ find /tmp -name "sage_calc_*" -mtime +1 -delete 2>/dev/null || true
 - Must use `resource-sagemath gpu check` explicitly
 - Inconsistent with other command patterns
 
-**Workaround**: Use subcommands directly:
-- `resource-sagemath gpu check` - Check GPU availability
-- `resource-sagemath gpu enable` - Enable GPU in container
-- `resource-sagemath gpu benchmark` - Run GPU benchmarks
+**Root Cause**: GPU, export, cache, parallel, and plot commands were registered as regular commands instead of command groups.
 
-**Status**: ⚠️ KNOWN ISSUE - Low priority, workaround available
+**Solution**: Changed registration from `cli::register_command` to `cli::register_command_group` for all commands with subcommands:
+```bash
+# Fixed registration
+cli::register_command_group "gpu" "GPU acceleration operations"
+cli::register_command_group "export" "Export mathematical expressions"
+cli::register_command_group "cache" "Cache management operations"
+cli::register_command_group "parallel" "Parallel computing operations"
+cli::register_command_group "plot" "Create mathematical plots"
+```
+
+**Status**: ✅ FIXED (2025-09-16)
 
 ## Current Limitations
 
@@ -182,14 +189,14 @@ docker inspect sagemath-main | grep -i cpu
 
 ### Planned Enhancements
 1. [ ] Add authentication to Jupyter interface
-2. [ ] Implement result caching for repeated calculations
+2. [x] Implement result caching for repeated calculations ✅ (Completed 2025-09-15)
 3. [ ] Add support for SageMath Cloud features
 4. [ ] Create REST API endpoint for calculations
-5. [ ] Add support for LaTeX output formatting
+5. [x] Add support for LaTeX output formatting ✅ (Completed 2025-09-15)
 
 ### Performance Optimizations
 1. [ ] Implement connection pooling for docker exec
-2. [ ] Add computation result caching
+2. [x] Add computation result caching ✅ (Completed 2025-09-15)
 3. [ ] Optimize container startup time
 4. [ ] Implement lazy loading of heavy libraries
 
@@ -200,4 +207,4 @@ docker inspect sagemath-main | grep -i cpu
 - [CUDA Setup Guide](https://docs.nvidia.com/cuda/)
 
 ---
-*Last Updated: 2025-09-15*
+*Last Updated: 2025-09-16*

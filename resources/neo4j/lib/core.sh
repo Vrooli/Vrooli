@@ -80,7 +80,8 @@ neo4j_query() {
 EOF
     )
     
-    local response=$(timeout 5 curl -sf $auth_header \
+    local response
+    response=$(timeout 5 curl -sf $auth_header \
         -H "Content-Type: application/json" \
         -d "$json_query" \
         "http://localhost:${NEO4J_HTTP_PORT}/db/neo4j/tx/commit" 2>/dev/null)
@@ -158,8 +159,10 @@ neo4j_get_stats() {
         return 1
     fi
     
-    local nodes=$(neo4j_query "MATCH (n) RETURN count(n)" 2>/dev/null | tail -1 || echo "0")
-    local rels=$(neo4j_query "MATCH ()-[r]->() RETURN count(r)" 2>/dev/null | tail -1 || echo "0")
+    local nodes
+    nodes=$(neo4j_query "MATCH (n) RETURN count(n)" 2>/dev/null | tail -1 || echo "0")
+    local rels
+    rels=$(neo4j_query "MATCH ()-[r]->() RETURN count(r)" 2>/dev/null | tail -1 || echo "0")
     
     echo "{\"nodes\": ${nodes:-0}, \"relationships\": ${rels:-0}}"
 }
@@ -205,30 +208,48 @@ neo4j_backup() {
     fi
     
     # Ensure backup directory exists in container
-    docker exec "$NEO4J_CONTAINER_NAME" mkdir -p /var/lib/neo4j/data/dumps
+    docker exec "$NEO4J_CONTAINER_NAME" mkdir -p /var/lib/neo4j/data/dumps 2>/dev/null || true
     
     echo "Note: Community Edition requires stopping database for backup"
     echo "Creating backup: $backup_file"
     
     # For Community Edition, we need to export data via Cypher
     # This approach works while the database is running
-    local nodes_json=$(docker exec "$NEO4J_CONTAINER_NAME" cypher-shell \
-        -u neo4j -p "${NEO4J_AUTH#*/}" \
-        --format plain \
-        "CALL apoc.export.json.all('/var/lib/neo4j/data/dumps/${backup_file}.json', {useTypes:true})" 2>/dev/null || echo "")
     
-    if [[ -n "$nodes_json" ]]; then
+    # Determine auth parameters for cypher-shell
+    local auth_params=""
+    if [[ "$NEO4J_AUTH" != "none" ]] && [[ -n "$NEO4J_AUTH" ]]; then
+        auth_params="-u neo4j -p '${NEO4J_AUTH#*/}'"
+    fi
+    
+    local nodes_json
+    nodes_json=$(docker exec "$NEO4J_CONTAINER_NAME" bash -c "
+        cypher-shell $auth_params --format plain 'CALL apoc.export.json.all(\"/var/lib/neo4j/data/dumps/${backup_file}.json\", {useTypes:true})'
+    " 2>/dev/null || echo "")
+    
+    if [[ -n "$nodes_json" ]] && [[ ! "$nodes_json" =~ "Unknown procedure" ]]; then
         echo "Backup completed successfully: ${backup_file}.json"
         return 0
     else
-        # Fallback: Create a simple Cypher export
+        # Fallback: Create a simple Cypher export with all data
         echo "APOC not available, using basic export..."
-        docker exec "$NEO4J_CONTAINER_NAME" bash -c "
-            echo 'MATCH (n) RETURN n' | cypher-shell -u neo4j -p '${NEO4J_AUTH#*/}' --format plain > /var/lib/neo4j/data/dumps/${backup_file}.cypher
-        " 2>/dev/null || {
+        
+        # Export nodes and relationships separately, then combine
+        if docker exec "$NEO4J_CONTAINER_NAME" bash -c "
+            {
+                echo '// Neo4j Backup - $(date)'
+                echo '// Nodes'
+                cypher-shell $auth_params --format plain 'MATCH (n) RETURN n'
+                echo '// Relationships'
+                cypher-shell $auth_params --format plain 'MATCH ()-[r]->() RETURN r'
+            } > /var/lib/neo4j/data/dumps/${backup_file}.cypher
+        " 2>&1; then
+            # Success - continue
+            true
+        else
             echo "Error: Backup failed"
             return 1
-        }
+        fi
         echo "Basic backup completed: ${backup_file}.cypher"
     fi
     
@@ -260,7 +281,7 @@ neo4j_import_csv() {
     
     # Copy CSV to import directory
     cp "$csv_file" "$NEO4J_IMPORT_DIR/"
-    local csv_name=$(basename "$csv_file")
+    # csv_name variable removed - was unused (SC2034)
     
     # Execute import query
     neo4j_query "$import_query" || {
@@ -284,17 +305,22 @@ neo4j_get_performance_metrics() {
     fi
     
     # Get basic database stats (Community Edition compatible)
-    local node_count=$(neo4j_query "MATCH (n) RETURN count(n) as count" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
-    local rel_count=$(neo4j_query "MATCH ()-[r]->() RETURN count(r) as count" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
+    local node_count
+    node_count=$(neo4j_query "MATCH (n) RETURN count(n) as count" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
+    local rel_count
+    rel_count=$(neo4j_query "MATCH ()-[r]->() RETURN count(r) as count" 2>/dev/null | grep -oE '[0-9]+' | tail -1 || echo "0")
     
     # Get memory usage from container
-    local memory_stats=$(docker stats "$NEO4J_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | sed 's/[^0-9.]//g' | head -1 || echo "0")
+    local memory_stats
+    memory_stats=$(docker stats "$NEO4J_CONTAINER_NAME" --no-stream --format "{{.MemUsage}}" 2>/dev/null | sed 's/[^0-9.]//g' | head -1 || echo "0")
     
     # Get database size
-    local db_size=$(docker exec "$NEO4J_CONTAINER_NAME" du -sh /data/databases/neo4j 2>/dev/null | awk '{print $1}' || echo "unknown")
+    local db_size
+    db_size=$(docker exec "$NEO4J_CONTAINER_NAME" du -sh /data/databases/neo4j 2>/dev/null | awk '{print $1}' || echo "unknown")
     
     # Try to get transaction info if available
-    local tx_info=$(neo4j_query "SHOW TRANSACTIONS" 2>/dev/null || echo "")
+    local tx_info
+    tx_info=$(neo4j_query "SHOW TRANSACTIONS" 2>/dev/null || echo "")
     local tx_count=0
     if [[ -n "$tx_info" ]] && [[ "$tx_info" != *"Error"* ]]; then
         tx_count=$(echo "$tx_info" | grep -c "transaction" || echo "0")
@@ -334,15 +360,19 @@ neo4j_monitor_query() {
     fi
     
     # Use EXPLAIN to get query plan and estimated cost
-    local start_time=$(date +%s%N)
-    local explain_result=$(neo4j_query "EXPLAIN $query" 2>/dev/null)
-    local end_time=$(date +%s%N)
+    local start_time
+    start_time=$(date +%s%N)
+    local explain_result
+    explain_result=$(neo4j_query "EXPLAIN $query" 2>/dev/null)
+    local end_time
+    end_time=$(date +%s%N)
     
     # Calculate execution time in milliseconds
     local exec_time=$(( (end_time - start_time) / 1000000 ))
     
     # Run PROFILE for detailed metrics (note: this actually executes the query)
-    local profile_result=$(neo4j_query "PROFILE $query" 2>/dev/null | head -20)
+    local profile_result
+    profile_result=$(neo4j_query "PROFILE $query" 2>/dev/null | head -20)
     
     cat <<EOF
 Query Performance Analysis
@@ -705,7 +735,8 @@ neo4j_algo_similarity() {
 #   Instructions for subscription
 #######################################
 neo4j_enable_change_stream() {
-    local event_type="${1:-all}"
+    # event_type parameter reserved for future use
+    # local event_type="${1:-all}"
     
     if ! neo4j_is_running; then
         echo "Error: Neo4j is not running"
@@ -763,7 +794,8 @@ neo4j_monitor_changes() {
     
     local last_result=""
     while true; do
-        local current_result=$(neo4j_query "$query" 2>/dev/null | tail -n +2)
+        local current_result
+        current_result=$(neo4j_query "$query" 2>/dev/null | tail -n +2)
         
         if [[ "$current_result" != "$last_result" ]] && [[ -n "$current_result" ]]; then
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] Change detected:"
@@ -943,7 +975,8 @@ neo4j_cluster_status() {
     echo ""
     
     # Try to get cluster info (Enterprise only)
-    local cluster_info=$(neo4j_query "CALL dbms.cluster.overview()" 2>/dev/null)
+    local cluster_info
+    cluster_info=$(neo4j_query "CALL dbms.cluster.overview()" 2>/dev/null)
     
     if [[ -n "$cluster_info" ]] && [[ ! "$cluster_info" =~ "Error" ]]; then
         echo "$cluster_info"
@@ -955,7 +988,8 @@ neo4j_cluster_status() {
         echo "  Role: LEADER (single node)"
         echo "  Status: $(neo4j_is_running && echo 'ONLINE' || echo 'OFFLINE')"
         echo ""
-        local stats=$(neo4j_get_stats)
+        local stats
+        stats=$(neo4j_get_stats)
         echo "Database Statistics:"
         echo "  $stats"
         echo ""

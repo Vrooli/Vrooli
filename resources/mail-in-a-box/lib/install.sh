@@ -21,7 +21,7 @@ mailinabox_install() {
     
     # Create data directories
     log::info "Creating data directories..."
-    mkdir -p "$MAILINABOX_DATA_DIR"/{mail,config,ssl,backup,roundcube/db,roundcube/config}
+    mkdir -p "$MAILINABOX_DATA_DIR"/{mail,config,ssl,backup,roundcube/db,roundcube/config,radicale/data,radicale/config}
     
     # Pull Docker images
     log::info "Pulling Mail-in-a-Box Docker images..."
@@ -35,9 +35,12 @@ mailinabox_install() {
         log::warning "Failed to pull Roundcube image, continuing without webmail"
     fi
     
-    # Create configuration file for docker-mailserver
+    # Copy config/mailserver.env if it exists, otherwise create it
     log::info "Creating configuration..."
-    cat > "$MAILINABOX_CONFIG_DIR/mailserver.env" <<EOF
+    if [[ -f "$APP_ROOT/resources/mail-in-a-box/config/mailserver.env" ]]; then
+        cp "$APP_ROOT/resources/mail-in-a-box/config/mailserver.env" "$MAILINABOX_CONFIG_DIR/mailserver.env"
+    else
+        cat > "$MAILINABOX_CONFIG_DIR/mailserver.env" <<EOF
 # Core settings
 OVERRIDE_HOSTNAME=${MAILINABOX_PRIMARY_HOSTNAME}
 PERMIT_DOCKER=connected-networks
@@ -50,6 +53,7 @@ VIRUSMAILS_DELETE_DELAY=7
 ONE_DIR=0
 DMS_DEBUG=0
 EOF
+    fi
     
     # Check if docker-compose is available and use it for full setup
     if command -v docker-compose &>/dev/null && [[ -f "$APP_ROOT/resources/mail-in-a-box/docker-compose.yml" ]]; then

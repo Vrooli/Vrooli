@@ -772,21 +772,27 @@ get_world_info() {
     echo "World Information"
     echo "================="
     
-    # Get various world information
+    # Get various world information - handle errors gracefully
     echo -e "\n[Difficulty]"
-    execute_command "difficulty" "$server"
+    execute_command "difficulty" "$server" 2>/dev/null || echo "Unable to query difficulty"
     
     echo -e "\n[Game Time]"
-    execute_command "time query gametime" "$server"
+    execute_command "time query gametime" "$server" 2>/dev/null || echo "Unable to query game time"
     
-    echo -e "\n[Day Time]"
-    execute_command "time query daytime" "$server"
+    echo -e "\n[Day Time]"  
+    execute_command "time query daytime" "$server" 2>/dev/null || echo "Unable to query day time"
     
     echo -e "\n[Weather]"
-    execute_command "weather query" "$server"
+    # Weather query syntax varies by version, try both
+    execute_command "weather query" "$server" 2>/dev/null || \
+        execute_command "weather" "$server" 2>/dev/null || \
+        echo "Unable to query weather"
     
-    echo -e "\n[Loaded Chunks]"
-    execute_command "debug report" "$server" 2>/dev/null || echo "Debug info not available"
+    echo -e "\n[World Seed]"
+    execute_command "seed" "$server" 2>/dev/null || echo "Unable to query seed"
+    
+    echo -e "\n[World Border]"
+    execute_command "worldborder get" "$server" 2>/dev/null || echo "Unable to query world border"
 }
 
 set_world_spawn() {

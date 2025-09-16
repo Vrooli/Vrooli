@@ -1,0 +1,113 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ditto-mongodb
+    networks:
+      - ditto-network
+    volumes:
+      - ./data/mongodb:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=ditto
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  policies:
+    image: eclipse/ditto-policies:${DITTO_DOCKER_TAG:-3.5.6}
+    container_name: ditto-policies
+    networks:
+      - ditto-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
+      - DITTO_POLICIES_SERVICE_HTTP_HOSTNAME=0.0.0.0
+      - DITTO_POLICIES_SERVICE_HTTP_PORT=8080
+    restart: unless-stopped
+
+  things:
+    image: eclipse/ditto-things:${DITTO_DOCKER_TAG:-3.5.6}
+    container_name: ditto-things
+    networks:
+      - ditto-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
+      - DITTO_THINGS_SERVICE_HTTP_HOSTNAME=0.0.0.0
+      - DITTO_THINGS_SERVICE_HTTP_PORT=8080
+    restart: unless-stopped
+
+  things-search:
+    image: eclipse/ditto-things-search:${DITTO_DOCKER_TAG:-3.5.6}
+    container_name: ditto-things-search
+    networks:
+      - ditto-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
+      - DITTO_THINGS_SEARCH_SERVICE_HTTP_HOSTNAME=0.0.0.0
+      - DITTO_THINGS_SEARCH_SERVICE_HTTP_PORT=8080
+    restart: unless-stopped
+
+  connectivity:
+    image: eclipse/ditto-connectivity:${DITTO_DOCKER_TAG:-3.5.6}
+    container_name: ditto-connectivity
+    networks:
+      - ditto-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      - DITTO_MONGODB_URI=mongodb://mongodb:27017/ditto
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
+      - DITTO_CONNECTIVITY_SERVICE_HTTP_HOSTNAME=0.0.0.0
+      - DITTO_CONNECTIVITY_SERVICE_HTTP_PORT=8080
+    restart: unless-stopped
+
+  gateway:
+    image: eclipse/ditto-gateway:${DITTO_DOCKER_TAG:-3.5.6}
+    container_name: ditto-gateway
+    networks:
+      - ditto-network
+    ports:
+      - "${DITTO_GATEWAY_PORT:-8094}:8080"
+    environment:
+      - DITTO_GATEWAY_AUTHENTICATION_DEVOPS_PASSWORD=${DITTO_PASSWORD:-ditto}
+      - DITTO_GATEWAY_AUTHENTICATION_STATUS_PASSWORD=${DITTO_PASSWORD:-ditto}
+      - ENABLE_DUMMY_AUTH=true
+      - ENABLE_PRE_AUTHENTICATION=true
+      - DITTO_GATEWAY_SERVICE_HTTP_HOSTNAME=0.0.0.0
+      - DITTO_GATEWAY_SERVICE_HTTP_PORT=8080
+      - JAVA_TOOL_OPTIONS=-Xms256m -Xmx512m -Dpekko.cluster.seed-nodes=
+      - DITTO_POLICIES_ENDPOINT=http://policies:8080
+      - DITTO_THINGS_ENDPOINT=http://things:8080
+      - DITTO_THINGS_SEARCH_ENDPOINT=http://things-search:8080
+      - DITTO_CONNECTIVITY_ENDPOINT=http://connectivity:8080
+    depends_on:
+      - policies
+      - things
+      - things-search
+      - connectivity
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+networks:
+  ditto-network:
+    name: ${DITTO_DOCKER_NETWORK:-ditto-network}
+    driver: bridge

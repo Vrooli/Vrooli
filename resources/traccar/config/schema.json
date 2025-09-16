@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Traccar Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "default": 8082,
+          "description": "HTTP port for Traccar web interface and API"
+        },
+        "host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "Hostname for Traccar service"
+        },
+        "version": {
+          "type": "string",
+          "default": "5.12",
+          "description": "Traccar server version"
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "localhost",
+          "description": "PostgreSQL database host"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5433,
+          "description": "PostgreSQL database port"
+        },
+        "name": {
+          "type": "string",
+          "default": "traccar",
+          "description": "Database name"
+        },
+        "user": {
+          "type": "string",
+          "default": "traccar",
+          "description": "Database user"
+        },
+        "password": {
+          "type": "string",
+          "default": "traccar123",
+          "description": "Database password"
+        }
+      }
+    },
+    "admin": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "default": "admin@example.com",
+          "description": "Admin user email"
+        },
+        "password": {
+          "type": "string",
+          "default": "admin",
+          "description": "Admin user password"
+        }
+      }
+    },
+    "demo": {
+      "type": "object",
+      "properties": {
+        "devices": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 5,
+          "description": "Number of demo devices to create"
+        },
+        "historyDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30,
+          "default": 7,
+          "description": "Days of position history to generate for demo devices"
+        }
+      }
+    },
+    "webhooks": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable webhook notifications"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Webhook endpoint URL"
+        }
+      }
+    },
+    "websocket": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable WebSocket API for real-time updates"
+        }
+      }
+    }
+  }
+}

@@ -33,7 +33,7 @@ services:
     depends_on:
       - mail
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8880:80"
     environment:
       - ROUNDCUBEMAIL_DEFAULT_HOST=ssl://mail
       - ROUNDCUBEMAIL_DEFAULT_PORT=993
@@ -90,40 +90,40 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/mail
+      device: ${MAILINABOX_DATA_DIR:-${HOME}/.mailinabox}/mail
   mailconfig:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}/config
+      device: ${MAILINABOX_CONFIG_DIR:-${HOME}/.mailinabox/config}
   mailssl:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/ssl
+      device: ${MAILINABOX_DATA_DIR:-${HOME}/.mailinabox}/ssl
   roundcube_db:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/roundcube/db
+      device: ${MAILINABOX_DATA_DIR:-${HOME}/.mailinabox}/roundcube/db
   roundcube_config:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/roundcube/config
+      device: ${MAILINABOX_DATA_DIR:-${HOME}/.mailinabox}/roundcube/config
   radicale_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/radicale/data
+      device: ${MAILINABOX_DATA_DIR:-${HOME}/.mailinabox}/radicale/data
   radicale_config:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}/radicale/config
+      device: ${MAILINABOX_DATA_DIR:-${HOME}/.mailinabox}/radicale/config

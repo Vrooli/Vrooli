@@ -31,11 +31,13 @@ vrooli resource prometheus-grafana status
 ## Features
 
 ### Core Capabilities
-- ✅ Automatic service discovery for Vrooli resources
-- ✅ Pre-configured dashboards for common resources
-- ✅ Alert rules for critical conditions
-- ✅ 15-day metric retention
-- ✅ Secure authentication for Grafana
+- ✅ Prometheus metrics collection and storage (15-day retention)
+- ✅ Grafana visualization with secure authentication
+- ✅ Alertmanager for notification routing
+- ✅ Node exporter for system metrics
+- ✅ Health checks for all services
+- ⚠️ Service discovery for Vrooli resources (in progress)
+- ⚠️ Pre-configured dashboards (basic setup complete)
 
 ### Monitored Resources
 - System metrics (CPU, memory, disk, network)

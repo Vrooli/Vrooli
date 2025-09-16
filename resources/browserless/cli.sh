@@ -36,7 +36,7 @@ source "${BROWSERLESS_CLI_DIR}/config/defaults.sh"
 browserless::export_config
 
 # Source browserless libraries
-for lib in common core docker install start stop status uninstall test health actions api usage inject session-manager pool-manager benchmarks; do
+for lib in common core docker install start stop status uninstall test health actions api usage inject session-manager pool-manager benchmarks cache; do
     lib_file="${BROWSERLESS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -99,11 +99,22 @@ cli::register_subcommand "content" "session" "Manage persistent browser sessions
 cli::register_subcommand "content" "inject" "Inject scripts or functions" "browserless::inject"
 
 # Pool management commands
+browserless::pool() { pool::show_stats; }  # Default to showing stats
 cli::register_command "pool" "Manage browser pool (auto-scaling)" "browserless::pool"
 cli::register_subcommand "pool" "start" "Start auto-scaler" "pool::start_autoscaler"
 cli::register_subcommand "pool" "stop" "Stop auto-scaler" "pool::stop_autoscaler"
 cli::register_subcommand "pool" "status" "Show pool statistics" "pool::show_stats"
 cli::register_subcommand "pool" "metrics" "Get pool metrics" "pool::get_metrics"
+cli::register_subcommand "pool" "prewarm" "Pre-warm browser instances" "pool::prewarm"
+cli::register_subcommand "pool" "smart-prewarm" "Intelligently pre-warm if idle" "pool::smart_prewarm"
+cli::register_subcommand "pool" "recover" "Check and recover unhealthy pool" "pool::health_check_and_recover"
+
+# Cache management commands  
+browserless::cache() { cache::stats; }  # Default to showing stats
+cli::register_command "cache" "Manage workflow result cache" "browserless::cache"
+cli::register_subcommand "cache" "stats" "Show cache statistics" "cache::stats"
+cli::register_subcommand "cache" "clear" "Clear all cached results" "cache::clear"
+cli::register_subcommand "cache" "cleanup" "Remove expired cache entries" "cache::cleanup_expired"
 
 # Performance benchmark commands
 cli::register_command "benchmark" "Run performance benchmarks" "benchmark::run_all"
@@ -159,8 +170,8 @@ browserless::pool() {
     if [[ $# -eq 0 ]]; then
         pool::show_stats
     else
-        echo "Usage: resource-browserless pool [start|stop|status|metrics]"
-        exit 1
+        # Let CLI framework handle subcommand dispatch
+        return 0
     fi
 }
 

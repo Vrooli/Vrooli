@@ -113,18 +113,28 @@ manage_resource() {
             log_info "Installing Matrix Synapse..."
             ensure_directories
             
-            # Check dependencies
-            if ! command -v python3 &>/dev/null; then
-                log_error "Python 3 is required but not installed"
-                exit 1
-            fi
-            
-            # Install Synapse via pip
+            # Install Synapse
             if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]]; then
-                log_info "Installing via pip..."
-                python3 -m pip install --user matrix-synapse
+                # Check Python dependencies
+                if ! command -v python3 &>/dev/null; then
+                    log_error "Python 3 is required but not installed"
+                    exit 1
+                fi
+                
+                log_info "Installing via pip in virtual environment..."
+                # Create virtual environment
+                python3 -m venv "${MATRIX_SYNAPSE_VENV_DIR}"
+                
+                # Install Matrix Synapse in venv
+                "${MATRIX_SYNAPSE_VENV_DIR}/bin/pip" install --upgrade pip setuptools wheel
+                "${MATRIX_SYNAPSE_VENV_DIR}/bin/pip" install matrix-synapse[postgres]
+                "${MATRIX_SYNAPSE_VENV_DIR}/bin/pip" install psycopg2-binary
             else
                 log_info "Installing via Docker..."
+                if ! command -v docker &>/dev/null; then
+                    log_error "Docker is required but not installed"
+                    exit 1
+                fi
                 docker pull matrixdotorg/synapse:latest
             fi
             
@@ -134,9 +144,9 @@ manage_resource() {
             # Initialize database
             init_database
             
-            # Generate signing key
-            if [[ ! -f "${MATRIX_SYNAPSE_CONFIG_DIR}/signing.key" ]]; then
-                python3 -m synapse.app.homeserver \
+            # Generate signing key for pip installation
+            if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]] && [[ ! -f "${MATRIX_SYNAPSE_CONFIG_DIR}/signing.key" ]]; then
+                "${MATRIX_SYNAPSE_VENV_DIR}/bin/python" -m synapse.app.homeserver \
                     --generate-keys \
                     -c "${MATRIX_SYNAPSE_CONFIG_DIR}/homeserver.yaml" 2>/dev/null || true
             fi
@@ -155,15 +165,44 @@ manage_resource() {
             
             # Start Synapse
             if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]]; then
-                python3 -m synapse.app.homeserver \
+                if [[ ! -f "${MATRIX_SYNAPSE_VENV_DIR}/bin/python" ]]; then
+                    log_error "Virtual environment not found. Please run 'manage install' first."
+                    exit 1
+                fi
+                
+                "${MATRIX_SYNAPSE_VENV_DIR}/bin/python" -m synapse.app.homeserver \
                     -c "${MATRIX_SYNAPSE_CONFIG_DIR}/homeserver.yaml" \
                     --daemonize \
                     --pid-file="${MATRIX_SYNAPSE_PID_FILE}"
             else
+                # Check if container exists and remove if needed
+                if docker ps -a --format '{{.Names}}' | grep -q '^matrix-synapse$'; then
+                    docker rm -f matrix-synapse &>/dev/null
+                fi
+                
+                # Create Docker data directory structure
+                mkdir -p "${MATRIX_SYNAPSE_CONFIG_DIR}/docker"
+                cp "${MATRIX_SYNAPSE_CONFIG_DIR}/homeserver.yaml" "${MATRIX_SYNAPSE_CONFIG_DIR}/docker/"
+                cp "${MATRIX_SYNAPSE_CONFIG_DIR}/log.config" "${MATRIX_SYNAPSE_CONFIG_DIR}/docker/"
+                
+                # Generate signing key for Docker if not exists
+                if [[ ! -f "${MATRIX_SYNAPSE_CONFIG_DIR}/docker/signing.key" ]]; then
+                    docker run --rm \
+                        -v "${MATRIX_SYNAPSE_CONFIG_DIR}/docker:/data" \
+                        -e SYNAPSE_SERVER_NAME="${MATRIX_SYNAPSE_SERVER_NAME}" \
+                        -e SYNAPSE_REPORT_STATS=no \
+                        matrixdotorg/synapse:latest generate
+                fi
+                
                 docker run -d \
                     --name matrix-synapse \
-                    -v "${MATRIX_SYNAPSE_CONFIG_DIR}:/data" \
+                    --restart unless-stopped \
+                    --network vrooli-network \
+                    -v "${MATRIX_SYNAPSE_CONFIG_DIR}/docker:/data" \
+                    -v "${MATRIX_SYNAPSE_MEDIA_STORE_PATH}:/media_store" \
                     -p "${MATRIX_SYNAPSE_PORT}:8008" \
+                    -p "${MATRIX_SYNAPSE_FEDERATION_PORT}:8448" \
+                    -e SYNAPSE_CONFIG_PATH="/data/homeserver.yaml" \
                     matrixdotorg/synapse:latest
             fi
             
@@ -172,9 +211,10 @@ manage_resource() {
                 log_info "Matrix Synapse started successfully"
                 
                 # Create admin user if first start
-                if ! grep -q "admin_created" "${MATRIX_SYNAPSE_DATA_DIR}/.initialized" 2>/dev/null; then
+                if [[ ! -f "${MATRIX_SYNAPSE_DATA_DIR}/.initialized" ]]; then
+                    sleep 5  # Give Synapse a moment to fully initialize
                     create_user "admin" "admin123" true &>/dev/null || true
-                    echo "admin_created" >> "${MATRIX_SYNAPSE_DATA_DIR}/.initialized"
+                    touch "${MATRIX_SYNAPSE_DATA_DIR}/.initialized"
                     log_info "Admin user created (username: admin, password: admin123)"
                 fi
             else
@@ -191,22 +231,22 @@ manage_resource() {
             
             log_info "Stopping Matrix Synapse..."
             
-            if [[ -f "${MATRIX_SYNAPSE_PID_FILE}" ]]; then
-                local pid
-                pid=$(cat "${MATRIX_SYNAPSE_PID_FILE}")
-                kill "$pid" 2>/dev/null || true
-                
-                # Wait for shutdown
-                local timeout=30
-                while [[ $timeout -gt 0 ]] && kill -0 "$pid" 2>/dev/null; do
-                    sleep 1
-                    ((timeout--))
-                done
-                
-                rm -f "${MATRIX_SYNAPSE_PID_FILE}"
-            fi
-            
-            if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "docker" ]]; then
+            if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]]; then
+                if [[ -f "${MATRIX_SYNAPSE_PID_FILE}" ]]; then
+                    local pid
+                    pid=$(cat "${MATRIX_SYNAPSE_PID_FILE}")
+                    kill "$pid" 2>/dev/null || true
+                    
+                    # Wait for shutdown
+                    local timeout=30
+                    while [[ $timeout -gt 0 ]] && kill -0 "$pid" 2>/dev/null; do
+                        sleep 1
+                        ((timeout--))
+                    done
+                    
+                    rm -f "${MATRIX_SYNAPSE_PID_FILE}"
+                fi
+            else
                 docker stop matrix-synapse 2>/dev/null || true
                 docker rm matrix-synapse 2>/dev/null || true
             fi
@@ -226,8 +266,12 @@ manage_resource() {
             log_info "Uninstalling Matrix Synapse..."
             
             if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]]; then
-                python3 -m pip uninstall -y matrix-synapse
+                # Remove virtual environment
+                if [[ -d "${MATRIX_SYNAPSE_VENV_DIR}" ]]; then
+                    rm -rf "${MATRIX_SYNAPSE_VENV_DIR}"
+                fi
             else
+                # Remove Docker image
                 docker rmi matrixdotorg/synapse:latest 2>/dev/null || true
             fi
             
@@ -309,8 +353,15 @@ content_resource() {
                 echo "Usage: resource-${RESOURCE_NAME} content create-room <name>"
                 exit 1
             fi
-            # This would require an access token - simplified for scaffold
-            echo "Room creation requires authentication - use the API directly"
+            # First create an admin user if it doesn't exist
+            create_user admin admin_password true &>/dev/null || true
+            create_room "$room_name" admin admin_password
+            ;;
+            
+        list-rooms)
+            # First create an admin user if it doesn't exist
+            create_user admin admin_password true &>/dev/null || true
+            list_rooms admin admin_password
             ;;
             
         send-message)
@@ -320,13 +371,19 @@ content_resource() {
                 echo "Usage: resource-${RESOURCE_NAME} content send-message <room> <message>"
                 exit 1
             fi
-            # This would require an access token - simplified for scaffold
-            echo "Message sending requires authentication - use the API directly"
+            # First create an admin user if it doesn't exist
+            create_user admin admin_password true &>/dev/null || true
+            send_message "$room" "$message" admin admin_password
+            ;;
+            
+        setup-federation)
+            local server_name="${1:-vrooli.local}"
+            setup_federation "$server_name" "${MATRIX_SYNAPSE_FEDERATION_ENABLED:-false}"
             ;;
             
         *)
             echo "Unknown content subcommand: $subcommand"
-            echo "Available: add-user, list-users, create-room, send-message, add-bot"
+            echo "Available: add-user, list-users, create-room, list-rooms, send-message, add-bot, setup-federation"
             exit 1
             ;;
     esac
@@ -340,10 +397,15 @@ show_status() {
     echo "Matrix Synapse Status: $status"
     
     if [[ "$status" == "running" ]] || [[ "$status" == "healthy" ]]; then
-        echo "  PID: $(cat "${MATRIX_SYNAPSE_PID_FILE}" 2>/dev/null || echo "unknown")"
+        if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]]; then
+            echo "  PID: $(cat "${MATRIX_SYNAPSE_PID_FILE}" 2>/dev/null || echo "unknown")"
+        else
+            echo "  Container: matrix-synapse"
+        fi
         echo "  Port: ${MATRIX_SYNAPSE_PORT}"
         echo "  Server: ${MATRIX_SYNAPSE_SERVER_NAME}"
         echo "  Health Check: $(check_health 2 && echo "passing" || echo "failing")"
+        echo "  Install Method: ${MATRIX_SYNAPSE_INSTALL_METHOD}"
     fi
 }
 
@@ -355,10 +417,15 @@ show_logs() {
         tail_lines="${2:-50}"
     fi
     
-    if [[ -f "${MATRIX_SYNAPSE_LOG_FILE}" ]]; then
-        tail -n "$tail_lines" "${MATRIX_SYNAPSE_LOG_FILE}"
+    if [[ "${MATRIX_SYNAPSE_INSTALL_METHOD}" == "pip" ]]; then
+        if [[ -f "${MATRIX_SYNAPSE_LOG_FILE}" ]]; then
+            tail -n "$tail_lines" "${MATRIX_SYNAPSE_LOG_FILE}"
+        else
+            echo "No log file found at ${MATRIX_SYNAPSE_LOG_FILE}"
+        fi
     else
-        echo "No log file found at ${MATRIX_SYNAPSE_LOG_FILE}"
+        # Docker logs
+        docker logs --tail "$tail_lines" matrix-synapse 2>&1
     fi
 }
 

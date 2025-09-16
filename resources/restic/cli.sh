@@ -41,6 +41,18 @@ main() {
         backup)
             restic::backup "$@"
             ;;
+        backup-with-hooks|backup-hooks)
+            restic::backup_with_hooks "$@"
+            ;;
+        backup-postgres)
+            restic::backup_postgres "$@"
+            ;;
+        backup-redis)
+            restic::backup_redis "$@"
+            ;;
+        backup-minio)
+            restic::backup_minio "$@"
+            ;;
         restore)
             restic::restore "$@"
             ;;

@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "farmOS Resource Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Port number for farmOS web interface",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8004
+    },
+    "admin": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Admin username",
+          "minLength": 3,
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "description": "Admin password",
+          "minLength": 6,
+          "default": "admin"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Admin email address"
+        }
+      },
+      "required": ["username", "password"]
+    },
+    "database": {
+      "type": "object",
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Database host",
+          "default": "farmos-db"
+        },
+        "port": {
+          "type": "integer",
+          "description": "Database port",
+          "default": 5432
+        },
+        "name": {
+          "type": "string",
+          "description": "Database name",
+          "default": "farmos"
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user",
+          "default": "farmos"
+        },
+        "password": {
+          "type": "string",
+          "description": "Database password"
+        }
+      },
+      "required": ["host", "name", "user", "password"]
+    },
+    "features": {
+      "type": "object",
+      "properties": {
+        "demo_data": {
+          "type": "boolean",
+          "description": "Enable demo farm data",
+          "default": true
+        },
+        "oauth": {
+          "type": "boolean",
+          "description": "Enable OAuth authentication",
+          "default": true
+        },
+        "api": {
+          "type": "boolean",
+          "description": "Enable REST API access",
+          "default": true
+        }
+      }
+    },
+    "iot": {
+      "type": "object",
+      "properties": {
+        "mqtt_enabled": {
+          "type": "boolean",
+          "description": "Enable MQTT integration",
+          "default": false
+        },
+        "mqtt_broker": {
+          "type": "string",
+          "description": "MQTT broker address"
+        },
+        "mqtt_port": {
+          "type": "integer",
+          "description": "MQTT broker port",
+          "default": 1883
+        },
+        "mqtt_topic": {
+          "type": "string",
+          "description": "MQTT topic pattern",
+          "default": "farmos/sensors/#"
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "questdb": {
+          "type": "boolean",
+          "description": "Enable QuestDB integration for time-series data",
+          "default": false
+        },
+        "redis": {
+          "type": "boolean",
+          "description": "Enable Redis for caching",
+          "default": false
+        },
+        "node_red": {
+          "type": "boolean",
+          "description": "Enable Node-RED for IoT workflows",
+          "default": false
+        }
+      }
+    }
+  },
+  "required": ["port", "admin", "database"]
+}

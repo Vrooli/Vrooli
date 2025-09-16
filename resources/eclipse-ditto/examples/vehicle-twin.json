@@ -1,0 +1,215 @@
+{
+  "thingId": "vehicle:ev:tesla-model3-001",
+  "policyId": "vehicle:ev:tesla-model3-001",
+  "definition": "org.eclipse.ditto:vehicle:1.0.0",
+  "attributes": {
+    "name": "Tesla Model 3 - Fleet Unit 001",
+    "description": "Electric vehicle with full telemetry and control capabilities",
+    "vin": "5YJ3E1EA1JF000001",
+    "type": "electric-vehicle",
+    "category": "passenger-car",
+    "manufacturer": {
+      "brand": "Tesla",
+      "model": "Model 3",
+      "variant": "Long Range",
+      "year": 2024,
+      "color": "Pearl White"
+    },
+    "owner": {
+      "type": "fleet",
+      "company": "TechCorp Fleet Services",
+      "driverId": "driver-123",
+      "registrationDate": "2024-01-01T00:00:00Z"
+    }
+  },
+  "features": {
+    "battery": {
+      "definition": ["org.eclipse.ditto:ev-battery:1.0.0"],
+      "properties": {
+        "level": 75,
+        "capacity": 82,
+        "range": 280,
+        "rangeUnit": "miles",
+        "voltage": 350,
+        "current": 0,
+        "temperature": 25,
+        "health": 98,
+        "cycles": 150,
+        "charging": {
+          "isCharging": false,
+          "chargerType": null,
+          "chargingPower": 0,
+          "estimatedTimeToFull": null,
+          "chargeLimit": 90
+        }
+      }
+    },
+    "location": {
+      "definition": ["org.eclipse.ditto:gps-location:1.0.0"],
+      "properties": {
+        "latitude": 37.7749,
+        "longitude": -122.4194,
+        "altitude": 52,
+        "accuracy": 5,
+        "speed": 0,
+        "speedUnit": "mph",
+        "heading": 90,
+        "timestamp": "2024-01-16T10:30:00Z",
+        "address": "123 Market Street, San Francisco, CA",
+        "geofence": {
+          "current": "office-parking",
+          "allowed": ["office-parking", "home", "charging-station-a"]
+        }
+      }
+    },
+    "drivetrain": {
+      "definition": ["org.eclipse.ditto:ev-drivetrain:1.0.0"],
+      "properties": {
+        "gear": "P",
+        "odometer": 15234,
+        "odometerUnit": "miles",
+        "tripOdometer": 45.2,
+        "efficiency": 4.2,
+        "efficiencyUnit": "miles/kWh",
+        "regenerativeBraking": "standard",
+        "motors": {
+          "front": {
+            "rpm": 0,
+            "temperature": 35,
+            "power": 0
+          },
+          "rear": {
+            "rpm": 0,
+            "temperature": 34,
+            "power": 0
+          }
+        }
+      }
+    },
+    "climate": {
+      "definition": ["org.eclipse.ditto:vehicle-climate:1.0.0"],
+      "properties": {
+        "interior": {
+          "temperature": 21,
+          "targetTemperature": 22,
+          "humidity": 40
+        },
+        "hvac": {
+          "on": false,
+          "mode": "auto",
+          "fanSpeed": 0,
+          "recirculation": false,
+          "defrost": false
+        },
+        "seats": {
+          "driver": {
+            "heating": false,
+            "cooling": false,
+            "level": 0
+          },
+          "passenger": {
+            "heating": false,
+            "cooling": false,
+            "level": 0
+          }
+        }
+      }
+    },
+    "doors": {
+      "definition": ["org.eclipse.ditto:vehicle-doors:1.0.0"],
+      "properties": {
+        "driverFront": "closed",
+        "passengerFront": "closed",
+        "driverRear": "closed",
+        "passengerRear": "closed",
+        "trunk": "closed",
+        "frunk": "closed",
+        "chargePort": "closed",
+        "locked": true,
+        "childLock": false
+      }
+    },
+    "tires": {
+      "definition": ["org.eclipse.ditto:vehicle-tires:1.0.0"],
+      "properties": {
+        "frontLeft": {
+          "pressure": 42,
+          "temperature": 28,
+          "wear": 15
+        },
+        "frontRight": {
+          "pressure": 42,
+          "temperature": 28,
+          "wear": 15
+        },
+        "rearLeft": {
+          "pressure": 42,
+          "temperature": 27,
+          "wear": 18
+        },
+        "rearRight": {
+          "pressure": 42,
+          "temperature": 27,
+          "wear": 18
+        },
+        "unit": "psi"
+      }
+    },
+    "autopilot": {
+      "definition": ["org.eclipse.ditto:autopilot:1.0.0"],
+      "properties": {
+        "enabled": false,
+        "available": true,
+        "mode": null,
+        "version": "FSD 12.1",
+        "features": {
+          "autosteer": true,
+          "autopark": true,
+          "summon": true,
+          "navigate": true,
+          "trafficLightDetection": true
+        },
+        "sensors": {
+          "cameras": 8,
+          "ultrasonic": 12,
+          "radar": 1
+        }
+      }
+    },
+    "connectivity": {
+      "definition": ["org.eclipse.ditto:vehicle-connectivity:1.0.0"],
+      "properties": {
+        "cellular": {
+          "connected": true,
+          "signal": -65,
+          "carrier": "T-Mobile",
+          "dataUsage": 250
+        },
+        "wifi": {
+          "connected": false,
+          "ssid": null,
+          "signal": null
+        },
+        "bluetooth": {
+          "enabled": true,
+          "paired": ["phone-123", "watch-456"]
+        },
+        "lastSync": "2024-01-16T10:30:00Z"
+      }
+    },
+    "maintenance": {
+      "definition": ["org.eclipse.ditto:vehicle-maintenance:1.0.0"],
+      "properties": {
+        "nextService": "2024-04-01T00:00:00Z",
+        "lastService": "2023-10-01T00:00:00Z",
+        "alerts": [],
+        "recalls": [],
+        "warranty": {
+          "basic": "2028-01-01T00:00:00Z",
+          "battery": "2032-01-01T00:00:00Z",
+          "drivetrain": "2032-01-01T00:00:00Z"
+        }
+      }
+    }
+  }
+}

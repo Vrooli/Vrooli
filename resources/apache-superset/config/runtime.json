@@ -1,0 +1,71 @@
+{
+  "version": "1.0.0",
+  "resource_type": "analytics",
+  "startup_order": 600,
+  "dependencies": [
+    "postgres",
+    "redis",
+    "questdb"
+  ],
+  "optional_dependencies": [
+    "minio",
+    "keycloak"
+  ],
+  "startup_timeout": 120,
+  "startup_time_estimate": "60-90s",
+  "shutdown_timeout": 30,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "health_check": {
+    "endpoint": "/health",
+    "port": 8088,
+    "interval": 10,
+    "timeout": 5,
+    "retries": 3
+  },
+  "resource_limits": {
+    "memory": "2Gi",
+    "cpu": "1000m",
+    "storage": "10Gi"
+  },
+  "capabilities": [
+    "data-visualization",
+    "business-intelligence",
+    "sql-analytics",
+    "dashboard-creation",
+    "alert-management",
+    "report-scheduling"
+  ],
+  "integrations": {
+    "databases": [
+      "postgresql",
+      "mysql",
+      "questdb",
+      "clickhouse",
+      "presto",
+      "druid"
+    ],
+    "authentication": [
+      "oauth2",
+      "ldap",
+      "database"
+    ],
+    "exports": [
+      "csv",
+      "json",
+      "excel"
+    ]
+  },
+  "api": {
+    "rest": {
+      "enabled": true,
+      "port": 8088,
+      "base_path": "/api/v1"
+    }
+  },
+  "monitoring": {
+    "metrics_endpoint": "/metrics",
+    "health_endpoint": "/health",
+    "readiness_endpoint": "/readyz"
+  }
+}

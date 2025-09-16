@@ -36,7 +36,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status inject content social-providers ldap-federation multi-realm backup monitor theme tls mfa password-policy; do
+for lib in common install lifecycle status test inject content social-providers ldap-federation multi-realm backup monitor theme tls mfa password-policy; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090

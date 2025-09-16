@@ -22,10 +22,13 @@ curl -X POST http://localhost:8095/analyze \
 - **Natural Language Analysis**: Query data using plain English
 - **Direct Pandas Execution**: Execute raw pandas code for advanced operations
 - **Multi-Source Support**: CSV, Excel, JSON, PostgreSQL, Redis, MongoDB
-- **Automated Visualizations**: Generates charts and graphs automatically
+- **Enhanced Visualizations**: 10+ chart types with full customization
+- **Performance Monitoring**: Real-time dashboard for tracking operations
+- **Data Profiling**: Comprehensive data quality analysis and recommendations
 - **Report Generation**: Creates professional data reports
 - **Code Generation**: Converts queries to pandas code for transparency
 - **Safety Controls**: Built-in safety checks for direct code execution
+- **Smart Caching**: In-memory caching for improved performance
 
 ## Architecture
 ```
@@ -239,6 +242,72 @@ curl -X POST http://localhost:8095/data/profile \
 - **Smart Recommendations**: Actionable insights for data improvement
 - **Quality Scoring**: 0-100 scale automatic data quality assessment
 - **Memory Profiling**: Dataset memory usage estimation
+
+### Enhanced Visualization System
+```bash
+# Generate visualization with custom options
+curl -X POST http://localhost:8095/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "data": [
+      {"month": "Jan", "sales": 100, "profit": 20},
+      {"month": "Feb", "sales": 120, "profit": 30},
+      {"month": "Mar", "sales": 90, "profit": 10}
+    ],
+    "query": "show sales trend",
+    "visualization": true,
+    "viz_type": "line",
+    "viz_options": {
+      "title": "Sales Trend Analysis",
+      "xlabel": "Month",
+      "ylabel": "Amount",
+      "color_palette": "viridis",
+      "figsize": [12, 8],
+      "dpi": 100
+    }
+  }'
+
+# Available visualization types
+# - auto: Smart auto-detection based on data
+# - bar: Bar charts
+# - line: Line plots with markers
+# - scatter: Scatter plots with optional regression lines
+# - histogram: Histograms with KDE overlay
+# - heatmap: Correlation heatmaps
+# - boxplot: Box plots for distributions
+# - violin: Violin plots for distributions
+# - pie: Pie charts for proportions
+# - area: Area charts for cumulative values
+# - pairplot: Pair plots for multiple variables
+# - countplot: Count plots for categorical data
+```
+
+#### Visualization Options
+- `title`: Chart title
+- `xlabel`, `ylabel`: Axis labels
+- `figsize`: Figure size as [width, height]
+- `dpi`: Image resolution (default: 100)
+- `color_palette`: Color scheme (viridis, seaborn, coolwarm, etc.)
+- `regression_line`: Add trend line to scatter plots (true/false)
+- `kde`: Add KDE overlay to histograms (true/false)
+- `triangle`: Show only lower triangle in heatmaps (true/false)
+- `stacked`: Stack areas in area charts (true/false)
+- `bins`: Number of bins for histograms (default: 30)
+
+### Performance Monitoring Dashboard
+```bash
+# Get comprehensive performance metrics
+curl http://localhost:8095/monitoring/dashboard | jq '.'
+
+# Response includes:
+# - System metrics (CPU, memory, threads, uptime)
+# - Request statistics (total, success, failed, average response time)
+# - Hourly metrics (requests per minute, endpoint usage)
+# - Cache performance (hit rate, evictions)
+# - Recent errors and slow queries
+# - Database availability status
+# - Current configuration
+```
 
 ### Available Query Operations
 - `describe` or `summary` - Get comprehensive data overview

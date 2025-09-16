@@ -42,18 +42,18 @@ vrooli resource papermc content execute "gamemode creative @a"
 - ✅ Full mcrcon integration support
 
 ### P1 - Production Features
-- ⏳ Systemd/Docker auto-restart capability
-- ⏳ Automated EULA acceptance
-- ⏳ JVM performance tuning
-- ⏳ Graceful shutdown with world save
-- ⏳ Localhost-only firewall rules
+- ✅ Systemd/Docker auto-restart capability
+- ✅ Automated EULA acceptance
+- ✅ JVM performance tuning
+- ✅ Graceful shutdown with world save
+- ✅ Localhost-only firewall rules
 
 ### P2 - Advanced Features
-- ⏳ Server.properties management
-- ⏳ Plugin installation system
-- ⏳ Automated backup system
-- ⏳ Health monitoring and metrics
-- ⏳ Log parsing and analysis
+- ✅ Server.properties management
+- ✅ Plugin installation system
+- ✅ Automated backup system
+- ✅ Health monitoring and metrics
+- ✅ Log parsing and analysis
 
 ## Configuration
 
@@ -80,7 +80,7 @@ PAPERMC_MAX_PLAYERS=20
 
 - `25565` - Minecraft game server (players connect here)
 - `25575` - RCON remote console (mcrcon connects here)
-- `11459` - Health check endpoint
+- `11460` - Health check endpoint (changed from 11459 to avoid conflicts)
 
 ## Commands
 
@@ -115,7 +115,20 @@ vrooli resource papermc content backup
 # List installed plugins
 vrooli resource papermc content list-plugins
 
-# Configure server (coming soon)
+# Add plugin (by name or URL)
+vrooli resource papermc content add-plugin essentialsx
+vrooli resource papermc content add-plugin https://example.com/plugin.jar
+
+# Remove plugin
+vrooli resource papermc content remove-plugin essentialsx
+
+# Show server health metrics
+vrooli resource papermc content health
+
+# Analyze server logs
+vrooli resource papermc content analyze-logs [lines]
+
+# Configure server
 vrooli resource papermc content configure
 ```
 
@@ -131,6 +144,58 @@ vrooli resource papermc test integration
 # Run all tests
 vrooli resource papermc test all
 ```
+
+## Plugin Management
+
+The PaperMC resource includes a built-in plugin management system:
+
+### Supported Plugins
+- **EssentialsX** - Core server utilities (`essentialsx`)
+- **Vault** - Economy and permissions API (`vault`)
+- **WorldEdit** - World editing tools (`worldedit`)
+
+### Installing Plugins
+
+```bash
+# Install from known repository
+vrooli resource papermc content add-plugin essentialsx
+
+# Install from direct URL
+vrooli resource papermc content add-plugin https://github.com/EssentialsX/Essentials/releases/latest/download/EssentialsX.jar
+
+# List installed plugins
+vrooli resource papermc content list-plugins
+
+# Remove a plugin
+vrooli resource papermc content remove-plugin essentialsx
+```
+
+## Server Monitoring
+
+### Health Metrics
+```bash
+# Get server health and performance metrics
+vrooli resource papermc content health
+```
+
+This shows:
+- Server status (running/stopped)
+- TPS (Ticks Per Second) - should be 20 for optimal performance
+- Player count and list
+- Memory usage
+- Docker/process statistics
+
+### Log Analysis
+```bash
+# Analyze recent server logs
+vrooli resource papermc content analyze-logs 100
+```
+
+This provides:
+- Event summary (joins, leaves, deaths, chat)
+- Issue tracking (warnings, errors)
+- Performance monitoring (lag warnings)
+- Plugin error detection
 
 ## Integration with mcrcon
 

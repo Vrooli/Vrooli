@@ -1093,6 +1093,83 @@ def task_detail(task_id):
         return jsonify(task_executions[task_id])
     return jsonify({"error": "Task not found"}), 404
 
+@app.route("/metrics", methods=["GET"])
+def metrics():
+    """Get performance metrics for task executions"""
+    try:
+        # Calculate basic metrics from task executions
+        total_tasks = len(task_executions)
+        completed_tasks = len([t for t in task_executions.values() if t.get("status") == "completed"])
+        failed_tasks = len([t for t in task_executions.values() if t.get("status") == "failed"])
+        running_tasks = len([t for t in task_executions.values() if t.get("status") == "running"])
+        
+        # Calculate execution times for completed tasks
+        execution_times = []
+        for task in task_executions.values():
+            if task.get("status") == "completed" and task.get("started") and task.get("completed"):
+                try:
+                    start = datetime.fromisoformat(task["started"])
+                    end = datetime.fromisoformat(task["completed"])
+                    duration = (end - start).total_seconds()
+                    execution_times.append(duration)
+                except:
+                    pass
+        
+        # Calculate metrics
+        metrics_data = {
+            "total_tasks": total_tasks,
+            "completed_tasks": completed_tasks,
+            "failed_tasks": failed_tasks,
+            "running_tasks": running_tasks,
+            "success_rate": round(completed_tasks / total_tasks * 100, 2) if total_tasks > 0 else 0,
+            "failure_rate": round(failed_tasks / total_tasks * 100, 2) if total_tasks > 0 else 0,
+            "execution_times": {
+                "average": round(sum(execution_times) / len(execution_times), 2) if execution_times else 0,
+                "min": round(min(execution_times), 2) if execution_times else 0,
+                "max": round(max(execution_times), 2) if execution_times else 0,
+                "total": round(sum(execution_times), 2) if execution_times else 0
+            },
+            "crews": {
+                "total": len(list(CREWS_DIR.glob("*.json"))),
+                "active": len(crewai_crews) if CREWAI_AVAILABLE else 0
+            },
+            "agents": {
+                "total": len(list(AGENTS_DIR.glob("*.json"))),
+                "active": len(crewai_agents) if CREWAI_AVAILABLE else 0
+            },
+            "memory": {
+                "qdrant_available": qdrant_client is not None
+            }
+        }
+        
+        # Add per-crew metrics
+        crew_metrics = {}
+        for task in task_executions.values():
+            crew_name = task.get("crew", "unknown")
+            if crew_name not in crew_metrics:
+                crew_metrics[crew_name] = {
+                    "total": 0,
+                    "completed": 0,
+                    "failed": 0,
+                    "avg_execution_time": 0
+                }
+            
+            crew_metrics[crew_name]["total"] += 1
+            if task.get("status") == "completed":
+                crew_metrics[crew_name]["completed"] += 1
+            elif task.get("status") == "failed":
+                crew_metrics[crew_name]["failed"] += 1
+        
+        # Calculate success rates
+        for crew_name, stats in crew_metrics.items():
+            stats["success_rate"] = round(stats["completed"] / stats["total"] * 100, 2) if stats["total"] > 0 else 0
+        
+        metrics_data["crew_metrics"] = crew_metrics
+        
+        return jsonify(metrics_data)
+    except Exception as e:
+        return jsonify({"error": f"Error generating metrics: {str(e)}"}), 500
+
 @app.route("/inject", methods=["POST"])
 def inject():
     """Inject crew or agent files"""

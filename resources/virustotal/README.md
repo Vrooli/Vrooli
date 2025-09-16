@@ -30,6 +30,8 @@ The VirusTotal resource provides comprehensive threat detection capabilities by 
 ### New Features (Latest Update)
 - **URL-Based File Submission**: Download and scan files from URLs (S3 pre-signed URLs, etc.)
 - **Threat Intelligence Feed Export**: Export aggregated threat data in JSON, CSV, or IOC formats
+- **Archive Scanning**: Extract and scan individual files from ZIP, RAR, TAR, and 7z archives
+- **EICAR Test Detection**: Proper detection of EICAR test files in mock mode
 
 ### Planned
 - **YARA Rules**: Custom threat hunting rules (premium feature)
@@ -62,6 +64,27 @@ vrooli resource virustotal manage start --wait
 - `VIRUSTOTAL_CACHE_TTL`: Cache TTL in seconds (default: 86400)
 - `VIRUSTOTAL_WEBHOOK_URL`: Webhook endpoint for notifications
 - `VIRUSTOTAL_LOG_LEVEL`: Logging level (default: INFO)
+
+### Redis Cache Configuration (Optional)
+
+For improved performance and cache sharing across instances:
+
+- `VIRUSTOTAL_USE_REDIS`: Enable Redis cache backend (default: false)
+- `VIRUSTOTAL_REDIS_DB`: Redis database number (default: 0)
+- `VIRUSTOTAL_REDIS_TTL`: Redis cache TTL in seconds (default: 86400)
+- `REDIS_HOST`: Redis server host (default: localhost)
+- `REDIS_PORT`: Redis server port (default: 6380 for Vrooli's Redis resource)
+
+When Redis is enabled, the resource uses a dual-cache strategy:
+- Redis for fast in-memory caching with TTL
+- SQLite for persistent cache storage
+- Automatic failover if Redis is unavailable
+
+Example with Vrooli's Redis resource:
+```bash
+# Start VirusTotal with Redis caching enabled
+VIRUSTOTAL_USE_REDIS=true REDIS_PORT=6380 vrooli resource virustotal manage start
+```
 
 ### Mock Mode (Testing Without API Key)
 
@@ -367,6 +390,35 @@ curl "http://localhost:8290/api/threat-feed/export?format=json&types=files&types
   /usr/local/bin/send-to-siem.sh
 ```
 
+#### Archive Scanning
+```bash
+# Scan ZIP archive and extract/scan all files
+curl -X POST http://localhost:8290/api/scan/archive \
+  -F "file=@software_package.zip" \
+  -F "extract_all=true"
+
+# Scan only first 10 files from archive (rate limit protection)
+curl -X POST http://localhost:8290/api/scan/archive \
+  -F "file=@large_archive.zip" \
+  -F "max_files=10"
+
+# Scan RAR archive with webhook notification
+curl -X POST http://localhost:8290/api/scan/archive \
+  -F "file=@downloads.rar" \
+  -F "webhook=http://localhost:3000/scan-complete"
+
+# Supported archive formats:
+# - ZIP (.zip)
+# - TAR (.tar, .tar.gz, .tgz, .tar.bz2)
+# - 7-Zip (.7z)
+# - RAR (.rar)
+
+# Response includes:
+# - Individual file scan results
+# - Threat summary
+# - Extraction errors (if any)
+```
+
 ## API Endpoints
 
 The service exposes a REST API on port 8290:
@@ -385,6 +437,7 @@ The service exposes a REST API on port 8290:
 - `DELETE /api/cache/clear` - Clear all cached data
 - `GET /api/cache/info` - Cache rotation and size information
 - `GET /api/threat-feed/export` - Export threat intelligence feed (NEW)
+- `POST /api/scan/archive` - Scan archive files and extract members (NEW)
 
 ## Cache Management
 

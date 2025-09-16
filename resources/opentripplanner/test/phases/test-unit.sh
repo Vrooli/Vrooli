@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# OpenTripPlanner Unit Tests
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../../lib"
+
+# Source libraries to test
+source "${LIB_DIR}/core.sh"
+
+echo "Running OpenTripPlanner unit tests..."
+
+# Test 1: Check is_installed function
+echo -n "1. Testing is_installed function... "
+if docker image inspect "${OPENTRIPPLANNER_IMAGE}" &>/dev/null; then
+    if opentripplanner::is_installed; then
+        echo "✓"
+    else
+        echo "✗ (Function returned false when image exists)"
+        exit 1
+    fi
+else
+    if ! opentripplanner::is_installed; then
+        echo "✓"
+    else
+        echo "✗ (Function returned true when image missing)"
+        exit 1
+    fi
+fi
+
+# Test 2: Check port configuration
+echo -n "2. Testing port configuration... "
+if [[ "$OTP_PORT" =~ ^[0-9]+$ ]] && [[ "$OTP_PORT" -ge 1024 ]] && [[ "$OTP_PORT" -le 65535 ]]; then
+    echo "✓"
+else
+    echo "✗ (Invalid port: $OTP_PORT)"
+    exit 1
+fi
+
+# Test 3: Check heap size format
+echo -n "3. Testing heap size configuration... "
+if [[ "$OTP_HEAP_SIZE" =~ ^[0-9]+[MG]$ ]]; then
+    echo "✓"
+else
+    echo "✗ (Invalid heap size format: $OTP_HEAP_SIZE)"
+    exit 1
+fi
+
+# Test 4: Check directory variables
+echo -n "4. Testing directory configuration... "
+if [[ -n "$OTP_DATA_DIR" ]] && [[ -n "$OTP_CACHE_DIR" ]]; then
+    echo "✓"
+else
+    echo "✗ (Directory variables not set)"
+    exit 1
+fi
+
+# Test 5: Check Docker configuration
+echo -n "5. Testing Docker configuration... "
+if [[ -n "$OPENTRIPPLANNER_IMAGE" ]] && [[ -n "$OPENTRIPPLANNER_CONTAINER" ]] && [[ -n "$OPENTRIPPLANNER_NETWORK" ]]; then
+    echo "✓"
+else
+    echo "✗ (Docker variables not set)"
+    exit 1
+fi
+
+# Test 6: Check routing defaults
+echo -n "6. Testing routing defaults... "
+if [[ "$OTP_MAX_WALK_DISTANCE" =~ ^[0-9]+$ ]] && [[ "$OTP_MAX_TRANSFERS" =~ ^[0-9]+$ ]]; then
+    echo "✓"
+else
+    echo "✗ (Invalid routing defaults)"
+    exit 1
+fi
+
+# Test 7: Test walk speed validation
+echo -n "7. Testing walk speed configuration... "
+if [[ "$OTP_WALK_SPEED" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+    echo "✓"
+else
+    echo "✗ (Invalid walk speed: $OTP_WALK_SPEED)"
+    exit 1
+fi
+
+# Test 8: Test bike speed validation
+echo -n "8. Testing bike speed configuration... "
+if [[ "$OTP_BIKE_SPEED" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+    echo "✓"
+else
+    echo "✗ (Invalid bike speed: $OTP_BIKE_SPEED)"
+    exit 1
+fi
+
+echo ""
+echo "Unit tests completed successfully!"
+exit 0

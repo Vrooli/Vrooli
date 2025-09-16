@@ -14,14 +14,23 @@
 
 **Resolution**: Wait for nsfwjs to update dependencies or consider alternative libraries
 
-### Model Download Size
-**Issue**: Full NSFW.js models are ~5MB each and not included by default
+### Model Download from CDN
+**Issue**: Models must be downloaded from CloudFront CDN (d1zv2aa70wpiur.cloudfront.net)
 
-**Impact**: Resource runs in mock mode until models are downloaded
+**Impact**: 
+- Resource runs in mock mode if CDN is unreachable
+- Full NSFW.js models are ~5MB each and not included by default
+- Network restrictions may prevent automatic download
 
-**Workaround**: Mock mode provides consistent test responses
+**Workaround**: 
+- Mock mode provides consistent test responses for development
+- Models can be manually downloaded via `vrooli resource nsfw-detector content add nsfwjs`
+- Once downloaded, models are cached locally in `models/` directory
 
-**Resolution**: Implement lazy model downloading on first use
+**Resolution**: 
+- Implemented local model caching mechanism (2025-09-16)
+- Added content management commands for manual model download
+- Server automatically uses local models when available
 
 ## Resolved Issues
 

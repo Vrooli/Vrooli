@@ -17,6 +17,7 @@ BROWSER_OPS_DIR="${APP_ROOT}/resources/browserless/lib"
 source "${APP_ROOT}/scripts/lib/utils/var.sh" || { echo "FATAL: Failed to load variable definitions" >&2; exit 1; }
 source "${var_LOG_FILE}" || { echo "FATAL: Failed to load logging library" >&2; exit 1; }
 source "${BROWSER_OPS_DIR}/browser-ops.sh" || { echo "FATAL: Failed to load browser operations" >&2; exit 1; }
+source "${BROWSER_OPS_DIR}/cache.sh" || { echo "FATAL: Failed to load cache module" >&2; exit 1; }
 
 ########################################
 # Navigate to a scenario by name
@@ -508,6 +509,108 @@ browser::element_contains_text() {
     fi
 }
 
+########################################
+# Cached version of extract_text
+# Uses result caching for repeated extractions
+# Arguments:
+#   $1 - Selector
+#   $2 - Session ID (optional)
+#   $3 - Cache TTL in seconds (optional, default 3600)
+# Returns:
+#   Extracted text (from cache if available)
+########################################
+browser::extract_text_cached() {
+    local selector="${1:?Selector required}"
+    local session_id="${2:-default}"
+    local ttl="${3:-3600}"
+    
+    # Get current URL for cache key generation
+    local current_url
+    current_url=$(browser::get_current_url "$session_id" 2>/dev/null || echo "unknown")
+    
+    # Generate cache key
+    local cache_key
+    cache_key=$(cache::generate_key "extract_text" "$current_url" "{\"selector\":\"$selector\"}")
+    
+    # Try to get from cache
+    local cached_result
+    if cached_result=$(cache::get "$cache_key"); then
+        log::debug "Using cached text extraction for $selector"
+        echo "$cached_result"
+        return 0
+    fi
+    
+    # Execute extraction
+    local result
+    if result=$(browser::extract_text "$selector" "$session_id"); then
+        # Cache the result
+        cache::set "$cache_key" "$result" "$ttl"
+        echo "$result"
+        return 0
+    else
+        return 1
+    fi
+}
+
+########################################
+# Cached version of extract_html
+# Uses result caching for repeated extractions
+# Arguments:
+#   $1 - Selector
+#   $2 - Session ID (optional)
+#   $3 - Cache TTL in seconds (optional, default 3600)
+# Returns:
+#   Extracted HTML (from cache if available)
+########################################
+browser::extract_html_cached() {
+    local selector="${1:?Selector required}"
+    local session_id="${2:-default}"
+    local ttl="${3:-3600}"
+    
+    # Get current URL for cache key generation
+    local current_url
+    current_url=$(browser::get_current_url "$session_id" 2>/dev/null || echo "unknown")
+    
+    # Generate cache key
+    local cache_key
+    cache_key=$(cache::generate_key "extract_html" "$current_url" "{\"selector\":\"$selector\"}")
+    
+    # Try to get from cache
+    local cached_result
+    if cached_result=$(cache::get "$cache_key"); then
+        log::debug "Using cached HTML extraction for $selector"
+        echo "$cached_result"
+        return 0
+    fi
+    
+    # Execute extraction
+    local result
+    if result=$(browser::extract_html "$selector" "$session_id"); then
+        # Cache the result
+        cache::set "$cache_key" "$result" "$ttl"
+        echo "$result"
+        return 0
+    else
+        return 1
+    fi
+}
+
+########################################
+# Clear workflow cache
+# Useful for forcing fresh extractions
+########################################
+browser::clear_cache() {
+    log::info "Clearing workflow result cache..."
+    cache::clear
+}
+
+########################################
+# Show cache statistics
+########################################
+browser::cache_stats() {
+    cache::stats
+}
+
 # Export all functions
 export -f browser::navigate_to_scenario
 export -f browser::extract_text
@@ -520,3 +623,7 @@ export -f browser::wait_for_url_change
 export -f browser::click_and_wait
 export -f browser::type_with_delay
 export -f browser::element_contains_text
+export -f browser::extract_text_cached
+export -f browser::extract_html_cached
+export -f browser::clear_cache
+export -f browser::cache_stats

@@ -32,12 +32,20 @@ kicad::simulation::extract_netlist() {
     local output="${2:-}"
     
     if [[ -z "$schematic" ]]; then
-        echo "Usage: resource-kicad simulation extract <schematic.kicad_sch> [output.net]"
+        echo "Usage: resource-kicad simulation extract <schematic.kicad_sch|project-name> [output.net]"
         return 1
     fi
     
-    # Check for absolute or relative path
-    if [[ ! "$schematic" = /* ]]; then
+    # Handle project names vs file paths
+    if [[ ! "$schematic" = /* ]] && [[ ! "$schematic" = *.* ]]; then
+        # Looks like a project name without extension
+        # Check for schematic file in projects directory
+        if [[ -f "${KICAD_DATA_DIR}/projects/$schematic/$schematic.kicad_sch" ]]; then
+            schematic="${KICAD_DATA_DIR}/projects/$schematic/$schematic.kicad_sch"
+        elif [[ -f "${KICAD_DATA_DIR}/projects/$schematic.kicad_sch" ]]; then
+            schematic="${KICAD_DATA_DIR}/projects/$schematic.kicad_sch"
+        fi
+    elif [[ ! "$schematic" = /* ]]; then
         # If relative path, check in projects directory first
         if [[ -f "${KICAD_DATA_DIR}/projects/$schematic" ]]; then
             schematic="${KICAD_DATA_DIR}/projects/$schematic"
@@ -47,6 +55,7 @@ kicad::simulation::extract_netlist() {
     # Check if schematic file exists
     if [[ ! -f "$schematic" ]]; then
         log::error "Schematic file not found: $schematic"
+        echo "Hint: Use project name (e.g., 'led-blinker') or full path to .kicad_sch file"
         return 1
     fi
     

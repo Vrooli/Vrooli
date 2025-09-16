@@ -2,6 +2,8 @@
 
 Open-source parametric 3D CAD modeler with Python API for programmatic design generation, engineering analysis, and manufacturing workflows.
 
+> **Status**: Operational with minimal implementation. Health checks and lifecycle management are fully functional. CAD generation and export features are placeholders pending full FreeCAD integration.
+
 ## Quick Start
 
 ```bash

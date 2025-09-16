@@ -81,6 +81,11 @@ COMMANDS:
     status                  Show resource status
     logs                    View resource logs
     credentials             Display connection credentials
+    integration <sub>       Integration with other resources
+        auto-configure      Auto-detect Minecraft servers
+        quick-start         Quick setup and test
+        detect-papermc      Detect PaperMC installation
+        check-papermc       Check PaperMC status
 
 EXAMPLES:
     # Install and start mcrcon
@@ -174,6 +179,31 @@ main() {
             ;;
         credentials)
             "${SCRIPT_DIR}/lib/core.sh" credentials
+            ;;
+        integration)
+            # Integration helpers for working with other Vrooli resources
+            source "${SCRIPT_DIR}/lib/integration.sh"
+            case "${1:-}" in
+                auto-configure)
+                    auto_configure
+                    ;;
+                quick-start)
+                    quick_start
+                    ;;
+                detect-papermc)
+                    detect_papermc
+                    ;;
+                check-papermc)
+                    check_papermc_status
+                    ;;
+                *)
+                    echo "Integration commands:"
+                    echo "  auto-configure  - Auto-detect and configure Minecraft servers"
+                    echo "  quick-start     - Quick setup and connection test"
+                    echo "  detect-papermc  - Detect PaperMC installation"
+                    echo "  check-papermc   - Check if PaperMC is running"
+                    ;;
+            esac
             ;;
         *)
             echo "Error: Unknown command: $command" >&2

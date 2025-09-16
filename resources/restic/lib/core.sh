@@ -62,6 +62,10 @@ Commands:
   
 Resource-specific commands:
   backup              Trigger manual backup
+  backup-with-hooks   Backup with database hooks
+  backup-postgres     Backup PostgreSQL databases
+  backup-redis        Backup Redis data
+  backup-minio        Backup MinIO buckets
   restore             Restore from snapshot
   snapshots           List available snapshots
   prune               Remove old snapshots
@@ -71,6 +75,8 @@ Examples:
   resource-restic manage install        # Install and initialize
   resource-restic manage start          # Start service
   resource-restic backup --paths /data  # Create backup
+  resource-restic backup-with-hooks --all  # Backup with all DB hooks
+  resource-restic backup-postgres       # Backup PostgreSQL
   resource-restic snapshots             # List snapshots
   resource-restic restore --snapshot latest --target /restore
 
@@ -216,6 +222,69 @@ restic::uninstall() {
 }
 
 #######################################
+# Configure backend for repository
+#######################################
+restic::configure_backend() {
+    local backend="${1:-${RESTIC_BACKEND:-local}}"
+    local repository_env=""
+    
+    case "$backend" in
+        local)
+            repository_env="/repository"
+            echo "Using local filesystem backend"
+            ;;
+        s3|minio)
+            # Validate required S3 credentials
+            if [[ -z "${AWS_ACCESS_KEY_ID}" ]] || [[ -z "${AWS_SECRET_ACCESS_KEY}" ]]; then
+                echo "Error: AWS credentials not set for S3/MinIO backend"
+                echo "Please set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY"
+                return 1
+            fi
+            
+            # Set repository based on endpoint
+            if [[ -n "${RESTIC_S3_ENDPOINT}" ]]; then
+                # MinIO or custom S3-compatible storage
+                repository_env="s3:${RESTIC_S3_ENDPOINT}/${RESTIC_S3_BUCKET:-restic-backup}"
+                echo "Using MinIO/S3-compatible backend at ${RESTIC_S3_ENDPOINT}"
+            else
+                # AWS S3
+                repository_env="s3:s3.amazonaws.com/${RESTIC_S3_BUCKET:-restic-backup}"
+                echo "Using AWS S3 backend"
+            fi
+            ;;
+        sftp)
+            # Validate SFTP configuration
+            if [[ -z "${RESTIC_SFTP_HOST}" ]]; then
+                echo "Error: SFTP host not configured"
+                echo "Please set RESTIC_SFTP_HOST"
+                return 1
+            fi
+            
+            repository_env="sftp:${RESTIC_SFTP_USER:-restic}@${RESTIC_SFTP_HOST}:${RESTIC_SFTP_PATH:-/backup}"
+            echo "Using SFTP backend at ${RESTIC_SFTP_HOST}"
+            ;;
+        rest)
+            # REST server backend
+            if [[ -z "${RESTIC_REST_URL}" ]]; then
+                echo "Error: REST server URL not configured"
+                echo "Please set RESTIC_REST_URL"
+                return 1
+            fi
+            
+            repository_env="rest:${RESTIC_REST_URL}"
+            echo "Using REST server backend at ${RESTIC_REST_URL}"
+            ;;
+        *)
+            echo "Error: Unknown backend: $backend"
+            echo "Supported backends: local, s3, minio, sftp, rest"
+            return 1
+            ;;
+    esac
+    
+    echo "$repository_env"
+}
+
+#######################################
 # Start restic service
 #######################################
 restic::start() {
@@ -252,21 +321,46 @@ restic::start() {
         docker build -t vrooli-restic-api "${RESOURCE_DIR}/api"
     fi
     
-    # Run container with the API server
-    docker run -d \
-        --name "$CONTAINER_NAME" \
-        --network vrooli-network \
-        -p "${RESTIC_PORT}:8000" \
-        -v "${REPOSITORY_VOLUME}:/repository" \
-        -v "${CACHE_VOLUME}:/cache" \
-        -v "${CONFIG_VOLUME}:/config" \
-        -v /home:/backup/home:ro \
-        -v /var/lib/docker/volumes:/backup/volumes:ro \
-        -e RESTIC_REPOSITORY=/repository \
-        -e RESTIC_PASSWORD="${RESTIC_PASSWORD:-changeme}" \
-        -e RESTIC_CACHE_DIR=/cache \
-        -e API_PORT=8000 \
-        vrooli-restic-api
+    # Configure backend - capture both output and return code
+    local repository_path
+    local backend_output
+    backend_output=$(restic::configure_backend 2>&1)
+    local backend_status=$?
+    
+    if [[ $backend_status -ne 0 ]]; then
+        echo "Failed to configure backend: $backend_output"
+        return 1
+    fi
+    
+    # Extract the repository path from the last line of output
+    repository_path=$(echo "$backend_output" | tail -n1)
+    
+    # Build docker run command with common options
+    local docker_cmd="docker run -d"
+    docker_cmd="$docker_cmd --name $CONTAINER_NAME"
+    docker_cmd="$docker_cmd --network vrooli-network"
+    docker_cmd="$docker_cmd -p ${RESTIC_PORT}:8000"
+    docker_cmd="$docker_cmd -v ${REPOSITORY_VOLUME}:/repository"
+    docker_cmd="$docker_cmd -v ${CACHE_VOLUME}:/cache"
+    docker_cmd="$docker_cmd -v ${CONFIG_VOLUME}:/config"
+    docker_cmd="$docker_cmd -v /home:/backup/home:ro"
+    docker_cmd="$docker_cmd -v /var/lib/docker/volumes:/backup/volumes:ro"
+    docker_cmd="$docker_cmd -e RESTIC_REPOSITORY=$repository_path"
+    docker_cmd="$docker_cmd -e RESTIC_PASSWORD=${RESTIC_PASSWORD:-changeme}"
+    docker_cmd="$docker_cmd -e RESTIC_CACHE_DIR=/cache"
+    docker_cmd="$docker_cmd -e API_PORT=8000"
+    
+    # Add backend-specific environment variables
+    if [[ "${RESTIC_BACKEND}" == "s3" ]] || [[ "${RESTIC_BACKEND}" == "minio" ]]; then
+        docker_cmd="$docker_cmd -e AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+        docker_cmd="$docker_cmd -e AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+        docker_cmd="$docker_cmd -e AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}"
+    fi
+    
+    docker_cmd="$docker_cmd vrooli-restic-api"
+    
+    # Run container
+    eval $docker_cmd
     
     if [[ "$wait_for_ready" == true ]]; then
         echo "Waiting for restic to be ready..."
@@ -690,6 +784,183 @@ restic::health_check() {
 }
 
 #######################################
+# Database backup hooks
+#######################################
+restic::backup_postgres() {
+    local database="${1:-}"
+    local output_path="${2:-/tmp/postgres_backup_$(date +%Y%m%d_%H%M%S).sql}"
+    
+    echo "Creating PostgreSQL backup..."
+    
+    # Check if postgres is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "vrooli-postgres"; then
+        echo "PostgreSQL container not running"
+        return 1
+    fi
+    
+    if [[ -z "$database" ]]; then
+        # Backup all databases
+        echo "Backing up all PostgreSQL databases to $output_path"
+        docker exec vrooli-postgres pg_dumpall -U postgres > "$output_path"
+    else
+        # Backup specific database
+        echo "Backing up database $database to $output_path"
+        docker exec vrooli-postgres pg_dump -U postgres "$database" > "$output_path"
+    fi
+    
+    if [[ $? -eq 0 ]]; then
+        echo "PostgreSQL backup completed: $output_path"
+        # Add to restic backup
+        restic::backup --paths "$output_path" --tags "postgres,database"
+        # Clean up temporary file
+        rm -f "$output_path"
+        return 0
+    else
+        echo "PostgreSQL backup failed"
+        return 1
+    fi
+}
+
+restic::backup_redis() {
+    local output_path="${1:-/tmp/redis_backup_$(date +%Y%m%d_%H%M%S).rdb}"
+    
+    echo "Creating Redis backup..."
+    
+    # Check if redis is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "vrooli-redis"; then
+        echo "Redis container not running"
+        return 1
+    fi
+    
+    # Trigger Redis save
+    docker exec vrooli-redis redis-cli BGSAVE
+    
+    # Wait for save to complete
+    sleep 2
+    
+    # Copy the dump file
+    docker cp vrooli-redis:/data/dump.rdb "$output_path"
+    
+    if [[ $? -eq 0 ]]; then
+        echo "Redis backup completed: $output_path"
+        # Add to restic backup
+        restic::backup --paths "$output_path" --tags "redis,database"
+        # Clean up temporary file
+        rm -f "$output_path"
+        return 0
+    else
+        echo "Redis backup failed"
+        return 1
+    fi
+}
+
+restic::backup_minio() {
+    local bucket="${1:-}"
+    local output_path="${2:-/tmp/minio_backup_$(date +%Y%m%d_%H%M%S)}"
+    
+    echo "Creating MinIO backup..."
+    
+    # Check if minio is running
+    if ! docker ps --format "table {{.Names}}" | grep -q "vrooli-minio"; then
+        echo "MinIO container not running"
+        return 1
+    fi
+    
+    mkdir -p "$output_path"
+    
+    if [[ -z "$bucket" ]]; then
+        # Backup all buckets
+        echo "Backing up all MinIO buckets to $output_path"
+        docker exec vrooli-minio mc mirror local/ "$output_path/" --overwrite
+    else
+        # Backup specific bucket
+        echo "Backing up bucket $bucket to $output_path"
+        docker exec vrooli-minio mc mirror "local/$bucket" "$output_path/$bucket/" --overwrite
+    fi
+    
+    if [[ $? -eq 0 ]]; then
+        echo "MinIO backup completed: $output_path"
+        # Add to restic backup
+        restic::backup --paths "$output_path" --tags "minio,storage"
+        # Clean up temporary directory
+        rm -rf "$output_path"
+        return 0
+    else
+        echo "MinIO backup failed"
+        return 1
+    fi
+}
+
+#######################################
+# Create backup with hooks
+#######################################
+restic::backup_with_hooks() {
+    echo "Running backup with database hooks..."
+    
+    local include_postgres=false
+    local include_redis=false
+    local include_minio=false
+    local include_all=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --postgres)
+                include_postgres=true
+                shift
+                ;;
+            --redis)
+                include_redis=true
+                shift
+                ;;
+            --minio)
+                include_minio=true
+                shift
+                ;;
+            --all)
+                include_all=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+    
+    # If --all or no specific options, include everything
+    if [[ "$include_all" == true ]] || [[ "$include_postgres" == false && "$include_redis" == false && "$include_minio" == false ]]; then
+        include_postgres=true
+        include_redis=true
+        include_minio=true
+    fi
+    
+    local success=true
+    
+    # Run selected backups
+    if [[ "$include_postgres" == true ]]; then
+        restic::backup_postgres || success=false
+    fi
+    
+    if [[ "$include_redis" == true ]]; then
+        restic::backup_redis || success=false
+    fi
+    
+    if [[ "$include_minio" == true ]]; then
+        restic::backup_minio || success=false
+    fi
+    
+    # Also backup regular files
+    restic::backup --tags "scheduled,with-hooks"
+    
+    if [[ "$success" == true ]]; then
+        echo "Backup with hooks completed successfully"
+        return 0
+    else
+        echo "Some backup operations failed"
+        return 1
+    fi
+}
+
+#######################################
 # Create backup
 #######################################
 restic::backup() {
@@ -840,12 +1111,22 @@ restic::verify() {
         echo "✓ Repository integrity verified"
         
         # Also verify specific snapshot if not checking all
-        if [[ "$snapshot" != "all" ]]; then
-            if docker exec "$CONTAINER_NAME" restic check --read-data-subset="$snapshot" 2>&1; then
-                echo "✓ Snapshot $snapshot verified"
+        if [[ "$snapshot" != "all" ]] && [[ "$snapshot" != "latest" ]]; then
+            # For specific snapshots, just check that it exists
+            if docker exec "$CONTAINER_NAME" restic snapshots --json | grep -q "\"short_id\":\"$snapshot\"" 2>&1; then
+                echo "✓ Snapshot $snapshot exists and is accessible"
                 return 0
             else
-                echo "✗ Snapshot $snapshot has issues"
+                echo "✗ Snapshot $snapshot not found"
+                return 1
+            fi
+        elif [[ "$read_data" == true ]]; then
+            # If read-data is requested, check a subset (10% sample)
+            if docker exec "$CONTAINER_NAME" restic check --read-data-subset=10% 2>&1; then
+                echo "✓ Data integrity verified (10% sample)"
+                return 0
+            else
+                echo "✗ Data integrity check failed"
                 return 1
             fi
         fi

@@ -73,9 +73,17 @@ print("HEALTH_OK")
 sys.exit(0)
 EOF
     
-    if timeout 5 blender::run_script "$test_script" &>/dev/null; then
-        test_pass "Blender responds to commands"
-        rm -f "$test_script"
+    # Run the test script and capture output
+    local output
+    if output=$(timeout 5 blender::run_script "$test_script" 2>&1); then
+        if echo "$output" | grep -q "HEALTH_OK"; then
+            test_pass "Blender responds to commands"
+            rm -f "$test_script"
+        else
+            test_fail "Blender not responding (no HEALTH_OK output)"
+            rm -f "$test_script"
+            return 1
+        fi
     else
         test_fail "Blender not responding"
         rm -f "$test_script"
@@ -116,9 +124,17 @@ for module in modules:
 print("API_OK")
 EOF
     
-    if timeout 5 blender::run_script "$test_script" 2>/dev/null | grep -q "API_OK"; then
-        test_pass "Python API is accessible"
-        rm -f "$test_script"
+    # Run the test script and check output
+    local output
+    if output=$(timeout 5 blender::run_script "$test_script" 2>&1); then
+        if echo "$output" | grep -q "API_OK"; then
+            test_pass "Python API is accessible"
+            rm -f "$test_script"
+        else
+            test_fail "Python API not accessible"
+            rm -f "$test_script"
+            return 1
+        fi
     else
         test_fail "Python API not accessible"
         rm -f "$test_script"
@@ -144,9 +160,17 @@ bpy.ops.render.render()
 print("RENDER_OK")
 EOF
     
-    if timeout 10 blender::run_script "$test_script" 2>/dev/null | grep -q "RENDER_OK"; then
-        test_pass "Render engine works"
-        rm -f "$test_script"
+    # Run the test script and check output
+    local output
+    if output=$(timeout 10 blender::run_script "$test_script" 2>&1); then
+        if echo "$output" | grep -q "RENDER_OK"; then
+            test_pass "Render engine works"
+            rm -f "$test_script"
+        else
+            test_fail "Render engine not working"
+            rm -f "$test_script"
+            return 1
+        fi
     else
         test_fail "Render engine not working"
         rm -f "$test_script"

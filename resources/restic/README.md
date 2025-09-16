@@ -11,9 +11,12 @@ Restic provides automated, encrypted backups with deduplication and incremental 
 - **Client-side encryption**: AES-256-GCM encryption before data leaves the system ✅
 - **Deduplication**: Efficient storage with content-defined chunking ✅
 - **Incremental snapshots**: Fast backups with point-in-time recovery ✅
-- **Multiple backends**: Local, S3, MinIO, SFTP support (local implemented) ✅
+- **Multiple backends**: Local, S3, MinIO, SFTP, REST server support ✅
+- **Database hooks**: Automated PostgreSQL, Redis, and MinIO backups ✅
 - **Automated scheduling**: Configurable backup schedules via cron ✅
 - **Retention policies**: Automatic pruning of old snapshots ✅
+- **Content management**: Add/list/remove backup targets ✅
+- **Backup verification**: Integrity checking with data sampling ✅
 - **Health monitoring**: REST API with health endpoint ✅
 - **Docker containerization**: Fully containerized with persistent volumes ✅
 
@@ -44,22 +47,42 @@ resource-restic status
 Configuration is managed through environment variables in `config/defaults.sh`:
 
 - `RESTIC_REPOSITORY`: Repository path (default: `/repository`)
+- `RESTIC_BACKEND`: Storage backend type (`local`, `s3`, `minio`, `sftp`, `rest`)
 - `RESTIC_PASSWORD`: Encryption password (override in production!)
 - `RESTIC_BACKUP_SCHEDULE`: Cron expression (default: daily at 2 AM)
 - `RESTIC_KEEP_DAILY`: Daily snapshots to keep (default: 7)
 - `RESTIC_KEEP_WEEKLY`: Weekly snapshots to keep (default: 4)
 - `RESTIC_KEEP_MONTHLY`: Monthly snapshots to keep (default: 12)
 
-### S3/MinIO Backend
+### Backend Configuration
 
-To use S3 or MinIO as the backend:
-
+#### Local (Default)
 ```bash
-export RESTIC_BACKEND=s3
+export RESTIC_BACKEND=local
+# Repository stored in Docker volume
+```
+
+#### S3/MinIO
+```bash
+export RESTIC_BACKEND=s3  # or minio
 export RESTIC_S3_ENDPOINT=http://vrooli-minio:9000
+export RESTIC_S3_BUCKET=backup-bucket
 export AWS_ACCESS_KEY_ID=your-access-key
 export AWS_SECRET_ACCESS_KEY=your-secret-key
-export RESTIC_REPOSITORY=s3:http://vrooli-minio:9000/backup-bucket
+```
+
+#### SFTP
+```bash
+export RESTIC_BACKEND=sftp
+export RESTIC_SFTP_HOST=backup-server.example.com
+export RESTIC_SFTP_USER=backup-user
+export RESTIC_SFTP_PATH=/backup
+```
+
+#### REST Server
+```bash
+export RESTIC_BACKEND=rest
+export RESTIC_REST_URL=http://rest-server:8000
 ```
 
 ## Management Commands
@@ -73,9 +96,14 @@ export RESTIC_REPOSITORY=s3:http://vrooli-minio:9000/backup-bucket
 
 ### Backup Operations
 - `resource-restic backup` - Create a backup
+- `resource-restic backup-with-hooks` - Backup with database hooks
+- `resource-restic backup-postgres` - Backup PostgreSQL databases
+- `resource-restic backup-redis` - Backup Redis data
+- `resource-restic backup-minio` - Backup MinIO buckets
 - `resource-restic restore` - Restore from snapshot
 - `resource-restic snapshots` - List available snapshots
 - `resource-restic prune` - Remove old snapshots per retention policy
+- `resource-restic verify` - Verify backup integrity
 
 ### Testing
 - `resource-restic test smoke` - Quick health check

@@ -77,6 +77,16 @@ All tests pass in mock mode. When KiCad is installed:
 3. **Web Interface**: Add web-based project viewer
 4. **CI/CD Integration**: Automated PCB validation in pipelines
 
+## Recently Addressed Issues
+
+### 1. Project Name Resolution
+**Fixed**: Simulation and export commands now properly handle project names without requiring full paths
+**Solution**: Commands now search in the projects directory automatically
+
+### 2. Export Error Handling
+**Fixed**: Export commands now provide clear error messages when files are missing
+**Solution**: Added file detection and helpful error messages listing available projects
+
 ## Support
 
 For KiCad-specific issues:

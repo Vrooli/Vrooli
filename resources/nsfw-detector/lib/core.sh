@@ -271,17 +271,24 @@ test_unit() {
 
 # Content management functions
 content_add() {
-    echo "Adding content to NSFW Detector..."
-    # Implementation would handle model/config addition
-    echo "Content management not yet implemented"
-    return 0
+    local model_name="${1:-nsfwjs}"
+    
+    case "$model_name" in
+        nsfwjs|model)
+            echo "Downloading NSFW.js model..."
+            "${SCRIPT_DIR}/lib/models.sh" download
+            return $?
+            ;;
+        *)
+            echo "Error: Unknown model: $model_name" >&2
+            echo "Available models: nsfwjs" >&2
+            return 1
+            ;;
+    esac
 }
 
 content_list() {
-    echo "Available models:"
-    echo "- nsfwjs (default)"
-    echo "- safety-checker (coming soon)"
-    echo "- custom-cnn (coming soon)"
+    "${SCRIPT_DIR}/lib/models.sh" list
     return 0
 }
 
@@ -292,9 +299,20 @@ content_get() {
 }
 
 content_remove() {
-    echo "Removing content..."
-    echo "Content management not yet implemented"
-    return 0
+    local model_name="${1:-all}"
+    
+    case "$model_name" in
+        all|nsfwjs|model)
+            echo "Removing model cache..."
+            "${SCRIPT_DIR}/lib/models.sh" clean
+            return $?
+            ;;
+        *)
+            echo "Error: Unknown model: $model_name" >&2
+            echo "Use 'all' to remove all models" >&2
+            return 1
+            ;;
+    esac
 }
 
 content_execute() {

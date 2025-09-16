@@ -6,19 +6,19 @@
     "AIRBYTE_VERSION": {
       "type": "string",
       "description": "Airbyte version to deploy",
-      "default": "0.50.0"
+      "default": "latest"
     },
     "AIRBYTE_WEBAPP_PORT": {
       "type": "integer",
       "description": "Port for Airbyte webapp UI",
-      "default": 8000,
+      "default": 8002,
       "minimum": 1024,
       "maximum": 65535
     },
     "AIRBYTE_SERVER_PORT": {
       "type": "integer",
       "description": "Port for Airbyte API server",
-      "default": 8001,
+      "default": 8003,
       "minimum": 1024,
       "maximum": 65535
     },

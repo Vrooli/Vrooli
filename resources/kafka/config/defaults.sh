@@ -69,9 +69,10 @@ export KAFKA_HEALTH_CHECK_RETRIES="${KAFKA_HEALTH_CHECK_RETRIES:-3}"
 
 # Function to validate configuration
 validate_config() {
-    # Check if ports are available
+    # Check if ports are available using nc (netcat) which doesn't require sudo
     for port in $KAFKA_PORT $KAFKA_CONTROLLER_PORT $KAFKA_EXTERNAL_PORT; do
-        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        # Use timeout with nc to check if port is in use
+        if timeout 1 bash -c "echo >/dev/tcp/localhost/$port" 2>/dev/null; then
             echo "Error: Port $port is already in use"
             return 1
         fi

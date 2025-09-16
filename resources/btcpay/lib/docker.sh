@@ -4,6 +4,16 @@
 btcpay::docker::start() {
     log::info "Starting BTCPay Server containers..."
     
+    # Check for multi-currency configuration
+    local chains="btc"
+    if [[ -f "${BTCPAY_CONFIG_DIR}/multicurrency.json" ]]; then
+        local configured_chains=$(jq -r '.chains // "btc"' "${BTCPAY_CONFIG_DIR}/multicurrency.json")
+        if [[ -n "$configured_chains" ]]; then
+            chains="$configured_chains"
+            log::info "Using multi-currency configuration: ${chains}"
+        fi
+    fi
+    
     # Start PostgreSQL first
     if docker ps -a --format '{{.Names}}' | grep -q "^${BTCPAY_POSTGRES_CONTAINER}$"; then
         docker start "${BTCPAY_POSTGRES_CONTAINER}" || return 1
@@ -48,7 +58,7 @@ btcpay::docker::start() {
             -v "${BTCPAY_NBXPLORER_DATA}:/datadir" \
             -e NBXPLORER_NETWORK="regtest" \
             -e NBXPLORER_BIND="0.0.0.0:32838" \
-            -e NBXPLORER_CHAINS="btc" \
+            -e NBXPLORER_CHAINS="${chains}" \
             -e NBXPLORER_SIGNALFILESDIR="/datadir" \
             -e NBXPLORER_POSTGRES="Server=${BTCPAY_POSTGRES_CONTAINER};Port=5432;Database=${BTCPAY_POSTGRES_DB};User Id=${BTCPAY_POSTGRES_USER};Password=${BTCPAY_POSTGRES_PASSWORD};" \
             "${BTCPAY_NBXPLORER_IMAGE}" || return 1
@@ -83,7 +93,7 @@ btcpay::docker::start() {
             -v "${BTCPAY_CONFIG_DIR}:/root/.btcpayserver" \
             -e BTCPAY_POSTGRES="Server=${BTCPAY_POSTGRES_CONTAINER};Port=5432;Database=${BTCPAY_POSTGRES_DB};User Id=${BTCPAY_POSTGRES_USER};Password=${BTCPAY_POSTGRES_PASSWORD};" \
             -e BTCPAY_EXPLORERURL="http://${BTCPAY_NBXPLORER_CONTAINER}:32838/" \
-            -e BTCPAY_CHAINS="btc" \
+            -e BTCPAY_CHAINS="${chains}" \
             -e BTCPAY_ROOTPATH="/" \
             -e BTCPAY_PORT=49392 \
             "${BTCPAY_IMAGE}" || return 1

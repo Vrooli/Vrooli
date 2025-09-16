@@ -218,6 +218,27 @@ sqlite::test::unit() {
     fi
 }
 
+# Replication test - verify replication functionality
+sqlite::test::replication() {
+    log::info "Running SQLite replication test..."
+    
+    # Execute the replication test script
+    local test_script="${SQLITE_CLI_DIR}/test/phases/test-replication.sh"
+    
+    if [[ -f "$test_script" ]]; then
+        if bash "$test_script"; then
+            log::info "Replication test passed"
+            return 0
+        else
+            log::error "Replication test failed"
+            return 1
+        fi
+    else
+        log::warning "Replication test script not found"
+        return 1
+    fi
+}
+
 # Run all tests
 sqlite::test::all() {
     log::info "Running all SQLite tests..."
@@ -234,6 +255,13 @@ sqlite::test::all() {
     
     if ! sqlite::test::integration; then
         ((errors++))
+    fi
+    
+    # Run replication test if available
+    if [[ -f "${SQLITE_CLI_DIR}/test/phases/test-replication.sh" ]]; then
+        if ! sqlite::test::replication; then
+            ((errors++))
+        fi
     fi
     
     if [[ $errors -eq 0 ]]; then

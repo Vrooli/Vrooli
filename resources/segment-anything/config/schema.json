@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Segment Anything Resource Configuration Schema",
+  "description": "Configuration schema for the Segment Anything segmentation service",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API service port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 11454
+    },
+    "model": {
+      "type": "object",
+      "description": "Model configuration",
+      "properties": {
+        "size": {
+          "type": "string",
+          "description": "Model size variant",
+          "enum": ["tiny", "small", "base", "large"],
+          "default": "base"
+        },
+        "type": {
+          "type": "string",
+          "description": "Model type",
+          "enum": ["sam2", "hq-sam"],
+          "default": "sam2"
+        },
+        "device": {
+          "type": "string",
+          "description": "Computation device",
+          "enum": ["auto", "cpu", "cuda"],
+          "default": "auto"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance settings",
+      "properties": {
+        "max_workers": {
+          "type": "integer",
+          "description": "Maximum concurrent workers",
+          "minimum": 1,
+          "maximum": 16,
+          "default": 4
+        },
+        "batch_size": {
+          "type": "integer",
+          "description": "Processing batch size",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 1
+        },
+        "gpu_memory_fraction": {
+          "type": "number",
+          "description": "GPU memory allocation fraction",
+          "minimum": 0.1,
+          "maximum": 1.0,
+          "default": 0.8
+        },
+        "enable_compile": {
+          "type": "boolean",
+          "description": "Enable torch.compile optimization",
+          "default": false
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage configuration",
+      "properties": {
+        "data_dir": {
+          "type": "string",
+          "description": "Data directory path"
+        },
+        "model_dir": {
+          "type": "string",
+          "description": "Model storage directory"
+        },
+        "cache_dir": {
+          "type": "string",
+          "description": "Cache directory"
+        },
+        "cache_ttl": {
+          "type": "integer",
+          "description": "Cache TTL in seconds",
+          "minimum": 0,
+          "default": 3600
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "External service integrations",
+      "properties": {
+        "redis": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 6380
+            }
+          }
+        },
+        "minio": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "endpoint": {
+              "type": "string",
+              "default": "localhost:9000"
+            }
+          }
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "host": {
+              "type": "string",
+              "default": "localhost"
+            },
+            "port": {
+              "type": "integer",
+              "default": 5433
+            }
+          }
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "API configuration",
+      "properties": {
+        "cors_origins": {
+          "type": "string",
+          "description": "CORS allowed origins",
+          "default": "*"
+        },
+        "max_request_size": {
+          "type": "integer",
+          "description": "Maximum request size in MB",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 100
+        },
+        "api_key": {
+          "type": "string",
+          "description": "Optional API key for authentication"
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "description": "Timeout settings",
+      "properties": {
+        "startup": {
+          "type": "integer",
+          "description": "Startup timeout in seconds",
+          "default": 60
+        },
+        "shutdown": {
+          "type": "integer",
+          "description": "Shutdown timeout in seconds",
+          "default": 30
+        },
+        "health_check": {
+          "type": "integer",
+          "description": "Health check interval in seconds",
+          "default": 30
+        }
+      }
+    }
+  }
+}

@@ -65,8 +65,8 @@ EXAMPLES:
     resource-airbyte logs --service server
 
 DEFAULT CONFIGURATION:
-    Webapp Port: 8000
-    API Port: 8001
+    Webapp Port: 8002
+    API Port: 8003
     Temporal Port: 8006
     Data Directory: ./data
 

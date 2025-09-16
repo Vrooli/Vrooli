@@ -1,0 +1,30 @@
+{
+  "startup_order": 500,
+  "dependencies": ["docker"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "high",
+  "resource_type": "simulation",
+  "category": "engineering",
+  "requires_gpu": false,
+  "requires_network": true,
+  "memory_required": "2GB",
+  "cpu_cores": 4,
+  "description": "Multiphysics finite element solver for coupled simulations",
+  "version": "9.0",
+  "health_check": {
+    "endpoint": "/health",
+    "interval": 30,
+    "timeout": 5,
+    "retries": 3
+  },
+  "capabilities": [
+    "thermal_analysis",
+    "fluid_dynamics", 
+    "electromagnetics",
+    "structural_mechanics",
+    "multiphysics_coupling",
+    "parallel_mpi"
+  ]
+}

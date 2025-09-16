@@ -9,19 +9,20 @@ CrewAI enables the creation of autonomous AI agents that work together to accomp
 ## Features
 
 ### Current
-- **Dual-Mode Operation**: Supports both real CrewAI and mock mode
+- **Real CrewAI Integration**: Full CrewAI library support with automatic fallback
 - **Flask API Server**: Modern REST API with CORS support
 - **Health Monitoring**: Standard health endpoint with CrewAI status
 - **Crew Management**: Full CRUD operations for AI crews
 - **Agent Management**: Full CRUD operations for AI agents
 - **Task Execution**: Run tasks with progress tracking
+- **Tool Integration**: 7 tools available (web search, file reader, API caller, database, LLM, memory)
+- **Memory System**: Persistent memory via Qdrant integration
+- **Performance Metrics**: Track execution times and success rates via /metrics endpoint
 - **Content Injection**: Import crews and agents from external files
 - **Auto-Detection**: Automatically detects if CrewAI library is available
 - **v2.0 Compliant**: Follows Vrooli resource standards
 
 ### Planned
-- **Tool Integration**: Agents can use external tools and APIs
-- **Memory System**: Persistent memory via Qdrant integration
 - **UI Dashboard**: Web interface for visual management
 - **Workflow Designer**: Visual tool for creating agent workflows
 
@@ -82,6 +83,9 @@ The CrewAI server provides the following REST API endpoints:
 - `GET /tasks` - List all task executions
 - `GET /tasks/{id}` - Get task execution status
 
+### Performance Monitoring
+- `GET /metrics` - Get performance metrics and statistics
+
 ### Content Management
 - `POST /inject` - Inject crew/agent from file
 
@@ -92,6 +96,9 @@ curl http://localhost:8084/health
 
 # List crews
 curl http://localhost:8084/crews
+
+# Get performance metrics
+curl http://localhost:8084/metrics
 
 # Inject a crew
 curl -X POST http://localhost:8084/inject \
@@ -155,14 +162,14 @@ vrooli resource crewai test unit        # Library function tests (<60s)
 
 ## Integration with Other Resources
 
-### Ollama Integration (Planned)
+### Ollama Integration
 ```bash
 # Configure CrewAI to use Ollama for LLM
 export CREWAI_LLM_PROVIDER=ollama
 export CREWAI_LLM_MODEL=llama3
 ```
 
-### Qdrant Integration (Planned)
+### Qdrant Integration
 ```bash
 # Enable memory persistence with Qdrant
 export CREWAI_MEMORY_ENABLED=true

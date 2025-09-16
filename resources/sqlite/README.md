@@ -22,6 +22,7 @@ SQLite is a self-contained, serverless, zero-configuration SQL database engine t
 - **Migration Support**: Schema versioning and migration tracking
 - **Query Builder**: Safe query construction with automatic escaping
 - **Performance Monitoring**: Query statistics and optimization analysis
+- **Database Replication**: Basic replication to other SQLite instances with automatic sync
 
 ## Quick Start
 
@@ -229,6 +230,32 @@ vrooli resource sqlite content export_csv myapp users /tmp/users.csv
 # Import CSV into table
 vrooli resource sqlite content import_csv myapp users /tmp/data.csv true
 # Last parameter indicates if CSV has header row
+```
+
+### Database Replication
+
+```bash
+# Add a replica for backup/high availability
+vrooli resource sqlite replicate add --database myapp.db --target /backup/myapp_replica.db --interval 300
+
+# List configured replicas
+vrooli resource sqlite replicate list
+
+# Manually sync database to replicas
+vrooli resource sqlite replicate sync --database myapp.db
+
+# Verify replica consistency
+vrooli resource sqlite replicate verify --database myapp.db
+
+# Enable/disable a replica
+vrooli resource sqlite replicate toggle --database myapp.db --target /backup/myapp_replica.db --disable
+
+# Remove a replica
+vrooli resource sqlite replicate remove --database myapp.db --target /backup/myapp_replica.db
+
+# Start automatic replication monitor
+vrooli resource sqlite replicate monitor --interval 60
+# Monitor will sync all configured replicas every 60 seconds
 ```
 
 ## Usage Examples

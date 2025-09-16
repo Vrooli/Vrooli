@@ -5,7 +5,14 @@
 set -euo pipefail
 
 # Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../.." && builtin pwd)}"
+# Handle symlinks for installed CLI
+if [[ -L "${BASH_SOURCE[0]}" ]]; then
+    GAZEBO_CLI_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}")"
+    APP_ROOT="$(builtin cd "${GAZEBO_CLI_SCRIPT%/*}/../.." && builtin pwd)"
+fi
+
+SCRIPT_DIR="${APP_ROOT}/resources/gazebo"
 RESOURCE_NAME="gazebo"
 
 # Source required libraries
@@ -95,7 +102,7 @@ Examples:
   resource-${RESOURCE_NAME} status --json
 
 Configuration:
-  Port: ${GAZEBO_PORT:-11453}
+  Port: ${GAZEBO_PORT:-11456}
   Data Directory: ${GAZEBO_DATA_DIR:-${HOME}/.gazebo}
   Config File: ${SCRIPT_DIR}/config/defaults.sh
 

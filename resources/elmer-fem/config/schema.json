@@ -1,0 +1,144 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Elmer FEM Resource Configuration",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "default": 8192,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "description": "API server host",
+      "default": "0.0.0.0"
+    },
+    "mpi_processes": {
+      "type": "integer",
+      "description": "Number of MPI processes for parallel solving",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 32
+    },
+    "max_memory": {
+      "type": "string",
+      "description": "Maximum memory allocation",
+      "default": "4G",
+      "pattern": "^[0-9]+[MG]$"
+    },
+    "max_iterations": {
+      "type": "integer",
+      "description": "Maximum solver iterations",
+      "default": 1000,
+      "minimum": 10,
+      "maximum": 10000
+    },
+    "convergence_tolerance": {
+      "type": "number",
+      "description": "Convergence tolerance for iterative solvers",
+      "default": 1e-6,
+      "minimum": 1e-12,
+      "maximum": 1e-3
+    },
+    "solvers": {
+      "type": "array",
+      "description": "Available solvers",
+      "items": {
+        "type": "string",
+        "enum": [
+          "HeatSolver",
+          "FlowSolver",
+          "ElasticSolver",
+          "StatCurrentSolver",
+          "MagnetoDynamics",
+          "CoordinateTransform"
+        ]
+      },
+      "default": [
+        "HeatSolver",
+        "FlowSolver",
+        "ElasticSolver"
+      ]
+    },
+    "mesh_formats": {
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["gmsh", "unv", "mesh.nodes", "mesh.elements"]
+        },
+        "output": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": ["vtu", "vtk", "csv", "dat"]
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "properties": {
+        "minio": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "bucket": {
+              "type": "string",
+              "default": "elmer-results"
+            }
+          }
+        },
+        "postgres": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "database": {
+              "type": "string",
+              "default": "elmer_metadata"
+            }
+          }
+        },
+        "questdb": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "table": {
+              "type": "string",
+              "default": "elmer_timeseries"
+            }
+          }
+        },
+        "qdrant": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "collection": {
+              "type": "string",
+              "default": "elmer_patterns"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["port", "mpi_processes"],
+  "additionalProperties": false
+}

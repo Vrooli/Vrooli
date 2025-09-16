@@ -310,7 +310,293 @@ configure_server() {
 # List plugins
 list_plugins() {
     echo "Installed plugins:"
-    ls -la "${PAPERMC_PLUGINS_DIR}" 2>/dev/null || echo "No plugins installed"
+    if [[ -d "${PAPERMC_PLUGINS_DIR}" ]]; then
+        local plugin_count=0
+        for plugin in "${PAPERMC_PLUGINS_DIR}"/*.jar; do
+            if [[ -f "${plugin}" ]]; then
+                local plugin_name=$(basename "${plugin}")
+                local plugin_size=$(du -h "${plugin}" | cut -f1)
+                echo "  - ${plugin_name} (${plugin_size})"
+                ((plugin_count++))
+            fi
+        done
+        if [[ ${plugin_count} -eq 0 ]]; then
+            echo "  No plugins installed"
+        else
+            echo "Total: ${plugin_count} plugin(s)"
+        fi
+    else
+        echo "  Plugins directory not found"
+    fi
+    return 0
+}
+
+# Add plugin from URL or name
+add_plugin() {
+    local plugin_source="$1"
+    
+    if [[ -z "${plugin_source}" ]]; then
+        echo "Error: No plugin source specified" >&2
+        echo "Usage: add_plugin <url|plugin-name>" >&2
+        return 1
+    fi
+    
+    mkdir -p "${PAPERMC_PLUGINS_DIR}"
+    
+    # Check if it's a URL
+    if [[ "${plugin_source}" =~ ^https?:// ]]; then
+        echo "Downloading plugin from URL: ${plugin_source}"
+        local filename=$(basename "${plugin_source}")
+        curl -L -o "${PAPERMC_PLUGINS_DIR}/${filename}" "${plugin_source}" || {
+            echo "Error: Failed to download plugin" >&2
+            return 1
+        }
+        echo "Plugin downloaded: ${filename}"
+    else
+        # Try to find plugin on common repositories
+        echo "Searching for plugin: ${plugin_source}"
+        
+        # Common Paper plugins (examples)
+        case "${plugin_source,,}" in
+            "essentialsx"|"essentials")
+                local url="https://github.com/EssentialsX/Essentials/releases/latest/download/EssentialsX.jar"
+                ;;
+            "vault")
+                local url="https://github.com/MilkBowl/Vault/releases/latest/download/Vault.jar"
+                ;;
+            "worldedit")
+                local url="https://mediafilez.forgecdn.net/files/5596/548/worldedit-bukkit-7.3.4.jar"
+                ;;
+            *)
+                echo "Error: Unknown plugin '${plugin_source}'" >&2
+                echo "Please provide a direct download URL instead" >&2
+                return 1
+                ;;
+        esac
+        
+        echo "Downloading ${plugin_source} from known repository..."
+        curl -L -o "${PAPERMC_PLUGINS_DIR}/${plugin_source}.jar" "${url}" || {
+            echo "Error: Failed to download plugin" >&2
+            return 1
+        }
+        echo "Plugin installed: ${plugin_source}"
+    fi
+    
+    # Restart server if running to load new plugin
+    if is_server_running; then
+        echo "Restarting server to load new plugin..."
+        restart_papermc
+    fi
+    
+    return 0
+}
+
+# Remove plugin
+remove_plugin() {
+    local plugin_name="$1"
+    
+    if [[ -z "${plugin_name}" ]]; then
+        echo "Error: No plugin specified" >&2
+        return 1
+    fi
+    
+    # Find plugin file (case insensitive)
+    local plugin_file
+    for file in "${PAPERMC_PLUGINS_DIR}"/*.jar; do
+        if [[ -f "${file}" ]]; then
+            local basename=$(basename "${file}")
+            if [[ "${basename,,}" == *"${plugin_name,,}"* ]]; then
+                plugin_file="${file}"
+                break
+            fi
+        fi
+    done
+    
+    if [[ -n "${plugin_file}" ]]; then
+        echo "Removing plugin: $(basename "${plugin_file}")"
+        rm -f "${plugin_file}"
+        
+        # Restart server if running
+        if is_server_running; then
+            echo "Restarting server to unload plugin..."
+            restart_papermc
+        fi
+        
+        echo "Plugin removed successfully"
+        return 0
+    else
+        echo "Error: Plugin '${plugin_name}' not found" >&2
+        return 1
+    fi
+}
+
+# Get server health metrics
+get_health_metrics() {
+    echo "Server Health Metrics"
+    echo "===================="
+    
+    if ! is_server_running; then
+        echo "Status: Server not running"
+        return 1
+    fi
+    
+    if ! is_server_ready; then
+        echo "Status: Server starting up"
+        return 0
+    fi
+    
+    echo "Status: Running"
+    
+    # Try to get TPS (Ticks Per Second) and player count
+    if command -v mcrcon &> /dev/null || command -v vrooli &> /dev/null; then
+        echo ""
+        echo "Performance Metrics:"
+        
+        # Get TPS (minecraft forge tps command)
+        local tps_output
+        tps_output=$(execute_rcon_command "tps" 2>/dev/null || echo "")
+        if [[ -n "${tps_output}" ]]; then
+            echo "  TPS: ${tps_output}"
+        else
+            echo "  TPS: Unable to retrieve (command may not be available)"
+        fi
+        
+        # Get player count
+        local list_output
+        list_output=$(execute_rcon_command "list" 2>/dev/null || echo "")
+        if [[ -n "${list_output}" ]]; then
+            echo "  Players: ${list_output}"
+        fi
+        
+        # Get memory usage
+        local mem_output
+        mem_output=$(execute_rcon_command "memory" 2>/dev/null || echo "")
+        if [[ -n "${mem_output}" ]]; then
+            echo "  Memory: ${mem_output}"
+        fi
+    else
+        echo "  Note: Install mcrcon resource for detailed metrics"
+    fi
+    
+    # Get system resource usage
+    echo ""
+    echo "System Resources:"
+    
+    if [[ "${PAPERMC_SERVER_TYPE}" == "docker" ]]; then
+        # Get Docker container stats
+        local stats
+        stats=$(docker stats --no-stream "${PAPERMC_CONTAINER_NAME}" 2>/dev/null | tail -n 1)
+        if [[ -n "${stats}" ]]; then
+            echo "  Container Stats:"
+            echo "    ${stats}"
+        fi
+    else
+        # Get native process stats
+        if [[ -f "${PAPERMC_DATA_DIR}/server.pid" ]]; then
+            local pid
+            pid=$(cat "${PAPERMC_DATA_DIR}/server.pid")
+            local mem_usage
+            mem_usage=$(ps -o %mem,rss,comm -p "${pid}" 2>/dev/null | tail -n 1)
+            if [[ -n "${mem_usage}" ]]; then
+                echo "  Process Memory: ${mem_usage}"
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+# Analyze server logs for events and metrics
+analyze_logs() {
+    local lines="${1:-100}"
+    
+    echo "Server Log Analysis (last ${lines} lines)"
+    echo "========================================"
+    
+    local log_file="/tmp/papermc_logs.tmp"
+    
+    if [[ "${PAPERMC_SERVER_TYPE}" == "docker" ]]; then
+        # Get logs from Docker (suppress the tee output)
+        docker logs --tail "${lines}" "${PAPERMC_CONTAINER_NAME}" 2>&1 > "${log_file}"
+    else
+        if [[ ! -f "${PAPERMC_LOG_FILE}" ]]; then
+            echo "No log file found"
+            return 1
+        fi
+        tail -n "${lines}" "${PAPERMC_LOG_FILE}" > "${log_file}"
+    fi
+    
+    # Analyze common events
+    echo ""
+    echo "Event Summary:"
+    
+    # Player joins/leaves
+    local joins
+    joins=$(grep -c "joined the game" "${log_file}" 2>/dev/null) || joins=0
+    local leaves
+    leaves=$(grep -c "left the game" "${log_file}" 2>/dev/null) || leaves=0
+    echo "  Player Joins: ${joins}"
+    echo "  Player Leaves: ${leaves}"
+    
+    # Deaths
+    local deaths
+    deaths=$(grep -c "was killed\|died\|was slain" "${log_file}" 2>/dev/null) || deaths=0
+    echo "  Deaths: ${deaths}"
+    
+    # Chat messages
+    local chat
+    chat=$(grep -c "<.*>" "${log_file}" 2>/dev/null) || chat=0
+    echo "  Chat Messages: ${chat}"
+    
+    # Commands executed
+    local commands
+    commands=$(grep -c "issued server command:" "${log_file}" 2>/dev/null) || commands=0
+    echo "  Commands Executed: ${commands}"
+    
+    # Warnings and errors
+    echo ""
+    echo "Issues:"
+    local warnings
+    warnings=$(grep -c "\[WARN\]" "${log_file}" 2>/dev/null) || warnings=0
+    local errors
+    errors=$(grep -c "\[ERROR\]" "${log_file}" 2>/dev/null) || errors=0
+    local severe
+    severe=$(grep -c "\[SEVERE\]" "${log_file}" 2>/dev/null) || severe=0
+    echo "  Warnings: ${warnings}"
+    echo "  Errors: ${errors}"
+    echo "  Severe: ${severe}"
+    
+    # Recent errors (if any)
+    if [[ ${errors} -gt 0 ]] || [[ ${severe} -gt 0 ]]; then
+        echo ""
+        echo "Recent Errors:"
+        grep -E "\[ERROR\]|\[SEVERE\]" "${log_file}" | tail -5
+    fi
+    
+    # Performance issues
+    echo ""
+    echo "Performance:"
+    local lag
+    lag=$(grep -c "Can't keep up\|Running .* ms behind" "${log_file}" 2>/dev/null) || lag=0
+    echo "  Lag Warnings: ${lag}"
+    
+    if [[ ${lag} -gt 0 ]]; then
+        echo "  Recent Lag:"
+        grep "Can't keep up\|Running .* ms behind" "${log_file}" | tail -3
+    fi
+    
+    # Plugin issues
+    local plugin_errors
+    plugin_errors=$(grep -c "Could not load.*plugin\|Error occurred.*plugin" "${log_file}" 2>/dev/null) || plugin_errors=0
+    if [[ ${plugin_errors} -gt 0 ]]; then
+        echo ""
+        echo "Plugin Issues: ${plugin_errors}"
+        grep "Could not load.*plugin\|Error occurred.*plugin" "${log_file}" | tail -3
+    fi
+    
+    # Clean up temp file
+    rm -f /tmp/papermc_logs.tmp
+    
     return 0
 }
 
@@ -451,6 +737,7 @@ import json
 import os
 import socketserver
 import sys
+import socket
 
 PORT = int(os.environ.get('PAPERMC_HEALTH_PORT', '11459'))
 
@@ -458,7 +745,6 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/health':
             # Check if server is running by testing RCON port
-            import socket
             rcon_port = int(os.environ.get('PAPERMC_RCON_PORT', '25575'))
             server_running = False
             try:
@@ -490,8 +776,21 @@ class HealthHandler(http.server.BaseHTTPRequestHandler):
         # Suppress request logging
         pass
 
-with socketserver.TCPServer(("127.0.0.1", PORT), HealthHandler) as httpd:
-    httpd.serve_forever()
+class ReuseAddrTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+    
+    def server_bind(self):
+        # Set SO_REUSEADDR on the socket
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
+
+try:
+    with ReuseAddrTCPServer(("127.0.0.1", PORT), HealthHandler) as httpd:
+        print(f"Health service listening on port {PORT}")
+        httpd.serve_forever()
+except Exception as e:
+    print(f"Failed to start health service: {e}")
+    sys.exit(1)
 EOF
     
     # Start the health server
@@ -506,6 +805,7 @@ EOF
     # Verify it's running
     if ! kill -0 "${health_pid}" 2>/dev/null; then
         echo "Warning: Health service failed to start" >&2
+        cat "${PAPERMC_DATA_DIR}/health.log" >&2
         rm -f "${HEALTH_PID_FILE}"
         return 1
     fi
@@ -513,6 +813,7 @@ EOF
     # Verify health endpoint responds
     if ! timeout 5 curl -sf "http://localhost:${PAPERMC_HEALTH_PORT}/health" > /dev/null; then
         echo "Warning: Health endpoint not responding" >&2
+        cat "${PAPERMC_DATA_DIR}/health.log" >&2
         return 1
     fi
     
@@ -533,7 +834,7 @@ stop_health_service() {
         rm -f "${HEALTH_PID_FILE}"
     fi
     
-    # Clean up any processes using the health port
+    # Clean up any processes using the health port  
     local pids
     pids=$(lsof -t -i:${PAPERMC_HEALTH_PORT} 2>/dev/null || true)
     if [[ -n "${pids}" ]]; then
@@ -541,11 +842,14 @@ stop_health_service() {
         echo "${pids}" | xargs -r kill -9 2>/dev/null || true
     fi
     
-    # Clean up any orphaned nc processes
+    # Clean up any orphaned nc processes (these shouldn't exist with our Python health server)
     pkill -f "nc.*${PAPERMC_HEALTH_PORT}" 2>/dev/null || true
     
     # Clean up any orphaned Python health servers
-    pkill -f "health_server.py" 2>/dev/null || true
+    pkill -f "${PAPERMC_DATA_DIR}/health_server.py" 2>/dev/null || true
+    
+    # Give ports time to release
+    sleep 1
     
     return 0
 }

@@ -79,11 +79,30 @@
 3. **Concurrent Indexing**: Batch indexing uses ThreadPoolExecutor with fixed 4 workers
 4. **Error Recovery**: No automatic retry mechanism for failed operations
 
+## Recent Improvements (2025-01-16)
+
+### Added Retry Logic with Recovery Hints
+- Content operations now include 3-attempt retry logic for transient failures
+- Each operation provides clear recovery hints on failure
+- Improved error messages guide users to resolution steps
+
+### Installation Validation Function
+- Added `haystack::validate_installation()` to check system integrity
+- Validates: venv existence, Python binary, server script, critical packages
+- Automatically called during start to catch issues early
+- Provides specific recovery commands for each type of issue
+
+### Enhanced Error Handling
+- Service running check before content operations
+- HTTP status code validation for API calls
+- Proper timeout handling on all network operations (10s for queries, 30s for uploads)
+- Graceful degradation with informative error messages
+
 ## Future Improvements
 
 1. Add support for PDF and other document formats
 2. Implement pipeline persistence using JSON serialization
 3. Add configurable worker pool size for batch processing
-4. Implement retry logic with exponential backoff
+4. Add exponential backoff for retry delays
 5. Add comprehensive metrics endpoint with Prometheus format
 6. Consider adding authentication/authorization layer

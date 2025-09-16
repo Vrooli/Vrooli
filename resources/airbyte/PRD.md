@@ -46,7 +46,7 @@ Airbyte provides comprehensive data integration infrastructure with 600+ pre-bui
 - [x] **v2.0 Contract Compliance**: Full CLI interface per universal.yaml ✅ 2025-01-10
   - Test: `resource-airbyte help | grep -E "manage|test|content"`
 - [x] **Health Monitoring**: Respond to health checks within 5 seconds ✅ 2025-01-10
-  - Test: `timeout 5 curl -sf http://localhost:8000/api/v1/health`
+  - Test: `timeout 5 curl -sf http://localhost:8003/api/v1/health`
 - [x] **Connector Management**: Install and configure source/destination connectors ✅ 2025-01-12
   - Test: `resource-airbyte content list --type sources`
 - [x] **Connection Creation**: Programmatic connection setup via API ✅ 2025-01-12
@@ -177,6 +177,7 @@ resource-airbyte info              # Show configuration
 - Large syncs may require staging storage
 - Some connectors require paid licenses
 - Schema changes may require manual intervention
+- **Deployment Architecture**: Airbyte v1.x has significantly changed from v0.x. The docker images (webapp, server, worker) may no longer be available as separate components. Research needed for updated deployment approach.
 
 ## References
 
@@ -188,8 +189,8 @@ resource-airbyte info              # Show configuration
 ## Progress Tracking
 
 **Current Status**: 86% Complete (6/7 P0 requirements, 2 P1 requirements)
-**Last Updated**: 2025-01-10
-**Next Steps**: Deploy and test actual Airbyte services
+**Last Updated**: 2025-01-15
+**Next Steps**: Research updated Airbyte deployment architecture for v1.x
 
 ### Change History
 - 2025-01-10: Initial PRD creation
@@ -203,3 +204,6 @@ resource-airbyte info              # Show configuration
 - 2025-01-12: Implemented sync job monitoring with timeout handling
 - 2025-01-12: Enhanced status command with detailed service and sync information
 - 2025-01-12: Improved integration tests with comprehensive API validation
+- 2025-01-15: Fixed remaining hardcoded port references (8000→8002, 8001→8003)
+- 2025-01-15: Updated docker-compose for v1.x architecture (scheduler integrated into server)
+- 2025-01-15: Discovered Airbyte deployment structure has changed significantly in v1.x

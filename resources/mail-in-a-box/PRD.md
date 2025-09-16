@@ -34,7 +34,7 @@
 
 - [x] **Webmail Access**: Roundcube interface accessible
   - Acceptance: Can login and use webmail
-  - Test: Browse to http://localhost:8080
+  - Test: Browse to http://localhost:8880
   - Status: ✅ Roundcube webmail added via docker-compose
 
 ### P1 Requirements (Should Have)
@@ -101,8 +101,9 @@
 - 587: SMTP Submission
 - 993: IMAPS
 - 995: POP3S
-- 8543: Admin Panel
-- 443: HTTPS (Webmail/Calendar)
+- 8543: Admin Panel (REST API)
+- 8880: Webmail (Roundcube)
+- 5232: CalDAV/CardDAV (Radicale)
 
 ## Success Metrics
 
@@ -182,3 +183,13 @@
 - P1 requirements: 4/4 (100%) ✅
 - P2 requirements: 3/3 (100%) ✅
 - Progress: 90% → 100% (Complete email server with all features)
+
+### 2025-09-16: Infrastructure Improvements
+- ✅ Fixed docker-compose volume mount paths (changed from /var/lib to $HOME)
+- ✅ Resolved port conflicts (changed webmail from 8080 to 8880)
+- ✅ Fixed directory creation in installation script
+- ✅ Updated all documentation with correct ports
+- ✅ Verified all services are operational (mail, webmail, CalDAV)
+- All containers running healthy: mailinabox, mailinabox-webmail, mailinabox-caldav
+- Test status: Smoke tests 7/7, Unit tests 19/19, Integration tests 10/10
+- Progress: 100% → 100% (Maintained full functionality with infrastructure fixes)

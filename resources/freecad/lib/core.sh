@@ -42,12 +42,18 @@ freecad::install() {
     
     freecad::init
     
-    # Pull Docker image
-    log::info "Pulling FreeCAD Docker image: ${FREECAD_IMAGE}"
-    docker pull "${FREECAD_IMAGE}" || {
-        log::error "Failed to pull FreeCAD Docker image"
-        return 1
-    }
+    # Pull Python image if not exists
+    log::info "Preparing FreeCAD Docker image: ${FREECAD_IMAGE}"
+    
+    if ! docker images | grep -q "${FREECAD_IMAGE}"; then
+        log::info "Pulling Python image for FreeCAD..."
+        docker pull "${FREECAD_IMAGE}" || {
+            log::error "Failed to pull Docker image"
+            return 1
+        }
+    else
+        log::info "Docker image already exists"
+    fi
     
     # Create Docker network if it doesn't exist
     if ! docker network ls | grep -q "${FREECAD_NETWORK}"; then
@@ -96,29 +102,23 @@ freecad::start() {
     
     log::info "Starting FreeCAD service on port ${FREECAD_PORT}..."
     
-    # Start container with Xvfb for headless operation
+    # Start container with minimal FreeCAD API server
     docker run -d \
         --name "${FREECAD_CONTAINER_NAME}" \
         --network "${FREECAD_NETWORK}" \
         -p "${FREECAD_PORT}:8080" \
-        -e "DISPLAY=${FREECAD_DISPLAY}" \
-        -e "RESOLUTION=${FREECAD_DISPLAY_RESOLUTION}" \
-        -e "PYTHONPATH=/usr/lib/freecad/lib" \
-        -e "FREECAD_USER_DATA=/data" \
-        -e "FREECAD_PROJECTS=/projects" \
-        -e "FREECAD_SCRIPTS=/scripts" \
-        -e "FREECAD_EXPORTS=/exports" \
+        -e "PORT=8080" \
         -v "${FREECAD_DATA_DIR}:/data" \
         -v "${FREECAD_PROJECTS_DIR}:/projects" \
         -v "${FREECAD_SCRIPTS_DIR}:/scripts" \
         -v "${FREECAD_EXPORTS_DIR}:/exports" \
+        -v "${FREECAD_CLI_DIR}/api_server_minimal.py:/app/api_server.py:ro" \
         --memory="${FREECAD_MEMORY_LIMIT}" \
         --cpus="${FREECAD_CPU_LIMIT}" \
         --restart=unless-stopped \
+        --workdir /app \
         "${FREECAD_IMAGE}" \
-        bash -c "Xvfb ${FREECAD_DISPLAY} -screen 0 ${FREECAD_DISPLAY_RESOLUTION} & \
-                 echo 'Starting FreeCAD service...' && \
-                 python3 -m http.server 8080 --bind 0.0.0.0" || {
+        python3 /app/api_server.py || {
         log::error "Failed to start FreeCAD container"
         return 1
     }
@@ -175,7 +175,7 @@ freecad::restart() {
 
 # Check if FreeCAD is running
 freecad::is_running() {
-    docker ps --format "table {{.Names}}" | grep -q "^${FREECAD_CONTAINER_NAME}$"
+    docker ps --format "{{.Names}}" | grep -q "^${FREECAD_CONTAINER_NAME}$"
 }
 
 # Health check
@@ -343,10 +343,30 @@ freecad::content::execute() {
     
     log::info "Executing FreeCAD script: $script"
     
-    # Execute Python script in FreeCAD container
-    docker exec "${FREECAD_CONTAINER_NAME}" \
-        timeout "${FREECAD_SCRIPT_TIMEOUT}" \
-        freecadcmd "$script"
+    # Read script content
+    local script_content
+    if [[ -f "$script" ]]; then
+        script_content=$(cat "$script")
+    else
+        # Check in scripts directory
+        if [[ -f "${FREECAD_SCRIPTS_DIR}/${script}" ]]; then
+            script_content=$(cat "${FREECAD_SCRIPTS_DIR}/${script}")
+        else
+            log::error "Script file not found: $script"
+            return 1
+        fi
+    fi
+    
+    # Send script to API for execution
+    local response
+    response=$(curl -sf -X POST "http://localhost:${FREECAD_PORT}/generate" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n --arg script "$script_content" '{script: $script}')" 2>&1) || {
+        log::error "Failed to execute script: $response"
+        return 1
+    }
+    
+    echo "$response" | jq '.'
 }
 
 freecad::content::generate() {
@@ -362,34 +382,49 @@ freecad::content::export() {
         return 1
     fi
     
+    if ! freecad::is_running; then
+        log::error "FreeCAD is not running"
+        return 1
+    fi
+    
     log::info "Exporting $input to $format format"
     
-    # Create export script
-    local export_script="/tmp/export_${RANDOM}.py"
-    cat > "$export_script" <<EOF
-import FreeCAD
-import Part
-
-# Load document
-doc = FreeCAD.open("$input")
-
-# Export based on format
-if "$format" == "STEP":
-    Part.export(doc.Objects, "${input%.FCStd}.step")
-elif "$format" == "IGES":
-    Part.export(doc.Objects, "${input%.FCStd}.iges")
-elif "$format" == "STL":
-    import Mesh
-    Mesh.export(doc.Objects, "${input%.FCStd}.stl")
-else:
-    print(f"Unsupported format: $format")
-EOF
+    # Send export request to API
+    local response
+    response=$(curl -sf -X POST "http://localhost:${FREECAD_PORT}/export" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n --arg input "$input" --arg format "$format" '{input: $input, format: $format}')" 2>&1) || {
+        log::error "Failed to export file: $response"
+        return 1
+    }
     
-    freecad::content::execute "$export_script"
-    rm "$export_script"
+    echo "$response" | jq '.'
 }
 
 freecad::content::analyze() {
-    log::info "FEM analysis functionality not yet implemented"
-    return 2
+    local input="${1:-}"
+    local analysis_type="${2:-properties}"
+    
+    if [[ -z "$input" ]]; then
+        log::error "No input file specified"
+        return 1
+    fi
+    
+    if ! freecad::is_running; then
+        log::error "FreeCAD is not running"
+        return 1
+    fi
+    
+    log::info "Analyzing $input (type: $analysis_type)"
+    
+    # Send analyze request to API
+    local response
+    response=$(curl -sf -X POST "http://localhost:${FREECAD_PORT}/analyze" \
+        -H "Content-Type: application/json" \
+        -d "$(jq -n --arg input "$input" --arg type "$analysis_type" '{input: $input, type: $type}')" 2>&1) || {
+        log::error "Failed to analyze file: $response"
+        return 1
+    }
+    
+    echo "$response" | jq '.'
 }

@@ -7,7 +7,8 @@
 
 # Service Configuration
 export FREECAD_ENABLED="${FREECAD_ENABLED:-true}"
-export FREECAD_IMAGE="${FREECAD_IMAGE:-registry.gitlab.com/daviddaish/freecad_docker_env:latest}"
+# Using the minimal Python image approach for now
+export FREECAD_IMAGE="${FREECAD_IMAGE:-python:3.11-slim}"
 export FREECAD_CONTAINER_NAME="${FREECAD_CONTAINER_NAME:-vrooli-freecad}"
 
 # Port Configuration - MUST use port registry

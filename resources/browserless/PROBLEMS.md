@@ -44,22 +44,22 @@ This document tracks active issues and unresolved problems with the Browserless 
 ### 3. v2.0 Contract Violations (RESOLVED 2025-01-11)
 **Resolution**: Fixed lib/test.sh delegation and added all required CLI commands.
 
+### 4. Browser Pool Pre-warming (RESOLVED 2025-01-15)
+**Resolution**: Implemented comprehensive pre-warming with intelligent idle detection, startup pre-warming, and CLI commands.
+
+### 5. Workflow Result Caching (RESOLVED 2025-01-15)
+**Resolution**: Added full caching system with TTL, automatic cleanup, cache statistics, and cached extraction operations.
+
 ## Future Improvements
 
-### 1. Browser Pool Pre-warming Optimization
-**Priority**: P2  
-**Description**: Implement pre-warming of browser instances to reduce cold start latency.  
-**Benefit**: Faster response times for first requests after idle periods.
+### 1. Enhanced Error Recovery (RESOLVED 2025-01-15)
+**Resolution**: Implemented `pool::health_check_and_recover` function that:
+- Detects unresponsive browser pools
+- Automatically restarts containers with configurable retry attempts
+- Clears stuck sessions when high rejection rates detected
+- Pre-warms pool after recovery for immediate readiness
+- Added CLI command `resource-browserless pool recover` for manual recovery
 
-### 2. Enhanced Error Recovery
-**Priority**: P1  
-**Description**: Add more sophisticated error recovery for browser crashes and network issues.  
-**Benefit**: Better reliability under high load or unstable conditions.
-
-### 3. Workflow Result Caching
-**Priority**: P2  
-**Description**: Cache workflow execution results for improved performance on repeated operations.  
-**Benefit**: Significant performance improvement for repeated automation tasks.
 
 ## Testing Notes
 
@@ -68,8 +68,20 @@ This document tracks active issues and unresolved problems with the Browserless 
 - Performance benchmarks meet targets but could be optimized further
 - Auto-scaling works but needs real-world load testing
 
+## Resolved Problems (January 15, 2025)
+
+### 6. bc Command Dependency (RESOLVED)
+**Resolution**: Replaced all bc command usage with awk for better portability. The pool-manager.sh now uses awk for floating-point arithmetic instead of bc, ensuring it works on systems without bc installed.
+
+### 7. Browser Crash Recovery (RESOLVED)
+**Resolution**: Added automatic browser crash detection and recovery with health monitoring integrated into the auto-scaler loop.
+
 ## Maintenance History
 
+- **2025-01-16**: Fixed pool CLI command dispatcher to properly handle all subcommands (recover, prewarm, smart-prewarm)
+- **2025-01-15 (Session 2)**: Fixed bc dependency, added browser crash recovery, improved error handling
+- **2025-01-15**: Implemented browser pool pre-warming and workflow result caching
+- **2025-01-14**: Fixed shellcheck warnings, enhanced input validation and error handling
 - **2025-01-13**: Added schema.json for v2.0 compliance, created PROBLEMS.md
 - **2025-01-12**: Achieved 100% PRD completion with conditional workflows
 - **2025-01-11**: Fixed v2.0 compliance issues, added session management
@@ -77,5 +89,5 @@ This document tracks active issues and unresolved problems with the Browserless 
 
 ---
 
-**Last Updated**: 2025-01-13  
+**Last Updated**: 2025-01-16  
 **Maintained By**: Ecosystem Manager

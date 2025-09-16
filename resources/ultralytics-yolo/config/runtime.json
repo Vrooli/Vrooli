@@ -1,0 +1,118 @@
+{
+  "startup_order": 500,
+  "startup_time_estimate": "10-30s",
+  "startup_timeout": 60,
+  "shutdown_timeout": 30,
+  "health_check_interval": 30,
+  "health_check_timeout": 5,
+  "recovery_attempts": 3,
+  "priority": "high",
+  "dependencies": [],
+  "optional_dependencies": ["qdrant", "postgres", "minio", "redis"],
+  "resource_requirements": {
+    "cpu": "2 cores minimum, 4+ recommended",
+    "memory": "4GB minimum, 8GB+ recommended",
+    "gpu": "Optional but recommended (CUDA 11.8+)",
+    "disk": "10GB for models and cache"
+  },
+  "performance_metrics": {
+    "startup_time": "15-30 seconds",
+    "response_time_p50": "50ms (GPU), 200ms (CPU)",
+    "response_time_p95": "100ms (GPU), 500ms (CPU)",
+    "throughput": "30+ FPS (GPU), 5+ FPS (CPU)",
+    "concurrent_requests": 10
+  },
+  "lifecycle": {
+    "install": {
+      "steps": [
+        "Pull Docker image with GPU support",
+        "Download default YOLOv8 models",
+        "Initialize model cache directory",
+        "Create integration configurations"
+      ],
+      "estimated_time": "2-5 minutes"
+    },
+    "start": {
+      "steps": [
+        "Check GPU availability",
+        "Start Docker container",
+        "Load default model",
+        "Initialize API server",
+        "Wait for health check"
+      ],
+      "estimated_time": "15-30 seconds"
+    },
+    "stop": {
+      "steps": [
+        "Graceful API shutdown",
+        "Save model cache",
+        "Stop Docker container"
+      ],
+      "estimated_time": "5-10 seconds"
+    },
+    "restart": {
+      "steps": [
+        "Stop service",
+        "Clear stale connections",
+        "Start service"
+      ],
+      "estimated_time": "20-40 seconds"
+    },
+    "uninstall": {
+      "steps": [
+        "Stop service if running",
+        "Remove Docker container",
+        "Clean model cache (optional)",
+        "Remove configurations"
+      ],
+      "estimated_time": "1-2 minutes"
+    }
+  },
+  "health_checks": {
+    "basic": {
+      "endpoint": "/health",
+      "expected_status": 200,
+      "timeout": 5,
+      "interval": 30
+    },
+    "model": {
+      "endpoint": "/models/status",
+      "expected_status": 200,
+      "timeout": 10,
+      "interval": 60
+    },
+    "gpu": {
+      "command": "nvidia-smi",
+      "expected_output": "GPU",
+      "optional": true
+    }
+  },
+  "monitoring": {
+    "metrics": [
+      "inference_count",
+      "inference_time",
+      "model_load_time",
+      "gpu_utilization",
+      "memory_usage",
+      "cache_hit_rate"
+    ],
+    "logs": {
+      "path": "/var/log/yolo",
+      "rotation": "daily",
+      "retention": "7 days"
+    }
+  },
+  "integration_points": {
+    "inbound": [
+      "REST API (port 11455)",
+      "File system (model cache)",
+      "Docker socket"
+    ],
+    "outbound": [
+      "Qdrant (vectors)",
+      "PostgreSQL (metadata)",
+      "MinIO (artifacts)",
+      "Redis (cache)"
+    ]
+  }
+}

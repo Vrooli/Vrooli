@@ -11,9 +11,11 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 CREWAI_ROOT="${APP_ROOT}/resources/crewai"
 
-# Source test library
+# Source dependencies
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
 source "${CREWAI_ROOT}/lib/test.sh"
 
-# Run smoke tests
+# Run smoke tests directly
 crewai::test::smoke

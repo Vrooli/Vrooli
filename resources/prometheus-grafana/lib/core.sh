@@ -157,7 +157,7 @@ uninstall_resource() {
 # Check if services are running
 #######################################
 is_running() {
-    docker ps --format "table {{.Names}}" | grep -q "prometheus-grafana" || return 1
+    docker ps --format "{{.Names}}" | grep -q "prometheus-grafana" || return 1
 }
 
 #######################################
@@ -428,17 +428,16 @@ EOF
 #######################################
 generate_docker_compose() {
     cat > "${RESOURCE_DIR}/docker-compose.yml" << EOF
-version: '3.8'
-
 services:
   prometheus:
     image: prom/prometheus:v${PROMETHEUS_VERSION}
     container_name: prometheus-grafana-prometheus
+    user: "nobody"
     ports:
       - "${PROMETHEUS_PORT}:9090"
     volumes:
-      - ./config/prometheus:/etc/prometheus
-      - ./data/prometheus:/prometheus
+      - ./config/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -449,39 +448,63 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   grafana:
     image: grafana/grafana:${GRAFANA_VERSION}
     container_name: prometheus-grafana-grafana
+    user: "472"
     ports:
       - "${GRAFANA_PORT}:3000"
     volumes:
-      - ./data/grafana:/var/lib/grafana
-      - ./config/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_SERVER_HTTP_PORT=3000
       - GF_AUTH_ANONYMOUS_ENABLED=${GRAFANA_ANONYMOUS_ENABLED}
       - GF_AUTH_BASIC_ENABLED=${GRAFANA_AUTH_BASIC_ENABLED}
+      - GF_PATHS_DATA=/var/lib/grafana
+      - GF_PATHS_LOGS=/var/log/grafana
+      - GF_PATHS_PLUGINS=/var/lib/grafana/plugins
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   alertmanager:
     image: prom/alertmanager:v${ALERTMANAGER_VERSION}
     container_name: prometheus-grafana-alertmanager
+    user: "nobody"
     ports:
       - "${ALERTMANAGER_PORT}:9093"
     volumes:
-      - ./config/alertmanager:/etc/alertmanager
-      - ./data/alertmanager:/alertmanager
+      - ./config/alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   node-exporter:
     image: prom/node-exporter:v${NODE_EXPORTER_VERSION}
@@ -500,10 +523,23 @@ services:
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9100/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 networks:
   monitoring:
     driver: bridge
+
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  alertmanager-data:
+    driver: local
 EOF
 }
 

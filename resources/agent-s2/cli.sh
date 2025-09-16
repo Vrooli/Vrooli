@@ -25,6 +25,12 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/agent-s2/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/agent-s2/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
 source "${AGENT_S2_CLI_DIR}/config/defaults.sh"
 
 # Source agent-s2 libraries
@@ -79,6 +85,17 @@ cli::register_command "logs" "Show Agent-S2 logs" "agents2::docker_logs"
 # ==============================================================================
 cli::register_command "credentials" "Show integration credentials" "agents2_credentials"
 cli::register_command "show-mode" "Show current operation mode" "agents2_show_mode"
+# Create wrapper for agents command that delegates to manager
+agent_s2::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="agent-s2" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f agent_s2::agents::command
+
 cli::register_command "agents" "Manage running agent-s2 agents" "agent_s2::agents::command"
 
 ################################################################################

@@ -291,11 +291,11 @@ autogen_create_agent() {
     
     # Register agent for tracking when creating
     local agent_id
-    agent_id=$(agents::generate_id)
+    agent_id=$(agent_manager::generate_id)
     
-    if command -v agents::register >/dev/null 2>&1; then
+    if command -v agent_manager::register >/dev/null 2>&1; then
         local command_string="resource-autogen-studio create agent ${name}"
-        if agents::register "$agent_id" $$ "$command_string"; then
+        if agent_manager::register "$agent_id" $$ "$command_string"; then
             log::debug "Registered agent creation: $agent_id"
             
             # Set up signal handler for cleanup
@@ -319,8 +319,8 @@ EOF
     log::success "Created agent: ${name}"
     
     # Unregister agent after successful creation
-    if command -v agents::unregister >/dev/null 2>&1; then
-        agents::unregister "$agent_id" 2>/dev/null || true
+    if command -v agent_manager::unregister >/dev/null 2>&1; then
+        agent_manager::unregister "$agent_id" 2>/dev/null || true
     fi
     
     return 0
@@ -438,11 +438,11 @@ EOF
     
     # Register agent for tracking injection process
     local agent_id
-    agent_id=$(agents::generate_id)
+    agent_id=$(agent_manager::generate_id)
     
-    if command -v agents::register >/dev/null 2>&1; then
+    if command -v agent_manager::register >/dev/null 2>&1; then
         local command_string="resource-autogen-studio inject ${file}"
-        if agents::register "$agent_id" $$ "$command_string"; then
+        if agent_manager::register "$agent_id" $$ "$command_string"; then
             log::debug "Registered agent injection: $agent_id"
             
             # Set up signal handler for cleanup
@@ -489,8 +489,8 @@ EOF
         fi
         
         # Unregister agent after successful injection
-        if command -v agents::unregister >/dev/null 2>&1; then
-            agents::unregister "$agent_id" 2>/dev/null || true
+        if command -v agent_manager::unregister >/dev/null 2>&1; then
+            agent_manager::unregister "$agent_id" 2>/dev/null || true
         fi
         
         return 0
@@ -498,8 +498,8 @@ EOF
         log::error "Failed to inject ${type}"
         
         # Unregister agent after failed injection
-        if command -v agents::unregister >/dev/null 2>&1; then
-            agents::unregister "$agent_id" 2>/dev/null || true
+        if command -v agent_manager::unregister >/dev/null 2>&1; then
+            agent_manager::unregister "$agent_id" 2>/dev/null || true
         fi
         
         return 1
@@ -714,12 +714,12 @@ autogen::content::remove() {
 autogen::content::execute() {
     # Business functionality - execute agents/workflows
     local agent_id
-    agent_id=$(agents::generate_id)
+    agent_id=$(agent_manager::generate_id)
     
     # Register agent for tracking
-    if command -v agents::register >/dev/null 2>&1; then
+    if command -v agent_manager::register >/dev/null 2>&1; then
         local command_string="resource-autogen-studio content execute $*"
-        if agents::register "$agent_id" $$ "$command_string"; then
+        if agent_manager::register "$agent_id" $$ "$command_string"; then
             log::debug "Registered agent: $agent_id"
             
             # Set up signal handler for cleanup

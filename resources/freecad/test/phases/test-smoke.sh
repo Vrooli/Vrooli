@@ -27,12 +27,17 @@ freecad::init
 
 log::info "Starting FreeCAD smoke tests..."
 
-# Test 1: Check if FreeCAD is installed
-log::info "Test 1: Checking FreeCAD installation..."
-if docker images | grep -q "${FREECAD_IMAGE%%:*}"; then
-    log::info "✓ FreeCAD image found"
+# Test 1: Check if Docker image is available
+log::info "Test 1: Checking Docker image..."
+# Extract image name and check for both name and tag
+image_name="${FREECAD_IMAGE%:*}"
+image_tag="${FREECAD_IMAGE#*:}"
+if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "${FREECAD_IMAGE}"; then
+    log::info "✓ Docker image found: ${FREECAD_IMAGE}"
+elif docker images --format "{{.Repository}}" | grep -q "${image_name}"; then
+    log::info "✓ Docker image found (different tag): ${image_name}"
 else
-    log::error "✗ FreeCAD image not found"
+    log::error "✗ Docker image not found: ${FREECAD_IMAGE}"
     exit 1
 fi
 
@@ -47,10 +52,18 @@ fi
 
 # Test 3: Health check
 log::info "Test 3: Performing health check..."
-if timeout 5 curl -sf "http://localhost:${FREECAD_PORT}/" &>/dev/null; then
-    log::info "✓ FreeCAD service is responding"
+if timeout 5 curl -sf "http://localhost:${FREECAD_PORT}/health" &>/dev/null; then
+    log::info "✓ FreeCAD health endpoint is responding"
+    # Also verify the health response
+    health_response=$(timeout 5 curl -sf "http://localhost:${FREECAD_PORT}/health")
+    if echo "$health_response" | jq -e '.status == "healthy"' &>/dev/null; then
+        log::info "✓ FreeCAD reports healthy status"
+    else
+        log::error "✗ FreeCAD health status is not healthy"
+        exit 1
+    fi
 else
-    log::error "✗ FreeCAD service is not responding"
+    log::error "✗ FreeCAD health endpoint is not responding"
     exit 1
 fi
 

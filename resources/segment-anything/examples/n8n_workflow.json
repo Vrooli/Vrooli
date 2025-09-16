@@ -1,0 +1,155 @@
+{
+  "name": "Segment Anything Workflow",
+  "description": "Automated image segmentation pipeline using SAM",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "Start",
+      "type": "n8n-nodes-base.start",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "filePath": "/path/to/images/*.jpg",
+        "dataPropertyName": "image"
+      },
+      "id": "read_images",
+      "name": "Read Images",
+      "type": "n8n-nodes-base.readBinaryFiles",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11454/api/v1/segment",
+        "method": "POST",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "auto"
+            },
+            {
+              "name": "format",
+              "value": "coco"
+            }
+          ]
+        },
+        "sendBinaryData": true,
+        "binaryPropertyName": "image",
+        "dataPropertyName": "segmentation"
+      },
+      "id": "segment",
+      "name": "Segment Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process segmentation results\nconst masks = items[0].json.masks || [];\nconst processedMasks = [];\n\nfor (const mask of masks) {\n  processedMasks.push({\n    area: mask.area,\n    confidence: mask.score,\n    bbox: mask.bbox,\n    category: 'object'\n  });\n}\n\nreturn [{json: {masks: processedMasks, count: masks.length}}];"
+      },
+      "id": "process",
+      "name": "Process Masks",
+      "type": "n8n-nodes-base.functionItem",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "bucketName": "segmentation-results",
+        "fileName": "={{$item(0).$node['read_images'].json.fileName}}.json",
+        "binaryData": false,
+        "jsonData": true
+      },
+      "id": "store_minio",
+      "name": "Store in MinIO",
+      "type": "n8n-nodes-base.s3",
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "segmentation_results",
+        "columns": [
+          {
+            "column": "filename",
+            "value": "={{$item(0).$node['read_images'].json.fileName}}"
+          },
+          {
+            "column": "mask_count",
+            "value": "={{$item(0).json.count}}"
+          },
+          {
+            "column": "timestamp",
+            "value": "={{Date.now()}}"
+          },
+          {
+            "column": "metadata",
+            "value": "={{JSON.stringify($item(0).json.masks)}}"
+          }
+        ]
+      },
+      "id": "store_postgres",
+      "name": "Store Metadata",
+      "type": "n8n-nodes-base.postgres",
+      "position": [1050, 400]
+    }
+  ],
+  "connections": {
+    "start": {
+      "main": [
+        [
+          {
+            "node": "read_images",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "read_images": {
+      "main": [
+        [
+          {
+            "node": "segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "segment": {
+      "main": [
+        [
+          {
+            "node": "process",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process": {
+      "main": [
+        [
+          {
+            "node": "store_minio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "store_postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["computer-vision", "segmentation", "sam"],
+  "triggerCount": 0
+}

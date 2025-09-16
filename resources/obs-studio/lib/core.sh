@@ -122,6 +122,17 @@ obs::install() {
     # Check if already installed
     if obs::is_installed; then
         log::info "OBS Studio Controller is already installed"
+        
+        # Ensure Python dependencies are installed for non-mock mode
+        if command -v pip3 &>/dev/null; then
+            log::info "Checking Python dependencies..."
+            if ! python3 -c "import obswebsocket" 2>/dev/null; then
+                log::info "Installing obs-websocket-py..."
+                pip3 install --user obs-websocket-py &>/dev/null || {
+                    log::warning "Could not install obs-websocket-py. Some features may be limited to mock mode."
+                }
+            fi
+        fi
         return 0
     fi
     
@@ -157,6 +168,14 @@ if __name__ == "__main__":
 EOF
     
     chmod +x "$OBS_CONTROLLER_SCRIPT"
+    
+    # Try to install Python dependencies for full functionality
+    if command -v pip3 &>/dev/null; then
+        log::info "Installing Python dependencies..."
+        pip3 install --user obs-websocket-py &>/dev/null || {
+            log::warning "Could not install obs-websocket-py. Some features may be limited to mock mode."
+        }
+    fi
     
     log::success "OBS Studio Controller installed successfully"
     log::info "Note: This is a mock controller for testing. For production use, install OBS with obs-websocket plugin"

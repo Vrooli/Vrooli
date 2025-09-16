@@ -99,6 +99,17 @@ function start_browserless() {
                 pool::start_autoscaler >/dev/null
             fi
             
+            # Pre-warm browser pool if enabled
+            if [[ "${BROWSERLESS_ENABLE_PREWARM:-true}" == "true" ]]; then
+                log::info "Pre-warming browser pool for faster initial response..."
+                # Source pool manager if not already loaded
+                if ! declare -f pool::prewarm >/dev/null 2>&1; then
+                    source "${BROWSERLESS_LIB_DIR}/pool-manager.sh"
+                fi
+                # Pre-warm in background to not delay startup
+                (sleep 5 && pool::prewarm "${BROWSERLESS_PREWARM_COUNT:-2}" >/dev/null 2>&1) &
+            fi
+            
             return 0
         fi
         sleep 2

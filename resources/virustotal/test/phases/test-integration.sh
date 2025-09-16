@@ -31,8 +31,9 @@ fi
 
 # Test 2: File scan endpoint (mock)
 echo -n "2. Testing file scan submission... "
-# Create a test file
-echo "EICAR test string" > /tmp/test_file.txt
+# Create EICAR test file (standard antivirus test signature)
+EICAR_STRING='X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+echo "$EICAR_STRING" > /tmp/test_file.txt
 # Note: File upload requires proper multipart/form-data
 # For now, test that the endpoint exists and responds
 SCAN_RESPONSE=$(curl -sf -X POST "${BASE_URL}/api/scan/file" \
@@ -50,6 +51,32 @@ else
     rm -f /tmp/test_file.txt
     exit 1
 fi
+
+# Test 2a: Archive scan endpoint (if available)
+echo -n "2a. Testing archive scan submission... "
+# Create test archive
+echo "test content 1" > /tmp/test1.txt
+echo "test content 2" > /tmp/test2.txt
+echo "$EICAR_STRING" > /tmp/malicious.txt
+zip -q /tmp/test_archive.zip /tmp/test1.txt /tmp/test2.txt /tmp/malicious.txt
+rm -f /tmp/test1.txt /tmp/test2.txt /tmp/malicious.txt
+
+# Test archive scanning
+ARCHIVE_RESPONSE=$(curl -sf -X POST "${BASE_URL}/api/scan/archive" \
+    -F "file=@/tmp/test_archive.zip" \
+    -F "max_files=5" 2>/dev/null || echo "{}")
+    
+if echo "$ARCHIVE_RESPONSE" | jq -e '.files_scanned' >/dev/null 2>&1; then
+    echo "PASS"
+    FILES_COUNT=$(echo "$ARCHIVE_RESPONSE" | jq -r '.summary.total_scanned // 0')
+    THREATS=$(echo "$ARCHIVE_RESPONSE" | jq -r '.summary.threats_found // 0')
+    echo "   Scanned $FILES_COUNT files, found $THREATS threats"
+elif echo "$ARCHIVE_RESPONSE" | jq -e '.error' >/dev/null 2>&1; then
+    echo "SKIP (archive scanning not available yet)"
+else
+    echo "SKIP (archive endpoint not implemented)"
+fi
+rm -f /tmp/test_archive.zip
 
 # Test 3: URL scan endpoint (mock)
 echo -n "3. Testing URL scan submission... "

@@ -5,7 +5,7 @@
 ### Improvements Implemented
 
 #### 1. Port Configuration Fixed
-- **Issue**: Resource was using hardcoded ports (8000, 8001) instead of registry-allocated ports
+- **Issue**: Resource was using hardcoded ports (8000, 8001) instead of registry-allocated ports, and some references still existed
 - **Solution**: Updated to use port registry values (8002, 8003, 8006)
 - **Files Modified**: `config/defaults.sh`, `config/runtime.json`
 

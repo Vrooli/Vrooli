@@ -316,7 +316,47 @@ haystack::info() {
     fi
 }
 
-# Execute content operations
+# Validate Haystack installation and dependencies
+haystack::validate_installation() {
+    local issues=0
+    
+    # Check virtual environment
+    if [[ ! -d "${HAYSTACK_VENV_DIR}" ]]; then
+        log::error "Virtual environment not found at ${HAYSTACK_VENV_DIR}"
+        log::info "Recovery: Run 'vrooli resource haystack manage install'"
+        ((issues++))
+    fi
+    
+    # Check Python binary
+    if [[ ! -f "${HAYSTACK_VENV_DIR}/bin/python" ]]; then
+        log::error "Python binary not found in virtual environment"
+        log::info "Recovery: Reinstall with 'vrooli resource haystack manage uninstall && vrooli resource haystack manage install'"
+        ((issues++))
+    fi
+    
+    # Check server script
+    if [[ ! -f "${HAYSTACK_SCRIPTS_DIR}/server.py" ]]; then
+        log::error "Server script not found at ${HAYSTACK_SCRIPTS_DIR}/server.py"
+        log::info "Recovery: The server script will be recreated on next start"
+        ((issues++))
+    fi
+    
+    # Check critical Python packages
+    if [[ -f "${HAYSTACK_VENV_DIR}/bin/pip" ]]; then
+        local required_packages=("haystack-ai" "fastapi" "uvicorn" "sentence-transformers")
+        for pkg in "${required_packages[@]}"; do
+            if ! "${HAYSTACK_VENV_DIR}/bin/pip" show "${pkg}" &>/dev/null; then
+                log::warning "Required package '${pkg}' not installed"
+                log::info "Recovery: Run 'vrooli resource haystack manage install' to reinstall dependencies"
+                ((issues++))
+            fi
+        done
+    fi
+    
+    return $issues
+}
+
+# Execute content operations with retry logic
 haystack::content() {
     local action="${1:-list}"
     shift || true
@@ -324,15 +364,32 @@ haystack::content() {
     local port
     port=$(haystack::get_port)
     
+    # Check if service is running first
+    if ! haystack::is_running; then
+        log::error "Haystack service is not running"
+        log::info "Start it with: vrooli resource haystack manage start"
+        return 1
+    fi
+    
     case "${action}" in
         list)
             log::info "Listing indexed documents..."
-            curl -sf "http://localhost:${port}/stats" | jq . 2>/dev/null || echo "Service not running"
+            local retries=3
+            while [[ $retries -gt 0 ]]; do
+                if timeout 10 curl -sf "http://localhost:${port}/stats" | jq . 2>/dev/null; then
+                    return 0
+                fi
+                ((retries--))
+                [[ $retries -gt 0 ]] && sleep 1
+            done
+            log::error "Failed to retrieve document statistics after multiple attempts"
+            return 1
             ;;
         add)
             local file="${1:-}"
             if [[ -z "${file}" ]]; then
                 log::error "File path required"
+                log::info "Usage: vrooli resource haystack content add <file>"
                 return 1
             fi
             
@@ -343,33 +400,66 @@ haystack::content() {
             
             log::info "Indexing file: ${file}"
             
-            # Check file extension
-            if [[ "${file}" == *.json ]]; then
-                # Index as JSON documents
-                curl -X POST "http://localhost:${port}/index" \
-                    -H "Content-Type: application/json" \
-                    -d "@${file}"
-            else
-                # Upload as text file
-                curl -X POST "http://localhost:${port}/upload" \
-                    -F "file=@${file}"
-            fi
+            # Check file extension and add with retry
+            local retries=3
+            while [[ $retries -gt 0 ]]; do
+                local response
+                if [[ "${file}" == *.json ]]; then
+                    # Index as JSON documents
+                    response=$(timeout 30 curl -s -w "\n%{http_code}" -X POST "http://localhost:${port}/index" \
+                        -H "Content-Type: application/json" \
+                        -d "@${file}" 2>/dev/null)
+                else
+                    # Upload as text file
+                    response=$(timeout 30 curl -s -w "\n%{http_code}" -X POST "http://localhost:${port}/upload" \
+                        -F "file=@${file}" 2>/dev/null)
+                fi
+                
+                local http_code="${response##*$'\n'}"
+                local body="${response%$'\n'*}"
+                
+                if [[ "${http_code}" == "200" ]]; then
+                    echo "${body}" | jq . 2>/dev/null || echo "${body}"
+                    return 0
+                fi
+                
+                ((retries--))
+                [[ $retries -gt 0 ]] && sleep 1
+            done
+            log::error "Failed to index file after multiple attempts"
+            return 1
             ;;
         query)
             local query="${1:-}"
             if [[ -z "${query}" ]]; then
                 log::error "Query text required"
+                log::info "Usage: vrooli resource haystack content query <text>"
                 return 1
             fi
             
             log::info "Querying: ${query}"
-            curl -X POST "http://localhost:${port}/query" \
-                -H "Content-Type: application/json" \
-                -d "{\"query\":\"${query}\",\"top_k\":10}" | jq . 2>/dev/null
+            local retries=3
+            while [[ $retries -gt 0 ]]; do
+                if timeout 10 curl -sf -X POST "http://localhost:${port}/query" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"query\":\"${query}\",\"top_k\":10}" | jq . 2>/dev/null; then
+                    return 0
+                fi
+                ((retries--))
+                [[ $retries -gt 0 ]] && sleep 1
+            done
+            log::error "Query failed after multiple attempts"
+            return 1
             ;;
         clear)
             log::info "Clearing all documents..."
-            curl -X DELETE "http://localhost:${port}/clear"
+            if timeout 10 curl -sf -X DELETE "http://localhost:${port}/clear"; then
+                log::success "Documents cleared successfully"
+                return 0
+            else
+                log::error "Failed to clear documents"
+                return 1
+            fi
             ;;
         *)
             log::error "Unknown content action: ${action}"

@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${SQLITE_CLI_DIR}/config/defaults.sh"
 
 # Source SQLite libraries
-for lib in core test; do
+for lib in core test replication; do
     lib_file="${SQLITE_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -47,6 +47,16 @@ cli::init "sqlite" "Lightweight serverless SQL database engine" "v2"
 # Register status and logs as flat commands (required by v2.0 contract)
 cli::register_command "status" "Show resource status" "cli::_handle_status"
 cli::register_command "logs" "Show resource logs" "cli::_handle_logs"
+
+# Register replication group with its subcommands
+cli::register_command_group "replicate" "Database replication management"
+cli::register_subcommand "replicate" "add" "Add a replica target" "handle_replicate_add"
+cli::register_subcommand "replicate" "remove" "Remove a replica" "handle_replicate_remove"
+cli::register_subcommand "replicate" "list" "List configured replicas" "handle_replicate_list"
+cli::register_subcommand "replicate" "sync" "Sync database to replicas" "handle_replicate_sync"
+cli::register_subcommand "replicate" "verify" "Verify replica consistency" "handle_replicate_verify"
+cli::register_subcommand "replicate" "toggle" "Enable/disable a replica" "handle_replicate_toggle"
+cli::register_subcommand "replicate" "monitor" "Start replication monitor" "handle_replicate_monitor"
 
 # Override default handlers to point directly to SQLite implementations
 CLI_COMMAND_HANDLERS["manage::install"]="sqlite::install"
@@ -95,6 +105,184 @@ cli::register_command_group "stats" "Performance monitoring and analysis"
 cli::register_subcommand "stats" "enable" "Enable query statistics" "sqlite::stats::enable"
 cli::register_subcommand "stats" "show" "Show query statistics" "sqlite::stats::show"
 cli::register_subcommand "stats" "analyze" "Analyze database for optimization" "sqlite::stats::analyze"
+
+# Replication command handlers
+handle_replicate_add() {
+    local db_name=""
+    local target=""
+    local interval=60
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --database|-d)
+                db_name="$2"
+                shift 2
+                ;;
+            --target|-t)
+                target="$2"
+                shift 2
+                ;;
+            --interval|-i)
+                interval="$2"
+                shift 2
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$db_name" ]] || [[ -z "$target" ]]; then
+        log::error "Usage: replicate add --database <name> --target <path> [--interval <seconds>]"
+        return 1
+    fi
+    
+    sqlite::replication::add_replica "$db_name" "$target" "$interval"
+}
+
+handle_replicate_remove() {
+    local db_name=""
+    local target=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --database|-d)
+                db_name="$2"
+                shift 2
+                ;;
+            --target|-t)
+                target="$2"
+                shift 2
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$db_name" ]] || [[ -z "$target" ]]; then
+        log::error "Usage: replicate remove --database <name> --target <path>"
+        return 1
+    fi
+    
+    sqlite::replication::remove_replica "$db_name" "$target"
+}
+
+handle_replicate_list() {
+    sqlite::replication::list
+}
+
+handle_replicate_sync() {
+    local db_name=""
+    local force=false
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --database|-d)
+                db_name="$2"
+                shift 2
+                ;;
+            --force|-f)
+                force=true
+                shift
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$db_name" ]]; then
+        log::error "Usage: replicate sync --database <name> [--force]"
+        return 1
+    fi
+    
+    sqlite::replication::sync "$db_name" "$force"
+}
+
+handle_replicate_verify() {
+    local db_name=""
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --database|-d)
+                db_name="$2"
+                shift 2
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$db_name" ]]; then
+        log::error "Usage: replicate verify --database <name>"
+        return 1
+    fi
+    
+    sqlite::replication::verify "$db_name"
+}
+
+handle_replicate_toggle() {
+    local db_name=""
+    local target=""
+    local enabled="true"
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --database|-d)
+                db_name="$2"
+                shift 2
+                ;;
+            --target|-t)
+                target="$2"
+                shift 2
+                ;;
+            --enable)
+                enabled="true"
+                shift
+                ;;
+            --disable)
+                enabled="false"
+                shift
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    if [[ -z "$db_name" ]] || [[ -z "$target" ]]; then
+        log::error "Usage: replicate toggle --database <name> --target <path> [--enable|--disable]"
+        return 1
+    fi
+    
+    sqlite::replication::toggle "$db_name" "$target" "$enabled"
+}
+
+handle_replicate_monitor() {
+    local interval=60
+    
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --interval|-i)
+                interval="$2"
+                shift 2
+                ;;
+            *)
+                log::error "Unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+    
+    sqlite::replication::monitor "$interval"
+}
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

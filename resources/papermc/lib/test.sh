@@ -53,9 +53,9 @@ run_smoke_tests() {
     }
     sleep 2
     
-    # Check health endpoint (just check if port responds)
+    # Check health endpoint
     echo -n "Testing health endpoint... "
-    if timeout 5 curl -sf "http://localhost:${PAPERMC_HEALTH_PORT}/" > /dev/null 2>&1; then
+    if timeout 5 curl -sf "http://localhost:${PAPERMC_HEALTH_PORT}/health" > /dev/null 2>&1; then
         echo "✓ Passed"
     else
         echo "✗ Failed"

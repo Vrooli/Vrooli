@@ -95,7 +95,11 @@ install_resource() {
 FROM python:3.11-slim
 
 # Install vt-cli and dependencies
-RUN pip install --no-cache-dir vt-py flask gunicorn aiohttp requests
+RUN pip install --no-cache-dir vt-py flask gunicorn aiohttp requests redis \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends unzip p7zip-full unrar-free \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
@@ -148,6 +152,14 @@ from werkzeug.utils import secure_filename
 import tempfile
 import base64
 import threading
+import random
+
+# Optional Redis support
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    REDIS_AVAILABLE = False
 
 app = Flask(__name__)
 
@@ -157,12 +169,29 @@ RATE_LIMIT = 4  # requests per minute for free tier
 DAILY_LIMIT = 500  # daily limit for free tier
 CACHE_DIR = os.environ.get('VIRUSTOTAL_CACHE_DIR', '/data/cache')
 DB_PATH = os.path.join(CACHE_DIR, 'virustotal.db')
+USE_REDIS = os.environ.get('VIRUSTOTAL_USE_REDIS', 'false').lower() == 'true'
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_DB = int(os.environ.get('VIRUSTOTAL_REDIS_DB', 0))
+REDIS_KEY_PREFIX = 'virustotal:'
+REDIS_TTL = int(os.environ.get('VIRUSTOTAL_REDIS_TTL', 86400))  # 24 hours
 
 # Rate limiting
 request_times = deque(maxlen=RATE_LIMIT)
 daily_count = 0
 daily_reset = datetime.now().replace(hour=0, minute=0, second=0) + timedelta(days=1)
 rate_lock = Lock()
+
+# Redis connection (if enabled and available)
+redis_client = None
+if USE_REDIS and REDIS_AVAILABLE:
+    try:
+        redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+        redis_client.ping()
+        print(f"Redis cache enabled at {REDIS_HOST}:{REDIS_PORT}")
+    except:
+        redis_client = None
+        print("Redis connection failed, falling back to SQLite cache")
 
 # Initialize cache database
 def init_db():
@@ -293,7 +322,7 @@ rotation_thread = threading.Thread(target=periodic_rotation, daemon=True)
 rotation_thread.start()
 
 def check_rate_limit():
-    """Check if we're within rate limits"""
+    """Check if we're within rate limits with retry information"""
     global daily_count, daily_reset
     
     with rate_lock:
@@ -306,33 +335,87 @@ def check_rate_limit():
         
         # Check daily limit
         if daily_count >= DAILY_LIMIT:
-            return False, "Daily limit exceeded"
+            time_until_reset = (daily_reset - now).total_seconds()
+            return False, f"Daily limit exceeded. Resets in {int(time_until_reset)} seconds", int(time_until_reset)
         
         # Check rate limit (per minute)
         if len(request_times) >= RATE_LIMIT:
             oldest = request_times[0]
             if (now - oldest).seconds < 60:
                 wait_time = 60 - (now - oldest).seconds
-                return False, f"Rate limit exceeded. Wait {wait_time} seconds"
+                return False, f"Rate limit exceeded. Wait {wait_time} seconds", wait_time
         
         # Record this request
         request_times.append(now)
         daily_count += 1
-        return True, None
+        return True, None, 0
+
+def check_rate_limit_with_backoff(max_retries=3):
+    """Check rate limit with exponential backoff retry"""
+    retry_count = 0
+    base_wait = 1  # Start with 1 second
+    
+    while retry_count < max_retries:
+        allowed, msg, wait_time = check_rate_limit()
+        if allowed:
+            return True, None
+        
+        if "Daily limit" in msg:
+            # Don't retry if daily limit is exceeded
+            return False, msg
+        
+        # Exponential backoff with jitter
+        actual_wait = min(wait_time if wait_time > 0 else base_wait * (2 ** retry_count), 300)  # Max 5 min
+        jitter = random.uniform(0, actual_wait * 0.1)  # Add 10% jitter
+        total_wait = actual_wait + jitter
+        
+        print(f"Rate limited. Retry {retry_count + 1}/{max_retries} after {total_wait:.1f}s")
+        time.sleep(total_wait)
+        retry_count += 1
+    
+    return False, f"Rate limit exceeded after {max_retries} retries"
 
 def get_cached_report(hash_value):
-    """Get cached report from database"""
+    """Get cached report from Redis or SQLite database"""
+    # Try Redis first if available
+    if redis_client:
+        try:
+            key = f"{REDIS_KEY_PREFIX}scan:{hash_value}"
+            cached = redis_client.get(key)
+            if cached:
+                return json.loads(cached)
+        except Exception as e:
+            print(f"Redis get error: {e}")
+    
+    # Fallback to SQLite
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute('SELECT report FROM scan_cache WHERE hash = ?', (hash_value,))
     result = cursor.fetchone()
     conn.close()
     if result:
-        return json.loads(result[0])
+        report = json.loads(result[0])
+        # Also cache in Redis if available
+        if redis_client:
+            try:
+                key = f"{REDIS_KEY_PREFIX}scan:{hash_value}"
+                redis_client.setex(key, REDIS_TTL, json.dumps(report))
+            except:
+                pass
+        return report
     return None
 
 def cache_report(hash_value, report):
-    """Cache report in database"""
+    """Cache report in Redis and SQLite database"""
+    # Cache in Redis if available
+    if redis_client:
+        try:
+            key = f"{REDIS_KEY_PREFIX}scan:{hash_value}"
+            redis_client.setex(key, REDIS_TTL, json.dumps(report))
+        except Exception as e:
+            print(f"Redis set error: {e}")
+    
+    # Always cache in SQLite for persistence
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -767,12 +850,24 @@ webhook_thread.start()
 @app.route('/api/health', methods=['GET'])
 def health():
     """Health check endpoint"""
+    redis_status = 'not_configured'
+    if USE_REDIS:
+        if redis_client:
+            try:
+                redis_client.ping()
+                redis_status = 'connected'
+            except:
+                redis_status = 'disconnected'
+        else:
+            redis_status = 'failed'
+    
     status = {
         'status': 'healthy' if API_KEY else 'degraded',
         'api_key_configured': bool(API_KEY),
         'api_key_type': 'premium' if API_KEY and len(API_KEY) > 64 else 'free',
         'daily_remaining': DAILY_LIMIT - daily_count,
         'cache_enabled': os.path.exists(DB_PATH),
+        'redis_cache': redis_status,
         'timestamp': datetime.now().isoformat()
     }
     return jsonify(status), 200 if API_KEY else 503
@@ -783,13 +878,17 @@ def scan_file():
     # Allow mock mode for testing
     if not API_KEY or API_KEY == "test":
         # Run in mock mode but still check rate limits
-        allowed, msg = check_rate_limit()
+        allowed, msg, wait_time = check_rate_limit()
         if not allowed:
-            return jsonify({'error': msg}), 429
+            response = jsonify({'error': msg})
+            response.headers['Retry-After'] = str(wait_time)
+            return response, 429
     else:
-        allowed, msg = check_rate_limit()
+        allowed, msg, wait_time = check_rate_limit()
         if not allowed:
-            return jsonify({'error': msg}), 429
+            response = jsonify({'error': msg})
+            response.headers['Retry-After'] = str(wait_time)
+            return response, 429
     
     # Check if file was uploaded
     if 'file' not in request.files:
@@ -870,13 +969,17 @@ def scan_file_from_url():
     
     # Allow mock mode for testing
     if not API_KEY or API_KEY == "test":
-        allowed, msg = check_rate_limit()
+        allowed, msg, wait_time = check_rate_limit()
         if not allowed:
-            return jsonify({'error': msg}), 429
+            response = jsonify({'error': msg})
+            response.headers['Retry-After'] = str(wait_time)
+            return response, 429
     else:
-        allowed, msg = check_rate_limit()
+        allowed, msg, wait_time = check_rate_limit()
         if not allowed:
-            return jsonify({'error': msg}), 429
+            response = jsonify({'error': msg})
+            response.headers['Retry-After'] = str(wait_time)
+            return response, 429
     
     data = request.get_json()
     if not data or 'url' not in data:
@@ -965,19 +1068,292 @@ def scan_file_from_url():
     except Exception as e:
         return jsonify({'error': f'Error processing file: {str(e)}'}), 500
 
+@app.route('/api/scan/archive', methods=['POST'])
+def scan_archive():
+    """Scan archive file and extract/scan individual files"""
+    import zipfile
+    import tarfile
+    import subprocess
+    import shutil
+    
+    # Check rate limits
+    allowed, msg, wait_time = check_rate_limit()
+    if not allowed:
+        response = jsonify({'error': msg})
+        response.headers['Retry-After'] = str(wait_time)
+        return response, 429
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    extract_all = request.form.get('extract_all', 'false').lower() == 'true'
+    max_files = int(request.form.get('max_files', '10'))  # Limit files to scan
+    webhook = request.form.get('webhook')
+    
+    results = {
+        'archive_name': file.filename,
+        'archive_hash': '',
+        'files_scanned': [],
+        'errors': []
+    }
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as tmp_file:
+        file.save(tmp_file.name)
+        
+        # Calculate archive hash
+        hasher = hashlib.sha256()
+        with open(tmp_file.name, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hasher.update(chunk)
+        results['archive_hash'] = hasher.hexdigest()
+        
+        # Create extraction directory
+        extract_dir = tempfile.mkdtemp()
+        
+        try:
+            # Determine archive type and extract
+            if file.filename.lower().endswith('.zip'):
+                with zipfile.ZipFile(tmp_file.name, 'r') as zf:
+                    # List files in archive
+                    file_list = zf.namelist()
+                    results['total_files'] = len(file_list)
+                    
+                    # Extract and scan files
+                    files_to_scan = file_list[:max_files] if not extract_all else file_list
+                    for member in files_to_scan:
+                        if not member.endswith('/'):  # Skip directories
+                            try:
+                                zf.extract(member, extract_dir)
+                                member_path = os.path.join(extract_dir, member)
+                                
+                                # Calculate hash
+                                member_hasher = hashlib.sha256()
+                                with open(member_path, 'rb') as mf:
+                                    for chunk in iter(lambda: mf.read(4096), b""):
+                                        member_hasher.update(chunk)
+                                member_hash = member_hasher.hexdigest()
+                                
+                                # Check cache or submit for scanning
+                                cached = get_cached_report(member_hash)
+                                if cached:
+                                    results['files_scanned'].append({
+                                        'filename': member,
+                                        'hash': member_hash,
+                                        'cached': True,
+                                        'malicious': cached.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}).get('malicious', 0)
+                                    })
+                                else:
+                                    # Submit for scanning (simplified for brevity)
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    scan_result, scan_error = loop.run_until_complete(scan_file_async(member_path))
+                                    loop.close()
+                                    
+                                    if scan_error:
+                                        results['errors'].append({'file': member, 'error': scan_error})
+                                    else:
+                                        results['files_scanned'].append({
+                                            'filename': member,
+                                            'hash': member_hash,
+                                            'cached': False,
+                                            'analysis_id': scan_result.get('analysis_id', ''),
+                                            'status': scan_result.get('status', 'queued')
+                                        })
+                                
+                            except Exception as e:
+                                results['errors'].append({'file': member, 'error': str(e)})
+            
+            elif file.filename.lower().endswith(('.tar', '.tar.gz', '.tgz', '.tar.bz2')):
+                with tarfile.open(tmp_file.name, 'r:*') as tf:
+                    file_list = tf.getnames()
+                    results['total_files'] = len(file_list)
+                    
+                    files_to_scan = file_list[:max_files] if not extract_all else file_list
+                    for member in files_to_scan:
+                        member_info = tf.getmember(member)
+                        if member_info.isfile():
+                            try:
+                                tf.extract(member, extract_dir)
+                                member_path = os.path.join(extract_dir, member)
+                                
+                                # Similar scanning logic as ZIP
+                                member_hasher = hashlib.sha256()
+                                with open(member_path, 'rb') as mf:
+                                    for chunk in iter(lambda: mf.read(4096), b""):
+                                        member_hasher.update(chunk)
+                                member_hash = member_hasher.hexdigest()
+                                
+                                cached = get_cached_report(member_hash)
+                                if cached:
+                                    results['files_scanned'].append({
+                                        'filename': member,
+                                        'hash': member_hash,
+                                        'cached': True,
+                                        'malicious': cached.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}).get('malicious', 0)
+                                    })
+                                else:
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    scan_result, scan_error = loop.run_until_complete(scan_file_async(member_path))
+                                    loop.close()
+                                    
+                                    if scan_error:
+                                        results['errors'].append({'file': member, 'error': scan_error})
+                                    else:
+                                        results['files_scanned'].append({
+                                            'filename': member,
+                                            'hash': member_hash,
+                                            'cached': False,
+                                            'analysis_id': scan_result.get('analysis_id', ''),
+                                            'status': scan_result.get('status', 'queued')
+                                        })
+                            except Exception as e:
+                                results['errors'].append({'file': member, 'error': str(e)})
+            
+            elif file.filename.lower().endswith('.7z'):
+                # Use 7z command-line tool
+                try:
+                    subprocess.run(['7z', 'x', '-o' + extract_dir, tmp_file.name, '-y'], 
+                                 check=True, capture_output=True, text=True)
+                    
+                    # Scan extracted files
+                    for root, dirs, files in os.walk(extract_dir):
+                        for fname in files[:max_files]:
+                            member_path = os.path.join(root, fname)
+                            rel_path = os.path.relpath(member_path, extract_dir)
+                            
+                            try:
+                                member_hasher = hashlib.sha256()
+                                with open(member_path, 'rb') as mf:
+                                    for chunk in iter(lambda: mf.read(4096), b""):
+                                        member_hasher.update(chunk)
+                                member_hash = member_hasher.hexdigest()
+                                
+                                cached = get_cached_report(member_hash)
+                                if cached:
+                                    results['files_scanned'].append({
+                                        'filename': rel_path,
+                                        'hash': member_hash,
+                                        'cached': True,
+                                        'malicious': cached.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}).get('malicious', 0)
+                                    })
+                                else:
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    scan_result, scan_error = loop.run_until_complete(scan_file_async(member_path))
+                                    loop.close()
+                                    
+                                    if scan_error:
+                                        results['errors'].append({'file': rel_path, 'error': scan_error})
+                                    else:
+                                        results['files_scanned'].append({
+                                            'filename': rel_path,
+                                            'hash': member_hash,
+                                            'cached': False,
+                                            'analysis_id': scan_result.get('analysis_id', ''),
+                                            'status': scan_result.get('status', 'queued')
+                                        })
+                            except Exception as e:
+                                results['errors'].append({'file': rel_path, 'error': str(e)})
+                    
+                    results['total_files'] = len(list(os.walk(extract_dir)))
+                    
+                except subprocess.CalledProcessError as e:
+                    results['errors'].append({'archive': file.filename, 'error': f'7z extraction failed: {e.stderr}'})
+            
+            elif file.filename.lower().endswith('.rar'):
+                # Use unrar command-line tool
+                try:
+                    subprocess.run(['unrar', 'x', '-y', tmp_file.name, extract_dir + '/'], 
+                                 check=True, capture_output=True, text=True)
+                    
+                    # Similar scanning as 7z
+                    for root, dirs, files in os.walk(extract_dir):
+                        for fname in files[:max_files]:
+                            member_path = os.path.join(root, fname)
+                            rel_path = os.path.relpath(member_path, extract_dir)
+                            
+                            try:
+                                member_hasher = hashlib.sha256()
+                                with open(member_path, 'rb') as mf:
+                                    for chunk in iter(lambda: mf.read(4096), b""):
+                                        member_hasher.update(chunk)
+                                member_hash = member_hasher.hexdigest()
+                                
+                                cached = get_cached_report(member_hash)
+                                if cached:
+                                    results['files_scanned'].append({
+                                        'filename': rel_path,
+                                        'hash': member_hash,
+                                        'cached': True,
+                                        'malicious': cached.get('data', {}).get('attributes', {}).get('last_analysis_stats', {}).get('malicious', 0)
+                                    })
+                                else:
+                                    loop = asyncio.new_event_loop()
+                                    asyncio.set_event_loop(loop)
+                                    scan_result, scan_error = loop.run_until_complete(scan_file_async(member_path))
+                                    loop.close()
+                                    
+                                    if scan_error:
+                                        results['errors'].append({'file': rel_path, 'error': scan_error})
+                                    else:
+                                        results['files_scanned'].append({
+                                            'filename': rel_path,
+                                            'hash': member_hash,
+                                            'cached': False,
+                                            'analysis_id': scan_result.get('analysis_id', ''),
+                                            'status': scan_result.get('status', 'queued')
+                                        })
+                            except Exception as e:
+                                results['errors'].append({'file': rel_path, 'error': str(e)})
+                    
+                    results['total_files'] = len(list(os.walk(extract_dir)))
+                    
+                except subprocess.CalledProcessError as e:
+                    results['errors'].append({'archive': file.filename, 'error': f'unrar extraction failed: {e.stderr}'})
+            
+            else:
+                results['errors'].append({'archive': file.filename, 'error': 'Unsupported archive format'})
+            
+        finally:
+            # Cleanup
+            shutil.rmtree(extract_dir, ignore_errors=True)
+            os.unlink(tmp_file.name)
+    
+    # Calculate threat summary
+    results['summary'] = {
+        'total_scanned': len(results['files_scanned']),
+        'total_errors': len(results['errors']),
+        'threats_found': sum(1 for f in results['files_scanned'] if f.get('malicious', 0) > 0)
+    }
+    
+    # Register webhook if provided
+    if webhook:
+        results['webhook_registered'] = True
+    
+    return jsonify(results), 200 if not results['errors'] else 207  # 207 Multi-Status
+
 @app.route('/api/scan/url', methods=['POST'])
 def scan_url():
     """Submit URL for scanning"""
     # Allow mock mode for testing
     if not API_KEY or API_KEY == "test":
         # Run in mock mode but still check rate limits
-        allowed, msg = check_rate_limit()
+        allowed, msg, wait_time = check_rate_limit()
         if not allowed:
-            return jsonify({'error': msg}), 429
+            response = jsonify({'error': msg})
+            response.headers['Retry-After'] = str(wait_time)
+            return response, 429
     else:
-        allowed, msg = check_rate_limit()
+        allowed, msg, wait_time = check_rate_limit()
         if not allowed:
-            return jsonify({'error': msg}), 429
+            response = jsonify({'error': msg})
+            response.headers['Retry-After'] = str(wait_time)
+            return response, 429
     
     data = request.get_json()
     url = data.get('url') if data else None
@@ -1019,9 +1395,11 @@ def get_report(hash_value):
             cached['from_cache'] = True
             return jsonify(cached), 200
     
-    allowed, msg = check_rate_limit()
+    allowed, msg, wait_time = check_rate_limit()
     if not allowed:
-        return jsonify({'error': msg}), 429
+        response = jsonify({'error': msg})
+        response.headers['Retry-After'] = str(wait_time)
+        return response, 429
     
     # Get report from API
     loop = asyncio.new_event_loop()
@@ -1038,9 +1416,11 @@ def get_report(hash_value):
 def get_url_report(url_id):
     """Get URL report by ID or URL"""
     # Allow mock mode for testing
-    allowed, msg = check_rate_limit()
+    allowed, msg, wait_time = check_rate_limit()
     if not allowed:
-        return jsonify({'error': msg}), 429
+        response = jsonify({'error': msg})
+        response.headers['Retry-After'] = str(wait_time)
+        return response, 429
     
     # Get report from API
     loop = asyncio.new_event_loop()
@@ -1360,9 +1740,11 @@ def get_ip_reputation(ip):
         cached['from_cache'] = True
         return jsonify(cached), 200
     
-    allowed, msg = check_rate_limit()
+    allowed, msg, wait_time = check_rate_limit()
     if not allowed:
-        return jsonify({'error': msg}), 429
+        response = jsonify({'error': msg})
+        response.headers['Retry-After'] = str(wait_time)
+        return response, 429
     
     # Get report from API
     loop = asyncio.new_event_loop()
@@ -1393,9 +1775,11 @@ def get_domain_reputation(domain):
         cached['from_cache'] = True
         return jsonify(cached), 200
     
-    allowed, msg = check_rate_limit()
+    allowed, msg, wait_time = check_rate_limit()
     if not allowed:
-        return jsonify({'error': msg}), 429
+        response = jsonify({'error': msg})
+        response.headers['Retry-After'] = str(wait_time)
+        return response, 429
     
     # Get report from API
     loop = asyncio.new_event_loop()
@@ -1497,7 +1881,13 @@ start_resource() {
         --restart unless-stopped \
         -p "${VIRUSTOTAL_PORT}:8290" \
         -e "VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}" \
+        -e "VIRUSTOTAL_USE_REDIS=${VIRUSTOTAL_USE_REDIS:-false}" \
+        -e "REDIS_HOST=${REDIS_HOST:-localhost}" \
+        -e "REDIS_PORT=${REDIS_PORT:-6379}" \
+        -e "REDIS_DB=${REDIS_DB:-0}" \
+        -e "VIRUSTOTAL_REDIS_TTL=${VIRUSTOTAL_REDIS_TTL:-86400}" \
         -v "${VIRUSTOTAL_DATA_DIR}:/data" \
+        --network host \
         "${IMAGE_NAME}"
     
     # Wait for health check

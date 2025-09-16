@@ -36,9 +36,9 @@ Step-CA provides a modern, open-source private certificate authority (CA) that e
   
 - **Should Have (P1)**
   - [ ] HSM/KMS integration for secure key storage
-  - [ ] Certificate revocation and CRL management (partially documented)
+  - [x] Certificate revocation and CRL management ✅ Implemented with revoke, CRL, and status check commands
   - [x] Multiple database backends (Badger, BoltDB, PostgreSQL) ✅ PostgreSQL fully integrated
-  - [ ] Custom certificate templates and profiles
+  - [x] Custom certificate templates and profiles ✅ Template system implemented with pre-defined profiles
   - [x] Audit logging for all certificate operations (basic implementation)
   
 - **Nice to Have (P2)**
@@ -704,9 +704,28 @@ release_management:
 - ACME protocol more accessible with dedicated command group
 - Clear documentation for ACME client integration (certbot, acme.sh, lego, Caddy)
 
+### 2025-09-16 P1 Requirements Enhancement
+**Progress**: P1 Requirements 60% → 80% Complete
+- ✅ Implemented certificate revocation commands (revoke, CRL generation, status check)
+- ✅ Added certificate template management system with pre-defined profiles
+- ✅ Created web-server, client-auth, code-signing, and email certificate templates
+- ✅ Templates support custom durations and key usage specifications
+- ✅ All tests passing, no regressions introduced
+
+**New Commands Added**:
+- `resource-step-ca revoke --serial <number>` - Revoke certificates
+- `resource-step-ca crl` - Generate Certificate Revocation List
+- `resource-step-ca check-revocation <serial>` - Check revocation status
+- `resource-step-ca template add` - Add certificate templates
+- `resource-step-ca template list` - List available templates
+- `resource-step-ca template remove` - Remove templates
+
+**Remaining P1 Work**:
+- HSM/KMS integration for production key storage (requires external HSM/KMS setup)
+
 ---
 
-**Last Updated**: 2025-09-15  
-**Status**: Complete (100% P0 Complete - Verified, P1 Enhanced)  
+**Last Updated**: 2025-09-16  
+**Status**: Complete (100% P0 Complete, 80% P1 Complete)  
 **Owner**: Ecosystem Manager  
 **Review Cycle**: Monthly

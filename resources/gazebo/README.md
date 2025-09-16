@@ -2,6 +2,8 @@
 
 Gazebo (formerly Ignition) is a modern open-source 3D robotics simulator with advanced physics engines, sensor simulation, and robot modeling capabilities. This resource enables safe virtual testing of robot behaviors, autonomous systems, and control algorithms before real-world deployment.
 
+> **Current Status**: Minimal implementation with health check endpoint and v2.0 contract compliance. Full physics engine integration pending.
+
 ## Quick Start
 
 ```bash
@@ -23,13 +25,19 @@ vrooli resource gazebo manage stop
 
 ## Features
 
-### Core Capabilities
-- **3D Physics Simulation**: High-fidelity physics with DART, Bullet, and ODE engines
-- **Robot Modeling**: Support for URDF and SDF robot descriptions
-- **Sensor Simulation**: Cameras, LiDAR, IMU, GPS, and more
-- **Python API**: Full Python bindings with 256K token context for AI agents
-- **Headless Operation**: Run simulations without GUI for CI/CD
-- **Distributed Simulation**: TCP/IP transport for multi-machine setups
+### Currently Implemented
+- ✅ **v2.0 Contract Compliance**: All required CLI commands working
+- ✅ **Health Check Endpoint**: HTTP endpoint at port 11456
+- ✅ **Lifecycle Management**: Install, start, stop, restart commands
+- ✅ **Basic Testing**: Smoke, unit, and integration tests
+- ✅ **Configuration Management**: Runtime and defaults configuration
+
+### Planned Features (Not Yet Implemented)
+- ⏳ **3D Physics Simulation**: DART, Bullet, and ODE engines
+- ⏳ **Robot Modeling**: URDF and SDF robot descriptions
+- ⏳ **Sensor Simulation**: Cameras, LiDAR, IMU, GPS
+- ⏳ **Python API**: Full bindings for simulation control
+- ⏳ **Distributed Simulation**: Multi-machine support
 
 ### Simulation Features
 - **Real-time Factor Control**: Speed up or slow down simulations

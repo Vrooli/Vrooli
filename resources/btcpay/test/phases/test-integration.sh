@@ -160,9 +160,57 @@ test_data_persistence() {
 }
 
 # Main test execution
+test_crowdfunding() {
+    log::info "Testing: Crowdfunding functionality..."
+    
+    # Create a test campaign
+    local output=$(resource-btcpay crowdfunding create "Test Campaign" 5 BTC "Test Description" 2>/dev/null)
+    if [[ "$output" =~ "Campaign created" ]]; then
+        log::success "Crowdfunding campaign creation works"
+        
+        # Test listing campaigns
+        output=$(resource-btcpay crowdfunding list 2>/dev/null)
+        if [[ "$output" =~ "Test Campaign" ]]; then
+            log::success "Campaign listing works"
+        else
+            log::error "Campaign listing failed"
+            return 1
+        fi
+    else
+        log::error "Crowdfunding campaign creation failed"
+        return 1
+    fi
+    
+    return 0
+}
+
+test_payment_buttons() {
+    log::info "Testing: Payment button functionality..."
+    
+    # Create a test button
+    local output=$(resource-btcpay paybutton create 0.01 BTC "Test Payment" "Pay" 2>/dev/null)
+    if [[ "$output" =~ "Payment button created" ]]; then
+        log::success "Payment button creation works"
+        
+        # Test listing buttons
+        output=$(resource-btcpay paybutton list 2>/dev/null)
+        if [[ "$output" =~ "Test Payment" ]]; then
+            log::success "Button listing works"
+        else
+            log::error "Button listing failed"
+            return 1
+        fi
+    else
+        log::error "Payment button creation failed"
+        return 1
+    fi
+    
+    return 0
+}
+
 main() {
     local failed=0
-    local total=8
+    local total=10
     
     log::info "========================================="
     log::info "BTCPay Integration Tests"
@@ -177,6 +225,8 @@ main() {
     test_resource_usage || ((failed++))
     test_configuration || ((failed++))
     test_data_persistence || ((failed++))
+    test_crowdfunding || ((failed++))
+    test_payment_buttons || ((failed++))
     
     # Report results
     log::info "========================================="

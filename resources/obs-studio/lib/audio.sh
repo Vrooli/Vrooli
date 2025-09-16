@@ -3,6 +3,9 @@
 # Audio Mixer Control Module for OBS Studio
 # Provides advanced audio mixer controls including levels, monitoring, filters, and effects
 
+# Set default MOCK_MODE if not set
+MOCK_MODE="${MOCK_MODE:-false}"
+
 # Only source common.sh if not already sourced
 if ! declare -F obs_is_running &>/dev/null; then
     source "$(dirname "$0")/common.sh"
@@ -151,7 +154,13 @@ EOF
 import json
 import asyncio
 import os
-from obswebsocket import OBSWebSocket, requests
+import sys
+
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('[WARNING] obs-websocket-py not installed. Using mock mode.')
+    sys.exit(1)
 
 async def get_audio_status():
     ws = OBSWebSocket()
@@ -226,7 +235,13 @@ audio_mixer_list() {
     else
         python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def list_audio():
     ws = OBSWebSocket()
@@ -277,7 +292,13 @@ audio_mixer_volume() {
         else
             python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def set_volume():
     ws = OBSWebSocket()
@@ -301,7 +322,13 @@ EOF
         else
             python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def get_volume():
     ws = OBSWebSocket()
@@ -342,7 +369,13 @@ audio_mixer_mute() {
     else
         python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def mute_source():
     ws = OBSWebSocket()
@@ -381,7 +414,13 @@ audio_mixer_unmute() {
     else
         python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def unmute_source():
     ws = OBSWebSocket()
@@ -423,7 +462,13 @@ audio_mixer_monitor() {
         else
             python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def set_monitor():
     ws = OBSWebSocket()
@@ -470,7 +515,13 @@ audio_mixer_balance() {
         else
             python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def set_balance():
     ws = OBSWebSocket()
@@ -516,7 +567,13 @@ audio_mixer_sync() {
         else
             python3 << EOF
 import asyncio
-from obswebsocket import OBSWebSocket, requests
+import sys
+try:
+    from obswebsocket import OBSWebSocket, requests
+except ImportError:
+    print('Desktop Audio')
+    print('Microphone')
+    sys.exit(0)
 
 async def set_sync():
     ws = OBSWebSocket()

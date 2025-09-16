@@ -52,7 +52,7 @@ echo ""
 echo "3. Process Status Tests"
 if command -v docker &>/dev/null; then
     assert "Docker container running" \
-        "docker ps --format '{{.Names}}' | grep -q 'splink'"
+        "docker ps --format '{{.Names}}' | grep -q 'vrooli-splink'"
 else
     assert "Splink process running" \
         "pgrep -f 'splink|uvicorn.*8096' &>/dev/null"

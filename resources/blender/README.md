@@ -32,6 +32,12 @@ vrooli resource blender test physics
 # Validate physics accuracy
 vrooli resource blender test validation
 
+# Run performance benchmark
+vrooli resource blender test benchmark         # All benchmarks
+vrooli resource blender test benchmark rigid   # Rigid body only
+vrooli resource blender test benchmark soft    # Soft body only
+vrooli resource blender test benchmark cache   # Cache performance
+
 # Inject a Python script
 vrooli resource blender content add my_script.py
 
@@ -74,6 +80,34 @@ Automate animation creation for explainer videos or presentations.
 
 ### 7. CAD Integration
 Import CAD models (via OpenSCAD integration) and create photorealistic renders.
+
+## Performance Benchmarking
+
+The Blender resource includes comprehensive physics benchmarking capabilities to measure and optimize simulation performance:
+
+### Benchmark Types
+- **Rigid Body**: Tests collision dynamics with 100+ objects
+- **Soft Body**: Tests deformable object simulation
+- **Cache Performance**: Tests physics cache read/write speeds
+
+### Usage
+```bash
+# Run full benchmark suite
+vrooli resource blender test benchmark
+
+# Run specific benchmark
+vrooli resource blender test benchmark rigid
+
+# Compare against baseline
+vrooli resource blender test benchmark
+# Save as baseline for future comparisons
+cp /tmp/blender_physics_benchmark.json /tmp/blender_physics_baseline.json
+```
+
+### Performance Targets
+- Rigid body: 1000 objects @ 30fps (GPU-optimized)
+- Soft body: 500 vertices @ 20fps
+- Cache streaming: <2s for 100 frame bake
 
 ## Physics Examples
 

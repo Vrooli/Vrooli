@@ -218,6 +218,8 @@ For existing message queue users:
 - **2025-01-10**: Prioritized v2.0 contract compliance over features
 - **2025-01-10**: Validated all P0 requirements - resource is fully functional
 - **2025-01-10**: Achieved 100% P0 completion with passing tests
+- **2025-01-16**: Fixed port conflict detection using bash built-in instead of lsof (no sudo required)
+- **2025-01-16**: Updated docker stop command to use --timeout instead of deprecated --time flag
 
 ## References
 - [Apache Kafka Documentation](https://kafka.apache.org/documentation/)

@@ -33,7 +33,7 @@ fi
 
 # Test 3: Health check
 echo -n "  Checking API health... "
-if timeout 5 curl -sf "http://localhost:${AIRBYTE_SERVER_PORT:-8001}/api/v1/health" > /dev/null 2>&1; then
+if timeout 5 curl -sf "http://localhost:${AIRBYTE_SERVER_PORT:-8003}/api/v1/health" > /dev/null 2>&1; then
     echo "OK"
 else
     echo "FAILED"
@@ -43,7 +43,7 @@ fi
 
 # Test 4: Webapp accessibility
 echo -n "  Checking webapp accessibility... "
-if timeout 5 curl -sf "http://localhost:${AIRBYTE_WEBAPP_PORT:-8000}" > /dev/null 2>&1; then
+if timeout 5 curl -sf "http://localhost:${AIRBYTE_WEBAPP_PORT:-8002}" > /dev/null 2>&1; then
     echo "OK"
 else
     echo "WARNING"

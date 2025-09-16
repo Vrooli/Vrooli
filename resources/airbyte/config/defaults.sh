@@ -2,7 +2,7 @@
 # Airbyte Default Configuration
 
 # Version
-export AIRBYTE_VERSION="${AIRBYTE_VERSION:-0.50.0}"
+export AIRBYTE_VERSION="${AIRBYTE_VERSION:-latest}"
 
 # Load ports from registry
 PORT_REGISTRY="${VROOLI_ROOT:-${HOME}/Vrooli}/scripts/resources/port_registry.sh"

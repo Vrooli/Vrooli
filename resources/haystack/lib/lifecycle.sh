@@ -33,6 +33,13 @@ haystack::start() {
         haystack::install || return 1
     fi
     
+    # Validate installation integrity
+    if ! haystack::validate_installation; then
+        log::warning "Installation validation found issues - attempting to fix"
+        # Try to reinstall if validation fails
+        haystack::install || return 1
+    fi
+    
     local port
     port=$(haystack::get_port)
     

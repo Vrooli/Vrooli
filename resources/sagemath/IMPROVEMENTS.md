@@ -1,5 +1,44 @@
 # SageMath Resource Improvements
 
+## Date: 2025-09-16
+## Improver Task: resource-improver-20250912-003003
+
+### Port Registry Integration
+Successfully integrated SageMath with the centralized port registry for better port management.
+
+**Problem**: SageMath was using hardcoded ports (8888, 8889) instead of the centralized port registry, which could lead to port conflicts and maintenance issues.
+
+**Solution**: 
+- Added sagemath ports to scripts/resources/port_registry.sh
+- Updated config/defaults.sh to source port registry and use centralized port management
+- Maintained backward compatibility with fallback values
+
+**Validation**:
+```bash
+# Resource still works after port registry integration
+vrooli resource sagemath status  # ✅ Shows healthy status
+vrooli resource sagemath test smoke  # ✅ All tests pass
+```
+
+### Command Group CLI Fixes
+Successfully fixed all command groups (export, gpu, cache, parallel, plot) that were showing help instead of executing subcommands.
+
+**Problem**: Command groups were registered as regular commands instead of command groups, causing the CLI framework to show help text instead of dispatching to subcommands.
+
+**Solution**: Changed registration from `cli::register_command` to `cli::register_command_group` for all command groups, and removed unnecessary handler functions that only showed help.
+
+**Validation**:
+```bash
+# All command groups now work properly
+vrooli resource sagemath export latex "sin(x)"  # ✅ Works
+vrooli resource sagemath gpu check              # ✅ Works
+vrooli resource sagemath cache stats            # ✅ Works
+vrooli resource sagemath parallel status        # ✅ Works
+vrooli resource sagemath plot 2d "sin(x)" -5 5  # ✅ Works
+```
+
+---
+
 ## Date: 2025-09-15
 ## Improver Task: resource-improver-20250912-003003
 

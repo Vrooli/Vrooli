@@ -169,6 +169,11 @@ Keycloak enables secure multi-tenant SaaS applications worth $50K+ by providing:
   - Enhanced error handling for Python HTTP server startup
   - All Let's Encrypt commands now accessible via CLI (init/request/renew/auto-renew/status/revoke/test)
   - ACME challenge test verified working (port 8081)
+- 2025-09-16: CLI Credentials Command Fixed
+  - Fixed missing credentials command by adding test.sh to CLI library loading
+  - Credentials command now properly displays admin login information
+  - All tests continue to pass with 100% success rate
+  - Verified all security features (TLS, MFA, Password Policy) working correctly
 
 ## Next Steps
 1. Add automated end-to-end testing for social providers

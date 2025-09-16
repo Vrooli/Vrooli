@@ -31,6 +31,8 @@ OBS Studio enables automated content production through:
 - **VNC/NoVNC Access**: Remote control via VNC or web browser
 - **Advanced Audio Mixer**: Full control over audio levels, filters, monitoring, ducking, compression, and EQ
 - **Transition Effects**: Complete transition management including fade, swipe, stinger, and custom transitions
+- **Dependency Management**: Automatic installation of Python dependencies with graceful fallback
+- **Enhanced Error Handling**: Improved resilience when dependencies are missing
 
 ## Use Cases
 

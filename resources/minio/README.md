@@ -235,6 +235,54 @@ resource-minio performance benchmark 100 5  # 100MB file, 5 iterations
 - Monitor with `performance monitor` to identify bottlenecks
 - Run benchmarks after configuration changes
 
+## Replication
+
+MinIO supports multi-instance data replication for high availability and disaster recovery:
+
+### Replication Types
+
+| Type | Description | Use Case |
+|------|-------------|----------|
+| **Active-Active** | Bi-directional sync between instances | Load balancing, HA |
+| **Active-Passive** | One-way sync to backup instance | Disaster recovery |
+
+### Setup
+
+```bash
+# Configure replication to remote MinIO
+resource-minio replication setup http://remote-minio:9000 access_key secret_key active-active
+
+# Check status
+resource-minio replication status
+
+# Manual sync (if needed)
+resource-minio replication sync both  # or push/pull
+```
+
+### Operations
+
+```bash
+# Enable/disable replication
+resource-minio replication enable
+resource-minio replication disable
+
+# Monitor replication lag
+resource-minio replication monitor
+
+# Failover management (active-passive only)
+resource-minio replication failover status
+resource-minio replication failover promote  # Make local primary
+resource-minio replication failover demote   # Make local secondary
+
+# Remove replication
+resource-minio replication cleanup
+```
+
+### Requirements
+- Both MinIO instances must be reachable
+- Versioning is automatically enabled (required for replication)
+- Same bucket names on both instances
+
 ## Security Features
 
 - **Secure Credentials**: Auto-generated secure passwords on first install

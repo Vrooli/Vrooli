@@ -1,0 +1,139 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Apache Superset Configuration Schema",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Main web UI port",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8088
+    },
+    "admin_username": {
+      "type": "string",
+      "description": "Admin user username",
+      "minLength": 3,
+      "default": "admin"
+    },
+    "admin_password": {
+      "type": "string",
+      "description": "Admin user password",
+      "minLength": 8,
+      "default": "admin"
+    },
+    "secret_key": {
+      "type": "string",
+      "description": "Secret key for session encryption",
+      "minLength": 32
+    },
+    "database_connections": {
+      "type": "array",
+      "description": "Pre-configured database connections",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Connection name"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["postgresql", "mysql", "questdb", "minio", "presto", "clickhouse"],
+            "description": "Database type"
+          },
+          "host": {
+            "type": "string",
+            "description": "Database host"
+          },
+          "port": {
+            "type": "integer",
+            "description": "Database port"
+          },
+          "database": {
+            "type": "string",
+            "description": "Database name"
+          },
+          "username": {
+            "type": "string",
+            "description": "Database username"
+          },
+          "password": {
+            "type": "string",
+            "description": "Database password"
+          }
+        },
+        "required": ["name", "type", "host", "port"]
+      }
+    },
+    "redis": {
+      "type": "object",
+      "description": "Redis cache configuration",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "localhost"
+        },
+        "port": {
+          "type": "integer",
+          "default": 6381
+        }
+      }
+    },
+    "celery": {
+      "type": "object",
+      "description": "Celery worker configuration",
+      "properties": {
+        "workers": {
+          "type": "integer",
+          "description": "Number of worker processes",
+          "minimum": 1,
+          "default": 4
+        },
+        "worker_timeout": {
+          "type": "integer",
+          "description": "Worker timeout in seconds",
+          "default": 120
+        }
+      }
+    },
+    "row_limits": {
+      "type": "object",
+      "description": "Query row limit configuration",
+      "properties": {
+        "sql_lab": {
+          "type": "integer",
+          "description": "Max rows for SQL Lab queries",
+          "default": 100000
+        },
+        "visualization": {
+          "type": "integer",
+          "description": "Max rows for visualizations",
+          "default": 10000
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "enable_proxy_fix": {
+          "type": "boolean",
+          "description": "Enable proxy headers for HTTPS",
+          "default": false
+        },
+        "enable_cors": {
+          "type": "boolean",
+          "description": "Enable CORS for embedding",
+          "default": true
+        },
+        "session_lifetime": {
+          "type": "integer",
+          "description": "Session lifetime in seconds",
+          "default": 86400
+        }
+      }
+    }
+  },
+  "required": ["port", "admin_username", "admin_password"]
+}

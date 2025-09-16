@@ -173,23 +173,51 @@ resource-step-ca content execute list-provisioners
 
 ## Advanced Usage
 
-### Custom Certificate Templates
-Create custom certificate templates for specific use cases:
+### Certificate Templates
+Step-CA supports custom certificate templates for different use cases:
+
 ```bash
-# Add custom template
-docker exec vrooli-step-ca step ca provisioner add \
-  --type JWK \
-  --name custom \
-  --x509-template custom.tpl
+# List available templates
+resource-step-ca template list
+
+# Add pre-defined template
+resource-step-ca template add --name web-server --duration 90d
+
+# Add client authentication template
+resource-step-ca template add --name client-auth --duration 30d --max-duration 90d
+
+# Remove a template
+resource-step-ca template remove web-server
+
+# Use template when issuing certificate
+resource-step-ca content add --cn service.local --template web-server
 ```
 
-### Certificate Revocation
-```bash
-# Revoke a certificate
-resource-step-ca content remove --cn service.local
+Pre-defined templates available:
+- `web-server` - TLS server authentication
+- `client-auth` - Client authentication  
+- `code-signing` - Code signing certificates
+- `email` - S/MIME email certificates
 
-# Generate CRL
-resource-step-ca content execute generate-crl
+### Certificate Revocation
+Manage certificate revocation with built-in commands:
+
+```bash
+# Revoke a certificate by serial number
+resource-step-ca revoke --serial 123456789 --reason keyCompromise
+
+# Generate Certificate Revocation List
+resource-step-ca crl
+
+# Check if a certificate is revoked
+resource-step-ca check-revocation 123456789
+
+# Revocation reasons supported:
+# - unspecified (default)
+# - keyCompromise
+# - affiliationChanged
+# - superseded
+# - cessationOfOperation
 ```
 
 ### Multi-Provisioner Setup

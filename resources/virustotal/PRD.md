@@ -24,8 +24,9 @@
 
 ## P2 Requirements (Nice to Have)
 - [ ] **YARA Rules**: Custom YARA rule creation and deployment for advanced threat hunting (premium)
-- [ ] **Historical Analysis**: Track threat evolution and first-seen dates for indicators
+- [x] **Historical Analysis**: Track threat evolution and first-seen dates for indicators (Implemented 2025-09-16)
 - [x] **Export Formats**: Generate reports in multiple formats (JSON, CSV implemented; PDF not needed) for compliance
+- [x] **Archive Scanning**: Extract and scan individual files from ZIP, RAR, TAR, and 7z archives
 
 ## Technical Specifications
 
@@ -53,7 +54,11 @@ GET  /api/reputation/domain/{d}     # Domain reputation check
 GET  /api/health                    # Service health and quota status
 GET  /api/stats                     # Usage statistics and cache metrics
 GET  /api/cache/info                # Cache rotation and size information
-GET  /api/threat-feed/export        # Export threat intelligence feed
+GET  /api/threat-feed/export        # Export threat intelligence feed  
+POST /api/scan/archive              # Scan archive files (ZIP, RAR, 7z, TAR)
+GET  /api/history/{type}/{value}    # Get historical data for specific indicator
+GET  /api/history/recent            # Get recent historical analysis data
+GET  /api/history/evolution/{type}/{value}  # Track threat evolution over time
 ```
 
 ### CLI Commands
@@ -227,3 +232,33 @@ resource-virustotal content get --hash $alert_hash --format json | \
   - Implemented threat intelligence feed export (/api/threat-feed/export) with JSON, CSV, and IOC formats
   - Enhanced integration capabilities for cloud storage and SIEM systems
   - All tests passing, no regressions introduced
+- 2025-09-16: Archive scanning and testing enhancements:
+  - Added archive scanning endpoint (/api/scan/archive) supporting ZIP, RAR, 7z, TAR formats
+  - Implemented EICAR test file detection for better mock mode testing
+  - Updated Docker image to include archive extraction tools (unzip, p7zip-full, unrar-free)
+  - Enhanced integration tests with archive scanning validation
+  - All tests passing, resource healthy and operational
+- 2025-09-16: Rate limiting and caching enhancements:
+  - Implemented Retry-After headers in all 429 responses (verified working)
+  - Added exponential backoff helper function for client-side retries
+  - Implemented Redis cache backend support with automatic failover to SQLite
+  - Dual-cache strategy working (Redis primary, SQLite fallback)
+  - Added redis-py to Docker image dependencies
+  - Health endpoint now reports Redis cache status
+  - All tests passing, resource healthy and operational
+- 2025-09-16 (Update): Redis connectivity fix:
+  - Fixed Docker environment variable passing for Redis configuration
+  - Added --network host to container for proper Redis access
+  - Updated default Redis port to 6380 (Vrooli's Redis resource port)
+  - Redis cache now successfully connecting and operational
+  - Health endpoint correctly reports "redis_cache": "connected"
+  - All tests passing with Redis integration working
+- 2025-09-16 (P2 Enhancement): Historical Analysis Implementation:
+  - Added historical_analysis database table to track threat evolution
+  - Implemented automatic historical tracking for all scanned indicators
+  - Added /api/history/{type}/{value} endpoint for specific indicator history
+  - Added /api/history/recent endpoint for recent analysis data
+  - Added /api/history/evolution/{type}/{value} for threat evolution tracking
+  - Historical data automatically populated when caching scan results
+  - Tracks first_seen, last_seen, times_seen, and detection trends
+  - P2 requirement "Historical Analysis" now fully implemented

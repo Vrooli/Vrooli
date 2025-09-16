@@ -5,13 +5,17 @@ Self-hosted, open-source cryptocurrency payment processor that allows businesses
 ## Features
 
 - Accept Bitcoin and altcoin payments
+- Multi-currency support (BTC, LTC, ETH)
 - No transaction fees (only network fees)
 - Direct, peer-to-peer payments
 - Full control of private keys
 - Privacy-focused design
 - Lightning Network support
 - Multi-store management
-- Point of Sale applications
+- Complete Point of Sale system with inventory management
+- HTML-based POS terminal for retail
+- Crowdfunding campaign management
+- Embeddable payment buttons
 
 ## Quick Start
 
@@ -126,6 +130,69 @@ When opening channels, you can connect to these well-known nodes:
 - **ACINQ**: `03864ef025fde8fb587d989186ce6a4a186895ee44a926bfc370e2c366597a3f8f`
 - **Bitrefill**: `030c3f19d742ca294a55c00376b3b355c3c90d61c6b6b39554dbc7ac19b141c14f`
 
+## Multi-Currency Support
+
+### Configure Multiple Cryptocurrencies
+
+```bash
+# Configure multi-currency support
+vrooli resource btcpay multicurrency configure btc,ltc,eth
+
+# Enable a specific currency
+vrooli resource btcpay multicurrency enable LTC
+
+# Disable a currency
+vrooli resource btcpay multicurrency disable ETH
+
+# List configured currencies
+vrooli resource btcpay multicurrency list
+
+# Apply configuration (restart with new settings)
+vrooli resource btcpay multicurrency apply
+```
+
+## Point of Sale System
+
+### Configure POS
+
+```bash
+# Set up POS system
+vrooli resource btcpay pos configure "My Store" BTC
+
+# Check POS status
+vrooli resource btcpay pos status
+```
+
+### Manage Inventory
+
+```bash
+# Add items to inventory
+vrooli resource btcpay pos add-item "Coffee" 5.99 USD "Fresh roasted coffee"
+vrooli resource btcpay pos add-item "Sandwich" 8.99 USD "Turkey club sandwich"
+
+# List all items
+vrooli resource btcpay pos list-items
+
+# Update item price
+vrooli resource btcpay pos update-item <item_id> price 6.99
+
+# Remove item
+vrooli resource btcpay pos remove-item <item_id>
+
+# Import items from CSV
+vrooli resource btcpay pos import items.csv
+```
+
+### Generate POS Terminal
+
+```bash
+# Generate HTML-based POS terminal
+vrooli resource btcpay pos generate
+
+# Terminal will be available at:
+# /home/user/Vrooli/data/resources/btcpay/config/pos-terminal.html
+```
+
 ## Configuration
 
 BTCPay Server uses environment variables for configuration:
@@ -135,6 +202,59 @@ BTCPay Server uses environment variables for configuration:
 - `BTCPAY_POSTGRES_USER`: Database username
 - `BTCPAY_POSTGRES_PASSWORD`: Database password
 - `BTCPAY_POSTGRES_DB`: Database name
+
+## Crowdfunding Campaigns
+
+### Creating a Campaign
+
+```bash
+# Create a crowdfunding campaign
+vrooli resource btcpay crowdfunding create \
+  "Bitcoin Education Fund" 10 BTC \
+  "Support open-source Bitcoin education" \
+  "2025-12-31"
+
+# List all campaigns
+vrooli resource btcpay crowdfunding list
+
+# Check campaign status
+vrooli resource btcpay crowdfunding status <campaign-id>
+
+# Record contribution
+vrooli resource btcpay crowdfunding contribute \
+  <campaign-id> 0.5 "John Doe" "Great cause!"
+
+# Generate embeddable widget
+vrooli resource btcpay crowdfunding widget <campaign-id>
+
+# Export campaign data
+vrooli resource btcpay crowdfunding export <campaign-id> csv
+```
+
+## Payment Buttons
+
+### Creating Payment Buttons
+
+```bash
+# Create a payment button
+vrooli resource btcpay paybutton create \
+  0.001 BTC "Coffee Donation" "Buy me a coffee"
+
+# List all buttons
+vrooli resource btcpay paybutton list
+
+# Get embed code
+vrooli resource btcpay paybutton get-code <button-id> iframe
+
+# View button statistics
+vrooli resource btcpay paybutton stats <button-id>
+
+# Generate custom styles
+vrooli resource btcpay paybutton generate-styles rounded
+
+# Bulk create from CSV
+vrooli resource btcpay paybutton bulk-create buttons.csv
+```
 
 ## Testing
 

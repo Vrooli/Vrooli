@@ -73,6 +73,22 @@ main() {
         enable-postgres)
             enable_postgres_backend "$@"
             ;;
+            
+        # Certificate Revocation Commands
+        revoke)
+            revoke_certificate "$@"
+            ;;
+        crl|generate-crl)
+            generate_crl "$@"
+            ;;
+        check-revocation)
+            check_revocation_status "$@"
+            ;;
+            
+        # Certificate Template Commands
+        template|templates)
+            handle_template "$@"
+            ;;
         migrate-to-postgres)
             migrate_to_postgres "$@"
             ;;
@@ -107,9 +123,15 @@ show_help() {
     content              📄 Certificate management
     database             🗄️  Database backend management
     manage               ⚙️  Resource lifecycle management
+    template             📋 Certificate template management
     test                 🧪 Testing and validation
 
     💡 Use 'resource-$RESOURCE_NAME <group> --help' for subcommands
+
+🔐 REVOCATION COMMANDS:
+    revoke               Revoke a certificate by serial number
+    crl                  Generate Certificate Revocation List
+    check-revocation     Check if a certificate is revoked
 
 ℹ️  INFORMATION COMMANDS:
     credentials          Show CA connection details

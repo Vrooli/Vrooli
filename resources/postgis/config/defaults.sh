@@ -9,7 +9,7 @@ export POSTGIS_RESOURCE_VERSION="3.4"
 
 # PostgreSQL connection (inherits from postgres resource)
 export POSTGIS_PG_HOST="${POSTGRES_HOST:-localhost}"
-export POSTGIS_PG_PORT="${POSTGRES_PORT:-5433}"
+export POSTGIS_PG_PORT="${POSTGIS_PORT:-5434}"
 export POSTGIS_PG_USER="${POSTGRES_USER:-vrooli}"
 export POSTGIS_PG_PASSWORD="${POSTGRES_PASSWORD:-vrooli}"
 export POSTGIS_PG_DATABASE="${POSTGRES_DATABASE:-vrooli}"

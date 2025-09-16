@@ -1,0 +1,30 @@
+{
+  "startup_order": 520,
+  "dependencies": [],
+  "optional_dependencies": ["minio", "qdrant", "questdb", "postgres"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-45s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "resource_limits": {
+    "memory": "4GB",
+    "cpu": "4 cores"
+  },
+  "capabilities": [
+    "cfd_simulation",
+    "mesh_processing",
+    "adjoint_optimization",
+    "multi_physics",
+    "mpi_parallel",
+    "telemetry_export"
+  ],
+  "integration_points": [
+    "openrocket",
+    "blender",
+    "gazebo",
+    "openmct",
+    "questdb",
+    "qdrant",
+    "minio"
+  ]
+}

@@ -1,0 +1,23 @@
+FROM python:3.9-slim
+
+# Install minimal dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies for API server
+RUN pip install flask requests numpy
+
+# Create workspace structure
+WORKDIR /workspace
+RUN mkdir -p /workspace/cases /workspace/meshes /workspace/results /workspace/examples
+
+# Copy API server
+COPY lib/api_server.py /workspace/
+COPY examples/ /workspace/examples/
+
+# Expose API port
+EXPOSE 8192
+
+# Default command to run API server
+CMD ["python", "/workspace/api_server.py"]

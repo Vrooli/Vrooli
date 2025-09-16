@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${BLENDER_CLI_DIR}/config/defaults.sh"
 
 # Source Blender libraries
-for lib in core docker status inject test; do
+for lib in core docker status inject test physics_benchmark; do
     lib_file="${BLENDER_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -84,6 +84,7 @@ cli::register_subcommand "content" "export-all" "Export all output files" "blend
 cli::register_subcommand "test" "render" "Test rendering capability" "blender::test"
 cli::register_subcommand "test" "physics" "Test physics simulation" "blender::test::physics"
 cli::register_subcommand "test" "validation" "Validate physics accuracy" "blender::test::validation"
+cli::register_subcommand "test" "benchmark" "Run physics performance benchmark" "blender::physics::benchmark"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

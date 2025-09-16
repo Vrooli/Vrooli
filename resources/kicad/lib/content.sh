@@ -208,10 +208,17 @@ kicad::export::project() {
     fi
     
     kicad::init_dirs
-    local project_path="${KICAD_PROJECTS_DIR}/${project}"
     
-    if [[ ! -d "$project_path" ]]; then
+    # Handle both project names and paths
+    local project_path=""
+    if [[ -d "${KICAD_PROJECTS_DIR}/${project}" ]]; then
+        project_path="${KICAD_PROJECTS_DIR}/${project}"
+    elif [[ -d "$project" ]]; then
+        project_path="$project"
+    else
         echo "Error: Project not found: $project"
+        echo "Available projects:"
+        kicad::content::list_projects | grep -E "^  -" || echo "  None"
         return 1
     fi
     
@@ -222,20 +229,43 @@ kicad::export::project() {
     
     # Use kicad-cli if available, otherwise use mock
     if command -v kicad-cli &>/dev/null; then
+        # Find actual PCB and schematic files
+        local pcb_file=$(find "$project_path" -name "*.kicad_pcb" 2>/dev/null | head -1)
+        local sch_file=$(find "$project_path" -name "*.kicad_sch" 2>/dev/null | head -1)
+        
+        if [[ -z "$pcb_file" ]] && [[ "$format" != "pdf" ]]; then
+            echo "Error: No PCB file found in project: $project"
+            return 1
+        fi
+        
         case "$format" in
             gerber)
-                kicad-cli pcb export gerber "$project_path"/*.kicad_pcb -o "$output_dir"
+                kicad-cli pcb export gerber "$pcb_file" -o "$output_dir" 2>/dev/null || {
+                    echo "Warning: Gerber export failed"
+                    return 1
+                }
                 ;;
             pdf)
-                kicad-cli pcb export pdf "$project_path"/*.kicad_pcb -o "$output_dir/board.pdf"
-                kicad-cli sch export pdf "$project_path"/*.kicad_sch -o "$output_dir/schematic.pdf"
+                if [[ -n "$pcb_file" ]]; then
+                    kicad-cli pcb export pdf "$pcb_file" -o "$output_dir/board.pdf" 2>/dev/null || echo "Warning: PCB PDF export failed"
+                fi
+                if [[ -n "$sch_file" ]]; then
+                    kicad-cli sch export pdf "$sch_file" -o "$output_dir/schematic.pdf" 2>/dev/null || echo "Warning: Schematic PDF export failed"
+                fi
                 ;;
             svg)
-                kicad-cli pcb export svg "$project_path"/*.kicad_pcb -o "$output_dir"
-                kicad-cli sch export svg "$project_path"/*.kicad_sch -o "$output_dir"
+                if [[ -n "$pcb_file" ]]; then
+                    kicad-cli pcb export svg "$pcb_file" -o "$output_dir" 2>/dev/null || echo "Warning: PCB SVG export failed"
+                fi
+                if [[ -n "$sch_file" ]]; then
+                    kicad-cli sch export svg "$sch_file" -o "$output_dir" 2>/dev/null || echo "Warning: Schematic SVG export failed"
+                fi
                 ;;
             step)
-                kicad-cli pcb export step "$project_path"/*.kicad_pcb -o "$output_dir/board.step"
+                kicad-cli pcb export step "$pcb_file" -o "$output_dir/board.step" 2>/dev/null || {
+                    echo "Warning: STEP export failed"
+                    return 1
+                }
                 ;;
             *)
                 echo "Unknown format: $format"

@@ -1,0 +1,96 @@
+{
+  "startup_order": 750,
+  "dependencies": [],
+  "optional_dependencies": ["postgis", "minio", "questdb", "keycloak"],
+  "startup_timeout": 120,
+  "startup_time_estimate": "60-120s",
+  "shutdown_timeout": 30,
+  "health_check_interval": 10,
+  "health_check_timeout": 5,
+  "health_check_retries": 12,
+  "recovery_attempts": 3,
+  "recovery_delay": 10,
+  "priority": "high",
+  "resource_requirements": {
+    "cpu": "2 cores recommended",
+    "memory": "4GB minimum, 8GB recommended",
+    "storage": "10GB minimum for data"
+  },
+  "networking": {
+    "ports": [
+      {
+        "name": "django",
+        "port": "${GEONODE_PORT}",
+        "protocol": "tcp",
+        "description": "Django web portal and API"
+      },
+      {
+        "name": "geoserver",
+        "port": "${GEONODE_GEOSERVER_PORT}",
+        "protocol": "tcp",
+        "description": "GeoServer map services"
+      }
+    ],
+    "internal_ports": [
+      {
+        "name": "postgres",
+        "port": 5432,
+        "description": "Internal PostGIS database"
+      },
+      {
+        "name": "redis",
+        "port": 6379,
+        "description": "Internal Redis cache"
+      }
+    ]
+  },
+  "capabilities": {
+    "supports_clustering": true,
+    "supports_backup": true,
+    "supports_metrics": true,
+    "supports_scaling": true,
+    "supports_multi_tenancy": true
+  },
+  "integration_points": [
+    {
+      "resource": "postgis",
+      "type": "database",
+      "description": "Spatial database backend",
+      "optional": true
+    },
+    {
+      "resource": "minio",
+      "type": "storage",
+      "description": "Object storage for rasters",
+      "optional": true
+    },
+    {
+      "resource": "questdb",
+      "type": "timeseries",
+      "description": "Timeseries data overlays",
+      "optional": true
+    },
+    {
+      "resource": "keycloak",
+      "type": "auth",
+      "description": "Single sign-on provider",
+      "optional": true
+    }
+  ],
+  "lifecycle_hooks": {
+    "pre_start": [],
+    "post_start": [
+      "wait_for_health",
+      "initialize_admin_user"
+    ],
+    "pre_stop": [
+      "backup_layers"
+    ],
+    "post_stop": []
+  },
+  "monitoring": {
+    "metrics_endpoint": "/metrics",
+    "health_endpoint": "/health",
+    "readiness_endpoint": "/ready"
+  }
+}

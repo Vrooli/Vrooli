@@ -157,7 +157,7 @@ stop_kafka() {
     fi
     
     # Graceful shutdown
-    docker stop --time="$KAFKA_SHUTDOWN_TIMEOUT" "$KAFKA_CONTAINER_NAME" || return 1
+    docker stop --timeout="$KAFKA_SHUTDOWN_TIMEOUT" "$KAFKA_CONTAINER_NAME" || return 1
     docker rm "$KAFKA_CONTAINER_NAME" >/dev/null 2>&1
     
     echo "Kafka stopped successfully"

@@ -114,10 +114,51 @@ Create a simple browser extension that:
 
 ### What Needs Work
 - ⚠️ Direct browser access without hosts file modification
-- ⚠️ Full API authentication flow testing
+- ⚠️ Full API authentication flow testing  
 - ⚠️ Web UI module loading
-- ⚠️ Workflow engine implementation
-- ⚠️ Report generation
+- ❌ Workflow engine implementation - CLI exists but API calls fail
+- ❌ Report generation - CLI exists but API calls fail
+- ❌ E-commerce module - CLI exists but API calls fail
+- ❌ Manufacturing module - CLI exists but API calls fail  
+- ❌ Multi-tenant management - CLI exists but API calls fail
+- ❌ Mobile UI configuration - CLI exists but API calls fail
+- ❌ Core ERP modules (Accounting, HR, CRM) - Not exposed via API
+
+## 6. Module API Integration Failures
+
+### Problem
+Most module CLI commands (workflow, reporting, e-commerce, manufacturing, multi-tenant) fail to retrieve data from ERPNext. Commands are registered but API calls timeout or return empty responses.
+
+### Root Cause
+- ERPNext Frappe framework API methods may not be exposed or require different authentication
+- The `frappe.desk.query_builder.run` method doesn't respond to requests
+- Missing proper API endpoint configurations for modules
+- Possible version mismatch between API implementation and ERPNext version
+
+### Impact
+- P1 and P2 requirements appear complete but are actually non-functional
+- Only basic authentication and content management work
+- Core ERP functionality not accessible via CLI
+
+### Investigation Findings
+```bash
+# Authentication works
+curl -X POST -H "Host: vrooli.local" http://localhost:8020/api/method/login
+
+# Basic ping works
+curl -H "Host: vrooli.local" http://localhost:8020/api/method/frappe.ping
+
+# Module queries fail (timeout or empty)
+curl -H "Host: vrooli.local" -H "Cookie: sid=SESSION" \
+  "http://localhost:8020/api/method/frappe.desk.query_builder.run" \
+  -d "doctype=Workflow"  # Times out
+```
+
+### Recommended Fix
+1. Research correct ERPNext v15 API endpoints for each module
+2. Update API helper functions to use proper endpoints
+3. Implement data retrieval using REST API instead of method calls
+4. Add comprehensive error handling and logging
 
 ## Recommended Development Approach
 

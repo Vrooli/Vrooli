@@ -33,6 +33,15 @@ export VIRUSTOTAL_AUTO_RETRY="${VIRUSTOTAL_AUTO_RETRY:-true}"
 export VIRUSTOTAL_MAX_RETRIES="${VIRUSTOTAL_MAX_RETRIES:-3}"
 export VIRUSTOTAL_RETRY_DELAY="${VIRUSTOTAL_RETRY_DELAY:-60}"  # seconds
 
+# Redis cache configuration (optional)
+export VIRUSTOTAL_USE_REDIS="${VIRUSTOTAL_USE_REDIS:-false}"
+export VIRUSTOTAL_REDIS_DB="${VIRUSTOTAL_REDIS_DB:-0}"
+export VIRUSTOTAL_REDIS_TTL="${VIRUSTOTAL_REDIS_TTL:-86400}"  # 24 hours
+# Redis connection details (shared with other resources)
+# Note: Vrooli's Redis resource uses port 6380 by default
+export REDIS_HOST="${REDIS_HOST:-localhost}"
+export REDIS_PORT="${REDIS_PORT:-6380}"
+
 # Scan configuration
 export VIRUSTOTAL_MAX_FILE_SIZE="${VIRUSTOTAL_MAX_FILE_SIZE:-650000000}"  # 650MB for premium, 32MB for free
 export VIRUSTOTAL_SCAN_TIMEOUT="${VIRUSTOTAL_SCAN_TIMEOUT:-300}"  # 5 minutes

@@ -1,0 +1,99 @@
+{
+  "type": "object",
+  "title": "OpenRocket Configuration Schema",
+  "description": "Configuration schema for OpenRocket Launch Vehicle Design Studio",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "API server port",
+      "default": 9513,
+      "minimum": 1024,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "description": "API server host",
+      "default": "0.0.0.0"
+    },
+    "dataDir": {
+      "type": "string",
+      "description": "Base data directory",
+      "default": "~/.openrocket"
+    },
+    "simulation": {
+      "type": "object",
+      "description": "Simulation parameters",
+      "properties": {
+        "maxAltitude": {
+          "type": "integer",
+          "description": "Maximum simulation altitude in meters",
+          "default": 10000,
+          "minimum": 100,
+          "maximum": 100000
+        },
+        "timeStep": {
+          "type": "number",
+          "description": "Simulation time step in seconds",
+          "default": 0.01,
+          "minimum": 0.001,
+          "maximum": 1.0
+        },
+        "windSpeed": {
+          "type": "number",
+          "description": "Default wind speed in m/s",
+          "default": 5,
+          "minimum": 0,
+          "maximum": 50
+        }
+      }
+    },
+    "integrations": {
+      "type": "object",
+      "description": "Integration settings",
+      "properties": {
+        "minio": {
+          "type": "boolean",
+          "description": "Enable MinIO storage for designs and results",
+          "default": true
+        },
+        "postgres": {
+          "type": "boolean",
+          "description": "Enable PostgreSQL for metadata storage",
+          "default": true
+        },
+        "questdb": {
+          "type": "boolean",
+          "description": "Enable QuestDB for telemetry time series",
+          "default": false
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance settings",
+      "properties": {
+        "maxConcurrentSimulations": {
+          "type": "integer",
+          "description": "Maximum concurrent simulations",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 16
+        },
+        "memoryLimit": {
+          "type": "string",
+          "description": "Container memory limit",
+          "default": "2G",
+          "pattern": "^[0-9]+(M|G)$"
+        },
+        "cpuLimit": {
+          "type": "integer",
+          "description": "Container CPU limit (cores)",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 8
+        }
+      }
+    }
+  },
+  "required": ["port", "dataDir"]
+}

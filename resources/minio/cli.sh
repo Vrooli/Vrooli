@@ -36,7 +36,7 @@ source "${MINIO_CLI_DIR}/config/defaults.sh"
 minio::export_config 2>/dev/null || true
 
 # Source MinIO libraries
-for lib in common docker install status api buckets inject core backup performance; do
+for lib in common docker install status api buckets inject core backup performance replication; do
     lib_file="${MINIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -98,6 +98,17 @@ cli::register_command_group "performance" "Performance tuning and monitoring"
 cli::register_subcommand "performance" "profile" "Apply performance profile (minimal/balanced/performance)" "minio::performance::profile_handler" "modifies-system"
 cli::register_subcommand "performance" "monitor" "Show performance metrics" "minio::performance::monitor"
 cli::register_subcommand "performance" "benchmark" "Run performance benchmark" "minio::performance::benchmark_handler"
+
+# Replication commands for multi-instance data synchronization
+cli::register_command_group "replication" "Multi-instance data replication"
+cli::register_subcommand "replication" "setup" "Configure replication to remote MinIO" "minio::replication::setup_handler" "modifies-system"
+cli::register_subcommand "replication" "status" "Show replication status" "minio::replication::status"
+cli::register_subcommand "replication" "enable" "Enable replication" "minio::replication::enable" "modifies-system"
+cli::register_subcommand "replication" "disable" "Disable replication" "minio::replication::disable" "modifies-system"
+cli::register_subcommand "replication" "sync" "Manual data synchronization" "minio::replication::sync_handler" "modifies-system"
+cli::register_subcommand "replication" "monitor" "Monitor replication metrics" "minio::replication::monitor_handler"
+cli::register_subcommand "replication" "failover" "Manage failover scenarios" "minio::replication::failover_handler" "modifies-system"
+cli::register_subcommand "replication" "cleanup" "Remove replication configuration" "minio::replication::cleanup" "modifies-system"
 
 # ==============================================================================
 # CONTENT COMMAND IMPLEMENTATIONS
@@ -586,6 +597,85 @@ minio::performance::benchmark_handler() {
     fi
     
     minio::performance::benchmark "$size" "$iterations"
+}
+
+# ==============================================================================
+# REPLICATION COMMAND HANDLERS
+# ==============================================================================
+minio::replication::setup_handler() {
+    local remote_url="${1:-}"
+    local access_key="${2:-}"
+    local secret_key="${3:-}"
+    local replication_type="${4:-active-active}"
+    
+    if [[ -z "$remote_url" || -z "$access_key" || -z "$secret_key" ]]; then
+        log::error "Missing required parameters"
+        echo "Usage: resource-minio replication setup <remote_url> <access_key> <secret_key> [type]"
+        echo ""
+        echo "Parameters:"
+        echo "  remote_url   - URL of remote MinIO instance (e.g., http://remote-minio:9000)"
+        echo "  access_key   - Access key for remote MinIO"
+        echo "  secret_key   - Secret key for remote MinIO"
+        echo "  type        - Replication type: active-active (default) or active-passive"
+        echo ""
+        echo "Examples:"
+        echo "  resource-minio replication setup http://192.168.1.100:9000 minioadmin minioadmin123"
+        echo "  resource-minio replication setup http://backup-minio:9000 admin secret active-passive"
+        return 1
+    fi
+    
+    minio::replication::setup "$remote_url" "$access_key" "$secret_key" "$replication_type"
+}
+
+minio::replication::sync_handler() {
+    local direction="${1:-both}"
+    
+    case "$direction" in
+        push|pull|both)
+            minio::replication::sync "$direction"
+            ;;
+        *)
+            log::error "Invalid sync direction: $direction"
+            echo "Usage: resource-minio replication sync [push|pull|both]"
+            echo ""
+            echo "Directions:"
+            echo "  push  - Sync from local to remote"
+            echo "  pull  - Sync from remote to local"
+            echo "  both  - Bi-directional sync (default)"
+            return 1
+            ;;
+    esac
+}
+
+minio::replication::monitor_handler() {
+    local interval="${1:-5}"
+    
+    if ! [[ "$interval" =~ ^[0-9]+$ ]]; then
+        log::error "Invalid interval: $interval (must be a number in seconds)"
+        return 1
+    fi
+    
+    minio::replication::monitor "$interval"
+}
+
+minio::replication::failover_handler() {
+    local action="${1:-status}"
+    
+    case "$action" in
+        status|promote|demote)
+            minio::replication::failover "$action"
+            ;;
+        *)
+            log::error "Invalid failover action: $action"
+            echo "Usage: resource-minio replication failover [status|promote|demote]"
+            echo ""
+            echo "Actions:"
+            echo "  status  - Show current failover status (default)"
+            echo "  promote - Promote local instance to primary"
+            echo "  demote  - Demote local instance from primary"
+            return 1
+            ;;
+    esac
 }
 
 # Only execute if script is run directly (not sourced)

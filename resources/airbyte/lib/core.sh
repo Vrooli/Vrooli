@@ -158,23 +158,7 @@ services:
       timeout: 10s
       retries: 5
 
-  airbyte-scheduler:
-    image: airbyte/scheduler:${AIRBYTE_VERSION}
-    container_name: airbyte-scheduler
-    environment:
-      DATABASE_URL: postgresql://airbyte:airbyte@airbyte-db:5432/airbyte
-      TEMPORAL_HOST: airbyte-temporal:7233
-      WORKSPACE_ROOT: /workspace
-      LOCAL_ROOT: /local
-      TRACKING_STRATEGY: segment
-      AIRBYTE_VERSION: ${AIRBYTE_VERSION}
-    volumes:
-      - ${DATA_DIR}/workspace:/workspace
-      - ${DATA_DIR}/local-logs:/local
-    networks:
-      - airbyte
-    depends_on:
-      - airbyte-server
+  # Note: scheduler component is integrated into server in v1.x
 
   airbyte-worker:
     image: airbyte/worker:${AIRBYTE_VERSION}
@@ -309,7 +293,7 @@ check_health() {
     
     # Check critical services if verbose
     if [[ "$verbose" == "true" ]]; then
-        local services=("server" "worker" "scheduler" "temporal" "db")
+        local services=("server" "worker" "temporal" "db")
         local failed=0
         
         for service in "${services[@]}"; do
@@ -736,7 +720,7 @@ cmd_status() {
         local services_running=0
         local services_total=6
         
-        for service in webapp server worker scheduler temporal db; do
+        for service in webapp server worker temporal db; do
             container_name="airbyte-${service}"
             if [[ "$service" == "db" ]]; then
                 container_name="airbyte-db"
@@ -797,7 +781,7 @@ show_sync_status() {
 status_json() {
     local services_status="{}"
     
-    for service in webapp server worker scheduler temporal db; do
+    for service in webapp server worker temporal db; do
         container_name="airbyte-${service}"
         if [[ "$service" == "db" ]]; then
             container_name="airbyte-db"

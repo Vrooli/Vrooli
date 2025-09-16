@@ -135,7 +135,7 @@ autogpt_run_agent() {
     
     # Register agent for tracking
     local agent_id
-    agent_id=$(agents::generate_id)
+    agent_id=$(agent_manager::generate_id)
     local command="autogpt_run_agent $agent_name"
     
     # Start agent in background and get PID
@@ -153,7 +153,7 @@ autogpt_run_agent() {
     local agent_pid=$!
     
     # Register the agent
-    if agents::register "$agent_id" "$agent_pid" "$command"; then
+    if agent_manager::register "$agent_id" "$agent_pid" "$command"; then
         echo "[INFO]    Agent registered: $agent_id (PID: $agent_pid)"
     else
         echo "[WARN]    Failed to register agent in tracking system"
@@ -164,7 +164,7 @@ autogpt_run_agent() {
     local exit_code=$?
     
     # Clean up agent from registry
-    agents::unregister "$agent_id" 2>/dev/null || true
+    agent_manager::unregister "$agent_id" 2>/dev/null || true
     
     return $exit_code
 }

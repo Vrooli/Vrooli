@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Mifos Resource Configuration Schema",
+  "description": "Configuration schema for the Mifos X digital finance platform resource",
+  "type": "object",
+  "properties": {
+    "port": {
+      "type": "integer",
+      "description": "Primary service port for Mifos X",
+      "minimum": 1024,
+      "maximum": 65535,
+      "default": 8030
+    },
+    "host": {
+      "type": "string",
+      "description": "Host address for Mifos X",
+      "default": "localhost"
+    },
+    "database": {
+      "type": "object",
+      "description": "Database configuration",
+      "properties": {
+        "host": {
+          "type": "string",
+          "default": "postgres"
+        },
+        "port": {
+          "type": "integer",
+          "default": 5433
+        },
+        "name": {
+          "type": "string",
+          "default": "fineract"
+        },
+        "user": {
+          "type": "string",
+          "default": "fineract"
+        },
+        "password": {
+          "type": "string",
+          "default": "fineract_password"
+        }
+      }
+    },
+    "api": {
+      "type": "object",
+      "description": "API configuration",
+      "properties": {
+        "version": {
+          "type": "string",
+          "enum": ["v1", "v2"],
+          "default": "v1"
+        },
+        "defaultUser": {
+          "type": "string",
+          "default": "mifos"
+        },
+        "defaultPassword": {
+          "type": "string",
+          "default": "password"
+        },
+        "tenant": {
+          "type": "string",
+          "default": "default"
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature toggles",
+      "properties": {
+        "seedDemoData": {
+          "type": "boolean",
+          "description": "Seed demo financial products and clients",
+          "default": true
+        },
+        "multiCurrency": {
+          "type": "boolean",
+          "description": "Enable multi-currency support",
+          "default": true
+        },
+        "twoFactorAuth": {
+          "type": "boolean",
+          "description": "Enable two-factor authentication",
+          "default": false
+        },
+        "sslEnabled": {
+          "type": "boolean",
+          "description": "Enable SSL/TLS",
+          "default": false
+        }
+      }
+    },
+    "demo": {
+      "type": "object",
+      "description": "Demo data configuration",
+      "properties": {
+        "clientsCount": {
+          "type": "integer",
+          "description": "Number of demo clients to create",
+          "minimum": 0,
+          "maximum": 100,
+          "default": 10
+        },
+        "loansCount": {
+          "type": "integer",
+          "description": "Number of demo loans to create",
+          "minimum": 0,
+          "maximum": 50,
+          "default": 5
+        },
+        "currencies": {
+          "type": "array",
+          "description": "Supported currencies",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "default": ["USD", "EUR", "GBP"]
+        },
+        "baseCurrency": {
+          "type": "string",
+          "description": "Base currency",
+          "pattern": "^[A-Z]{3}$",
+          "default": "USD"
+        }
+      }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance tuning",
+      "properties": {
+        "maxConnections": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 1000,
+          "default": 100
+        },
+        "connectionTimeout": {
+          "type": "integer",
+          "description": "Connection timeout in seconds",
+          "minimum": 5,
+          "maximum": 300,
+          "default": 30
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARN", "ERROR"],
+          "default": "INFO"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"],
+          "default": "json"
+        }
+      }
+    }
+  },
+  "required": ["port"],
+  "additionalProperties": false
+}

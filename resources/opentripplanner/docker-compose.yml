@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  opentripplanner:
+    image: opentripplanner/opentripplanner:latest-jvm17
+    container_name: vrooli-opentripplanner
+    ports:
+      - "${OTP_PORT:-8080}:8080"
+    environment:
+      - JAVA_OPTS=-Xmx${OTP_HEAP_SIZE:-2G} -XX:+UseG1GC
+    volumes:
+      - ${OTP_DATA_DIR:-~/.vrooli/opentripplanner/data}:/var/opentripplanner
+      - ${OTP_CACHE_DIR:-~/.vrooli/opentripplanner/cache}:/var/cache/otp
+      - ./config/router-config.json:/var/opentripplanner/router-config.json:ro
+    command: --load --serve
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/otp"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    restart: unless-stopped
+    networks:
+      - vrooli-network
+
+networks:
+  vrooli-network:
+    external: true
+    name: vrooli-network
