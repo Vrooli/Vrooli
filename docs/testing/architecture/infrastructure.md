@@ -1,10 +1,10 @@
 # Testing Infrastructure
 
-> **Prerequisites**: See [Prerequisites Guide](./getting-started/prerequisites.md) for required tools installation.
+> **Prerequisites**: See [Prerequisites Guide](../../devops/getting-started/prerequisites.md) for required tools installation.
 
 This guide covers Vrooli's comprehensive testing infrastructure, including shell script testing with BATS, stubbing mechanisms, and testing workflows across different environments.
 
-> **Note**: For broader development setup, see [Development Environment](./development-environment.md).
+> **Note**: For broader development setup, see [Development Environment](../../devops/development-environment.md).
 
 ## Overview
 
@@ -56,7 +56,7 @@ bats_require_minimum_version 1.5.0
 
 ### Installation and Setup
 
-> **Note**: For complete setup instructions, see [Development Environment](./development-environment.md).
+> **Note**: For complete setup instructions, see [Development Environment](../../devops/development-environment.md).
 
 BATS is automatically installed by the setup scripts:
 
@@ -322,7 +322,7 @@ find scripts/ -name "*.bats" -exec bats {} \;
 
 ## Integration with CI/CD
 
-> **Note**: For detailed CI/CD configuration, see [CI/CD Pipeline](./ci-cd.md).
+> **Note**: For detailed CI/CD configuration, see [CI/CD Pipeline](../../devops/ci-cd.md).
 
 ### GitHub Actions Integration
 
@@ -346,7 +346,7 @@ jobs:
 
 ### Test Dependencies
 
-> **Troubleshooting**: For testing framework issues and setup problems, see [Troubleshooting Guide](./troubleshooting.md#testing-framework-issues).
+> **Troubleshooting**: For testing framework issues and setup problems, see [Troubleshooting Guide](../../devops/troubleshooting.md#testing-framework-issues).
 
 Tests require certain tools to be installed:
 

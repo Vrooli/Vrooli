@@ -75,6 +75,13 @@ resource-minio logs --tail 100
 resource-minio metrics                  # Show storage statistics
 resource-minio content execute --name monitor --interval 5
 
+# Performance tuning
+resource-minio performance profile minimal      # Low resource usage
+resource-minio performance profile balanced     # Default balanced
+resource-minio performance profile performance  # High performance
+resource-minio performance monitor              # Show performance metrics
+resource-minio performance benchmark 100 5      # Run benchmark (100MB, 5 iterations)
+
 # Backup and restore operations
 resource-minio backup create            # Create timestamped backup
 resource-minio backup create my-backup  # Create named backup  
@@ -185,13 +192,48 @@ curl -X PUT --data-binary @screenshot.png \
   http://localhost:9000/vrooli-agent-artifacts/task-screenshot.png
 ```
 
-## New Features (v2.2)
+## New Features (v2.3)
 
+- **Performance Tuning**: Configurable performance profiles (minimal/balanced/performance)
+- **Performance Monitoring**: Real-time metrics and resource usage tracking
+- **Performance Benchmarking**: Built-in benchmark tool for throughput testing
 - **Storage Metrics**: `metrics` command shows per-bucket usage statistics
 - **Bucket Policies**: `content policy` command for public/private access control
 - **Multi-part Upload**: Automatic for files >100MB with resume capability
 - **MC Client Integration**: Updated to latest MinIO client syntax
 - **Object Versioning**: `content versioning` command for bucket-level version control
+
+## Performance Tuning
+
+MinIO supports configurable performance profiles to optimize for different workloads:
+
+### Performance Profiles
+
+| Profile | CPU | Cache | API Limits | Use Case |
+|---------|-----|-------|------------|----------|
+| `minimal` | 2 cores | 64MB | Standard | Development, low resources |
+| `balanced` | 4 cores | 256MB | Standard | Default, general use |
+| `performance` | 8 cores | 1GB | High | Production, heavy loads |
+| `custom` | User-defined | User-defined | User-defined | Advanced tuning |
+
+### Usage
+```bash
+# Apply a profile (requires restart to fully apply)
+resource-minio performance profile balanced
+resource-minio manage restart
+
+# Monitor performance
+resource-minio performance monitor
+
+# Run benchmark
+resource-minio performance benchmark 100 5  # 100MB file, 5 iterations
+```
+
+### Performance Tips
+- Use `performance` profile for production workloads
+- Enable caching for frequently accessed objects
+- Monitor with `performance monitor` to identify bottlenecks
+- Run benchmarks after configuration changes
 
 ## Security Features
 

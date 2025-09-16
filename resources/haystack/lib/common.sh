@@ -41,3 +41,32 @@ haystack::is_running() {
     fi
     return 1
 }
+
+# Validate Haystack health with timeout
+haystack::validate_health() {
+    local port
+    port=$(haystack::get_port)
+    
+    # Use timeout for health check
+    if timeout 5 curl -sf "http://localhost:${port}/health" &>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# Validate required Python packages are installed
+haystack::validate_packages() {
+    if [[ ! -d "${HAYSTACK_VENV_DIR}" ]]; then
+        return 1
+    fi
+    
+    # Check for critical packages
+    local packages=("haystack-ai" "fastapi" "uvicorn" "sentence-transformers")
+    for pkg in "${packages[@]}"; do
+        if ! "${HAYSTACK_VENV_DIR}/bin/pip" show "${pkg}" &>/dev/null; then
+            log::warning "Missing required package: ${pkg}"
+            return 1
+        fi
+    done
+    return 0
+}

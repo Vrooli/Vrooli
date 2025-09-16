@@ -65,6 +65,56 @@ vrooli resource huginn performance dashboard
 
 ## New Features
 
+### Native API Endpoints
+Direct API access without Rails runner for improved performance:
+```bash
+# Get API status
+vrooli resource huginn api status
+
+# List all agents
+vrooli resource huginn api agents list
+
+# Get specific agent
+vrooli resource huginn api agents get 1
+
+# Create new agent
+vrooli resource huginn api agents create "Test Agent" "ManualEventAgent" '{}'
+
+# Run agent
+vrooli resource huginn api agents run 1
+
+# List events
+vrooli resource huginn api events list
+
+# List scenarios
+vrooli resource huginn api scenarios list
+```
+
+### Multi-Tenant Support
+Isolated workspaces for different users/teams:
+```bash
+# Create tenant
+vrooli resource huginn tenant create demo-user demo@example.com SecurePass123
+
+# List all tenants
+vrooli resource huginn tenant list
+
+# Get tenant details
+vrooli resource huginn tenant get demo-user
+
+# Check tenant quotas
+vrooli resource huginn tenant quota demo-user
+
+# Export tenant data
+vrooli resource huginn tenant export demo-user demo-backup.json
+
+# Import tenant data
+vrooli resource huginn tenant import demo-backup.json
+
+# View multi-tenant statistics
+vrooli resource huginn tenant stats
+```
+
 ### AI-Powered Event Filtering (Ollama Integration)
 ```bash
 # Test Ollama connectivity

@@ -154,7 +154,8 @@ neo4j::content::restore() {
     fi
     
     # Verify restoration
-    local node_count=$(neo4j_query "MATCH (n) RETURN count(n)" 2>/dev/null | tail -1)
+    local node_count
+    node_count=$(neo4j_query "MATCH (n) RETURN count(n)" 2>/dev/null | tail -1)
     echo "Restore completed. Nodes in database: ${node_count:-unknown}"
     
     return 0

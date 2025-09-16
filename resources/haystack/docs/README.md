@@ -9,13 +9,16 @@ Haystack provides sophisticated question-answering capabilities over documents a
 ## Features
 
 - **Document Indexing**: Index text documents with automatic chunking and embedding
-- **Batch Processing**: Efficiently index large document sets in parallel
-- **Semantic Search**: Query documents using natural language
+- **Batch Processing**: Efficiently index large document sets in parallel (4 workers)
+- **Semantic Search**: Query documents using natural language and vector similarity
 - **LLM-Enhanced Search**: Use Ollama models for query expansion and answer generation
-- **Custom Pipelines**: Create and run custom Haystack processing pipelines
-- **File Upload**: Direct file upload and indexing support
+- **Custom Pipelines**: Create and run custom Haystack processing pipelines dynamically
+- **File Upload**: Direct file upload and indexing support for text files
+- **Multi-Language Support**: Automatic language detection for 55+ languages
+- **Vector Storage**: Qdrant integration with automatic fallback to in-memory store
 - **Python Script Execution**: Run custom Python scripts in the Haystack environment
-- **REST API**: Full-featured API for integration with other services
+- **REST API**: Full-featured FastAPI service with comprehensive endpoints
+- **Performance Metrics**: Built-in metrics tracking and monitoring via /stats endpoint
 
 ## Usage
 

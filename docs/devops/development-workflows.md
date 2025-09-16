@@ -186,7 +186,7 @@ curl http://localhost:5555/api/status
 
 # Run tests for your changes
 vrooli scenario test <scenario-name>
-vrooli test resources --grep "your feature"
+vrooli test unit --grep "your feature"
 ```
 
 ### 2. Database Development
@@ -213,8 +213,8 @@ pnpm test
 
 # Scenario-specific testing
 vrooli scenario test <scenario-name> --coverage
-vrooli test scenarios --watch
-vrooli test resources
+vrooli test all --watch
+vrooli test integration
 
 # Integration testing with Docker
 vrooli develop
@@ -222,7 +222,7 @@ vrooli develop
 vrooli test
 
 # E2E testing
-vrooli test e2e --scenario <scenario-name>
+vrooli test integration --scenario <scenario-name>
 ```
 
 ### 4. Performance Development
@@ -241,7 +241,7 @@ vrooli scenario profile <scenario-name> --inspect
 vrooli resource profile --all
 
 # Memory and CPU analysis
-vrooli test performance --scenario <scenario-name>
+vrooli test integration --scenario <scenario-name>  # Performance tests included in integration
 ```
 
 ### 5. Debugging Workflows
@@ -308,7 +308,7 @@ vrooli develop
 
 ```bash
 # Start with test watching
-vrooli test --watch &
+vrooli test all --watch &
 vrooli develop
 
 # Write failing tests first
@@ -336,10 +336,10 @@ pnpm test:ci
 vrooli develop
 
 # Load testing
-vrooli test load --scenario <scenario-name>
+vrooli test integration --scenario <scenario-name>  # Load tests are part of integration testing
 
 # Memory leak testing
-vrooli test memory --scenario <scenario-name>
+vrooli test integration --scenario <scenario-name>  # Memory testing is part of integration testing
 ```
 
 ---

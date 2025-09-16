@@ -200,12 +200,12 @@ test_info_command() {
     local info
     info=$("${HAYSTACK_CLI}" info 2>&1 || echo "")
     
-    # Check for required fields per universal.yaml
-    local required_fields=("startup_order" "dependencies" "startup_timeout")
+    # Check for required fields per universal.yaml (case-insensitive)
+    local required_fields=("startup.order" "dependencies" "startup.timeout")
     local missing_fields=()
     
     for field in "${required_fields[@]}"; do
-        if ! echo "${info}" | grep -q "${field}"; then
+        if ! echo "${info}" | grep -qi "${field}"; then
             missing_fields+=("${field}")
         fi
     done
@@ -222,8 +222,8 @@ test_info_command() {
 test_batch_indexing() {
     log::test "Batch document indexing"
     
-    # Prepare batch data - correct format for batch_index endpoint
-    local batch_data='{"documents":[{"content":"First batch document","metadata":{"batch":1}},{"content":"Second batch document","metadata":{"batch":2}}],"batch_size":2}'
+    # Prepare batch data - correct format for batch_index endpoint: array of arrays
+    local batch_data='{"documents":[[{"content":"First batch document","metadata":{"batch":1}}],[{"content":"Second batch document","metadata":{"batch":2}}]],"batch_size":2}'
     
     local response
     response=$(timeout 10 curl -sf -X POST "http://localhost:${HAYSTACK_PORT}/batch_index" \

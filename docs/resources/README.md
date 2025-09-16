@@ -105,9 +105,17 @@ Our testing system is distributed across multiple layers for comprehensive valid
 - **Documentation**: [Scenario Testing](../scenarios/README.md)
 
 #### **Resource Unit Tests**
-- **Location**: `resources/category/resource/lib/*.bats`
-- **Purpose**: Unit tests for specific resource functionality
-- **Examples**: `resources/ai/ollama/lib/api.bats`
+- **Location**: `resources/category/resource/test/phases/test-unit.sh`
+- **Purpose**: Validate individual resource functions exist and behave correctly (<60s)
+- **Examples**: `resources/unstructured-io/test/phases/test-unit.sh`
+- **Documentation**: [Unit Testing Guide](UNIT_TESTING_GUIDE.md) | [Troubleshooting](UNIT_TEST_TROUBLESHOOTING.md)
+
+**Critical Requirements**:
+- ✅ Use safe arithmetic: `tests_passed=$((tests_passed + 1))` not `((tests_passed++))`
+- ✅ Test function existence with `declare -f function_name`
+- ✅ Source configuration before libraries
+- ✅ Handle missing libraries gracefully
+- ✅ Complete in <60 seconds without external services
 
 ### Where to Find Examples
 Resource usage examples are organized by complexity and integration level:
@@ -162,10 +170,33 @@ Vrooli uses a **three-layer validation system** for resource quality assurance:
 
 ### Development Workflow
 1. **Explore**: Browse scenarios in `scenarios/` for working examples
-2. **Test**: Use `__test/resources/single/` for individual resource validation
-3. **Validate**: Run three-layer interface validation during development
-4. **Integrate**: Build complex workflows following scenario patterns
-5. **Deploy**: Run scenarios directly using `vrooli scenario run`
+2. **Develop**: Create resource following [CLI Framework](cli-framework.md) and [Interface Standards](interface-standards.md)
+3. **Unit Test**: Write comprehensive unit tests - see [Unit Testing Guide](UNIT_TESTING_GUIDE.md)
+4. **Test**: Use `__test/resources/single/` for individual resource validation  
+5. **Validate**: Run three-layer interface validation during development
+6. **Integrate**: Build complex workflows following scenario patterns
+7. **Deploy**: Run scenarios directly using `vrooli scenario run`
+
+### Unit Testing During Development
+**Before writing tests**, verify function names and config variables:
+```bash
+# Check what functions actually exist
+grep -E "^[a-z_]+::[a-z_:]+\(\)" lib/*.sh
+
+# Check configuration variables
+grep "^export" config/defaults.sh
+
+# Test your unit test doesn't use dangerous patterns
+grep -n '((' test/phases/test-unit.sh
+```
+
+**If unit test fails immediately**, check for arithmetic expansion issues:
+```bash
+# Replace dangerous patterns
+sed -i 's/((tests_passed++))/tests_passed=$((tests_passed + 1))/g' test/phases/test-unit.sh
+```
+
+📖 **Detailed Help**: [Unit Test Troubleshooting](UNIT_TEST_TROUBLESHOOTING.md)
 
 ---
 

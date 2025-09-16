@@ -478,3 +478,349 @@ sagemath::content::notebook() {
     
     return 0
 }
+
+# Create a new Jupyter notebook with optional SageMath template
+sagemath::content::create() {
+    local name=""
+    local template="basic"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                name="$2"
+                shift 2
+                ;;
+            --template)
+                template="$2"
+                shift 2
+                ;;
+            *)
+                # If no flag, assume it's the name
+                if [ -z "$name" ]; then
+                    name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    # Generate name if not provided
+    if [ -z "$name" ]; then
+        name="notebook_$(date +%Y%m%d_%H%M%S)"
+    fi
+    
+    # Ensure .ipynb extension
+    [[ "$name" != *.ipynb ]] && name="${name}.ipynb"
+    
+    local notebook_path="$SAGEMATH_NOTEBOOKS_DIR/$name"
+    
+    # Check if notebook already exists
+    if [ -f "$notebook_path" ]; then
+        echo "❌ Notebook already exists: $name" >&2
+        echo "Use a different name or remove the existing notebook first" >&2
+        return 1
+    fi
+    
+    echo "📓 Creating new SageMath notebook: $name"
+    echo "📝 Template: $template"
+    
+    # Create notebook based on template
+    case "$template" in
+        basic)
+            cat > "$notebook_path" << 'EOF'
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# SageMath Notebook\n",
+    "Created via CLI on $(date +%Y-%m-%d)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# SageMath initialization\n",
+    "from sage.all import *\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Basic Calculations"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Example: Solve an equation\n",
+    "x = var('x')\n",
+    "eq = x^2 - 4 == 0\n",
+    "solutions = solve(eq, x)\n",
+    "print(f\"Solutions: {solutions}\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "SageMath 10.7",
+   "language": "sage",
+   "name": "sagemath"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.1"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+EOF
+            ;;
+            
+        calculus)
+            cat > "$notebook_path" << 'EOF'
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Calculus with SageMath\n",
+    "Differentiation, Integration, and Limits"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from sage.all import *\n",
+    "x, y = var('x y')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Differentiation"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Define a function\n",
+    "f = x^3 - 3*x^2 + 2*x + 1\n",
+    "print(f\"f(x) = {f}\")\n",
+    "\n",
+    "# First derivative\n",
+    "df = diff(f, x)\n",
+    "print(f\"f'(x) = {df}\")\n",
+    "\n",
+    "# Second derivative\n",
+    "d2f = diff(f, x, 2)\n",
+    "print(f\"f''(x) = {d2f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Integration"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Indefinite integral\n",
+    "integral_f = integrate(f, x)\n",
+    "print(f\"∫f(x)dx = {integral_f} + C\")\n",
+    "\n",
+    "# Definite integral\n",
+    "definite = integrate(f, x, 0, 2)\n",
+    "print(f\"∫₀² f(x)dx = {definite}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Limits"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Calculate limits\n",
+    "g = sin(x)/x\n",
+    "lim_0 = limit(g, x=0)\n",
+    "print(f\"lim(x→0) sin(x)/x = {lim_0}\")\n",
+    "\n",
+    "lim_inf = limit(1/x, x=oo)\n",
+    "print(f\"lim(x→∞) 1/x = {lim_inf}\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "SageMath 10.7",
+   "language": "sage",
+   "name": "sagemath"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+EOF
+            ;;
+            
+        linear-algebra)
+            cat > "$notebook_path" << 'EOF'
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "# Linear Algebra with SageMath\n",
+    "Matrix operations, eigenvalues, and more"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from sage.all import *"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Matrix Operations"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create matrices\n",
+    "A = matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]])\n",
+    "B = matrix([[9, 8, 7], [6, 5, 4], [3, 2, 1]])\n",
+    "\n",
+    "print(\"Matrix A:\")\n",
+    "print(A)\n",
+    "print(\"\\nMatrix B:\")\n",
+    "print(B)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Matrix operations\n",
+    "print(\"A + B:\")\n",
+    "print(A + B)\n",
+    "\n",
+    "print(\"\\nA * B:\")\n",
+    "print(A * B)\n",
+    "\n",
+    "print(\"\\nDeterminant of A:\", A.det())\n",
+    "print(\"Rank of A:\", A.rank())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {},
+   "source": [
+    "## Eigenvalues and Eigenvectors"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Create a symmetric matrix\n",
+    "M = matrix([[4, -2, 1], [-2, 5, -1], [1, -1, 3]])\n",
+    "\n",
+    "# Eigenvalues\n",
+    "eigenvals = M.eigenvalues()\n",
+    "print(f\"Eigenvalues: {eigenvals}\")\n",
+    "\n",
+    "# Eigenvectors\n",
+    "for eval, evec, mult in M.eigenvectors_right():\n",
+    "    print(f\"\\nEigenvalue: {eval}\")\n",
+    "    print(f\"Eigenvector(s): {evec}\")"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "SageMath 10.7",
+   "language": "sage",
+   "name": "sagemath"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+EOF
+            ;;
+            
+        *)
+            echo "❌ Unknown template: $template" >&2
+            echo "Available templates: basic, calculus, linear-algebra" >&2
+            rm -f "$notebook_path"
+            return 1
+            ;;
+    esac
+    
+    # Fix the date in the notebook
+    sed -i "s/\$(date +%Y-%m-%d)/$(date +%Y-%m-%d)/g" "$notebook_path"
+    
+    echo "✅ Notebook created: $notebook_path"
+    echo ""
+    echo "📝 Available actions:"
+    echo "  • Open in browser: resource-sagemath content notebook"
+    echo "  • List notebooks: resource-sagemath content list"
+    echo "  • View notebook: resource-sagemath content get $name"
+    
+    return 0
+}

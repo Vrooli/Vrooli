@@ -1,0 +1,30 @@
+{
+  "startup_order": 500,
+  "dependencies": [],
+  "optional_dependencies": ["mcrcon"],
+  "startup_timeout": 60,
+  "startup_time_estimate": "30-60s",
+  "recovery_attempts": 3,
+  "priority": "medium",
+  "resource_limits": {
+    "memory": "4G",
+    "cpu": "2"
+  },
+  "health_check": {
+    "type": "http",
+    "port": 11459,
+    "path": "/health",
+    "interval": 10,
+    "timeout": 5
+  },
+  "ports": {
+    "game": 25565,
+    "rcon": 25575,
+    "health": 11459
+  },
+  "volumes": {
+    "data": "${HOME}/.papermc",
+    "world": "${HOME}/.papermc/world",
+    "plugins": "${HOME}/.papermc/plugins"
+  }
+}

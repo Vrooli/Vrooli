@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Source log functions
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || {
+    # Fallback log functions if log.sh not available
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+}
+
 source "$(dirname "${BASH_SOURCE[0]}")/core.sh"
 
 # Auto-configuration support for email clients
@@ -105,11 +114,11 @@ mailinabox_setup_autoconfig() {
     local domain="$1"
     
     if [[ -z "$domain" ]]; then
-        log_error "Domain required"
+        log::error "Domain required"
         return 1
     fi
     
-    log_info "Setting up autoconfig for domain: $domain"
+    log::info "Setting up autoconfig for domain: $domain"
     
     # Create autoconfig directory structure
     local autoconfig_dir="${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/autoconfig"
@@ -122,7 +131,7 @@ mailinabox_setup_autoconfig() {
     mkdir -p "$autoconfig_dir/$domain/autodiscover"
     mailinabox_generate_autodiscover "user@$domain" > "$autoconfig_dir/$domain/autodiscover/autodiscover.xml"
     
-    log_success "Autoconfig files generated for $domain"
+    log::success "Autoconfig files generated for $domain"
     echo "Files created at: $autoconfig_dir/$domain/"
     echo ""
     echo "To enable autoconfig, serve these URLs:"
@@ -137,19 +146,19 @@ mailinabox_setup_autoconfig() {
 mailinabox_test_autoconfig() {
     local domain="${1:-$MAILINABOX_PRIMARY_HOSTNAME}"
     
-    log_info "Testing autoconfig for domain: $domain"
+    log::info "Testing autoconfig for domain: $domain"
     
     # Check if autoconfig files exist
     local autoconfig_dir="${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/autoconfig"
     
     if [[ -f "$autoconfig_dir/$domain/.well-known/autoconfig.xml" ]]; then
-        log_success "Thunderbird autoconfig file exists"
+        log::success "Thunderbird autoconfig file exists"
     else
         log_warning "Thunderbird autoconfig file not found"
     fi
     
     if [[ -f "$autoconfig_dir/$domain/autodiscover/autodiscover.xml" ]]; then
-        log_success "Outlook autodiscover file exists"
+        log::success "Outlook autodiscover file exists"
     else
         log_warning "Outlook autodiscover file not found"
     fi

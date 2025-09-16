@@ -35,7 +35,7 @@ source "${HUGINN_CLI_DIR}/config/defaults.sh"
 source "${HUGINN_CLI_DIR}/config/messages.sh"
 
 # Source Huginn libraries
-for lib in common docker install status api inject test testing agents vrooli-integration ollama-integration performance-metrics; do
+for lib in common docker install status api inject test testing agents vrooli-integration ollama-integration performance-metrics multi-tenant native-api; do
     lib_file="${HUGINN_CLI_DIR}/lib/${lib}.sh"
     [[ -f "$lib_file" ]] && source "$lib_file" 2>/dev/null || true
 done
@@ -85,6 +85,8 @@ cli::register_command "import" "Import scenarios from JSON file" "huginn::import
 cli::register_command "vrooli" "Vrooli integration management" "huginn::vrooli_command"
 cli::register_command "ollama" "AI-powered event filtering with Ollama" "huginn::ollama_command"
 cli::register_command "performance" "Performance metrics and analysis" "huginn::performance_command"
+cli::register_command "tenant" "Multi-tenant workspace management" "huginn::tenant_command"
+cli::register_command "api" "Native API endpoints" "huginn::api_command"
 
 cli::register_subcommand "content" "agents" "List all agents" "huginn::list_agents"
 cli::register_subcommand "content" "scenarios" "List all scenarios" "huginn::list_scenarios"
@@ -110,6 +112,25 @@ cli::register_subcommand "performance" "metrics" "Get current performance metric
 cli::register_subcommand "performance" "analyze" "Analyze agent performance" "huginn::performance_analyze"
 cli::register_subcommand "performance" "export" "Export performance data" "huginn::performance_export"
 cli::register_subcommand "performance" "create-monitor" "Create performance monitoring agent" "huginn::performance_create_monitor"
+
+cli::register_subcommand "tenant" "create" "Create new tenant workspace" "huginn::tenant_create"
+cli::register_subcommand "tenant" "list" "List all tenants" "huginn::tenant_list"
+cli::register_subcommand "tenant" "get" "Get tenant details" "huginn::tenant_get"
+cli::register_subcommand "tenant" "delete" "Delete tenant workspace" "huginn::tenant_delete"
+cli::register_subcommand "tenant" "update" "Update tenant settings" "huginn::tenant_update"
+cli::register_subcommand "tenant" "export" "Export tenant data" "huginn::tenant_export"
+cli::register_subcommand "tenant" "import" "Import tenant data" "huginn::tenant_import"
+cli::register_subcommand "tenant" "isolate" "Ensure tenant isolation" "huginn::tenant_isolate"
+cli::register_subcommand "tenant" "quota" "Check tenant quotas" "huginn::tenant_quota"
+cli::register_subcommand "tenant" "stats" "Multi-tenant statistics" "huginn::tenant_stats"
+
+cli::register_subcommand "api" "health" "Check API health" "huginn::api_health"
+cli::register_subcommand "api" "status" "Get API status" "huginn::api_status"
+cli::register_subcommand "api" "agents" "Agent operations" "huginn::api_agents"
+cli::register_subcommand "api" "events" "Event operations" "huginn::api_events"
+cli::register_subcommand "api" "scenarios" "Scenario operations" "huginn::api_scenarios"
+cli::register_subcommand "api" "webhooks" "Webhook operations" "huginn::api_webhooks"
+cli::register_subcommand "api" "users" "User operations" "huginn::api_users"
 
 huginn_content_remove() {
     log::error "Agent/scenario removal not yet implemented"
@@ -289,6 +310,256 @@ huginn::performance_export() {
 huginn::performance_create_monitor() {
     log::info "Performance monitor agent creation not yet implemented"
     log::info "Use the web UI to create monitoring agents"
+}
+
+huginn::tenant_command() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        create)
+            huginn::tenant_create "$@"
+            ;;
+        list)
+            huginn::tenant_list
+            ;;
+        get)
+            huginn::tenant_get "$@"
+            ;;
+        delete)
+            huginn::tenant_delete "$@"
+            ;;
+        update)
+            huginn::tenant_update "$@"
+            ;;
+        export)
+            huginn::tenant_export "$@"
+            ;;
+        import)
+            huginn::tenant_import "$@"
+            ;;
+        isolate)
+            huginn::tenant_isolate "$@"
+            ;;
+        quota)
+            huginn::tenant_quota "$@"
+            ;;
+        stats)
+            huginn::tenant_stats
+            ;;
+        *)
+            log::error "Unknown tenant subcommand: $subcommand"
+            log::info "Available subcommands:"
+            log::info "  create  - Create new tenant workspace"
+            log::info "  list    - List all tenants"
+            log::info "  get     - Get tenant details"
+            log::info "  delete  - Delete tenant workspace"
+            log::info "  update  - Update tenant settings"
+            log::info "  export  - Export tenant data"
+            log::info "  import  - Import tenant data"
+            log::info "  isolate - Ensure tenant isolation"
+            log::info "  quota   - Check tenant quotas"
+            log::info "  stats   - Multi-tenant statistics"
+            return 1
+            ;;
+    esac
+}
+
+# Wrapper functions for tenant management
+huginn::tenant_create() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    create_tenant "$@"
+}
+
+huginn::tenant_list() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    list_tenants
+}
+
+huginn::tenant_get() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    get_tenant "$@"
+}
+
+huginn::tenant_delete() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    delete_tenant "$@"
+}
+
+huginn::tenant_update() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    update_tenant "$@"
+}
+
+huginn::tenant_export() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    export_tenant "$@"
+}
+
+huginn::tenant_import() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    import_tenant "$@"
+}
+
+huginn::tenant_isolate() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    isolate_tenant "$@"
+}
+
+huginn::tenant_quota() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    quota_status "$@"
+}
+
+huginn::tenant_stats() {
+    source "${HUGINN_CLI_DIR}/lib/multi-tenant.sh"
+    tenant_stats
+}
+
+huginn::api_command() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        health)
+            huginn::api_health
+            ;;
+        status)
+            huginn::api_status
+            ;;
+        agents)
+            huginn::api_agents "$@"
+            ;;
+        events)
+            huginn::api_events "$@"
+            ;;
+        scenarios)
+            huginn::api_scenarios "$@"
+            ;;
+        webhooks)
+            huginn::api_webhooks "$@"
+            ;;
+        users)
+            huginn::api_users "$@"
+            ;;
+        *)
+            log::error "Unknown api subcommand: $subcommand"
+            log::info "Available subcommands:"
+            log::info "  health    - Check API health"
+            log::info "  status    - Get detailed status"
+            log::info "  agents    - Agent operations (list, get, create, update, delete, run)"
+            log::info "  events    - Event operations (list, create)"
+            log::info "  scenarios - Scenario operations (list, get)"
+            log::info "  webhooks  - Webhook operations (create)"
+            log::info "  users     - User operations (list)"
+            return 1
+            ;;
+    esac
+}
+
+# API wrapper functions
+huginn::api_health() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    api_health
+}
+
+huginn::api_status() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    api_status
+}
+
+huginn::api_agents() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    local operation="${1:-list}"
+    shift || true
+    
+    case "$operation" in
+        list)
+            api_agents_list "$@"
+            ;;
+        get)
+            api_agent_get "$@"
+            ;;
+        create)
+            api_agent_create "$@"
+            ;;
+        update)
+            api_agent_update "$@"
+            ;;
+        delete)
+            api_agent_delete "$@"
+            ;;
+        run)
+            api_agent_run "$@"
+            ;;
+        *)
+            log::error "Unknown agent operation: $operation"
+            log::info "Available operations: list, get, create, update, delete, run"
+            return 1
+            ;;
+    esac
+}
+
+huginn::api_events() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    local operation="${1:-list}"
+    shift || true
+    
+    case "$operation" in
+        list)
+            api_events_list "$@"
+            ;;
+        create)
+            api_event_create "$@"
+            ;;
+        *)
+            log::error "Unknown event operation: $operation"
+            log::info "Available operations: list, create"
+            return 1
+            ;;
+    esac
+}
+
+huginn::api_scenarios() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    local operation="${1:-list}"
+    shift || true
+    
+    case "$operation" in
+        list)
+            api_scenarios_list
+            ;;
+        get)
+            api_scenario_get "$@"
+            ;;
+        *)
+            log::error "Unknown scenario operation: $operation"
+            log::info "Available operations: list, get"
+            return 1
+            ;;
+    esac
+}
+
+huginn::api_webhooks() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    local operation="${1:-create}"
+    shift || true
+    
+    case "$operation" in
+        create)
+            api_webhook_create "$@"
+            ;;
+        *)
+            log::error "Unknown webhook operation: $operation"
+            log::info "Available operations: create"
+            return 1
+            ;;
+    esac
+}
+
+huginn::api_users() {
+    source "${HUGINN_CLI_DIR}/lib/native-api.sh"
+    api_users_list
 }
 
 huginn_credentials() {

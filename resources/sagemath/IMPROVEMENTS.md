@@ -507,3 +507,80 @@ All tests continue to pass:
 1. **File Extensions**: SageMath automatically creates .py files from .sage files - cleanup must handle both
 2. **Caching Strategy**: SHA256 hashing provides reliable cache keys for mathematical expressions
 3. **CLI Framework**: The v2.0 CLI framework auto-discovers functions but may not show all in help
+
+---
+
+# Improvement Session: 2025-09-15 (Notebook Template Creation)
+
+## Improvements Implemented
+
+### 1. Interactive Notebook Creation via CLI
+**Problem**: Users could not create new Jupyter notebooks from the CLI, requiring browser access to create notebooks.
+
+**Solution**:
+- Added `content create` subcommand to create notebooks from templates
+- Implemented three templates: basic, calculus, and linear-algebra
+- Each template includes pre-configured cells with common operations
+- Notebooks are created with proper SageMath kernel configuration
+
+**Implementation**:
+```bash
+# Create a basic notebook
+vrooli resource sagemath content create my_notebook
+
+# Create from calculus template
+vrooli resource sagemath content create calc_work --template calculus
+
+# Create from linear algebra template  
+vrooli resource sagemath content create matrix_ops --template linear-algebra
+```
+
+### 2. Template Contents
+**Basic Template**:
+- SageMath initialization with common imports
+- Example equation solving demonstration
+- Ready-to-use structure for general mathematics
+
+**Calculus Template**:
+- Differentiation examples (first and second derivatives)
+- Integration examples (indefinite and definite)
+- Limit calculations with infinity handling
+- Pre-configured symbolic variables
+
+**Linear Algebra Template**:
+- Matrix creation and operations
+- Matrix multiplication, determinant, rank
+- Eigenvalue and eigenvector computation
+- Symmetric matrix examples
+
+## Test Results
+
+All tests continue to pass:
+- ✅ Smoke tests: All pass
+- ✅ Unit tests: All pass  
+- ✅ Integration tests: All pass
+- ✅ Notebook creation: Works correctly
+- ✅ Template generation: All templates functional
+
+## Files Modified
+
+1. `/resources/sagemath/lib/content.sh`
+   - Added `sagemath::content::create` function
+   - Implemented template generation logic
+   - Added JSON structure creation for notebooks
+
+2. `/resources/sagemath/cli.sh`
+   - Registered `content create` subcommand
+   - Added command to CLI registry
+
+3. `/resources/sagemath/README.md`
+   - Added documentation for notebook creation
+   - Updated features list
+   - Added usage examples
+
+## Net Progress
+
+- **Features Added**: 1 (notebook template creation with 3 templates)
+- **Features Fixed**: 0
+- **Features Broken**: 0
+- **Net Progress**: +1 valuable feature

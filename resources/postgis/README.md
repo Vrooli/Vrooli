@@ -2,6 +2,15 @@
 
 PostGIS is a spatial database extension for PostgreSQL that adds geographic objects and functions for location-based queries and geospatial analysis. It transforms PostgreSQL into a complete Geographic Information System (GIS) that enables Vrooli to build powerful location-aware applications.
 
+## Features
+
+- **PostGIS 3.4** with full spatial database capabilities
+- **pgRouting 3.8.0** for advanced network analysis and routing
+- **GDAL Tools** including ogr2ogr for GIS format import/export
+- **Complete spatial analysis** including proximity, watersheds, viewsheds
+- **Geocoding services** for address/coordinate conversion
+- **Visualization support** for maps and spatial data
+
 ## Quick Start
 
 ```bash
@@ -135,10 +144,11 @@ PostGIS runs as a standalone containerized PostgreSQL instance:
 
 - **300+ Spatial Functions**: Distance, area, intersection, buffer, and more
 - **Spatial Indexing**: Lightning-fast geographic queries using R-tree indexes
+- **Advanced Routing**: pgRouting 3.8.0 for shortest path, Dijkstra, A* algorithms
 - **Standards Compliant**: OGC Simple Features, SQL/MM Spatial
 - **Map Visualization**: Generate GeoJSON, heat maps, choropleth maps, and HTML viewers
 - **Geocoding Services**: Convert addresses to coordinates and vice versa
-- **Advanced Spatial Analysis**: Routing, proximity, service areas, watersheds, viewsheds, clustering
+- **Advanced Spatial Analysis**: Network analysis, proximity, service areas, watersheds, viewsheds
 - **Format Support**: GeoJSON, KML, Shapefile, GPX, WKT/WKB
 - **Coordinate Systems**: Support for 4000+ spatial reference systems
 - **Integration Ready**: Works with QGIS, Leaflet, Mapbox, GeoPandas

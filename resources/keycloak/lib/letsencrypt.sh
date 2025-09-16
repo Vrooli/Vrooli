@@ -333,18 +333,34 @@ keycloak::letsencrypt::test_challenge() {
     
     log::info "Testing ACME challenge setup on port ${port}"
     
+    # Check if port is available
+    if lsof -i:${port} &>/dev/null; then
+        log::warning "Port ${port} is already in use, trying alternative port"
+        port=$((port + 1))
+        while lsof -i:${port} &>/dev/null && [ ${port} -lt 65535 ]; do
+            port=$((port + 1))
+        done
+        log::info "Using port ${port} for test"
+    fi
+    
     # Create test file
     mkdir -p "${ACME_CHALLENGE_DIR}/.well-known/acme-challenge"
     echo "test-challenge-response" > "${ACME_CHALLENGE_DIR}/.well-known/acme-challenge/test"
     
-    # Start server
-    python3 -m http.server ${port} --directory "${ACME_CHALLENGE_DIR}" &
+    # Start server with better error handling
+    python3 -m http.server ${port} --directory "${ACME_CHALLENGE_DIR}" 2>/dev/null &
     local server_pid=$!
+    
+    # Check if server started
     sleep 2
+    if ! kill -0 ${server_pid} 2>/dev/null; then
+        log::error "Failed to start test server on port ${port}"
+        return 1
+    fi
     
     # Test access
     if curl -sf "http://localhost:${port}/.well-known/acme-challenge/test" | grep -q "test-challenge-response"; then
-        log::success "ACME challenge test successful"
+        log::success "ACME challenge test successful on port ${port}"
         kill ${server_pid} 2>/dev/null
         return 0
     else

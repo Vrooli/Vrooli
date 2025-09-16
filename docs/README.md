@@ -248,11 +248,13 @@ vrooli scenario test <name>                    # Test a scenario
 vrooli scenario run <scenario-name>        # Direct scenario execution
 
 # Testing
-vrooli test                                     # Run comprehensive test suite
-vrooli test static                             # Static analysis
-vrooli test resources                          # Resource validation
-vrooli test scenarios                          # Scenario integration tests
-vrooli test bats                               # BATS framework tests
+vrooli test                                     # Run comprehensive test suite (same as 'all')
+vrooli test all                                # Run all test types
+vrooli test static                             # Static analysis (shellcheck, TypeScript, Python, Go)
+vrooli test structure                          # File/directory structure validation
+vrooli test integration                        # Resource mocks, app testing
+vrooli test unit                               # All unit tests (BATS) with caching
+vrooli test docs                               # Documentation validation
 
 # Database Operations (via PostgreSQL resource)
 resource-postgres start                        # Start database

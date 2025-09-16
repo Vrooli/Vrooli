@@ -16,6 +16,7 @@ SageMath is a comprehensive open-source mathematics software system that provide
 - **Health Monitoring**: JSON health endpoint with component status
 - **Extended Math CLI**: Specialized commands for common mathematical operations
 - **Result Caching**: Automatic caching of computation results for performance
+- **Notebook Templates**: Create Jupyter notebooks from CLI with pre-built templates (basic, calculus, linear-algebra)
 
 ## Architecture
 - Docker-based deployment using official SageMath images
@@ -71,6 +72,11 @@ vrooli resource sagemath content remove --name my_calculation.sage
 # Work with notebooks
 vrooli resource sagemath content add --file analysis.ipynb
 vrooli resource sagemath content notebook  # Opens Jupyter interface
+
+# Create new notebooks from templates
+vrooli resource sagemath content create my_notebook --template basic
+vrooli resource sagemath content create calc_work --template calculus
+vrooli resource sagemath content create matrix_ops --template linear-algebra
 ```
 
 ### Export Capabilities

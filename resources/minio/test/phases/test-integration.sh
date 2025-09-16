@@ -21,6 +21,9 @@ source "${MINIO_DIR}/config/defaults.sh"
 # Export configuration
 minio::export_config 2>/dev/null || true
 
+# Define CLI script path for testing
+MINIO_CLI_SCRIPT="${MINIO_DIR}/cli.sh"
+
 ################################################################################
 # Integration Tests
 ################################################################################
@@ -345,6 +348,38 @@ if docker stats --no-stream "$CONTAINER_NAME" 2>/dev/null | grep -v CONTAINER; t
     fi
 else
     log::warning "⚠ Could not check resource usage"
+fi
+
+################################################################################
+# Test 11: Performance tuning functionality
+################################################################################
+log::info "Test 11: Performance tuning functionality..."
+
+# Test applying a performance profile
+"$MINIO_CLI_SCRIPT" performance profile balanced 2>/dev/null
+if [[ $? -eq 0 ]]; then
+    log::success "✓ Performance profile can be applied"
+else
+    log::error "✗ Performance profile failed"
+    ((FAILED++))
+fi
+
+# Test performance monitoring
+MONITOR_OUTPUT=$("$MINIO_CLI_SCRIPT" performance monitor 2>&1 | head -n 5) || true
+if [[ -n "$MONITOR_OUTPUT" ]]; then
+    log::success "✓ Performance monitoring works"
+else
+    log::error "✗ Performance monitoring failed"
+    ((FAILED++))
+fi
+
+# Test benchmark command (quick test with small file)
+BENCHMARK_OUTPUT=$("$MINIO_CLI_SCRIPT" performance benchmark 1 1 2>&1 | grep -c "Performance:") || BENCHMARK_OUTPUT=0
+if [[ "$BENCHMARK_OUTPUT" -ge 1 ]]; then
+    log::success "✓ Performance benchmark works"
+else
+    log::error "✗ Performance benchmark failed"
+    ((FAILED++))
 fi
 
 ################################################################################

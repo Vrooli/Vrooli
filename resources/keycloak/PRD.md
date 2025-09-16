@@ -162,13 +162,20 @@ Keycloak enables secure multi-tenant SaaS applications worth $50K+ by providing:
   - Maintained backward compatibility for all CLI commands
   - Verified all P0, P1, and P2 requirements still functioning correctly
   - All test suites passing with 100% success rate
+- 2025-09-15: Let's Encrypt CLI Integration Restored
+  - Fixed Let's Encrypt CLI commands registration with proper source guards
+  - Improved ACME challenge test to handle port conflicts automatically
+  - Added dynamic port selection when default port is in use
+  - Enhanced error handling for Python HTTP server startup
+  - All Let's Encrypt commands now accessible via CLI (init/request/renew/auto-renew/status/revoke/test)
+  - ACME challenge test verified working (port 8081)
 
 ## Next Steps
-1. Re-enable Let's Encrypt CLI integration after resolving source order issues
-2. Add automated end-to-end testing for social providers
-3. Enhance multi-realm isolation with network policies
-4. Implement advanced theme templates and marketplace
-5. Add webhook support for external integrations
-6. Implement custom authentication flows and step-up authentication
-7. Add support for hardware security keys (FIDO2/WebAuthn)
-8. Enhance Let's Encrypt integration with DNS-01 challenge support
+1. Add automated end-to-end testing for social providers
+2. Enhance multi-realm isolation with network policies
+3. Implement advanced theme templates and marketplace
+4. Add webhook support for external integrations
+5. Implement custom authentication flows and step-up authentication
+6. Add support for hardware security keys (FIDO2/WebAuthn)
+7. Enhance Let's Encrypt integration with DNS-01 challenge support
+8. Add production-grade Let's Encrypt support (non-staging environment)

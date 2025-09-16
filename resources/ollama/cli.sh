@@ -141,6 +141,18 @@ ollama_list_models() {
     fi
 }
 
+# Internal pull function (wrapped by agent manager)
+ollama_pull_model_internal() {
+    local model="$1"
+    
+    if command -v ollama &>/dev/null; then
+        ollama pull "$model"
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
 ollama_pull_model() {
     local model="${1:-}"
     if [[ -z "$model" ]]; then
@@ -158,11 +170,12 @@ ollama_pull_model() {
         return 1
     fi
     
-    if command -v ollama &>/dev/null; then
-        ollama pull "$model"
+    # Use agent wrapper for long-running model download
+    if type -t agents::with_agent &>/dev/null; then
+        agents::with_agent "content-pull" "ollama_pull_model_internal" "$model"
     else
-        log::error "Ollama CLI not available"
-        return 1
+        # Fallback if agent management not available
+        ollama_pull_model_internal "$model"
     fi
 }
 
@@ -200,6 +213,19 @@ ollama_show_model() {
     fi
 }
 
+# Internal chat function (wrapped by agent manager)
+ollama_chat_internal() {
+    local model="$1"
+    
+    if command -v ollama &>/dev/null; then
+        log::info "Starting chat with $model (type /bye to exit)"
+        ollama run "$model"
+    else
+        log::error "Ollama CLI not available"
+        return 1
+    fi
+}
+
 ollama_chat() {
     local model="${1:-}"
     if [[ -z "$model" ]]; then
@@ -213,12 +239,12 @@ ollama_chat() {
         return 1
     fi
     
-    if command -v ollama &>/dev/null; then
-        log::info "Starting chat with $model (type /bye to exit)"
-        ollama run "$model"
+    # Use agent wrapper for interactive chat session
+    if type -t agents::with_agent &>/dev/null; then
+        agents::with_agent "content-chat" "ollama_chat_internal" "$model"
     else
-        log::error "Ollama CLI not available"
-        return 1
+        # Fallback if agent management not available
+        ollama_chat_internal "$model"
     fi
 }
 
@@ -243,10 +269,7 @@ ollama_generate() {
             # Set up signal handler for cleanup
             ollama::setup_agent_cleanup "$agent_id"
             
-            # Track metrics if available
-            if type -t agents::metrics::increment &>/dev/null; then
-                agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "requests" 1
-            fi
+            # Metrics will be tracked during actual operation execution
         fi
     fi
     
@@ -306,16 +329,51 @@ ollama_generate() {
         return 1
     fi
     
-    # Use ollama run for generation
+    # Use ollama run for generation with metrics tracking
     if [[ "$quiet" == false ]]; then
         log::info "Generating text with $model"
     fi
+    
+    local result=0
+    local start_time=$(date +%s%3N)  # Milliseconds
+    
+    # Track operation start metrics
+    if [[ -n "$agent_id" ]] && type -t agents::metrics::increment &>/dev/null; then
+        agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "requests" 1
+    fi
+    
     ollama run "$model" "$prompt"
+    result=$?
+    
+    # Track operation completion metrics
+    if [[ -n "$agent_id" ]] && type -t agents::metrics::histogram &>/dev/null; then
+        local end_time=$(date +%s%3N)
+        local duration=$((end_time - start_time))
+        agents::metrics::histogram "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "request_duration_ms" "$duration"
+        
+        # Track success/error
+        if [[ $result -eq 0 ]]; then
+            log::debug "Ollama generation completed successfully"
+        else
+            type -t agents::metrics::increment &>/dev/null && \
+                agents::metrics::increment "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "errors" 1
+        fi
+        
+        # Update process metrics
+        if type -t agents::metrics::gauge &>/dev/null; then
+            # Get current process memory usage (in MB)
+            local memory_kb=$(ps -o rss= -p $$ 2>/dev/null | awk '{print $1}' || echo "0")
+            local memory_mb=$((memory_kb / 1024))
+            agents::metrics::gauge "${REGISTRY_FILE:-${APP_ROOT}/.vrooli/ollama-agents.json}" "$agent_id" "memory_mb" "$memory_mb"
+        fi
+    fi
     
     # Unregister agent on completion
     if [[ -n "$agent_id" ]] && type -t agent_manager::unregister &>/dev/null; then
         agent_manager::unregister "$agent_id" >/dev/null 2>&1
     fi
+    
+    return $result
 }
 
 ollama_inject_handler() {

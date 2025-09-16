@@ -49,7 +49,7 @@ vrooli resource earthly content execute --target=+build --cache
 ### For CI/CD Optimization
 Configure aggressive caching for CI environments:
 ```bash
-vrooli resource earthly configure --optimize-cache
+vrooli resource earthly content configure --optimize-cache
 ```
 
 ## Performance Notes

@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "server": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["docker", "native"],
+          "description": "Server deployment type"
+        },
+        "version": {
+          "type": "string",
+          "description": "PaperMC version (e.g., '1.20.4', 'latest')"
+        },
+        "memory": {
+          "type": "string",
+          "pattern": "^[0-9]+[MG]$",
+          "description": "Initial memory allocation (e.g., '2G')"
+        },
+        "max_memory": {
+          "type": "string",
+          "pattern": "^[0-9]+[MG]$",
+          "description": "Maximum memory allocation (e.g., '4G')"
+        }
+      },
+      "required": ["type", "memory"]
+    },
+    "rcon": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable RCON remote console"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 65535,
+          "description": "RCON port number"
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "description": "RCON password (use environment variable)"
+        }
+      },
+      "required": ["enabled", "port", "password"]
+    },
+    "world": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "World name"
+        },
+        "seed": {
+          "type": "string",
+          "description": "World generation seed"
+        },
+        "gamemode": {
+          "type": "string",
+          "enum": ["survival", "creative", "adventure", "spectator"],
+          "description": "Default game mode"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["peaceful", "easy", "normal", "hard"],
+          "description": "World difficulty"
+        },
+        "max_players": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "description": "Maximum concurrent players"
+        }
+      }
+    },
+    "eula": {
+      "type": "object",
+      "properties": {
+        "accept": {
+          "type": "boolean",
+          "description": "Accept Minecraft EULA"
+        }
+      },
+      "required": ["accept"]
+    },
+    "performance": {
+      "type": "object",
+      "properties": {
+        "jvm_opts": {
+          "type": "string",
+          "description": "JVM optimization flags"
+        }
+      }
+    }
+  },
+  "required": ["server", "rcon", "eula"]
+}

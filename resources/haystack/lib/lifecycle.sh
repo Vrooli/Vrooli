@@ -149,8 +149,11 @@ haystack::restart() {
     
     # Pass any arguments to start (like --wait)
     # The start function already handles --wait by default
-    haystack::start "$@"
-    
-    # Explicitly return the start command's exit code
-    return $?
+    if haystack::start "$@"; then
+        log::success "Haystack restarted successfully"
+        return 0
+    else
+        log::error "Failed to restart Haystack"
+        return 1
+    fi
 }

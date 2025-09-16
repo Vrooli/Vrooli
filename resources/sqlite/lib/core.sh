@@ -39,6 +39,100 @@ sqlite::validate_name() {
     return 0
 }
 
+# Encrypt a database file using OpenSSL
+sqlite::encrypt_database() {
+    local db_path="${1:-}"
+    local password="${2:-}"
+    
+    if [[ -z "$db_path" ]] || [[ -z "$password" ]]; then
+        log::error "Database path and password required"
+        return 1
+    fi
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database file not found: $db_path"
+        return 1
+    fi
+    
+    # Check if OpenSSL is available
+    if ! command -v openssl &> /dev/null; then
+        log::error "OpenSSL not found. Please install OpenSSL for encryption support."
+        return 1
+    fi
+    
+    # Create encrypted copy
+    local encrypted_path="${db_path}.enc"
+    
+    if openssl enc -aes-256-cbc -salt -pbkdf2 -in "$db_path" -out "$encrypted_path" -pass pass:"$password" 2>/dev/null; then
+        # Replace original with encrypted version
+        mv "$encrypted_path" "$db_path"
+        log::info "Database encrypted successfully"
+        return 0
+    else
+        log::error "Failed to encrypt database"
+        rm -f "$encrypted_path"
+        return 1
+    fi
+}
+
+# Decrypt a database file using OpenSSL
+sqlite::decrypt_database() {
+    local db_path="${1:-}"
+    local password="${2:-}"
+    local temp_path="${3:-}"  # Optional: path for decrypted file
+    
+    if [[ -z "$db_path" ]] || [[ -z "$password" ]]; then
+        log::error "Database path and password required"
+        return 1
+    fi
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database file not found: $db_path"
+        return 1
+    fi
+    
+    # Check if OpenSSL is available
+    if ! command -v openssl &> /dev/null; then
+        log::error "OpenSSL not found. Please install OpenSSL for encryption support."
+        return 1
+    fi
+    
+    # Use temp path if provided, otherwise decrypt in place
+    local output_path="${temp_path:-${db_path}.tmp}"
+    
+    if openssl enc -aes-256-cbc -d -pbkdf2 -in "$db_path" -out "$output_path" -pass pass:"$password" 2>/dev/null; then
+        if [[ -z "$temp_path" ]]; then
+            # Replace encrypted with decrypted version
+            mv "$output_path" "$db_path"
+        fi
+        log::info "Database decrypted successfully"
+        return 0
+    else
+        log::error "Failed to decrypt database (wrong password or not encrypted)"
+        rm -f "$output_path"
+        return 1
+    fi
+}
+
+# Check if a database is encrypted
+sqlite::is_encrypted() {
+    local db_path="${1:-}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        return 1
+    fi
+    
+    # Check if file starts with SQLite header (not encrypted)
+    local header
+    header=$(head -c 15 "$db_path" 2>/dev/null)
+    
+    if [[ "$header" == "SQLite format 3" ]]; then
+        return 1  # Not encrypted
+    else
+        return 0  # Encrypted (or corrupted)
+    fi
+}
+
 # Ensure required directories exist
 sqlite::ensure_directories() {
     local dirs=(
@@ -528,6 +622,307 @@ sqlite::content::get() {
         
         # Execute query with column headers
         sqlite3 -header -column "$db_path" "$query"
+    fi
+    
+    return 0
+}
+
+# Encrypt a database
+sqlite::content::encrypt() {
+    local db_name="${1:-}"
+    local password="${2:-}"
+    
+    if [[ -z "$db_name" ]]; then
+        log::error "Database name required"
+        echo "Usage: resource-sqlite content encrypt <database_name> <password>"
+        return 1
+    fi
+    
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database not found: $db_name"
+        return 1
+    fi
+    
+    # Check if already encrypted
+    if sqlite::is_encrypted "$db_path"; then
+        log::warning "Database appears to be already encrypted"
+        return 1
+    fi
+    
+    # Prompt for password if not provided
+    if [[ -z "$password" ]]; then
+        read -s -p "Enter encryption password: " password
+        echo
+        local password_confirm
+        read -s -p "Confirm password: " password_confirm
+        echo
+        
+        if [[ "$password" != "$password_confirm" ]]; then
+            log::error "Passwords do not match"
+            return 1
+        fi
+    fi
+    
+    # Encrypt the database
+    if sqlite::encrypt_database "$db_path" "$password"; then
+        log::info "Database encrypted: $db_name"
+        echo "IMPORTANT: Remember your password. It cannot be recovered if lost."
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Decrypt a database
+sqlite::content::decrypt() {
+    local db_name="${1:-}"
+    local password="${2:-}"
+    
+    if [[ -z "$db_name" ]]; then
+        log::error "Database name required"
+        echo "Usage: resource-sqlite content decrypt <database_name> <password>"
+        return 1
+    fi
+    
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database not found: $db_name"
+        return 1
+    fi
+    
+    # Check if actually encrypted
+    if ! sqlite::is_encrypted "$db_path"; then
+        log::warning "Database does not appear to be encrypted"
+        return 1
+    fi
+    
+    # Prompt for password if not provided
+    if [[ -z "$password" ]]; then
+        read -s -p "Enter decryption password: " password
+        echo
+    fi
+    
+    # Decrypt the database
+    if sqlite::decrypt_database "$db_path" "$password"; then
+        log::info "Database decrypted: $db_name"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Execute batch operations from file or stdin
+sqlite::content::batch() {
+    local db_name="${1:-}"
+    local sql_file="${2:-}"
+    
+    if [[ -z "$db_name" ]]; then
+        log::error "Database name required"
+        echo "Usage: resource-sqlite content batch <database_name> [sql_file]"
+        echo "  If sql_file not provided, reads from stdin"
+        return 1
+    fi
+    
+    # Validate database name for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database not found: $db_name"
+        return 1
+    fi
+    
+    # Start timer for performance tracking
+    local start_time
+    start_time=$(date +%s%N)
+    
+    # Execute batch operations within a transaction for better performance
+    if [[ -n "$sql_file" && -f "$sql_file" ]]; then
+        # Execute from file
+        log::info "Executing batch operations from file: $sql_file"
+        sqlite3 "$db_path" <<EOF
+BEGIN TRANSACTION;
+.read $sql_file
+COMMIT;
+EOF
+    else
+        # Read from stdin
+        log::info "Executing batch operations from stdin"
+        local batch_sql
+        batch_sql=$(cat)
+        
+        sqlite3 "$db_path" <<EOF
+BEGIN TRANSACTION;
+$batch_sql
+COMMIT;
+EOF
+    fi
+    
+    local exit_code=$?
+    
+    # Calculate execution time
+    local end_time
+    end_time=$(date +%s%N)
+    local duration=$(( (end_time - start_time) / 1000000 )) # Convert to milliseconds
+    
+    if [[ $exit_code -eq 0 ]]; then
+        log::info "Batch operations completed in ${duration}ms"
+    else
+        log::error "Batch operations failed after ${duration}ms"
+    fi
+    
+    return $exit_code
+}
+
+# Import CSV data into database table
+sqlite::content::import_csv() {
+    local db_name="${1:-}"
+    local table_name="${2:-}"
+    local csv_file="${3:-}"
+    local has_header="${4:-true}"
+    
+    if [[ -z "$db_name" ]] || [[ -z "$table_name" ]] || [[ -z "$csv_file" ]]; then
+        log::error "Database name, table name, and CSV file required"
+        echo "Usage: resource-sqlite content import_csv <database_name> <table_name> <csv_file> [has_header]"
+        return 1
+    fi
+    
+    # Validate names for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
+    if ! sqlite::validate_name "$table_name" "table"; then
+        return 1
+    fi
+    
+    if [[ ! -f "$csv_file" ]]; then
+        log::error "CSV file not found: $csv_file"
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database not found: $db_name"
+        return 1
+    fi
+    
+    # Count rows for progress tracking
+    local total_rows
+    total_rows=$(wc -l < "$csv_file")
+    if [[ "$has_header" == "true" ]]; then
+        total_rows=$((total_rows - 1))
+    fi
+    
+    log::info "Importing $total_rows rows from CSV into table: $table_name"
+    
+    # Import CSV using SQLite's built-in CSV mode
+    sqlite3 "$db_path" <<EOF
+.mode csv
+.import $csv_file $table_name
+EOF
+    
+    if [[ $? -eq 0 ]]; then
+        # Get actual row count
+        local imported_count
+        imported_count=$(sqlite3 "$db_path" "SELECT COUNT(*) FROM $table_name;")
+        log::info "Successfully imported $imported_count rows into $table_name"
+    else
+        log::error "Failed to import CSV data"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Export table data to CSV
+sqlite::content::export_csv() {
+    local db_name="${1:-}"
+    local table_name="${2:-}"
+    local output_file="${3:-}"
+    
+    if [[ -z "$db_name" ]] || [[ -z "$table_name" ]]; then
+        log::error "Database name and table name required"
+        echo "Usage: resource-sqlite content export_csv <database_name> <table_name> [output_file]"
+        return 1
+    fi
+    
+    # Validate names for security
+    if ! sqlite::validate_name "$db_name" "database"; then
+        return 1
+    fi
+    
+    if ! sqlite::validate_name "$table_name" "table"; then
+        return 1
+    fi
+    
+    # Add extension if not present
+    if [[ ! "$db_name" =~ \.(db|sqlite|sqlite3)$ ]]; then
+        db_name="${db_name}.db"
+    fi
+    
+    local db_path="${SQLITE_DATABASE_PATH}/${db_name}"
+    
+    if [[ ! -f "$db_path" ]]; then
+        log::error "Database not found: $db_name"
+        return 1
+    fi
+    
+    # Set output file if not provided
+    if [[ -z "$output_file" ]]; then
+        output_file="${SQLITE_DATABASE_PATH}/${table_name}_export_$(date +%Y%m%d_%H%M%S).csv"
+    fi
+    
+    # Export to CSV
+    log::info "Exporting table $table_name to CSV"
+    
+    sqlite3 -header -csv "$db_path" "SELECT * FROM $table_name;" > "$output_file"
+    
+    if [[ $? -eq 0 ]]; then
+        local row_count
+        row_count=$(wc -l < "$output_file")
+        row_count=$((row_count - 1)) # Subtract header
+        log::info "Exported $row_count rows to: $output_file"
+    else
+        log::error "Failed to export table to CSV"
+        return 1
     fi
     
     return 0

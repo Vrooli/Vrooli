@@ -2,19 +2,21 @@
 
 ## Active Issues
 
-### 1. Let's Encrypt CLI Integration Disabled
-**Identified**: 2025-09-15
-**Impact**: Low - alternative TLS functionality available
-**Issue**: Let's Encrypt integration temporarily disabled in CLI due to source order issues
-**Workaround**: Let's Encrypt commands commented out in cli.sh (lines 267-289)
-**Root Cause**: Conflict between CLI framework and letsencrypt.sh library initialization
-**Fix Applied**: Added conditional source guards to prevent duplicate loading
-**Status**: Core functionality works, CLI registration needs refinement
-
+*No active issues at this time*
 
 ## Resolved Issues
 
-### 1. HTTPS/TLS Configuration ✅
+### 1. Let's Encrypt CLI Integration ✅
+**Resolution Date**: 2025-09-15
+**Initial Issue**: Let's Encrypt integration temporarily disabled due to circular dependency
+**Solution**: 
+- Added proper source guards to prevent duplicate library loading
+- Improved ACME challenge test with automatic port conflict resolution
+- Enhanced error handling for Python HTTP server startup
+- All Let's Encrypt commands now fully functional via CLI
+**Commands Available**: init, request, renew, auto-renew, disable-auto-renew, status, revoke, test
+
+### 2. HTTPS/TLS Configuration ✅
 **Resolution Date**: 2025-09-14
 **Solution**: Implemented comprehensive TLS support in lib/tls.sh
 - Self-signed certificate generation for development

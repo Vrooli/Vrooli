@@ -77,6 +77,7 @@ cli::register_command "health" "Check SageMath health status" "sagemath::health:
 # Mathematical computation specific operations
 cli::register_subcommand "content" "calculate" "Calculate mathematical expression" "sagemath::content::calculate"
 cli::register_subcommand "content" "notebook" "Open Jupyter notebook interface" "sagemath::content::notebook"
+cli::register_subcommand "content" "create" "Create new Jupyter notebook from template" "sagemath::content::create"
 
 # SageMath-specific test commands
 cli::register_subcommand "test" "performance" "Run performance benchmarks" "sagemath::test::performance"

@@ -331,7 +331,7 @@ class PerformanceMonitor:
 **Load Testing**:
 ```bash
 # Stress test embedding system
-vrooli test performance --component embeddings --load high
+vrooli test integration --component embeddings --load high  # Performance tests included in integration
 
 # API load testing with Apache Bench
 ab -n 1000 -c 10 http://localhost:8080/api/search

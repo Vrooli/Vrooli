@@ -17,16 +17,19 @@ export NEO4J_CONTAINER_NAME="${NEO4J_CONTAINER_NAME:-vrooli-neo4j}"
 export NEO4J_VERSION="${NEO4J_VERSION:-5.15.0}"
 export NEO4J_IMAGE="${NEO4J_IMAGE:-neo4j:${NEO4J_VERSION}}"
 
-# Port configuration - get from port registry, no fallbacks
-# The port registry defines neo4j=7474 and neo4j-bolt=7687
-# We read these from the registry file directly since there's no query API
-if [[ -z "${NEO4J_HTTP_PORT}" ]] && [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
-    # Extract port from registry using grep
-    NEO4J_HTTP_PORT=$(grep '\["neo4j"\]=' "${APP_ROOT}/scripts/resources/port_registry.sh" | sed 's/.*="\([0-9]*\)".*/\1/')
+# Port configuration - use standardized port registry access
+# Source the port registry to get RESOURCE_PORTS array
+if [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
+    source "${APP_ROOT}/scripts/resources/port_registry.sh"
 fi
 
-if [[ -z "${NEO4J_BOLT_PORT}" ]] && [[ -f "${APP_ROOT}/scripts/resources/port_registry.sh" ]]; then
-    NEO4J_BOLT_PORT=$(grep '\["neo4j-bolt"\]=' "${APP_ROOT}/scripts/resources/port_registry.sh" | sed 's/.*="\([0-9]*\)".*/\1/')
+# Get ports from registry if not already set
+if [[ -z "${NEO4J_HTTP_PORT}" ]]; then
+    NEO4J_HTTP_PORT="${RESOURCE_PORTS["neo4j"]}"
+fi
+
+if [[ -z "${NEO4J_BOLT_PORT}" ]]; then
+    NEO4J_BOLT_PORT="${RESOURCE_PORTS["neo4j-bolt"]}"
 fi
 
 # Fail if ports not available

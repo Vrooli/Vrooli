@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Source log functions
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || {
+    # Fallback log functions if log.sh not available
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+}
+
 source "$(dirname "${BASH_SOURCE[0]}")/core.sh"
 
 # Multi-domain management for Mail-in-a-Box
@@ -9,23 +18,23 @@ mailinabox_add_domain() {
     local domain="$1"
     
     if [[ -z "$domain" ]]; then
-        log_error "Domain name required"
+        log::error "Domain name required"
         echo "Usage: vrooli resource mail-in-a-box content add-domain example.com"
         return 1
     fi
     
     # Validate domain format
     if ! echo "$domain" | grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'; then
-        log_error "Invalid domain format: $domain"
+        log::error "Invalid domain format: $domain"
         return 1
     fi
     
     if ! mailinabox_is_running; then
-        log_error "Mail-in-a-Box is not running"
+        log::error "Mail-in-a-Box is not running"
         return 1
     fi
     
-    log_info "Adding domain: $domain"
+    log::info "Adding domain: $domain"
     
     # Add domain to postfix configuration
     docker exec "$MAILINABOX_CONTAINER_NAME" bash -c "
@@ -38,12 +47,12 @@ mailinabox_add_domain() {
         # Reload postfix
         postfix reload
     " || {
-        log_error "Failed to add domain to postfix"
+        log::error "Failed to add domain to postfix"
         return 1
     }
     
     # Add DNS check info
-    log_success "Domain $domain added successfully"
+    log::success "Domain $domain added successfully"
     echo ""
     echo "⚠️  DNS Configuration Required:"
     echo "Add these DNS records for $domain:"
@@ -67,11 +76,11 @@ mailinabox_add_domain() {
 # List configured domains
 mailinabox_list_domains() {
     if ! mailinabox_is_running; then
-        log_error "Mail-in-a-Box is not running"
+        log::error "Mail-in-a-Box is not running"
         return 1
     fi
     
-    log_info "Configured email domains:"
+    log::info "Configured email domains:"
     
     docker exec "$MAILINABOX_CONTAINER_NAME" bash -c "
         if [[ -f /tmp/docker-mailserver/postfix-virtual-mailbox-domains.cf ]]; then
@@ -81,7 +90,7 @@ mailinabox_list_domains() {
             echo 'Default domain: ${MAILINABOX_PRIMARY_HOSTNAME}'
         fi
     " || {
-        log_error "Failed to list domains"
+        log::error "Failed to list domains"
         return 1
     }
     
@@ -93,17 +102,17 @@ mailinabox_remove_domain() {
     local domain="$1"
     
     if [[ -z "$domain" ]]; then
-        log_error "Domain name required"
+        log::error "Domain name required"
         echo "Usage: vrooli resource mail-in-a-box content remove-domain example.com"
         return 1
     fi
     
     if ! mailinabox_is_running; then
-        log_error "Mail-in-a-Box is not running"
+        log::error "Mail-in-a-Box is not running"
         return 1
     fi
     
-    log_info "Removing domain: $domain"
+    log::info "Removing domain: $domain"
     
     # Remove domain from postfix configuration
     docker exec "$MAILINABOX_CONTAINER_NAME" bash -c "
@@ -120,11 +129,11 @@ mailinabox_remove_domain() {
             echo 'Domain configuration file not found'
         fi
     " || {
-        log_error "Failed to remove domain"
+        log::error "Failed to remove domain"
         return 1
     }
     
-    log_success "Domain $domain removed"
+    log::success "Domain $domain removed"
     return 0
 }
 
@@ -133,11 +142,11 @@ mailinabox_get_dkim() {
     local domain="${1:-$MAILINABOX_PRIMARY_HOSTNAME}"
     
     if ! mailinabox_is_running; then
-        log_error "Mail-in-a-Box is not running"
+        log::error "Mail-in-a-Box is not running"
         return 1
     fi
     
-    log_info "DKIM key for domain: $domain"
+    log::info "DKIM key for domain: $domain"
     
     docker exec "$MAILINABOX_CONTAINER_NAME" bash -c "
         DKIM_KEY_FILE='/tmp/docker-mailserver/opendkim/keys/${domain}/mail.txt'
@@ -149,7 +158,7 @@ mailinabox_get_dkim() {
             echo 'Generate with: docker exec $MAILINABOX_CONTAINER_NAME setup config dkim'
         fi
     " || {
-        log_error "Failed to get DKIM key"
+        log::error "Failed to get DKIM key"
         return 1
     }
     
@@ -160,7 +169,7 @@ mailinabox_get_dkim() {
 mailinabox_verify_domain() {
     local domain="${1:-$MAILINABOX_PRIMARY_HOSTNAME}"
     
-    log_info "Verifying domain configuration for: $domain"
+    log::info "Verifying domain configuration for: $domain"
     echo ""
     
     # Check MX records

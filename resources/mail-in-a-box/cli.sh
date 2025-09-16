@@ -39,7 +39,13 @@ CLI_COMMAND_HANDLERS["manage::install"]="mailinabox_install"
 CLI_COMMAND_HANDLERS["manage::uninstall"]="mailinabox_uninstall"
 CLI_COMMAND_HANDLERS["manage::start"]="mailinabox_start"
 CLI_COMMAND_HANDLERS["manage::stop"]="mailinabox_stop"
-CLI_COMMAND_HANDLERS["manage::restart"]="{ mailinabox_stop; mailinabox_start; }"
+CLI_COMMAND_HANDLERS["manage::restart"]="mailinabox_restart"
+
+# Restart handler function
+mailinabox_restart() {
+    mailinabox_stop
+    mailinabox_start
+}
 
 # Test handlers (REQUIRED) - comprehensive test suite
 CLI_COMMAND_HANDLERS["test::smoke"]="run_test_smoke"

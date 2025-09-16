@@ -94,10 +94,10 @@ vrooli resource earthly content execute \
 ### Performance Optimization
 ```bash
 # Optimize cache for CI/CD (20GB cache, inline caching)
-vrooli resource earthly configure --optimize-cache
+vrooli resource earthly content configure --optimize-cache
 
 # Configure remote cache for team sharing
-vrooli resource earthly configure --remote-cache s3://my-bucket/earthly-cache
+vrooli resource earthly content configure --remote-cache s3://my-bucket/earthly-cache
 ```
 
 Earthly integrates seamlessly with:

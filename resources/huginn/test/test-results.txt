@@ -1,3 +1,3 @@
-✅ smoke tests passed (1s)
-✅ integration tests passed (2s)
+✅ smoke tests passed (0s)
+✅ integration tests passed (3s)
 ✅ unit tests passed (0s)

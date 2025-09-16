@@ -2,7 +2,7 @@
 
 Complete open-source ERP with accounting, inventory, HR, CRM, and project management capabilities.
 
-**Status**: ✅ v2.0 Contract Compliant | 86% PRD Complete | All Tests Passing
+**Status**: ✅ v2.0 Contract Compliant | 100% PRD Complete | All Tests Passing
 
 ## Overview
 
@@ -140,6 +140,48 @@ vrooli resource erpnext manufacturing create-work-order "PROD-001" 10 "BOM-001"
 # Production planning
 vrooli resource erpnext manufacturing production-plan "2025-01-01" "2025-01-31"
 vrooli resource erpnext manufacturing stock-entries "WO-001"
+```
+
+## Multi-tenant Support
+
+Manage multiple companies and organizations:
+
+```bash
+# Company management
+vrooli resource erpnext multi-tenant list-companies    # List all companies
+vrooli resource erpnext multi-tenant create-company "Acme Corp" "ACME" "USD" "United States"
+vrooli resource erpnext multi-tenant switch-company "Acme Corp"
+
+# User assignment
+vrooli resource erpnext multi-tenant assign-user "user@example.com" "Acme Corp" "Manager"
+
+# Company-specific data
+vrooli resource erpnext multi-tenant get-data "Acme Corp" "Customer"
+vrooli resource erpnext multi-tenant configure "Acme Corp" "default_currency" "EUR"
+```
+
+## Mobile UI Configuration
+
+Enable and configure mobile-responsive interface:
+
+```bash
+# Enable responsive UI
+vrooli resource erpnext mobile-ui enable
+
+# Configure mobile theme
+vrooli resource erpnext mobile-ui configure-theme "Mobile Theme" "#5e64ff" "#ffffff"
+
+# Set up Progressive Web App
+vrooli resource erpnext mobile-ui configure-pwa "ERPNext Mobile" "ERP"
+
+# Configure mobile menu
+vrooli resource erpnext mobile-ui configure-menu
+
+# Optimize for touch devices
+vrooli resource erpnext mobile-ui optimize-touch
+
+# Create mobile dashboard
+vrooli resource erpnext mobile-ui create-dashboard "Executive Dashboard"
 ```
 
 ## API Access

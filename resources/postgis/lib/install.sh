@@ -4,7 +4,14 @@
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
 # PostGIS Docker configuration
-POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
+# Check if custom Dockerfile exists for enhanced image with pgRouting
+if [[ -f "${APP_ROOT}/resources/postgis/Dockerfile" ]]; then
+    POSTGIS_IMAGE="vrooli/postgis-routing:16-3.4"
+    POSTGIS_USE_CUSTOM_IMAGE=true
+else
+    POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
+    POSTGIS_USE_CUSTOM_IMAGE=false
+fi
 POSTGIS_CONTAINER="postgis-main"
 POSTGIS_STANDALONE_PORT="${POSTGIS_STANDALONE_PORT:-5434}"
 POSTGIS_INSTALL_LIB_DIR="${APP_ROOT}/resources/postgis/lib"
@@ -43,12 +50,26 @@ postgis_install() {
         docker network create vrooli-network 2>/dev/null || true
     fi
     
-    # Pull PostGIS image
-    log::info "Pulling PostGIS image: ${POSTGIS_IMAGE}"
-    docker pull "${POSTGIS_IMAGE}" || {
-        log::error "Failed to pull PostGIS image"
-        return 1
-    }
+    # Build or pull PostGIS image
+    if [[ "$POSTGIS_USE_CUSTOM_IMAGE" == "true" ]]; then
+        log::info "Building custom PostGIS image with pgRouting support..."
+        if ! docker build -t "${POSTGIS_IMAGE}" "${APP_ROOT}/resources/postgis" 2>&1 | tail -5; then
+            log::warning "Failed to build custom image, falling back to standard image"
+            POSTGIS_IMAGE="postgis/postgis:16-3.4-alpine"
+            docker pull "${POSTGIS_IMAGE}" || {
+                log::error "Failed to pull PostGIS image"
+                return 1
+            }
+        else
+            log::success "Custom PostGIS image with pgRouting built successfully"
+        fi
+    else
+        log::info "Pulling PostGIS image: ${POSTGIS_IMAGE}"
+        docker pull "${POSTGIS_IMAGE}" || {
+            log::error "Failed to pull PostGIS image"
+            return 1
+        }
+    fi
     
     # Create PostGIS container
     log::info "Creating PostGIS container with spatial extensions..."
@@ -98,6 +119,16 @@ postgis_install() {
     docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS postgis;" 2>/dev/null || true
     docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS postgis_raster;" 2>/dev/null || true
     docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS postgis_topology;" 2>/dev/null || true
+    
+    # Try to enable pgRouting if using custom image
+    if [[ "$POSTGIS_USE_CUSTOM_IMAGE" == "true" ]]; then
+        log::info "Enabling pgRouting extension..."
+        if docker exec "${POSTGIS_CONTAINER}" psql -U vrooli -d spatial -c "CREATE EXTENSION IF NOT EXISTS pgrouting;" 2>/dev/null; then
+            log::success "pgRouting extension enabled for advanced routing capabilities"
+        else
+            log::warning "pgRouting extension not available in this image"
+        fi
+    fi
     
     # Create sample spatial data
     log::info "Creating sample spatial tables..."

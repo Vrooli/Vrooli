@@ -139,10 +139,49 @@ curl -X POST http://localhost:8095/pandas/execute \
 - **Timeout Protection**: 10-second execution timeout prevents infinite loops
 - **Plot Support**: Returns matplotlib figures as base64-encoded PNG images
 - **Smart Caching**: Results cached for repeated queries (1-hour TTL)
-- **Auto-detection**: Automatically detects output type (DataFrame, Series, scalar, plot)
+- **Auto-detection**: Automatically detects output type (DataFrame, Series, scalar, plot, array)
 - **Context Variables**: Pre-loaded with `pd`, `np`, `df`, `plt`, `sns`
 - **Performance Tracking**: Returns execution time for optimization
 - **Error Handling**: Detailed error messages with optional traceback
+- **Enhanced Security**: Comprehensive pattern matching for dangerous operations
+- **Path Protection**: Blocks direct file system path access
+- **Command Injection Prevention**: Detects and blocks shell injection attempts
+
+#### Code Validation (NEW)
+```bash
+# Validate pandas code before execution
+curl -X POST http://localhost:8095/pandas/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "import pandas as pd\ndf = pd.DataFrame({\"A\": [1,2,3]})\nresult = df.sum()",
+    "safe_mode": true
+  }'
+
+# Response includes validation status, errors, and warnings
+# {
+#   "valid": true,
+#   "errors": [],
+#   "warnings": [],
+#   "code_length": 71,
+#   "estimated_safe": true
+# }
+
+# Detect dangerous operations
+curl -X POST http://localhost:8095/pandas/validate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "code": "import os; os.system(\"ls\")",
+    "safe_mode": true
+  }'
+# Returns: {"valid": false, "errors": ["Unsafe operations detected..."], ...}
+```
+
+#### Validation Features
+- **Syntax Checking**: Validates Python syntax before execution
+- **Security Analysis**: Detects dangerous patterns and operations
+- **Code Length Limits**: Enforces 10KB maximum code size
+- **Performance Warnings**: Identifies potentially slow operations
+- **Best Practice Suggestions**: Recommends pandas optimizations
 
 #### Cache Management
 ```bash

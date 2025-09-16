@@ -185,18 +185,32 @@ postgis_import_geojson() {
     
     log::info "Importing GeoJSON: $geojson_file"
     
-    # Use ogr2ogr for GeoJSON import
-    if command -v ogr2ogr >/dev/null 2>&1; then
-        local conn_string="PG:host=$POSTGIS_PG_HOST port=$POSTGIS_PG_PORT dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
-        if ogr2ogr -f "PostgreSQL" "$conn_string" "$geojson_file" -nln "$table_name" -overwrite -lco GEOMETRY_NAME=geom -lco FID=id -lco SPATIAL_INDEX=GIST 2>&1; then
+    # Use ogr2ogr from container
+    local container="${POSTGIS_CONTAINER:-postgis-main}"
+    
+    # Check if ogr2ogr is available in container
+    if docker exec "$container" which ogr2ogr >/dev/null 2>&1; then
+        # Copy file to container
+        local container_path="/tmp/$(basename "$geojson_file")"
+        if ! docker cp "$geojson_file" "$container:$container_path" 2>/dev/null; then
+            log::error "Failed to copy GeoJSON file to container"
+            return 1
+        fi
+        
+        # Import using containerized ogr2ogr
+        local conn_string="PG:host=localhost port=5432 dbname=$database user=$POSTGIS_PG_USER password=$POSTGIS_PG_PASSWORD"
+        if docker exec "$container" ogr2ogr -f "PostgreSQL" "$conn_string" "$container_path" -nln "$table_name" -overwrite -lco GEOMETRY_NAME=geom -lco FID=id -lco SPATIAL_INDEX=GIST 2>&1; then
             log::success "GeoJSON imported to table: $table_name"
+            # Clean up
+            docker exec "$container" rm -f "$container_path" 2>/dev/null || true
             return 0
         else
             log::error "Failed to import GeoJSON using ogr2ogr"
+            docker exec "$container" rm -f "$container_path" 2>/dev/null || true
             return 1
         fi
     else
-        log::error "ogr2ogr not found. Install gdal-bin package for GeoJSON support."
+        log::error "ogr2ogr not found in container. Rebuild with custom Dockerfile for GeoJSON support."
         return 1
     fi
 }

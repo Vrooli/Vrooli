@@ -105,6 +105,22 @@ DELETE /clear         # Clear all documents
 
 ## Implementation History
 
+### 2025-01-16: Validation and Robustness Improvements
+- **Test Infrastructure Enhancements**:
+  - Fixed batch_index test to use correct payload format (array of arrays)
+  - Improved restart function to properly return exit code 0 on success
+  - Fixed info command test to use case-insensitive field matching
+  - All tests now passing with zero warnings
+- **Added Validation Functions**:
+  - `haystack::validate_health()` - Health check with proper timeout handling
+  - `haystack::validate_packages()` - Verify critical Python packages installed
+  - Corrected package name check from "haystack" to "haystack-ai"
+- **Enhanced Error Handling**:
+  - Better restart flow with explicit success/failure logging
+  - Proper timeout usage throughout all network calls
+  - Improved test resilience for varying service conditions
+- **Test Results**: All 3 test phases passing (smoke, integration, unit) with no warnings
+
 ### 2025-01-15: Final Test Infrastructure Improvements
 - **Resolved Remaining Issues**:
   - Fixed lifecycle restart function with improved timing and error handling

@@ -90,7 +90,7 @@ qdrant::embedding::process_item()  # In embedding-service.sh
 **Before**:
 ```bash
 vrooli develop start
-vrooli test run-all
+vrooli test all
 resource-qdrant embeddings init
 ```
 

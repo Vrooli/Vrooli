@@ -56,24 +56,56 @@ run_test_phase() {
         chmod +x "$phase_script"
     fi
     
-    # Run test with timeout
+    # Run test with timeout and capture output
     local start_time=$(date +%s)
-    if timeout "${max_duration}" "$phase_script"; then
-        local end_time=$(date +%s)
-        local duration=$((end_time - start_time))
-        echo -e "${GREEN}✓ ${phase_name} tests passed (${duration}s)${NC}"
-        ((PASSED_TESTS++))
+    local test_output
+    local test_exit_code
+    
+    # Capture output to parse test counts
+    # Use tee only if we have a TTY, otherwise just capture
+    if [ -t 1 ]; then
+        test_output=$(timeout "${max_duration}" "$phase_script" 2>&1 | tee /dev/tty)
+        test_exit_code=${PIPESTATUS[0]}
+    else
+        test_output=$(timeout "${max_duration}" "$phase_script" 2>&1)
+        test_exit_code=$?
+        echo "$test_output"
+    fi
+    
+    # Extract test counts from output (format: "Results: X/Y tests passed")
+    local phase_passed=0
+    local phase_total=0
+    if echo "$test_output" | grep -q "Results:.*tests passed"; then
+        local results_line=$(echo "$test_output" | grep "Results:.*tests passed" | tail -1)
+        phase_passed=$(echo "$results_line" | sed -n 's/.*Results: \([0-9]*\)\/[0-9]* tests passed.*/\1/p')
+        phase_total=$(echo "$results_line" | sed -n 's/.*Results: [0-9]*\/\([0-9]*\) tests passed.*/\1/p')
+        
+        # Add to global counters
+        TOTAL_TESTS=$((TOTAL_TESTS + phase_total))
+        PASSED_TESTS=$((PASSED_TESTS + phase_passed))
+        FAILED_TESTS=$((FAILED_TESTS + (phase_total - phase_passed)))
+    else
+        # Fallback to simple phase counting if no detailed results
         ((TOTAL_TESTS++))
+        if [[ $test_exit_code -eq 0 ]]; then
+            ((PASSED_TESTS++))
+        else
+            ((FAILED_TESTS++))
+        fi
+    fi
+    
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    if [[ $test_exit_code -eq 0 ]]; then
+        echo -e "${GREEN}✓ ${phase_name} tests passed (${duration}s)${NC}"
         return 0
     else
-        local exit_code=$?
-        if [[ $exit_code -eq 124 ]]; then
+        if [[ $test_exit_code -eq 124 ]]; then
             echo -e "${RED}✗ ${phase_name} tests timed out after ${max_duration}s${NC}"
         else
-            echo -e "${RED}✗ ${phase_name} tests failed with exit code ${exit_code}${NC}"
+            echo -e "${RED}✗ ${phase_name} tests failed with exit code ${test_exit_code}${NC}"
         fi
-        ((FAILED_TESTS++))
-        ((TOTAL_TESTS++))
         return 1
     fi
 }
@@ -116,11 +148,14 @@ display_summary() {
     # Save results to JSON for status reporting
     save_test_results
     
-    if [[ $FAILED_TESTS -eq 0 ]]; then
-        echo -e "\n${GREEN}✅ All tests passed!${NC}"
+    if [[ $FAILED_TESTS -eq 0 && $TOTAL_TESTS -gt 0 ]]; then
+        echo -e "\n${GREEN}✅ All ${TOTAL_TESTS} tests passed!${NC}"
         return 0
+    elif [[ $TOTAL_TESTS -eq 0 ]]; then
+        echo -e "\n${YELLOW}⚠️ No tests were run${NC}"
+        return 2
     else
-        echo -e "\n${RED}❌ Some tests failed${NC}"
+        echo -e "\n${RED}❌ ${FAILED_TESTS} of ${TOTAL_TESTS} tests failed${NC}"
         return 1
     fi
 }

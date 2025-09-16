@@ -2,23 +2,29 @@
 
 ## Current Issues
 
-### 1. ogr2ogr Not Available in Container
-**Problem**: The gdal-bin package with ogr2ogr is not installed in the PostGIS container
-**Impact**: Low - SQL import works perfectly as an alternative
-**Solution**: Either install gdal-bin in container or use SQL import (recommended)
-**Workaround**: Use SQL import which is fully functional and tested
+None - All major issues resolved!
 
 ## Resolved Issues
 
-### 1. Spatial Routing Initialization Feedback (RESOLVED - 2025-09-15)
+### 1. pgRouting Extension Support (RESOLVED - 2025-09-15)
+**Problem**: pgRouting extension was not available in the Alpine-based PostGIS image
+**Solution**: Created custom Dockerfile using Debian-based PostGIS image with pgRouting
+**Status**: ✅ Resolved - pgRouting 3.8.0 now available with full routing capabilities
+
+### 2. GDAL Tools and ogr2ogr Support (RESOLVED - 2025-09-15)
+**Problem**: GDAL tools were not available for importing various GIS formats
+**Solution**: Custom Docker image now includes gdal-bin package
+**Status**: ✅ Resolved - ogr2ogr and other GDAL tools now available
+
+### 3. Spatial Routing Initialization Feedback (RESOLVED - 2025-09-15)
 **Problem**: `vrooli resource postgis spatial init-routing` command exited without proper feedback
 **Solution**: Enhanced error handling to show table creation status and pgRouting availability
 **Status**: ✅ Resolved - Command now provides clear feedback about what was created
 
-### 2. GIS Format Import Support (RESOLVED - 2025-09-15)  
+### 4. GIS Format Import Support (RESOLVED - 2025-09-15)  
 **Problem**: Only SQL file import was working, needed support for GeoJSON, KML, shapefile formats
 **Solution**: Added wrapper functions for ogr2ogr with graceful fallback to SQL import
-**Status**: ✅ Resolved - Functions ready for when ogr2ogr is available, SQL import works great now
+**Status**: ✅ Resolved - Functions ready and ogr2ogr is now available
 
 ### 1. v2.0 Contract Compliance (RESOLVED)
 **Problem**: Missing test structure, schema.json, and proper test phases

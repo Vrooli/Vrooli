@@ -41,7 +41,7 @@
 - [x] **Secret Management**: Secure handling of build secrets ✅ 2025-01-10
   - Test: `vrooli resource earthly content add --type=secret --name=TOKEN`
 - [x] **Remote Caching**: Share cache between builds and developers ✅ 2025-01-10
-  - Test: `vrooli resource earthly configure --remote-cache s3://bucket/cache`
+  - Test: `vrooli resource earthly content configure --remote-cache s3://bucket/cache`
 - [x] **Build Metrics**: Track build performance and success rates ✅ 2025-01-10
   - Test: `vrooli resource earthly status --metrics`
 
@@ -51,7 +51,7 @@
 - [x] **GitHub Actions Integration**: Native CI/CD integration ✅ 2025-01-11
   - Test: GitHub Actions template available at `examples/github-action.yml`
 - [x] **Build Notifications**: Webhook support for build events ✅ 2025-01-10
-  - Test: `vrooli resource earthly configure --webhook https://example.com/hook`
+  - Test: `vrooli resource earthly content configure --webhook https://example.com/hook`
 
 ## Technical Specifications
 
@@ -183,8 +183,8 @@ vrooli resource earthly status --metrics
 vrooli resource earthly content get metrics
 
 # CI/CD optimization
-vrooli resource earthly configure --optimize-cache
-vrooli resource earthly configure --list
+vrooli resource earthly content configure --optimize-cache
+vrooli resource earthly content configure --list
 ```
 
 ## Change History
@@ -215,3 +215,6 @@ vrooli resource earthly configure --list
 - 2025-01-15: Fixed EARTHLY_PLATFORMS configuration causing command-line execution errors
 - 2025-01-15: Fixed argument parsing for --target= style arguments in execute_build function
 - 2025-01-15: Verified build execution and caching work correctly with artifacts being generated
+- 2025-09-15: Validated all functionality working as specified - all tests pass
+- 2025-09-15: Added .gitignore for tmp directory artifacts
+- 2025-09-15: Corrected documentation - configure commands are under content subcommand

@@ -33,7 +33,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${OBS_CLI_DIR}/config/defaults.sh"
 
 # Source OBS Studio libraries
-for lib in common core install status start stop content test streaming sources docker; do
+for lib in common core install status start stop content test streaming sources docker audio transitions; do
     lib_file="${OBS_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -101,6 +101,34 @@ cli::register_subcommand "docker" "remove" "Remove Docker container" "docker::re
 cli::register_subcommand "docker" "status" "Show Docker container status" "docker::get_status"
 cli::register_subcommand "docker" "logs" "Show Docker container logs" "docker::get_logs"
 cli::register_subcommand "docker" "cleanup" "Clean up Docker resources" "docker::cleanup"
+
+# Register audio command group (P2 feature - Advanced Audio Mixer)
+cli::register_command_group "audio" "Advanced audio mixer control"
+cli::register_subcommand "audio" "status" "Show audio mixer status" "obs::audio::status"
+cli::register_subcommand "audio" "list" "List audio sources" "obs::audio::list"
+cli::register_subcommand "audio" "volume" "Get/set volume" "obs::audio::volume"
+cli::register_subcommand "audio" "mute" "Mute audio source" "obs::audio::mute"
+cli::register_subcommand "audio" "unmute" "Unmute audio source" "obs::audio::unmute"
+cli::register_subcommand "audio" "monitor" "Set monitoring mode" "obs::audio::monitor"
+cli::register_subcommand "audio" "balance" "Adjust stereo balance" "obs::audio::balance"
+cli::register_subcommand "audio" "sync" "Adjust audio sync" "obs::audio::sync"
+cli::register_subcommand "audio" "filter" "Manage audio filters" "obs::audio::filter"
+cli::register_subcommand "audio" "ducking" "Configure auto-ducking" "obs::audio::ducking"
+cli::register_subcommand "audio" "compressor" "Configure compression" "obs::audio::compressor"
+cli::register_subcommand "audio" "noise" "Configure noise suppression" "obs::audio::noise"
+cli::register_subcommand "audio" "eq" "Configure equalizer" "obs::audio::eq"
+
+# Register transitions command group (P2 feature - Transition Effects)
+cli::register_command_group "transitions" "Scene transition effects"
+cli::register_subcommand "transitions" "list" "List available transitions" "obs::transitions::list"
+cli::register_subcommand "transitions" "current" "Show current transition" "obs::transitions::current"
+cli::register_subcommand "transitions" "set" "Set transition type" "obs::transitions::set"
+cli::register_subcommand "transitions" "configure" "Configure transition" "obs::transitions::configure"
+cli::register_subcommand "transitions" "duration" "Set transition duration" "obs::transitions::duration"
+cli::register_subcommand "transitions" "preview" "Preview transition" "obs::transitions::preview"
+cli::register_subcommand "transitions" "stinger" "Configure stinger transition" "obs::transitions::stinger"
+cli::register_subcommand "transitions" "custom" "Create custom transition" "obs::transitions::custom"
+cli::register_subcommand "transitions" "library" "Manage transition library" "obs::transitions::library"
 
 # Additional information commands
 cli::register_command "status" "Show detailed OBS Studio status" "obs::get_status"

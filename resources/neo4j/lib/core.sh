@@ -56,7 +56,7 @@ neo4j_query() {
             --format plain 2>/dev/null)
     fi
     
-    if [[ $? -eq 0 ]] && [[ -n "$result" ]]; then
+    if [[ -n "$result" ]]; then
         echo "$result"
         return 0
     fi
@@ -67,8 +67,10 @@ neo4j_query() {
         auth_header="-u neo4j:${NEO4J_AUTH#*/}"
     fi
     # Escape the query for JSON
-    local escaped_query=$(echo "$query" | sed 's/"/\\"/g' | tr '\n' ' ')
-    local json_query=$(cat <<EOF
+    local escaped_query
+    escaped_query=$(echo "$query" | sed 's/"/\\"/g' | tr '\n' ' ')
+    local json_query
+    json_query=$(cat <<EOF
 {
   "statements": [{
     "statement": "${escaped_query}",

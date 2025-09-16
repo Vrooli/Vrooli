@@ -39,7 +39,7 @@ if [[ -f "${ERPNEXT_CLI_DIR}/lib/main.sh" ]]; then
 fi
 
 # Source ERPNext libraries
-for lib in config docker install status inject content test workflow reporting ecommerce manufacturing; do
+for lib in config docker install status inject content test workflow reporting ecommerce manufacturing multi-tenant mobile-ui; do
     lib_file="${ERPNEXT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -105,6 +105,24 @@ cli::register_subcommand "manufacturing" "list-work-orders" "List work orders" "
 cli::register_subcommand "manufacturing" "create-work-order" "Create work order" "erpnext::manufacturing::create_work_order"
 cli::register_subcommand "manufacturing" "production-plan" "Get production plan" "erpnext::manufacturing::get_production_plan"
 cli::register_subcommand "manufacturing" "stock-entries" "Get stock entries" "erpnext::manufacturing::get_stock_entry"
+
+# Multi-tenant commands
+cli::register_command_group "multi-tenant" "Manage multiple companies/organizations"
+cli::register_subcommand "multi-tenant" "list-companies" "List all companies" "erpnext::multi_tenant::list_companies"
+cli::register_subcommand "multi-tenant" "create-company" "Create new company" "erpnext::multi_tenant::create_company"
+cli::register_subcommand "multi-tenant" "assign-user" "Assign user to company" "erpnext::multi_tenant::assign_user_to_company"
+cli::register_subcommand "multi-tenant" "switch-company" "Switch active company" "erpnext::multi_tenant::switch_company"
+cli::register_subcommand "multi-tenant" "get-data" "Get company-specific data" "erpnext::multi_tenant::get_company_data"
+cli::register_subcommand "multi-tenant" "configure" "Configure company settings" "erpnext::multi_tenant::configure_company"
+
+# Mobile UI commands
+cli::register_command_group "mobile-ui" "Configure mobile-responsive UI"
+cli::register_subcommand "mobile-ui" "enable" "Enable responsive UI" "erpnext::mobile_ui::enable_responsive"
+cli::register_subcommand "mobile-ui" "configure-theme" "Configure mobile theme" "erpnext::mobile_ui::configure_theme"
+cli::register_subcommand "mobile-ui" "configure-pwa" "Configure Progressive Web App" "erpnext::mobile_ui::configure_pwa"
+cli::register_subcommand "mobile-ui" "configure-menu" "Configure mobile menu" "erpnext::mobile_ui::configure_mobile_menu"
+cli::register_subcommand "mobile-ui" "optimize-touch" "Optimize for touch devices" "erpnext::mobile_ui::optimize_touch"
+cli::register_subcommand "mobile-ui" "create-dashboard" "Create mobile dashboard" "erpnext::mobile_ui::create_mobile_dashboard"
 
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

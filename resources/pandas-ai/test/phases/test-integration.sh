@@ -213,7 +213,7 @@ test_direct_pandas_execution() {
             -H "Content-Type: application/json" \
             -d '{"code": "import os; os.system(\"ls\")", "safe_mode": true}' 2>/dev/null)
         
-        if echo "${response}" | grep -q "success.*false" && echo "${response}" | grep -q "Unsafe operation"; then
+        if echo "${response}" | grep -q "success.*false" && echo "${response}" | grep -qi "security violation\|unsafe operation"; then
             log::success "Safety checks work correctly"
             return 0
         else
@@ -222,6 +222,48 @@ test_direct_pandas_execution() {
         fi
     else
         log::error "Direct pandas execution failed"
+        return 1
+    fi
+}
+
+test_pandas_validation() {
+    log::info "Testing pandas code validation endpoint..."
+    
+    # Test valid code validation
+    local response
+    response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/pandas/validate" \
+        -H "Content-Type: application/json" \
+        -d '{"code": "import pandas as pd\ndf = pd.DataFrame({\"A\": [1,2,3]})\nresult = df.sum()", "safe_mode": true}' 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "${response}" | grep -q '"valid":true'; then
+        log::success "Valid code validation works"
+        
+        # Test invalid code detection
+        response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/pandas/validate" \
+            -H "Content-Type: application/json" \
+            -d '{"code": "import os; os.system(\"rm -rf /\")", "safe_mode": true}' 2>/dev/null)
+        
+        if echo "${response}" | grep -q '"valid":false' && echo "${response}" | grep -q "errors"; then
+            log::success "Invalid code detection works"
+            
+            # Test syntax error detection
+            response=$(timeout 5 curl -s -X POST "${PANDAS_AI_URL}/pandas/validate" \
+                -H "Content-Type: application/json" \
+                -d '{"code": "def broken(:\n    pass", "safe_mode": true}' 2>/dev/null)
+            
+            if echo "${response}" | grep -q '"valid":false' && echo "${response}" | grep -qi "syntax"; then
+                log::success "Syntax error detection works"
+                return 0
+            else
+                log::error "Syntax error detection not working"
+                return 1
+            fi
+        else
+            log::error "Invalid code detection not working"
+            return 1
+        fi
+    else
+        log::error "Code validation endpoint not working"
         return 1
     fi
 }
@@ -250,6 +292,7 @@ main() {
     # Run new feature tests
     log::info "Running new feature tests..."
     test_direct_pandas_execution || failed=1
+    test_pandas_validation || failed=1
     
     if [[ ${failed} -eq 0 ]]; then
         log::success "All integration tests passed!"

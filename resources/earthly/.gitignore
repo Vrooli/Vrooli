@@ -1,0 +1,15 @@
+# Temporary test directories and artifacts
+tmp/
+*.log
+
+# Earthly cache
+.earthly-cache/
+
+# Build outputs
+build/
+output/
+artifacts/
+
+# Test artifacts
+test-output.txt
+test-result.txt

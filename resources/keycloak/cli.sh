@@ -265,28 +265,39 @@ cli::register_subcommand "password-policy" "validate" "Validate password against
 cli::register_subcommand "password-policy" "force-reset" "Force password reset for users" "keycloak::password_policy::force_reset"
 
 # Let's Encrypt certificate automation
-# Define lib directory for Let's Encrypt
-KEYCLOAK_LIB_DIR="${KEYCLOAK_CLI_DIR}/lib"
-# TEMPORARILY DISABLED while fixing circular dependency
-# source "${KEYCLOAK_LIB_DIR}/letsencrypt.sh"
+# Register Let's Encrypt command group
+CLI_COMMAND_GROUPS["letsencrypt"]="true"
+CLI_GROUP_DESCRIPTIONS["letsencrypt"]="🔓 Let's Encrypt certificate automation"
 
-# CLI_COMMAND_HANDLERS["letsencrypt::init"]="keycloak::letsencrypt::init"
-# CLI_COMMAND_HANDLERS["letsencrypt::request"]="keycloak::letsencrypt::request_certificate"
-# CLI_COMMAND_HANDLERS["letsencrypt::renew"]="keycloak::letsencrypt::renew_certificates"
-# CLI_COMMAND_HANDLERS["letsencrypt::auto-renew"]="keycloak::letsencrypt::setup_auto_renewal"
-# CLI_COMMAND_HANDLERS["letsencrypt::disable-auto-renew"]="keycloak::letsencrypt::remove_auto_renewal"
-# CLI_COMMAND_HANDLERS["letsencrypt::status"]="keycloak::letsencrypt::check_status"
-# CLI_COMMAND_HANDLERS["letsencrypt::revoke"]="keycloak::letsencrypt::revoke_certificate"
-# CLI_COMMAND_HANDLERS["letsencrypt::test"]="keycloak::letsencrypt::test_challenge"
+# Source Let's Encrypt library with proper guards
+if [[ -f "${KEYCLOAK_CLI_DIR}/lib/letsencrypt.sh" ]]; then
+    # Only source if functions aren't already defined
+    if ! declare -f keycloak::letsencrypt::init &>/dev/null; then
+        # shellcheck disable=SC1090
+        source "${KEYCLOAK_CLI_DIR}/lib/letsencrypt.sh" 2>/dev/null || true
+    fi
+fi
 
-# cli::register_subcommand "letsencrypt" "init" "Initialize Let's Encrypt with email" "keycloak::letsencrypt::init"
-# cli::register_subcommand "letsencrypt" "request" "Request certificate for domain" "keycloak::letsencrypt::request_certificate"
-# cli::register_subcommand "letsencrypt" "renew" "Renew certificates" "keycloak::letsencrypt::renew_certificates"
-# cli::register_subcommand "letsencrypt" "auto-renew" "Setup automatic renewal (daily/weekly/monthly)" "keycloak::letsencrypt::setup_auto_renewal"
-# cli::register_subcommand "letsencrypt" "disable-auto-renew" "Disable automatic renewal" "keycloak::letsencrypt::remove_auto_renewal"
-# cli::register_subcommand "letsencrypt" "status" "Check certificate status" "keycloak::letsencrypt::check_status"
-# cli::register_subcommand "letsencrypt" "revoke" "Revoke certificate for domain" "keycloak::letsencrypt::revoke_certificate"
-# cli::register_subcommand "letsencrypt" "test" "Test ACME challenge setup" "keycloak::letsencrypt::test_challenge"
+# Register Let's Encrypt handlers if functions are available
+if declare -f keycloak::letsencrypt::init &>/dev/null; then
+    CLI_COMMAND_HANDLERS["letsencrypt::init"]="keycloak::letsencrypt::init"
+    CLI_COMMAND_HANDLERS["letsencrypt::request"]="keycloak::letsencrypt::request_certificate"
+    CLI_COMMAND_HANDLERS["letsencrypt::renew"]="keycloak::letsencrypt::renew_certificates"
+    CLI_COMMAND_HANDLERS["letsencrypt::auto-renew"]="keycloak::letsencrypt::setup_auto_renewal"
+    CLI_COMMAND_HANDLERS["letsencrypt::disable-auto-renew"]="keycloak::letsencrypt::remove_auto_renewal"
+    CLI_COMMAND_HANDLERS["letsencrypt::status"]="keycloak::letsencrypt::check_status"
+    CLI_COMMAND_HANDLERS["letsencrypt::revoke"]="keycloak::letsencrypt::revoke_certificate"
+    CLI_COMMAND_HANDLERS["letsencrypt::test"]="keycloak::letsencrypt::test_challenge"
+
+    cli::register_subcommand "letsencrypt" "init" "Initialize Let's Encrypt with email" "keycloak::letsencrypt::init"
+    cli::register_subcommand "letsencrypt" "request" "Request certificate for domain" "keycloak::letsencrypt::request_certificate"
+    cli::register_subcommand "letsencrypt" "renew" "Renew certificates" "keycloak::letsencrypt::renew_certificates"
+    cli::register_subcommand "letsencrypt" "auto-renew" "Setup automatic renewal (daily/weekly/monthly)" "keycloak::letsencrypt::setup_auto_renewal"
+    cli::register_subcommand "letsencrypt" "disable-auto-renew" "Disable automatic renewal" "keycloak::letsencrypt::remove_auto_renewal"
+    cli::register_subcommand "letsencrypt" "status" "Check certificate status" "keycloak::letsencrypt::check_status"
+    cli::register_subcommand "letsencrypt" "revoke" "Revoke certificate for domain" "keycloak::letsencrypt::revoke_certificate"
+    cli::register_subcommand "letsencrypt" "test" "Test ACME challenge setup" "keycloak::letsencrypt::test_challenge"
+fi
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "keycloak::status"

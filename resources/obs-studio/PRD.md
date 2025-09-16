@@ -60,8 +60,8 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - [x] Streaming control (start/stop/status/configure/profiles/test)
 - [x] Source management (add/remove/list/configure/visibility)
 - [x] Device discovery (cameras/audio devices)
-- [ ] Audio mixer control (advanced)
-- [ ] Transition effects
+- [x] Audio mixer control (advanced)
+- [x] Transition effects
 
 ### Testing
 - [x] v2.0 contract compliant test structure
@@ -165,6 +165,18 @@ OBS Studio (Open Broadcaster Software) is a professional streaming and recording
 - Documentation complete and accurate
 
 ## Progress History
+
+### 2025-09-15: P2 Features Complete (99% → 100%)
+**Improvements Made:**
+- ✅ Implemented advanced audio mixer control module (lib/audio.sh)
+- ✅ Added 13 audio subcommands: status/list/volume/mute/unmute/monitor/balance/sync/filter/ducking/compressor/noise/eq
+- ✅ Implemented transition effects module (lib/transitions.sh)
+- ✅ Added 9 transition subcommands: list/current/set/configure/duration/preview/stinger/custom/library
+- ✅ Full CLI integration with proper command handlers
+- ✅ Mock mode support for all new features
+- ✅ All tests pass with no regressions
+
+**Net Progress:** +2 P2 features fully implemented, 0 regressions = +2 net
 
 ### 2025-09-15: Docker Support Implementation (98% → 99%)
 **Improvements Made:**

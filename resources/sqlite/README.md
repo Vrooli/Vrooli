@@ -16,6 +16,12 @@ SQLite is a self-contained, serverless, zero-configuration SQL database engine t
 - **Fast**: Optimized for local file I/O
 - **Cross-Platform**: Works on Linux, macOS, and Windows
 - **WAL Mode**: Write-Ahead Logging for better concurrency
+- **Database Encryption**: AES-256 encryption using OpenSSL
+- **Batch Operations**: High-performance batch SQL execution
+- **CSV Import/Export**: Easy data migration and integration
+- **Migration Support**: Schema versioning and migration tracking
+- **Query Builder**: Safe query construction with automatic escaping
+- **Performance Monitoring**: Query statistics and optimization analysis
 
 ## Quick Start
 
@@ -82,6 +88,21 @@ vrooli resource sqlite content restore <db_name> <backup_file>
 
 # Get database info or run SELECT query
 vrooli resource sqlite content get <db_name> [query]
+
+# Encrypt a database with a password
+vrooli resource sqlite content encrypt <db_name> [password]
+
+# Decrypt an encrypted database
+vrooli resource sqlite content decrypt <db_name> [password]
+
+# Execute batch SQL operations from file or stdin
+vrooli resource sqlite content batch <db_name> [sql_file]
+
+# Import CSV data into a table
+vrooli resource sqlite content import_csv <db_name> <table_name> <csv_file> [has_header]
+
+# Export table data to CSV
+vrooli resource sqlite content export_csv <db_name> <table_name> [output_file]
 ```
 
 ### Testing Commands
@@ -173,6 +194,41 @@ vrooli resource sqlite stats show myapp
 
 # Analyze database for optimization
 vrooli resource sqlite stats analyze myapp
+```
+
+### Database Encryption
+
+```bash
+# Encrypt an existing database
+vrooli resource sqlite content encrypt myapp
+# Enter password when prompted (or provide as argument)
+
+# Decrypt a database for normal use
+vrooli resource sqlite content decrypt myapp
+# Enter password when prompted
+```
+
+### Batch Operations
+
+```bash
+# Execute batch SQL from file
+vrooli resource sqlite content batch myapp /path/to/script.sql
+
+# Execute batch SQL from stdin
+cat script.sql | vrooli resource sqlite content batch myapp
+
+# Batch operations are wrapped in transactions for better performance
+```
+
+### CSV Import/Export
+
+```bash
+# Export table to CSV
+vrooli resource sqlite content export_csv myapp users /tmp/users.csv
+
+# Import CSV into table
+vrooli resource sqlite content import_csv myapp users /tmp/data.csv true
+# Last parameter indicates if CSV has header row
 ```
 
 ## Usage Examples

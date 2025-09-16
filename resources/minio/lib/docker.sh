@@ -47,19 +47,43 @@ minio::docker::create_container() {
     # Validate required environment variables
     docker_resource::validate_env_vars "MINIO_ROOT_USER" "MINIO_ROOT_PASSWORD" "MINIO_IMAGE" || return 1
     
+    # Load performance configuration if exists
+    local perf_config="${HOME}/.minio/config/performance.conf"
+    if [[ -f "$perf_config" ]]; then
+        # shellcheck disable=SC1090
+        source "$perf_config"
+    fi
+    
     # Prepare environment variables array
     local env_vars=(
         "MINIO_ROOT_USER=${MINIO_ROOT_USER}"
         "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}"
-        "MINIO_BROWSER=${MINIO_BROWSER:-on}"
+        "MINIO_BROWSER=${MINIO_PERF_BROWSER:-${MINIO_BROWSER:-on}}"
         "MINIO_REGION=${MINIO_REGION:-us-east-1}"
+        "GOMAXPROCS=${GOMAXPROCS:-4}"
+        "MINIO_API_REQUESTS_MAX=${MINIO_API_REQUESTS_MAX:-8000}"
+        "MINIO_API_REQUESTS_DEADLINE=${MINIO_API_REQUESTS_DEADLINE:-10s}"
     )
+    
+    # Add cache configuration if specified
+    if [[ -n "${MINIO_CACHE_SIZE:-}" ]]; then
+        env_vars+=("MINIO_CACHE=on")
+        env_vars+=("MINIO_CACHE_DIR=/cache")
+        env_vars+=("MINIO_CACHE_QUOTA=${MINIO_CACHE_SIZE:-256MB}")
+        env_vars+=("MINIO_CACHE_WATERMARK_LOW=${MINIO_CACHE_WATERMARK_LOW:-80}")
+        env_vars+=("MINIO_CACHE_WATERMARK_HIGH=${MINIO_CACHE_WATERMARK_HIGH:-90}")
+    fi
     
     # Port mappings for dual-port MinIO setup
     local port_mappings="${MINIO_PORT}:9000 ${MINIO_CONSOLE_PORT}:9001"
     
     # Volumes
     local volumes="${MINIO_DATA_DIR}:/data ${MINIO_CONFIG_DIR}:/root/.minio"
+    
+    # Add cache volume if caching is enabled
+    if [[ -n "${MINIO_CACHE_SIZE:-}" ]]; then
+        volumes="${volumes} ${HOME}/.minio/cache:/cache"
+    fi
     
     # Health check command
     local health_cmd="curl -f http://localhost:9000/minio/health/live || exit 1"

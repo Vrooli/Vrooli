@@ -29,6 +29,8 @@ OBS Studio enables automated content production through:
 - **Visibility Control**: Show/hide sources dynamically
 - **Docker Deployment**: Run OBS in containers with specific version tags (no 'latest')
 - **VNC/NoVNC Access**: Remote control via VNC or web browser
+- **Advanced Audio Mixer**: Full control over audio levels, filters, monitoring, ducking, compression, and EQ
+- **Transition Effects**: Complete transition management including fade, swipe, stinger, and custom transitions
 
 ## Use Cases
 
@@ -137,6 +139,35 @@ vrooli resource obs-studio sources cameras
 
 # List audio devices
 vrooli resource obs-studio sources audio
+
+# Advanced Audio Mixer Control
+# Show audio mixer status with all sources
+vrooli resource obs-studio audio status
+
+# Adjust volume for specific source
+vrooli resource obs-studio audio volume Microphone --level 85
+
+# Configure noise suppression
+vrooli resource obs-studio audio noise Microphone enable
+
+# Set up auto-ducking for background music
+vrooli resource obs-studio audio ducking enable --threshold -30 --ratio 3:1
+
+# Configure audio compression
+vrooli resource obs-studio audio compressor Microphone --threshold -20 --ratio 4:1
+
+# Transition Effects Management
+# List available transitions
+vrooli resource obs-studio transitions list
+
+# Set transition type and duration
+vrooli resource obs-studio transitions set fade --duration 500
+
+# Configure stinger transition with video
+vrooli resource obs-studio transitions stinger --video /path/to/stinger.mp4 --point 250
+
+# Create custom transition
+vrooli resource obs-studio transitions custom create --name "Epic Transition" --base fade
 ```
 
 ## Configuration

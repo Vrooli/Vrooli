@@ -36,7 +36,7 @@ source "${MINIO_CLI_DIR}/config/defaults.sh"
 minio::export_config 2>/dev/null || true
 
 # Source MinIO libraries
-for lib in common docker install status api buckets inject core backup; do
+for lib in common docker install status api buckets inject core backup performance; do
     lib_file="${MINIO_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -92,6 +92,12 @@ cli::register_subcommand "content" "download" "Download file from bucket" "minio
 cli::register_subcommand "content" "configure" "Configure MinIO client" "minio::content::configure"
 cli::register_subcommand "content" "policy" "Set bucket access policy" "minio::content::set_policy" "modifies-system"
 cli::register_subcommand "content" "versioning" "Enable/disable bucket versioning" "minio::content::versioning" "modifies-system"
+
+# Performance tuning commands
+cli::register_command_group "performance" "Performance tuning and monitoring"
+cli::register_subcommand "performance" "profile" "Apply performance profile (minimal/balanced/performance)" "minio::performance::profile_handler" "modifies-system"
+cli::register_subcommand "performance" "monitor" "Show performance metrics" "minio::performance::monitor"
+cli::register_subcommand "performance" "benchmark" "Run performance benchmark" "minio::performance::benchmark_handler"
 
 # ==============================================================================
 # CONTENT COMMAND IMPLEMENTATIONS
@@ -537,6 +543,49 @@ minio::credentials() {
     local response
     response=$(credentials::build_response "minio" "$status" "$connections_array")
     credentials::format_output "$response"
+}
+
+# ==============================================================================
+# PERFORMANCE COMMAND HANDLERS
+# ==============================================================================
+minio::performance::profile_handler() {
+    local profile="${1:-balanced}"
+    
+    # Validate profile
+    case "$profile" in
+        minimal|balanced|performance|custom)
+            minio::performance::apply_profile "$profile"
+            ;;
+        *)
+            log::error "Invalid profile: $profile"
+            echo "Usage: resource-minio performance profile [minimal|balanced|performance|custom]"
+            echo ""
+            echo "Profiles:"
+            echo "  minimal     - Low resource usage for development"
+            echo "  balanced    - Default balanced configuration"
+            echo "  performance - High performance for production"
+            echo "  custom      - Use environment variables"
+            return 1
+            ;;
+    esac
+}
+
+minio::performance::benchmark_handler() {
+    local size="${1:-100}"
+    local iterations="${2:-5}"
+    
+    # Validate parameters
+    if ! [[ "$size" =~ ^[0-9]+$ ]]; then
+        log::error "Invalid size: $size (must be a number in MB)"
+        return 1
+    fi
+    
+    if ! [[ "$iterations" =~ ^[0-9]+$ ]]; then
+        log::error "Invalid iterations: $iterations (must be a number)"
+        return 1
+    fi
+    
+    minio::performance::benchmark "$size" "$iterations"
 }
 
 # Only execute if script is run directly (not sourced)
