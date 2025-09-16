@@ -149,41 +149,44 @@ testing::unit::run_node_tests() {
     
     if [ "$test_success" = true ]; then
         echo "✅ Node.js unit tests completed successfully"
-        
-        # Parse coverage results - try multiple patterns
-        local coverage_line=$(echo "$test_output" | grep -E "(All files|Statements|Lines|Functions|Branches).*[0-9]+(\.[0-9]+)?%" | head -1)
+
+        # Prefer structured coverage data; fall back to parsing stdout
         local coverage_percent=""
-        
-        if [ -n "$coverage_line" ]; then
-            # Extract first percentage from coverage line
-            coverage_percent=$(echo "$coverage_line" | grep -o '[0-9]\+\(\.[0-9]\+\)\?%' | head -1 | sed 's/%//')
+        if [ -f "coverage/coverage-summary.json" ]; then
+            coverage_percent=$(node -e "const summary=require('./coverage/coverage-summary.json'); const pct=summary?.total?.statements?.pct; if (typeof pct === 'number') { process.stdout.write(pct.toString()); }" 2>/dev/null || echo "")
         fi
-        
-        # If no coverage line found, try looking for coverage table
+
+        if [ -z "$coverage_percent" ]; then
+            local coverage_line=$(echo "$test_output" | grep -E "(All files|Statements|Lines|Functions|Branches).*[0-9]+(\.[0-9]+)?%" | head -1)
+            if [ -n "$coverage_line" ]; then
+                coverage_percent=$(echo "$coverage_line" | grep -o '[0-9]\+\(\.[0-9]\+\)\?%' | head -1 | sed 's/%//')
+            fi
+        fi
+
         if [ -z "$coverage_percent" ]; then
             coverage_percent=$(echo "$test_output" | grep -o '[0-9]\+\(\.[0-9]\+\)\?%' | head -1 | sed 's/%//')
         fi
-            
+
         if [ -n "$coverage_percent" ]; then
-            local coverage_num=$(echo "$coverage_percent" | cut -d. -f1)
-            
-            # Check coverage thresholds
+            local coverage_display
+            coverage_display=$(printf '%.2f' "$coverage_percent" 2>/dev/null || echo "$coverage_percent")
+
             echo ""
-            if [ "$coverage_num" -lt "$coverage_error_threshold" ]; then
-                echo "❌ ERROR: Node.js test coverage ($coverage_percent%) is below error threshold ($coverage_error_threshold%)"
+            if awk "BEGIN {exit !($coverage_percent+0 < $coverage_error_threshold)}"; then
+                echo "❌ ERROR: Node.js test coverage (${coverage_display}%) is below error threshold ($coverage_error_threshold%)"
                 echo "   This indicates insufficient test coverage. Please add more comprehensive tests."
                 cd "$original_dir"
                 return 1
-            elif [ "$coverage_num" -lt "$coverage_warn_threshold" ]; then
-                echo "⚠️  WARNING: Node.js test coverage ($coverage_percent%) is below warning threshold ($coverage_warn_threshold%)"
+            elif awk "BEGIN {exit !($coverage_percent+0 < $coverage_warn_threshold)}"; then
+                echo "⚠️  WARNING: Node.js test coverage (${coverage_display}%) is below warning threshold ($coverage_warn_threshold%)"
                 echo "   Consider adding more tests to improve code coverage."
             else
-                echo "✅ Node.js test coverage ($coverage_percent%) meets quality thresholds"
+                echo "✅ Node.js test coverage (${coverage_display}%) meets quality thresholds"
             fi
         else
-            echo "ℹ️  No coverage information found in test output. Coverage may not be configured."
+            echo "ℹ️  No coverage information found in test output or summary. Coverage may not be configured."
         fi
-        
+
         cd "$original_dir"
         return 0
     fi

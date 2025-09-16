@@ -8,12 +8,21 @@ source "${APP_ROOT}/scripts/lib/utils/log.sh"
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 CLI_DIR="$SCENARIO_DIR/cli"
 API_PORT="${API_PORT:-17695}"
+BATS_BIN="$SCENARIO_DIR/ui/node_modules/.bin/bats"
 
 log::info "🔧 Running CLI BATS tests..."
 
-if ! command -v bats >/dev/null 2>&1; then
-    log::error "❌ BATS is not installed"
-    echo "   Install with: npm install -g bats (or use your package manager)"
+if [ ! -x "$BATS_BIN" ]; then
+    log::info "📦 Installing CLI test dependencies (bats)..."
+    if ! npm --prefix "$SCENARIO_DIR/ui" install --silent >/dev/null 2>&1; then
+        log::error "❌ Failed to install CLI test dependencies in $SCENARIO_DIR/ui"
+        exit 1
+    fi
+fi
+
+if [ ! -x "$BATS_BIN" ]; then
+    log::error "❌ BATS binary not found at $BATS_BIN"
+    echo "   Ensure devDependencies include 'bats' and dependencies are installed."
     exit 1
 fi
 
@@ -40,7 +49,7 @@ echo "🧪 Running ${#bats_files[@]} BATS test file(s)..."
 for bats_file in "${bats_files[@]}"; do
     echo ""
     log::info "📋 Running $(basename "$bats_file")..."
-    if API_PORT="$API_PORT" bats "$bats_file" --tap; then
+    if API_PORT="$API_PORT" "$BATS_BIN" "$bats_file" --tap; then
         log::success "✅ $(basename "$bats_file") passed"
     else
         log::error "❌ $(basename "$bats_file") failed"
