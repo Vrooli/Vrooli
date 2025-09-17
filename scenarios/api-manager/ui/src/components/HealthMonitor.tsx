@@ -46,15 +46,8 @@ export default function HealthMonitor() {
     queryFn: apiService.getScenarios,
   })
 
-  // Mock health history data for the chart
-  const healthHistory = [
-    { time: '00:00', score: 95, scenarios: 12 },
-    { time: '04:00', score: 92, scenarios: 12 },
-    { time: '08:00', score: 88, scenarios: 13 },
-    { time: '12:00', score: 85, scenarios: 13 },
-    { time: '16:00', score: 89, scenarios: 14 },
-    { time: '20:00', score: summary?.system_health_score || 91, scenarios: summary?.scenarios?.active || 14 },
-  ]
+  // Historical data will be available once health tracking is implemented
+  const hasHistoricalData = false
 
   const getHealthColor = (score: number) => {
     if (score >= 90) return 'text-success-600'
@@ -121,30 +114,40 @@ export default function HealthMonitor() {
             <p className="mt-4 text-sm text-dark-600">Overall System Health</p>
           </div>
           
-          {/* Health Chart */}
+          {/* Health Chart Placeholder */}
           <div className="lg:col-span-2">
-            <ResponsiveContainer width="100%" height={150}>
-              <AreaChart data={healthHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
-                <YAxis stroke="#6b7280" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="score" 
-                  stroke="#0ea5e9" 
-                  fill="#0ea5e9" 
-                  fillOpacity={0.2}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {hasHistoricalData ? (
+              <ResponsiveContainer width="100%" height={150}>
+                <AreaChart data={[]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="time" stroke="#6b7280" fontSize={12} />
+                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="score" 
+                    stroke="#0ea5e9" 
+                    fill="#0ea5e9" 
+                    fillOpacity={0.2}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[150px] flex items-center justify-center bg-dark-50 rounded-lg border-2 border-dashed border-dark-200">
+                <div className="text-center">
+                  <TrendingUp className="h-8 w-8 text-dark-400 mx-auto mb-2" />
+                  <p className="text-sm text-dark-600 font-medium">Historical Data Coming Soon</p>
+                  <p className="text-xs text-dark-500 mt-1">Health tracking over time will appear here</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -252,12 +255,14 @@ export default function HealthMonitor() {
                 >
                   <p className="text-sm font-medium text-dark-900">{alert.title}</p>
                   <p className="text-xs text-dark-600 mt-1">{alert.description}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Clock className="h-3 w-3 text-dark-400" />
-                    <p className="text-xs text-dark-500">
-                      {format(new Date(alert.created_at), 'HH:mm')}
-                    </p>
-                  </div>
+                  {alert.created_at && !isNaN(new Date(alert.created_at).getTime()) && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Clock className="h-3 w-3 text-dark-400" />
+                      <p className="text-xs text-dark-500">
+                        {format(new Date(alert.created_at), 'HH:mm')}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

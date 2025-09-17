@@ -170,7 +170,7 @@ export default function Dashboard() {
                       </p>
                       <p className="text-sm text-dark-500">
                         {scenario.endpoint_count || 0} endpoints • Last scan: {
-                          scenario.last_scan 
+                          scenario.last_scan && !isNaN(new Date(scenario.last_scan).getTime())
                             ? format(new Date(scenario.last_scan), 'MMM d, HH:mm')
                             : 'Never'
                         }
@@ -220,9 +220,11 @@ export default function Dashboard() {
                     <div className="flex-1">
                       <p className="text-sm font-medium text-dark-900">{alert.title}</p>
                       <p className="text-xs text-dark-600 mt-0.5">{alert.description}</p>
-                      <p className="text-xs text-dark-500 mt-1">
-                        {format(new Date(alert.created_at), 'MMM d, HH:mm')}
-                      </p>
+                      {alert.created_at && (
+                        <p className="text-xs text-dark-500 mt-1">
+                          {format(new Date(alert.created_at), 'MMM d, HH:mm')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -309,7 +311,9 @@ export default function Dashboard() {
                       </Badge>
                     </td>
                     <td className="py-3 text-sm text-dark-500">
-                      {format(new Date(scan.completed_at), 'MMM d, HH:mm')}
+                      {scan.completed_at && !isNaN(new Date(scan.completed_at).getTime())
+                        ? format(new Date(scan.completed_at), 'MMM d, HH:mm')
+                        : 'N/A'}
                     </td>
                   </tr>
                 ))}

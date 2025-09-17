@@ -1,5 +1,5 @@
 #!/bin/bash
-# Unit test phase - uses centralized testing library
+# Unit test phase - uses centralized testing library with fallback support
 set -euo pipefail
 
 echo "=== Unit Tests Phase ==="
@@ -11,46 +11,23 @@ TESTING_LIB="$APP_ROOT/scripts/scenarios/testing/unit"
 
 # Check if centralized testing library exists
 if [ ! -f "$TESTING_LIB/run-all.sh" ]; then
-    echo "❌ Centralized testing library not found at $TESTING_LIB"
-    echo "   Falling back to inline tests..."
+    echo "⚠️  Centralized testing library not found at $TESTING_LIB"
+    echo "   Using fallback test runner..."
     
-    # Fallback to simple inline tests
-    error_count=0
-    test_count=0
+    # Use the fallback library instead of inline code
+    source "$TESTING_LIB/fallback.sh"
     
-    echo "Testing Go..."
-    if [ -d "api" ] && [ -f "api/go.mod" ]; then
-        cd api
-        if go test ./... -timeout 5s >/dev/null 2>&1; then
-            echo "Go tests passed"
-            test_count=$((test_count + 1))
-        else
-            echo "Go tests failed"
-            error_count=$((error_count + 1))
-        fi
-        cd ..
-    fi
+    # Change to scenario directory
+    cd "$SCENARIO_DIR"
     
-    echo "Testing Node.js..."
-    if [ -d "ui" ] && [ -f "ui/package.json" ]; then
-        cd ui
-        if npm test --passWithNoTests --silent >/dev/null 2>&1; then
-            echo "Node.js tests passed"
-            test_count=$((test_count + 1))
-        else
-            echo "Node.js tests failed"  
-            error_count=$((error_count + 1))
-        fi
-        cd ..
-    fi
-    
-    echo "Summary: $test_count passed, $error_count failed"
-    
-    if [ $error_count -eq 0 ]; then
-        echo "SUCCESS: All tests passed"
+    # Run fallback tests with same parameters as the main library would use
+    if testing::unit::fallback::run_all \
+        --go-dir "api" \
+        --node-dir "ui" \
+        --skip-python \
+        --verbose false; then
         exit 0
     else
-        echo "ERROR: Some tests failed"
         exit 1
     fi
 fi

@@ -55,6 +55,7 @@ v8-compile-cache-*/
 
 # Other caches
 __test/cache/
+scenarios/**/test/artifacts/
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt

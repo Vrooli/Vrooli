@@ -21,26 +21,38 @@ testing::runner::init \
     --log-dir "$LOG_DIR" \
     --default-manage-runtime false
 
-# Phase registrations
+# Phase registrations with caching configuration
+# Cache TTL (Time To Live) values:
+#   - structure: 1 hour (3600s) - rarely changes
+#   - dependencies: 1 hour (3600s) - changes only with package updates
+#   - unit: 30 minutes (1800s) - changes with code updates
+#   - integration/business/performance: no cache (always run fresh)
+# Cache keys are based on relevant files that would invalidate the cache
 PHASES_DIR="$TEST_DIR/phases"
 
 testing::runner::register_phase \
     --name "structure" \
     --script "$PHASES_DIR/test-structure.sh" \
     --timeout 15 \
-    --display "phase-structure"
+    --display "phase-structure" \
+    --cache-ttl 3600 \
+    --cache-key-from ".vrooli/service.json,README.md,PRD.md"
 
 testing::runner::register_phase \
     --name "dependencies" \
     --script "$PHASES_DIR/test-dependencies.sh" \
     --timeout 30 \
-    --display "phase-dependencies"
+    --display "phase-dependencies" \
+    --cache-ttl 3600 \
+    --cache-key-from ".vrooli/service.json,api/go.mod,ui/package.json"
 
 testing::runner::register_phase \
     --name "unit" \
     --script "$PHASES_DIR/test-unit.sh" \
     --timeout 60 \
-    --display "phase-unit"
+    --display "phase-unit" \
+    --cache-ttl 1800 \
+    --cache-key-from "api/go.mod,api/go.sum,ui/package.json,ui/package-lock.json"
 
 testing::runner::register_phase \
     --name "integration" \
@@ -93,6 +105,13 @@ testing::runner::register_test_type \
     --kind script \
     --requires-runtime true \
     --display "test-ui"
+
+# Define parallel execution groups
+# Structure and dependencies can run in parallel as they don't interfere
+testing::runner::define_parallel_group "validation" "structure" "dependencies"
+
+# Unit and performance tests can run in parallel as they don't share resources
+testing::runner::define_parallel_group "quality" "unit" "performance"
 
 # Presets
 testing::runner::define_preset quick "structure dependencies unit"

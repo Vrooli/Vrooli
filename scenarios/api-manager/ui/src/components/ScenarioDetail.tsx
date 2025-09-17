@@ -122,7 +122,7 @@ export default function ScenarioDetail() {
             <Clock className="h-8 w-8 text-primary-500" />
           </div>
           <p className="text-lg font-bold text-dark-900">
-            {scenario.last_scan 
+            {scenario.last_scan && !isNaN(new Date(scenario.last_scan).getTime())
               ? format(new Date(scenario.last_scan), 'MMM d')
               : 'Never'}
           </p>
@@ -228,7 +228,9 @@ export default function ScenarioDetail() {
                     <div key={vuln.id} className="text-sm">
                       <p className="font-medium text-dark-900">{vuln.title}</p>
                       <p className="text-xs text-dark-500 mt-0.5">
-                        {vuln.type} • {format(new Date(vuln.discovered_at), 'MMM d')}
+                        {vuln.type} • {vuln.discovered_at && !isNaN(new Date(vuln.discovered_at).getTime())
+                          ? format(new Date(vuln.discovered_at), 'MMM d')
+                          : 'Unknown date'}
                       </p>
                     </div>
                   ))}

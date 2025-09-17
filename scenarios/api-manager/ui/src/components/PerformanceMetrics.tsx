@@ -337,7 +337,9 @@ export default function PerformanceMetrics() {
                       {alert.threshold}
                     </td>
                     <td className="py-3 text-sm text-dark-500">
-                      {format(new Date(alert.created_at), 'MMM d, HH:mm')}
+                      {alert.created_at && !isNaN(new Date(alert.created_at).getTime())
+                        ? format(new Date(alert.created_at), 'MMM d, HH:mm')
+                        : 'N/A'}
                     </td>
                   </tr>
                 ))}

@@ -5,6 +5,9 @@ set -euo pipefail
 SHELL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SHELL_DIR/runtime.sh"
 source "$SHELL_DIR/reporting.sh"
+source "$SHELL_DIR/artifacts.sh"
+source "$SHELL_DIR/parallel.sh"
+source "$SHELL_DIR/cache.sh"
 
 # -----------------------------------------------------------------------------
 # Global state
@@ -23,6 +26,8 @@ declare -A TESTING_RUNNER_PHASE_TIMEOUT=()
 declare -A TESTING_RUNNER_PHASE_OPTIONAL=()
 declare -A TESTING_RUNNER_PHASE_RUNTIME=()
 declare -A TESTING_RUNNER_PHASE_DISPLAY=()
+declare -A TESTING_RUNNER_PHASE_CACHE_TTL=()
+declare -A TESTING_RUNNER_PHASE_CACHE_KEYS=()
 
 TESTING_RUNNER_TEST_TYPES=()
 declare -A TESTING_RUNNER_TEST_HANDLER=()
@@ -97,6 +102,26 @@ testing::runner::init() {
 
     TESTING_RUNNER_DEFAULT_MANAGE_RUNTIME="$default_manage"
     testing::runtime::configure "$scenario_name" "$default_manage"
+    
+    # Configure artifact management
+    testing::artifacts::configure \
+        --dir "$TESTING_RUNNER_LOG_DIR" \
+        --max-logs 10 \
+        --compress-old true \
+        --retention-days 7 \
+        --auto-cleanup true
+    
+    # Configure parallel execution
+    testing::parallel::configure \
+        --enabled true \
+        --max-workers 4
+    
+    # Configure test result caching
+    testing::cache::configure \
+        --dir "$TESTING_RUNNER_LOG_DIR" \
+        --enabled true \
+        --default-ttl 3600 \
+        --check-git true
 }
 
 # Register a phase script
@@ -107,6 +132,8 @@ testing::runner::register_phase() {
     local requires_runtime="false"
     local optional="false"
     local display=""
+    local cache_ttl="0"
+    local cache_key_from=""
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -134,6 +161,14 @@ testing::runner::register_phase() {
                 display="$2"
                 shift 2
                 ;;
+            --cache-ttl)
+                cache_ttl="$2"
+                shift 2
+                ;;
+            --cache-key-from)
+                cache_key_from="$2"
+                shift 2
+                ;;
             *)
                 echo "Unknown option to testing::runner::register_phase: $1" >&2
                 return 1
@@ -152,6 +187,16 @@ testing::runner::register_phase() {
     TESTING_RUNNER_PHASE_OPTIONAL["$name"]="$optional"
     TESTING_RUNNER_PHASE_RUNTIME["$name"]="$requires_runtime"
     TESTING_RUNNER_PHASE_DISPLAY["$name"]="${display:-$name}"
+    TESTING_RUNNER_PHASE_CACHE_TTL["$name"]="$cache_ttl"
+    TESTING_RUNNER_PHASE_CACHE_KEYS["$name"]="$cache_key_from"
+    
+    # Configure phase-specific caching
+    if [ "$cache_ttl" -gt 0 ]; then
+        testing::cache::configure_phase "$name" \
+            --ttl "$cache_ttl" \
+            --key-from "$cache_key_from" \
+            --enabled true
+    fi
 }
 
 # Register a test type handler
@@ -208,6 +253,13 @@ testing::runner::define_preset() {
     local preset="$1"
     shift
     TESTING_RUNNER_PRESETS["$preset"]="$*"
+}
+
+# Define a parallel group of phases
+testing::runner::define_parallel_group() {
+    local group_name="$1"
+    shift
+    testing::parallel::define_group "$group_name" "$@"
 }
 
 # -----------------------------------------------------------------------------
@@ -311,7 +363,48 @@ testing::runner::run_phase() {
 
     local id="phase:$phase"
     local actual_timeout=$((timeout * timeout_multiplier))
-    local log_file="$TESTING_RUNNER_LOG_DIR/${phase}-$(date +%s).log"
+    local log_file=$(testing::artifacts::get_log_path "$phase")
+    
+    # Check cache first
+    local cache_ttl="${TESTING_RUNNER_PHASE_CACHE_TTL[$phase]:-0}"
+    local cache_key=""
+    if [ "$cache_ttl" -gt 0 ] && [ "$dry_run" != "true" ]; then
+        cache_key=$(testing::cache::generate_key "$phase" "$script")
+        
+        if testing::cache::is_valid "$phase" "$cache_key"; then
+            if testing::cache::get "$phase" "$cache_key"; then
+                if command -v log::info >/dev/null 2>&1; then
+                    log::info "📦 Using cached result for phase: $phase"
+                    log::info "   Cached ${CACHE_DURATION}s ago, exit code: $CACHE_EXIT_CODE"
+                else
+                    echo "📦 Using cached result for phase: $phase"
+                    echo "   Cached ${CACHE_DURATION}s ago, exit code: $CACHE_EXIT_CODE"
+                fi
+                
+                # Copy cached log to new location
+                if [ -f "$CACHE_LOG_FILE" ]; then
+                    cp "$CACHE_LOG_FILE" "$log_file"
+                    cat "$CACHE_LOG_FILE"
+                fi
+                
+                local status="passed"
+                if [ "$CACHE_EXIT_CODE" -ne 0 ]; then
+                    if [ "$CACHE_EXIT_CODE" -eq 200 ]; then
+                        status="skipped"
+                    else
+                        status="failed"
+                    fi
+                fi
+                
+                _testing_runner_record "$id" "phase" "$display" "$status" "$CACHE_DURATION" "$log_file"
+                echo ""
+                return $CACHE_EXIT_CODE
+            fi
+        fi
+    fi
+    
+    # Rotate logs for this phase before starting
+    testing::artifacts::rotate_phase_logs "$phase"
 
     if command -v log::info >/dev/null 2>&1; then
         log::info "🚀 Running Phase: $phase"
@@ -386,6 +479,10 @@ testing::runner::run_phase() {
                 echo "✅ Phase '$phase' passed in ${duration}s"
             fi
             _testing_runner_record "$id" "phase" "$display" "passed" "$duration" "$log_file"
+            # Store in cache if enabled
+            if [ "$cache_ttl" -gt 0 ] && [ "$dry_run" != "true" ]; then
+                testing::cache::store "$phase" "$cache_key" 0 "$duration" "$log_file"
+            fi
             ;;
         200)
             if command -v log::warning >/dev/null 2>&1; then
@@ -394,6 +491,10 @@ testing::runner::run_phase() {
                 echo "⚠️  Phase '$phase' skipped"
             fi
             _testing_runner_record "$id" "phase" "$display" "skipped" "$duration" "$log_file"
+            # Store in cache if enabled
+            if [ "$cache_ttl" -gt 0 ] && [ "$dry_run" != "true" ]; then
+                testing::cache::store "$phase" "$cache_key" 200 "$duration" "$log_file"
+            fi
             result=0
             ;;
         124)
@@ -411,6 +512,10 @@ testing::runner::run_phase() {
                 echo "❌ Phase '$phase' failed with exit code $result in ${duration}s" >&2
             fi
             _testing_runner_record "$id" "phase" "$display" "failed" "$duration" "$log_file"
+            # Store in cache if enabled (might cache failures for debugging)
+            if [ "$cache_ttl" -gt 0 ] && [ "$dry_run" != "true" ]; then
+                testing::cache::store "$phase" "$cache_key" "$result" "$duration" "$log_file"
+            fi
             ;;
     esac
 
@@ -540,6 +645,24 @@ _testing_runner_parallel() {
     local dry_run="$3"
     local -n selection_ref="$selection_ref_name"
 
+    # Try to use optimized parallel execution if available
+    if testing::parallel::can_optimize "${selection_ref[@]}"; then
+        # Override the start_phase function for parallel execution
+        testing::parallel::start_phase() {
+            local phase="$1"
+            local log_dir="$2"
+            local tm="$3"
+            testing::runner::run_phase "$phase" "$tm" "$dry_run"
+        }
+        
+        if testing::parallel::execute_phases selection_ref "$TESTING_RUNNER_LOG_DIR" "$timeout_multiplier"; then
+            return 0
+        else
+            return 1
+        fi
+    fi
+    
+    # Fallback to simple parallel execution
     local pids=()
     local overall_result=0
 
@@ -605,6 +728,14 @@ _testing_runner_print_summary() {
         echo ""
     fi
 
+    # Show artifact summary
+    testing::artifacts::summary
+    echo ""
+    
+    # Show cache statistics
+    testing::cache::stats
+    echo ""
+    
     if [ $failed -eq 0 ] && [ $skipped -eq 0 ]; then
         log::success "🎉 All tests passed successfully!"
         log::success "✅ ${TESTING_RUNNER_SCENARIO_NAME^} testing infrastructure is working correctly"

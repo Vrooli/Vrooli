@@ -23,6 +23,7 @@ import VulnerabilityScanner from './components/VulnerabilityScanner'
 import HealthMonitor from './components/HealthMonitor'
 import PerformanceMetrics from './components/PerformanceMetrics'
 import AutomatedFixPanel from './components/AutomatedFixPanel'
+import StandardsCompliance from './components/StandardsCompliance'
 import SettingsPanel from './components/SettingsPanel'
 import { apiService } from './services/api'
 
@@ -60,7 +61,8 @@ export default function App() {
     { id: 'dashboard', name: 'Dashboard', icon: BarChart3, path: '/' },
     { id: 'scenarios', name: 'Scenarios', icon: Server, path: '/scenarios' },
     { id: 'vulnerabilities', name: 'Security Scanner', icon: Shield, path: '/vulnerabilities' },
-    { id: 'health', name: 'Health Monitor', icon: Activity, path: '/health' },
+    { id: 'standards', name: 'Standards Compliance', icon: AlertTriangle, path: '/standards' },
+    { id: 'health', name: 'Health Monitor', icon: Activity, path: '/monitoring' },
     { id: 'performance', name: 'Performance', icon: Zap, path: '/performance' },
     { id: 'automated-fixes', name: 'Automated Fixes', icon: Terminal, path: '/fixes' },
     { id: 'settings', name: 'Settings', icon: Settings, path: '/settings' },
@@ -345,7 +347,8 @@ export default function App() {
               <Route path="/scenarios" element={<ScenariosList />} />
               <Route path="/scenario/:id" element={<ScenarioDetail />} />
               <Route path="/vulnerabilities" element={<VulnerabilityScanner />} />
-              <Route path="/health" element={<HealthMonitor />} />
+              <Route path="/standards" element={<StandardsCompliance />} />
+              <Route path="/monitoring" element={<HealthMonitor />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/fixes" element={<AutomatedFixPanel />} />
               <Route path="/settings" element={<SettingsPanel />} />

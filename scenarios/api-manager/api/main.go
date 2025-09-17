@@ -304,6 +304,10 @@ func main() {
 	api.HandleFunc("/fix/apply/{scenario}", applyAutomatedFixWithSafetyHandler).Methods("POST")
 	api.HandleFunc("/fix/rollback/{fixId}", rollbackAutomatedFixHandler).Methods("POST")
 	
+	// Standards compliance endpoints
+	api.HandleFunc("/standards/check/{name}", enhancedStandardsCheckHandler).Methods("POST")
+	api.HandleFunc("/standards/violations", getStandardsViolationsHandler).Methods("GET")
+	
 	// System operations
 	api.HandleFunc("/system/discover", discoverScenariosHandler).Methods("POST")
 	api.HandleFunc("/system/status", getSystemStatusHandler).Methods("GET")

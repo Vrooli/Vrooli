@@ -165,6 +165,20 @@ class ApiService {
     const response = await this.fetch<{ fixes: AutomatedFix[] }>('/fix/history')
     return response.fixes || []
   }
+
+  // Standards Compliance
+  async checkStandards(name: string, options?: { type?: string, standards?: string[] }): Promise<any> {
+    return this.fetch(`/standards/check/${name}`, {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    })
+  }
+
+  async getStandardsViolations(scenario?: string): Promise<any[]> {
+    const url = scenario ? `/standards/violations?scenario=${scenario}` : '/standards/violations'
+    const response = await this.fetch<{ violations: any[] }>(url)
+    return response.violations || []
+  }
 }
 
 export const apiService = new ApiService()

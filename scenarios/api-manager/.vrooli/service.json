@@ -140,8 +140,11 @@
         },
         {
           "name": "init-database",
-          "run": "if [ -f initialization/storage/postgres/schema.sql ]; then PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f initialization/storage/postgres/schema.sql 2>/dev/null || echo 'Schema already applied or database not ready'; else echo 'No schema file found'; fi",
-          "description": "Apply database schema if available"
+          "run": "resource-postgres exec --database ${POSTGRES_DB} --file initialization/storage/postgres/schema.sql",
+          "description": "Initialize database schema",
+          "condition": {
+            "file_exists": "initialization/storage/postgres/schema.sql"
+          }
         }
       ]
     },

@@ -326,7 +326,9 @@ export default function AutomatedFixPanel() {
                       </Badge>
                     </td>
                     <td className="py-3 text-sm text-dark-500">
-                      {fix.applied_at && format(new Date(fix.applied_at), 'MMM d, HH:mm')}
+                      {fix.applied_at && !isNaN(new Date(fix.applied_at).getTime())
+                        ? format(new Date(fix.applied_at), 'MMM d, HH:mm')
+                        : 'N/A'}
                     </td>
                     <td className="py-3">
                       {fix.status === 'applied' && (

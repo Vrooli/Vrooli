@@ -174,7 +174,7 @@ export default function ScenariosList() {
                       {scenario.vulnerability_count || 0}
                     </span>
                   </div>
-                  {scenario.last_scan && (
+                  {scenario.last_scan && !isNaN(new Date(scenario.last_scan).getTime()) && (
                     <div className="flex justify-between">
                       <span>Last scan:</span>
                       <span className="font-medium">
