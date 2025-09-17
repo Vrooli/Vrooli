@@ -114,8 +114,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: parseInt(process.env.UI_PORT || process.env.PORT),
-    host: '0.0.0.0',
+    port: parseInt(process.env.UI_PORT),
+    host: true,
     proxy: {
       '/api': {
         target: process.env.API_MANAGER_URL || `http://localhost:${process.env.API_PORT}`,

@@ -87,15 +87,22 @@ testing::artifacts::cleanup() {
                 continue
             fi
             
-            # Count logs for this phase
-            local logs=($(ls -t "$TESTING_ARTIFACTS_DIR/${phase_prefix}-"*.log 2>/dev/null || true))
-            local count=${#logs[@]}
+            # Count all logs for this phase (both .log and .log.gz)
+            local uncompressed_logs=($(ls -t "$TESTING_ARTIFACTS_DIR/${phase_prefix}-"*.log 2>/dev/null || true))
+            local compressed_logs=($(ls -t "$TESTING_ARTIFACTS_DIR/${phase_prefix}-"*.log.gz 2>/dev/null || true))
+            local all_logs=("${uncompressed_logs[@]}" "${compressed_logs[@]}")
+            local total_count=${#all_logs[@]}
             
-            if [ $count -gt $TESTING_ARTIFACTS_MAX_LOGS ]; then
-                local to_process=("${logs[@]:$TESTING_ARTIFACTS_MAX_LOGS}")
+            if [ $total_count -gt $TESTING_ARTIFACTS_MAX_LOGS ]; then
+                # Sort all logs by modification time (newest first)
+                local sorted_logs=($(ls -t "$TESTING_ARTIFACTS_DIR/${phase_prefix}-"*.log* 2>/dev/null || true))
+                local to_process=("${sorted_logs[@]:$TESTING_ARTIFACTS_MAX_LOGS}")
                 
                 for old_log in "${to_process[@]}"; do
-                    if [ "$TESTING_ARTIFACTS_COMPRESS_OLD" = "true" ] && [ -f "$old_log" ]; then
+                    if [[ "$old_log" == *.log.gz ]]; then
+                        # Already compressed, just delete
+                        rm -f "$old_log"
+                    elif [ "$TESTING_ARTIFACTS_COMPRESS_OLD" = "true" ] && [ -f "$old_log" ]; then
                         # Compress old logs
                         gzip -9 "$old_log" 2>/dev/null || rm -f "$old_log"
                     else

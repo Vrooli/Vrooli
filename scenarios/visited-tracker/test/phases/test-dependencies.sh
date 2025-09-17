@@ -1,21 +1,14 @@
 #!/bin/bash
-# Dependencies validation phase - <30 seconds
-# Resolves required resources from service.json and verifies language/tooling prerequisites
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${SCENARIO_DIR}/test/utils/cli.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+# Initialize phase with 30-second target
+testing::phase::init --target-time "30s"
 
-echo "=== Dependencies Phase (Target: <30s) ==="
-start_time=$(date +%s)
-
-error_count=0
-warning_count=0
-
-SCENARIO_NAME=$(basename "$SCENARIO_DIR")
-SERVICE_JSON="$SCENARIO_DIR/.vrooli/service.json"
+SERVICE_JSON="$TESTING_PHASE_SCENARIO_DIR/.vrooli/service.json"
 
 check_resource_cli() {
     local resource_name="$1"
@@ -24,11 +17,9 @@ check_resource_cli() {
 
     if ! command -v "$cli_name" >/dev/null 2>&1; then
         if [ "$required_flag" = "true" ]; then
-            log::error "❌ Required resource CLI missing: $cli_name"
-            ((error_count++))
+            testing::phase::add_error "❌ Required resource CLI missing: $cli_name"
         else
-            log::warning "⚠️  Optional resource CLI missing: $cli_name"
-            ((warning_count++))
+            testing::phase::add_warning "⚠️  Optional resource CLI missing: $cli_name"
         fi
         return
     fi
@@ -44,11 +35,9 @@ check_resource_cli() {
     fi
 
     if [ "$required_flag" = "true" ]; then
-        log::error "❌ Required resource '$resource_name' is unavailable"
-        ((error_count++))
+        testing::phase::add_error "❌ Required resource '$resource_name' is unavailable"
     else
-        log::warning "⚠️  Optional resource '$resource_name' could not be verified"
-        ((warning_count++))
+        testing::phase::add_warning "⚠️  Optional resource '$resource_name' could not be verified"
     fi
 }
 
@@ -68,9 +57,9 @@ if [ -f "$SERVICE_JSON" ] && command -v jq >/dev/null 2>&1; then
         done
     fi
 else
-    log::warning "⚠️  Unable to parse resources from service.json (missing file or jq)"
+    testing::phase::add_warning "⚠️  Unable to parse resources from service.json (missing file or jq)"
     if [ ! -f "$SERVICE_JSON" ]; then
-        ((warning_count++))
+        testing::phase::add_warning
     fi
 fi
 
@@ -79,24 +68,21 @@ if command -v go >/dev/null 2>&1; then
     go_version=$(go version | awk '{print $3}')
     log::success "✅ Go available: $go_version"
 else
-    log::error "❌ Go toolchain not found"
-    ((error_count++))
+    testing::phase::add_error "❌ Go toolchain not found"
 fi
 
 if command -v node >/dev/null 2>&1; then
     node_version=$(node --version)
     log::success "✅ Node.js available: $node_version"
 else
-    log::error "❌ Node.js runtime not found"
-    ((error_count++))
+    testing::phase::add_error "❌ Node.js runtime not found"
 fi
 
 if command -v npm >/dev/null 2>&1; then
     npm_version=$(npm --version)
     log::success "✅ npm available: $npm_version"
 else
-    log::warning "⚠️  npm not found (Node.js tests may fail)"
-    ((warning_count++))
+    testing::phase::add_warning "⚠️  npm not found (Node.js tests may fail)"
 fi
 
 echo "🔍 Checking essential utilities..."
@@ -106,40 +92,18 @@ for tool in "${essential_tools[@]}"; do
         version_output=$("$tool" --version 2>&1 | head -1)
         log::success "✅ $tool available ($version_output)"
     else
-        log::error "❌ Required utility missing: $tool"
-        ((error_count++))
+        testing::phase::add_error "❌ Required utility missing: $tool"
     fi
 done
 
 echo "🔍 Validating CLI tooling..."
-if ! visited_tracker::validate_cli "$SCENARIO_DIR" true; then
+if ! visited_tracker::validate_cli "$TESTING_PHASE_SCENARIO_DIR" true; then
     cli_errors=$?
     if [ $cli_errors -eq 0 ]; then
         cli_errors=1
     fi
-    error_count=$((error_count + cli_errors))
+    TESTING_PHASE_ERROR_COUNT=$((TESTING_PHASE_ERROR_COUNT + cli_errors))
 fi
 
-end_time=$(date +%s)
-duration=$((end_time - start_time))
-echo ""
-
-if [ $error_count -eq 0 ]; then
-    if [ $warning_count -eq 0 ]; then
-        log::success "✅ Dependencies validation completed successfully in ${duration}s"
-    else
-        log::success "✅ Dependencies validation completed with $warning_count warnings in ${duration}s"
-    fi
-else
-    log::error "❌ Dependencies validation failed with $error_count errors and $warning_count warnings in ${duration}s"
-fi
-
-if [ $duration -gt 30 ]; then
-    log::warning "⚠️  Dependencies phase exceeded 30s target"
-fi
-
-if [ $error_count -eq 0 ]; then
-    exit 0
-else
-    exit 1
-fi
+# End with summary
+testing::phase::end_with_summary "Dependencies validation completed"

@@ -1,0 +1,186 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "2.0.0",
+  "service": {
+    "name": "scenario-auditor",
+    "displayName": "Scenario Auditor",
+    "description": "Comprehensive standards enforcement system for auditing and improving all scenarios across API security, UI practices, configuration compliance, and testing standards",
+    "version": "1.0.0",
+    "tags": [
+      "standards-enforcement",
+      "quality-assurance", 
+      "security-audit",
+      "configuration-validation",
+      "ui-testing",
+      "rule-engine",
+      "ai-integration",
+      "vrooli-core"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com"
+      }
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Scenario Auditor REST API port",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT", 
+      "description": "Auditing dashboard UI port",
+      "range": "35000-39999"
+    }
+  },
+  "resources": {
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Stores rule definitions, scan results, user preferences, and audit history",
+      "schema": "scenario_auditor"
+    },
+    "claude-code": {
+      "type": "claude-code",
+      "enabled": true,
+      "required": true,
+      "description": "AI agent spawning for automated fix generation and rule creation"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Scenario Auditor health check configuration",
+      "endpoints": {
+        "api": "/api/v1/health",
+        "ui": "/"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint", 
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/api/v1/health",
+          "critical": true,
+          "timeout": 5000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http", 
+          "target": "http://localhost:${UI_PORT}",
+          "critical": false,
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "timeout": 5000,
+      "interval": 30000,
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Initialize Scenario Auditor",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": ["scenario-auditor-api"]
+          },
+          {
+            "type": "cli", 
+            "targets": ["scenario-auditor"]
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "install-cli",
+          "run": "cd cli && ./install.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o scenario-auditor-api .",
+          "description": "Build API server binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install --prefer-offline --no-audit --no-fund --loglevel error",
+          "description": "Install UI dependencies"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"✅ Scenario Auditor is ready:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Scenario Auditor services in development mode",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && ./scenario-auditor-api",
+          "background": true,
+          "description": "Start API server"
+        },
+        {
+          "name": "start-ui", 
+          "run": "cd ui && npm run dev",
+          "background": true,
+          "description": "Start Vite dev server"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo \"✅ Scenario Auditor is running:\" && echo \"  Dashboard: http://localhost:${UI_PORT}\" && echo \"  API: http://localhost:${API_PORT}/api/v1\" && echo \"  Health: http://localhost:${API_PORT}/api/v1/health\""
+        }
+      ]
+    },
+    "test": {
+      "description": "Run Scenario Auditor test suite",
+      "steps": [
+        {
+          "name": "test-unit",
+          "run": "cd test && ./phases/test-unit.sh",
+          "description": "Run unit tests"
+        },
+        {
+          "name": "test-integration", 
+          "run": "cd test && ./phases/test-integration.sh",
+          "description": "Run integration tests"
+        },
+        {
+          "name": "test-rules-engine",
+          "run": "cd test && ./phases/test-rules-engine.sh", 
+          "description": "Test rule engine functionality"
+        },
+        {
+          "name": "test-ui-practices",
+          "run": "cd test && ./phases/test-ui-practices.sh",
+          "description": "Validate UI testing best practices"
+        },
+        {
+          "name": "test-service-json",
+          "run": "cd test && ./phases/test-service-json.sh",
+          "description": "Test service.json validation"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Scenario Auditor services",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f \"scenario-auditor-api\" || true; sleep 1; pkill -9 -f \"scenario-auditor-api\" 2>/dev/null || true",
+          "description": "Stop API process"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f \"vite.*scenario-auditor\" || true; sleep 1; pkill -9 -f \"vite.*scenario-auditor\" 2>/dev/null || true", 
+          "description": "Stop Vite dev server"
+        }
+      ]
+    }
+  }
+}

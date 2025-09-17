@@ -42,6 +42,7 @@ declare -g -A RESOURCE_PORTS=(
     ["qdrant"]="6333"          # Vector database for AI embeddings
     ["questdb"]="9009"         # Time-series database for analytics
     ["postgres"]="5433"        # PostgreSQL instances (5433-5499 range for client instances)
+    ["postgis"]="5434"         # PostGIS spatial database extension for PostgreSQL
     ["redis"]="6380"           # Redis in-memory data store (6380 to avoid conflict with internal Redis on 6379)
     ["neo4j"]="7474"           # Neo4j graph database (HTTP)
     ["neo4j-bolt"]="7687"      # Neo4j Bolt protocol
@@ -127,9 +128,9 @@ declare -g -A RESOURCE_PORTS=(
     ["eclipse-ditto"]="8089"   # Eclipse Ditto Digital Twin Platform for IoT
     
     # Energy Management Services (80xx range)
-    ["openems"]="8084"         # OpenEMS HTTP API and Web UI
-    ["openems-jsonrpc"]="8085" # OpenEMS JSON-RPC WebSocket
-    ["openems-backend"]="8086" # OpenEMS Backend API
+    ["openems"]="8294"         # OpenEMS HTTP API and Web UI
+    ["openems-jsonrpc"]="8295" # OpenEMS JSON-RPC WebSocket
+    ["openems-backend"]="8296" # OpenEMS Backend API
     ["openems-modbus"]="502"   # OpenEMS Modbus TCP (standard port)
     
     # Healthcare Services (80xx range)

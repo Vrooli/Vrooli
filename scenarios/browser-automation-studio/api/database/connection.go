@@ -18,9 +18,37 @@ type DB struct {
 
 // NewConnection creates a new database connection with exponential backoff
 func NewConnection(log *logrus.Logger) (*DB, error) {
-	databaseURL := os.Getenv("DATABASE_URL")
-	if databaseURL == "" {
-		return nil, fmt.Errorf("DATABASE_URL environment variable not set")
+	// Check for individual PostgreSQL environment variables (preferred)
+	dbHost := os.Getenv("POSTGRES_HOST")
+	dbPort := os.Getenv("POSTGRES_PORT")
+	dbUser := os.Getenv("POSTGRES_USER")
+	dbPassword := os.Getenv("POSTGRES_PASSWORD")
+	dbName := os.Getenv("POSTGRES_DB")
+	
+	// Override database name for this scenario if not specifically set
+	if dbName == "vrooli" || dbName == "" {
+		dbName = "browser_automation_studio"
+	}
+	
+	var databaseURL string
+	
+	if dbHost != "" && dbPort != "" && dbUser != "" && dbPassword != "" && dbName != "" {
+		// Construct URL from individual components
+		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
+			dbUser, dbPassword, dbHost, dbPort, dbName)
+		log.WithFields(logrus.Fields{
+			"host": dbHost,
+			"port": dbPort,
+			"user": dbUser,
+			"database": dbName,
+		}).Info("Using individual PostgreSQL environment variables")
+	} else {
+		// Fallback to DATABASE_URL if individual vars not available
+		databaseURL = os.Getenv("DATABASE_URL")
+		if databaseURL == "" {
+			return nil, fmt.Errorf("PostgreSQL configuration not found. Please set either DATABASE_URL or individual variables: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
+		}
+		log.Info("Using DATABASE_URL environment variable")
 	}
 
 	var db *sqlx.DB

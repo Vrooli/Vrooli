@@ -1,0 +1,86 @@
+# Scenario Test Configuration for Scenario Auditor
+# This file defines how the scenario should be tested and validated
+
+name: scenario-auditor
+description: "Standards enforcement system testing configuration"
+
+# Test phases to execute
+phases:
+  - name: structure
+    description: "Validate directory structure and required files"
+    script: "test/phases/test-structure.sh"
+    required: true
+    timeout: 60
+
+  - name: dependencies
+    description: "Check and validate all dependencies"
+    script: "test/phases/test-dependencies.sh"
+    required: true
+    timeout: 300
+
+  - name: unit
+    description: "Run unit tests for all components"
+    script: "test/phases/test-unit.sh"
+    required: true
+    timeout: 300
+
+  - name: integration
+    description: "Test component integration and API endpoints"
+    script: "test/phases/test-integration.sh"
+    required: true
+    timeout: 600
+
+  - name: business
+    description: "Validate business logic and rule engine"
+    script: "test/phases/test-business.sh"
+    required: true
+    timeout: 300
+
+  - name: performance
+    description: "Performance and load testing"
+    script: "test/phases/test-performance.sh"
+    required: false
+    timeout: 300
+
+# Environment variables for testing
+environment:
+  API_PORT: "15001"
+  UI_PORT: "35001"
+  VROOLI_LIFECYCLE_MANAGED: "true"
+
+# Success criteria
+success_criteria:
+  - all_required_phases_pass: true
+  - api_response_time_under: 1000  # milliseconds
+  - scan_completion_under: 30000   # milliseconds
+  - memory_usage_under: 512        # MB
+
+# Test artifacts to preserve
+artifacts:
+  - "test/artifacts/*.log"
+  - "test/artifacts/*.json"
+  - "api/scenario-auditor-api"
+  - "cli/scenario-auditor"
+
+# Cleanup after testing
+cleanup:
+  - "pkill -f scenario-auditor-api || true"
+  - "pkill -f vite.*scenario-auditor || true"
+  - "rm -f api.pid ui.pid"
+
+# Health checks during testing
+health_checks:
+  - endpoint: "http://localhost:${API_PORT}/api/v1/health"
+    expected_status: 200
+    timeout: 5000
+    
+  - endpoint: "http://localhost:${API_PORT}/api/v1/rules"
+    expected_status: 200
+    timeout: 5000
+
+# Test configuration
+config:
+  parallel_execution: false
+  fail_fast: true
+  verbose_output: true
+  preserve_artifacts: true

@@ -756,16 +756,16 @@ resources::validate_config() {
 resources::update_config() {
     local category="$1"
     local resource_name="$2"
-    local base_url="$3"
+    local base_url="$3"  # Still accept but don't use - for backward compatibility
     local additional_config="${4:-{}}"
     
     log::info "Updating resource configuration for $category/$resource_name"
     
-    # Create base configuration
+    # Create base configuration without baseUrl - let system derive from port_registry.sh
     local resource_config
     if system::is_command "jq"; then
-        # Create base config first, then merge with additional config
-        local base_config="{\"enabled\": true, \"baseUrl\": \"$base_url\", \"healthCheck\": {\"intervalMs\": 60000, \"timeoutMs\": 5000}}"
+        # Create base config without baseUrl
+        local base_config="{\"enabled\": true, \"healthCheck\": {\"intervalMs\": 60000, \"timeoutMs\": 5000}}"
         
         # Try to merge configurations safely
         if [[ "$additional_config" != "{}" ]] && [[ -n "$additional_config" ]]; then
@@ -781,8 +781,8 @@ resources::update_config() {
             resource_config="$base_config"
         fi
     else
-        # Fallback to basic JSON
-        resource_config="{\"enabled\": true, \"baseUrl\": \"$base_url\", \"healthCheck\": {\"intervalMs\": 60000, \"timeoutMs\": 5000}}"
+        # Fallback to basic JSON without baseUrl
+        resource_config="{\"enabled\": true, \"healthCheck\": {\"intervalMs\": 60000, \"timeoutMs\": 5000}}"
     fi
     
     # Use TypeScript configuration manager if available

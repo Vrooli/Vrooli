@@ -38,32 +38,36 @@
     }
   },
   "resources": {
-    "required": {
-      "browserless": {
-        "version": ">=2.0.0",
-        "purpose": "Core browser automation engine for workflow execution"
-      },
-      "postgres": {
-        "version": ">=14.0",
-        "purpose": "Workflow definitions and execution history storage",
-        "database": "browser_automation_studio"
-      },
-      "minio": {
-        "version": ">=2023.0.0",
-        "purpose": "Screenshot and artifact storage with S3-compatible API"
-      }
+    "postgres": {
+      "type": "postgres",
+      "enabled": true,
+      "required": true,
+      "description": "Workflow definitions and execution history storage",
+      "schema": "browser_automation_studio"
     },
-    "optional": {
-      "redis": {
-        "version": ">=7.0",
-        "purpose": "WebSocket pub/sub and execution caching",
-        "fallback": "in-memory storage for single-instance deployments"
-      },
-      "ollama": {
-        "version": ">=0.1.0", 
-        "purpose": "AI workflow generation and debugging assistance",
-        "fallback": "manual workflow creation only"
-      }
+    "browserless": {
+      "type": "browserless",
+      "enabled": true,
+      "required": true,
+      "description": "Core browser automation engine for workflow execution"
+    },
+    "minio": {
+      "type": "minio",
+      "enabled": true,
+      "required": true,
+      "description": "Screenshot and artifact storage with S3-compatible API"
+    },
+    "redis": {
+      "type": "redis",
+      "enabled": true,
+      "required": false,
+      "description": "WebSocket pub/sub and execution caching"
+    },
+    "ollama": {
+      "type": "ollama",
+      "enabled": true,
+      "required": false,
+      "description": "AI workflow generation and debugging assistance"
     }
   },
   "lifecycle": {
@@ -138,6 +142,11 @@
           "description": "Install React UI dependencies"
         },
         {
+          "name": "build-ui",
+          "run": "cd ui && if [ -f package.json ]; then npm run build; else echo 'No package.json found, skipping UI build'; fi",
+          "description": "Build React UI for production"
+        },
+        {
           "name": "setup-database",
           "run": "echo 'Database schema will be initialized on first API startup'",
           "description": "Prepare database schema"
@@ -154,7 +163,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && export DATABASE_URL='postgres://vrooli:newpass123@localhost:5433/browser_automation_studio?sslmode=disable' && export BROWSERLESS_URL='http://localhost:4110' && ./browser-automation-studio-api",
+          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./browser-automation-studio-api",
           "description": "Start Go API server with workflow engine",
           "background": true,
           "condition": {
@@ -163,8 +172,8 @@
         },
         {
           "name": "start-ui", 
-          "run": "cd ui && npm run dev",
-          "description": "Start React UI development server",
+          "run": "cd ui && if [ -d dist ]; then node server.js; else npm run dev; fi",
+          "description": "Start React UI server (production or development mode)",
           "background": true,
           "condition": {
             "file_exists": "ui/package.json"

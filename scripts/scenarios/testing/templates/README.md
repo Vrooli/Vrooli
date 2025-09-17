@@ -1,179 +1,137 @@
-# Testing Templates
+# Phase Test Templates
 
-This directory contains **template files** that scenarios can copy and customize for their specific testing needs. These are NOT libraries to be imported, but rather starting points for your own test helpers.
+This directory contains template files for creating phased test scripts that use the new `phase-helpers.sh` boilerplate elimination system.
 
-## Important: Templates vs Libraries
+## 🎯 Benefits
 
-- **Templates** (this directory): Copy and customize for your scenario
-- **Libraries** (../shell/, ../unit/): Source/import directly in your tests
+Using `phase-helpers.sh` reduces test phase boilerplate by **80%** (from 40+ lines to ~5 lines) while providing:
+- Automatic scenario/directory detection
+- Standardized timing and reporting
+- Consistent error/warning/test counting
+- Cleanup function management
+- Built-in helper functions
 
-## Go Templates
+## 📁 Available Templates
 
-### test_helpers.go.template
+### `phase-minimal.sh.template`
+**Use for:** Creating new custom test phases
+- Shows absolute minimum boilerplate required
+- Includes all available helper functions
+- Good starting point for any test phase
 
-A comprehensive template for Go HTTP testing utilities. Copy this to your scenario's `api/` directory and customize.
+### `phase-structure.sh.template` 
+**Use for:** Structure validation phases
+- Validates files, directories, and configuration
+- Includes service.json validation
+- Language-specific checks (Go, Node.js, etc.)
 
-**Features:**
-- Test environment setup with isolated directories
-- HTTP request/response testing utilities
-- JSON validation helpers
-- Performance and concurrency testing
-- Test data generators
+### `phase-integration.sh.template`
+**Use for:** Integration test phases
+- API/UI connectivity testing
+- Resource integration checks
+- End-to-end workflow testing
+- Cleanup function registration
 
-**Usage:**
+## 🚀 Quick Start
+
+1. **Copy a template to your scenario:**
 ```bash
-# Copy to your scenario
-cp scripts/scenarios/testing/templates/go/test_helpers.go.template \
-   scenarios/my-scenario/api/test_helpers.go
-
-# Customize the package name and adapt to your needs
-sed -i 's/package httptest/package main/' scenarios/my-scenario/api/test_helpers.go
+cp scripts/scenarios/testing/templates/phase-minimal.sh.template \
+   scenarios/my-scenario/test/phases/test-mynewphase.sh
 ```
 
-**Key Functions to Customize:**
-- `SetupTestLogger()` - Replace with your scenario's logger
-- `SetupTestDirectory()` - Add your scenario-specific initialization
-- Test data generators - Create scenario-specific test data
+2. **Customize the TODO sections**
 
-### error_patterns.go.template
-
-Sophisticated error testing patterns for comprehensive test coverage.
-
-**Features:**
-- Reusable error test patterns
-- REST resource testing patterns
-- Test scenario builder with fluent interface
-- Performance and concurrency test patterns
-
-**Usage:**
+3. **Run the test:**
 ```bash
-# Copy to your scenario
-cp scripts/scenarios/testing/templates/go/error_patterns.go.template \
-   scenarios/my-scenario/api/test_patterns.go
-
-# Customize the package name
-sed -i 's/package patterns/package main/' scenarios/my-scenario/api/test_patterns.go
+./test/phases/test-mynewphase.sh
 ```
 
-**Customization Points:**
-- Add scenario-specific error patterns
-- Create custom validation functions
-- Define business logic test patterns
+## 📋 Before/After Comparison
 
-## Using Templates Effectively
-
-### 1. Copy, Don't Import
-
-These templates are designed to be copied into your scenario and customized:
-
+### Before (40+ lines of boilerplate):
 ```bash
-# Wrong - trying to import
-import "path/to/templates/go/test_helpers.go.template"  # ❌ Won't work
+#!/bin/bash
+set -euo pipefail
+SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
+source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
+echo "=== My Test Phase ==="
+start_time=$(date +%s)
+error_count=0
+test_count=0
 
-# Right - copy and customize
-cp templates/go/test_helpers.go.template my-scenario/api/test_helpers.go  # ✅
+# ... actual test logic ...
+
+end_time=$(date +%s)
+duration=$((end_time - start_time))
+if [ $error_count -eq 0 ]; then
+    log::success "✅ Tests passed in ${duration}s"
+    exit 0
+else
+    log::error "❌ Tests failed in ${duration}s"
+    exit 1
+fi
 ```
 
-### 2. Adapt to Your Scenario
+### After (5 lines of boilerplate):
+```bash
+#!/bin/bash
+source "$(dirname "${BASH_SOURCE[0]}")/../../../../scripts/scenarios/testing/shell/phase-helpers.sh"
+testing::phase::init --target-time "30s"
 
-After copying, customize the templates:
+# ... actual test logic ...
 
-1. **Change package names** to match your scenario
-2. **Update imports** to use your scenario's dependencies
-3. **Customize helper functions** for your specific needs
-4. **Remove unused functions** to keep code clean
-5. **Add scenario-specific utilities**
-
-### 3. Example: visited-tracker
-
-The visited-tracker scenario shows excellent template usage:
-
-```go
-// scenarios/visited-tracker/api/test_helpers.go
-package main  // Changed from 'package httptest'
-
-// Added scenario-specific types
-type TestCampaign struct {
-    Campaign     *Campaign
-    TrackedFiles []TrackedFile
-    Cleanup      func()
-}
-
-// Customized for file storage initialization
-func setupTestDirectory(t *testing.T) *TestEnvironment {
-    // ... 
-    if err := initFileStorage(); err != nil {  // Scenario-specific
-        // ...
-    }
-    // ...
-}
+testing::phase::end_with_summary
 ```
 
-## Best Practices
+## 🛠️ Helper Functions Reference
 
-### 1. Start Simple
+### Core Functions
+- `testing::phase::init [options]` - Initialize phase environment
+- `testing::phase::end_with_summary [message]` - End with standardized summary
 
-Don't copy everything at once. Start with the functions you need:
+### Test Counting
+- `testing::phase::add_test [passed|failed|skipped]` - Count test result
+- `testing::phase::add_error [message]` - Add error with optional message
+- `testing::phase::add_warning [message]` - Add warning (doesn't fail tests)
 
-```go
-// Start with just what you need
-func makeHTTPRequest(method, path string, body interface{}) *httptest.ResponseRecorder {
-    // Your simplified version
-}
-```
+### Convenience Helpers
+- `testing::phase::check "description" command` - Run check and auto-count
+- `testing::phase::check_files file1 file2...` - Verify files exist
+- `testing::phase::check_directories dir1 dir2...` - Verify directories exist
+- `testing::phase::timed_exec "description" command` - Execute with timing
 
-### 2. Evolve Over Time
+### Cleanup Management
+- `testing::phase::register_cleanup function_name` - Register cleanup function
 
-As your tests grow, add more sophisticated patterns:
+## 📊 Global Variables
 
-```go
-// Later, add error patterns
-func testCommonErrors(t *testing.T, handler http.HandlerFunc) {
-    // Test invalid UUID, missing resources, etc.
-}
-```
+These are automatically set by `testing::phase::init`:
+- `$TESTING_PHASE_SCENARIO_NAME` - Auto-detected scenario name
+- `$TESTING_PHASE_SCENARIO_DIR` - Path to scenario directory  
+- `$TESTING_PHASE_APP_ROOT` - Path to Vrooli root
+- `$TESTING_PHASE_ERROR_COUNT` - Current error count
+- `$TESTING_PHASE_TEST_COUNT` - Current test count
+- `$TESTING_PHASE_WARNING_COUNT` - Current warning count
+- `$TESTING_PHASE_SKIPPED_COUNT` - Current skipped count
 
-### 3. Share Common Patterns
+## ✅ Best Practices
 
-If you develop useful patterns, consider:
-1. Contributing them back to the templates
-2. Creating scenario-specific documentation
-3. Sharing with other scenario developers
+1. **Always source phase-helpers.sh first** - Must be the first non-comment line after shebang
+2. **Use helper functions** - Prefer `testing::phase::check` over manual counting
+3. **Register cleanup early** - Call `testing::phase::register_cleanup` before creating test data
+4. **Set realistic target times** - Helps identify performance regressions
+5. **End with summary** - Always call `testing::phase::end_with_summary` at the end
 
-## Template Structure
+## 🔄 Migration Guide
 
-```
-templates/
-├── go/
-│   ├── test_helpers.go.template      # HTTP testing utilities
-│   └── error_patterns.go.template    # Error testing patterns
-└── README.md                          # This file
-```
+To migrate existing test phases:
 
-## Future Templates
+1. Replace boilerplate with phase-helpers source and init
+2. Replace manual error counting with helper functions
+3. Replace exit logic with `testing::phase::end_with_summary`
+4. Test to ensure behavior is identical
 
-We plan to add templates for:
-- Node.js/TypeScript testing utilities
-- Python testing helpers
-- Shell script testing patterns
-- Integration test templates
-- Performance test templates
-
-## Contributing
-
-To contribute a new template:
-
-1. Create a well-documented, generic template
-2. Place it in the appropriate language directory
-3. Update this README with usage instructions
-4. Provide an example of how it's used in a real scenario
-
-## Remember
-
-**Templates are starting points, not constraints.** Feel free to:
-- Modify extensively
-- Delete what you don't need
-- Add what you do need
-- Create your own patterns
-
-The goal is to give you a head start, not to enforce a rigid structure.
+See visited-tracker scenario for complete examples of migrated phases.

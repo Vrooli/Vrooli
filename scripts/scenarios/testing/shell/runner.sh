@@ -519,6 +519,9 @@ testing::runner::run_phase() {
             ;;
     esac
 
+    # Clean up artifacts after phase completion to prevent accumulation
+    testing::artifacts::rotate_phase_logs "$phase"
+
     echo ""
     return $result
 }

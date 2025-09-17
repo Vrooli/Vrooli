@@ -1,44 +1,17 @@
 #!/bin/bash
-# Simplified business tests phase
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
-echo "=== Business Logic Tests Phase ==="
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+# Initialize phase with runtime requirement and 180-second target
+testing::phase::init --require-runtime --target-time "180s"
+
 echo "Testing core business functionality..."
 
-# Get dynamic API URL
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
-
-SCENARIO_NAME=$(basename "$SCENARIO_DIR")
-
-if testing::core::ensure_runtime_or_skip "$SCENARIO_NAME" "business logic tests"; then
-    :
-else
-    status=$?
-    if [ "$status" -eq 200 ]; then
-        exit 200
-    else
-        exit 1
-    fi
-fi
-
-if ! testing::core::wait_for_scenario "$SCENARIO_NAME" 30 >/dev/null 2>&1; then
-    echo "❌ Scenario '$SCENARIO_NAME' did not become ready"
-    exit 1
-fi
-
-if ! API_BASE_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
-    echo "❌ Unable to determine API URL for $SCENARIO_NAME"
-    exit 1
-fi
-
-echo "Using API base URL: $API_BASE_URL"
-
-# Test counters
-error_count=0
-test_count=0
+# Test counters are handled by phase helpers
 created_campaign_ids=()
 
 # Cleanup function to run on exit
@@ -52,8 +25,20 @@ cleanup() {
     done
 }
 
-# Set up cleanup to run on script exit
-trap cleanup EXIT
+# Register cleanup
+testing::phase::register_cleanup cleanup
+
+if ! testing::core::wait_for_scenario "$TESTING_PHASE_SCENARIO_NAME" 30 >/dev/null 2>&1; then
+    testing::phase::add_error "❌ Scenario '$TESTING_PHASE_SCENARIO_NAME' did not become ready"
+    testing::phase::end_with_summary
+fi
+
+if ! API_BASE_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME"); then
+    testing::phase::add_error "❌ Unable to determine API URL for $TESTING_PHASE_SCENARIO_NAME"
+    testing::phase::end_with_summary
+fi
+
+echo "Using API base URL: $API_BASE_URL"
 
 # Pre-cleanup: Remove any existing test campaigns
 echo "Cleaning up any existing test campaigns..."
@@ -77,23 +62,23 @@ if echo "$campaign_response" | jq -e '.id' >/dev/null 2>&1; then
     campaign_id=$(echo "$campaign_response" | jq -r '.id')
     created_campaign_ids+=("$campaign_id")
     echo "Campaign creation tests passed - ID: $campaign_id"
-    test_count=$((test_count + 1))
+    testing::phase::add_test passed
 else
     echo "Campaign creation tests failed"
-    error_count=$((error_count + 1))
+    testing::phase::add_test failed
 fi
 
 # Test CLI business workflows
 echo "Testing CLI business workflows..."
-CLI_BINARY="$SCENARIO_DIR/cli/visited-tracker"
+CLI_BINARY="$TESTING_PHASE_SCENARIO_DIR/cli/visited-tracker"
 
 if [ -f "$CLI_BINARY" ] && [ -x "$CLI_BINARY" ]; then
     if "$CLI_BINARY" version >/dev/null 2>&1; then
         echo "CLI business workflow tests passed"
-        test_count=$((test_count + 1))
+        testing::phase::add_test passed
     else
         echo "CLI business workflow tests failed"
-        error_count=$((error_count + 1))
+        testing::phase::add_test failed
     fi
 else
     echo "CLI not available at $CLI_BINARY - skipping"
@@ -105,18 +90,19 @@ campaigns_response=$(curl -sf "$API_BASE_URL/api/v1/campaigns" 2>/dev/null || ec
 if echo "$campaigns_response" | jq -e '.campaigns' >/dev/null 2>&1; then
     campaign_count=$(echo "$campaigns_response" | jq '.campaigns | length')
     echo "Data persistence tests passed - $campaign_count campaigns found"
-    test_count=$((test_count + 1))
+    testing::phase::add_test passed
 else
     echo "Data persistence tests failed"
-    error_count=$((error_count + 1))
+    testing::phase::add_test failed
 fi
 
-echo "Summary: $test_count passed, $error_count failed"
+echo "Summary: $TESTING_PHASE_TEST_COUNT tests, $TESTING_PHASE_ERROR_COUNT failed"
 
-if [ $error_count -eq 0 ]; then
+if [ $TESTING_PHASE_ERROR_COUNT -eq 0 ]; then
     echo "SUCCESS: All business tests passed"
-    exit 0
 else
     echo "ERROR: Some business tests failed"
-    exit 1
 fi
+
+# End with summary
+testing::phase::end_with_summary "Business logic tests completed"

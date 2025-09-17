@@ -2,13 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-// Validate required environment variables
-const requiredEnvVars = ['UI_PORT', 'API_PORT', 'WS_PORT'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Required environment variable ${envVar} is not set. Please run through Vrooli lifecycle system.`);
-  }
-}
+// Get environment variables with fallbacks for build time
+const UI_PORT = process.env.UI_PORT || '3000';
+const API_PORT = process.env.API_PORT || '8080';
+const WS_PORT = process.env.WS_PORT || '8081';
 
 const API_HOST = process.env.API_HOST || 'localhost';
 const WS_HOST = process.env.WS_HOST || 'localhost';
@@ -27,28 +24,28 @@ export default defineConfig({
     },
   },
   server: {
-    port: parseInt(process.env.UI_PORT),
+    port: parseInt(UI_PORT),
     host: true,
     proxy: {
       '/api': {
-        target: `http://${API_HOST}:${process.env.API_PORT}`,
+        target: `http://${API_HOST}:${API_PORT}`,
         changeOrigin: true,
         secure: false,
       },
       '/ws': {
-        target: `ws://${WS_HOST}:${process.env.WS_PORT}`,
+        target: `ws://${WS_HOST}:${WS_PORT}`,
         ws: true,
         changeOrigin: true,
       },
     },
   },
   define: {
-    // Pass environment variables to the client with VITE_ prefix
-    'import.meta.env.VITE_API_URL': JSON.stringify(`http://${API_HOST}:${process.env.API_PORT}/api/v1`),
-    'import.meta.env.VITE_WS_URL': JSON.stringify(`ws://${WS_HOST}:${process.env.WS_PORT}`),
-    'import.meta.env.VITE_API_PORT': JSON.stringify(process.env.API_PORT),
-    'import.meta.env.VITE_UI_PORT': JSON.stringify(process.env.UI_PORT),
-    'import.meta.env.VITE_WS_PORT': JSON.stringify(process.env.WS_PORT),
+    // Pass environment variables to the client with VITE_ prefix for dev mode
+    'import.meta.env.VITE_API_URL': JSON.stringify(process.env.API_PORT ? `http://${API_HOST}:${process.env.API_PORT}/api/v1` : undefined),
+    'import.meta.env.VITE_WS_URL': JSON.stringify(process.env.WS_PORT ? `ws://${WS_HOST}:${process.env.WS_PORT}` : undefined),
+    'import.meta.env.VITE_API_PORT': JSON.stringify(process.env.API_PORT || undefined),
+    'import.meta.env.VITE_UI_PORT': JSON.stringify(process.env.UI_PORT || undefined),
+    'import.meta.env.VITE_WS_PORT': JSON.stringify(process.env.WS_PORT || undefined),
   },
   build: {
     outDir: 'dist',

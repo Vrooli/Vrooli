@@ -26,13 +26,13 @@
   "ports": {
     "api": {
       "env_var": "API_PORT",
-      "range": "8100-8199",
-      "description": "API Manager REST API port"
+            "description": "API Manager REST API port",
+      "range": "15000-19999"
     },
     "ui": {
       "env_var": "UI_PORT",
-      "range": "31100-31199",
-      "description": "API Manager dashboard UI port"
+            "description": "API Manager dashboard UI port", 
+      "range": "35000-39999"
     }
   },
   "resources": {
@@ -56,18 +56,7 @@
       "description": "API pattern embeddings, vulnerability signatures, and similarity search"
     }
   },
-  "environment": {
-    "API_MANAGER_URL": "http://localhost:${API_PORT}",
-    "POSTGRES_HOST": "${POSTGRES_HOST:-localhost}",
-    "POSTGRES_PORT": "${POSTGRES_PORT}",
-    "POSTGRES_DB": "${POSTGRES_DB:-vrooli}",
-    "POSTGRES_USER": "${POSTGRES_USER}",
-    "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}",
-    "OLLAMA_URL": "${OLLAMA_URL}",
-    "QDRANT_URL": "${QDRANT_URL}",
-    "VROOLI_LIFECYCLE_MANAGED": "true"
-  },
-  "lifecycle": {
+    "lifecycle": {
     "version": "2.0.0",
     "health": {
       "description": "API Manager health check configuration",

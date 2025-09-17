@@ -1,34 +1,20 @@
 #!/bin/bash
-# Performance validation phase
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
 
-SCENARIO_NAME="visited-tracker"
+# Initialize phase with runtime requirement and 60-second target
+testing::phase::init --require-runtime --target-time "60s"
 
-log::info "=== Performance Tests Phase ==="
 log::info "Testing basic latency and availability metrics"
 
-# Ensure scenario is healthy before measuring
-if testing::core::ensure_runtime_or_skip "$SCENARIO_NAME" "performance checks"; then
-    :
-else
-    status=$?
-    if [ "$status" -eq 200 ]; then
-        exit 200
-    else
-        exit 1
-    fi
-fi
+testing::core::wait_for_scenario "$TESTING_PHASE_SCENARIO_NAME" 20 >/dev/null 2>&1 || true
 
-testing::core::wait_for_scenario "$SCENARIO_NAME" 20 >/dev/null 2>&1 || true
-
-API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME" 2>/dev/null || echo "")
-UI_URL=$(testing::connectivity::get_ui_url "$SCENARIO_NAME" 2>/dev/null || echo "")
+API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME" 2>/dev/null || echo "")
+UI_URL=$(testing::connectivity::get_ui_url "$TESTING_PHASE_SCENARIO_NAME" 2>/dev/null || echo "")
 
 API_PORT="${API_URL##*:}"
 UI_PORT="${UI_URL##*:}"
@@ -36,9 +22,6 @@ UI_PORT="${UI_URL##*:}"
 [ -z "$API_PORT" ] && API_PORT=17695
 [ -z "$UI_PORT" ] && UI_PORT=38442
 
-error_count=0
-test_count=0
-skipped_count=0
 declare -a LATENCY_LABELS=()
 declare -a LATENCY_VALUES=()
 
@@ -49,8 +32,7 @@ measure_latency() {
 
     local output
     if ! output=$(curl -s -o /dev/null -w '%{time_total} %{http_code}' "$url" --max-time 5); then
-        log::error "❌ $label endpoint unreachable ($url)"
-        error_count=$((error_count + 1))
+        testing::phase::add_error "❌ $label endpoint unreachable ($url)"
         return
     fi
 
@@ -59,8 +41,7 @@ measure_latency() {
     http_code=$(echo "$output" | awk '{print $2}')
 
     if [ "$http_code" != "200" ]; then
-        log::error "❌ $label endpoint returned HTTP $http_code"
-        error_count=$((error_count + 1))
+        testing::phase::add_error "❌ $label endpoint returned HTTP $http_code"
         return
     fi
 
@@ -68,9 +49,9 @@ measure_latency() {
     LATENCY_LABELS+=("$label")
     LATENCY_VALUES+=("$latency")
     if awk "BEGIN{exit !($latency > $threshold)}"; then
-        log::warning "⚠️  $label latency ${latency}s exceeded target ${threshold}s"
+        testing::phase::add_warning "⚠️  $label latency ${latency}s exceeded target ${threshold}s"
     fi
-    test_count=$((test_count + 1))
+    testing::phase::add_test passed
 }
 
 # API health latency
@@ -87,10 +68,9 @@ if [ "$ui_status" = "200" ]; then
     log::success "✅ UI responded with HTTP 200"
     LATENCY_LABELS+=("UI root")
     LATENCY_VALUES+=("0.000")
-    test_count=$((test_count + 1))
+    testing::phase::add_test passed
 else
-    log::error "❌ UI not reachable (status $ui_status)"
-    error_count=$((error_count + 1))
+    testing::phase::add_error "❌ UI not reachable (status $ui_status)"
 fi
 
 if [ ${#LATENCY_VALUES[@]} -gt 0 ]; then
@@ -104,12 +84,7 @@ if [ ${#LATENCY_VALUES[@]} -gt 0 ]; then
     log::info "📈 Latency percentiles (s): median=${median_latency} p95=${p95_latency}"
 fi
 
-log::info "📊 Performance Summary: ${test_count} passed, ${error_count} failed, ${skipped_count} skipped"
+log::info "📊 Performance Summary: ${TESTING_PHASE_TEST_COUNT} tests, ${TESTING_PHASE_ERROR_COUNT} failed, ${TESTING_PHASE_SKIPPED_COUNT} skipped"
 
-if [ $error_count -eq 0 ]; then
-    log::success "SUCCESS: Performance checks completed"
-    exit 0
-else
-    log::error "ERROR: Performance regressions detected"
-    exit 1
-fi
+# End with summary
+testing::phase::end_with_summary "Performance checks completed"

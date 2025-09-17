@@ -91,6 +91,10 @@ get_service_url() {
                 postgres|postgresql)
                     resource_url="postgresql://$host:$port"
                     ;;
+                postgis)
+                    # PostGIS uses PostgreSQL protocol with spatial database
+                    resource_url="postgresql://$host:$port/spatial"
+                    ;;
                 redis)
                     resource_url="redis://$host:$port"
                     ;;
@@ -154,69 +158,37 @@ get_resource_url() {
         fi
     fi
     
-    # Method 4: Default ports for common resources (FALLBACK)
-    case "$resource_name" in
-        ollama)
-            resource_url="http://localhost:11434"
-            ;;
-        whisper)
-            resource_url="http://localhost:9000"
-            ;;
-        unstructured-io)
-            resource_url="http://localhost:8000"
-            ;;
-        comfyui)
-            resource_url="http://localhost:8188"
-            ;;
-        windmill)
-            resource_url="http://localhost:8000"
-            ;;
-        n8n)
-            resource_url="http://localhost:5678"
-            ;;
-        node-red)
-            resource_url="http://localhost:1880"
-            ;;
-        huginn)
-            resource_url="http://localhost:3000"
-            ;;
-        agent-s2)
-            resource_url="http://localhost:8080"
-            ;;
-        claude-code)
-            # Claude-code doesn't have a web interface, check if binary exists
-            if command -v claude >/dev/null 2>&1; then
-                resource_url="local://claude"
-            fi
-            ;;
-        browserless)
-            resource_url="http://localhost:3001"
-            ;;
-        searxng)
-            resource_url="http://localhost:8888"
-            ;;
-        judge0)
-            resource_url="http://localhost:2358"
-            ;;
-        postgres|postgresql)
-            resource_url="postgresql://localhost:5432"
-            ;;
-        redis)
-            resource_url="redis://localhost:6379"
-            ;;
-        minio)
-            resource_url="http://localhost:9001"
-            ;;
-        qdrant)
-            resource_url="http://localhost:6333"
-            ;;
-        questdb)
-            resource_url="http://localhost:9000"
-            ;;
-        vault)
-            resource_url="http://localhost:8200"
-            ;;
-    esac
+    # Method 4: Use port_registry.sh as source of truth (FALLBACK)
+    # Source port registry if available
+    local port_registry="${APP_ROOT}/scripts/resources/port_registry.sh"
+    if [[ -f "$port_registry" ]]; then
+        # Source in subshell to avoid polluting current environment
+        local port=$(bash -c "source '$port_registry' && echo \"\${RESOURCE_PORTS[$resource_name]:-}\"")
+        
+        if [[ -n "$port" ]]; then
+            # Determine protocol based on resource type
+            case "$resource_name" in
+                postgres|postgresql)
+                    resource_url="postgresql://localhost:$port"
+                    ;;
+                postgis)
+                    resource_url="postgresql://localhost:$port/spatial"
+                    ;;
+                redis)
+                    resource_url="redis://localhost:$port"
+                    ;;
+                claude-code)
+                    # Claude-code doesn't have a web interface, check if binary exists
+                    if command -v claude >/dev/null 2>&1; then
+                        resource_url="local://claude"
+                    fi
+                    ;;
+                *)
+                    resource_url="http://localhost:$port"
+                    ;;
+            esac
+        fi
+    fi
     
     echo "$resource_url"
 }

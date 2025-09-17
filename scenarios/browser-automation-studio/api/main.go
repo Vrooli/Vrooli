@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/browserless"
 	"github.com/vrooli/browser-automation-studio/database"
@@ -95,40 +93,26 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	// Build allowed origins from environment variables
-	uiPort := os.Getenv("UI_PORT")
-	if uiPort == "" {
-		log.Fatal("❌ UI_PORT environment variable is required")
-	}
-	
-	// Get UI host from environment, default to localhost for dev
-	uiHost := os.Getenv("UI_HOST")
-	if uiHost == "" {
-		uiHost = "localhost"
-	}
-	
-	allowedOrigins := []string{
-		fmt.Sprintf("http://%s:%s", uiHost, uiPort),
-	}
-	
-	// Add custom origins if specified
-	if customOrigins := os.Getenv("ALLOWED_ORIGINS"); customOrigins != "" {
-		// Split by comma and add each origin
-		for _, origin := range strings.Split(customOrigins, ",") {
-			if trimmed := strings.TrimSpace(origin); trimmed != "" {
-				allowedOrigins = append(allowedOrigins, trimmed)
+	// Simple CORS middleware - allows all origins for development
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Set CORS headers
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, X-CSRF-Token, X-Requested-With")
+			w.Header().Set("Access-Control-Expose-Headers", "Link")
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
+			w.Header().Set("Access-Control-Max-Age", "300")
+			
+			// Handle preflight requests
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
 			}
-		}
-	}
-
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:          300,
-	}))
+			
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	// Routes
 	r.Get("/health", handler.Health)
@@ -172,10 +156,8 @@ func main() {
 	
 	log.WithFields(logrus.Fields{
 		"api_port": port,
-		"ui_port":  uiPort,
 		"api_host": apiHost,
-		"ui_host": uiHost,
-		"cors_origins": len(allowedOrigins),
+		"cors_policy": "allow_all",
 	}).Info("🚀 Browser Automation Studio API starting")
 	log.WithField("endpoint", fmt.Sprintf("http://%s:%s/api/v1", apiHost, port)).Info("📊 API endpoint ready")
 	

@@ -1,0 +1,79 @@
+#!/bin/bash
+# Structure validation phase - validates required files, configuration, and directory structure
+# TEMPLATE: Copy this to your scenario's test/phases/test-structure.sh and customize
+source "$(dirname "${BASH_SOURCE[0]}")/../../../../scripts/scenarios/testing/shell/phase-helpers.sh"
+
+# Initialize phase with 15-second target
+testing::phase::init --target-time "15s"
+
+# TODO: Customize these required files for your scenario
+testing::phase::check_files \
+    ".vrooli/service.json" \
+    "README.md" \
+    "PRD.md"
+
+# TODO: Customize these required directories for your scenario
+testing::phase::check_directories \
+    "api" \
+    "cli" \
+    "ui" \
+    "data" \
+    "test"
+
+# Validate service.json schema
+echo "🔍 Validating service.json..."
+if command -v jq >/dev/null 2>&1; then
+    if ! jq empty < .vrooli/service.json >/dev/null 2>&1; then
+        testing::phase::add_error "❌ Invalid JSON in service.json"
+    else
+        log::success "✅ service.json is valid JSON"
+        
+        # Check required fields
+        required_fields=("service.name" "service.version" "ports" "lifecycle")
+        for field in "${required_fields[@]}"; do
+            if ! jq -e ".$field" < .vrooli/service.json >/dev/null 2>&1; then
+                testing::phase::add_error "❌ Missing required field in service.json: $field"
+            fi
+        done
+        
+        # TODO: Update this to match your scenario name
+        expected_name="YOUR-SCENARIO-NAME"
+        if [ $TESTING_PHASE_ERROR_COUNT -eq 0 ]; then
+            service_name=$(jq -r '.service.name' .vrooli/service.json)
+            if [ "$service_name" = "$expected_name" ]; then
+                log::success "✅ service.json contains correct service name"
+            else
+                testing::phase::add_error "❌ Incorrect service name in service.json: $service_name (expected: $expected_name)"
+            fi
+        fi
+    fi
+else
+    testing::phase::add_warning "⚠️  jq not available, skipping JSON validation"
+fi
+
+# TODO: Add language-specific checks based on your scenario
+# Example for Go:
+if [ -f "api/go.mod" ]; then
+    if grep -q "module " api/go.mod; then
+        log::success "✅ Go module properly defined"
+    else
+        testing::phase::add_error "❌ Invalid go.mod structure"
+    fi
+fi
+
+# Example for Node.js:
+if [ -f "ui/package.json" ]; then
+    if command -v jq >/dev/null 2>&1; then
+        if jq -e '.name' ui/package.json >/dev/null 2>&1; then
+            package_name=$(jq -r '.name' ui/package.json)
+            log::success "✅ Node.js package properly defined: $package_name"
+        else
+            testing::phase::add_error "❌ Invalid package.json structure"
+        fi
+    fi
+fi
+
+# TODO: Add any scenario-specific structural checks here
+
+# End with summary
+testing::phase::end_with_summary "Structure validation completed"

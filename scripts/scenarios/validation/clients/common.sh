@@ -103,6 +103,10 @@ get_service_url() {
                 postgres|postgresql)
                     resource_url="postgresql://$host:$port"
                     ;;
+                postgis)
+                    # PostGIS uses PostgreSQL protocol with spatial database
+                    resource_url="postgresql://$host:$port/spatial"
+                    ;;
                 redis)
                     resource_url="redis://$host:$port"
                     ;;
@@ -185,89 +189,44 @@ get_resource_url() {
         fi
     fi
     
-    # Method 3: Default ports for common resources
+    # Method 3: Use port_registry.sh as source of truth
     if [[ -z "$resource_url" ]]; then
-        print_debug "Using default URL for resource: $resource_name"
+        print_debug "Using port registry for resource: $resource_name"
         
-        case "$resource_name" in
-            # AI Services
-            ollama)
-                resource_url="http://localhost:11434"
-                ;;
-            whisper)
-                resource_url="http://localhost:9000"
-                ;;
-            comfyui)
-                resource_url="http://localhost:8188"
-                ;;
-            unstructured-io)
-                resource_url="http://localhost:8001"
-                ;;
+        # Source port registry if available
+        local port_registry="${APP_ROOT}/scripts/resources/port_registry.sh"
+        if [[ -f "$port_registry" ]]; then
+            # Source in subshell to avoid polluting current environment
+            local port=$(bash -c "source '$port_registry' && echo \"\${RESOURCE_PORTS[$resource_name]:-}\"")
             
-            # Automation Services
-            windmill)
-                resource_url="http://localhost:8000"
-                ;;
-            n8n)
-                resource_url="http://localhost:5678"
-                ;;
-            node-red)
-                resource_url="http://localhost:1880"
-                ;;
-            huginn)
-                resource_url="http://localhost:3000"
-                ;;
-            
-            # Agent Services
-            agent-s2)
-                resource_url="http://localhost:8080"
-                ;;
-            claude-code)
-                # Claude-code is a CLI tool, check if binary exists
-                if command -v claude >/dev/null 2>&1; then
-                    resource_url="local://claude"
-                else
-                    resource_url=""
-                fi
-                ;;
-            browserless)
-                resource_url="http://localhost:3001"
-                ;;
-            
-            # Search Services
-            searxng)
-                resource_url="http://localhost:8888"
-                ;;
-            
-            # Execution Services
-            judge0)
-                resource_url="http://localhost:2358"
-                ;;
-            
-            # Storage Services
-            postgres|postgresql)
-                resource_url="postgresql://postgres@localhost:5432/postgres"
-                ;;
-            redis)
-                resource_url="redis://localhost:6379"
-                ;;
-            minio)
-                resource_url="http://localhost:9001"
-                ;;
-            qdrant)
-                resource_url="http://localhost:6333"
-                ;;
-            questdb)
-                resource_url="http://localhost:9000"
-                ;;
-            vault)
-                resource_url="http://localhost:8200"
-                ;;
-            
-            *)
-                resource_url=""
-                ;;
-        esac
+            if [[ -n "$port" ]]; then
+                # Determine protocol based on resource type
+                case "$resource_name" in
+                    postgres|postgresql)
+                        resource_url="postgresql://localhost:$port"
+                        ;;
+                    postgis)
+                        resource_url="postgresql://localhost:$port/spatial"
+                        ;;
+                    redis)
+                        resource_url="redis://localhost:$port"
+                        ;;
+                    claude-code)
+                        # Claude-code is a CLI tool, check if binary exists
+                        if command -v claude >/dev/null 2>&1; then
+                            resource_url="local://claude"
+                        else
+                            resource_url=""
+                        fi
+                        ;;
+                    *)
+                        resource_url="http://localhost:$port"
+                        ;;
+                esac
+            fi
+        else
+            print_debug "Port registry not found at: $port_registry"
+        fi
     fi
     
     print_debug "Resolved URL for $resource_name: $resource_url"

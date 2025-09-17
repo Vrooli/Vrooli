@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, FolderOpen, Play, Clock, Activity, Calendar, PlayCircle, Loader } from 'lucide-react';
+import { Plus, FolderOpen, Play, Clock, Calendar, PlayCircle, Loader, WifiOff } from 'lucide-react';
 import { useProjectStore, Project } from '../stores/projectStore';
 import { openCalendar } from '../utils/vrooli';
 
@@ -37,7 +37,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
     });
   };
 
-  const handleScheduleClick = async (e: React.MouseEvent, projectId: string) => {
+  const handleScheduleClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent project selection
     try {
       await openCalendar();
@@ -68,28 +68,33 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
     }
   };
 
-  if (error) {
+  // Status bar for API connection issues
+  const StatusBar = () => {
+    if (!error) return null;
+    
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-400 mb-4">
-            <Activity size={48} />
+      <div className="bg-red-900/20 border-l-4 border-red-500 p-4 mx-6 mb-4 rounded-r-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <WifiOff size={20} className="text-red-400" />
+            <div>
+              <div className="text-red-400 font-medium">API Connection Failed</div>
+              <div className="text-red-300/80 text-sm">{error}</div>
+            </div>
           </div>
-          <h3 className="text-lg font-semibold text-white mb-2">Error Loading Projects</h3>
-          <p className="text-gray-400 mb-4">{error}</p>
           <button
             onClick={() => {
               clearError();
               fetchProjects();
             }}
-            className="px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="px-3 py-1 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors"
           >
-            Try Again
+            Retry
           </button>
         </div>
       </div>
     );
-  }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
@@ -121,6 +126,9 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
         </div>
       </div>
 
+      {/* Status Bar for API errors */}
+      <StatusBar />
+
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {isLoading ? (
@@ -131,17 +139,26 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <div className="text-gray-600 mb-4">
-                <FolderOpen size={48} />
+                {error ? <WifiOff size={48} /> : <FolderOpen size={48} />}
               </div>
-              <h3 className="text-lg font-semibold text-white mb-2">No Projects Yet</h3>
-              <p className="text-gray-400 mb-6">Create your first project to get started with browser automation</p>
-              <button
-                onClick={onCreateProject}
-                className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                <Plus size={16} />
-                Create Project
-              </button>
+              <h3 className="text-lg font-semibold text-white mb-2">
+                {error ? 'Unable to Load Projects' : 'No Projects Yet'}
+              </h3>
+              <p className="text-gray-400 mb-6">
+                {error 
+                  ? 'There was an issue connecting to the API. You can still use the interface when the connection is restored.'
+                  : 'Create your first project to get started with browser automation'
+                }
+              </p>
+              {!error && (
+                <button
+                  onClick={onCreateProject}
+                  className="flex items-center gap-2 px-4 py-2 bg-flow-accent text-white rounded-lg hover:bg-blue-600 transition-colors"
+                >
+                  <Plus size={16} />
+                  Create Project
+                </button>
+              )}
             </div>
           </div>
         ) : filteredProjects.length === 0 ? (
@@ -179,7 +196,7 @@ function Dashboard({ onProjectSelect, onCreateProject }: DashboardProps) {
                   <div className="flex items-center gap-1">
                     {/* Schedule Button */}
                     <button
-                      onClick={(e) => handleScheduleClick(e, project.id)}
+                      onClick={(e) => handleScheduleClick(e)}
                       className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-colors"
                       title="Open Calendar"
                     >

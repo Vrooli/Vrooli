@@ -1,0 +1,55 @@
+#!/bin/bash
+# Minimal phase template - shows the absolute minimum boilerplate required
+# TEMPLATE: Copy this to your scenario's test/phases/test-YOURPHASE.sh and customize
+source "$(dirname "${BASH_SOURCE[0]}")/../../../../scripts/scenarios/testing/shell/phase-helpers.sh"
+
+# Initialize phase
+# Options:
+#   --phase-name NAME        Override auto-detected phase name
+#   --target-time TIME       Set target execution time (e.g., "15s", "2m")
+#   --require-runtime        Require scenario to be running
+#   --skip-runtime-check     Skip runtime check entirely
+testing::phase::init --target-time "30s"
+
+# TODO: Add your test logic here
+# 
+# Available helper functions:
+#   testing::phase::add_test [passed|failed|skipped]   - Count a test result
+#   testing::phase::add_error [message]                 - Add an error (and display message)
+#   testing::phase::add_warning [message]               - Add a warning
+#   testing::phase::check "description" command         - Run a check and auto-count result
+#   testing::phase::check_files file1 file2 ...         - Check required files exist
+#   testing::phase::check_directories dir1 dir2 ...     - Check required directories exist
+#   testing::phase::register_cleanup function_name      - Register cleanup function
+#   testing::phase::timed_exec "description" command    - Execute with timing
+#
+# Global variables available:
+#   $TESTING_PHASE_SCENARIO_NAME    - Auto-detected scenario name
+#   $TESTING_PHASE_SCENARIO_DIR     - Path to scenario directory
+#   $TESTING_PHASE_APP_ROOT         - Path to Vrooli root
+#   $TESTING_PHASE_ERROR_COUNT      - Current error count
+#   $TESTING_PHASE_TEST_COUNT       - Current test count
+#   $TESTING_PHASE_WARNING_COUNT    - Current warning count
+#   $TESTING_PHASE_SKIPPED_COUNT    - Current skipped count
+
+echo "Running custom tests..."
+
+# Example: Simple check
+testing::phase::check "Example check" test -f "README.md"
+
+# Example: Manual test counting
+if [ -f "package.json" ]; then
+    echo "✅ Found package.json"
+    testing::phase::add_test passed
+else
+    echo "❌ Missing package.json"
+    testing::phase::add_test failed
+fi
+
+# Example: Warning without failing
+if [ ! -f "optional-file.txt" ]; then
+    testing::phase::add_warning "⚠️  Optional file missing (non-critical)"
+fi
+
+# End with summary - this handles all exit codes and reporting
+testing::phase::end_with_summary

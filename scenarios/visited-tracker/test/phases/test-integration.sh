@@ -1,16 +1,16 @@
 #!/bin/bash
-set -euo pipefail
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin pwd)}"
 
-echo "=== Integration Tests Phase ==="
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${APP_ROOT}/scripts/scenarios/testing/shell/phase-helpers.sh"
+
+# Initialize phase with runtime requirement and 120-second target
+testing::phase::init --require-runtime --target-time "120s"
+
 echo "Comprehensive integration testing: API, CLI (BATS), and Database"
 
-SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/core.sh"
-source "${APP_ROOT}/scripts/scenarios/testing/shell/connectivity.sh"
-
-SCENARIO_NAME=$(basename "$SCENARIO_DIR")
 TEST_CAMPAIGN_ID=""
 API_URL=""
 
@@ -20,32 +20,22 @@ cleanup_campaign() {
     fi
 }
 
-trap cleanup_campaign EXIT
+# Register cleanup function
+testing::phase::register_cleanup cleanup_campaign
 
-if testing::core::ensure_runtime_or_skip "$SCENARIO_NAME" "integration tests"; then
-    :
-else
-    status=$?
-    if [ "$status" -eq 200 ]; then
-        exit 200
-    else
-        exit 1
-    fi
+if ! testing::core::wait_for_scenario "$TESTING_PHASE_SCENARIO_NAME" 30; then
+    testing::phase::add_error "❌ Scenario '$TESTING_PHASE_SCENARIO_NAME' did not become ready in time"
+    testing::phase::end_with_summary
 fi
 
-if ! testing::core::wait_for_scenario "$SCENARIO_NAME" 30; then
-    log::error "❌ Scenario '$SCENARIO_NAME' did not become ready in time"
-    exit 1
-fi
-
-if ! API_URL=$(testing::connectivity::get_api_url "$SCENARIO_NAME"); then
-    log::error "❌ Could not resolve API URL for $SCENARIO_NAME"
-    exit 1
+if ! API_URL=$(testing::connectivity::get_api_url "$TESTING_PHASE_SCENARIO_NAME"); then
+    testing::phase::add_error "❌ Could not resolve API URL for $TESTING_PHASE_SCENARIO_NAME"
+    testing::phase::end_with_summary
 fi
 
 # Ensure downstream phases inherit the resolved ports
 API_PORT="${API_URL##*:}"
-if UI_URL=$(testing::connectivity::get_ui_url "$SCENARIO_NAME" 2>/dev/null); then
+if UI_URL=$(testing::connectivity::get_ui_url "$TESTING_PHASE_SCENARIO_NAME" 2>/dev/null); then
     UI_PORT="${UI_URL##*:}"
 fi
 
@@ -56,8 +46,9 @@ if curl -sf --max-time 10 "$API_URL/health" >/dev/null 2>&1; then
 else
     echo "❌ API integration tests failed - service not responding"
     echo "   Expected API at: $API_URL"
-    echo "   💡 Tip: Start with 'vrooli scenario run $SCENARIO_NAME'"
-    exit 1
+    echo "   💡 Tip: Start with 'vrooli scenario run $TESTING_PHASE_SCENARIO_NAME'"
+    testing::phase::add_error
+    testing::phase::end_with_summary
 fi
 
 echo "🔍 Testing API endpoints..."
@@ -65,7 +56,8 @@ if curl -sf --max-time 10 "$API_URL/api/v1/campaigns" >/dev/null 2>&1; then
     echo "  ✅ Campaigns endpoint accessible"
 else
     echo "  ❌ Campaigns endpoint failed"
-    exit 1
+    testing::phase::add_error
+    testing::phase::end_with_summary
 fi
 
 health_response=$(curl -sf --max-time 10 "$API_URL/health" 2>/dev/null || echo "")
@@ -73,7 +65,8 @@ if [[ "$health_response" =~ "status" ]]; then
     echo "  ✅ Health endpoint returns valid response"
 else
     echo "  ❌ Health endpoint response unexpected"
-    exit 1
+    testing::phase::add_error
+    testing::phase::end_with_summary
 fi
 
 if command -v jq >/dev/null 2>&1; then
@@ -89,22 +82,25 @@ if echo "$campaign_response" | jq -e '.id' >/dev/null 2>&1; then
     echo "✅ Test campaign prepared: $TEST_CAMPAIGN_ID"
 else
     echo "❌ Failed to create campaign for integration tests"
-    exit 1
+    testing::phase::add_error
+    testing::phase::end_with_summary
 fi
 
 echo ""
 echo "🖥️  Testing CLI Integration with BATS..."
-CLI_TEST_SCRIPT="$SCENARIO_DIR/test/cli/run-cli-tests.sh"
+CLI_TEST_SCRIPT="$TESTING_PHASE_SCENARIO_DIR/test/cli/run-cli-tests.sh"
 if [ -x "$CLI_TEST_SCRIPT" ]; then
     if API_PORT="$API_PORT" UI_PORT="${UI_PORT:-}" "$CLI_TEST_SCRIPT"; then
         echo "✅ CLI BATS integration tests passed"
     else
         echo "❌ CLI BATS integration tests failed"
-        exit 1
+        testing::phase::add_error
+        testing::phase::end_with_summary
     fi
 else
     echo "❌ CLI test runner missing or not executable: $CLI_TEST_SCRIPT"
-    exit 1
+    testing::phase::add_error
+    testing::phase::end_with_summary
 fi
 
 echo ""
@@ -114,7 +110,8 @@ if command -v resource-postgres >/dev/null 2>&1; then
         echo "✅ Database integration tests passed"
     else
         echo "❌ Database integration tests failed"
-        exit 1
+        testing::phase::add_error
+        testing::phase::end_with_summary
     fi
 else
     echo "ℹ️  PostgreSQL resource CLI not available; skipping"
@@ -128,7 +125,8 @@ if echo "$workflow_response" | jq -e '.total' >/dev/null 2>&1; then
     echo "✅ End-to-end workflow test passed"
 else
     echo "❌ End-to-end workflow test failed: $workflow_response"
-    exit 1
+    testing::phase::add_error
+    testing::phase::end_with_summary
 fi
 
 echo ""
@@ -141,3 +139,6 @@ echo "   Workflow sync: passed"
 
 echo ""
 log::success "✅ SUCCESS: All integration tests passed!"
+
+# End with summary
+testing::phase::end_with_summary "Integration tests completed"

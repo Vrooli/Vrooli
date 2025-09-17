@@ -226,8 +226,12 @@ func countScenarioEndpoints(scenarioPath string) int {
 }
 
 func main() {
+	// Log startup immediately
+	fmt.Fprintf(os.Stderr, "[STARTUP] api-manager main() started at %s\n", time.Now().Format(time.RFC3339))
+	
 	// Protect against direct execution - must be run through lifecycle system
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, "[STARTUP] VROOLI_LIFECYCLE_MANAGED check failed: %s\n", os.Getenv("VROOLI_LIFECYCLE_MANAGED"))
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
@@ -238,16 +242,29 @@ func main() {
 `)
 		os.Exit(1)
 	}
+	fmt.Fprintf(os.Stderr, "[STARTUP] VROOLI_LIFECYCLE_MANAGED check passed\n")
+	
+	// Debug: Print all environment variables
+	fmt.Fprintf(os.Stderr, "[STARTUP] Environment variables:\n")
+	for _, env := range os.Environ() {
+		if strings.Contains(env, "POSTGRES") || strings.Contains(env, "API_PORT") || strings.Contains(env, "VROOLI") {
+			fmt.Fprintf(os.Stderr, "  %s\n", env)
+		}
+	}
 
 	logger := NewLogger()
 	logger.Info(fmt.Sprintf("Starting %s v%s", serviceName, apiVersion))
+	fmt.Fprintf(os.Stderr, "[STARTUP] Logger initialized\n")
 
 	// Initialize database
+	fmt.Fprintf(os.Stderr, "[STARTUP] Initializing database...\n")
 	var err error
 	db, err = initDB()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "[STARTUP] Database initialization FAILED: %v\n", err)
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+	fmt.Fprintf(os.Stderr, "[STARTUP] Database initialized successfully\n")
 	defer db.Close()
 
 	// Setup routes
@@ -339,14 +356,24 @@ func main() {
 	})
 
 	// Get port from environment - REQUIRED, no defaults
+	fmt.Fprintf(os.Stderr, "[STARTUP] Getting API_PORT from environment...\n")
 	port := os.Getenv("API_PORT")
 	if port == "" {
+		fmt.Fprintf(os.Stderr, "[STARTUP] API_PORT is empty! Environment variables:\n")
+		for _, env := range os.Environ() {
+			if strings.Contains(env, "PORT") || strings.Contains(env, "VROOLI") {
+				fmt.Fprintf(os.Stderr, "  %s\n", env)
+			}
+		}
 		logger.Error("❌ API_PORT environment variable is required", nil)
 		os.Exit(1)
 	}
+	fmt.Fprintf(os.Stderr, "[STARTUP] API_PORT=%s\n", port)
 	logger.Info(fmt.Sprintf("API endpoints available at: http://localhost:%s/api/v1/", port))
 
+	fmt.Fprintf(os.Stderr, "[STARTUP] Starting HTTP server on port %s...\n", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
+		fmt.Fprintf(os.Stderr, "[STARTUP] HTTP server FAILED to start: %v\n", err)
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

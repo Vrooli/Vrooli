@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { API_BASE } from '../config';
+import { getConfig } from '../config';
 
 export interface Project {
   id: string;
@@ -32,6 +32,7 @@ interface ProjectState {
   isLoading: boolean;
   error: string | null;
   bulkExecutionInProgress: Record<string, boolean>;
+  isConnected: boolean;
   
   // Actions
   fetchProjects: () => Promise<void>;
@@ -50,21 +51,24 @@ export const useProjectStore = create<ProjectState>((set) => ({
   isLoading: false,
   error: null,
   bulkExecutionInProgress: {},
+  isConnected: true,
 
   fetchProjects: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/projects`);
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects`);
       if (!response.ok) {
         throw new Error(`Failed to fetch projects: ${response.status}`);
       }
       const data = await response.json();
-      set({ projects: data.projects || [], isLoading: false });
+      set({ projects: data.projects || [], isLoading: false, isConnected: true });
     } catch (error) {
       console.error('Failed to fetch projects:', error);
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch projects',
-        isLoading: false 
+        isLoading: false,
+        isConnected: false
       });
     }
   },
@@ -72,7 +76,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
   createProject: async (projectData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/projects`, {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +112,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
   updateProject: async (id, updates) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/projects/${id}`, {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -141,7 +147,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
   deleteProject: async (id) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/projects/${id}`, {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects/${id}`, {
         method: 'DELETE',
       });
 
@@ -167,7 +174,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
   getProject: async (id) => {
     try {
-      const response = await fetch(`${API_BASE}/projects/${id}`);
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects/${id}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch project: ${response.status}`);
       }
@@ -190,7 +198,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
     }));
     
     try {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/execute-all`, {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/projects/${projectId}/execute-all`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,6 +229,6 @@ export const useProjectStore = create<ProjectState>((set) => ({
   },
 
   clearError: () => {
-    set({ error: null });
+    set({ error: null, isConnected: true });
   },
 }));

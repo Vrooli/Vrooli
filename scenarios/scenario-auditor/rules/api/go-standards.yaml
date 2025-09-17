@@ -1,0 +1,182 @@
+---
+- id: api-go-mod-exists
+  name: "Go Module File Exists"
+  description: "Ensures go.mod file exists in the api directory"
+  category: api
+  severity: critical
+  enabled: true
+  condition:
+    type: file_exists
+    target: "api/go.mod"
+  message: "api/go.mod file is required for Go API modules"
+  fix:
+    type: file_create
+    action: create
+    target: "api/go.mod"
+    template: "go-mod-template"
+    description: "Create go.mod file with proper module name"
+  tags:
+    - go-modules
+    - api-structure
+    - required
+  version: "1.0.0"
+
+- id: api-main-go-exists
+  name: "Main Go File Exists"
+  description: "Ensures main.go file exists in the api directory"
+  category: api
+  severity: critical
+  enabled: true
+  condition:
+    type: file_exists
+    target: "api/main.go"
+  message: "api/main.go file is required as the API entry point"
+  fix:
+    type: file_create
+    action: create
+    target: "api/main.go"
+    template: "main-go-template"
+    description: "Create main.go file with basic server structure"
+  tags:
+    - go-main
+    - api-structure
+    - required
+  version: "1.0.0"
+
+- id: api-health-endpoint
+  name: "Health Check Endpoint"
+  description: "Ensures API has a health check endpoint implemented"
+  category: api
+  severity: high
+  enabled: true
+  condition:
+    type: file_content
+    target: "api/main.go"
+    operator: contains
+    value: "/health"
+  message: "API must implement a health check endpoint (typically /health or /api/v1/health)"
+  fix:
+    type: content_enhancement
+    action: add_health_endpoint
+    target: "api/main.go"
+    description: "Add health check endpoint implementation"
+  tags:
+    - health-check
+    - monitoring
+    - api-endpoints
+  version: "1.0.0"
+
+- id: api-cors-configuration
+  name: "CORS Configuration"
+  description: "Ensures API has proper CORS configuration for cross-origin requests"
+  category: api
+  severity: medium
+  enabled: true
+  condition:
+    type: file_content
+    target: "api/main.go"
+    operator: contains_any
+    value: ["cors", "CORS", "Access-Control-Allow-Origin"]
+  message: "API should have proper CORS configuration for web UI integration"
+  fix:
+    type: content_enhancement
+    action: add_cors
+    target: "api/main.go"
+    description: "Add CORS middleware configuration"
+  tags:
+    - cors
+    - security
+    - web-integration
+  version: "1.0.0"
+
+- id: api-error-handling
+  name: "Proper Error Handling"
+  description: "Ensures API has consistent error handling patterns"
+  category: api
+  severity: medium
+  enabled: true
+  condition:
+    type: file_content
+    target: "api/main.go"
+    operator: contains_any
+    value: ["http.Error", "respondError", "ErrorResponse"]
+  message: "API should have consistent error handling with proper HTTP status codes"
+  fix:
+    type: content_enhancement
+    action: improve_error_handling
+    target: "api/main.go"
+    description: "Add consistent error handling patterns"
+  tags:
+    - error-handling
+    - api-patterns
+    - consistency
+  version: "1.0.0"
+
+- id: api-structured-logging
+  name: "Structured Logging"
+  description: "Ensures API uses structured logging for better observability"
+  category: api
+  severity: medium
+  enabled: true
+  condition:
+    type: file_content
+    target: "api/main.go"
+    operator: contains_any
+    value: ["log.Printf", "logger", "Logger"]
+  message: "API should use structured logging with proper log levels"
+  fix:
+    type: content_enhancement
+    action: add_structured_logging
+    target: "api/main.go"
+    description: "Add structured logging implementation"
+  tags:
+    - logging
+    - observability
+    - debugging
+  version: "1.0.0"
+
+- id: api-graceful-shutdown
+  name: "Graceful Shutdown"
+  description: "Ensures API implements graceful shutdown handling"
+  category: api
+  severity: medium
+  enabled: true
+  condition:
+    type: file_content
+    target: "api/main.go"
+    operator: contains_any
+    value: ["signal.Notify", "syscall.SIGINT", "srv.Shutdown"]
+  message: "API should implement graceful shutdown for proper lifecycle management"
+  fix:
+    type: content_enhancement
+    action: add_graceful_shutdown
+    target: "api/main.go"
+    description: "Add graceful shutdown handling"
+  tags:
+    - shutdown
+    - lifecycle
+    - reliability
+  version: "1.0.0"
+
+- id: api-environment-variables
+  name: "Environment Variable Usage"
+  description: "Ensures API properly uses environment variables for configuration"
+  category: api
+  severity: low
+  enabled: true
+  condition:
+    type: file_content
+    target: "api/main.go"
+    operator: contains_any
+    value: ["os.Getenv", "API_PORT", "UI_PORT"]
+  message: "API should use environment variables for port and configuration settings"
+  fix:
+    type: content_enhancement
+    action: add_env_vars
+    target: "api/main.go"
+    description: "Add environment variable configuration"
+  tags:
+    - configuration
+    - environment
+    - flexibility
+  version: "1.0.0"

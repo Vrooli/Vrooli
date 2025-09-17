@@ -1,7 +1,7 @@
-import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft } from 'lucide-react';
+import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft, Wifi, WifiOff } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { useExecutionStore } from '../stores/executionStore';
-import { Project } from '../stores/projectStore';
+import { Project, useProjectStore } from '../stores/projectStore';
 import toast from 'react-hot-toast';
 
 interface HeaderProps {
@@ -13,6 +13,7 @@ interface HeaderProps {
 function Header({ onNewWorkflow, onBackToDashboard, currentProject }: HeaderProps) {
   const { currentWorkflow, saveWorkflow } = useWorkflowStore();
   const { startExecution } = useExecutionStore();
+  const { isConnected, error } = useProjectStore();
 
   const handleSave = async () => {
     if (!currentWorkflow) {
@@ -106,6 +107,23 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject }: HeaderProp
         </div>
         
         <div className="flex items-center gap-2">
+          {/* API Status Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-flow-node border border-gray-700">
+            {isConnected ? (
+              <>
+                <Wifi size={14} className="text-green-400" />
+                <span className="text-xs text-green-400">Connected</span>
+              </>
+            ) : (
+              <>
+                <WifiOff size={14} className="text-red-400" />
+                <span className="text-xs text-red-400" title={error || 'Connection failed'}>
+                  Disconnected
+                </span>
+              </>
+            )}
+          </div>
+          
           <button
             onClick={handleExecute}
             className="bg-flow-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
