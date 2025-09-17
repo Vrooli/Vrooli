@@ -3,6 +3,7 @@ export interface SystemStatus {
   health_score: number
   scenarios: number
   vulnerabilities: number
+  standards_violations?: number
   endpoints: number
   timestamp: string
 }

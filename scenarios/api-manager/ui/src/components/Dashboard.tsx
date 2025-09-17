@@ -18,6 +18,7 @@ import { apiService } from '@/services/api'
 import { StatCard } from './common/StatCard'
 import { Card } from './common/Card'
 import { Badge } from './common/Badge'
+import Tooltip from './Tooltip'
 
 export default function Dashboard() {
   const { data: summary, isLoading: loadingSummary, error: summaryError, refetch: refetchSummary } = useQuery({
@@ -218,8 +219,47 @@ export default function Dashboard() {
                       alert.level === 'info' && 'text-primary-600'
                     )} />
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-dark-900">{alert.title}</p>
-                      <p className="text-xs text-dark-600 mt-0.5">{alert.description}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-dark-900">{alert.title}</p>
+                        <Tooltip 
+                          content={
+                            alert.title.includes('Stale Scenarios') 
+                              ? "Scenarios that haven't been scanned for security vulnerabilities in the last 48 hours. Regular scanning helps identify new vulnerabilities early."
+                              : alert.title.includes('Critical Vulnerabilities')
+                              ? "High-severity security issues that could be exploited by attackers. These should be addressed immediately."
+                              : alert.title.includes('Automated Fixes')
+                              ? "The system can automatically apply fixes for certain types of vulnerabilities when this feature is enabled."
+                              : alert.message || alert.description
+                          }
+                          position="right"
+                        />
+                      </div>
+                      <p className="text-xs text-dark-600 mt-0.5">{alert.message || alert.description}</p>
+                      
+                      {/* Show stale scenario links */}
+                      {alert.scenarios && alert.scenarios.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {alert.scenarios.map((scenario: string) => (
+                            <Link
+                              key={scenario}
+                              to={`/scenario/${scenario}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-white border border-dark-200 text-dark-700 hover:bg-dark-50 hover:border-dark-300 transition-colors"
+                            >
+                              {scenario}
+                              <ArrowUpRight className="h-3 w-3" />
+                            </Link>
+                          ))}
+                          {alert.total_count > alert.scenarios.length && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-dark-100 text-dark-600">
+                              +{alert.total_count - alert.scenarios.length} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {alert.action && (
+                        <p className="text-xs text-dark-500 mt-1 italic">{alert.action}</p>
+                      )}
                       {alert.created_at && (
                         <p className="text-xs text-dark-500 mt-1">
                           {format(new Date(alert.created_at), 'MMM d, HH:mm')}

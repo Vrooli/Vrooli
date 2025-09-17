@@ -692,20 +692,129 @@ func checkStructuredLogging(content []byte, filePath, scenarioName string) []Sta
 	contentStr := string(content)
 	lines := strings.Split(contentStr, "\n")
 
+	// Check if this is main.go - it should have Logger setup
+	if strings.HasSuffix(filePath, "main.go") {
+		hasLoggerStruct := strings.Contains(contentStr, "type Logger struct")
+		hasNewLogger := strings.Contains(contentStr, "func NewLogger(")
+		// Check for service name prefix in logger initialization
+		// Look for patterns like [scenario-name] or "[scenario-name]"
+		hasServicePrefix := false
+		for _, line := range lines {
+			if strings.Contains(line, "log.New(") && 
+			   (strings.Contains(line, "["+scenarioName+"]") || 
+			    strings.Contains(line, `"[`+scenarioName+`]"`)) {
+				hasServicePrefix = true
+				break
+			}
+		}
+		
+		if !hasLoggerStruct || !hasNewLogger {
+			violations = append(violations, StandardsViolation{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				Type:           "structured_logging",
+				Severity:       "high",
+				Title:          "Missing Logger Setup",
+				Description:    "Main.go should define a Logger struct with NewLogger() function",
+				FilePath:       filePath,
+				LineNumber:     1,
+				CodeSnippet:    "",
+				Recommendation: "Add Logger struct with Info() and Error() methods, initialized with service name prefix",
+				Standard:       "Logging",
+				DiscoveredAt:   time.Now().Format(time.RFC3339),
+			})
+		} else if !hasServicePrefix {
+			violations = append(violations, StandardsViolation{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				Type:           "structured_logging",
+				Severity:       "medium",
+				Title:          "Missing Service Name in Logger",
+				Description:    "Logger should include service name prefix",
+				FilePath:       filePath,
+				LineNumber:     1,
+				CodeSnippet:    "",
+				Recommendation: fmt.Sprintf(`Use log.New(os.Stdout, "[%s] ", log.LstdFlags|log.Lshortfile)`, scenarioName),
+				Standard:       "Logging",
+				DiscoveredAt:   time.Now().Format(time.RFC3339),
+			})
+		}
+	}
+
+	// Track if we're in the lifecycle protection block
+	inLifecycleBlock := false
+	lifecycleBlockStart := -1
+	
 	for lineNum, line := range lines {
-		// Check for fmt.Println, log.Println usage (should use structured logging)
-		if strings.Contains(line, "fmt.Println(") || strings.Contains(line, "log.Println(") {
+		trimmedLine := strings.TrimSpace(line)
+		
+		// Detect start of lifecycle protection block
+		if strings.Contains(line, "VROOLI_LIFECYCLE_MANAGED") && strings.Contains(line, "os.Getenv") {
+			inLifecycleBlock = true
+			lifecycleBlockStart = lineNum
+		}
+		
+		// Detect end of lifecycle block (usually os.Exit or closing brace after several lines)
+		if inLifecycleBlock && (strings.Contains(line, "os.Exit(") || 
+			(lineNum > lifecycleBlockStart+10 && trimmedLine == "}")) {
+			inLifecycleBlock = false
+		}
+		
+		// Skip checks if we're in the lifecycle protection block
+		// fmt.Fprintf(os.Stderr is allowed in lifecycle block
+		if inLifecycleBlock {
+			continue
+		}
+		
+		// Check for fmt.Println usage (should use structured logging)
+		if strings.Contains(line, "fmt.Println(") {
 			violations = append(violations, StandardsViolation{
 				ID:             uuid.New().String(),
 				ScenarioName:   scenarioName,
 				Type:           "structured_logging",
 				Severity:       "medium",
 				Title:          "Unstructured Logging",
-				Description:    "Use structured logging instead of fmt.Println or log.Println",
+				Description:    "Use structured logging instead of fmt.Println",
 				FilePath:       filePath,
 				LineNumber:     lineNum + 1,
 				CodeSnippet:    strings.TrimSpace(line),
-				Recommendation: "Use logger.Info(), logger.Error() with structured fields",
+				Recommendation: "Use logger.Info() from your Logger instance",
+				Standard:       "Logging",
+				DiscoveredAt:   time.Now().Format(time.RFC3339),
+			})
+		}
+		
+		// Check for fmt.Printf (except fmt.Fprintf(os.Stderr which is used in lifecycle)
+		if strings.Contains(line, "fmt.Printf(") && !strings.Contains(line, "fmt.Fprintf") {
+			violations = append(violations, StandardsViolation{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				Type:           "structured_logging",
+				Severity:       "medium",
+				Title:          "Unstructured Logging",
+				Description:    "Use structured logging instead of fmt.Printf",
+				FilePath:       filePath,
+				LineNumber:     lineNum + 1,
+				CodeSnippet:    strings.TrimSpace(line),
+				Recommendation: "Use logger.Info() or logger.Error() from your Logger instance",
+				Standard:       "Logging",
+				DiscoveredAt:   time.Now().Format(time.RFC3339),
+			})
+		}
+		
+		// Check for log.Println (should use logger instance)
+		if strings.Contains(line, "log.Println(") {
+			violations = append(violations, StandardsViolation{
+				ID:             uuid.New().String(),
+				ScenarioName:   scenarioName,
+				Type:           "structured_logging",
+				Severity:       "medium",
+				Title:          "Direct log.Println Usage",
+				Description:    "Use logger instance instead of direct log.Println",
+				FilePath:       filePath,
+				LineNumber:     lineNum + 1,
+				CodeSnippet:    strings.TrimSpace(line),
+				Recommendation: "Use logger.Info() from your Logger instance",
 				Standard:       "Logging",
 				DiscoveredAt:   time.Now().Format(time.RFC3339),
 			})
@@ -723,10 +832,44 @@ func checkStructuredLogging(content []byte, filePath, scenarioName string) []Sta
 				FilePath:       filePath,
 				LineNumber:     lineNum + 1,
 				CodeSnippet:    strings.TrimSpace(line),
-				Recommendation: "Include error details: log.Fatal(\"message\", err)",
+				Recommendation: `Include error details: log.Fatalf("Failed to %s: %v", action, err)`,
 				Standard:       "Logging",
 				DiscoveredAt:   time.Now().Format(time.RFC3339),
 			})
+		}
+		
+		// Check for raw log.Printf outside of Logger methods
+		// Skip if line is inside a Logger method (rough heuristic)
+		if strings.Contains(line, "log.Printf(") && !strings.Contains(line, "l.Printf") {
+			// Try to check if we're inside a Logger method
+			isInLoggerMethod := false
+			for i := lineNum - 1; i >= 0 && i > lineNum-20; i-- {
+				if strings.Contains(lines[i], "func (l *Logger)") {
+					isInLoggerMethod = true
+					break
+				}
+				if strings.Contains(lines[i], "func ") && !strings.Contains(lines[i], "func (") {
+					// We hit a different function, stop looking
+					break
+				}
+			}
+			
+			if !isInLoggerMethod {
+				violations = append(violations, StandardsViolation{
+					ID:             uuid.New().String(),
+					ScenarioName:   scenarioName,
+					Type:           "structured_logging",
+					Severity:       "medium",
+					Title:          "Direct log.Printf Usage",
+					Description:    "Use logger instance instead of direct log.Printf",
+					FilePath:       filePath,
+					LineNumber:     lineNum + 1,
+					CodeSnippet:    strings.TrimSpace(line),
+					Recommendation: "Use logger.Info() or logger.Error() from your Logger instance",
+					Standard:       "Logging",
+					DiscoveredAt:   time.Now().Format(time.RFC3339),
+				})
+			}
 		}
 	}
 

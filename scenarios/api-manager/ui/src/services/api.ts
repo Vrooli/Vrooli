@@ -40,6 +40,7 @@ class ApiService {
       health_score: summary.system_health_score || 0,
       scenarios: (typeof summary.scenarios === 'object' ? summary.scenarios?.total : summary.scenarios) || 0,
       vulnerabilities: (typeof summary.vulnerabilities === 'object' ? summary.vulnerabilities?.total : summary.vulnerabilities) || 0,
+      standards_violations: (summary as any).standards_violations || 0,
       endpoints: 0, // This field doesn't exist in current API response
       timestamp: summary.timestamp || new Date().toISOString(),
     }
@@ -178,6 +179,33 @@ class ApiService {
     const url = scenario ? `/standards/violations?scenario=${scenario}` : '/standards/violations'
     const response = await this.fetch<{ violations: any[] }>(url)
     return response.violations || []
+  }
+
+  // Claude Fix
+  async triggerClaudeFix(
+    scenarioName: string, 
+    fixType: 'standards' | 'vulnerabilities',
+    issueIds?: string[]
+  ): Promise<{
+    success: boolean
+    message: string
+    fix_id: string
+    started_at: string
+    output?: string
+    error?: string
+  }> {
+    return this.fetch('/claude/fix', {
+      method: 'POST',
+      body: JSON.stringify({
+        scenario_name: scenarioName,
+        fix_type: fixType,
+        issue_ids: issueIds,
+      }),
+    })
+  }
+
+  async getClaudeFixStatus(fixId: string): Promise<any> {
+    return this.fetch(`/claude/fix/${fixId}/status`)
   }
 }
 

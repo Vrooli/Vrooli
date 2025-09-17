@@ -308,6 +308,15 @@ func main() {
 	api.HandleFunc("/standards/check/{name}", enhancedStandardsCheckHandler).Methods("POST")
 	api.HandleFunc("/standards/violations", getStandardsViolationsHandler).Methods("GET")
 	
+	// Claude Fix endpoints
+	api.HandleFunc("/claude/fix", triggerClaudeFixHandler).Methods("POST")
+	api.HandleFunc("/claude/fix/{fixId}/status", getClaudeFixStatusHandler).Methods("GET")
+	
+	// Agent management endpoints (for agent-dashboard integration)
+	api.HandleFunc("/agents", getAgentsHandler).Methods("GET")
+	api.HandleFunc("/agents/{agentId}/stop", stopAgentHandler).Methods("POST")
+	api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
+	
 	// System operations
 	api.HandleFunc("/system/discover", discoverScenariosHandler).Methods("POST")
 	api.HandleFunc("/system/status", getSystemStatusHandler).Methods("GET")
@@ -2075,6 +2084,12 @@ func getHealthSummaryHandler(w http.ResponseWriter, r *http.Request) {
 	highVulns := stats["high"].(int)
 	hasScans := totalVulns > 0
 
+	// Get standards violations summary from standards store
+	standardsStats := standardsStore.GetStats()
+	totalViolations := standardsStats["total"].(int)
+	criticalViolations := standardsStats["critical"].(int)
+	highViolations := standardsStats["high"].(int)
+
 	// Count scenarios with critical vulnerabilities
 	criticalScenarios := 0
 	if hasScans {
@@ -2127,6 +2142,12 @@ func getHealthSummaryHandler(w http.ResponseWriter, r *http.Request) {
 			"total":    totalVulns,
 			"critical": criticalVulns,
 			"high":     highVulns,
+		},
+		"standards_violations": totalViolations,  // For UI sidebar display
+		"standards_violations_detail": map[string]interface{}{
+			"total":    totalViolations,
+			"critical": criticalViolations,
+			"high":     highViolations,
 		},
 		"endpoints": map[string]interface{}{
 			"total":       totalEndpoints,
@@ -2182,21 +2203,53 @@ func getHealthAlertsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check for scenarios not scanned recently
 	var staleScenarios int
+	var staleScenarioNames []string
+	
+	// First get the count
 	db.QueryRow(`
 		SELECT COUNT(*) 
 		FROM scenarios 
 		WHERE status = 'active' AND (last_scanned IS NULL OR last_scanned < NOW() - INTERVAL '48 hours')
 	`).Scan(&staleScenarios)
-
+	
+	// Then get the first 5 scenario names for display
 	if staleScenarios > 0 {
+		rows, err := db.Query(`
+			SELECT name 
+			FROM scenarios 
+			WHERE status = 'active' AND (last_scanned IS NULL OR last_scanned < NOW() - INTERVAL '48 hours')
+			ORDER BY COALESCE(last_scanned, '1970-01-01'::timestamp) ASC
+			LIMIT 5
+		`)
+		if err == nil {
+			defer rows.Close()
+			for rows.Next() {
+				var name string
+				if err := rows.Scan(&name); err == nil {
+					staleScenarioNames = append(staleScenarioNames, name)
+				}
+			}
+		}
+		
+		// Build the message with scenario names
+		message := "Scenarios haven't been scanned in 48+ hours"
+		if len(staleScenarioNames) > 0 {
+			message = fmt.Sprintf("Not scanned recently: %s", strings.Join(staleScenarioNames, ", "))
+			if staleScenarios > 5 {
+				message += fmt.Sprintf(" and %d more", staleScenarios-5)
+			}
+		}
+
 		alerts = append(alerts, map[string]interface{}{
-			"id":       uuid.New(),
-			"level":    "warning",
-			"category": "maintenance",
-			"title":    fmt.Sprintf("%d Stale Scenarios", staleScenarios),
-			"message":  "Some scenarios haven't been scanned recently",
-			"action":   "Run discovery and scanning on outdated scenarios",
-			"created":  time.Now().UTC(),
+			"id":            uuid.New(),
+			"level":         "warning",
+			"category":      "maintenance",
+			"title":         fmt.Sprintf("%d Stale Scenarios", staleScenarios),
+			"message":       message,
+			"action":        "Run discovery and scanning on outdated scenarios",
+			"created":       time.Now().UTC(),
+			"scenarios":     staleScenarioNames,  // Include the list for the UI
+			"total_count":   staleScenarios,
 		})
 	}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   Shield, 
@@ -13,14 +13,15 @@ import {
   Play,
   Info,
   Zap,
-  Clock,
   Target,
   X,
   Award,
   Settings,
   TestTube,
   Globe,
-  Code
+  Code,
+  Bot,
+  Loader2
 } from 'lucide-react'
 import clsx from 'clsx'
 import { format } from 'date-fns'
@@ -44,6 +45,26 @@ interface StandardsViolation {
   discovered_at: string
 }
 
+interface Agent {
+  id: string
+  pid: number
+  status: 'running' | 'stopped' | 'crashed'
+  start_time: string
+  last_seen: string
+  command: string
+  type?: string
+  scenario?: string
+  log_file?: string
+}
+
+interface AgentTracker {
+  agentId: string
+  scenario: string
+  startTime: Date
+  status: 'running' | 'completed' | 'failed'
+  message?: string
+}
+
 export default function StandardsCompliance() {
   const [selectedScenario, setSelectedScenario] = useState<string>('')
   const [checkType, setCheckType] = useState<'quick' | 'full' | 'targeted'>('full')
@@ -51,6 +72,9 @@ export default function StandardsCompliance() {
   const [showCheckTypeInfo, setShowCheckTypeInfo] = useState(false)
   const [showDisabledTooltip, setShowDisabledTooltip] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
+  const [severityFilter, setSeverityFilter] = useState<string | null>(null)
+  const [runningAgents, setRunningAgents] = useState<Map<string, AgentTracker>>(new Map())
+  const [completedAgents, setCompletedAgents] = useState<Map<string, AgentTracker>>(new Map())
   const queryClient = useQueryClient()
 
   const { data: scenarios } = useQuery({
@@ -73,6 +97,99 @@ export default function StandardsCompliance() {
       refetch()
     },
   })
+
+  // Poll for agent status updates
+  useEffect(() => {
+    if (runningAgents.size === 0) return
+
+    const pollAgentStatus = async () => {
+      try {
+        const response = await fetch('/api/v1/agents')
+        const data = await response.json()
+        const agents: Record<string, Agent> = data.agents || {}
+
+        setRunningAgents(prev => {
+          const updated = new Map(prev)
+          const newCompleted = new Map(completedAgents)
+
+          for (const [scenario, tracker] of prev) {
+            const agent = agents[tracker.agentId]
+            
+            if (!agent) {
+              // Agent not found, assume completed successfully
+              const completedTracker: AgentTracker = {
+                ...tracker,
+                status: 'completed',
+                message: 'Fix completed successfully'
+              }
+              newCompleted.set(scenario, completedTracker)
+              updated.delete(scenario)
+            } else if (agent.status === 'stopped') {
+              // Agent completed
+              const completedTracker: AgentTracker = {
+                ...tracker,
+                status: 'completed',
+                message: 'Fix completed successfully'
+              }
+              newCompleted.set(scenario, completedTracker)
+              updated.delete(scenario)
+            } else if (agent.status === 'crashed') {
+              // Agent failed
+              const failedTracker: AgentTracker = {
+                ...tracker,
+                status: 'failed',
+                message: 'Fix failed - check agent logs for details'
+              }
+              newCompleted.set(scenario, failedTracker)
+              updated.delete(scenario)
+            }
+          }
+
+          setCompletedAgents(newCompleted)
+          return updated
+        })
+      } catch (error) {
+        console.error('Failed to poll agent status:', error)
+      }
+    }
+
+    const interval = setInterval(pollAgentStatus, 2000) // Poll every 2 seconds
+    return () => clearInterval(interval)
+  }, [runningAgents.size, completedAgents])
+
+  // Auto-refresh violations when agents complete successfully
+  useEffect(() => {
+    const completedSuccessfully = Array.from(completedAgents.values())
+      .filter(agent => agent.status === 'completed')
+    
+    if (completedSuccessfully.length > 0) {
+      const timer = setTimeout(() => {
+        refetch()
+        // Clear completed agents after refresh
+        setCompletedAgents(new Map())
+      }, 3000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [completedAgents, refetch])
+
+  // Helper function to get elapsed time
+  const getElapsedTime = (startTime: Date): string => {
+    const now = new Date()
+    const elapsed = Math.floor((now.getTime() - startTime.getTime()) / 1000)
+    
+    if (elapsed < 60) {
+      return `${elapsed}s`
+    } else if (elapsed < 3600) {
+      const minutes = Math.floor(elapsed / 60)
+      const seconds = elapsed % 60
+      return `${minutes}m ${seconds}s`
+    } else {
+      const hours = Math.floor(elapsed / 3600)
+      const minutes = Math.floor((elapsed % 3600) / 60)
+      return `${hours}h ${minutes}m`
+    }
+  }
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -106,8 +223,16 @@ export default function StandardsCompliance() {
     }
   }
 
-  // Filter violations based on search query
+  // Filter violations based on search query and severity
   const filteredViolations = violations?.filter(violation => {
+    // Apply severity filter first
+    if (severityFilter !== null && severityFilter !== undefined) {
+      if (violation.severity !== severityFilter) {
+        return false
+      }
+    }
+    
+    // Apply search filter
     if (!searchQuery.trim()) return true
     
     const searchLower = searchQuery.toLowerCase()
@@ -128,7 +253,7 @@ export default function StandardsCompliance() {
     if (!acc[key]) acc[key] = []
     acc[key].push(violation)
     return acc
-  }, {} as Record<string, StandardsViolation[]>)
+  }, {} as Record<string, StandardsViolation[]>) as Record<string, StandardsViolation[]> | undefined
 
   const stats = {
     total: violations?.length || 0,
@@ -261,36 +386,7 @@ export default function StandardsCompliance() {
         </div>
         
         {checkMutation.isSuccess && checkMutation.data && (
-          <div className="mt-4 space-y-3">
-            {/* File check statistics */}
-            <div className="rounded-lg bg-primary-50 border border-primary-200 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-primary-900">Standards Check Complete - Files Analyzed</h3>
-                <span className="text-2xl font-bold text-primary-700">
-                  {checkMutation.data.files_scanned || 0}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white rounded p-2">
-                  <p className="text-xs text-dark-600">Violations Found</p>
-                  <p className="text-lg font-semibold text-dark-900">
-                    {checkMutation.data.violations?.length || 0}
-                  </p>
-                </div>
-                <div className="bg-white rounded p-2">
-                  <p className="text-xs text-dark-600">Duration</p>
-                  <p className="text-lg font-semibold text-dark-900">
-                    {checkMutation.data.duration_seconds?.toFixed(1) || 0}s
-                  </p>
-                </div>
-              </div>
-              {checkMutation.data.scenario_name && (
-                <p className="text-xs text-primary-700 mt-2">
-                  Scenario: {checkMutation.data.scenario_name}
-                </p>
-              )}
-            </div>
-            
+          <div className="mt-4">
             {/* Success message */}
             <div className="rounded-lg bg-success-50 p-3">
               <div className="flex items-start gap-2">
@@ -308,33 +404,88 @@ export default function StandardsCompliance() {
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-5">
-        <Card className="text-center" padding="sm">
+        <button
+          onClick={() => setSeverityFilter(null)}
+          className={clsx(
+            "text-center p-4 rounded-lg border-2 transition-all",
+            severityFilter === null 
+              ? "border-primary-500 bg-primary-50 shadow-lg" 
+              : "border-dark-200 bg-white hover:border-dark-300 hover:shadow-md"
+          )}
+        >
           <p className="text-2xl font-bold text-dark-900">{stats.total}</p>
           <p className="text-sm text-dark-500">Total</p>
-        </Card>
-        <Card className="text-center border-danger-200 bg-danger-50/50" padding="sm">
+        </button>
+        
+        <button
+          onClick={() => setSeverityFilter(severityFilter === 'critical' ? null : 'critical')}
+          className={clsx(
+            "text-center p-4 rounded-lg border-2 transition-all",
+            severityFilter === 'critical'
+              ? "border-danger-500 bg-danger-100 shadow-lg"
+              : "border-danger-200 bg-danger-50/50 hover:bg-danger-100 hover:shadow-md"
+          )}
+        >
           <p className="text-2xl font-bold text-danger-700">{stats.critical}</p>
           <p className="text-sm text-danger-600">Critical</p>
-        </Card>
-        <Card className="text-center border-warning-200 bg-warning-50/50" padding="sm">
+        </button>
+        
+        <button
+          onClick={() => setSeverityFilter(severityFilter === 'high' ? null : 'high')}
+          className={clsx(
+            "text-center p-4 rounded-lg border-2 transition-all",
+            severityFilter === 'high'
+              ? "border-warning-500 bg-warning-100 shadow-lg"
+              : "border-warning-200 bg-warning-50/50 hover:bg-warning-100 hover:shadow-md"
+          )}
+        >
           <p className="text-2xl font-bold text-warning-700">{stats.high}</p>
           <p className="text-sm text-warning-600">High</p>
-        </Card>
-        <Card className="text-center border-yellow-200 bg-yellow-50/50" padding="sm">
+        </button>
+        
+        <button
+          onClick={() => setSeverityFilter(severityFilter === 'medium' ? null : 'medium')}
+          className={clsx(
+            "text-center p-4 rounded-lg border-2 transition-all",
+            severityFilter === 'medium'
+              ? "border-yellow-500 bg-yellow-100 shadow-lg"
+              : "border-yellow-200 bg-yellow-50/50 hover:bg-yellow-100 hover:shadow-md"
+          )}
+        >
           <p className="text-2xl font-bold text-yellow-700">{stats.medium}</p>
           <p className="text-sm text-yellow-600">Medium</p>
-        </Card>
-        <Card className="text-center border-blue-200 bg-blue-50/50" padding="sm">
+        </button>
+        
+        <button
+          onClick={() => setSeverityFilter(severityFilter === 'low' ? null : 'low')}
+          className={clsx(
+            "text-center p-4 rounded-lg border-2 transition-all",
+            severityFilter === 'low'
+              ? "border-blue-500 bg-blue-100 shadow-lg"
+              : "border-blue-200 bg-blue-50/50 hover:bg-blue-100 hover:shadow-md"
+          )}
+        >
           <p className="text-2xl font-bold text-blue-700">{stats.low}</p>
           <p className="text-sm text-blue-600">Low</p>
-        </Card>
+        </button>
       </div>
 
       {/* Violations List */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-dark-900 mb-3">Standards Violations</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-dark-900">Standards Violations</h2>
+              {severityFilter && (
+                <button
+                  onClick={() => setSeverityFilter(null)}
+                  className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors text-sm"
+                >
+                  <span>Filtering: {severityFilter}</span>
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             
             {/* Search Bar */}
             {violations && violations.length > 0 && (
@@ -359,12 +510,12 @@ export default function StandardsCompliance() {
               </div>
             )}
             
-            {/* Search Results Info */}
-            {searchQuery && violations && violations.length > 0 && (
+            {/* Filter/Search Results Info */}
+            {(searchQuery || severityFilter) && violations && violations.length > 0 && (
               <div className="mt-2 text-sm text-dark-600">
-                Found {filteredViolations?.length || 0} of {violations.length} violations
+                Showing {filteredViolations?.length || 0} of {violations.length} violations
                 {filteredViolations?.length === 0 && (
-                  <span className="text-warning-600 ml-2">No matches found. Try different keywords.</span>
+                  <span className="text-warning-600 ml-2">No matches found. Try different filters.</span>
                 )}
               </div>
             )}
@@ -376,17 +527,103 @@ export default function StandardsCompliance() {
                 <div key={i} className="h-24 bg-dark-100 rounded-lg animate-pulse" />
               ))}
             </div>
-          ) : violations && violations.length > 0 ? (
+          ) : filteredViolations && filteredViolations.length > 0 ? (
             <div className="space-y-4">
               {Object.entries(groupedViolations || {}).map(([scenario, scenarioViolations]) => (
                 <div key={scenario} className="border border-dark-200 rounded-lg">
-                  <div className="bg-dark-50 px-4 py-2 border-b border-dark-200">
+                  <div className="bg-dark-50 px-4 py-2 border-b border-dark-200 flex items-center justify-between">
                     <h3 className="font-medium text-dark-900">{scenario}</h3>
-                  </div>
-                  <div className="divide-y divide-dark-100">
-                    {scenarioViolations.map((violation) => (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-dark-500">
+                        {scenarioViolations.length} violation{scenarioViolations.length !== 1 ? 's' : ''}
+                      </span>
                       <button
-                        key={violation.id}
+                        onClick={async () => {
+                          if (!confirm(`Trigger Claude agent to fix ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
+                            return
+                          }
+                          
+                          try {
+                            const result = await apiService.triggerClaudeFix(
+                              scenario,
+                              'standards',
+                              scenarioViolations.map(v => v.id)
+                            )
+                            
+                            if (result.success && result.fix_id) {
+                              // Track the agent
+                              const tracker: AgentTracker = {
+                                agentId: result.fix_id,
+                                scenario: scenario,
+                                startTime: new Date(result.started_at),
+                                status: 'running'
+                              }
+                              
+                              setRunningAgents(prev => new Map([...prev, [scenario, tracker]]))
+                              
+                              // Clear any previous completed results for this scenario
+                              setCompletedAgents(prev => {
+                                const updated = new Map(prev)
+                                updated.delete(scenario)
+                                return updated
+                              })
+                            } else {
+                              // Immediate failure
+                              const failedTracker: AgentTracker = {
+                                agentId: result.fix_id || 'unknown',
+                                scenario: scenario,
+                                startTime: new Date(),
+                                status: 'failed',
+                                message: result.error || result.message || 'Failed to start agent'
+                              }
+                              setCompletedAgents(prev => new Map([...prev, [scenario, failedTracker]]))
+                            }
+                          } catch (error) {
+                            const failedTracker: AgentTracker = {
+                              agentId: 'unknown',
+                              scenario: scenario,
+                              startTime: new Date(),
+                              status: 'failed',
+                              message: error instanceof Error ? error.message : 'Failed to trigger fix'
+                            }
+                            setCompletedAgents(prev => new Map([...prev, [scenario, failedTracker]]))
+                          }
+                        }}
+                        disabled={runningAgents.has(scenario)}
+                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+                        title="Fix violations with Claude agent"
+                      >
+                        {runningAgents.has(scenario) ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Fixing... ({getElapsedTime(runningAgents.get(scenario)!.startTime)})
+                          </>
+                        ) : (
+                          <>
+                            <Bot className="h-3 w-3" />
+                            Fix with AI
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  {completedAgents.get(scenario) && (
+                    <div className={clsx(
+                      "px-4 py-2 text-xs",
+                      completedAgents.get(scenario)?.status === 'completed' ? "bg-success-50 text-success-700" : "bg-danger-50 text-danger-700"
+                    )}>
+                      <div className="flex items-center justify-between">
+                        <span>{completedAgents.get(scenario)?.message}</span>
+                        <span className="text-xs opacity-75">
+                          Completed in {getElapsedTime(completedAgents.get(scenario)!.startTime)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="divide-y divide-dark-100">
+                    {scenarioViolations.map((violation, idx) => (
+                      <button
+                        key={`${violation.id}-${violation.scenario_name}-${violation.line_number}-${idx}`}
                         onClick={() => setSelectedViolation(violation)}
                         className="w-full px-4 py-3 hover:bg-dark-50 transition-colors text-left"
                       >
@@ -425,18 +662,21 @@ export default function StandardsCompliance() {
             </div>
           ) : (
             <div className="text-center py-12">
-              {searchQuery ? (
+              {searchQuery || severityFilter ? (
                 <>
                   <Search className="h-12 w-12 text-dark-400 mx-auto mb-3" />
                   <p className="text-dark-700 font-medium">No matching violations</p>
                   <p className="text-sm text-dark-500 mt-1">
-                    Try adjusting your search terms or clear the filter
+                    Try adjusting your {searchQuery ? 'search terms' : 'filters'} or clear them to see all violations
                   </p>
                   <button
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => {
+                      setSearchQuery('')
+                      setSeverityFilter(null)
+                    }}
                     className="mt-3 px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
                   >
-                    Clear Search
+                    Clear Filters
                   </button>
                 </>
               ) : (

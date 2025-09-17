@@ -196,6 +196,10 @@ export default function App() {
                   <span className="opacity-90">Open Vulnerabilities</span>
                   <span className="font-semibold">{systemStatus?.vulnerabilities || 0}</span>
                 </div>
+                <div className="flex justify-between text-xs">
+                  <span className="opacity-90">Standards Violations</span>
+                  <span className="font-semibold">{systemStatus?.standards_violations || 0}</span>
+                </div>
               </div>
             </div>
           ) : (

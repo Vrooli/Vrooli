@@ -101,6 +101,8 @@ func main() {
 		handleStatus(client)
 	case "discover":
 		handleDiscover(client)
+	case "agents":
+		handleAgents(client, os.Args[2:])
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		printHelp()
@@ -130,6 +132,11 @@ COMMANDS:
     vulnerabilities [scenario]  Show vulnerabilities
         (no args)           Show all open vulnerabilities
         <scenario>          Show vulnerabilities for specific scenario
+    
+    agents                  Manage running agents (for agent-dashboard integration)
+        list [--json]       List running agents
+        stop <agent-id>     Stop a specific agent
+        logs <agent-id>     Show agent logs
 
 ENVIRONMENT VARIABLES:
     API_MANAGER_URL        Base URL for API manager (required)
@@ -444,5 +451,167 @@ func handleDiscover(client *APIClient) {
 	}
 
 	fmt.Printf("✓ %s\n", response["message"].(string))
+}
+
+func handleAgents(client *APIClient, args []string) {
+	if len(args) == 0 {
+		fmt.Println("Error: agents subcommand required")
+		fmt.Println("Usage: api-manager agents <list|stop|logs> [options]")
+		os.Exit(1)
+	}
+
+	subcommand := args[0]
+
+	switch subcommand {
+	case "list":
+		handleAgentsList(client, args[1:])
+	case "stop":
+		handleAgentsStop(client, args[1:])
+	case "logs":
+		handleAgentsLogs(client, args[1:])
+	default:
+		fmt.Printf("Unknown agents subcommand: %s\n", subcommand)
+		fmt.Println("Available: list, stop, logs")
+		os.Exit(1)
+	}
+}
+
+func handleAgentsList(client *APIClient, args []string) {
+	// Check if --json flag is provided
+	jsonOutput := false
+	for _, arg := range args {
+		if arg == "--json" {
+			jsonOutput = true
+			break
+		}
+	}
+
+	body, err := client.get("/api/v1/agents")
+	if err != nil {
+		if jsonOutput {
+			// Return empty agents structure for JSON output
+			fmt.Println(`{"agents":{}}`)
+		} else {
+			fmt.Printf("Error listing agents: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if jsonOutput {
+		// Output raw JSON for agent-dashboard consumption
+		fmt.Print(string(body))
+	} else {
+		// Pretty format for human consumption
+		var response map[string]interface{}
+		if err := json.Unmarshal(body, &response); err != nil {
+			fmt.Printf("Error parsing response: %v\n", err)
+			os.Exit(1)
+		}
+
+		agents := response["agents"].(map[string]interface{})
+		fmt.Printf("Running Agents (%d total):\n\n", len(agents))
+
+		if len(agents) == 0 {
+			fmt.Println("No agents currently running.")
+			return
+		}
+
+		for agentID, agentData := range agents {
+			agent := agentData.(map[string]interface{})
+			status := agent["status"].(string)
+			startTime := agent["start_time"].(string)
+
+			statusDisplay := status
+			switch status {
+			case "running":
+				statusDisplay = "🟢 RUNNING"
+			case "stopped":
+				statusDisplay = "⚪ STOPPED"
+			case "crashed":
+				statusDisplay = "🔴 CRASHED"
+			}
+
+			fmt.Printf("• %s [%s]\n", agentID, statusDisplay)
+			fmt.Printf("  Started: %s\n", startTime)
+			
+			if command, exists := agent["command"]; exists {
+				fmt.Printf("  Command: %s\n", command.(string))
+			}
+			
+			if pid, exists := agent["pid"]; exists {
+				fmt.Printf("  PID: %.0f\n", pid.(float64))
+			}
+			
+			fmt.Println()
+		}
+	}
+}
+
+func handleAgentsStop(client *APIClient, args []string) {
+	if len(args) == 0 {
+		fmt.Println("Error: agent ID required")
+		fmt.Println("Usage: api-manager agents stop <agent-id>")
+		os.Exit(1)
+	}
+
+	agentID := args[0]
+	path := fmt.Sprintf("/api/v1/agents/%s/stop", agentID)
+
+	fmt.Printf("Stopping agent: %s\n", agentID)
+
+	body, err := client.post(path)
+	if err != nil {
+		fmt.Printf("Error stopping agent: %v\n", err)
+		os.Exit(1)
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		fmt.Printf("Error parsing response: %v\n", err)
+		os.Exit(1)
+	}
+
+	if response["success"].(bool) {
+		fmt.Printf("✓ Agent %s stopped successfully\n", agentID)
+	} else {
+		fmt.Printf("✗ Failed to stop agent %s: %s\n", agentID, response["message"].(string))
+		os.Exit(1)
+	}
+}
+
+func handleAgentsLogs(client *APIClient, args []string) {
+	if len(args) == 0 {
+		fmt.Println("Error: agent ID required")
+		fmt.Println("Usage: api-manager agents logs <agent-id> [--follow]")
+		os.Exit(1)
+	}
+
+	agentID := args[0]
+	path := fmt.Sprintf("/api/v1/agents/%s/logs", agentID)
+
+	// Check for --follow flag
+	follow := false
+	for _, arg := range args[1:] {
+		if arg == "--follow" {
+			follow = true
+			break
+		}
+	}
+
+	if follow {
+		fmt.Printf("Following logs for agent: %s (Press Ctrl+C to stop)\n", agentID)
+		path += "?follow=true"
+	}
+
+	body, err := client.get(path)
+	if err != nil {
+		fmt.Printf("Error getting logs: %v\n", err)
+		os.Exit(1)
+	}
+
+	// For now, just output the logs as text
+	// In a full implementation, --follow would stream logs
+	fmt.Print(string(body))
 }
 

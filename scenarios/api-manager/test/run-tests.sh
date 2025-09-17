@@ -124,8 +124,12 @@ main() {
     local passed_phases=0
     local start_time=$(date +%s)
     
-    # Test phases in order
+    # Test phases in order (standard phases first, then scenario-specific)
     test_phases=(
+        "$PHASES_DIR/test-unit.sh"
+        "$PHASES_DIR/test-smoke.sh"
+        "$PHASES_DIR/test-integration.sh"
+        "$PHASES_DIR/test-e2e.sh"
         "$PHASES_DIR/test-health-monitoring.sh"
         "$PHASES_DIR/test-automated-fixes.sh"
         "$PHASES_DIR/test-performance-monitoring.sh"

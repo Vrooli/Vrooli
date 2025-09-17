@@ -47,7 +47,7 @@
       "port": 8092,
       "description": "Vrooli unified API server for orchestration and resource management"
     },
-        "health": {
+    "health": {
       "env_var": "HEALTH_PORT",
       "port": 3001,
       "description": "Health check and monitoring endpoint"
@@ -61,8 +61,7 @@
   "resources": {
     "postgres": {
       "enabled": true,
-"required": true,
-      "baseUrl": "http://localhost:5433",
+      "required": true,
       "healthCheck": {
         "intervalMs": 60000,
         "timeoutMs": 5000
@@ -76,9 +75,8 @@
     },
     "qdrant": {
       "enabled": true,
-"required": true,
-      "baseUrl": "http://localhost:6333",
-      "container_name": "qdrant", 
+      "required": true,
+      "container_name": "qdrant",
       "data_directory": "${HOME}/.qdrant/data",
       "version": "unknown",
       "status": "installed",
@@ -114,7 +112,6 @@
       "enabled": true,
       "required": false,
       "description": "Spatial database extension for PostgreSQL - enables geographic queries and location-based analysis",
-      "baseUrl": "postgresql://localhost:5434/spatial",
       "container_name": "postgis-main",
       "data_directory": "${HOME}/.vrooli/postgis",
       "version": "16-3.4",
@@ -125,8 +122,7 @@
     },
     "ollama": {
       "enabled": true,
-"required": true,
-      "baseUrl": "http://localhost:11434",
+      "required": true,
       "status": {
         "running": true
       },
@@ -158,154 +154,11 @@
     "n8n": {
       "enabled": true,
       "required": true,
-      "description": "Workflow automation platform",
-      "initialization": [
-        {
-          "file": "initialization/n8n/embedding-generator.json",
-          "type": "workflow",
-          "description": "Converts text to embeddings. Useful for storing text in a vector database, such as Qdrant."
-        },
-        {
-          "file": "initialization/n8n/structured-data-extractor.json",
-          "type": "workflow",
-          "description": "Extracts structured data from unstructured text using AI. Supports schema-based extraction, auto-detection of common patterns (emails, phones, dates), and confidence scoring."
-        },
-        {
-          "file": "initialization/n8n/universal-rag-pipeline.json",
-          "type": "workflow",
-          "description": "Complete RAG pipeline: fetches content (URLs/files/text), chunks it, generates embeddings, and stores in Qdrant or returns for custom storage."
-        },
-        {
-          "file": "initialization/n8n/cache-manager.json",
-          "type": "workflow",
-          "description": "Universal caching system with Redis multi-database support. Provides GET/SET/DELETE/INVALIDATE/WARM/STATS operations with automatic database selection, compression, tagging, and pattern-based invalidation."
-        },
-        {
-          "file": "initialization/n8n/rate-limiter.json",
-          "type": "workflow",
-          "description": "Universal rate limiting system with hierarchical limits, multiple algorithms (fixed/sliding window, token bucket), and circuit breaker patterns. Prevents resource exhaustion, protects expensive operations (like AI agent spawning), and provides detailed retry-after information. Essential for cost control and system stability."
-        },
-        {
-          "file": "initialization/n8n/web-research-aggregator.json",
-          "type": "workflow",
-          "description": "Smart web research pipeline: search → filter → extract → synthesize. Uses SearXNG + Browserless + Ollama for comprehensive research with configurable strategies and intelligent content processing."
-        },
-        {
-          "file": "initialization/n8n/multi-agent-reasoning-ensemble.json",
-          "type": "workflow",
-          "description": "Multi-agent reasoning system replicating Grok 4 Heavy functionality. Spawns multiple specialized agents to analyze complex problems, build consensus, and provide high-quality recommendations with confidence scoring and detailed analysis."
-        },
-        {
-          "file": "initialization/n8n/smart-semantic-search.json",
-          "type": "workflow",
-          "description": "Revolutionary semantic search that generates multiple targeted queries from input text using LLM analysis, executes parallel searches, and aggregates results. Dramatically improves search quality by capturing multi-faceted concepts and specific details that single-embedding approaches miss."
-        },
-        {
-          "file": "initialization/n8n/document-converter-validator.json",
-          "type": "workflow",
-          "description": "Universal document converter and validator: handles multiple input sources (file/URL/MinIO/content), detects formats using magic numbers, converts between formats (PDF/DOCX→text/markdown/JSON), validates content quality, and provides comprehensive metadata. Essential foundation for document processing across all scenarios."
-        },
-        {
-          "file": "initialization/n8n/intelligent-text-classifier.json",
-          "type": "workflow",
-          "description": "Intelligent multi-modal text classification system: PII detection, log severity analysis, content safety, document type identification, sentiment analysis, and custom classification with few-shot learning. Combines rule-based, LLM-based, and embedding-based approaches for high accuracy and speed. Essential for data governance, operational intelligence, and content management across all scenarios."
-        },
-        {
-          "file": "initialization/n8n/workflow-creator-fixer.json",
-          "type": "workflow",
-          "description": "Meta-workflow for creating and fixing other n8n workflows through iterative AI generation, validation, and testing. Embodies recursive improvement by learning from successes and failures to become better at building workflows over time. Essential for accelerating development, ensuring quality, and enabling self-healing capabilities across all scenarios."
-        },
-        {
-          "file": "initialization/n8n/react-loop-engine.json",
-          "type": "workflow",
-          "description": "Autonomous agent workflow implementing Reasoning + Acting (ReAct) pattern. Enables agents to iteratively reason about problems, call tools, observe results, and continue until task completion. Foundation for truly autonomous AI agents that can solve complex, multi-step problems."
-        },
-        {
-          "file": "initialization/n8n/chain-of-thought-orchestrator.json",
-          "type": "workflow",
-          "description": "Enforces step-by-step reasoning with validation loops to significantly improve LLM output quality. Multi-stage thinking pipeline with self-critique validation, context preservation, and quality metrics. Transforms free-form responses into structured, validated reasoning."
-        },
-        {
-          "file": "initialization/n8n/agent-conversation-manager.json",
-          "type": "workflow",
-          "description": "Multi-agent structured conversation system enabling AI agents with different models to debate, collaborate, and build consensus. Supports role-based specializations, round-based discussions, agreement tracking, and conversation synthesis for complex decision-making."
-        },
-        {
-          "file": "initialization/n8n/workflow-screenshot-capturer.json",
-          "type": "workflow",
-          "description": "Captures screenshots of n8n workflows using browserless automation. Takes a workflow ID and returns high-quality screenshots in multiple formats (PNG/JPEG/WebP) with configurable viewport settings, element hiding, and clipping options. Essential for documentation, monitoring, and visual workflow management."
-        },
-        {
-          "file": "initialization/n8n/intelligent-image-classifier.json",
-          "type": "workflow",
-          "description": "Advanced image classification using vision models (LLaVA, BakLLaVA). Supports specialized analysis types: workflow health assessment, UI quality evaluation, accessibility checking, screenshot categorization, and custom classification. Foundation component for visual intelligence and automated quality assurance."
-        },
-        {
-          "file": "initialization/n8n/intelligent-web-page-classifier.json",
-          "type": "workflow",
-          "description": "Orchestrates visual analysis of web pages and n8n workflows by combining screenshot capture with intelligent image classification. Enables automated quality assurance, workflow health monitoring, and UI evaluation for scenarios. Essential for self-healing and recursive improvement capabilities."
-        },
-        {
-          "file": "initialization/n8n/url-status-checker.json",
-          "type": "workflow",
-          "description": "Comprehensive URL health checking system with SSL validation, redirect analysis, and batch processing. Monitors website availability, measures response times, validates certificates, and analyzes redirect chains. Essential for application monitoring, uptime checking, and web service reliability assessment across all scenarios."
-        },
-        {
-          "file": "initialization/n8n/file-hash-generator.json",
-          "type": "workflow",
-          "description": "Universal file integrity system supporting multiple hash algorithms (MD5, SHA1, SHA256, SHA512) with verification, batch processing, and file comparison capabilities. Generates cryptographic hashes in hex/base64 formats, verifies data integrity, and provides security analysis. Essential for data validation, file comparison, and integrity checking across all scenarios."
-        },
-        {
-          "file": "initialization/n8n/safe-path-generator.json",
-          "type": "workflow",
-          "description": "Safe file path generation system with collision prevention, workspace reservation, and TTL-based cleanup. Generates unique temporary paths, manages workspaces for multi-file operations, validates path availability, and automatically cleans expired files. Essential foundation for inter-workflow file communication and temporary data storage."
-        },
-        {
-          "file": "initialization/n8n/file-list-reader.json",
-          "type": "workflow",
-          "description": "Universal file reading system supporting multiple formats (lines, CSV, JSON, TSV, YAML) with auto-detection, item extraction, and range slicing. Reads full lists, retrieves specific items by index, extracts data ranges, and parses structured content with schema validation. Critical for data extraction and inter-workflow communication."
-        },
-        {
-          "file": "initialization/n8n/file-list-writer.json",
-          "type": "workflow",
-          "description": "Comprehensive file writing system with atomic operations, format preservation, and multiple insertion modes. Supports append, prepend, insert at index, and full replacement with backup creation, deduplication, and distributed locking. Essential for data persistence and inter-workflow state management."
-        },
-        {
-          "file": "initialization/n8n/claude-code-executor.json",
-          "type": "workflow",
-          "description": "Universal Claude Code execution engine providing intelligent AI-powered code analysis, development assistance, and cross-workflow conversation continuity. Supports multiple execution modes: simple prompts, contextual analysis with files/URLs, batch processing, and advanced session management. Features graduated safety levels, integration-ready outputs for downstream workflows, and comprehensive session state management. Essential infrastructure for AI-powered development workflows, enabling persistent conversations across workflow boundaries and intelligent code operations."
-        },
-        {
-          "file": "initialization/n8n/autonomous-task-executor.json",
-          "type": "workflow",
-          "description": "Self-correcting autonomous agent loop for executing complex, long-horizon tasks with multi-layered verification. Orchestrates Claude Code to iteratively solve problems by writing implementation plans, results, and test scripts to temporary files. Features triple validation (AI assessment, test execution, output analysis), structured failure tracking via Redis, automatic retry with learning from past attempts, regression detection, and configurable safety limits. Essential for autonomous task completion that requires multiple attempts and self-correction."
-        },
-        {
-          "file": "initialization/n8n/ollama.json",
-          "type": "workflow",
-          "description": "Universal Ollama executor with safe prompt handling via temporary files. Accepts all Ollama CLI arguments (prompt, model, type, quiet, timeout) and uses temp file solution to avoid shell command line parsing issues with complex prompts containing JSON, quotes, or long text. Provides comprehensive execution metadata, error handling, and structured responses. Essential utility for reliable AI inference across all workflows."
-        },
-        {
-          "file": "initialization/n8n/browser-console-capture.json",
-          "type": "workflow",
-          "description": "Comprehensive browser debugging and monitoring workflow that captures console logs, JavaScript errors, network failures, performance metrics, and takes screenshots. Uses Browserless /function endpoint to execute custom JavaScript, monitor page events, and return structured diagnostic data. Supports optional page interactions (clicks, form inputs, scrolling) and provides health scoring for web applications. Essential for debugging, testing, and monitoring web-based services and dashboards."
-        },
-        {
-          "file": "initialization/n8n/n8n-workflow-executor.json",
-          "type": "workflow",
-          "description": "Meta-automation workflow that executes other n8n workflows through browser automation and monitors their execution via console capture. Takes a workflow ID, navigates to the n8n interface, clicks the manual trigger execute button, and polls for completion while capturing all console logs, errors, and execution status. Provides comprehensive execution reports with success/failure analysis, timing data, and detailed logging. Essential for automated testing, workflow validation, and meta-workflow orchestration enabling recursive improvement capabilities."
-        },
-        {
-          "file": "initialization/n8n/n8n-workflow-executor-with-auth.json",
-          "type": "workflow",
-          "description": "Enhanced meta-automation workflow that executes n8n workflows with automatic authentication handling. Detects if authentication is required, automatically fills in credentials (from environment variables N8N_EMAIL/N8N_PASSWORD), performs login, and then executes the target workflow. Provides comprehensive execution reports including authentication status, workflow execution results, and detailed logging. Essential for real-world n8n instances that require authentication, enabling seamless automated testing and workflow orchestration."
-        }
-      ]
+      "description": "Workflow automation platform"
     },
     "windmill": {
       "enabled": true,
-"required": true,
-      "baseUrl": "http://localhost:5681",
+      "required": true,
       "healthCheck": {
         "intervalMs": 60000,
         "timeoutMs": 5000
@@ -318,7 +171,6 @@
     },
     "comfyui": {
       "enabled": true,
-      "baseUrl": "http://localhost:8188",
       "healthCheck": {
         "intervalMs": 60000,
         "timeoutMs": 5000
@@ -336,7 +188,6 @@
     },
     "agent-s2": {
       "enabled": true,
-      "baseUrl": "http://localhost:4113",
       "healthCheck": {
         "intervalMs": 60000,
         "timeoutMs": 5000
@@ -344,8 +195,7 @@
     },
     "browserless": {
       "enabled": true,
-"required": true,
-      "baseUrl": "http://localhost:4110",
+      "required": true,
       "healthCheck": {
         "intervalMs": 60000,
         "timeoutMs": 5000
@@ -391,7 +241,7 @@
     "pandas-ai": {
       "enabled": true,
       "required": false,
-      "description": "AI-powered data analysis and manipulation framework", 
+      "description": "AI-powered data analysis and manipulation framework",
       "data_dir": "~/.vrooli/pandas-ai"
     },
     "crewai": {
@@ -446,7 +296,6 @@
     "vocr": {
       "enabled": true,
       "description": "Vision OCR - Advanced screen recognition and AI-powered image analysis",
-      "baseUrl": "http://localhost:7850",
       "healthCheck": {
         "intervalMs": 60000,
         "timeoutMs": 5000
@@ -469,6 +318,11 @@
     },
     "sagemath": {
       "enabled": true
+    },
+    "codex": {
+      "enabled": true,
+      "required": false,
+      "description": "AI-powered code generation and completion via OpenAI GPT models"
     },
     "langchain": {
       "enabled": true,
@@ -495,6 +349,15 @@
     },
     "musicgen": {
       "enabled": true
+    },
+    "automation": {
+      "windmill": {
+        "enabled": true,
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
+      }
     }
   },
   "deployment": {
@@ -520,7 +383,7 @@
           "interval": "30s"
         },
         "redis": {
-          "type": "tcp", 
+          "type": "tcp",
           "interval": "30s"
         }
       }
@@ -554,7 +417,7 @@
           "name": "add-data",
           "run": "echo '[INFO] Skipping resource population during setup - resources are ready for manual population when needed'",
           "description": "Add app data to resources (skipped during setup)"
-                }
+        }
       ]
     },
     "develop": {
@@ -567,14 +430,14 @@
         },
         {
           "name": "start-api",
-          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port $VROOLI_API_PORT' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi; true",
-          "description": "Start the Vrooli unified API server"
+          "run": "if [[ -f api/start.sh ]]; then (PORT=$VROOLI_API_PORT api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port $VROOLI_API_PORT with native scenario management' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi; true",
+          "description": "Start the Vrooli unified API server with built-in scenario management"
         },
         {
-          "name": "start-scenarios",
-          "run": "./scripts/scenarios/tools/orchestrator/start-orchestrator.sh --verbose --fast --background --start-all",
-          "description": "Start all scenarios using SAFE orchestrator with fork bomb prevention",
-          "background": true
+          "name": "start-all-scenarios",
+          "run": "sleep 5 && echo '🎬 Starting all scenarios...' && curl -s -X POST http://localhost:${VROOLI_API_PORT:-8092}/scenarios/start-all | jq -r '.data.message // .error // \"Failed to start scenarios\"' || echo '⚠️  Could not start scenarios - API may not be ready yet. Use: vrooli scenario start-all'",
+          "description": "Start all available scenarios after API is ready",
+          "background": false
         }
       ]
     },
@@ -628,6 +491,22 @@
           "description": "Remove build artifacts and dependencies"
         }
       ]
+    }
+  },
+  "services": {
+    "storage": {
+      "redis": {
+        "enabled": true,
+        "port": 6380,
+        "instances": {
+          "default": {
+            "port": 6380,
+            "maxMemory": "2gb",
+            "persistence": "rdb",
+            "password": ""
+          }
+        }
+      }
     }
   }
 }
