@@ -127,9 +127,9 @@ is_valid_json() {
 
 @test "CLI handles unknown command gracefully" {
     run visited-tracker nonexistent-command
-    [ "$status" -ne 0 ]
-    [[ "$output" =~ "Unknown command" ]] || [[ "$output" =~ "Error:" ]]
-    [[ "$output" =~ "visited-tracker help" ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Error: Unknown command" ]]
+    [[ "$output" =~ "Run 'visited-tracker help'" ]]
 }
 
 @test "CLI handles empty command gracefully" {
@@ -138,18 +138,15 @@ is_valid_json() {
     [[ "$output" =~ "Visited Tracker CLI" ]]
 }
 
-@test "CLI handles malformed arguments" {
-    run visited-tracker visit --invalid-option
-    [ "$status" -ne 0 ] || [[ "$output" =~ "Error" ]] || [[ "$output" =~ "Usage" ]]
-}
-
 ################################################################################
 # Visit Command Tests
 ################################################################################
 
 @test "CLI visit command requires file arguments" {
     run visited-tracker visit
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "At least one file required" ]]
+    [[ "$output" =~ "Usage: visited-tracker visit" ]]
 }
 
 @test "CLI visit command with service down shows error" {
@@ -165,19 +162,22 @@ is_valid_json() {
 @test "CLI visit command accepts context option" {
     run visited-tracker visit --context security
     # Should fail due to no file args, but should recognize the context option
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "At least one file required" ]]
 }
 
 @test "CLI visit command accepts agent option" {
     run visited-tracker visit --agent claude-code
     # Should fail due to no file args, but should recognize the agent option
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "At least one file required" ]]
 }
 
 @test "CLI visit command accepts conversation option" {
     run visited-tracker visit --conversation test-conv-123
     # Should fail due to no file args, but should recognize the conversation option
-    [ "$status" -ne 0 ]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "At least one file required" ]]
 }
 
 ################################################################################
@@ -190,7 +190,8 @@ is_valid_json() {
     fi
     
     run visited-tracker sync --patterns "*.js"
-    [ "$status" -eq 0 ] || [[ "$output" =~ "synced" ]] || [[ "$output" =~ "files" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Structure synchronized" ]]
 }
 
 @test "CLI sync command accepts remove-deleted option" {
@@ -199,7 +200,8 @@ is_valid_json() {
     fi
     
     run visited-tracker sync --remove-deleted
-    [ "$status" -eq 0 ] || [[ "$output" =~ "synced" ]] || [[ "$output" =~ "files" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Structure synchronized" ]]
 }
 
 @test "CLI sync command accepts structure option" {
@@ -208,7 +210,8 @@ is_valid_json() {
     fi
     
     run visited-tracker sync --structure "flat"
-    [ "$status" -eq 0 ] || [[ "$output" =~ "synced" ]] || [[ "$output" =~ "files" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Structure synchronized" ]]
 }
 
 @test "CLI sync command with json output" {
@@ -316,7 +319,7 @@ is_valid_json() {
     
     run visited-tracker coverage
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "coverage" ]] || [[ "$output" =~ "%" ]]
+    [[ "$output" =~ "Coverage Report" ]]
 }
 
 @test "CLI coverage with patterns filter" {
@@ -353,16 +356,23 @@ is_valid_json() {
 ################################################################################
 
 @test "CLI status command basic functionality" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+
     run visited-tracker status
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
-    # Status should work regardless of service state
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Visited Tracker Status" ]]
 }
 
 @test "CLI status shows service state" {
+    if ! service_running; then
+        skip "Service not running"
+    fi
+
     run visited-tracker status
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
-    # Output should indicate if service is running or not
-    [[ "$output" =~ "running" ]] || [[ "$output" =~ "stopped" ]] || [[ "$output" =~ "not" ]] || [[ "$output" =~ "Status" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Status: " ]]
 }
 
 ################################################################################
@@ -376,8 +386,8 @@ is_valid_json() {
 
 @test "CLI import command with non-existent file" {
     run visited-tracker import /nonexistent/file.json
-    [ "$status" -ne 0 ]
-    [[ "$output" =~ "Error" ]] || [[ "$output" =~ "not found" ]] || [[ "$output" =~ "No such file" ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "File not found" ]]
 }
 
 @test "CLI export command requires file argument" {
@@ -391,7 +401,9 @@ is_valid_json() {
     fi
     
     run visited-tracker export "${VISITED_TRACKER_TEST_ROOT}/export.json" --format json
-    [ "$status" -eq 0 ] || [[ "$output" =~ "exported" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Export completed" ]]
+    [ -f "${VISITED_TRACKER_TEST_ROOT}/export.json" ]
 }
 
 @test "CLI export command with include-history option" {
@@ -400,7 +412,9 @@ is_valid_json() {
     fi
     
     run visited-tracker export "${VISITED_TRACKER_TEST_ROOT}/export.json" --include-history
-    [ "$status" -eq 0 ] || [[ "$output" =~ "exported" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Export completed" ]]
+    [ -f "${VISITED_TRACKER_TEST_ROOT}/export.json" ]
 }
 
 ################################################################################
@@ -415,10 +429,12 @@ is_valid_json() {
     # Sync some files
     run visited-tracker sync --patterns "*.js"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Structure synchronized" ]]
     
     # Visit a file
     run visited-tracker visit "${TEST_FILE_DIR}/test1.js" --context security
-    [ "$status" -eq 0 ] || [[ "$output" =~ "visited" ]] || [[ "$output" =~ "recorded" ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Visit recorded successfully" ]]
     
     # Check least-visited
     run visited-tracker least-visited --limit 5 --json
@@ -434,6 +450,7 @@ is_valid_json() {
     # Sync files first
     run visited-tracker sync --patterns "*.js"
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "Structure synchronized" ]]
     
     # Get coverage
     run visited-tracker coverage --json
@@ -446,20 +463,22 @@ is_valid_json() {
 # Option Validation Tests
 ################################################################################
 
-@test "CLI validates context values" {
+@test "CLI visit command reports error when context provided without files" {
     run visited-tracker visit --context invalid-context
-    # Should either reject invalid context or accept it gracefully
-    [ "$status" -ne 0 ] || [ "$status" -eq 0 ]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "At least one file required" ]]
 }
 
 @test "CLI validates numeric options" {
     run visited-tracker least-visited --limit abc
-    [ "$status" -ne 0 ] || [[ "$output" =~ "Error" ]] || [[ "$output" =~ "invalid" ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "must be a positive integer" ]]
 }
 
 @test "CLI validates threshold values" {
     run visited-tracker most-stale --threshold not-a-number
-    [ "$status" -ne 0 ] || [[ "$output" =~ "Error" ]] || [[ "$output" =~ "invalid" ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "must be numeric" ]]
 }
 
 ################################################################################

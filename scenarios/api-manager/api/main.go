@@ -265,11 +265,13 @@ func main() {
 	// Scenario management
 	api.HandleFunc("/scenarios", getScenariosHandler).Methods("GET")
 	api.HandleFunc("/scenarios/{name}", getScenarioHandler).Methods("GET")
-	api.HandleFunc("/scenarios/{name}/scan", scanScenarioHandler).Methods("POST")
+	// Use enhanced scanner with real vulnerability detection
+	api.HandleFunc("/scenarios/{name}/scan", enhancedScanScenarioHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/security-audit", securityAuditHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/endpoints", getScenarioEndpointsHandler).Methods("GET")
 	
 	// Vulnerability management
+	// Keep original vulnerabilities endpoint as fallback
 	api.HandleFunc("/vulnerabilities", getVulnerabilitiesHandler).Methods("GET")
 	api.HandleFunc("/vulnerabilities/{scenario_name}", getScenarioVulnerabilitiesHandler).Methods("GET")
 	
@@ -1119,8 +1121,11 @@ func scanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		totalFiles, codeFiles, configFiles := countScannableFiles(scenariosPath)
 		
 		// Get count of scenarios
-		scenarios := getVrooliScenarios()
-		scenarioCount := len(scenarios)
+		scenarios, _ := getVrooliScenarios()
+		scenarioCount := 0
+		if scenarios != nil && scenarios.Scenarios != nil {
+			scenarioCount = len(scenarios.Scenarios)
+		}
 		
 		// Perform security checks (placeholder for now)
 		_, vulnSummary := performBasicSecurityChecks(scenariosPath, scanOptions.Type)

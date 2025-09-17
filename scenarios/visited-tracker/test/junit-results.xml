@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="visited-tracker-tests" tests="3" failures="0" skipped="0" time="6" timestamp="2025-09-15T22:16:00-04:00">
-    <testcase classname="visited-tracker" name="phase-structure" time="0">
+<testsuite name="visited-tracker-tests" tests="3" failures="0" skipped="0" time="2" timestamp="2025-09-16T16:02:23-04:00">
+    <testcase classname="visited-tracker-tests" name="phase-structure" time="0">
     </testcase>
-    <testcase classname="visited-tracker" name="phase-dependencies" time="0">
+    <testcase classname="visited-tracker-tests" name="phase-dependencies" time="0">
     </testcase>
-    <testcase classname="visited-tracker" name="phase-unit" time="6">
+    <testcase classname="visited-tracker-tests" name="phase-unit" time="2">
     </testcase>
 </testsuite>
