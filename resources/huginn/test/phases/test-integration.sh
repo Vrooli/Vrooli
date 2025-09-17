@@ -46,12 +46,12 @@ test::database_connectivity() {
         return 0
     fi
     
-    # Check if postgres dependency is satisfied
-    if docker ps --filter "name=postgres" --format "{{.Names}}" 2>/dev/null | grep -q postgres; then
-        echo "✅ PASS (PostgreSQL available)"
+    # Check if MySQL database is running
+    if docker ps --filter "name=huginn-mysql" --format "{{.Names}}" 2>/dev/null | grep -q huginn-mysql; then
+        echo "✅ PASS (MySQL database available)"
         return 0
     else
-        echo "⚠️  WARN: PostgreSQL not running"
+        echo "⚠️  WARN: MySQL database not running"
         return 0
     fi
 }

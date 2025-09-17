@@ -97,7 +97,8 @@ neo4j_test_integration() {
     
     # Test 2: Query node
     echo -n "2. Query node... "
-    local result=$(neo4j_query "MATCH (n:TestNode {name: 'test'}) RETURN count(n)" 2>/dev/null | tail -1)
+    local result
+    result=$(neo4j_query "MATCH (n:TestNode {name: 'test'}) RETURN count(n)" 2>/dev/null | tail -1)
     if [[ "$result" == "1" ]]; then
         echo "✓ PASS"
     else
@@ -116,7 +117,8 @@ neo4j_test_integration() {
     
     # Test 4: Query relationship
     echo -n "4. Query relationship... "
-    local rel_count=$(neo4j_query "MATCH (n:TestNode)-[r:RELATES_TO]->() RETURN count(r)" 2>/dev/null | tail -1)
+    local rel_count
+    rel_count=$(neo4j_query "MATCH (n:TestNode)-[r:RELATES_TO]->() RETURN count(r)" 2>/dev/null | tail -1)
     if [[ "$rel_count" == "1" ]]; then
         echo "✓ PASS"
     else
@@ -135,7 +137,8 @@ neo4j_test_integration() {
     
     # Test 6: Verify cleanup
     echo -n "6. Verify cleanup... "
-    local cleanup_count=$(neo4j_query "MATCH (n:TestNode) RETURN count(n)" 2>/dev/null | tail -1)
+    local cleanup_count
+    cleanup_count=$(neo4j_query "MATCH (n:TestNode) RETURN count(n)" 2>/dev/null | tail -1)
     if [[ "$cleanup_count" == "0" ]]; then
         echo "✓ PASS"
     else
@@ -166,7 +169,8 @@ neo4j_test_unit() {
     
     # Test 1: Version retrieval
     echo -n "1. Get version... "
-    local version=$(neo4j_get_version)
+    local version
+    version=$(neo4j_get_version)
     if [[ "$version" != "unknown" ]]; then
         echo "✓ PASS (version: $version)"
     else
@@ -176,7 +180,8 @@ neo4j_test_unit() {
     
     # Test 2: Stats retrieval
     echo -n "2. Get stats... "
-    local stats=$(neo4j_get_stats)
+    local stats
+    stats=$(neo4j_get_stats)
     if [[ "$stats" =~ "nodes" ]] && [[ "$stats" =~ "relationships" ]]; then
         echo "✓ PASS"
     else

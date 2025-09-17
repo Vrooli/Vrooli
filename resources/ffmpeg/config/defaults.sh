@@ -43,4 +43,8 @@ ffmpeg::export_config() {
     
     # Log level
     export FFMPEG_LOG_LEVEL="${FFMPEG_LOG_LEVEL:-warning}"
+    
+    # API and Web Interface Ports
+    export FFMPEG_API_PORT="${FFMPEG_API_PORT:-8097}"  # API server port
+    export FFMPEG_WEB_PORT="${FFMPEG_WEB_PORT:-8098}"  # Web interface port
 }

@@ -33,6 +33,13 @@ This document tracks active issues and unresolved problems with the Browserless 
 **Workaround**: None needed - `/pressure` endpoint provides all required health information.  
 **Fix Required**: Documentation update to clarify that `/pressure` is the standard health endpoint for browserless.
 
+### 5. CLI Subcommand Output Routing
+**Severity**: Low  
+**Impact**: Some CLI subcommands run but produce no visible output  
+**Description**: Pool management subcommands (status, recover, prewarm, etc.) execute successfully but their output is not displayed to the user. The functions work correctly when called directly but the CLI framework appears to be suppressing or misrouting the output.  
+**Workaround**: Use the main command `resource-browserless pool` for basic stats, or source the library directly: `source lib/pool-manager.sh && pool::show_stats`  
+**Fix Required**: Investigate CLI framework v2.0 subcommand output handling in cli-command-framework-v2.sh
+
 ## Resolved Problems
 
 ### 1. Missing schema.json (RESOLVED 2025-01-13)
@@ -78,6 +85,7 @@ This document tracks active issues and unresolved problems with the Browserless 
 
 ## Maintenance History
 
+- **2025-01-17**: Created comprehensive pool-manager.sh implementation with all registered functions (auto-scaling, recovery, pre-warming). Verified all test suites pass. Pool management CLI commands now functional but CLI dispatcher needs investigation for proper output routing.
 - **2025-01-16**: Fixed pool CLI command dispatcher to properly handle all subcommands (recover, prewarm, smart-prewarm)
 - **2025-01-15 (Session 2)**: Fixed bc dependency, added browser crash recovery, improved error handling
 - **2025-01-15**: Implemented browser pool pre-warming and workflow result caching
@@ -89,5 +97,5 @@ This document tracks active issues and unresolved problems with the Browserless 
 
 ---
 
-**Last Updated**: 2025-01-16  
+**Last Updated**: 2025-01-17  
 **Maintained By**: Ecosystem Manager

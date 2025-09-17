@@ -333,12 +333,43 @@ windmill::create_directories() {
 windmill::update_vrooli_config() {
     local additional_config='{"api":{"version":"v1","workspacesEndpoint":"/api/w/list","scriptsEndpoint":"/api/w/{workspace}/scripts","jobsEndpoint":"/api/w/{workspace}/jobs","authEndpoint":"/api/auth"},"features":{"codeFirst":true,"multiLanguage":true,"workflows":true,"scheduling":true,"webhooks":true}}'
     
-    resources::update_config "automation" "windmill" "$WINDMILL_BASE_URL" "$additional_config"
+    # Use direct jq to place windmill under resources.windmill (not resources.automation.windmill)
+    # The resources::update_config function is designed for nested categories but we need flattened structure
+    local resources_config="${VROOLI_RESOURCES_CONFIG}"
+    local base_config='{"enabled": true, "healthCheck": {"intervalMs": 60000, "timeoutMs": 5000}}'
+    local final_config
+    
+    if command -v jq >/dev/null 2>&1; then
+        # Merge base config with additional config
+        final_config=$(echo "$base_config" | jq --argjson additional "$additional_config" '. + $additional')
+        
+        # Update directly under .resources.windmill
+        local temp_config
+        temp_config=$(mktemp)
+        if jq --argjson config "$final_config" '.resources.windmill = $config' "$resources_config" > "$temp_config" 2>/dev/null; then
+            mv "$temp_config" "$resources_config"
+        else
+            rm -f "$temp_config"
+            # Fallback to basic config
+            jq --argjson config "$base_config" '.resources.windmill = $config' "$resources_config" > "$temp_config" && mv "$temp_config" "$resources_config"
+        fi
+    fi
 }
 
 #######################################
 # Remove Windmill configuration from Vrooli resources
 #######################################
 windmill::remove_vrooli_config() {
-    resources::remove_config "automation" "windmill"
+    # Remove windmill configuration directly from .resources.windmill
+    local resources_config="${VROOLI_RESOURCES_CONFIG}"
+    
+    if [[ -f "$resources_config" ]] && command -v jq >/dev/null 2>&1; then
+        local temp_config
+        temp_config=$(mktemp)
+        if jq 'del(.resources.windmill)' "$resources_config" > "$temp_config" 2>/dev/null; then
+            mv "$temp_config" "$resources_config"
+        else
+            rm -f "$temp_config"
+        fi
+    fi
 }

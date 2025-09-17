@@ -169,6 +169,27 @@ main() {
     run_test "Port number is valid" "[[ ${KICAD_PORT} -ge 1024 && ${KICAD_PORT} -le 65535 ]]"
     run_test "Python command exists" "command -v ${KICAD_PYTHON_VERSION}"
     
+    # Test security validations
+    echo
+    echo "Testing security validations:"
+    
+    # Test content remove path traversal protection
+    run_test "Content remove blocks path traversal" \
+        "! vrooli resource kicad content remove '../../etc' &>/dev/null"
+    
+    run_test "Content remove blocks paths with slashes" \
+        "! vrooli resource kicad content remove 'some/path' &>/dev/null"
+    
+    run_test "Content remove blocks dot-dot sequences" \
+        "! vrooli resource kicad content remove 'test..test' &>/dev/null"
+    
+    # Test content get path traversal protection  
+    run_test "Content get blocks path traversal" \
+        "! vrooli resource kicad content get '../../../etc' &>/dev/null"
+    
+    run_test "Content get blocks paths with slashes" \
+        "! vrooli resource kicad content get 'some/path' &>/dev/null"
+    
     # Summary
     echo
     echo "Results: ${TESTS_PASSED}/${TESTS_RUN} tests passed"

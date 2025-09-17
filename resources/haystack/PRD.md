@@ -71,16 +71,18 @@
 
 ### API Endpoints
 ```yaml
-GET  /health          # Service health check
-POST /index           # Index documents
-POST /query           # Query indexed documents  
-POST /upload          # Upload and index file (supports text, PDF)
-GET  /stats           # Usage statistics
-GET  /metrics         # Prometheus-format metrics
+GET  /health          # Service health check with features status
+POST /index           # Index documents with language detection
+POST /query           # Query indexed documents (with caching)
+POST /upload          # Upload and index file (text, PDF, DOCX, HTML)
+GET  /stats           # Usage statistics and performance metrics
+GET  /metrics         # Prometheus-format metrics export
 DELETE /clear         # Clear all documents
-POST /enhanced_query  # Query with LLM enhancement
-POST /batch_index     # Batch document indexing
-POST /custom_pipeline # Create custom pipeline
+POST /enhanced_query  # Query with LLM enhancement (Ollama)
+POST /batch_index     # Batch document indexing (parallel)
+POST /custom_pipeline # Create custom pipeline (persisted)
+POST /run_pipeline/{name} # Execute custom pipeline
+GET  /pipelines       # List all registered pipelines
 ```
 
 ### Port Configuration
@@ -108,6 +110,26 @@ POST /custom_pipeline # Create custom pipeline
 - Concurrent queries: Support 10+ simultaneous
 
 ## Implementation History
+
+### 2025-01-17: Production-Grade Enhancements (Third Improvement Iteration)
+- **Pipeline Persistence**: Custom pipelines now survive restarts
+  - Configurations saved to JSON file on disk
+  - Pipelines automatically recreated on startup
+  - Tested with successful restart and pipeline recovery
+- **DOCX Support**: Added Microsoft Word document processing
+  - python-docx library integration
+  - Extracts text from paragraphs and tables
+  - Tracks DOCX processing in metrics
+- **HTML Support**: Added HTML document processing
+  - BeautifulSoup library integration
+  - Removes script/style tags, extracts clean text
+  - Tracks HTML processing in metrics
+- **Query Caching**: Implemented LRU cache for performance
+  - Configurable size and TTL via environment variables
+  - Cache hits/misses tracked in Prometheus metrics
+  - Significant performance boost for repeated queries
+  - Cache persists until TTL expires or size limit reached
+- **All Tests Passing**: Complete regression suite validates all features
 
 ### 2025-01-16: Advanced Features Implementation (Second Improvement Iteration)
 - **PDF Support**: Added PyPDF2 integration for processing PDF documents

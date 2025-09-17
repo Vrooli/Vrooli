@@ -218,19 +218,24 @@ redis::install::update_resource_config() {
             local temp_config
             temp_config=$(mktemp)
             
+            # Use flattened structure: resources.redis (not services.storage.redis)
+            # Note: baseUrl removed as per port_registry.sh migration
             jq --arg port "$REDIS_PORT" \
-               --arg url "redis://localhost:$REDIS_PORT" \
-               '.services.storage.redis = {
+               '.resources.redis = {
                    "enabled": true,
-                   "baseUrl": $url,
-                   "port": ($port | tonumber),
+                   "required": true,
+                   "version": "7",
+                   "description": "Event bus and caching layer",
+                   "healthCheck": {
+                       "intervalMs": 60000,
+                       "timeoutMs": 5000
+                   },
                    "instances": {
                        "default": {
                            "port": ($port | tonumber),
-                           "baseUrl": $url,
                            "maxMemory": "'"$REDIS_MAX_MEMORY"'",
                            "persistence": "'"$REDIS_PERSISTENCE"'",
-                           "password": null
+                           "password": ""
                        }
                    }
                }' "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
@@ -300,7 +305,8 @@ redis::install::uninstall() {
         if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
             local temp_config
             temp_config=$(mktemp)
-            jq 'del(.services.storage.redis)' "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
+            # Remove both old nested structure and current flattened structure
+            jq 'del(.services.storage.redis) | del(.resources.redis)' "$config_file" > "$temp_config" && mv "$temp_config" "$config_file"
         fi
     fi
     

@@ -328,6 +328,25 @@ resource-kicad examples
 resource-kicad inject examples/led-blinker.kicad_sch
 ```
 
+## Security
+
+The KiCad resource implements multiple security measures to ensure safe operation:
+
+### Path Traversal Protection
+- **Content Management**: The `content get` and `content remove` commands validate project names to prevent path traversal attacks
+- **Simulation**: All simulation commands validate file paths are within the KiCad data directory
+- **File Extensions**: Simulation requires `.net` extension for netlist files
+
+### Input Validation
+- Project names cannot contain path separators (`/`, `\`) or `..` sequences
+- All paths are resolved and verified to be within allowed directories
+- Double validation using both pattern matching and realpath verification
+
+### Safe Defaults
+- Mock mode operation when KiCad is not installed prevents system modifications
+- All file operations are restricted to the KiCad data directory
+- No execution of arbitrary code without explicit user action
+
 ## Troubleshooting
 
 ### Installation Issues

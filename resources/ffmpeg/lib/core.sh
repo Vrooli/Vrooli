@@ -85,6 +85,13 @@ ffmpeg::media_info() {
         log::error "Usage: ffmpeg media-info <file_path>"
         return 1
     fi
+    
+    if [[ ! -f "$file_path" ]]; then
+        log::error "File not found: $file_path"
+        log::info "Please provide a valid file path"
+        return 1
+    fi
+    
     ffmpeg::inject::get_detailed_info "$file_path"
 }
 
@@ -94,6 +101,13 @@ ffmpeg::transcode() {
         log::error "Usage: ffmpeg transcode <file_path>"
         return 1
     fi
+    
+    if [[ ! -f "$file_path" ]]; then
+        log::error "File not found: $file_path"
+        log::info "Please provide a valid media file to transcode"
+        return 1
+    fi
+    
     # Initialize inject system
     ffmpeg::inject::init || return 1
     ffmpeg_inject "$file_path" "transcode"
@@ -105,6 +119,13 @@ ffmpeg::extract() {
         log::error "Usage: ffmpeg extract <file_path>"
         return 1
     fi
+    
+    if [[ ! -f "$file_path" ]]; then
+        log::error "File not found: $file_path"
+        log::info "Please provide a valid media file to extract from"
+        return 1
+    fi
+    
     # Initialize inject system
     ffmpeg::inject::init || return 1
     ffmpeg_inject "$file_path" "extract"
@@ -437,7 +458,7 @@ WEB_PID_FILE="/tmp/ffmpeg-web.pid"
 
 # Start web interface server
 ffmpeg::web::start() {
-    local port="${1:-${FFMPEG_API_PORT:-8080}}"
+    local port="${1:-${FFMPEG_WEB_PORT:-8098}}"
     
     if [[ -f "$WEB_PID_FILE" ]]; then
         local pid=$(cat "$WEB_PID_FILE")
@@ -495,7 +516,7 @@ ffmpeg::web::stop() {
 
 # Check web interface status
 ffmpeg::web::status() {
-    local port="${FFMPEG_API_PORT:-8080}"
+    local port="${FFMPEG_WEB_PORT:-8098}"
     
     if [[ -f "$WEB_PID_FILE" ]]; then
         local pid=$(cat "$WEB_PID_FILE")

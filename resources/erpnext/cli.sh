@@ -39,7 +39,7 @@ if [[ -f "${ERPNEXT_CLI_DIR}/lib/main.sh" ]]; then
 fi
 
 # Source ERPNext libraries
-for lib in config docker install status inject content test workflow reporting ecommerce manufacturing multi-tenant mobile-ui; do
+for lib in config docker install status inject content test workflow reporting ecommerce manufacturing multi-tenant mobile-ui crm accounting hr; do
     lib_file="${ERPNEXT_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -72,6 +72,37 @@ cli::register_subcommand "test" "performance" "Run performance tests on ERPNext"
 cli::register_command "status" "Show detailed resource status" "erpnext::status"
 cli::register_command "logs" "Show ERPNext logs" "erpnext::docker::logs"
 cli::register_command "credentials" "Show access credentials and instructions" "erpnext::show_credentials"
+
+# CRM Module commands
+cli::register_command_group "crm" "Customer Relationship Management operations"
+cli::register_subcommand "crm" "list-customers" "List all customers" "erpnext::crm::list_customers"
+cli::register_subcommand "crm" "create-customer" "Create new customer" "erpnext::crm::create_customer"
+cli::register_subcommand "crm" "list-leads" "List all leads" "erpnext::crm::list_leads"
+cli::register_subcommand "crm" "create-lead" "Create new lead" "erpnext::crm::create_lead"
+cli::register_subcommand "crm" "list-contacts" "List all contacts" "erpnext::crm::list_contacts"
+cli::register_subcommand "crm" "create-contact" "Create new contact" "erpnext::crm::create_contact"
+cli::register_subcommand "crm" "list-opportunities" "List opportunities" "erpnext::crm::list_opportunities"
+
+# Accounting Module commands
+cli::register_command_group "accounting" "Financial accounting operations"
+cli::register_subcommand "accounting" "list-invoices" "List invoices" "erpnext::accounting::list_invoices"
+cli::register_subcommand "accounting" "create-invoice" "Create new invoice" "erpnext::accounting::create_invoice"
+cli::register_subcommand "accounting" "list-journal-entries" "List journal entries" "erpnext::accounting::list_journal_entries"
+cli::register_subcommand "accounting" "list-accounts" "List chart of accounts" "erpnext::accounting::list_accounts"
+cli::register_subcommand "accounting" "list-payments" "List payment entries" "erpnext::accounting::list_payments"
+cli::register_subcommand "accounting" "create-payment" "Create payment entry" "erpnext::accounting::create_payment"
+cli::register_subcommand "accounting" "balance-sheet" "View balance sheet" "erpnext::accounting::get_balance_sheet"
+
+# HR Module commands
+cli::register_command_group "hr" "Human Resources management"
+cli::register_subcommand "hr" "list-employees" "List all employees" "erpnext::hr::list_employees"
+cli::register_subcommand "hr" "create-employee" "Create new employee" "erpnext::hr::create_employee"
+cli::register_subcommand "hr" "list-departments" "List departments" "erpnext::hr::list_departments"
+cli::register_subcommand "hr" "list-leaves" "List leave applications" "erpnext::hr::list_leave_applications"
+cli::register_subcommand "hr" "create-leave" "Create leave application" "erpnext::hr::create_leave_application"
+cli::register_subcommand "hr" "list-attendance" "List attendance records" "erpnext::hr::list_attendance"
+cli::register_subcommand "hr" "mark-attendance" "Mark employee attendance" "erpnext::hr::mark_attendance"
+cli::register_subcommand "hr" "list-salary" "List salary structures" "erpnext::hr::list_salary_structures"
 
 # Workflow management commands
 cli::register_command_group "workflow" "Manage ERPNext workflows"

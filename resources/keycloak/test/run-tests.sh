@@ -23,6 +23,7 @@ declare -A TEST_PHASES=(
     ["security"]="test-security.sh"
     ["multi-realm"]="test-multi-realm.sh"
     ["social-e2e"]="test-social-e2e.sh"
+    ["webhooks"]="test-webhooks.sh"
 )
 
 # Default to all tests
@@ -72,11 +73,14 @@ main() {
         social-e2e)
             run_test_phase "social-e2e" || exit_code=$?
             ;;
+        webhooks)
+            run_test_phase "webhooks" || exit_code=$?
+            ;;
         all)
             log::info "Running all test phases..."
             
-            # Run tests in order: smoke -> unit -> integration -> security -> multi-realm -> social-e2e
-            for phase in smoke unit integration security multi-realm social-e2e; do
+            # Run tests in order: smoke -> unit -> integration -> security -> multi-realm -> social-e2e -> webhooks
+            for phase in smoke unit integration security multi-realm social-e2e webhooks; do
                 if ! run_test_phase "$phase"; then
                     exit_code=1
                     # Continue running other tests even if one fails
@@ -91,7 +95,7 @@ main() {
             ;;
         *)
             log::error "Unknown test type: $TEST_TYPE"
-            echo "Usage: $0 [smoke|integration|unit|security|multi-realm|social-e2e|all]"
+            echo "Usage: $0 [smoke|integration|unit|security|multi-realm|social-e2e|webhooks|all]"
             exit 1
             ;;
     esac

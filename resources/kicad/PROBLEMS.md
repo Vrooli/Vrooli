@@ -91,6 +91,10 @@ All tests pass in mock mode. When KiCad is installed:
 **Fixed**: Simulation commands now validate file paths to prevent arbitrary file access
 **Solution**: Added strict validation requiring .net extension and files within KiCad data directory only
 
+### 4. Content Management Security (2025-09-17)
+**Fixed**: Content get/remove commands now prevent path traversal attacks
+**Solution**: Added validation to block path separators and '..' sequences in project names, plus realpath verification
+
 ## Support
 
 For KiCad-specific issues:

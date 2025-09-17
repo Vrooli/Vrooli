@@ -7,11 +7,18 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../../scripts/resources/port_registry.sh" || true
 
-# Service ports from registry (use existing values if already set, with fallbacks)
-export OPENEMS_PORT="${OPENEMS_PORT:-${RESOURCE_PORTS[openems]:-8084}}"
-export OPENEMS_JSONRPC_PORT="${OPENEMS_JSONRPC_PORT:-${RESOURCE_PORTS[openems-jsonrpc]:-8085}}"
-export OPENEMS_MODBUS_PORT="${OPENEMS_MODBUS_PORT:-${RESOURCE_PORTS[openems-modbus]:-502}}"
-export OPENEMS_BACKEND_PORT="${OPENEMS_BACKEND_PORT:-${RESOURCE_PORTS[openems-backend]:-8086}}"
+# Service ports from registry (no fallbacks - fail if ports not provided)
+export OPENEMS_PORT="${OPENEMS_PORT:-${RESOURCE_PORTS[openems]}}"
+export OPENEMS_JSONRPC_PORT="${OPENEMS_JSONRPC_PORT:-${RESOURCE_PORTS[openems-jsonrpc]}}"
+export OPENEMS_MODBUS_PORT="${OPENEMS_MODBUS_PORT:-${RESOURCE_PORTS[openems-modbus]}}"
+export OPENEMS_BACKEND_PORT="${OPENEMS_BACKEND_PORT:-${RESOURCE_PORTS[openems-backend]}}"
+
+# Validate required ports
+if [[ -z "$OPENEMS_PORT" ]] || [[ -z "$OPENEMS_JSONRPC_PORT" ]] || [[ -z "$OPENEMS_BACKEND_PORT" ]]; then
+    echo "❌ Error: Required ports not defined in port registry" >&2
+    echo "   Please check scripts/resources/port_registry.sh" >&2
+    exit 1
+fi
 
 # Docker configuration
 export OPENEMS_IMAGE="${OPENEMS_IMAGE:-openems/edge:latest}"

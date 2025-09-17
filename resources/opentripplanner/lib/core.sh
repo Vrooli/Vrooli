@@ -85,15 +85,50 @@ opentripplanner::start() {
     # Ensure data directory exists
     mkdir -p "${OTP_DATA_DIR}" "${OTP_CACHE_DIR}"
     
-    # Start container (server mode without prebuilt graph if needed)
-    local otp_cmd="--serve"
+    # Start container - OTP 2.x uses different command structure
+    # We need to provide a router config to serve properly
     
-    # If graph exists, load it
-    if ls "${OTP_DATA_DIR}"/graph.obj &>/dev/null 2>&1; then
-        otp_cmd="--load --serve"
-        echo "Found existing graph, loading..."
+    # Create basic router config if it doesn't exist
+    if [[ ! -f "${OTP_DATA_DIR}/router-config.json" ]]; then
+        cat > "${OTP_DATA_DIR}/router-config.json" <<'EOF'
+{
+  "routingDefaults": {
+    "walkSpeed": 1.34,
+    "bikeSpeed": 5.0,
+    "numItineraries": 3
+  },
+  "updaters": []
+}
+EOF
+        echo "Created basic router configuration"
+    fi
+    
+    # Check if graph exists
+    local graph_exists=false
+    if [[ -f "${OTP_DATA_DIR}/graph.obj" ]] || [[ -f "${OTP_CACHE_DIR}/graph.obj" ]]; then
+        graph_exists=true
+        echo "Found existing graph, will load it..."
     else
-        echo "No graph found, starting in serve-only mode..."
+        echo "No graph found, starting without graph (API only)..."
+    fi
+    
+    # OTP 2.x container with entrypoint handling directory
+    # The entrypoint adds /var/opentripplanner automatically
+    # Check if graph exists to determine the right mode
+    local otp_args=""
+    if [[ -f "${OTP_DATA_DIR}/graph.obj" ]]; then
+        otp_args="--load --serve"
+        echo "Using existing graph..."
+    else
+        # Without a graph, we'll create one first if there's data
+        if ls "${OTP_DATA_DIR}"/*.gtfs.zip &>/dev/null 2>&1 || ls "${OTP_DATA_DIR}"/*.pbf &>/dev/null 2>&1; then
+            echo "Data files found, will build and serve..."
+            otp_args="--build --serve"
+        else
+            # For now, let's just serve without a graph (will return empty results)
+            echo "No data files found. Starting API server only..."
+            otp_args="--load --serve"
+        fi
     fi
     
     docker run -d \
@@ -104,7 +139,7 @@ opentripplanner::start() {
         -v "${OTP_CACHE_DIR}:/var/cache/otp" \
         -e JAVA_OPTS="-Xmx${OTP_HEAP_SIZE}" \
         "${OPENTRIPPLANNER_IMAGE}" \
-        $otp_cmd || {
+        $otp_args || {
         echo "Failed to start OpenTripPlanner"
         return 1
     }
@@ -359,15 +394,29 @@ opentripplanner::content::execute() {
     
     case "$action" in
         build-graph)
-            echo "Building routing graph..."
-            # Execute graph build in container
-            docker exec "${OPENTRIPPLANNER_CONTAINER}" \
-                java -Xmx"${OTP_HEAP_SIZE}" -jar /opt/opentripplanner/otp.jar \
-                --build /var/opentripplanner || {
+            echo "Building routing graph from GTFS and OSM data..."
+            
+            # Stop the server if running to build the graph
+            if opentripplanner::is_running; then
+                echo "Stopping server to build graph..."
+                opentripplanner::stop
+            fi
+            
+            # Build graph using a temporary container
+            # Entrypoint adds directory, we just provide --build --save flags
+            docker run --rm \
+                --network "${OPENTRIPPLANNER_NETWORK}" \
+                -v "${OTP_DATA_DIR}:/var/opentripplanner" \
+                -v "${OTP_CACHE_DIR}:/var/cache/otp" \
+                -e JAVA_OPTS="-Xmx${OTP_HEAP_SIZE}" \
+                "${OPENTRIPPLANNER_IMAGE}" \
+                --build --save || {
                 echo "Failed to build graph"
                 return 1
             }
+            
             echo "Graph built successfully"
+            echo "You can now restart the server with: vrooli resource opentripplanner manage start"
             ;;
         *)
             echo "Unknown action: $action"
@@ -389,8 +438,11 @@ opentripplanner::is_running() {
 }
 
 opentripplanner::is_healthy() {
-    local health_url="http://localhost:${OTP_PORT}/otp"
-    timeout 5 curl -sf "${health_url}" &>/dev/null
+    # OTP 2.x health endpoint is at root or /otp/routers
+    local health_url="http://localhost:${OTP_PORT}/otp/routers/default"
+    # Try main API endpoint first, fallback to root
+    timeout 5 curl -sf "${health_url}" &>/dev/null || \
+    timeout 5 curl -sf "http://localhost:${OTP_PORT}/" &>/dev/null
 }
 
 opentripplanner::wait_for_ready() {
@@ -417,26 +469,35 @@ opentripplanner::download_sample_data() {
     local gtfs_url="https://developer.trimet.org/schedule/gtfs.zip"
     local gtfs_file="${OTP_DATA_DIR}/portland.gtfs.zip"
     
-    if [[ ! -f "$gtfs_file" ]]; then
+    if [[ ! -f "$gtfs_file" ]] || [[ ! -s "$gtfs_file" ]]; then
+        echo "Downloading Portland GTFS data..."
         curl -L -o "$gtfs_file" "$gtfs_url" || {
             echo "Failed to download GTFS data"
             return 1
         }
-        echo "Downloaded Portland GTFS data"
+        echo "Downloaded Portland GTFS data ($(du -h "$gtfs_file" | cut -f1))"
+    else
+        echo "Portland GTFS data already exists"
     fi
     
-    # Download Portland OSM extract
-    local osm_url="https://download.geofabrik.de/north-america/us/oregon-latest.osm.pbf"
-    local osm_file="${OTP_DATA_DIR}/oregon.osm.pbf"
+    # Download Portland OSM extract (smaller BBBike extract instead of whole Oregon)
+    local osm_url="https://download.bbbike.org/osm/bbbike/Portland/Portland.osm.pbf"
+    local osm_file="${OTP_DATA_DIR}/portland.osm.pbf"
     
-    if [[ ! -f "$osm_file" ]]; then
-        echo "Downloading Oregon OSM data (includes Portland)..."
+    if [[ ! -f "$osm_file" ]] || [[ ! -s "$osm_file" ]]; then
+        echo "Downloading Portland OSM data..."
         curl -L -o "$osm_file" "$osm_url" || {
             echo "Failed to download OSM data"
             return 1
         }
-        echo "Downloaded Oregon OSM data"
+        echo "Downloaded Portland OSM data ($(du -h "$osm_file" | cut -f1))"
+    else
+        echo "Portland OSM data already exists"
     fi
+    
+    # Clean up any test/empty files
+    find "${OTP_DATA_DIR}" -name "*.pbf" -size 0 -delete 2>/dev/null
+    find "${OTP_DATA_DIR}" -name "*.zip" -size 0 -delete 2>/dev/null
     
     return 0
 }

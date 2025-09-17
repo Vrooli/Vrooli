@@ -75,9 +75,30 @@
 ## Known Limitations
 
 1. ~~**File Upload**: Currently only supports text files, not PDFs or other formats~~ **RESOLVED 2025-01-16**
-2. **Pipeline Persistence**: Custom pipelines are not persisted across restarts
+2. ~~**Pipeline Persistence**: Custom pipelines are not persisted across restarts~~ **RESOLVED 2025-01-17**
 3. ~~**Concurrent Indexing**: Batch indexing uses ThreadPoolExecutor with fixed 4 workers~~ **RESOLVED 2025-01-16**
 4. ~~**Error Recovery**: No automatic retry mechanism for failed operations~~ **RESOLVED 2025-01-16**
+
+## Recent Improvements (2025-01-17)
+
+### Advanced Features Implementation (Third Iteration)
+- **Pipeline Persistence**: Custom pipelines now persist across restarts
+  - Configurations saved to `/data/pipeline_configs.json`
+  - Pipelines automatically recreated on startup
+  - Tested with successful restart and pipeline recovery
+- **DOCX Support Added**: Can now process Microsoft Word documents
+  - Uses python-docx library for extraction
+  - Extracts text from paragraphs and tables
+  - Tracks DOCX processing in metrics
+- **HTML Support Added**: Can now process HTML files
+  - Uses BeautifulSoup for extraction
+  - Removes script/style tags, extracts clean text
+  - Tracks HTML processing in metrics
+- **Query Caching Implemented**: LRU cache for frequent queries
+  - Configurable size (HAYSTACK_CACHE_SIZE, default 100)
+  - Configurable TTL (HAYSTACK_CACHE_TTL, default 3600s)
+  - Cache hits/misses tracked in metrics
+  - Significant performance improvement for repeated queries
 
 ## Recent Improvements (2025-01-16)
 
@@ -107,12 +128,15 @@
 
 ## Future Improvements
 
-1. ~~Add support for PDF and other document formats~~ **COMPLETED 2025-01-16**
-2. Implement pipeline persistence using JSON serialization
+1. ~~Add support for PDF and other document formats~~ **COMPLETED 2025-01-16/17**
+2. ~~Implement pipeline persistence using JSON serialization~~ **COMPLETED 2025-01-17**
 3. ~~Add configurable worker pool size for batch processing~~ **COMPLETED 2025-01-16**
 4. ~~Add exponential backoff for retry delays~~ **COMPLETED 2025-01-16**
 5. ~~Add comprehensive metrics endpoint with Prometheus format~~ **COMPLETED 2025-01-16**
 6. Consider adding authentication/authorization layer
-7. Add support for more document formats (DOCX, ODT, HTML)
-8. Implement caching layer for frequently accessed documents
+7. ~~Add support for more document formats (DOCX, ODT, HTML)~~ **COMPLETED 2025-01-17 (DOCX, HTML)**
+8. ~~Implement caching layer for frequently accessed documents~~ **COMPLETED 2025-01-17**
 9. Add document versioning and update tracking
+10. Add support for ODT and other office formats
+11. Implement connection pooling for Qdrant client
+12. Add support for lighter/faster embedding models as alternatives

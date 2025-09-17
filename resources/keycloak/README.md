@@ -244,6 +244,42 @@ Monitoring features:
 - Performance benchmarking (token generation <100ms)
 - Metrics persistence and trend analysis
 
+## Webhook Integration
+
+```bash
+# List available webhook event types
+vrooli resource keycloak webhook list-events
+
+# Register a webhook for login events
+vrooli resource keycloak webhook register master LOGIN https://your-app.com/webhook secret123
+
+# Configure multiple events for a realm
+vrooli resource keycloak webhook configure-events master LOGIN,LOGOUT,REGISTER
+
+# List configured webhooks
+vrooli resource keycloak webhook list master
+
+# Test webhook connectivity
+vrooli resource keycloak webhook test master https://your-app.com/webhook
+
+# View event history
+vrooli resource keycloak webhook history master 20
+
+# Configure retry policy
+vrooli resource keycloak webhook configure-retry master webhook-name 5 2000
+
+# Remove a webhook
+vrooli resource keycloak webhook remove master webhook-name
+```
+
+Webhook features:
+- 18+ event types (LOGIN, LOGOUT, REGISTER, UPDATE_PROFILE, etc.)
+- Secret-based signature validation
+- Configurable retry policies with exponential backoff
+- Event filtering per realm
+- Event history tracking
+- Connectivity testing
+
 ## TLS/HTTPS Configuration
 
 ```bash

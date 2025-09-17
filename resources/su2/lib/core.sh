@@ -54,7 +54,7 @@ WORKDIR /opt
 RUN git clone --depth 1 --branch v7.5.1 https://github.com/su2code/SU2.git su2
 
 WORKDIR /opt/su2
-RUN ./meson.py build -Denable-mpi=true -Denable-autodiff=false \
+RUN ./meson.py build -Dwith-mpi=enabled -Denable-autodiff=false \
     && ./ninja -C build install
 
 # Set environment variables

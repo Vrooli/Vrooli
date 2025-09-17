@@ -94,9 +94,9 @@ resource-ffmpeg stream transcode rtmp://input.com/live rtmp://output.com/live we
 ### Web Interface
 Access FFmpeg through a browser-based UI:
 ```bash
-# Start web interface on port 8080 (or specify custom port)
+# Start web interface on port 8098 (or specify custom port)
 resource-ffmpeg web start
-# Or with custom port: FFMPEG_API_PORT=8180 resource-ffmpeg web start
+# Or with custom port: FFMPEG_WEB_PORT=8180 resource-ffmpeg web start
 
 # Check web server status
 resource-ffmpeg web status

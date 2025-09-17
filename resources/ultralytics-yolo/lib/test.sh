@@ -14,7 +14,7 @@ yolo::test_smoke() {
     
     # Test 1: Service is running
     echo -n "  Testing service status... "
-    if docker ps --format "table {{.Names}}" | grep -q "^${YOLO_CONTAINER_NAME}$"; then
+    if docker ps --format "table {{.Names}}" | grep -q "^vrooli-ultralytics-yolo$"; then
         echo "✓"
         ((passed++))
     else
@@ -83,7 +83,7 @@ yolo::test_integration() {
     local failed=0
     
     # Ensure service is running
-    if ! docker ps --format "table {{.Names}}" | grep -q "^${YOLO_CONTAINER_NAME}$"; then
+    if ! docker ps --format "table {{.Names}}" | grep -q "^vrooli-ultralytics-yolo$"; then
         echo "  Service not running. Starting..."
         yolo::start --wait
     fi

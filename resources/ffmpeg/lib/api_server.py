@@ -719,13 +719,47 @@ class FFmpegAPIHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
     
-    def send_error_response(self, code, message):
-        """Send error response"""
+    def send_error_response(self, code, message, details=None):
+        """Send detailed error response"""
         self.send_response(code)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
-        self.wfile.write(json.dumps({'success': False, 'error': message}).encode())
+        
+        error_response = {
+            'success': False,
+            'error': message,
+            'code': code,
+            'timestamp': int(time.time())
+        }
+        
+        # Add specific error details based on code
+        if code == 400:
+            error_response['type'] = 'bad_request'
+            error_response['hint'] = 'Check your request parameters and try again'
+        elif code == 404:
+            error_response['type'] = 'not_found'
+            error_response['hint'] = 'The requested resource or endpoint does not exist'
+        elif code == 413:
+            error_response['type'] = 'payload_too_large'
+            error_response['hint'] = f'File size must be less than {MAX_FILE_SIZE // (1024*1024)}MB'
+        elif code == 415:
+            error_response['type'] = 'unsupported_media_type'
+            error_response['hint'] = 'Only video and audio files are supported'
+        elif code == 422:
+            error_response['type'] = 'unprocessable_entity'
+            error_response['hint'] = 'The file format is not supported or corrupted'
+        elif code == 500:
+            error_response['type'] = 'internal_server_error'
+            error_response['hint'] = 'An unexpected error occurred. Please try again later'
+        elif code == 503:
+            error_response['type'] = 'service_unavailable'
+            error_response['hint'] = 'The service is temporarily unavailable. Please try again later'
+        
+        if details:
+            error_response['details'] = details
+            
+        self.wfile.write(json.dumps(error_response).encode())
     
     def log_message(self, format, *args):
         """Override to reduce logging noise"""

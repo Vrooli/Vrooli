@@ -271,6 +271,23 @@ mqtt:
 
 ## Progress History
 
+### 2025-09-17: Metrics Command Fix
+**Improvements Made:**
+- ✅ Fixed metrics command hanging issue with jq --argjson
+- ✅ Corrected jq command to use proper argument passing instead of input redirection
+- ✅ All tests continue to pass after fix
+- ✅ Metrics command now properly collects and displays device telemetry
+
+**Technical Fix:**
+- Changed from: `jq -s '.[0] as $new | input | .devices += [$new]' - "$metrics_file"`
+- Changed to: `jq --argjson new "$device_info" '.devices += [$new]' "$metrics_file"`
+- This eliminates the hang caused by waiting for stdin input
+
+**Current Status:**
+- All P0, P1, and P2 requirements remain 100% complete
+- Resource fully functional and production-ready
+- No regressions introduced
+
 ### 2025-09-16: Minor Enhancements
 **Improvements Made:**
 - ✅ Enhanced health check to validate container health status

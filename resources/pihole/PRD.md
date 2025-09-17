@@ -10,19 +10,19 @@
 ## Requirements Checklist
 
 ### P0 Requirements (Must Have)
-- [x] **DNS Service**: Functional DNS server on port 53/5353 that resolves and blocks domains (2025-09-14, re-verified 2025-09-16)
-- [x] **Health Check**: Responds to health checks with DNS status and blocked domains count (2025-09-14, re-verified 2025-09-16)
-- [x] **Lifecycle Management**: Clean start/stop/restart with proper DNS configuration (2025-09-14, re-verified 2025-09-16)
-- [x] **Blocklist Management**: Add/remove/update domain blocklists via CLI (2025-09-14, re-verified 2025-09-16)
-- [x] **REST API Access**: Expose Pi-hole API on port 8087 for programmatic control (2025-09-14, re-verified 2025-09-16)
-- [x] **Query Logging**: Store and retrieve DNS query logs for analysis (2025-09-14, re-verified 2025-09-16)
-- [x] **Whitelist/Blacklist**: Manage custom domain allow/deny lists (2025-09-14, re-verified 2025-09-16)
+- [x] **DNS Service**: Functional DNS server on port 53/5353 that resolves and blocks domains (2025-09-14, re-verified 2025-09-17)
+- [x] **Health Check**: Responds to health checks with DNS status and blocked domains count (2025-09-14, re-verified 2025-09-17)
+- [x] **Lifecycle Management**: Clean start/stop/restart with proper DNS configuration (2025-09-14, re-verified 2025-09-17)
+- [x] **Blocklist Management**: Add/remove/update domain blocklists via CLI (2025-09-14, re-verified 2025-09-17)
+- [x] **REST API Access**: Expose Pi-hole API on port 8087 for programmatic control (2025-09-14, re-verified 2025-09-17)
+- [x] **Query Logging**: Store and retrieve DNS query logs for analysis (2025-09-14, re-verified 2025-09-17)
+- [x] **Whitelist/Blacklist**: Manage custom domain allow/deny lists (2025-09-14, re-verified 2025-09-17)
 
 ### P1 Requirements (Should Have)
-- [x] **Statistics API**: Query blocking statistics and performance metrics (2025-09-15, re-verified 2025-09-16)
-- [x] **Custom DNS Records**: Define local DNS entries for internal services (2025-09-15, re-verified 2025-09-16)
-- [x] **DHCP Server**: Optional DHCP service for complete network control (2025-09-15, re-verified 2025-09-16)
-- [x] **Regex Filtering**: Support regex patterns for advanced blocking (2025-09-15, re-verified 2025-09-16)
+- [x] **Statistics API**: Query blocking statistics and performance metrics (2025-09-15, re-verified 2025-09-17)
+- [x] **Custom DNS Records**: Define local DNS entries for internal services (2025-09-15, re-verified 2025-09-17)
+- [x] **DHCP Server**: Optional DHCP service for complete network control (2025-09-15, re-verified 2025-09-17)
+- [x] **Regex Filtering**: Support regex patterns for advanced blocking (2025-09-15, re-verified 2025-09-17)
 
 ### P2 Requirements (Nice to Have)
 - [ ] **Web Interface**: Optional web dashboard for visual management
@@ -121,8 +121,10 @@ Justification: Network-wide ad blocking is a fundamental service that enhances e
 - Updated to use new Pi-hole API v2 where available
 - Fixed integration test for API v2 compatibility (2025-09-16)
 - All test suites now passing (smoke, integration, unit)
-- Re-validated all P0 and P1 requirements working correctly (2025-09-16)
+- Re-validated all P0 and P1 requirements working correctly (2025-09-17)
 - DNS resolution and ad blocking verified functional on port 5353
+- All test suites passing: smoke (6/6), integration (7/7), unit (5/5)
+- Container healthy and responsive on configured ports
 
 ## Testing Requirements
 - Verify DNS resolution works correctly

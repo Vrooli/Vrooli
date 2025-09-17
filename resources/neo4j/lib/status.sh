@@ -65,7 +65,8 @@ neo4j::status::collect_data() {
             version=$(timeout 3s docker exec "$NEO4J_CONTAINER_NAME" neo4j --version 2>/dev/null | head -1 || echo "unknown")
             
             # Try to get node/relationship count (requires auth)
-            local cypher_result=$(echo 'MATCH (n) RETURN count(n) as nodes' | \
+            local cypher_result
+            cypher_result=$(echo 'MATCH (n) RETURN count(n) as nodes' | \
                 timeout 3s docker exec -i "$NEO4J_CONTAINER_NAME" cypher-shell \
                 -u neo4j -p "VrooliNeo4j2024!" \
                 --format plain 2>/dev/null | tail -1)

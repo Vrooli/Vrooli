@@ -49,8 +49,23 @@ kicad::content::get() {
         return 1
     fi
     
+    # Validate project name - no path traversal allowed
+    if [[ "$item" == *"/"* ]] || [[ "$item" == *".."* ]] || [[ "$item" == *"\\"* ]]; then
+        log::error "Invalid project name: must not contain path separators or '..' sequences"
+        return 1
+    fi
+    
     kicad::init_dirs
     local project_path="${KICAD_PROJECTS_DIR}/${item}"
+    
+    # Double-check that the resolved path is within the projects directory
+    local resolved_path=$(realpath "$project_path" 2>/dev/null)
+    local projects_dir=$(realpath "${KICAD_PROJECTS_DIR}" 2>/dev/null)
+    if [[ ! "$resolved_path" == "${projects_dir}"/* ]]; then
+        log::error "Security violation: attempted to access files outside projects directory"
+        return 1
+    fi
+    
     if [[ -d "$project_path" ]]; then
         echo "Project: $item"
         echo "Location: $project_path"
@@ -69,8 +84,23 @@ kicad::content::remove() {
         return 1
     fi
     
+    # Validate project name - no path traversal allowed
+    if [[ "$item" == *"/"* ]] || [[ "$item" == *".."* ]] || [[ "$item" == *"\\"* ]]; then
+        log::error "Invalid project name: must not contain path separators or '..' sequences"
+        return 1
+    fi
+    
     kicad::init_dirs
     local project_path="${KICAD_PROJECTS_DIR}/${item}"
+    
+    # Double-check that the resolved path is within the projects directory
+    local resolved_path=$(realpath "$project_path" 2>/dev/null)
+    local projects_dir=$(realpath "${KICAD_PROJECTS_DIR}" 2>/dev/null)
+    if [[ ! "$resolved_path" == "${projects_dir}"/* ]]; then
+        log::error "Security violation: attempted to remove files outside projects directory"
+        return 1
+    fi
+    
     if [[ -d "$project_path" ]]; then
         rm -rf "$project_path"
         log::success "Removed project: $item"

@@ -28,7 +28,7 @@ Open-source platform for managing distributed energy resources, microgrids, and 
 # Install OpenEMS
 vrooli resource openems manage install
 
-# Start the service
+# Start the service (uses port 8294 for HTTP, 8295 for WebSocket)
 vrooli resource openems manage start
 
 # Check status
@@ -37,6 +37,12 @@ vrooli resource openems status
 # View logs
 vrooli resource openems logs
 ```
+
+## ⚠️ Known Issues
+
+1. **Web UI Access**: The OpenEMS Edge web interface may not be accessible due to container configuration. Use the JSON-RPC WebSocket API or REST endpoints directly.
+2. **File Permissions**: Some telemetry file operations may fail due to container permission issues. This doesn't affect core functionality.
+3. **Port Conflicts**: If ports 8294-8296 are in use, update the port registry at `/scripts/resources/port_registry.sh`
 
 ## 🎯 Use Cases
 
@@ -73,18 +79,18 @@ Superset dashboards visualize energy metrics, costs, and system performance.
 ## 📡 API Access
 
 ```bash
-# REST API
-curl http://localhost:8084/rest/channel/ess0/Soc
+# REST API (Note: port updated to 8294)
+curl http://localhost:8294/rest/channel/ess0/Soc
 
 # Get system status
 vrooli resource openems content execute get-status
 
 # Configure DER asset
-vrooli resource openems content execute configure-der --type solar --capacity 10
+vrooli resource openems content execute configure-der solar 10
 
-# Simulate DER telemetry
-vrooli resource openems content execute simulate-solar 5000
-vrooli resource openems content execute simulate-load 3000
+# Simulate DER telemetry (power_watts duration_seconds)
+vrooli resource openems content execute simulate-solar 5000 10
+vrooli resource openems content execute simulate-load 3000 10
 ```
 
 ## 🔬 DER Simulation

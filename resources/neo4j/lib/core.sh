@@ -81,12 +81,12 @@ EOF
     )
     
     local response
-    response=$(timeout 5 curl -sf $auth_header \
+    response=$(timeout 5 curl -sf "$auth_header" \
         -H "Content-Type: application/json" \
         -d "$json_query" \
         "http://localhost:${NEO4J_HTTP_PORT}/db/neo4j/tx/commit" 2>/dev/null)
     
-    if [[ $? -eq 0 ]] && [[ -n "$response" ]]; then
+    if [[ -n "$response" ]]; then
         # Parse JSON response and extract data
         echo "$response" | jq -r '.results[0].data[].row | @csv' 2>/dev/null | tr -d '"' || echo "$response"
         return 0
@@ -911,19 +911,19 @@ neo4j_configure_cluster() {
             echo ""
             echo "2. **Core Server Configuration:**"
             echo "   For a ${size}-node cluster, add to neo4j.conf:"
-            echo "   ```"
+            echo '   ```'
             echo "   dbms.mode=CORE"
             echo "   causal_clustering.minimum_core_cluster_size=${size}"
             echo "   causal_clustering.discovery_type=LIST"
             echo "   causal_clustering.initial_discovery_members=server1:5000,server2:5000,server3:5000"
-            echo "   ```"
+            echo '   ```'
             echo ""
             echo "3. **Read Replica Configuration:**"
-            echo "   ```"
+            echo '   ```'
             echo "   dbms.mode=READ_REPLICA"
             echo "   causal_clustering.discovery_type=LIST"
             echo "   causal_clustering.initial_discovery_members=core1:5000,core2:5000,core3:5000"
-            echo "   ```"
+            echo '   ```'
             echo ""
             echo "4. **Docker Compose Example:**"
             cat <<'EOF'

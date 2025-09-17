@@ -1,0 +1,85 @@
+# FFmpeg Resource - Known Issues and Solutions
+
+## Current Issues
+
+### 1. Port Conflicts (FIXED)
+**Issue**: Web interface defaulted to port 8080, conflicting with OpenTripPlanner
+**Solution**: Changed default web port to 8098, API port remains 8097
+**Status**: ✅ Fixed
+
+### 2. Missing Input Validation in CLI
+**Issue**: Some CLI commands don't validate input files exist before processing
+**Impact**: Confusing error messages when files don't exist
+**Priority**: P1
+**Status**: 🔄 Pending
+
+### 3. Error Handling in API Server
+**Issue**: Some API endpoints return generic 500 errors instead of specific error codes
+**Impact**: Difficult to debug API integration issues  
+**Priority**: P1
+**Status**: 🔄 Pending
+
+### 4. Hardware Acceleration Detection
+**Issue**: GPU detection sometimes fails on certain NVIDIA driver versions
+**Workaround**: Set `FFMPEG_HW_ACCEL=none` to disable hardware acceleration
+**Priority**: P2
+**Status**: 🔄 Pending
+
+### 5. Large File Processing Timeouts
+**Issue**: Processing files >1GB may timeout with default 3600s limit
+**Workaround**: Set `FFMPEG_TIMEOUT=7200` for 2-hour timeout
+**Priority**: P2
+**Status**: 🔄 Pending
+
+### 6. Memory Usage with Batch Processing
+**Issue**: Batch processing doesn't limit concurrent jobs, can exhaust memory
+**Impact**: System may become unresponsive with many large files
+**Priority**: P1
+**Status**: 🔄 Pending
+
+## Resolved Issues
+
+### Port Configuration (2025-09-17)
+- Changed web interface default port from 8080 to 8098 to avoid conflicts
+- Added FFMPEG_WEB_PORT and FFMPEG_API_PORT to defaults.sh
+- Both ports now configurable via environment variables
+
+### API Server Startup (2025-09-16)  
+- Fixed Python API server not starting correctly
+- Replaced deprecated cgi module with custom multipart parser
+- Added proper PID management for server lifecycle
+
+## Recommended Improvements
+
+1. **Add Job Queue System**
+   - Integrate with PostgreSQL for persistent job storage
+   - Add job priority and scheduling
+   - Enable distributed processing
+
+2. **Enhance Error Messages**
+   - Add specific error codes for different failure types
+   - Include troubleshooting hints in error responses
+   - Log detailed errors for debugging
+
+3. **Improve Resource Management**
+   - Add memory usage monitoring
+   - Limit concurrent processing jobs
+   - Implement graceful degradation under load
+
+4. **Add Progress Tracking**
+   - WebSocket support for real-time progress updates
+   - Store conversion history and statistics
+   - Generate performance reports
+
+5. **Security Enhancements**
+   - Add rate limiting per IP
+   - Implement API key authentication
+   - Add file virus scanning before processing
+
+## Testing Notes
+
+- All smoke tests pass consistently
+- Integration tests work with sample media files
+- API endpoints respond correctly after port fix
+- Hardware acceleration works when available
+- Monitor functionality tracks resource usage properly

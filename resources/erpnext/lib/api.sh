@@ -7,6 +7,12 @@
 
 set -euo pipefail
 
+# Define log functions if not already available
+if ! declare -f log::error &>/dev/null; then
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::info() { echo "[INFO] $*"; }
+fi
+
 # Source dependencies if not already loaded
 if [[ -z "${ERPNEXT_PORT:-}" ]]; then
     source "${APP_ROOT}/resources/erpnext/config/defaults.sh"

@@ -32,7 +32,7 @@ neo4j_start() {
     echo "Starting Neo4j..."
     
     # Persist password for future use
-    CREDS_FILE="${var_ROOT_DIR}/data/resources/neo4j/.credentials"
+    CREDS_FILE="${APP_ROOT}/data/resources/neo4j/.credentials"
     mkdir -p "$(dirname "$CREDS_FILE")"
     echo "${NEO4J_AUTH#*/}" > "$CREDS_FILE"
     chmod 600 "$CREDS_FILE"

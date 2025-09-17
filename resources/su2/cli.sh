@@ -16,6 +16,12 @@ source "${SCRIPT_DIR}/lib/core.sh"
 # Load test functionality
 source "${SCRIPT_DIR}/lib/test.sh"
 
+# Load integration functionality
+[[ -f "${SCRIPT_DIR}/lib/integration.sh" ]] && source "${SCRIPT_DIR}/lib/integration.sh"
+
+# Load visualization functionality
+[[ -f "${SCRIPT_DIR}/lib/visualization.sh" ]] && source "${SCRIPT_DIR}/lib/visualization.sh"
+
 # Main command handler
 main() {
     local command="${1:-help}"
@@ -43,6 +49,12 @@ main() {
         logs)
             show_logs "$@"
             ;;
+        integrate)
+            handle_integrate "$@"
+            ;;
+        visualize)
+            handle_visualize "$@"
+            ;;
         *)
             echo "Error: Unknown command: $command" >&2
             echo "Run '$0 help' for usage information" >&2
@@ -67,6 +79,8 @@ COMMANDS:
     content             Content management operations
     status              Show service status
     logs                View service logs
+    integrate           Data integration operations
+    visualize           Visualization operations
 
 MANAGE SUBCOMMANDS:
     manage install      Install SU2 and dependencies
@@ -87,6 +101,18 @@ CONTENT SUBCOMMANDS:
     content get         Retrieve simulation results
     content remove      Remove mesh/config/results
     content execute     Run CFD simulation
+
+INTEGRATE SUBCOMMANDS:
+    integrate questdb   Export results to QuestDB
+    integrate qdrant    Export to Qdrant vector DB
+    integrate batch     Run batch optimization
+    integrate export    Export all results
+
+VISUALIZE SUBCOMMANDS:
+    visualize openmct   Setup OpenMCT telemetry
+    visualize superset  Setup Superset dashboard
+    visualize vtk       Generate VTK visualization
+    visualize animate   Create convergence animation
 
 EXAMPLES:
     # Start SU2 service
@@ -200,6 +226,64 @@ handle_content() {
             ;;
         *)
             echo "Error: Unknown content subcommand: $subcommand" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle integrate subcommands
+handle_integrate() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        questdb)
+            export_to_questdb "$@"
+            ;;
+        qdrant)
+            export_to_qdrant "$@"
+            ;;
+        batch)
+            run_batch_optimization "$@"
+            ;;
+        export)
+            export_all_results "$@"
+            ;;
+        search)
+            search_similar_designs "$@"
+            ;;
+        *)
+            echo "Error: Unknown integrate subcommand: $subcommand" >&2
+            echo "Available: questdb, qdrant, batch, export, search" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Handle visualize subcommands
+handle_visualize() {
+    local subcommand="${1:-}"
+    shift || true
+    
+    case "$subcommand" in
+        openmct)
+            setup_openmct_telemetry "$@"
+            ;;
+        superset)
+            setup_superset_dashboard "$@"
+            ;;
+        vtk)
+            generate_vtk_visualization "$@"
+            ;;
+        animate)
+            create_convergence_animation "$@"
+            ;;
+        stream)
+            stream_telemetry "$@"
+            ;;
+        *)
+            echo "Error: Unknown visualize subcommand: $subcommand" >&2
+            echo "Available: openmct, superset, vtk, animate, stream" >&2
             exit 1
             ;;
     esac

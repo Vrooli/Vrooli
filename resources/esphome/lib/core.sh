@@ -1085,8 +1085,8 @@ EOF
         
         # Append device info to metrics (using jq if available)
         if command -v jq &>/dev/null; then
-            # Use proper JSON escaping
-            echo "$device_info" | jq -s '.[0] as $new | input | .devices += [$new]' - "$metrics_file" > "${metrics_file}.tmp" && mv "${metrics_file}.tmp" "$metrics_file"
+            # Use proper JSON escaping - fixed to avoid hanging on input
+            jq --argjson new "$device_info" '.devices += [$new]' "$metrics_file" > "${metrics_file}.tmp" && mv "${metrics_file}.tmp" "$metrics_file"
         fi
     done
     

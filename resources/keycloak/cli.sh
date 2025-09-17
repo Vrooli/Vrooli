@@ -36,7 +36,7 @@ source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
 source "${KEYCLOAK_CLI_DIR}/config/defaults.sh"
 
 # Source Keycloak libraries
-for lib in common install lifecycle status test inject content social-providers ldap-federation multi-realm backup monitor theme tls mfa password-policy; do
+for lib in common install lifecycle status test inject content social-providers ldap-federation multi-realm backup monitor theme tls mfa password-policy webhooks; do
     lib_file="${KEYCLOAK_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -82,6 +82,10 @@ keycloak::test::sociale2e() {
     "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" social-e2e
 }
 
+keycloak::test::webhooks() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" webhooks
+}
+
 # Test handlers - delegate to test runner
 CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="keycloak::test::integration"
@@ -89,6 +93,7 @@ CLI_COMMAND_HANDLERS["test::unit"]="keycloak::test::unit"
 CLI_COMMAND_HANDLERS["test::security"]="keycloak::test::security"
 CLI_COMMAND_HANDLERS["test::multi-realm"]="keycloak::test::multirealm"
 CLI_COMMAND_HANDLERS["test::social-e2e"]="keycloak::test::sociale2e"
+CLI_COMMAND_HANDLERS["test::webhooks"]="keycloak::test::webhooks"
 CLI_COMMAND_HANDLERS["test::all"]="keycloak::test::all"
 
 # Override content handlers for Keycloak-specific realm/user management
@@ -308,6 +313,29 @@ if declare -f keycloak::letsencrypt::init &>/dev/null; then
     cli::register_subcommand "letsencrypt" "revoke" "Revoke certificate for domain" "keycloak::letsencrypt::revoke_certificate"
     cli::register_subcommand "letsencrypt" "test" "Test ACME challenge setup" "keycloak::letsencrypt::test_challenge"
 fi
+
+# Register webhook command group for external integrations
+CLI_COMMAND_GROUPS["webhook"]="true"
+CLI_GROUP_DESCRIPTIONS["webhook"]="🔔 Webhook management for external integrations"
+
+# Webhook management commands
+CLI_COMMAND_HANDLERS["webhook::list-events"]="webhook::list_events"
+CLI_COMMAND_HANDLERS["webhook::register"]="webhook::register"
+CLI_COMMAND_HANDLERS["webhook::list"]="webhook::list"
+CLI_COMMAND_HANDLERS["webhook::remove"]="webhook::remove"
+CLI_COMMAND_HANDLERS["webhook::test"]="webhook::test"
+CLI_COMMAND_HANDLERS["webhook::configure-events"]="webhook::configure_events"
+CLI_COMMAND_HANDLERS["webhook::history"]="webhook::history"
+CLI_COMMAND_HANDLERS["webhook::configure-retry"]="webhook::configure_retry"
+
+cli::register_subcommand "webhook" "list-events" "List available webhook event types" "webhook::list_events"
+cli::register_subcommand "webhook" "register" "Register a webhook for events" "webhook::register"
+cli::register_subcommand "webhook" "list" "List configured webhooks" "webhook::list"
+cli::register_subcommand "webhook" "remove" "Remove a webhook" "webhook::remove"
+cli::register_subcommand "webhook" "test" "Test webhook connectivity" "webhook::test"
+cli::register_subcommand "webhook" "configure-events" "Configure realm events" "webhook::configure_events"
+cli::register_subcommand "webhook" "history" "Show event history" "webhook::history"
+cli::register_subcommand "webhook" "configure-retry" "Configure webhook retry policy" "webhook::configure_retry"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "keycloak::status"

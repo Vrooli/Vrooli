@@ -2,7 +2,7 @@
   "startup_order": 650,
   "startup_timeout": 40,
   "startup_time_estimate": "10-20s",
-  "dependencies": ["postgres"],
+  "dependencies": [],
   "recovery_attempts": 2,
   "priority": "medium"
 }

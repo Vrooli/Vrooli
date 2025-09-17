@@ -1,0 +1,9 @@
+ultralytics>=8.0.0
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python-headless
+torch
+torchvision
+numpy
+pillow

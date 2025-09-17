@@ -96,7 +96,7 @@ postgis::geocoding::geocode() {
     local lat_pattern='(-?[0-9]+\.?[0-9]*)'
     local lon_pattern='(-?[0-9]+\.?[0-9]*)'
     
-    if [[ "$address" =~ $lat_pattern[,\ ]+$lon_pattern ]]; then
+    if [[ "$address" =~ ${lat_pattern}[,\ ]+${lon_pattern} ]]; then
         local lat="${BASH_REMATCH[1]}"
         local lon="${BASH_REMATCH[2]}"
         

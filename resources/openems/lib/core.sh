@@ -24,11 +24,45 @@ BACKEND_CONTAINER="${OPENEMS_BACKEND_CONTAINER:-openems-backend}"
 mkdir -p "${DATA_DIR}/edge" "${DATA_DIR}/backend" "${DATA_DIR}/configs"
 
 # ============================================
+# Dependency Check Functions
+# ============================================
+
+openems::check_dependencies() {
+    local missing_deps=()
+    
+    # Check for Docker
+    if ! command -v docker &>/dev/null; then
+        missing_deps+=("docker")
+    fi
+    
+    # Check optional dependencies
+    if ! command -v curl &>/dev/null; then
+        echo "⚠️  curl not found - limited API functionality"
+    fi
+    
+    if ! command -v nc &>/dev/null && ! command -v netcat &>/dev/null; then
+        echo "⚠️  netcat not found - cannot test service connectivity"
+    fi
+    
+    # Return error if critical dependencies missing
+    if [[ ${#missing_deps[@]} -gt 0 ]]; then
+        echo "❌ Missing critical dependencies: ${missing_deps[*]}"
+        echo "   Please install them first"
+        return 1
+    fi
+    
+    return 0
+}
+
+# ============================================
 # Lifecycle Management Functions
 # ============================================
 
 openems::install() {
     echo "📦 Installing OpenEMS..."
+    
+    # Check dependencies first
+    openems::check_dependencies || return 1
     
     # Remove old directories if they exist with wrong permissions
     if [[ -d "${DATA_DIR}/edge" ]] && [[ ! -w "${DATA_DIR}/edge/config" ]]; then
@@ -42,6 +76,10 @@ openems::install() {
     # Create necessary directories with proper permissions
     mkdir -p "${DATA_DIR}/edge/config" "${DATA_DIR}/edge/data"
     mkdir -p "${DATA_DIR}/backend/config" "${DATA_DIR}/backend/data"
+    
+    # Ensure directories are writable
+    chmod 755 "${DATA_DIR}/edge" "${DATA_DIR}/edge/config" "${DATA_DIR}/edge/data" 2>/dev/null || true
+    chmod 755 "${DATA_DIR}/backend" "${DATA_DIR}/backend/config" "${DATA_DIR}/backend/data" 2>/dev/null || true
     
     # Pull Docker images
     echo "Pulling OpenEMS Edge image..."
@@ -66,6 +104,9 @@ openems::start() {
     local wait_flag="${1:-}"
     
     echo "🚀 Starting OpenEMS..."
+    
+    # Check dependencies first
+    openems::check_dependencies || return 1
     
     # Clean up any existing containers first
     docker stop "${CONTAINER_NAME}" 2>/dev/null || true
@@ -116,7 +157,51 @@ openems::start() {
 }
 
 openems::start_fallback() {
-    # Fallback: Run a simple energy simulation service
+    # Fallback: Run a simple energy simulation service with API
+    echo "⚠️  Starting OpenEMS in simulation mode (official images unavailable)"
+    
+    # Create a simple API server script
+    cat > "${DATA_DIR}/edge/api_server.sh" << 'APIEOF'
+#!/bin/bash
+PORT=${1:-8084}
+mkdir -p /data
+echo "Starting OpenEMS simulation API on port $PORT..."
+
+# Simple HTTP server using netcat
+while true; do
+    REQUEST=$(echo -e "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\n\r\n" | nc -l -p $PORT -q 1 2>/dev/null | head -n 1)
+    
+    # Extract the path from the request
+    PATH_INFO=$(echo "$REQUEST" | cut -d' ' -f2)
+    
+    # Generate response based on path
+    case "$PATH_INFO" in
+        "/health")
+            RESPONSE='{"status":"healthy","mode":"simulation","timestamp":"'$(date -Iseconds)'"}'
+            ;;
+        "/rest/channel/_sum/EssSoc")
+            RESPONSE='{"value":75,"unit":"%","timestamp":"'$(date -Iseconds)'"}'
+            ;;
+        "/rest/channel/"*)
+            RESPONSE='{"value":0,"unit":"W","timestamp":"'$(date -Iseconds)'"}'
+            ;;
+        "/status")
+            RESPONSE='{"status":"running","mode":"simulation","components":["edge"],"timestamp":"'$(date -Iseconds)'"}'
+            ;;
+        *)
+            RESPONSE='{"error":"endpoint not found","path":"'$PATH_INFO'"}'
+            ;;
+    esac
+    
+    # Send response
+    echo -e "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: ${#RESPONSE}\r\n\r\n$RESPONSE" | nc -l -p $PORT -q 0 &
+    
+    # Log to file
+    echo "$(date -Iseconds): $PATH_INFO" >> /data/api_access.log
+done
+APIEOF
+    chmod +x "${DATA_DIR}/edge/api_server.sh"
+    
     docker run -d \
         --name "${CONTAINER_NAME}" \
         --restart unless-stopped \
@@ -124,12 +209,8 @@ openems::start_fallback() {
         -v "${DATA_DIR}/edge:/data" \
         openjdk:17-slim \
         bash -c "
-            mkdir -p /app
-            echo 'Starting OpenEMS simulation mode...'
-            while true; do
-                echo '{\"status\":\"running\",\"mode\":\"simulation\"}' > /data/status.json
-                sleep 10
-            done
+            apt-get update && apt-get install -y netcat-openbsd curl || true
+            /data/api_server.sh 8084
         "
 }
 
@@ -314,8 +395,14 @@ openems::get_status() {
         echo "Edge Status: ✅ Running"
         
         # Try to get API status
-        if timeout 5 curl -sf "http://localhost:${OPENEMS_PORT}/rest/channel/_sum/EssSoc" &>/dev/null; then
+        if timeout 5 curl -sf "http://localhost:${OPENEMS_PORT}/health" &>/dev/null; then
             echo "API Status: ✅ Responsive"
+            # Also test a data endpoint
+            if timeout 5 curl -sf "http://localhost:${OPENEMS_PORT}/rest/channel/_sum/EssSoc" &>/dev/null; then
+                echo "Data API: ✅ Available"
+            else
+                echo "Data API: ⚠️  Limited (simulation mode)"
+            fi
         else
             echo "API Status: ⚠️  Not responsive (may be starting)"
         fi
@@ -356,8 +443,12 @@ openems::simulate_solar() {
         # Send telemetry
         openems::send_telemetry "solar_01" "solar" "${actual_power}" "${energy}" "${voltage}" "${current}" "0" "35"
         
-        # Write local simulation data
-        cat > "${DATA_DIR}/edge/data/solar_sim.json" << EOF
+        # Write local simulation data (with error handling)
+        local sim_file="${DATA_DIR}/edge/data/solar_sim.json"
+        if ! touch "$sim_file" 2>/dev/null; then
+            sim_file="/tmp/openems_solar_sim.json"
+        fi
+        cat > "$sim_file" << EOF
 {
     "timestamp": "$(date -Iseconds)",
     "power": $actual_power,
@@ -382,8 +473,12 @@ openems::simulate_load() {
     
     echo "🔌 Simulating load profile: ${power}W"
     
-    # Write load data
-    cat > "${DATA_DIR}/edge/data/load_sim.json" << EOF
+    # Write load data (with error handling)
+    local sim_file="${DATA_DIR}/edge/data/load_sim.json"
+    if ! touch "$sim_file" 2>/dev/null; then
+        sim_file="/tmp/openems_load_sim.json"
+    fi
+    cat > "$sim_file" << EOF
 {
     "timestamp": "$(date -Iseconds)",
     "power": $power,
@@ -477,19 +572,33 @@ openems::wait_for_health() {
 openems::init_telemetry() {
     echo "📊 Initializing telemetry persistence..."
     
-    # Check QuestDB availability
-    if timeout 5 curl -sf "http://${QUESTDB_HOST}:${QUESTDB_PORT}/exec" &>/dev/null; then
-        echo "✅ QuestDB available at ${QUESTDB_HOST}:${QUESTDB_PORT}"
-        openems::create_questdb_tables
+    # Check QuestDB availability (with graceful handling)
+    if [[ -n "${QUESTDB_HOST}" ]] && [[ -n "${QUESTDB_PORT}" ]]; then
+        if timeout 5 curl -sf "http://${QUESTDB_HOST}:${QUESTDB_PORT}/exec" &>/dev/null; then
+            echo "✅ QuestDB available at ${QUESTDB_HOST}:${QUESTDB_PORT}"
+            openems::create_questdb_tables
+        else
+            echo "⚠️  QuestDB not available, telemetry will use local storage"
+            echo "   To enable QuestDB: vrooli resource questdb manage start"
+        fi
     else
-        echo "⚠️  QuestDB not available, telemetry will use local storage"
+        echo "⚠️  QuestDB configuration not found, using local storage"
     fi
     
-    # Check Redis availability
-    if timeout 5 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null; then
-        echo "✅ Redis available at ${REDIS_HOST}:${REDIS_PORT}"
+    # Check Redis availability (with graceful handling)
+    if [[ -n "${REDIS_HOST}" ]] && [[ -n "${REDIS_PORT}" ]]; then
+        if command -v nc &>/dev/null; then
+            if timeout 5 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null; then
+                echo "✅ Redis available at ${REDIS_HOST}:${REDIS_PORT}"
+            else
+                echo "⚠️  Redis not available, real-time state will use local cache"
+                echo "   To enable Redis: vrooli resource redis manage start"
+            fi
+        else
+            echo "⚠️  netcat not installed, cannot test Redis connectivity"
+        fi
     else
-        echo "⚠️  Redis not available, real-time state will use local cache"
+        echo "⚠️  Redis configuration not found, using local cache"
     fi
     
     return 0
@@ -541,8 +650,9 @@ openems::send_telemetry() {
     local soc="${7:-0}"
     local temp="${8:-25}"
     
-    # Send to QuestDB if available
-    if timeout 2 curl -sf "http://${QUESTDB_HOST}:${QUESTDB_PORT}/exec" &>/dev/null; then
+    # Send to QuestDB if available (with error handling)
+    if [[ -n "${QUESTDB_HOST}" ]] && [[ -n "${QUESTDB_PORT}" ]] && \
+       timeout 2 curl -sf "http://${QUESTDB_HOST}:${QUESTDB_PORT}/exec" &>/dev/null; then
         local timestamp="$(date +%s)000000000"
         local insert_sql="INSERT INTO der_telemetry VALUES(
             ${timestamp},
@@ -561,8 +671,10 @@ openems::send_telemetry() {
             --silent --fail || echo "⚠️  Failed to send telemetry to QuestDB"
     fi
     
-    # Cache in Redis if available
-    if command -v redis-cli &>/dev/null && timeout 2 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null; then
+    # Cache in Redis if available (with error handling)
+    if [[ -n "${REDIS_HOST}" ]] && [[ -n "${REDIS_PORT}" ]] && \
+       command -v redis-cli &>/dev/null && \
+       timeout 2 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null 2>&1; then
         redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HSET "openems:assets:${asset_id}" \
             "power" "${power}" \
             "voltage" "${voltage}" \
@@ -571,9 +683,21 @@ openems::send_telemetry() {
             "last_update" "$(date -Iseconds)" &>/dev/null
     fi
     
-    # Always save locally as backup
+    # Always save locally as backup (with error handling)
+    local telemetry_file="${DATA_DIR}/edge/data/telemetry.jsonl"
+    
+    # Create file if it doesn't exist with proper permissions
+    if [[ ! -f "$telemetry_file" ]]; then
+        touch "$telemetry_file" 2>/dev/null || {
+            echo "⚠️  Cannot create telemetry file, using /tmp fallback"
+            telemetry_file="/tmp/openems_telemetry.jsonl"
+            touch "$telemetry_file"
+        }
+    fi
+    
+    # Write telemetry data
     echo "{\"timestamp\":\"$(date -Iseconds)\",\"asset_id\":\"${asset_id}\",\"power\":${power},\"energy\":${energy}}" \
-        >> "${DATA_DIR}/edge/data/telemetry.jsonl"
+        >> "$telemetry_file" 2>/dev/null || echo "⚠️  Failed to write telemetry"
     
     return 0
 }
@@ -582,8 +706,10 @@ openems::send_telemetry() {
 openems::core::get_telemetry() {
     local telemetry_json="{}"
     
-    # Try to get from Redis first
-    if command -v redis-cli &>/dev/null && timeout 2 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null; then
+    # Try to get from Redis first (with error handling)
+    if [[ -n "${REDIS_HOST}" ]] && [[ -n "${REDIS_PORT}" ]] && \
+       command -v redis-cli &>/dev/null && \
+       timeout 2 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null 2>&1; then
         local battery_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:battery0" 2>/dev/null)
         local solar_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:solar0" 2>/dev/null)
         local grid_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:grid0" 2>/dev/null)

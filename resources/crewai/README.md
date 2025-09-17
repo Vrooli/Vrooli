@@ -43,6 +43,14 @@ vrooli resource crewai manage start --wait
 vrooli resource crewai status
 ```
 
+### Examples
+Example configurations are provided in the `examples/` directory:
+- `research_crew.json` - Pre-configured research team
+- `dev_crew.json` - Software development team
+- `quick_start.md` - Complete usage examples
+
+See `examples/quick_start.md` for detailed usage examples.
+
 ### Basic Usage
 ```bash
 # List available crews

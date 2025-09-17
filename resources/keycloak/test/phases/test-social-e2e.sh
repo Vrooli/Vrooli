@@ -5,20 +5,27 @@
 # Maximum execution time: 120 seconds
 ################################################################################
 
+# Start with non-strict mode to allow flexible sourcing
+set +euo pipefail
+
 # Determine paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 APP_ROOT="$(cd "${RESOURCE_DIR}/../.." && pwd)"
 
-# Source utilities - these are required for the test to work
-source "${APP_ROOT}/scripts/lib/utils/var.sh"
-source "${APP_ROOT}/scripts/lib/utils/log.sh"
-source "${APP_ROOT}/scripts/resources/common.sh"
-source "${RESOURCE_DIR}/config/defaults.sh"
+# Export APP_ROOT for libraries that need it
+export APP_ROOT
 
-# Temporarily disable strict error handling for common.sh sourcing
-set +e
-source "${RESOURCE_DIR}/lib/common.sh"
+# Source utilities - these are required for the test to work
+source "${APP_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/lib/utils/log.sh" 2>/dev/null || true
+source "${APP_ROOT}/scripts/resources/common.sh" 2>/dev/null || true
+source "${RESOURCE_DIR}/config/defaults.sh" 2>/dev/null || true
+
+# Source common.sh with its functions
+source "${RESOURCE_DIR}/lib/common.sh" 2>/dev/null || true
+
+# Now enable error handling for the test itself
 set -e
 
 # Test configuration

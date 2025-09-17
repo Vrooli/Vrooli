@@ -1263,7 +1263,7 @@ EOF
 
 # Start CrewAI service
 start_crewai() {
-    if is_running; then
+    if crewai::is_running; then
         log::info "CrewAI is already running"
         return 0
     fi
@@ -1311,7 +1311,7 @@ start_crewai() {
     
     sleep 2
     
-    if is_running; then
+    if crewai::is_running; then
         log::success "CrewAI started on port ${CREWAI_PORT}"
     else
         log::error "Failed to start CrewAI"
@@ -1353,7 +1353,7 @@ stop_crewai() {
 }
 
 # Check if running
-is_running() {
+crewai::is_running() {
     if [[ -f "${CREWAI_PID_FILE}" ]]; then
         local pid=$(cat "${CREWAI_PID_FILE}")
         if kill -0 "$pid" 2>/dev/null; then
@@ -1411,7 +1411,7 @@ list_agents() {
 
 # Get health status
 get_health() {
-    if is_running; then
+    if crewai::is_running; then
         curl -s "http://localhost:${CREWAI_PORT}/health" 2>/dev/null || echo "{}"
     else
         echo "{}"

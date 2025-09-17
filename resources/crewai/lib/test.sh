@@ -60,7 +60,7 @@ crewai::test::smoke() {
     # Test 1: Service is running
     ((test_count++))
     log::info "Test $test_count: Service running check"
-    if is_running; then
+    if crewai::is_running; then
         log::success "✅ Service is running"
     else
         log::error "❌ Service is not running"
@@ -191,7 +191,7 @@ crewai::test::integration() {
     sleep 2
     start_crewai &>/dev/null
     sleep 2
-    if is_running; then
+    if crewai::is_running; then
         log::success "✅ Service restart works"
     else
         log::error "❌ Service restart failed"

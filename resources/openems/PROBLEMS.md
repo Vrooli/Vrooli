@@ -3,20 +3,28 @@
 ## Container Issues
 
 ### Issue: Official OpenEMS Docker images may not be available
-**Solution**: The implementation includes a fallback mode using openjdk:17-slim that provides basic simulation capabilities when the official images are unavailable.
+**Solution**: The implementation includes a fallback mode using openjdk:17-slim that provides basic simulation capabilities when the official images are unavailable. The fallback mode now includes a simple HTTP API server with health endpoint support.
 
 ### Issue: Port conflicts with other services
-**Solution**: All ports are configured via port_registry.sh. If conflicts occur:
-- Check `scripts/resources/port_registry.sh` for port assignments
-- Ensure no other services are using ports 8084, 8085, 8086, or 502
+**Solution**: All ports are configured via port_registry.sh with no hardcoded fallbacks:
+- Check `scripts/resources/port_registry.sh` for port assignments  
+- Ports: 8294 (HTTP), 8295 (WebSocket), 8296 (Backend), 502 (Modbus)
+- The resource will fail explicitly if required ports are not defined
 
-## Dependency Issues
+## Dependency Issues  
 
 ### Issue: QuestDB or Redis not available
 **Solution**: The resource gracefully handles missing dependencies:
-- Telemetry data falls back to local file storage (telemetry.jsonl)
+- Telemetry data falls back to /tmp storage when file permissions prevent local writes
 - Real-time state uses in-memory cache instead of Redis
-- Tests won't fail if optional dependencies are missing
+- Tests won't fail if optional dependencies are missing  
+- Clear messages indicate how to enable dependencies (e.g., `vrooli resource redis manage start`)
+
+### Issue: Docker not installed
+**Solution**: The resource now checks for Docker availability at startup and provides clear error messages if missing
+
+### Issue: netcat/curl not available  
+**Solution**: The resource provides degraded functionality with warnings when optional tools are missing
 
 ## API Limitations
 
@@ -39,6 +47,9 @@
 **Solution**: Adjust these environment variables:
 - `OPENEMS_TELEMETRY_INTERVAL`: Increase for less frequent updates (default: 1000ms)
 - `OPENEMS_TELEMETRY_BATCH_SIZE`: Reduce for smaller batches (default: 100)
+
+### Issue: File permission errors when writing telemetry
+**Solution**: The resource automatically falls back to /tmp for telemetry storage when container-owned directories aren't writable
 
 ## P1 Integration Considerations
 

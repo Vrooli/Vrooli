@@ -19,9 +19,14 @@ source "$CONFIG_DIR/defaults.sh"
 VROOLI_ROOT="${VROOLI_ROOT:-/home/matthalloran8/Vrooli}"
 if [[ -f "$VROOLI_ROOT/scripts/resources/port_registry.sh" ]]; then
     source "$VROOLI_ROOT/scripts/resources/port_registry.sh"
-    PYBULLET_PORT="${PYBULLET_PORT:-$(get_port 'pybullet' 2>/dev/null || echo 11460)}"
+    PYBULLET_PORT="${RESOURCE_PORTS[pybullet]}"
+    if [[ -z "$PYBULLET_PORT" ]]; then
+        echo "Error: Could not retrieve PyBullet port from registry" >&2
+        return 1
+    fi
 else
-    PYBULLET_PORT="${PYBULLET_PORT:-11460}"
+    echo "Error: Port registry not found. Cannot determine PyBullet port." >&2
+    return 1
 fi
 
 # Show help information
