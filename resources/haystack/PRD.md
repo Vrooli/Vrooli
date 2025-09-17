@@ -74,9 +74,13 @@
 GET  /health          # Service health check
 POST /index           # Index documents
 POST /query           # Query indexed documents  
-POST /upload          # Upload and index file
+POST /upload          # Upload and index file (supports text, PDF)
 GET  /stats           # Usage statistics
+GET  /metrics         # Prometheus-format metrics
 DELETE /clear         # Clear all documents
+POST /enhanced_query  # Query with LLM enhancement
+POST /batch_index     # Batch document indexing
+POST /custom_pipeline # Create custom pipeline
 ```
 
 ### Port Configuration
@@ -105,7 +109,28 @@ DELETE /clear         # Clear all documents
 
 ## Implementation History
 
-### 2025-01-16: Enhanced Robustness and Reliability Improvements
+### 2025-01-16: Advanced Features Implementation (Second Improvement Iteration)
+- **PDF Support**: Added PyPDF2 integration for processing PDF documents
+  - Extract text from PDF files via /upload endpoint
+  - Tracks PDF processing in metrics (total_pdf_processed)
+  - Tested with sample PDF successfully
+- **Configurable Worker Pool**: ThreadPoolExecutor size now configurable
+  - Environment variable: HAYSTACK_WORKER_POOL_SIZE (default: 4)
+  - Allows scaling batch processing based on resources
+- **Exponential Backoff Retry**: Enhanced retry mechanism
+  - Configurable max attempts, initial delay, max delay, exponential base
+  - Intelligent retry with exponential backoff for resilience
+  - Tracks retry attempts in metrics
+- **Prometheus Metrics Endpoint**: Added /metrics endpoint
+  - Exports comprehensive metrics in Prometheus format
+  - Includes counters, gauges, error breakdown by type
+  - Tracks: documents indexed, queries, PDFs, retries, errors, latency, uptime
+- **Enhanced Error Tracking**: Errors now categorized by type
+  - Helps diagnose common failure patterns
+  - Available in Prometheus metrics for monitoring
+- **All Tests Passing**: Full regression test suite confirms no breakage
+
+### 2025-01-16: Enhanced Robustness and Reliability Improvements (First Iteration)
 - **Added Retry Logic**: All content operations now retry 3 times on transient failures
 - **Installation Validation**: New `haystack::validate_installation()` checks system integrity
 - **Recovery Hints**: Error messages now include specific recovery commands

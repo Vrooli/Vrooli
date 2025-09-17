@@ -4,7 +4,7 @@
 set -euo pipefail
 
 # Resource configuration
-readonly OPENTRIPPLANNER_IMAGE="opentripplanner/opentripplanner:latest-jvm17"
+readonly OPENTRIPPLANNER_IMAGE="opentripplanner/opentripplanner:latest"
 readonly OPENTRIPPLANNER_CONTAINER="vrooli-opentripplanner"
 readonly OPENTRIPPLANNER_NETWORK="vrooli-network"
 
@@ -85,7 +85,17 @@ opentripplanner::start() {
     # Ensure data directory exists
     mkdir -p "${OTP_DATA_DIR}" "${OTP_CACHE_DIR}"
     
-    # Start container
+    # Start container (server mode without prebuilt graph if needed)
+    local otp_cmd="--serve"
+    
+    # If graph exists, load it
+    if ls "${OTP_DATA_DIR}"/graph.obj &>/dev/null 2>&1; then
+        otp_cmd="--load --serve"
+        echo "Found existing graph, loading..."
+    else
+        echo "No graph found, starting in serve-only mode..."
+    fi
+    
     docker run -d \
         --name "${OPENTRIPPLANNER_CONTAINER}" \
         --network "${OPENTRIPPLANNER_NETWORK}" \
@@ -94,7 +104,7 @@ opentripplanner::start() {
         -v "${OTP_CACHE_DIR}:/var/cache/otp" \
         -e JAVA_OPTS="-Xmx${OTP_HEAP_SIZE}" \
         "${OPENTRIPPLANNER_IMAGE}" \
-        --load --serve || {
+        $otp_cmd || {
         echo "Failed to start OpenTripPlanner"
         return 1
     }

@@ -19,9 +19,9 @@ source "$CONFIG_DIR/defaults.sh"
 VROOLI_ROOT="${VROOLI_ROOT:-/home/matthalloran8/Vrooli}"
 if [[ -f "$VROOLI_ROOT/scripts/resources/port_registry.sh" ]]; then
     source "$VROOLI_ROOT/scripts/resources/port_registry.sh"
-    PYBULLET_PORT="${PYBULLET_PORT:-$(get_port 'pybullet' 2>/dev/null || echo 11457)}"
+    PYBULLET_PORT="${PYBULLET_PORT:-$(get_port 'pybullet' 2>/dev/null || echo 11460)}"
 else
-    PYBULLET_PORT="${PYBULLET_PORT:-11457}"
+    PYBULLET_PORT="${PYBULLET_PORT:-11460}"
 fi
 
 # Show help information
@@ -615,7 +615,11 @@ async def spawn_object(name: str, config: SpawnObject):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PYBULLET_PORT", 11457))
+    # Port must come from environment, no fallback
+    port_str = os.environ.get("PYBULLET_PORT")
+    if not port_str:
+        raise ValueError("PYBULLET_PORT environment variable not set")
+    port = int(port_str)
     uvicorn.run(app, host="0.0.0.0", port=port)
 EOF
 }

@@ -168,7 +168,8 @@ export default function App() {
                 <div>
                   <p className="text-xs font-medium opacity-90">System Status</p>
                   <p className="text-2xl font-bold">
-                    {systemStatus?.health_score || 0}%
+                    {systemStatus?.health_score !== null && systemStatus?.health_score !== undefined ? 
+                      Math.round(systemStatus.health_score * 10) / 10 : 0}%
                   </p>
                 </div>
                 <div className={clsx(

@@ -19,7 +19,7 @@ source "${APP_ROOT}/scripts/resources/tests/lib/fixture-helpers.sh"
 
 # Override library defaults with Unstructured.io-specific settings
 SERVICE_NAME="unstructured-io"
-BASE_URL="${UNSTRUCTURED_IO_BASE_URL:-http://localhost:11450}"
+BASE_URL="${UNSTRUCTURED_IO_BASE_URL}"
 HEALTH_ENDPOINT="/healthcheck"
 REQUIRED_TOOLS=("curl")
 SERVICE_METADATA=()

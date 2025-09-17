@@ -12,7 +12,7 @@ source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_TRASH_FILE}"
 
-BASE_URL="${UNSTRUCTURED_IO_BASE_URL:-http://localhost:11450}"
+BASE_URL="${UNSTRUCTURED_IO_BASE_URL}"
 TIMEOUT=30
 PASSED_TESTS=0
 TOTAL_TESTS=0

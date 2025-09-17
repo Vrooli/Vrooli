@@ -114,11 +114,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: parseInt(process.env.UI_PORT || process.env.PORT || '3000'),
+    port: parseInt(process.env.UI_PORT || process.env.PORT),
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: process.env.API_MANAGER_URL || `http://localhost:${process.env.API_PORT || '8100'}`,
+        target: process.env.API_MANAGER_URL || `http://localhost:${process.env.API_PORT}`,
         changeOrigin: true,
         secure: false,
       }

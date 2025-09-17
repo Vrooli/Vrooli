@@ -52,35 +52,35 @@ run_test "DNS resolves google.com" "timeout 5 dig @localhost -p ${DNS_PORT} goog
 run_test "DNS resolves localhost" "timeout 5 dig @localhost -p ${DNS_PORT} localhost +short | grep -q '127.0.0.1'"
 
 # Test 3: API summary endpoint
-run_test "API summary data" "docker exec '${CONTAINER_NAME}' pihole api stats/summary | jq -e '.gravity.domains_being_blocked'"
+run_test "API summary data" "docker exec ${CONTAINER_NAME} pihole api stats/summary | jq -e '.gravity.domains_being_blocked'"
 
 # Test 4: API status shows enabled
-run_test "API status enabled" "docker exec '${CONTAINER_NAME}' pihole status | grep -q 'enabled'"
+run_test "API status enabled" "docker exec ${CONTAINER_NAME} pihole status | grep -q 'enabled'"
 
 # Test 5: Blacklist management
 TEST_DOMAIN="test-block-$(date +%s).com"
-run_test "Add to blacklist" "docker exec '${CONTAINER_NAME}' pihole -b '$TEST_DOMAIN'"
-run_test "Remove from blacklist" "docker exec '${CONTAINER_NAME}' pihole -b -d '$TEST_DOMAIN'"
+run_test "Add to blacklist" "docker exec ${CONTAINER_NAME} pihole -b '$TEST_DOMAIN'"
+run_test "Remove from blacklist" "docker exec ${CONTAINER_NAME} pihole -b -d '$TEST_DOMAIN'"
 
 # Test 6: Whitelist management
 TEST_DOMAIN="test-allow-$(date +%s).com"
-run_test "Add to whitelist" "docker exec '${CONTAINER_NAME}' pihole -w '$TEST_DOMAIN'"
-run_test "Remove from whitelist" "docker exec '${CONTAINER_NAME}' pihole -w -d '$TEST_DOMAIN'"
+run_test "Add to whitelist" "docker exec ${CONTAINER_NAME} pihole -w '$TEST_DOMAIN'"
+run_test "Remove from whitelist" "docker exec ${CONTAINER_NAME} pihole -w -d '$TEST_DOMAIN'"
 
 # Test 7: Query log exists
-run_test "Query log file exists" "docker exec '${CONTAINER_NAME}' test -f /var/log/pihole/pihole.log"
+run_test "Query log file exists" "docker exec ${CONTAINER_NAME} test -f /var/log/pihole/pihole.log"
 
 # Test 8: Gravity database exists
-run_test "Gravity database" "docker exec '${CONTAINER_NAME}' test -f /etc/pihole/gravity.db"
+run_test "Gravity database" "docker exec ${CONTAINER_NAME} test -f /etc/pihole/gravity.db"
 
 # Test 9: FTL (Faster Than Light) daemon running
-run_test "FTL daemon running" "docker exec '${CONTAINER_NAME}' pgrep pihole-FTL"
+run_test "FTL daemon running" "docker exec ${CONTAINER_NAME} pgrep pihole-FTL"
 
 # Test 10: DNS cache working
-run_test "DNS cache functional" "docker exec '${CONTAINER_NAME}' pihole-FTL dns-cache show | head -1"
+run_test "DNS cache functional" "docker exec ${CONTAINER_NAME} pihole-FTL dns-cache show | head -1"
 
 # Test 11: Statistics are being collected
-run_test "Statistics collection" "docker exec '${CONTAINER_NAME}' pihole api stats/summary | jq -e '.queries.total >= 0'"
+run_test "Statistics collection" "docker exec ${CONTAINER_NAME} pihole api stats/summary | jq -e '.queries.total >= 0'"
 
 # Test 12: Password file exists
 run_test "Password file exists" "test -f '${PIHOLE_DATA_DIR}/.webpassword'"

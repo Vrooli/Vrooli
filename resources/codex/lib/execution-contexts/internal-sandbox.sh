@@ -176,6 +176,14 @@ sandbox_context::execute_with_tools() {
     # Extract model info from config
     local model_name=$(echo "$model_config" | jq -r '.model_name // "gpt-5-nano"' 2>/dev/null || echo "gpt-5-nano")
     local api_endpoint=$(echo "$model_config" | jq -r '.api_endpoint // "completions"' 2>/dev/null || echo "completions")
+
+    local env_max_turns="${CODEX_MAX_TURNS:-}"
+    if [[ -n "$env_max_turns" && "$env_max_turns" =~ ^[0-9]+$ && "$env_max_turns" -gt 0 ]]; then
+        max_iterations="$env_max_turns"
+    fi
+
+    local max_duration="${CODEX_TIMEOUT:-}"
+    local start_time=$(date +%s)
     
     log::info "Starting function calling execution (model: $model_name, api: $api_endpoint)"
     
@@ -219,6 +227,13 @@ sandbox_context::execute_with_tools() {
     
     # Execution loop
     while [[ $iteration -lt $max_iterations ]]; do
+        if [[ -n "$max_duration" && "$max_duration" =~ ^[0-9]+$ ]]; then
+            local now=$(date +%s)
+            if (( now - start_time >= max_duration )); then
+                log::error "Sandbox execution exceeded timeout (${max_duration}s)"
+                return 1
+            fi
+        fi
         ((iteration++))
         log::debug "Iteration $iteration/$max_iterations"
         

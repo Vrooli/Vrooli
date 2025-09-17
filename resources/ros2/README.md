@@ -33,10 +33,12 @@ vrooli resource ros2 content list-topics
 
 ## Current Status
 
-**Working**: Core functionality demonstrable with 71% P0 completion
+**Working**: Full P0 functionality complete (100% P0 completion) ✅
 - Health endpoint responds correctly
 - DDS middleware configured and operational
 - Node, topic, and service management via API
+- Service client/server implementation complete
+- Parameter server with persistence operational
 - All tests passing (smoke, integration, unit)
 - Docker container deployment working
 
@@ -100,6 +102,13 @@ The ROS2 resource provides a REST API on port 11501:
 ### Parameters
 - `GET /params/{node}` - Get node parameters
 - `PUT /params/{node}` - Set node parameters
+- `GET /params/list` - List all parameters across nodes
+- `POST /params/save` - Save parameters to persistent storage
+- `POST /params/load` - Load parameters from persistent storage
+
+### Service Management
+- `POST /services/create` - Create a new service server
+- `DELETE /services/{name}` - Remove a service
 
 ## Usage Examples
 
@@ -133,6 +142,30 @@ vrooli resource ros2 content launch-node lidar_driver
 
 # Launch fusion node
 vrooli resource ros2 content launch-node sensor_fusion
+```
+
+### Service & Parameter Management
+```bash
+# Create a service
+curl -X POST http://localhost:11501/services/create \
+  -H "Content-Type: application/json" \
+  -d '{"name":"robot_status", "type":"std_srvs/srv/Trigger"}'
+
+# Call the service
+curl -X POST http://localhost:11501/services/robot_status/call \
+  -H "Content-Type: application/json" \
+  -d '{}'
+
+# Set parameters for a node
+curl -X PUT http://localhost:11501/params/navigation_controller \
+  -H "Content-Type: application/json" \
+  -d '{"max_velocity": 2.0, "obstacle_distance": 0.5}'
+
+# Save parameters persistently
+curl -X POST http://localhost:11501/params/save
+
+# Run the comprehensive demo
+python3 /home/matthalloran8/Vrooli/resources/ros2/examples/service_param_demo.py
 ```
 
 ## Testing

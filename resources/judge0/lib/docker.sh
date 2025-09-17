@@ -28,7 +28,14 @@ judge0::docker::start() {
     
     local compose_file="${JUDGE0_CONFIG_DIR}/docker-compose.yml"
     
-    if docker compose -f "$compose_file" start >/dev/null 2>&1; then
+    # Start the services
+    if docker compose -f "$compose_file" up -d >/dev/null 2>&1; then
+        # Wait for workers to be ready
+        sleep 3
+        
+        # Initialize isolate boxes in workers
+        judge0::docker::init_isolate_boxes
+        
         if judge0::wait_for_health; then
             log::success "Judge0 started successfully"
             return 0
@@ -40,6 +47,29 @@ judge0::docker::start() {
         log::error "Failed to start Judge0"
         return 1
     fi
+}
+
+#######################################
+# Initialize isolate boxes in worker containers
+#######################################
+judge0::docker::init_isolate_boxes() {
+    log::info "Initializing isolate sandboxes..."
+    
+    # Get all worker container IDs
+    local workers=$(docker ps --filter "name=judge0-workers" --format "{{.Names}}" 2>/dev/null)
+    
+    if [[ -z "$workers" ]]; then
+        log::warning "No worker containers found"
+        return 1
+    fi
+    
+    # Initialize isolate box in each worker
+    for worker in $workers; do
+        # Try to cleanup existing box first, then init
+        docker exec "$worker" bash -c "isolate --cleanup >/dev/null 2>&1; isolate --init >/dev/null 2>&1" || true
+    done
+    
+    return 0
 }
 
 #######################################

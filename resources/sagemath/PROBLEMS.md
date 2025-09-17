@@ -75,16 +75,21 @@ find /tmp -name "sage_calc_*" -mtime +1 -delete 2>/dev/null || true
 - Must use `resource-sagemath gpu check` explicitly
 - Inconsistent with other command patterns
 
-**Root Cause**: GPU, export, cache, parallel, and plot commands were registered as regular commands instead of command groups.
+**Root Cause**: GPU, export, cache, parallel, and plot commands were registered as command groups but missing handler functions.
 
-**Solution**: Changed registration from `cli::register_command` to `cli::register_command_group` for all commands with subcommands:
+**Solution**: Added group handler functions for all command groups:
 ```bash
-# Fixed registration
-cli::register_command_group "gpu" "GPU acceleration operations"
-cli::register_command_group "export" "Export mathematical expressions"
-cli::register_command_group "cache" "Cache management operations"
-cli::register_command_group "parallel" "Parallel computing operations"
-cli::register_command_group "plot" "Create mathematical plots"
+# Added handler functions
+cli::_handle_group_gpu() {
+    local subcmd="${1:-}"
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]] || [[ "$subcmd" == "-h" ]]; then
+        cli::_show_group_help "gpu"
+        return 0
+    fi
+    shift
+    cli::_dispatch_subcommand "gpu" "$subcmd" "$@"
+}
+# Similar handlers added for export, cache, parallel, plot
 ```
 
 **Status**: ✅ FIXED (2025-09-16)

@@ -115,16 +115,36 @@ The web interface provides:
 ### RESTful API
 Integrate FFmpeg with external applications:
 ```bash
-# Start API server
-resource-ffmpeg web start
+# Start API server (default port 8097)
+resource-ffmpeg api start
+# Or with custom port:
+FFMPEG_API_PORT=9000 resource-ffmpeg api start
 
-# API endpoints available:
-# POST /api/convert - Convert media format
-# POST /api/extract - Extract audio/video/frames
-# GET /api/info/{file} - Get media information
-# POST /api/stream - Process streams
-# GET /api/stats - Get performance metrics
+# Stop API server
+resource-ffmpeg api stop
+
+# Check API server status
+resource-ffmpeg api status
 ```
+
+#### API Endpoints:
+- **GET /api/health** - Health check endpoint
+- **GET /api/stats** - Processing statistics and system info
+- **GET /api/presets** - List available conversion presets
+- **POST /api/convert** - Convert media with presets or custom options
+- **POST /api/extract** - Extract audio, frames, thumbnails, subtitles
+- **POST /api/info** - Get detailed media file information
+- **POST /api/stream** - Process streams (info, capture, transcode)
+- **POST /api/batch** - Process multiple jobs in batch
+- **GET /api/download/{filename}** - Download processed files
+
+#### Security Features:
+- Input validation and sanitization
+- File type restrictions (media files only)
+- Path traversal prevention
+- Command injection protection
+- 500MB file size limit
+- Processing timeouts for safety
 
 ### Performance Monitoring
 Track resource usage and conversion metrics:

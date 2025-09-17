@@ -11,17 +11,18 @@ RUN git clone https://github.com/nasa/openmct.git . && \
     git checkout v2.2.2
 
 # Install npm dependencies
-RUN npm install
+RUN npm install && npm install sqlite3 ws express
 
 # Copy custom configuration
 COPY server.js /app/server.js
 COPY telemetry-server.js /app/telemetry-server.js
+COPY index.html /app/index.html
 
 # Create data directory
 RUN mkdir -p /data
 
 # Expose ports
-EXPOSE 8099 8100
+EXPOSE 8099 8198
 
 # Start server
 CMD ["node", "server.js"]

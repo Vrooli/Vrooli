@@ -39,7 +39,7 @@ judge0::export_config 2>/dev/null || true
 judge0::export_messages 2>/dev/null || true
 
 # Source Judge0 libraries
-for lib in common docker status install api languages security usage content batch analytics; do
+for lib in common docker status install api languages security usage content batch analytics security-dashboard webhooks cache custom-languages; do
     lib_file="${JUDGE0_CLI_DIR}/lib/${lib}.sh"
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
@@ -75,6 +75,16 @@ cli::register_subcommand "content" "analytics" "View execution analytics" "judge
 # Add Judge0-specific test subcommands
 cli::register_subcommand "test" "api" "Test API connectivity" "judge0::api::test"
 cli::register_subcommand "test" "security" "Run security monitoring" "judge0::security::monitor"
+cli::register_subcommand "test" "security-dashboard" "View security dashboard" "judge0::security::dashboard::show"
+
+# Register additional command groups and commands
+cli::register_command "cache-stats" "Show cache statistics" "judge0::cache::stats"
+cli::register_command "cache-clear" "Clear all cached results" "judge0::cache::clear"
+cli::register_command "cache-warm" "Warm cache with common tests" "judge0::cache::warm"
+cli::register_command "webhook-list" "List registered webhooks" "judge0::webhooks::list"
+cli::register_command "webhook-test" "Test webhook endpoint" "judge0::webhooks::test"
+cli::register_command "custom-languages" "List custom languages" "judge0::custom_langs::list"
+cli::register_command "add-language-presets" "Add common language presets" "judge0::custom_langs::add_presets"
 
 # Additional information commands
 cli::register_command "status" "Show detailed resource status" "judge0::status"

@@ -71,15 +71,25 @@ manage::install() {
         return 1
     fi
     
-    # Build Docker image
+    # Build Docker image - use simplified version for development
     echo "Building Elmer FEM Docker image..."
-    if [[ -f "${SCRIPT_DIR}/Dockerfile" ]]; then
+    local dockerfile="${SCRIPT_DIR}/Dockerfile.simple"
+    
+    # Use simple Dockerfile for faster builds during development
+    if [[ -f "${dockerfile}" ]]; then
+        echo "Using simplified Dockerfile for development..."
+        docker build -f "${dockerfile}" -t "${ELMER_IMAGE}" "${SCRIPT_DIR}" || {
+            echo "ERROR: Failed to build Docker image" >&2
+            return 1
+        }
+    elif [[ -f "${SCRIPT_DIR}/Dockerfile" ]]; then
+        echo "Using full Dockerfile (this may take a while)..."
         docker build -t "${ELMER_IMAGE}" "${SCRIPT_DIR}" || {
             echo "ERROR: Failed to build Docker image" >&2
             return 1
         }
     else
-        echo "ERROR: Dockerfile not found at ${SCRIPT_DIR}/Dockerfile" >&2
+        echo "ERROR: No Dockerfile found at ${SCRIPT_DIR}" >&2
         return 1
     fi
     

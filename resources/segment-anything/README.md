@@ -18,7 +18,7 @@ The Segment Anything resource bundles SAM2 and HQ-SAM variants with ONNX/PyTorch
 ## Quick Start
 
 ```bash
-# Install the resource
+# Install the resource (builds Docker image)
 vrooli resource segment-anything manage install
 
 # Start the service
@@ -27,12 +27,17 @@ vrooli resource segment-anything manage start --wait
 # Check health
 vrooli resource segment-anything test smoke
 
+# Test the API (after service starts)
+python resources/segment-anything/examples/test_segmentation.py
+
 # Run segmentation
 vrooli resource segment-anything content execute \
   --image /path/to/image.jpg \
   --prompt "point:320,240" \
   --format png
 ```
+
+**Note**: First startup downloads model weights (~46MB for default). GPU support requires NVIDIA Docker runtime.
 
 ## Installation
 

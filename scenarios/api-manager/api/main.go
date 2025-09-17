@@ -1342,26 +1342,25 @@ func getScenarioEndpointsHandler(w http.ResponseWriter, r *http.Request) {
 func getVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// For now, return an empty array since we don't have a real vulnerability database
-	// In production, this would query actual scan results
-	vulnerabilities := []map[string]interface{}{}
+	// Get scenario filter from query params
+	scenario := r.URL.Query().Get("scenario")
 	
-	// You could add mock vulnerabilities here for testing:
-	// vulnerabilities = append(vulnerabilities, map[string]interface{}{
-	//     "id": "vuln-1",
-	//     "scenario_name": "api-manager",
-	//     "type": "SQL Injection",
-	//     "severity": "critical",
-	//     "title": "SQL Injection in user input",
-	//     "description": "User input is not properly sanitized",
-	//     "file_path": "/api/handlers.go",
-	//     "line_number": 42,
-	//     "recommendation": "Use parameterized queries",
-	//     "status": "open",
-	//     "discovered_at": time.Now().Add(-24 * time.Hour).Format(time.RFC3339),
-	// })
+	// Get vulnerabilities from in-memory store
+	vulnerabilities := vulnStore.GetVulnerabilities(scenario)
+	
+	// Convert to the expected format
+	response := map[string]interface{}{
+		"vulnerabilities": vulnerabilities,
+		"count":          len(vulnerabilities),
+		"timestamp":      time.Now().UTC(),
+	}
+	
+	// Add stats if requested
+	if r.URL.Query().Get("include_stats") == "true" {
+		response["stats"] = vulnStore.GetStats()
+	}
 
-	json.NewEncoder(w).Encode(vulnerabilities)
+	json.NewEncoder(w).Encode(response)
 }
 
 func getScenarioVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
@@ -1773,7 +1772,7 @@ func generateOpenAPISpec(scenarioName string, scenarioID uuid.UUID, scenarioPath
 				"description": "Local development server",
 				"variables": map[string]interface{}{
 					"port": map[string]interface{}{
-						"default":     "8080",
+						"default":     os.Getenv("API_PORT"),
 						"description": "API server port",
 					},
 				},
@@ -1812,7 +1811,7 @@ func generateBasicOpenAPISpec(scenarioName string) map[string]interface{} {
 				"description": "Local development server",
 				"variables": map[string]interface{}{
 					"port": map[string]interface{}{
-						"default":     "8080",
+						"default":     os.Getenv("API_PORT"),
 						"description": "API server port",
 					},
 				},
@@ -2065,31 +2064,24 @@ func getHealthSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		availableScenarios = vrooliData.Summary.Available
 	}
 
-	// Check if any scans have been performed
-	var scanCount int
-	db.QueryRow("SELECT COUNT(*) FROM vulnerability_scans").Scan(&scanCount)
-	hasScans := scanCount > 0
+	// Get vulnerability summary from in-memory store
+	stats := vulnStore.GetStats()
+	totalVulns := stats["total"].(int)
+	criticalVulns := stats["critical"].(int)
+	highVulns := stats["high"].(int)
+	hasScans := totalVulns > 0
 
-	// Get vulnerability summary from database
-	var totalVulns, criticalVulns, highVulns int
+	// Count scenarios with critical vulnerabilities
+	criticalScenarios := 0
 	if hasScans {
-		db.QueryRow(`
-			SELECT 
-				COUNT(*),
-				COUNT(CASE WHEN severity = 'CRITICAL' THEN 1 END),
-				COUNT(CASE WHEN severity = 'HIGH' THEN 1 END)
-			FROM vulnerability_scans WHERE status = 'open'
-		`).Scan(&totalVulns, &criticalVulns, &highVulns)
-	}
-
-	// Count scenarios with critical vulnerabilities (from database)
-	var criticalScenarios int
-	if hasScans {
-		db.QueryRow(`
-			SELECT COUNT(DISTINCT vs.scenario_id)
-			FROM vulnerability_scans vs
-			WHERE vs.status = 'open' AND vs.severity = 'CRITICAL'
-		`).Scan(&criticalScenarios)
+		// Count unique scenarios with critical vulnerabilities
+		scenariosWithCritical := make(map[string]bool)
+		for _, vuln := range vulnStore.GetAllVulnerabilities() {
+			if vuln.Severity == "critical" {
+				scenariosWithCritical[vuln.ScenarioName] = true
+			}
+		}
+		criticalScenarios = len(scenariosWithCritical)
 	}
 
 	// Calculate health metrics
@@ -2140,7 +2132,7 @@ func getHealthSummaryHandler(w http.ResponseWriter, r *http.Request) {
 		"system_health_score": healthScore,
 		"scan_status": map[string]interface{}{
 			"has_scans":     hasScans,
-			"total_scans":   scanCount,
+			"total_scans":   totalVulns, // Using total vulnerabilities as proxy for scan activity
 			"last_scan":     nil, // Could be populated from database if needed
 			"message":       "",
 		},
@@ -2241,7 +2233,8 @@ func calculateHealthScore(critical, high, medium, low int) float64 {
 	if weightedScore < 0 {
 		return 0.0
 	}
-	return weightedScore
+	// Round to 1 decimal place
+	return math.Round(weightedScore*10) / 10
 }
 
 func calculateSystemHealthScore(totalScenarios, criticalScenarios, criticalVulns int) float64 {
@@ -2256,5 +2249,6 @@ func calculateSystemHealthScore(totalScenarios, criticalScenarios, criticalVulns
 	if healthScore < 0 {
 		return 0.0
 	}
-	return healthScore
+	// Round to 1 decimal place
+	return math.Round(healthScore*10) / 10
 }

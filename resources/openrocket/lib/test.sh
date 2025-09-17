@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # OpenRocket Test Library
 
-set -euo pipefail
+# Source configuration
+RESOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[[ -f "${RESOURCE_DIR}/config/defaults.sh" ]] && source "${RESOURCE_DIR}/config/defaults.sh"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
 # Test utilities
 run_test() {
@@ -9,7 +17,7 @@ run_test() {
     local test_cmd="$2"
     
     echo -n "  Testing $test_name... "
-    if eval "$test_cmd" > /dev/null 2>&1; then
+    if eval "$test_cmd" &> /dev/null; then
         echo -e "${GREEN}✓${NC}"
         return 0
     else
@@ -24,13 +32,13 @@ openrocket_test_smoke() {
     local failed=0
     
     # Check if service is running
-    run_test "container running" "docker ps | grep -q ${OPENROCKET_CONTAINER_NAME}" || ((failed++))
+    run_test "container running" "docker ps | grep -q openrocket-server" || ((failed++))
     
     # Check health endpoint
-    run_test "health endpoint" "timeout 5 curl -sf ${OPENROCKET_HEALTH_URL}" || ((failed++))
+    run_test "health endpoint" "timeout 5 curl -sf http://localhost:9513/health" || ((failed++))
     
     # Check API responsiveness
-    run_test "API responsive" "timeout 5 curl -sf http://localhost:${OPENROCKET_PORT}/api/designs" || ((failed++))
+    run_test "API responsive" "timeout 5 curl -sf http://localhost:9513/api/designs" || ((failed++))
     
     if (( failed > 0 )); then
         echo "Smoke tests failed: $failed errors"

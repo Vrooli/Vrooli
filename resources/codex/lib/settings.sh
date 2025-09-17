@@ -11,7 +11,7 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../../.." && builtin
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
 
 # Configuration paths
-CODEX_CONFIG_DIR="${HOME}/.codex"
+CODEX_CONFIG_DIR="${CODEX_CONFIG_DIR:-${CODEX_HOME:-${HOME}/.codex}}"
 CODEX_SETTINGS_FILE="${CODEX_CONFIG_DIR}/settings.json"
 CODEX_PROJECT_SETTINGS="$(pwd)/.codex/settings.json"
 CODEX_AUDIT_FILE="${CODEX_CONFIG_DIR}/audit.log"
@@ -250,6 +250,14 @@ EOF
 #   0 on success, 1 on failure
 #######################################
 codex_settings::init() {
+    if type -t codex::ensure_home &>/dev/null; then
+        local codex_home_path
+        codex_home_path=$(codex::ensure_home | tail -n1)
+        CODEX_CONFIG_DIR="${codex_home_path}"
+        CODEX_SETTINGS_FILE="${CODEX_CONFIG_DIR}/settings.json"
+        CODEX_AUDIT_FILE="${CODEX_CONFIG_DIR}/audit.log"
+    fi
+
     # Create config directory
     mkdir -p "$CODEX_CONFIG_DIR"
     

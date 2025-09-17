@@ -112,7 +112,7 @@ Control:
     "fov": 60
   },
   "api": {
-    "port": "${PYBULLET_PORT:-11457}",
+    "port": "${PYBULLET_PORT}",
     "max_simulations": 10,
     "timeout_seconds": 300
   }
@@ -225,3 +225,10 @@ Control:
   - Created multi-body chain example demonstrating soft constraints
   - Enhanced spawn object API with color and cylinder support
   - All tests passing (smoke, unit, integration)
+- 2025-09-16: Security and validation improvements (100% P0 maintained)
+  - Fixed port allocation: moved from hardcoded 11457 to registry-managed 11460
+  - Added comprehensive input validation with Pydantic Field validators
+  - Implemented resource limits (max simulations) to prevent exhaustion
+  - Removed all port fallbacks per security requirements
+  - Fixed Pydantic v2 compatibility (regex → pattern parameter)
+  - All tests continue to pass

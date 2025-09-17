@@ -6,6 +6,7 @@ set -euo pipefail
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${SCENARIO_DIR}/test/utils/cli.sh"
 
 echo "=== Dependencies Phase (Target: <30s) ==="
 start_time=$(date +%s)
@@ -109,6 +110,15 @@ for tool in "${essential_tools[@]}"; do
         ((error_count++))
     fi
 done
+
+echo "🔍 Validating CLI tooling..."
+if ! visited_tracker::validate_cli "$SCENARIO_DIR" true; then
+    cli_errors=$?
+    if [ $cli_errors -eq 0 ]; then
+        cli_errors=1
+    fi
+    error_count=$((error_count + cli_errors))
+fi
 
 end_time=$(date +%s)
 duration=$((end_time - start_time))

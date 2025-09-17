@@ -218,10 +218,18 @@ services:
       - POSTGRES_DB=judge0
       - POSTGRES_USER=judge0
       - POSTGRES_PASSWORD=judge0
+      - ISOLATE_INIT_OPTIONS="--cg --cg-mem --cg-timing"
+      - RUN_COMMAND_PREFIX=""
+      - DISABLE_ISOLATE="false"
+      - QUEUE="*"
+      - COUNT=5
     volumes:
       - ${JUDGE0_VOLUME_NAME}:/var/judge0
       - ${JUDGE0_SUBMISSIONS_DIR}:/judge0/submissions
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - /tmp:/tmp:rw
+    tmpfs:
+      - /box:exec,mode=1777
     networks:
       - ${JUDGE0_NETWORK_NAME}
     depends_on:

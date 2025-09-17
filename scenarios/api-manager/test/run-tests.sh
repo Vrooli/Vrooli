@@ -18,7 +18,7 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Configuration
-API_BASE_URL="${API_MANAGER_URL:-http://localhost:${API_PORT:-8100}}"
+API_BASE_URL="${API_MANAGER_URL:-http://localhost:${API_PORT}}"
 VERBOSE="${VERBOSE:-false}"
 
 # Print banner

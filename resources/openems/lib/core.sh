@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(dirname "$SCRIPT_DIR")"
 DATA_DIR="${RESOURCE_DIR}/data"
 CONFIG_DIR="${RESOURCE_DIR}/config"
+OPENEMS_DATA_DIR="${DATA_DIR}"
 
 # Load configuration
 source "${CONFIG_DIR}/defaults.sh"
@@ -29,7 +30,16 @@ mkdir -p "${DATA_DIR}/edge" "${DATA_DIR}/backend" "${DATA_DIR}/configs"
 openems::install() {
     echo "📦 Installing OpenEMS..."
     
-    # Create necessary directories
+    # Remove old directories if they exist with wrong permissions
+    if [[ -d "${DATA_DIR}/edge" ]] && [[ ! -w "${DATA_DIR}/edge/config" ]]; then
+        echo "⚠️  Cleaning up old directories with permission issues..."
+        rm -rf "${DATA_DIR}/edge" 2>/dev/null || true
+    fi
+    if [[ -d "${DATA_DIR}/backend" ]] && [[ ! -w "${DATA_DIR}/backend/config" ]]; then
+        rm -rf "${DATA_DIR}/backend" 2>/dev/null || true
+    fi
+    
+    # Create necessary directories with proper permissions
     mkdir -p "${DATA_DIR}/edge/config" "${DATA_DIR}/edge/data"
     mkdir -p "${DATA_DIR}/backend/config" "${DATA_DIR}/backend/data"
     
@@ -568,7 +578,62 @@ openems::send_telemetry() {
     return 0
 }
 
+# Get current telemetry data for alerts
+openems::core::get_telemetry() {
+    local telemetry_json="{}"
+    
+    # Try to get from Redis first
+    if command -v redis-cli &>/dev/null && timeout 2 nc -zv "${REDIS_HOST}" "${REDIS_PORT}" &>/dev/null; then
+        local battery_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:battery0" 2>/dev/null)
+        local solar_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:solar0" 2>/dev/null)
+        local grid_data=$(redis-cli -h "${REDIS_HOST}" -p "${REDIS_PORT}" HGETALL "openems:assets:grid0" 2>/dev/null)
+        
+        # Parse Redis data into JSON
+        local battery_soc=$(echo "$battery_data" | awk '/^soc/{getline; print}' | head -1)
+        local solar_power=$(echo "$solar_data" | awk '/^power/{getline; print}' | head -1)
+        local grid_power=$(echo "$grid_data" | awk '/^power/{getline; print}' | head -1)
+        
+        # Check grid status
+        local grid_status="connected"
+        [[ -z "$grid_power" || "$grid_power" == "0" ]] && grid_status="disconnected"
+        
+        # Check daylight (simplified - between 6 AM and 8 PM)
+        local hour=$(date +%H)
+        local daylight="false"
+        [[ "$hour" -ge 6 && "$hour" -le 20 ]] && daylight="true"
+        
+        telemetry_json=$(cat <<EOF
+{
+    "grid_status": "${grid_status}",
+    "battery_soc": ${battery_soc:-50},
+    "solar_power": ${solar_power:-0},
+    "daylight": ${daylight},
+    "grid_import": ${grid_power:-0},
+    "battery_fault": false
+}
+EOF
+)
+    else
+        # Fall back to last local telemetry
+        if [[ -f "${DATA_DIR}/edge/data/telemetry.jsonl" ]]; then
+            local last_line=$(tail -1 "${DATA_DIR}/edge/data/telemetry.jsonl" 2>/dev/null)
+            if [[ -n "$last_line" ]]; then
+                telemetry_json="$last_line"
+            fi
+        fi
+    fi
+    
+    echo "$telemetry_json"
+    return 0
+}
+
 openems::create_default_config() {
+    # Check if we can write to the directory
+    if [[ ! -w "${DATA_DIR}/edge/config" ]]; then
+        echo "⚠️  Cannot write to config directory, skipping config creation"
+        return 0
+    fi
+    
     # Create a basic Edge configuration
     cat > "${DATA_DIR}/edge/config/openems.xml" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>

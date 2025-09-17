@@ -29,6 +29,11 @@ permissions::is_tool_allowed() {
     local tool_name="$1"
     local arguments="$2"
     
+    if [[ "${CODEX_SKIP_PERMISSIONS:-}" == "true" ]]; then
+        log::debug "Skipping permission checks for $tool_name"
+        return 0
+    fi
+
     # Get current allowed tools
     local allowed_tools="${CODEX_ALLOWED_TOOLS:-$(codex_settings::get "tools.allowed" | jq -r '. | join(",")' 2>/dev/null)}"
     
@@ -521,11 +526,13 @@ permissions::show_status() {
     echo "Max Turns: ${CODEX_MAX_TURNS:-not set}"
     echo "Timeout: ${CODEX_TIMEOUT:-not set}"
     echo "Confirmations: ${CODEX_REQUIRE_CONFIRMATION:-not set}"
+    echo "Skip Permissions: ${CODEX_SKIP_PERMISSIONS:-false}"
     echo
     
     local audit_logging=$(codex_settings::get "security.audit_logging" 2>/dev/null)
     if [[ "$audit_logging" != "false" ]]; then
-        local audit_file="${CODEX_AUDIT_FILE:-${HOME}/.codex/audit.log}"
+        local audit_base="${CODEX_HOME:-${HOME}/.codex}"
+        local audit_file="${CODEX_AUDIT_FILE:-${audit_base}/audit.log}"
         if [[ -f "$audit_file" ]]; then
             local log_size=$(wc -l < "$audit_file")
             echo "Audit Log: $audit_file ($log_size entries)"

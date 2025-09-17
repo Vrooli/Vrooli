@@ -31,6 +31,9 @@ vrooli resource traccar status
 
 ### Basic Usage
 ```bash
+# Seed demo data (5 vehicles with recent positions)
+vrooli resource traccar content execute --name demo
+
 # Create a GPS device
 vrooli resource traccar device create --name "Vehicle-001" --type "car"
 

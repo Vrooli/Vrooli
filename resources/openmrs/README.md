@@ -7,9 +7,13 @@ OpenMRS is an open-source electronic medical record (EMR) platform designed to s
 - **Complete EMR System**: Patient management, encounters, clinical concepts, and provider tracking
 - **REST API**: Comprehensive RESTful API for all clinical operations
 - **FHIR Support**: HL7 FHIR R4 API for healthcare interoperability
-- **PostgreSQL Backend**: Robust database with backup/restore capabilities
+- **MySQL Backend**: Robust MySQL database for clinical data storage
 - **Docker Deployment**: Containerized for easy deployment and scaling
-- **Demo Data**: Pre-loaded with sample patients and clinical data
+- **Demo Data**: CLI command to seed sample patients and clinical data
+
+## Important Note
+
+OpenMRS requires initial configuration on first run. After starting the service, navigate to http://localhost:8005/openmrs to complete the setup wizard. The REST API will be available after initial configuration is complete.
 
 ## Quick Start
 
@@ -30,9 +34,10 @@ vrooli resource openmrs test smoke
 ## Access Points
 
 - **Web Interface**: http://localhost:8005/openmrs
-- **REST API**: http://localhost:8006/openmrs/ws/rest/v1
-- **FHIR API**: http://localhost:8007/openmrs/ws/fhir2/R4
+- **REST API**: http://localhost:8005/openmrs/ws/rest/v1
+- **FHIR API**: http://localhost:8005/openmrs/ws/fhir2/R4
 - **Default Login**: admin / Admin123
+- **Database**: MySQL on port 3316
 
 ## CLI Commands
 
@@ -54,16 +59,22 @@ vrooli resource openmrs manage restart
 vrooli resource openmrs manage uninstall [--keep-data]
 ```
 
+### Demo Data
+```bash
+# Import demo patients and data
+vrooli resource openmrs content execute import-demo-data
+```
+
 ### Patient Management
 ```bash
 # List all patients
-vrooli resource openmrs api patient list
+vrooli resource openmrs content add patient "John" "Smith" "M" "1985-03-15"
 
 # Get specific patient
-vrooli resource openmrs api patient get <uuid>
+vrooli resource openmrs content get patient <uuid>
 
-# Create new patient (coming soon)
-vrooli resource openmrs api patient create --name "John Doe" --gender "M"
+# List all patients (via content system)
+vrooli resource openmrs content execute patient list
 ```
 
 ### Encounter Management

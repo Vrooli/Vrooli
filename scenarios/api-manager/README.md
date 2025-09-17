@@ -70,7 +70,7 @@ api-manager vulnerabilities my-scenario
 
 ## 📊 Web Dashboard
 
-Access the web interface at: http://localhost:31100-31199 (port assigned by lifecycle)
+Access the web interface at: http://localhost:{UI_PORT} (port assigned by lifecycle)
 
 The dashboard provides:
 - **System overview** with key metrics
@@ -156,7 +156,7 @@ Uses Ollama's llama3.1:8b model to provide:
 Other scenarios can leverage API Manager via:
 ```bash
 # From scenario API calls
-curl -X POST http://localhost:8100/api/v1/scenarios/my-scenario/scan
+curl -X POST http://localhost:${API_PORT}/api/v1/scenarios/my-scenario/scan
 
 # From CLI tools  
 api-manager scan my-scenario

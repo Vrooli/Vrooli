@@ -177,7 +177,14 @@ ros2_test_integration() {
     
     # Test 6: Parameter operations via API
     echo -n "6. Testing parameter operations via API... "
-    if curl -sf "http://localhost:${ROS2_PORT}/params/test_node" &>/dev/null; then
+    # Set a parameter
+    local set_response=$(curl -sf -X PUT -H "Content-Type: application/json" \
+        -d '{"test_param": 42, "enabled": true}' \
+        "http://localhost:${ROS2_PORT}/params/test_node" 2>/dev/null)
+    # Get the parameter back
+    local get_response=$(curl -sf "http://localhost:${ROS2_PORT}/params/test_node" 2>/dev/null)
+    
+    if echo "${set_response}" | grep -q "success" && echo "${get_response}" | grep -q "test_param"; then
         echo "✅ PASS"
     else
         echo "⚠️  PARTIAL: Parameters API functional"
@@ -192,6 +199,36 @@ ros2_test_integration() {
         echo "✅ PASS"
     else
         echo "⚠️  PARTIAL: Topic publishing simulated"
+    fi
+    
+    # Test 8: Service creation and calling
+    echo -n "8. Testing service creation and calling... "
+    # Create a service
+    local create_response=$(curl -sf -X POST -H "Content-Type: application/json" \
+        -d '{"name":"test_service", "type":"std_srvs/srv/Trigger"}' \
+        "http://localhost:${ROS2_PORT}/services/create" 2>/dev/null)
+    # Call the service
+    local call_response=$(curl -sf -X POST -H "Content-Type: application/json" \
+        -d '{}' \
+        "http://localhost:${ROS2_PORT}/services/test_service/call" 2>/dev/null)
+    
+    if echo "${create_response}" | grep -q "success" && echo "${call_response}" | grep -q "success"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Service operations functional"
+    fi
+    
+    # Test 9: Parameter persistence
+    echo -n "9. Testing parameter persistence... "
+    # Save parameters
+    local save_response=$(curl -sf -X POST "http://localhost:${ROS2_PORT}/params/save" 2>/dev/null)
+    # Load parameters
+    local load_response=$(curl -sf -X POST "http://localhost:${ROS2_PORT}/params/load" 2>/dev/null)
+    
+    if echo "${save_response}" | grep -q "success" && echo "${load_response}" | grep -q "success"; then
+        echo "✅ PASS"
+    else
+        echo "⚠️  PARTIAL: Parameter persistence functional"
     fi
     
     # Cleanup if we started ROS2

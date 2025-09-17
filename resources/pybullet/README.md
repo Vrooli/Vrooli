@@ -63,19 +63,19 @@ Default configuration in `config/defaults.sh`:
 import httpx
 
 # Create simulation
-response = httpx.post("http://localhost:11457/simulation/create", 
+response = httpx.post("http://localhost:{PYBULLET_PORT}/simulation/create", 
     json={"name": "test", "gravity": [0, 0, -9.81]})
 
 # Spawn a box
-httpx.post("http://localhost:11457/simulation/test/spawn",
+httpx.post("http://localhost:{PYBULLET_PORT}/simulation/test/spawn",
     json={"shape": "box", "position": [0, 0, 2]})
 
 # Step simulation
-httpx.post("http://localhost:11457/simulation/test/step",
+httpx.post("http://localhost:{PYBULLET_PORT}/simulation/test/step",
     json={"steps": 100})
 
 # Get state
-state = httpx.get("http://localhost:11457/simulation/test/state").json()
+state = httpx.get("http://localhost:{PYBULLET_PORT}/simulation/test/state").json()
 print(f"Bodies: {state['num_bodies']}")
 ```
 
@@ -109,12 +109,12 @@ vrooli resource pybullet test all
 - Check virtual environment creation: `ls -la .venv/`
 
 ### API Server Not Starting
-- Check port availability: `lsof -i :11457`
+- Check port availability: `lsof -i :$PYBULLET_PORT`
 - View logs: `vrooli resource pybullet logs`
 
 ### Simulation Errors
 - Verify PyBullet import: `source .venv/bin/activate && python -c "import pybullet"`
-- Check API health: `curl http://localhost:11457/health`
+- Check API health: `curl http://localhost:$PYBULLET_PORT/health`
 
 ## Integration with Vrooli
 

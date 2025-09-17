@@ -74,11 +74,21 @@ keycloak::test::multirealm() {
     "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" multi-realm
 }
 
+keycloak::test::security() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" security
+}
+
+keycloak::test::sociale2e() {
+    "${KEYCLOAK_CLI_DIR}/test/run-tests.sh" social-e2e
+}
+
 # Test handlers - delegate to test runner
 CLI_COMMAND_HANDLERS["test::smoke"]="keycloak::test::smoke"
 CLI_COMMAND_HANDLERS["test::integration"]="keycloak::test::integration"
 CLI_COMMAND_HANDLERS["test::unit"]="keycloak::test::unit"
+CLI_COMMAND_HANDLERS["test::security"]="keycloak::test::security"
 CLI_COMMAND_HANDLERS["test::multi-realm"]="keycloak::test::multirealm"
+CLI_COMMAND_HANDLERS["test::social-e2e"]="keycloak::test::sociale2e"
 CLI_COMMAND_HANDLERS["test::all"]="keycloak::test::all"
 
 # Override content handlers for Keycloak-specific realm/user management

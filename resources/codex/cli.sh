@@ -29,6 +29,12 @@ source "${var_LOG_FILE}"
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/resources/lib/cli-command-framework-v2.sh"
+
+# Source agent management (load config and manager directly)
+if [[ -f "${APP_ROOT}/resources/codex/config/agents.conf" ]]; then
+    source "${APP_ROOT}/resources/codex/config/agents.conf"
+    source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+fi
 # shellcheck disable=SC1091
 source "${CODEX_CLI_DIR}/config/defaults.sh"
 
@@ -81,6 +87,17 @@ cli::register_command "generate-tests" "Generate tests for code" "codex::cli::te
 cli::register_command "refactor" "Refactor code using agent" "codex::cli::refactor"
 
 # Agent management commands
+# Create wrapper for agents command that delegates to manager
+codex::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="codex" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f codex::agents::command
+
 cli::register_command "agents" "Manage running Codex agents" "codex::agents::command"
 
 # Only execute if script is run directly (not sourced)

@@ -3,10 +3,15 @@
 
 set -euo pipefail
 
+# Get script directory
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # Test configuration
 readonly TEST_TIMEOUT=30
 readonly INTEGRATION_TIMEOUT=120
 readonly UNIT_TIMEOUT=60
+readonly ELMER_PORT="${ELMER_FEM_PORT:-8192}"
+readonly ELMER_DATA_DIR="${VROOLI_DATA:-${HOME}/.vrooli/data}/elmer-fem"
 
 # Run specified test phase
 main() {

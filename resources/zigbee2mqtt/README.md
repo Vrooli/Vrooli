@@ -12,10 +12,13 @@ Zigbee2MQTT supports over 3000 devices from various manufacturers including Phil
 - ✅ **Local Control** - No cloud dependencies or internet required
 - ✅ **MQTT Bridge** - Universal protocol for IoT communication
 - ✅ **Home Assistant Integration** - Auto-discovery support
-- ✅ **Web Dashboard** - User-friendly device management interface
+- ✅ **Web Dashboard** - User-friendly device management interface at port 8090
 - ✅ **Network Visualization** - See your Zigbee mesh topology
 - ✅ **OTA Updates** - Update device firmware over the air
 - ✅ **Groups & Scenes** - Manage multiple devices together
+- ✅ **Touchlink Support** - Commission devices by proximity
+- ✅ **External Converters** - Add support for custom/unsupported devices
+- ✅ **Network Backup/Restore** - Full coordinator and configuration backup
 
 ## Prerequisites
 
@@ -130,6 +133,47 @@ vrooli resource zigbee2mqtt device temperature "white_bulb" 2700  # Warm white
 vrooli resource zigbee2mqtt device temperature "white_bulb" 6500  # Cool white
 ```
 
+### Home Assistant Integration
+
+#### Enable MQTT Discovery
+```bash
+# Check current status
+vrooli resource zigbee2mqtt homeassistant discovery status
+
+# Enable auto-discovery
+vrooli resource zigbee2mqtt homeassistant discovery enable
+
+# Devices will now appear automatically in Home Assistant
+```
+
+### Group Management
+
+#### Create Device Groups
+```bash
+# Create a group with multiple devices
+vrooli resource zigbee2mqtt group create "living_room" "lamp_1" "lamp_2" "lamp_3"
+
+# List all groups
+vrooli resource zigbee2mqtt group list
+
+# Control entire group
+vrooli resource zigbee2mqtt group control "living_room" on
+
+# Remove a group
+vrooli resource zigbee2mqtt group remove "living_room"
+```
+
+### Scene Management
+
+#### Create and Recall Scenes
+```bash
+# Create scene from current group state
+vrooli resource zigbee2mqtt scene create "movie_time" "living_room"
+
+# Activate a scene
+vrooli resource zigbee2mqtt scene recall "movie_time"
+```
+
 ### Network Management
 
 #### View Network Map
@@ -137,15 +181,36 @@ vrooli resource zigbee2mqtt device temperature "white_bulb" 6500  # Cool white
 vrooli resource zigbee2mqtt network map
 ```
 
-#### Backup Coordinator
+#### Backup & Restore Coordinator
 ```bash
+# Create backup of coordinator and configuration
 vrooli resource zigbee2mqtt network backup
+
+# Backup to specific file
+vrooli resource zigbee2mqtt network backup "/path/to/backup.json"
+
+# Restore coordinator from backup
+vrooli resource zigbee2mqtt network restore "/path/to/backup.json"
 ```
 
 #### Change Zigbee Channel
 ```bash
 # Use channel 11, 15, 20, or 25 for best WiFi coexistence
 vrooli resource zigbee2mqtt network channel 15
+```
+
+### OTA Firmware Updates
+
+#### Update Device Firmware
+```bash
+# Check for updates for all devices
+vrooli resource zigbee2mqtt ota check
+
+# Check specific device
+vrooli resource zigbee2mqtt ota check "bedroom_sensor"
+
+# Update device firmware (takes 5-30 minutes)
+vrooli resource zigbee2mqtt ota update "bedroom_sensor"
 ```
 
 ### MQTT Topics
@@ -261,14 +326,77 @@ docker logs mosquitto
 
 ## Advanced Topics
 
-### Custom Device Converters
-Add support for unsupported devices by creating external converters in `data/zigbee2mqtt/converters/`.
-
 ### Touchlink Commissioning
-For devices that support Touchlink:
+
+Touchlink allows commissioning Zigbee devices by bringing them close to the coordinator (within 10cm).
+
+#### Scan for Touchlink Devices
 ```bash
-vrooli resource zigbee2mqtt content execute touchlink/factory_reset
+# Scan for nearby Touchlink devices
+vrooli resource zigbee2mqtt touchlink scan
 ```
+
+#### Identify Device
+```bash
+# Make device blink/flash for identification (10 seconds)
+vrooli resource zigbee2mqtt touchlink identify "0x00158d0001234567"
+
+# Custom duration (20 seconds)
+vrooli resource zigbee2mqtt touchlink identify "0x00158d0001234567" 20
+```
+
+#### Factory Reset via Touchlink
+```bash
+# Reset device to factory defaults
+vrooli resource zigbee2mqtt touchlink reset "0x00158d0001234567"
+```
+
+### External Device Converters
+
+Add support for unsupported devices by creating external converters.
+
+#### Generate Converter Template
+```bash
+# Generate a template for a new device
+vrooli resource zigbee2mqtt converter generate "MODEL123" "MyVendor"
+
+# Generate with custom output file
+vrooli resource zigbee2mqtt converter generate "MODEL123" "MyVendor" "my_device.js"
+```
+
+#### Add External Converter
+```bash
+# Add a converter file
+vrooli resource zigbee2mqtt converter add custom_device.js
+
+# List installed converters
+vrooli resource zigbee2mqtt converter list
+```
+
+#### Remove Converter
+```bash
+# Remove an installed converter
+vrooli resource zigbee2mqtt converter remove custom_device.js
+```
+
+#### Example Converter
+```javascript
+// custom_bulb.js
+const definition = {
+    zigbeeModel: ['CustomBulb-v1'],
+    model: 'CB-001',
+    vendor: 'CustomVendor',
+    description: 'Custom RGB bulb with dimming',
+    extend: extend.light_onoff_brightness_colortemp_color(),
+    // Additional device-specific configuration
+};
+
+module.exports = definition;
+```
+
+After adding a converter:
+1. Restart Zigbee2MQTT: `vrooli resource zigbee2mqtt manage restart`
+2. Pair your device normally: `vrooli resource zigbee2mqtt device pair`
 
 ### Network Optimization
 - Use Zigbee channel 11, 15, 20, or 25 to avoid WiFi interference

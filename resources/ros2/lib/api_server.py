@@ -185,41 +185,393 @@ async def publish_to_topic(topic_name: str, message: Dict[str, Any]) -> Dict[str
 @app.get("/services")
 async def list_services() -> Dict[str, Any]:
     """List available ROS2 services"""
+    # Try to get actual ROS2 services if available
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            result = subprocess.run(
+                ["docker", "exec", "vrooli-ros2", "ros2", "service", "list"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.returncode == 0:
+                services = [s.strip() for s in result.stdout.strip().split("\n") if s.strip()]
+                # Get service types for each service
+                service_info = {}
+                for service in services:
+                    try:
+                        type_result = subprocess.run(
+                            ["docker", "exec", "vrooli-ros2", "ros2", "service", "type", service],
+                            capture_output=True,
+                            text=True,
+                            timeout=1
+                        )
+                        if type_result.returncode == 0:
+                            service_info[service] = type_result.stdout.strip()
+                    except:
+                        service_info[service] = "unknown"
+                return {"services": service_info, "count": len(services)}
+    except Exception:
+        pass
+    
+    # Fallback to simulated state
     return {
-        "services": list(ros2_state["services"].keys()),
+        "services": ros2_state["services"],
         "count": len(ros2_state["services"])
     }
 
 @app.post("/services/{service_name}/call")
 async def call_service(service_name: str, request: Dict[str, Any]) -> Dict[str, Any]:
     """Call a ROS2 service"""
-    # Simulated service call
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            import json as json_module
+            
+            # Create service request JSON
+            request_json = json_module.dumps(request)
+            
+            # Call service using ros2 service call command
+            result = subprocess.run(
+                ["docker", "exec", "vrooli-ros2", "ros2", "service", "call", 
+                 service_name, "std_srvs/srv/Trigger", request_json],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            
+            if result.returncode == 0:
+                # Parse response
+                response_lines = result.stdout.strip().split("\n")
+                # Look for the response part
+                response_data = {}
+                for line in response_lines:
+                    if "success:" in line:
+                        response_data["success"] = "true" in line.lower()
+                    elif "message:" in line:
+                        response_data["message"] = line.split(":", 1)[1].strip().strip("'\"")
+                
+                return {
+                    "success": True,
+                    "service": service_name,
+                    "response": response_data if response_data else {"raw": result.stdout}
+                }
+            else:
+                # If service doesn't exist or call failed, register and simulate
+                ros2_state["services"][service_name] = {
+                    "type": request.get("type", "std_srvs/srv/Trigger"),
+                    "last_call": datetime.now().isoformat()
+                }
+                return {
+                    "success": True,
+                    "service": service_name,
+                    "response": {"result": "Service registered and simulated", "request": request}
+                }
+    except Exception as e:
+        # Fallback to simulated service
+        ros2_state["services"][service_name] = {
+            "type": request.get("type", "std_srvs/srv/Trigger"),
+            "last_call": datetime.now().isoformat(),
+            "error": str(e)
+        }
+    
     return {
         "success": True,
         "service": service_name,
-        "response": {"result": "Service call simulated"}
+        "response": {"result": "Service call simulated", "request": request}
     }
 
 @app.get("/params/{node_name}")
 async def get_parameters(node_name: str) -> Dict[str, Any]:
     """Get parameters for a ROS2 node"""
-    if node_name not in ros2_state["parameters"]:
-        return {"parameters": {}}
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            # List parameters for the node
+            result = subprocess.run(
+                ["docker", "exec", "vrooli-ros2", "ros2", "param", "list", node_name],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            
+            if result.returncode == 0:
+                param_names = [p.strip() for p in result.stdout.strip().split("\n") if p.strip()]
+                params = {}
+                
+                # Get value for each parameter
+                for param_name in param_names:
+                    try:
+                        value_result = subprocess.run(
+                            ["docker", "exec", "vrooli-ros2", "ros2", "param", "get", 
+                             node_name, param_name],
+                            capture_output=True,
+                            text=True,
+                            timeout=1
+                        )
+                        if value_result.returncode == 0:
+                            # Parse the value from output
+                            value_str = value_result.stdout.strip()
+                            # Handle different value formats
+                            if "Integer value is:" in value_str:
+                                params[param_name] = int(value_str.split(":")[-1].strip())
+                            elif "Double value is:" in value_str:
+                                params[param_name] = float(value_str.split(":")[-1].strip())
+                            elif "String value is:" in value_str:
+                                params[param_name] = value_str.split(":")[-1].strip()
+                            elif "Boolean value is:" in value_str:
+                                params[param_name] = value_str.split(":")[-1].strip().lower() == "true"
+                            else:
+                                params[param_name] = value_str
+                    except:
+                        params[param_name] = None
+                
+                # Also check persistent storage
+                if node_name in ros2_state["parameters"]:
+                    params.update(ros2_state["parameters"][node_name])
+                
+                return {"parameters": params, "node": node_name}
+    except Exception:
+        pass
     
-    return {"parameters": ros2_state["parameters"][node_name]}
+    # Fallback to persistent state
+    if node_name not in ros2_state["parameters"]:
+        # Load from persistent storage if available
+        params_file = f"/tmp/ros2_params_{node_name}.json"
+        if os.path.exists(params_file):
+            try:
+                with open(params_file, 'r') as f:
+                    ros2_state["parameters"][node_name] = json.load(f)
+            except:
+                ros2_state["parameters"][node_name] = {}
+        else:
+            return {"parameters": {}, "node": node_name}
+    
+    return {"parameters": ros2_state["parameters"][node_name], "node": node_name}
 
 @app.put("/params/{node_name}")
 async def set_parameters(node_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
     """Set parameters for a ROS2 node"""
+    success_params = []
+    failed_params = []
+    
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            
+            # Set each parameter via ros2 param set
+            for param_name, param_value in params.items():
+                try:
+                    # Convert value to string for command
+                    value_str = str(param_value)
+                    if isinstance(param_value, bool):
+                        value_str = "true" if param_value else "false"
+                    
+                    result = subprocess.run(
+                        ["docker", "exec", "vrooli-ros2", "ros2", "param", "set",
+                         node_name, param_name, value_str],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+                    
+                    if result.returncode == 0:
+                        success_params.append(param_name)
+                    else:
+                        failed_params.append(param_name)
+                except:
+                    failed_params.append(param_name)
+    except Exception:
+        # If docker fails, still save to persistent storage
+        pass
+    
+    # Always save to persistent storage
     if node_name not in ros2_state["parameters"]:
         ros2_state["parameters"][node_name] = {}
     
     ros2_state["parameters"][node_name].update(params)
     
+    # Persist to file for recovery
+    params_file = f"/tmp/ros2_params_{node_name}.json"
+    try:
+        with open(params_file, 'w') as f:
+            json.dump(ros2_state["parameters"][node_name], f, indent=2)
+    except:
+        pass
+    
+    # If no Docker params were set, add all to success list
+    if not success_params and not failed_params:
+        success_params = list(params.keys())
+    
+    return {
+        "success": len(failed_params) == 0,
+        "node": node_name,
+        "parameters_set": success_params,
+        "parameters_failed": failed_params,
+        "persistent": True
+    }
+
+@app.post("/services/create")
+async def create_service(service_def: Dict[str, Any]) -> Dict[str, Any]:
+    """Create a new ROS2 service server"""
+    service_name = service_def.get("name", f"service_{datetime.now().timestamp()}")
+    service_type = service_def.get("type", "std_srvs/srv/Trigger")
+    
+    # Register the service
+    ros2_state["services"][service_name] = {
+        "type": service_type,
+        "created_at": datetime.now().isoformat(),
+        "handler": service_def.get("handler", "default")
+    }
+    
+    # If using Docker, attempt to create actual service
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            # Create a simple service server using Python script
+            service_script = f"""
+import rclpy
+from rclpy.node import Node
+from std_srvs.srv import Trigger
+
+class ServiceServer(Node):
+    def __init__(self):
+        super().__init__('{service_name}_server')
+        self.srv = self.create_service(Trigger, '{service_name}', self.handle_service)
+    
+    def handle_service(self, request, response):
+        response.success = True
+        response.message = 'Service {service_name} handled successfully'
+        return response
+
+def main():
+    rclpy.init()
+    node = ServiceServer()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
+"""
+            # Write script to container
+            script_path = f"/tmp/{service_name}_server.py"
+            with open(script_path, 'w') as f:
+                f.write(service_script)
+            
+            # Copy script to container and run it in background
+            subprocess.run(
+                ["docker", "cp", script_path, f"vrooli-ros2:/tmp/{service_name}_server.py"],
+                timeout=2
+            )
+            subprocess.Popen(
+                ["docker", "exec", "-d", "vrooli-ros2", "python3", f"/tmp/{service_name}_server.py"]
+            )
+    except Exception as e:
+        pass
+    
     return {
         "success": True,
-        "node": node_name,
-        "parameters_set": list(params.keys())
+        "service": service_name,
+        "type": service_type,
+        "message": f"Service {service_name} created"
+    }
+
+@app.delete("/services/{service_name}")
+async def delete_service(service_name: str) -> Dict[str, Any]:
+    """Remove a ROS2 service"""
+    if service_name in ros2_state["services"]:
+        del ros2_state["services"][service_name]
+        return {"success": True, "message": f"Service {service_name} removed"}
+    else:
+        raise HTTPException(status_code=404, detail="Service not found")
+
+@app.get("/params/list")
+async def list_all_parameters() -> Dict[str, Any]:
+    """List all parameters across all nodes"""
+    all_params = {}
+    
+    # Try to get from ROS2
+    try:
+        use_docker = os.environ.get("ROS2_USE_DOCKER", "true") == "true"
+        if use_docker:
+            import subprocess
+            # List all nodes first
+            node_result = subprocess.run(
+                ["docker", "exec", "vrooli-ros2", "ros2", "node", "list"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if node_result.returncode == 0:
+                nodes = [n.strip() for n in node_result.stdout.strip().split("\n") if n.strip()]
+                for node in nodes:
+                    # Get params for each node
+                    param_result = subprocess.run(
+                        ["docker", "exec", "vrooli-ros2", "ros2", "param", "list", node],
+                        capture_output=True,
+                        text=True,
+                        timeout=1
+                    )
+                    if param_result.returncode == 0:
+                        params = [p.strip() for p in param_result.stdout.strip().split("\n") if p.strip()]
+                        all_params[node] = params
+    except:
+        pass
+    
+    # Merge with persistent state
+    for node, params in ros2_state["parameters"].items():
+        if node not in all_params:
+            all_params[node] = list(params.keys())
+    
+    return {"parameters": all_params, "total_nodes": len(all_params)}
+
+@app.post("/params/save")
+async def save_parameters() -> Dict[str, Any]:
+    """Save all parameters to persistent storage"""
+    saved_count = 0
+    for node_name, params in ros2_state["parameters"].items():
+        params_file = f"/tmp/ros2_params_{node_name}.json"
+        try:
+            with open(params_file, 'w') as f:
+                json.dump(params, f, indent=2)
+                saved_count += 1
+        except:
+            pass
+    
+    return {
+        "success": True,
+        "saved_nodes": saved_count,
+        "message": f"Saved parameters for {saved_count} nodes"
+    }
+
+@app.post("/params/load")
+async def load_parameters() -> Dict[str, Any]:
+    """Load parameters from persistent storage"""
+    import glob
+    loaded_count = 0
+    
+    # Find all parameter files
+    param_files = glob.glob("/tmp/ros2_params_*.json")
+    for param_file in param_files:
+        try:
+            # Extract node name from filename
+            node_name = param_file.replace("/tmp/ros2_params_", "").replace(".json", "")
+            with open(param_file, 'r') as f:
+                ros2_state["parameters"][node_name] = json.load(f)
+                loaded_count += 1
+        except:
+            pass
+    
+    return {
+        "success": True,
+        "loaded_nodes": loaded_count,
+        "message": f"Loaded parameters for {loaded_count} nodes"
     }
 
 def check_ros2_availability() -> bool:

@@ -18,8 +18,7 @@ source "${CODEX_CONTENT_DIR}/tools/registry.sh" 2>/dev/null || true
 source "${CODEX_CONTENT_DIR}/workspace/manager.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${CODEX_CONTENT_DIR}/settings.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${CODEX_CONTENT_DIR}/agents.sh" 2>/dev/null || true
+# Agent management is now handled via unified system (see cli.sh)
 
 #######################################
 # Add content (Python script) to Codex
@@ -432,7 +431,12 @@ codex::content::execute() {
     
     if [[ "$skip_permissions" == true ]]; then
         export CODEX_SKIP_CONFIRMATIONS="true"
+        export CODEX_SKIP_PERMISSIONS="true"
+        export CODEX_ALLOWED_TOOLS="*"
+        export CODEX_CLI_MODE="yolo"
+        export CODEX_CLI_SANDBOX="danger-full-access"
         log::warn "⚠️  WARNING: Permission checks are disabled!"
+        log::warn "⚠️  Codex CLI mode forced to YOLO with full sandbox bypass."
     fi
     
     # Determine capability based on operation

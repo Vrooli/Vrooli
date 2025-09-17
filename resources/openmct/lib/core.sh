@@ -116,17 +116,18 @@ RUN git clone https://github.com/nasa/openmct.git . && \
     git checkout v2.2.2
 
 # Install npm dependencies
-RUN npm install
+RUN npm install && npm install sqlite3 ws express
 
 # Copy custom configuration
 COPY server.js /app/server.js
 COPY telemetry-server.js /app/telemetry-server.js
+COPY index.html /app/index.html
 
 # Create data directory
 RUN mkdir -p /data
 
 # Expose ports
-EXPOSE 8099 8100
+EXPOSE 8099 8198
 
 # Start server
 CMD ["node", "server.js"]
@@ -142,7 +143,7 @@ const http = require('http');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server, port: 8100 });
+const wss = new WebSocket.Server({ port: process.env.OPENMCT_WS_PORT || 8198 });
 
 const PORT = process.env.OPENMCT_PORT || 8099;
 const DATA_DIR = process.env.OPENMCT_DATA_DIR || '/data';
@@ -152,6 +153,19 @@ const db = new sqlite3.Database(path.join(DATA_DIR, 'telemetry.db'));
 
 // Middleware
 app.use(express.json());
+
+// Serve Open MCT dist files
+app.use('/openmct.js', express.static(path.join(__dirname, 'dist/openmct.js')));
+app.use('/openmct.js.map', express.static(path.join(__dirname, 'dist/openmct.js.map')));
+app.use('/espresso-theme.css', express.static(path.join(__dirname, 'dist/espresso-theme.css')));
+app.use('/snow-theme.css', express.static(path.join(__dirname, 'dist/snow-theme.css')));
+
+// Serve custom index
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Serve static files from dist
 app.use(express.static(path.join(__dirname, 'dist')));
 
 // Health check endpoint
@@ -262,7 +276,7 @@ wss.on('connection', (ws) => {
 // Start server
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Open MCT server running on port ${PORT}`);
-    console.log(`WebSocket server running on port 8100`);
+    console.log(`WebSocket server running on port ${process.env.OPENMCT_WS_PORT || 8198}`);
     
     // Start demo telemetry if enabled
     if (process.env.OPENMCT_ENABLE_DEMO === 'true') {
@@ -392,11 +406,12 @@ start_openmct() {
         --name "$OPENMCT_CONTAINER_NAME" \
         --restart "$OPENMCT_RESTART_POLICY" \
         -p "${OPENMCT_PORT}:8099" \
-        -p "${OPENMCT_WS_PORT}:8100" \
+        -p "${OPENMCT_WS_PORT}:${OPENMCT_WS_PORT}" \
         -v "${OPENMCT_DATA_DIR}:/data" \
         -v "${OPENMCT_CONFIG_DIR}:/config" \
         -v "${OPENMCT_PLUGINS_DIR}:/plugins" \
         -e OPENMCT_PORT="$OPENMCT_PORT" \
+        -e OPENMCT_WS_PORT="$OPENMCT_WS_PORT" \
         -e OPENMCT_DATA_DIR="/data" \
         -e OPENMCT_ENABLE_DEMO="$OPENMCT_ENABLE_DEMO" \
         -e OPENMCT_MAX_STREAMS="$OPENMCT_MAX_STREAMS" \

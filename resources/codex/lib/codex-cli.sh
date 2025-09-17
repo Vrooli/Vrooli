@@ -104,7 +104,8 @@ codex::cli::update() {
 #   0 on success, 1 on failure
 #######################################
 codex::cli::configure() {
-    local config_dir="$HOME/.codex"
+    local config_dir
+    config_dir=$(codex::ensure_home | tail -n1)
     local config_file="$config_dir/config.toml"
     
     # Get API key
@@ -196,36 +197,104 @@ codex::cli::execute() {
     log::info "Workspace: $workspace"
     
     # Save prompt to file for complex inputs
-    local prompt_file="$workspace/prompt-$$.txt"
-    echo "$prompt" > "$prompt_file"
-    
-    # Execute with Codex CLI
-    cd "$workspace" || return 1
-    
-    # Run Codex with appropriate flags
+    mkdir -p "$workspace"
+
+    local codex_home
+    codex_home=$(codex::ensure_home | tail -n1)
+
+    local original_home="$HOME"
+    local home_overridden=false
+    if [[ "${CODEX_HOME_OVERRIDE_REQUIRED:-false}" == "true" ]]; then
+        export HOME="$codex_home"
+        home_overridden=true
+    fi
+
+    local prompt_file="$workspace/codex-prompt-$$.txt"
+    printf '%s\n' "$prompt" > "$prompt_file"
+
+    local marker_file="$workspace/.codex-run-$$.marker"
+    : > "$marker_file"
+    trap "rm -f '$prompt_file' '$marker_file'" RETURN
+
+    local model="${CODEX_DEFAULT_MODEL:-codex-mini-latest}"
+    local sandbox="${CODEX_CLI_SANDBOX:-workspace-write}"
+    local approval_policy="${mode:-auto}"
+    local codex_args=("codex" "exec" "-m" "$model" "-C" "$workspace" "--skip-git-repo-check")
+
+    case "$approval_policy" in
+        ""|auto)
+            codex_args+=("--full-auto")
+            ;;
+        approve|on-request)
+            codex_args+=("-s" "$sandbox" "-a" "on-request")
+            ;;
+        never|always)
+            codex_args+=("-s" "$sandbox" "-a" "never")
+            ;;
+        yolo)
+            codex_args+=("--dangerously-bypass-approvals-and-sandbox")
+            ;;
+        on-failure|untrusted)
+            codex_args+=("-s" "$sandbox" "-a" "$approval_policy")
+            ;;
+        *)
+            codex_args+=("-s" "$sandbox" "-a" "$approval_policy")
+            ;;
+    esac
+
+    if [[ "$sandbox" == "workspace-write" && "$approval_policy" != "yolo" ]]; then
+        codex_args+=("-c" "sandbox_workspace_write.network_access=true")
+    fi
+
+    if [[ -n "${CODEX_MAX_TURNS:-}" ]]; then
+        codex_args+=("-c" "conversation.max_turns=${CODEX_MAX_TURNS}")
+    fi
+
+    if [[ -n "${CODEX_CLI_EXTRA_ARGS:-}" ]]; then
+        # shellcheck disable=SC2206
+        codex_args+=(${CODEX_CLI_EXTRA_ARGS})
+    fi
+
+    # Ensure API key available for CLI
+    local api_key
+    api_key=$(codex::get_api_key)
+    if [[ -n "$api_key" ]]; then
+        export OPENAI_API_KEY="$api_key"
+    fi
+
+    export CODEX_HOME="$codex_home"
+
     local exit_code
-    codex \
-        --mode "$mode" \
-        --model "${CODEX_DEFAULT_MODEL:-codex-mini-latest}" \
-        --file "$prompt_file"
-    exit_code=$?
-    
-    # Cleanup
-    rm -f "$prompt_file"
-    
-    if [[ $exit_code -eq 0 ]]; then
+    local task_timeout="${CODEX_TIMEOUT:-}"
+    if [[ -n "$task_timeout" && "$task_timeout" =~ ^[0-9]+$ && "$task_timeout" -gt 0 ]]; then
+        timeout "$task_timeout" "${codex_args[@]}" < "$prompt_file"
+        exit_code=$?
+    else
+        "${codex_args[@]}" < "$prompt_file"
+        exit_code=$?
+    fi
+
+    if [[ $exit_code -eq 124 ]]; then
+        log::error "Codex agent timed out after ${task_timeout}s"
+    elif [[ $exit_code -eq 0 ]]; then
         log::success "Codex agent completed successfully"
-        
-        # Show created files
-        local files_created=$(find "$workspace" -type f -newer "$prompt_file" 2>/dev/null | wc -l)
-        if [[ $files_created -gt 0 ]]; then
-            log::info "Files created in workspace:"
-            ls -la "$workspace"
+
+        local new_files
+        new_files=$(find "$workspace" -type f -newer "$marker_file" ! -samefile "$prompt_file" 2>/dev/null || true)
+        if [[ -n "$new_files" ]]; then
+            log::info "Files created/modified in workspace:"
+            echo "$new_files"
         fi
     else
         log::error "Codex agent failed with exit code: $exit_code"
     fi
-    
+
+    rm -f "$prompt_file" "$marker_file"
+
+    if [[ "$home_overridden" == true ]]; then
+        export HOME="$original_home"
+    fi
+
     return $exit_code
 }
 
@@ -240,17 +309,24 @@ codex::cli::execute() {
 codex::cli::execute_with_model() {
     local model="$1"
     local prompt="$2"
-    
+    local exec_mode="${3:-}" 
+
     # Temporarily override model
     local old_model="$CODEX_DEFAULT_MODEL"
     export CODEX_DEFAULT_MODEL="$model"
-    
-    codex::cli::execute "$prompt"
-    local result=$?
-    
+
+    local result
+    if [[ -n "$exec_mode" ]]; then
+        codex::cli::execute "$prompt" "$exec_mode"
+        result=$?
+    else
+        codex::cli::execute "$prompt"
+        result=$?
+    fi
+
     # Restore old model
     export CODEX_DEFAULT_MODEL="$old_model"
-    
+
     return $result
 }
 
@@ -333,6 +409,10 @@ codex::cli::status() {
     echo "Codex CLI Status:"
     echo "----------------"
     
+    local codex_home
+    codex_home=$(codex::ensure_home | tail -n1)
+    local config_file="${codex_home}/config.toml"
+    
     # Check installation
     if codex::cli::is_installed; then
         echo "✅ Installed: $(codex::cli::version)"
@@ -343,11 +423,11 @@ codex::cli::status() {
     fi
     
     # Check configuration
-    if [[ -f "$HOME/.codex/config.toml" ]]; then
+    if [[ -f "$config_file" ]]; then
         echo "✅ Configured"
         
         # Show current model
-        local model=$(grep "^model = " "$HOME/.codex/config.toml" 2>/dev/null | cut -d'"' -f2)
+        local model=$(grep "^model = " "$config_file" 2>/dev/null | cut -d'"' -f2)
         echo "   Model: ${model:-unknown}"
     else
         echo "⚠️  Not configured"
@@ -371,7 +451,11 @@ codex::cli::status() {
     else
         echo "   Workspace: $workspace (not created yet)"
     fi
-    
+
+    echo "   Codex home: $codex_home"
+    echo "   Max turns: ${CODEX_MAX_TURNS:-auto}"
+    echo "   Timeout: ${CODEX_TIMEOUT:-auto}"
+
     return 0
 }
 

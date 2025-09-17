@@ -103,7 +103,7 @@ zigbee2mqtt::status() {
             
             echo ""
             echo "Health Check:"
-            if timeout 5 curl -sf "http://localhost:${ZIGBEE2MQTT_PORT}/api/health" &>/dev/null; then
+            if timeout 5 curl -sf "http://localhost:${ZIGBEE2MQTT_PORT}/" &>/dev/null; then
                 echo "  API: Healthy"
             else
                 echo "  API: Not responding"
@@ -187,6 +187,7 @@ zigbee2mqtt::start() {
     fi
     
     # Start container (with or without device)
+    # Port 8090 is for the API, 8080 is for the Web UI
     docker run -d \
         --name "${ZIGBEE2MQTT_CONTAINER}" \
         --restart unless-stopped \
@@ -201,7 +202,7 @@ zigbee2mqtt::start() {
         log::info "Waiting for Zigbee2MQTT to be ready..."
         local attempts=0
         while [[ $attempts -lt 30 ]]; do
-            if timeout 5 curl -sf "http://localhost:${ZIGBEE2MQTT_PORT}/api/health" &>/dev/null; then
+            if timeout 5 curl -sf "http://localhost:${ZIGBEE2MQTT_PORT}/" &>/dev/null; then
                 log::success "Zigbee2MQTT is ready"
                 return 0
             fi
@@ -300,8 +301,13 @@ frontend:
 # Permit join (disabled by default for security)
 permit_join: false
 
-# Home Assistant integration
+# Home Assistant integration with MQTT discovery
 homeassistant: true
+
+# Enable MQTT discovery for auto-configuration  
+device_options:
+  retain: true
+  qos: 1
 
 # Device availability
 availability:
@@ -614,6 +620,504 @@ zigbee2mqtt::device::temperature() {
 }
 
 ################################################################################
+# Groups & Scenes Management
+################################################################################
+
+# Create a device group
+zigbee2mqtt::group::create() {
+    local group_name="${1:-}"
+    shift || true
+    local devices=("$@")
+    
+    if [[ -z "$group_name" ]] || [[ ${#devices[@]} -eq 0 ]]; then
+        log::error "Usage: group create <group_name> <device1> [device2 ...]"
+        return 1
+    fi
+    
+    log::info "Creating group: $group_name"
+    
+    # Build devices array for JSON
+    local devices_json=$(printf '"%s",' "${devices[@]}")
+    devices_json="[${devices_json%,}]"
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/group/add" \
+        -H "Content-Type: application/json" \
+        -d "{\"friendly_name\": \"${group_name}\", \"devices\": ${devices_json}}" || {
+        log::error "Failed to create group"
+        return 1
+    }
+    
+    log::success "Group '$group_name' created with ${#devices[@]} devices"
+}
+
+# List all groups
+zigbee2mqtt::group::list() {
+    log::info "Listing groups..."
+    
+    curl -sf "http://localhost:${ZIGBEE2MQTT_PORT}/api/groups" | jq -r '.[] | "\(.friendly_name) - \(.members | length) devices"' || {
+        log::warning "No groups found or failed to retrieve"
+        return 1
+    }
+}
+
+# Control a group
+zigbee2mqtt::group::control() {
+    local group="${1:-}"
+    local state="${2:-}"
+    
+    if [[ -z "$group" ]] || [[ -z "$state" ]]; then
+        log::error "Usage: group control <group_name> <on|off|toggle>"
+        return 1
+    fi
+    
+    log::info "Setting group '$group' to $state"
+    
+    local payload
+    if [[ "$state" == "toggle" ]]; then
+        payload='{"state": "TOGGLE"}'
+    else
+        payload="{\"state\": \"${state^^}\"}"
+    fi
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/group/${group}/set" \
+        -H "Content-Type: application/json" \
+        -d "$payload" || {
+        log::error "Failed to control group"
+        return 1
+    }
+    
+    log::success "Group '$group' set to $state"
+}
+
+# Remove a group
+zigbee2mqtt::group::remove() {
+    local group="${1:-}"
+    
+    if [[ -z "$group" ]]; then
+        log::error "Group name required"
+        return 1
+    fi
+    
+    log::info "Removing group: $group"
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/group/remove" \
+        -H "Content-Type: application/json" \
+        -d "{\"id\": \"${group}\"}" || {
+        log::error "Failed to remove group"
+        return 1
+    }
+    
+    log::success "Group '$group' removed"
+}
+
+# Create a scene
+zigbee2mqtt::scene::create() {
+    local scene_name="${1:-}"
+    local group="${2:-}"
+    
+    if [[ -z "$scene_name" ]] || [[ -z "$group" ]]; then
+        log::error "Usage: scene create <scene_name> <group_name>"
+        echo "Note: Scene will capture current state of all devices in the group"
+        return 1
+    fi
+    
+    log::info "Creating scene '$scene_name' for group '$group'..."
+    echo "Capturing current device states..."
+    
+    # Store current state as scene
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/scene/store" \
+        -H "Content-Type: application/json" \
+        -d "{\"id\": \"${scene_name}\", \"group\": \"${group}\"}" || {
+        log::error "Failed to create scene"
+        return 1
+    }
+    
+    log::success "Scene '$scene_name' created"
+}
+
+# Recall/activate a scene
+zigbee2mqtt::scene::recall() {
+    local scene_name="${1:-}"
+    
+    if [[ -z "$scene_name" ]]; then
+        log::error "Scene name required"
+        return 1
+    fi
+    
+    log::info "Activating scene: $scene_name"
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/scene/recall" \
+        -H "Content-Type: application/json" \
+        -d "{\"id\": \"${scene_name}\"}" || {
+        log::error "Failed to activate scene"
+        return 1
+    }
+    
+    log::success "Scene '$scene_name' activated"
+}
+
+################################################################################
+# OTA Firmware Updates
+################################################################################
+
+# Check for firmware updates
+zigbee2mqtt::ota::check() {
+    local device="${1:-all}"
+    
+    log::info "Checking for firmware updates..."
+    
+    if [[ "$device" == "all" ]]; then
+        # Check all devices
+        curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/device/ota_update/check" \
+            -H "Content-Type: application/json" \
+            -d '{"id": "all"}' 2>/dev/null | jq '.' || {
+            log::error "Failed to check for updates"
+            return 1
+        }
+    else
+        # Check specific device
+        curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/device/ota_update/check" \
+            -H "Content-Type: application/json" \
+            -d "{\"id\": \"${device}\"}" 2>/dev/null | jq '.' || {
+            log::error "Failed to check for updates"
+            return 1
+        }
+    fi
+}
+
+# Update device firmware
+zigbee2mqtt::ota::update() {
+    local device="${1:-}"
+    
+    if [[ -z "$device" ]]; then
+        log::error "Device name required"
+        echo "Usage: ota update <device_name>"
+        return 1
+    fi
+    
+    log::warning "Firmware update will take 5-30 minutes and device may be unresponsive"
+    read -p "Continue with firmware update for $device? (y/N): " -n 1 -r
+    echo
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log::info "Update cancelled"
+        return 0
+    fi
+    
+    log::info "Starting firmware update for $device..."
+    echo "DO NOT power off the device during update!"
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/device/ota_update/update" \
+        -H "Content-Type: application/json" \
+        -d "{\"id\": \"${device}\"}" || {
+        log::error "Failed to start firmware update"
+        return 1
+    }
+    
+    log::info "Firmware update initiated. Check logs for progress:"
+    echo "  vrooli resource zigbee2mqtt logs --follow"
+}
+
+################################################################################
+# Touchlink Support
+################################################################################
+
+# Scan for Touchlink devices
+zigbee2mqtt::touchlink::scan() {
+    log::info "Scanning for Touchlink devices..."
+    echo "Bring your Touchlink device within 10cm of the coordinator"
+    echo "Scanning for 20 seconds..."
+    
+    # Start Touchlink scan via API
+    local response=$(curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/touchlink/scan" \
+        -H "Content-Type: application/json" \
+        -d '{}' 2>/dev/null)
+    
+    if [[ -n "$response" ]]; then
+        echo "$response" | jq -r '.data.found[] | "Found: \(.ieee_address) - Channel: \(.channel)"' 2>/dev/null || {
+            log::warning "No Touchlink devices found"
+            return 1
+        }
+        log::success "Scan complete. Use 'touchlink identify' to identify specific devices"
+    else
+        log::error "Touchlink scan failed - ensure coordinator supports Touchlink"
+        return 1
+    fi
+}
+
+# Identify Touchlink device (blink/flash)
+zigbee2mqtt::touchlink::identify() {
+    local device="${1:-}"
+    local duration="${2:-10}"
+    
+    if [[ -z "$device" ]]; then
+        log::error "Device IEEE address required"
+        echo "Usage: touchlink identify <ieee_address> [duration]"
+        echo "Get IEEE address from 'touchlink scan' command"
+        return 1
+    fi
+    
+    log::info "Identifying device $device for ${duration} seconds..."
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/touchlink/identify" \
+        -H "Content-Type: application/json" \
+        -d "{\"ieee_address\": \"${device}\", \"duration\": ${duration}}" || {
+        log::error "Failed to identify device"
+        return 1
+    }
+    
+    log::success "Device should be blinking/flashing now"
+}
+
+# Reset Touchlink device to factory defaults
+zigbee2mqtt::touchlink::reset() {
+    local device="${1:-}"
+    
+    if [[ -z "$device" ]]; then
+        log::error "Device IEEE address required"
+        echo "Usage: touchlink reset <ieee_address>"
+        return 1
+    fi
+    
+    log::warning "This will factory reset device $device"
+    read -p "Continue? (y/N): " -n 1 -r
+    echo
+    
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log::info "Reset cancelled"
+        return 0
+    fi
+    
+    log::info "Resetting device to factory defaults..."
+    
+    curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/touchlink/factory_reset" \
+        -H "Content-Type: application/json" \
+        -d "{\"ieee_address\": \"${device}\"}" || {
+        log::error "Failed to reset device"
+        return 1
+    }
+    
+    log::success "Device reset to factory defaults"
+    echo "Device can now be paired to a new network"
+}
+
+################################################################################
+# External Converters Support
+################################################################################
+
+# Add external converter for unsupported device
+zigbee2mqtt::converter::add() {
+    local converter_file="${1:-}"
+    
+    if [[ -z "$converter_file" ]] || [[ ! -f "$converter_file" ]]; then
+        log::error "Valid converter file required"
+        echo "Usage: converter add <converter_file.js>"
+        echo ""
+        echo "Example converter structure:"
+        echo "  const definition = {"
+        echo "    zigbeeModel: ['Device Model'],"
+        echo "    model: 'Custom Device',"
+        echo "    vendor: 'Custom Vendor',"
+        echo "    description: 'Custom device description',"
+        echo "    fromZigbee: [],"
+        echo "    toZigbee: [],"
+        echo "    exposes: []"
+        echo "  };"
+        echo "  module.exports = definition;"
+        return 1
+    fi
+    
+    # Create external converters directory
+    local converters_dir="${ZIGBEE2MQTT_DATA_DIR}/external_converters"
+    mkdir -p "$converters_dir"
+    
+    # Copy converter file
+    local converter_name="$(basename "$converter_file")"
+    cp "$converter_file" "$converters_dir/$converter_name"
+    
+    # Update configuration to include external converters
+    local config_file="${ZIGBEE2MQTT_DATA_DIR}/configuration.yaml"
+    
+    # Check if external_converters is already in config
+    if ! grep -q "external_converters:" "$config_file"; then
+        echo "" >> "$config_file"
+        echo "# External device converters" >> "$config_file"
+        echo "external_converters:" >> "$config_file"
+        echo "  - external_converters/${converter_name}" >> "$config_file"
+    else
+        # Add to existing external_converters list
+        sed -i "/external_converters:/a\  - external_converters/${converter_name}" "$config_file"
+    fi
+    
+    log::success "External converter added: $converter_name"
+    echo "Restart Zigbee2MQTT to load the converter:"
+    echo "  vrooli resource zigbee2mqtt manage restart"
+}
+
+# List external converters
+zigbee2mqtt::converter::list() {
+    local converters_dir="${ZIGBEE2MQTT_DATA_DIR}/external_converters"
+    
+    if [[ ! -d "$converters_dir" ]] || [[ -z "$(ls -A "$converters_dir" 2>/dev/null)" ]]; then
+        log::info "No external converters installed"
+        return 0
+    fi
+    
+    log::info "External converters:"
+    ls -la "$converters_dir" | grep -E "\.js$" | awk '{print "  - " $NF}'
+}
+
+# Remove external converter
+zigbee2mqtt::converter::remove() {
+    local converter_name="${1:-}"
+    
+    if [[ -z "$converter_name" ]]; then
+        log::error "Converter name required"
+        echo "Usage: converter remove <converter_name.js>"
+        return 1
+    fi
+    
+    local converters_dir="${ZIGBEE2MQTT_DATA_DIR}/external_converters"
+    local converter_file="$converters_dir/$converter_name"
+    
+    if [[ ! -f "$converter_file" ]]; then
+        log::error "Converter not found: $converter_name"
+        return 1
+    fi
+    
+    # Remove file
+    rm "$converter_file"
+    
+    # Remove from configuration
+    local config_file="${ZIGBEE2MQTT_DATA_DIR}/configuration.yaml"
+    sed -i "/external_converters\/${converter_name}/d" "$config_file"
+    
+    log::success "External converter removed: $converter_name"
+    echo "Restart Zigbee2MQTT to apply changes"
+}
+
+# Generate converter template for new device
+zigbee2mqtt::converter::generate() {
+    local model="${1:-}"
+    local vendor="${2:-}"
+    local output="${3:-custom_device.js}"
+    
+    if [[ -z "$model" ]] || [[ -z "$vendor" ]]; then
+        log::error "Model and vendor required"
+        echo "Usage: converter generate <model> <vendor> [output_file]"
+        return 1
+    fi
+    
+    log::info "Generating converter template for $vendor $model..."
+    
+    cat > "$output" << EOF
+// External converter for ${vendor} ${model}
+// Generated by Zigbee2MQTT resource
+
+const fz = require('zigbee-herdsman-converters/converters/fromZigbee');
+const tz = require('zigbee-herdsman-converters/converters/toZigbee');
+const exposes = require('zigbee-herdsman-converters/lib/exposes');
+const reporting = require('zigbee-herdsman-converters/lib/reporting');
+const extend = require('zigbee-herdsman-converters/lib/extend');
+const e = exposes.presets;
+const ea = exposes.access;
+
+const definition = {
+    zigbeeModel: ['${model}'],
+    model: '${model}',
+    vendor: '${vendor}',
+    description: 'Custom ${vendor} ${model} device',
+    // Extend from generic device types if applicable
+    // extend: extend.light_onoff_brightness_colortemp(),
+    
+    // Define what the device sends to Zigbee2MQTT
+    fromZigbee: [
+        fz.on_off,           // For on/off devices
+        // fz.brightness,    // For dimmable lights
+        // fz.color_colortemp, // For color lights
+        // fz.temperature,   // For temperature sensors
+        // fz.humidity,      // For humidity sensors
+        // fz.battery,       // For battery powered devices
+    ],
+    
+    // Define what Zigbee2MQTT can send to device
+    toZigbee: [
+        tz.on_off,           // For controllable on/off
+        // tz.light_brightness, // For brightness control
+        // tz.light_colortemp, // For color temperature
+        // tz.light_color,   // For RGB color
+    ],
+    
+    // Define what capabilities to expose in UI/MQTT
+    exposes: [
+        e.switch(),          // On/off switch
+        // e.light_brightness(), // Dimmable light
+        // e.light_brightness_colortemp(), // Light with brightness and color temp
+        // e.temperature(),  // Temperature sensor
+        // e.humidity(),     // Humidity sensor
+        // e.battery(),      // Battery level
+    ],
+    
+    // Optional: Configure device-specific settings
+    configure: async (device, coordinatorEndpoint, logger) => {
+        const endpoint = device.getEndpoint(1);
+        // Configure reporting intervals
+        await reporting.bind(endpoint, coordinatorEndpoint, ['genOnOff']);
+        await reporting.onOff(endpoint);
+    },
+};
+
+module.exports = definition;
+EOF
+    
+    log::success "Converter template generated: $output"
+    echo ""
+    echo "Next steps:"
+    echo "1. Edit $output to match your device capabilities"
+    echo "2. Test with: vrooli resource zigbee2mqtt converter add $output"
+    echo "3. Restart Zigbee2MQTT and pair your device"
+}
+
+################################################################################
+# Home Assistant Integration
+################################################################################
+
+# Enable/disable Home Assistant discovery
+zigbee2mqtt::homeassistant::discovery() {
+    local action="${1:-status}"
+    
+    case "$action" in
+        enable)
+            log::info "Enabling Home Assistant discovery..."
+            # Update configuration to enable discovery
+            sed -i 's/homeassistant: false/homeassistant: true/' "${ZIGBEE2MQTT_DATA_DIR}/configuration.yaml"
+            zigbee2mqtt::restart
+            log::success "Home Assistant discovery enabled"
+            echo "Devices will now be auto-discovered by Home Assistant via MQTT"
+            ;;
+        disable)
+            log::info "Disabling Home Assistant discovery..."
+            # Update configuration to disable discovery
+            sed -i 's/homeassistant: true/homeassistant: false/' "${ZIGBEE2MQTT_DATA_DIR}/configuration.yaml"
+            zigbee2mqtt::restart
+            log::success "Home Assistant discovery disabled"
+            ;;
+        status)
+            if grep -q "homeassistant: true" "${ZIGBEE2MQTT_DATA_DIR}/configuration.yaml"; then
+                echo "Home Assistant discovery: ENABLED"
+                echo "Discovery topics: homeassistant/+/+/config"
+            else
+                echo "Home Assistant discovery: DISABLED"
+            fi
+            ;;
+        *)
+            log::error "Usage: homeassistant discovery <enable|disable|status>"
+            return 1
+            ;;
+    esac
+}
+
+################################################################################
 # Network Management
 ################################################################################
 
@@ -629,17 +1133,36 @@ zigbee2mqtt::network::map() {
 
 # Backup coordinator
 zigbee2mqtt::network::backup() {
-    local backup_file="${1:-${ZIGBEE2MQTT_DATA_DIR}/coordinator_backup_$(date +%Y%m%d_%H%M%S).json}"
+    local backup_dir="${ZIGBEE2MQTT_DATA_DIR}/backups"
+    mkdir -p "$backup_dir"
+    
+    local backup_file="${1:-${backup_dir}/coordinator_backup_$(date +%Y%m%d_%H%M%S).json}"
     
     log::info "Creating coordinator backup..."
     
-    curl -sf "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/backup" \
-        -o "$backup_file" || {
-        log::error "Failed to create backup"
+    # Request backup via MQTT bridge
+    local response=$(curl -X POST "http://localhost:${ZIGBEE2MQTT_PORT}/api/bridge/request/backup" \
+        -H "Content-Type: application/json" \
+        -d '{}' 2>/dev/null)
+    
+    if [[ -z "$response" ]]; then
+        log::error "Failed to create backup - no response from Zigbee2MQTT"
         return 1
-    }
+    fi
+    
+    # Save backup to file
+    echo "$response" > "$backup_file"
+    
+    # Also backup the full configuration
+    cp "${ZIGBEE2MQTT_DATA_DIR}/configuration.yaml" "${backup_file%.json}_config.yaml"
     
     log::success "Backup saved to: $backup_file"
+    echo "Configuration backed up to: ${backup_file%.json}_config.yaml"
+    
+    # List recent backups
+    echo ""
+    echo "Recent backups:"
+    ls -lt "$backup_dir" | head -6
 }
 
 # Restore coordinator backup
@@ -660,8 +1183,24 @@ zigbee2mqtt::network::restore() {
         return 0
     fi
     
-    # TODO: Implement restore functionality
-    log::warning "Restore functionality not yet implemented"
+    log::info "Restoring coordinator from backup..."
+    
+    # Stop Zigbee2MQTT first
+    zigbee2mqtt::stop
+    
+    # Backup current state before restore
+    local current_backup="${ZIGBEE2MQTT_DATA_DIR}/backups/pre_restore_$(date +%Y%m%d_%H%M%S).json"
+    cp "${ZIGBEE2MQTT_DATA_DIR}/coordinator_backup.json" "$current_backup" 2>/dev/null || true
+    
+    # Copy backup file to expected location
+    cp "$backup_file" "${ZIGBEE2MQTT_DATA_DIR}/coordinator_backup.json"
+    
+    # Start Zigbee2MQTT with restore
+    zigbee2mqtt::start --wait
+    
+    log::success "Coordinator restored from backup"
+    echo "Previous state backed up to: $current_backup"
+    echo "Network should be restored with all device pairings intact"
 }
 
 # Change Zigbee channel

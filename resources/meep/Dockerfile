@@ -33,9 +33,13 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh &
 
 ENV PATH="/opt/conda/bin:${PATH}"
 
-# Install MEEP with MPI support
-RUN conda install -y -c conda-forge pymeep=*=mpi_mpich_* && \
-    conda install -y -c conda-forge h5py matplotlib flask && \
+# Configure conda to use conda-forge only (avoiding license issues)
+RUN conda config --add channels conda-forge && \
+    conda config --set channel_priority strict && \
+    conda config --remove channels defaults || true
+
+# Install MEEP with MPI support using override channels to avoid ToS issues
+RUN conda install -y --override-channels -c conda-forge pymeep=*=mpi_mpich_* h5py matplotlib flask && \
     conda clean -a -y
 
 # Install additional Python packages
@@ -43,7 +47,9 @@ RUN pip3 install --no-cache-dir \
     fastapi \
     uvicorn \
     pydantic \
-    aiofiles
+    aiofiles \
+    psycopg2-binary \
+    minio
 
 # Create working directory
 WORKDIR /app

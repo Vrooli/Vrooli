@@ -1,6 +1,7 @@
 {
   "name": "ISA Standard Atmosphere",
-  "description": "International Standard Atmosphere model for rocket simulations",
+  "description": "International Standard Atmosphere model (ISO 2533:1975) for rocket flight dynamics",
+  "reference": "ISO 2533:1975",
   "layers": [
     {
       "name": "Troposphere",
@@ -8,7 +9,8 @@
       "temperatureLapse": -0.0065,
       "basePressure": 101325,
       "baseTemperature": 288.15,
-      "baseDensity": 1.225
+      "baseDensity": 1.225,
+      "notes": "Linear temperature decrease with altitude"
     },
     {
       "name": "Tropopause",
@@ -16,7 +18,8 @@
       "temperatureLapse": 0,
       "basePressure": 22632,
       "baseTemperature": 216.65,
-      "baseDensity": 0.3639
+      "baseDensity": 0.3639,
+      "notes": "Isothermal layer"
     },
     {
       "name": "Stratosphere",
@@ -24,12 +27,55 @@
       "temperatureLapse": 0.001,
       "basePressure": 5474.9,
       "baseTemperature": 216.65,
-      "baseDensity": 0.0880
+      "baseDensity": 0.0880,
+      "notes": "Temperature increases with altitude"
     }
   ],
   "constants": {
     "gasConstant": 287.05,
     "gravity": 9.80665,
-    "earthRadius": 6371000
+    "earthRadius": 6371000,
+    "specificHeatRatio": 1.4,
+    "molecularMass": 0.0289644
+  },
+  "windModels": [
+    {
+      "name": "calm",
+      "speedRange": [0, 2],
+      "direction": 0,
+      "turbulenceIntensity": 0.05
+    },
+    {
+      "name": "light",
+      "speedRange": [2, 8],
+      "direction": 270,
+      "turbulenceIntensity": 0.1
+    },
+    {
+      "name": "moderate",
+      "speedRange": [8, 15],
+      "direction": 270,
+      "turbulenceIntensity": 0.2
+    },
+    {
+      "name": "strong",
+      "speedRange": [15, 25],
+      "direction": 270,
+      "turbulenceIntensity": 0.3
+    }
+  ],
+  "dragModels": {
+    "subsonic": {
+      "machRange": [0, 0.8],
+      "dragCoefficient": 0.3
+    },
+    "transonic": {
+      "machRange": [0.8, 1.2],
+      "dragCoefficient": 0.5
+    },
+    "supersonic": {
+      "machRange": [1.2, 5.0],
+      "dragCoefficient": 0.4
+    }
   }
 }

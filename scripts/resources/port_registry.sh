@@ -24,6 +24,7 @@ declare -g -A RESOURCE_PORTS=(
     ["godot"]="11457"          # Godot Engine game development platform (GDScript, 2D/3D engine)
     ["mathlib"]="11458"        # Mathlib4 formal mathematical theorem proving with Lean 4
     ["papermc"]="11459"        # PaperMC Minecraft server health endpoint
+    ["pybullet"]="11460"       # PyBullet physics simulation engine for robotics and ML
     ["ros2"]="11501"           # ROS2 Robot Operating System middleware for distributed robotics
     
     # Automation Services (56xx range)

@@ -23,6 +23,7 @@ Codex provides intelligent code generation through either simple text generation
 - **Multi-step tasks**: Handles complex workflows autonomously
 - **Local execution**: Runs in your terminal with full control
 - **Approval workflow**: Choose automatic or manual approval for actions
+- **Non-interactive pipelines**: Uses `codex exec` under the hood (workspace sandbox + network enabled)
 
 ## Requirements
 
@@ -45,7 +46,13 @@ The resource checks for API keys in this order:
 - `CODEX_DEFAULT_MODEL`: Default model (default: gpt-5-nano)
 - `CODEX_DEFAULT_TEMPERATURE`: Generation temperature (default: 0.2)
 - `CODEX_DEFAULT_MAX_TOKENS`: Maximum tokens (default: 8192)
-- `CODEX_TIMEOUT`: API timeout in seconds (default: 30)
+- `CODEX_TIMEOUT`: End-to-end timeout in seconds (default: 30, apply profiles for longer runs)
+- `CODEX_MAX_TURNS`: Maximum conversation turns before the agent stops (default: 10)
+- `CODEX_ALLOWED_TOOLS`: Comma-separated allow list (e.g. `read_file,write_file,execute_command(git *)`)
+- `CODEX_SKIP_PERMISSIONS`: Set to `true` to disable permission checks (equivalent to `--skip-permissions`)
+- `CODEX_CLI_MODE`: Approval policy for Codex CLI (`auto`, `approve`, `always`, `yolo`)
+- `CODEX_CLI_SANDBOX`: Override sandbox policy passed to `codex exec` (default: `workspace-write`)
+- `CODEX_CLI_EXTRA_ARGS`: Additional raw arguments appended to `codex exec`
 
 ### Available Models (GPT-5 Released August 2025)
 
@@ -141,7 +148,7 @@ resource-codex refactor legacy_code.py "Improve readability and add type hints"
 
 ### Script Injection
 
-Scripts are stored in `~/.codex/scripts/` for processing:
+Scripts are stored in `$CODEX_HOME/scripts/` (default `~/.codex/scripts/`, fallback to `/tmp/codex-workspace/.codex-home/scripts`) for processing:
 
 ```bash
 # Inject a new script
@@ -154,13 +161,20 @@ resource-codex list
 resource-codex run script.py
 ```
 
+### Permission Profiles & Limits
+
+- Use `--allowed-tools` to narrow execution (e.g. `read_file,write_file,execute_command(git *)`).
+- Apply predefined profiles (`safe`, `development`, `admin`) or set `--max-turns` / `--timeout` to cap sessions.
+- `--skip-permissions` (or `CODEX_SKIP_PERMISSIONS=true`) now forces `CODEX_CLI_MODE=yolo` and disables sandboxing, giving Codex full control – combine with care.
+- All agent runs use `codex exec` with workspace sandboxing; network is explicitly enabled for sandbox runs.
+
 ## Directory Structure
 
 - `config/` - Configuration defaults
 - `lib/` - Core functionality libraries
 - `injected/` - Backup of injected scripts
-- `~/.codex/scripts/` - Active script storage
-- `~/.codex/outputs/` - Generated code outputs
+- `$CODEX_HOME/scripts/` - Active script storage
+- `$CODEX_HOME/outputs/` - Generated code outputs
 
 ## Integration
 
@@ -192,6 +206,11 @@ resource-codex status | grep "API Configured"
 curl -H "Authorization: Bearer $OPENAI_API_KEY" \
   https://api.openai.com/v1/models
 ```
+
+### CLI Fails with "failed to initialize rollout recorder"
+
+- Ensure Codex has a writable home directory. The resource automatically falls back to `/tmp/codex-workspace/.codex-home` when `~/.codex` is read-only.
+- You can manually override with `export CODEX_HOME=/path/to/writable/dir` before running agent commands.
 
 ### Model Selection Guide
 

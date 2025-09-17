@@ -28,6 +28,12 @@ vrooli resource keycloak status
 
 # Run tests
 vrooli resource keycloak test all
+
+# Run security validation
+vrooli resource keycloak test security
+
+# Run social provider end-to-end tests
+vrooli resource keycloak test social-e2e
 ```
 
 ## Architecture
@@ -344,12 +350,55 @@ vrooli resource keycloak password-policy force-reset master john.doe
 vrooli resource keycloak password-policy clear master
 ```
 
+## Production Configuration
+
+For production deployments, set these environment variables:
+
+```bash
+# Use secure admin password
+export KEYCLOAK_ADMIN_PASSWORD="your-secure-password"
+
+# Enable production mode
+export KEYCLOAK_ENV="production"
+
+# Load production settings
+source resources/keycloak/config/production.sh
+
+# Start with production configuration
+vrooli resource keycloak manage start
+```
+
+Production settings include:
+- HTTPS-only mode with strict hostname checking
+- PostgreSQL database (required)
+- Increased JVM memory allocation
+- Brute force protection enabled
+- Session timeout configuration
+- Rate limiting enabled
+- Automated backup scheduling
+
+## Security Testing
+
+Run security validation tests:
+```bash
+vrooli resource keycloak test security
+```
+
+Validates:
+- Admin password strength
+- SSL/TLS configuration
+- Security headers
+- Realm security settings
+- Database security
+- Port exposure
+
 ## Documentation
 
 - [Installation Guide](docs/installation.md)
 - [Configuration](docs/configuration.md)
 - [Integration Guide](docs/integration.md)
 - [API Reference](docs/api.md)
+- [Production Setup](config/production.sh)
 
 ## Use Cases
 

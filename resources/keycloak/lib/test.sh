@@ -28,12 +28,25 @@ keycloak::logs() {
 }
 
 keycloak::credentials() {
+    # Source defaults to get actual password
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "${script_dir}/../config/defaults.sh"
+    
+    local password_display="$KEYCLOAK_ADMIN_PASSWORD"
+    
+    # Check if using default password and warn
+    if [[ "$KEYCLOAK_ADMIN_PASSWORD" == "admin" ]]; then
+        log::warning "Using DEFAULT admin password. Consider setting KEYCLOAK_ADMIN_PASSWORD for production."
+    fi
+    
     cat << EOF
 Keycloak Admin Credentials:
 ===========================
 URL:      http://localhost:${KEYCLOAK_PORT:-8070}
 Admin UI: http://localhost:${KEYCLOAK_PORT:-8070}/admin
-Username: admin
-Password: admin
+Username: ${KEYCLOAK_ADMIN_USER:-admin}
+Password: ${password_display}
+
+Note: For production use, set KEYCLOAK_ADMIN_PASSWORD environment variable
 EOF
 }

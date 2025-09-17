@@ -100,10 +100,13 @@ meep::start() {
     # Start Docker container
     docker run -d \
         --name "${MEEP_CONTAINER_NAME}" \
-        -p "${MEEP_PORT}:${MEEP_PORT}" \
+        --network host \
         -v "${MEEP_DATA_DIR}:/data" \
         -e "MEEP_PORT=${MEEP_PORT}" \
         -e "OMP_NUM_THREADS=${MEEP_OMP_NUM_THREADS}" \
+        -e "POSTGRES_HOST=localhost" \
+        -e "POSTGRES_PORT=5433" \
+        -e "MINIO_ENDPOINT=localhost:9000" \
         --memory="${MEEP_MEMORY_LIMIT}" \
         --cpus="${MEEP_CPU_LIMIT}" \
         "${MEEP_IMAGE_NAME}:${MEEP_IMAGE_TAG}" || {

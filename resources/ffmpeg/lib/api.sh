@@ -12,8 +12,8 @@ RESOURCE_DIR="$(dirname "$SCRIPT_DIR")"
 source "$RESOURCE_DIR/config/defaults.sh"
 source "$SCRIPT_DIR/core.sh"
 
-# API Configuration
-API_PORT="${FFMPEG_API_PORT:-8080}"
+# API Configuration - Use port 8097 as default to avoid conflicts
+API_PORT="${FFMPEG_API_PORT:-8097}"
 WEB_ROOT="$RESOURCE_DIR/web"
 UPLOAD_DIR="/tmp/ffmpeg-uploads"
 OUTPUT_DIR="/tmp/ffmpeg-output"
@@ -220,154 +220,29 @@ process_stream() {
     esac
 }
 
-# Simple HTTP server using Python
+# Start API server using the new Python implementation
 start_api_server() {
-    cat > /tmp/ffmpeg_api_server.py << 'EOF'
-#!/usr/bin/env python3
-import http.server
-import socketserver
-import json
-import cgi
-import os
-import subprocess
-import tempfile
-import sys
-from urllib.parse import parse_qs, urlparse
-
-PORT = int(os.environ.get('API_PORT', 8080))
-WEB_ROOT = os.environ.get('WEB_ROOT', '.')
-UPLOAD_DIR = os.environ.get('UPLOAD_DIR', '/tmp/ffmpeg-uploads')
-SCRIPT_DIR = os.environ.get('SCRIPT_DIR', '.')
-
-class FFmpegAPIHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=WEB_ROOT, **kwargs)
+    # Use the improved API server implementation
+    local api_script="$SCRIPT_DIR/api_server.py"
     
-    def do_GET(self):
-        parsed_path = urlparse(self.path)
-        
-        if parsed_path.path == '/api/stats':
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            result = subprocess.run(
-                [f'{SCRIPT_DIR}/api.sh', 'get_stats'],
-                capture_output=True,
-                text=True
-            )
-            self.wfile.write(result.stdout.encode())
-        else:
-            # Serve static files
-            super().do_GET()
-    
-    def do_POST(self):
-        parsed_path = urlparse(self.path)
-        
-        if parsed_path.path.startswith('/api/'):
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
-            self.end_headers()
-            
-            # Parse multipart form data
-            if self.headers.get('Content-Type', '').startswith('multipart/form-data'):
-                form = cgi.FieldStorage(
-                    fp=self.rfile,
-                    headers=self.headers,
-                    environ={'REQUEST_METHOD': 'POST'}
-                )
-                
-                # Save uploaded file
-                if 'file' in form:
-                    file_item = form['file']
-                    if file_item.filename:
-                        file_path = os.path.join(UPLOAD_DIR, file_item.filename)
-                        with open(file_path, 'wb') as f:
-                            f.write(file_item.file.read())
-                        
-                        # Process based on endpoint
-                        if parsed_path.path == '/api/convert':
-                            preset = form.getvalue('preset', '')
-                            options = form.getvalue('options', '')
-                            result = subprocess.run(
-                                [f'{SCRIPT_DIR}/api.sh', 'convert', file_path, preset, options],
-                                capture_output=True,
-                                text=True
-                            )
-                            self.wfile.write(result.stdout.encode())
-                        
-                        elif parsed_path.path == '/api/extract':
-                            extract_type = form.getvalue('type', 'audio')
-                            result = subprocess.run(
-                                [f'{SCRIPT_DIR}/api.sh', 'extract', file_path, extract_type],
-                                capture_output=True,
-                                text=True
-                            )
-                            self.wfile.write(result.stdout.encode())
-                        
-                        elif parsed_path.path == '/api/info':
-                            result = subprocess.run(
-                                [f'{SCRIPT_DIR}/api.sh', 'info', file_path],
-                                capture_output=True,
-                                text=True
-                            )
-                            self.wfile.write(result.stdout.encode())
-            
-            # Parse JSON data
-            elif self.headers.get('Content-Type', '').startswith('application/json'):
-                content_length = int(self.headers['Content-Length'])
-                post_data = self.rfile.read(content_length)
-                data = json.loads(post_data.decode('utf-8'))
-                
-                if parsed_path.path == '/api/stream':
-                    url = data.get('url', '')
-                    action = data.get('action', 'info')
-                    duration = data.get('duration', '60')
-                    
-                    result = subprocess.run(
-                        [f'{SCRIPT_DIR}/api.sh', 'stream', url, action, str(duration)],
-                        capture_output=True,
-                        text=True
-                    )
-                    self.wfile.write(result.stdout.encode())
-            
-            else:
-                self.wfile.write(json.dumps({'error': 'Invalid content type'}).encode())
-    
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-        self.end_headers()
-
-try:
-    # Set socket reuse before creating server
-    socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("", PORT), FFmpegAPIHandler) as httpd:
-        print(f"FFmpeg API server running on port {PORT}")
-        httpd.serve_forever()
-except OSError as e:
-    if "Address already in use" in str(e):
-        print(f"[ERROR] Port {PORT} is already in use. Try a different port.")
-        sys.exit(1)
-    else:
-        raise
-EOF
+    if [[ ! -f "$api_script" ]]; then
+        echo "[ERROR] API server script not found: $api_script"
+        return 1
+    fi
     
     # Make executable
-    chmod +x /tmp/ffmpeg_api_server.py
+    chmod +x "$api_script"
     
-    # Start the server in background
+    # Set environment variables for the Python server
     export API_PORT="$API_PORT"
     export WEB_ROOT="$WEB_ROOT"
     export UPLOAD_DIR="$UPLOAD_DIR"
+    export OUTPUT_DIR="$OUTPUT_DIR"
     export SCRIPT_DIR="$SCRIPT_DIR"
+    export MAX_FILE_SIZE="${MAX_FILE_SIZE:-524288000}"  # 500MB default
     
-    # Start in background and return
-    python3 /tmp/ffmpeg_api_server.py &
+    # Start in background
+    python3 "$api_script" &
     local server_pid=$!
     
     # Wait a moment for server to start
@@ -384,11 +259,50 @@ EOF
     fi
 }
 
+# Stop API server
+stop_api_server() {
+    if [[ -f /tmp/ffmpeg-api.pid ]]; then
+        local pid=$(cat /tmp/ffmpeg-api.pid)
+        if kill -0 $pid 2>/dev/null; then
+            kill $pid
+            echo "[INFO] FFmpeg API server stopped (PID: $pid)"
+            rm -f /tmp/ffmpeg-api.pid
+        else
+            echo "[WARNING] FFmpeg API server not running"
+            rm -f /tmp/ffmpeg-api.pid
+        fi
+    else
+        echo "[INFO] No FFmpeg API server PID file found"
+    fi
+}
+
 # CLI handler
 case "${1:-}" in
     "start")
         echo "[INFO] Starting FFmpeg API server on port $API_PORT"
         start_api_server
+        ;;
+    "stop")
+        echo "[INFO] Stopping FFmpeg API server"
+        stop_api_server
+        ;;
+    "restart")
+        echo "[INFO] Restarting FFmpeg API server"
+        stop_api_server
+        sleep 1
+        start_api_server
+        ;;
+    "status")
+        if [[ -f /tmp/ffmpeg-api.pid ]]; then
+            pid=$(cat /tmp/ffmpeg-api.pid)
+            if kill -0 $pid 2>/dev/null; then
+                echo "[INFO] FFmpeg API server is running (PID: $pid, Port: $API_PORT)"
+            else
+                echo "[WARNING] FFmpeg API server PID file exists but process not running"
+            fi
+        else
+            echo "[INFO] FFmpeg API server is not running"
+        fi
         ;;
     "get_stats")
         get_system_stats
@@ -406,7 +320,7 @@ case "${1:-}" in
         process_stream "$2" "$3" "$4"
         ;;
     *)
-        echo "Usage: $0 {start|get_stats|convert|extract|info|stream}"
+        echo "Usage: $0 {start|stop|restart|status|get_stats|convert|extract|info|stream}"
         exit 1
         ;;
 esac

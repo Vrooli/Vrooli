@@ -39,8 +39,9 @@ cli_context::status() {
         installed="true"
         version=$(codex --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
         
-        # Check configuration
-        if [[ -f "$HOME/.codex/config.toml" ]]; then
+        local codex_home
+        codex_home=$(codex::ensure_home | tail -n1)
+        if [[ -f "${codex_home}/config.toml" ]]; then
             configured="true"
         fi
         
@@ -99,7 +100,8 @@ cli_context::install() {
 #   0 on success, 1 on failure
 #######################################
 cli_context::configure() {
-    local config_dir="$HOME/.codex"
+    local config_dir
+    config_dir=$(codex::ensure_home | tail -n1)
     local config_file="$config_dir/config.toml"
     
     # Get API key
@@ -177,78 +179,45 @@ cli_context::execute() {
         return 1
     fi
     
-    # Ensure API key is set
+    # Ensure API key is available for downstream execution
     local api_key
     api_key=$(codex::get_api_key)
     if [[ -n "$api_key" ]]; then
         export OPENAI_API_KEY="$api_key"
     fi
-    
-    # Create workspace directory
+
     local workspace="${CODEX_WORKSPACE:-/tmp/codex-workspace}"
     mkdir -p "$workspace"
-    
+
     log::info "Executing via Codex CLI agent..."
     log::debug "Capability: $capability"
     log::debug "Workspace: $workspace"
-    
-    # Get execution mode
+
     local mode="${CODEX_CLI_MODE:-auto}"
-    
-    # Extract model from config if provided
-    local model
-    if [[ -n "$model_config" ]]; then
-        model=$(echo "$model_config" | jq -r '.model_name // "codex-mini-latest"' 2>/dev/null || echo "codex-mini-latest")
-    else
-        model="codex-mini-latest"
-    fi
-    
-    # Save request to file for complex inputs
-    local prompt_file="$workspace/prompt-$$.txt"
-    echo "$request" > "$prompt_file"
-    
-    # Execute with Codex CLI
-    cd "$workspace" || return 1
-    
-    local exit_code
-    
-    # Add capability-specific context to the request
+
+    local prompt_content="$request"
     case "$capability" in
         function-calling)
-            echo "Use tools to complete this task. Create files, run commands, and test as needed." >> "$prompt_file"
+            prompt_content+=$'\n\nUse tools to complete this task. Create files, run commands, and test as needed.'
             ;;
         reasoning)
-            echo "Think step by step and show your reasoning process." >> "$prompt_file"
+            prompt_content+=$'\n\nThink step by step and show your reasoning process.'
             ;;
         text-generation)
-            echo "Generate the requested code or content." >> "$prompt_file"
+            prompt_content+=$'\n\nGenerate the requested code or content.'
             ;;
     esac
-    
-    # Run Codex with appropriate flags
-    codex \
-        --mode "$mode" \
-        --model "$model" \
-        --file "$prompt_file"
-    exit_code=$?
-    
-    # Cleanup
-    rm -f "$prompt_file"
-    
-    if [[ $exit_code -eq 0 ]]; then
-        log::success "Codex CLI execution completed successfully"
-        
-        # Show created/modified files
-        local files_created=$(find "$workspace" -type f -newer "$prompt_file" 2>/dev/null | wc -l)
-        if [[ $files_created -gt 0 ]]; then
-            log::info "Files created/modified in workspace:"
-            find "$workspace" -type f -newer "$prompt_file" 2>/dev/null | head -10
-        fi
-    else
-        log::error "Codex CLI execution failed with exit code: $exit_code"
+
+    local model=""
+    if [[ -n "$model_config" ]]; then
+        model=$(echo "$model_config" | jq -r '.model_name // empty' 2>/dev/null || echo "")
     fi
-    
-    return $exit_code
+
+    if [[ -n "$model" ]]; then
+        codex::cli::execute_with_model "$model" "$prompt_content" "$mode"
+    else
+        codex::cli::execute "$prompt_content" "$mode"
+    fi
 }
 
 ################################################################################

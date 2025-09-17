@@ -39,7 +39,7 @@ fi
 
 # Test 3: REST API health
 echo -n "3. Checking REST API... "
-if timeout 5 curl -sf "http://localhost:${OPENMRS_API_PORT}/openmrs/ws/rest/v1/session" &>/dev/null; then
+if timeout 5 curl -sf "http://localhost:${OPENMRS_PORT}/openmrs/ws/rest/v1/session" &>/dev/null; then
     echo "✓"
     ((PASSED++))
 else
@@ -49,8 +49,8 @@ fi
 
 # Test 4: Database connectivity
 echo -n "4. Checking database... "
-if docker ps --format '{{.Names}}' | grep -q "openmrs-postgres"; then
-    if docker exec openmrs-postgres pg_isready -U openmrs &>/dev/null; then
+if docker ps --format '{{.Names}}' | grep -q "openmrs-mysql"; then
+    if docker exec openmrs-mysql mysqladmin -u root -p"$(cat /home/matthalloran8/.vrooli/openmrs/config/db_root_password.txt 2>/dev/null)" ping 2>&1 | grep -q "alive"; then
         echo "✓"
         ((PASSED++))
     else
@@ -65,7 +65,7 @@ fi
 # Test 5: Admin authentication
 echo -n "5. Checking authentication... "
 if curl -s -u "${OPENMRS_ADMIN_USER}:${OPENMRS_ADMIN_PASS}" \
-    "http://localhost:${OPENMRS_API_PORT}/openmrs/ws/rest/v1/session" | \
+    "http://localhost:${OPENMRS_PORT}/openmrs/ws/rest/v1/session" | \
     grep -q "sessionId"; then
     echo "✓"
     ((PASSED++))

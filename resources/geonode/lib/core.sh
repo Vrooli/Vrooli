@@ -419,17 +419,70 @@ add_layer() {
     
     echo "Uploading layer: $(basename "$file")..."
     
-    # Use GeoNode API to upload
-    local response=$(curl -sf -X POST \
-        -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
-        -F "base_file=@${file}" \
-        "http://localhost:${GEONODE_PORT}/api/v2/uploads/upload/" 2>/dev/null)
+    # Try GeoNode API first if Django is available
+    if timeout 2 curl -sf "http://localhost:${GEONODE_PORT}/api/" &>/dev/null; then
+        local response=$(curl -sf -X POST \
+            -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+            -F "base_file=@${file}" \
+            "http://localhost:${GEONODE_PORT}/api/v2/uploads/upload/" 2>/dev/null)
+        
+        if [[ $? -eq 0 ]]; then
+            echo "Layer uploaded successfully via GeoNode!"
+            echo "View at: http://localhost:${GEONODE_PORT}/layers/"
+            return 0
+        fi
+    fi
+    
+    # Fallback to GeoServer REST API
+    echo "Using GeoServer REST API for layer upload..."
+    
+    # Ensure vrooli workspace exists
+    curl -sf -X POST -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+        -H "Content-type: application/json" \
+        -d '{"workspace":{"name":"vrooli"}}' \
+        "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/workspaces" &>/dev/null || true
+    
+    # Get file extension and name
+    local filename=$(basename "$file")
+    local name="${filename%.*}"
+    local ext="${filename##*.}"
+    
+    # Upload based on file type
+    case "${ext,,}" in
+        geojson|json)
+            # Copy file to container
+            docker cp "$file" geonode-geoserver:/tmp/"${filename}"
+            
+            # Create datastore and publish layer in one step
+            curl -sf -X PUT -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+                -H "Content-type: application/json" \
+                -d "{\"dataStore\":{\"name\":\"${name}\",\"type\":\"GeoJSON\",\"enabled\":true,\"workspace\":{\"name\":\"vrooli\"},\"connectionParameters\":{\"entry\":[{\"@key\":\"url\",\"$\":\"file:///tmp/${filename}\"}]},\"featureTypes\":{\"featureType\":[{\"name\":\"${name}\"}]}}}" \
+                "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/workspaces/vrooli/datastores/${name}"
+            ;;
+        tif|tiff|geotiff)
+            # Upload raster
+            curl -sf -X POST -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+                -H "Content-type: image/tiff" \
+                --data-binary "@${file}" \
+                "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/workspaces/vrooli/coveragestores/${name}/file.geotiff"
+            ;;
+        shp)
+            # Upload shapefile (needs to be zipped with supporting files)
+            echo "Note: Shapefiles should be uploaded as zip archives with all supporting files"
+            ;;
+        *)
+            echo "Unsupported file type: ${ext}" >&2
+            echo "Supported formats: GeoJSON, GeoTIFF" >&2
+            exit 1
+            ;;
+    esac
     
     if [[ $? -eq 0 ]]; then
-        echo "Layer uploaded successfully!"
-        echo "View at: http://localhost:${GEONODE_PORT}/layers/"
+        echo "Layer '${name}' uploaded successfully to GeoServer!"
+        echo "View at: http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/web/"
+        return 0
     else
-        echo "Error uploading layer. Check logs: vrooli resource geonode logs django" >&2
+        echo "Error uploading layer via GeoServer" >&2
         exit 1
     fi
 }
@@ -440,11 +493,26 @@ list_layers() {
     
     echo "Fetching layers..."
     
-    curl -sf \
-        -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
-        "http://localhost:${GEONODE_PORT}/api/v2/layers/" | \
-        jq -r '.objects[] | "\(.title) (\(.name)) - \(.resource_type)"' 2>/dev/null || \
-        echo "No layers found or service not available"
+    # Try GeoNode API first
+    if timeout 2 curl -sf "http://localhost:${GEONODE_PORT}/api/" &>/dev/null; then
+        curl -sf \
+            -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+            "http://localhost:${GEONODE_PORT}/api/v2/layers/" | \
+            jq -r '.objects[] | "\(.title) (\(.name)) - \(.resource_type)"' 2>/dev/null && return 0
+    fi
+    
+    # Fallback to GeoServer REST API
+    echo "Using GeoServer REST API..."
+    
+    # List layers from GeoServer
+    local layers=$(curl -sf -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+        "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/layers" 2>/dev/null)
+    
+    if [[ -n "$layers" ]]; then
+        echo "$layers" | jq -r '.layers.layer[]?.name // empty' 2>/dev/null || echo "No layers found"
+    else
+        echo "No layers found or GeoServer not available"
+    fi
 }
 
 # Get layer details
@@ -458,9 +526,19 @@ get_layer() {
     
     load_config
     
+    # Try GeoNode API first
+    if timeout 2 curl -sf "http://localhost:${GEONODE_PORT}/api/" &>/dev/null; then
+        curl -sf \
+            -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+            "http://localhost:${GEONODE_PORT}/api/v2/layers/${name}/" | \
+            jq '.' 2>/dev/null && return 0
+    fi
+    
+    # Fallback to GeoServer REST API
+    echo "Using GeoServer REST API..."
     curl -sf \
         -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
-        "http://localhost:${GEONODE_PORT}/api/v2/layers/${name}/" | \
+        "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/layers/${name}" | \
         jq '.' 2>/dev/null || \
         echo "Layer not found: $name"
 }
@@ -478,15 +556,35 @@ remove_layer() {
     
     echo "Removing layer: $name..."
     
+    # Try GeoNode API first
+    if timeout 2 curl -sf "http://localhost:${GEONODE_PORT}/api/" &>/dev/null; then
+        curl -sf -X DELETE \
+            -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+            "http://localhost:${GEONODE_PORT}/api/v2/layers/${name}/" &>/dev/null
+        
+        if [[ $? -eq 0 ]]; then
+            echo "Layer removed successfully from GeoNode"
+            return 0
+        fi
+    fi
+    
+    # Fallback to GeoServer REST API
+    echo "Using GeoServer REST API..."
+    
+    # Try to remove from default workspace first
     curl -sf -X DELETE \
         -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
-        "http://localhost:${GEONODE_PORT}/api/v2/layers/${name}/" &>/dev/null
+        "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/layers/${name}?recurse=true" &>/dev/null
+    
+    # Also try vrooli workspace
+    curl -sf -X DELETE \
+        -u "${GEONODE_ADMIN_USER}:${GEONODE_ADMIN_PASSWORD}" \
+        "http://localhost:${GEONODE_GEOSERVER_PORT}/geoserver/rest/workspaces/vrooli/layers/${name}?recurse=true" &>/dev/null
     
     if [[ $? -eq 0 ]]; then
-        echo "Layer removed successfully"
+        echo "Layer removed successfully from GeoServer"
     else
-        echo "Error removing layer: $name" >&2
-        exit 1
+        echo "Warning: Layer may not exist or already removed" >&2
     fi
 }
 

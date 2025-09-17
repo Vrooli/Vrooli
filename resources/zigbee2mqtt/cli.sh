@@ -79,6 +79,34 @@ COMMANDS:
         backup            Backup coordinator
         restore <file>    Restore coordinator backup
         channel <num>     Change Zigbee channel
+    
+    homeassistant <action> Home Assistant integration:
+        discovery <cmd>   Enable/disable/status MQTT discovery
+    
+    ota <action>           Firmware updates:
+        check [device]    Check for available updates
+        update <device>   Update device firmware
+    
+    group <action>         Group management:
+        create <name> <devices...> Create device group
+        list              List all groups
+        control <name> <state> Control group state
+        remove <name>     Remove group
+    
+    scene <action>         Scene management:
+        create <name> <group> Create scene from current state
+        recall <name>     Activate scene
+    
+    touchlink <action>     Touchlink commissioning:
+        scan              Scan for nearby Touchlink devices
+        identify <ieee> [secs] Make device blink/flash
+        reset <ieee>      Factory reset device via Touchlink
+    
+    converter <action>     External device converter management:
+        add <file>        Add external converter file
+        list              List installed converters
+        remove <file>     Remove external converter
+        generate <model> <vendor> Generate converter template
 
 EXAMPLES:
     resource-zigbee2mqtt manage start       # Start Zigbee2MQTT
@@ -218,6 +246,89 @@ handle_device() {
     esac
 }
 
+# HomeAssistant commands
+handle_homeassistant() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        discovery)
+            zigbee2mqtt::homeassistant::discovery "$@"
+            ;;
+        *)
+            log::error "Unknown HomeAssistant action: $action"
+            echo "Valid actions: discovery"
+            return 1
+            ;;
+    esac
+}
+
+# OTA commands
+handle_ota() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        check)
+            zigbee2mqtt::ota::check "$@"
+            ;;
+        update)
+            zigbee2mqtt::ota::update "$@"
+            ;;
+        *)
+            log::error "Unknown OTA action: $action"
+            echo "Valid actions: check, update"
+            return 1
+            ;;
+    esac
+}
+
+# Group commands
+handle_group() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        create)
+            zigbee2mqtt::group::create "$@"
+            ;;
+        list)
+            zigbee2mqtt::group::list "$@"
+            ;;
+        control)
+            zigbee2mqtt::group::control "$@"
+            ;;
+        remove)
+            zigbee2mqtt::group::remove "$@"
+            ;;
+        *)
+            log::error "Unknown group action: $action"
+            echo "Valid actions: create, list, control, remove"
+            return 1
+            ;;
+    esac
+}
+
+# Scene commands
+handle_scene() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        create)
+            zigbee2mqtt::scene::create "$@"
+            ;;
+        recall)
+            zigbee2mqtt::scene::recall "$@"
+            ;;
+        *)
+            log::error "Unknown scene action: $action"
+            echo "Valid actions: create, recall"
+            return 1
+            ;;
+    esac
+}
+
 # Network commands
 handle_network() {
     local action="${1:-}"
@@ -239,6 +350,55 @@ handle_network() {
         *)
             log::error "Unknown network action: $action"
             echo "Valid actions: map, backup, restore, channel"
+            return 1
+            ;;
+    esac
+}
+
+# Touchlink commands
+handle_touchlink() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        scan)
+            zigbee2mqtt::touchlink::scan "$@"
+            ;;
+        identify)
+            zigbee2mqtt::touchlink::identify "$@"
+            ;;
+        reset)
+            zigbee2mqtt::touchlink::reset "$@"
+            ;;
+        *)
+            log::error "Unknown touchlink action: $action"
+            echo "Valid actions: scan, identify, reset"
+            return 1
+            ;;
+    esac
+}
+
+# Converter commands
+handle_converter() {
+    local action="${1:-}"
+    shift || true
+    
+    case "$action" in
+        add)
+            zigbee2mqtt::converter::add "$@"
+            ;;
+        list)
+            zigbee2mqtt::converter::list "$@"
+            ;;
+        remove)
+            zigbee2mqtt::converter::remove "$@"
+            ;;
+        generate)
+            zigbee2mqtt::converter::generate "$@"
+            ;;
+        *)
+            log::error "Unknown converter action: $action"
+            echo "Valid actions: add, list, remove, generate"
             return 1
             ;;
     esac
@@ -279,6 +439,24 @@ main() {
             ;;
         network)
             handle_network "$@"
+            ;;
+        homeassistant|ha)
+            handle_homeassistant "$@"
+            ;;
+        ota)
+            handle_ota "$@"
+            ;;
+        group)
+            handle_group "$@"
+            ;;
+        scene)
+            handle_scene "$@"
+            ;;
+        touchlink)
+            handle_touchlink "$@"
+            ;;
+        converter)
+            handle_converter "$@"
             ;;
         *)
             log::error "Unknown command: $command"

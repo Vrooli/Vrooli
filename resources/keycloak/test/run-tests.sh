@@ -20,7 +20,9 @@ declare -A TEST_PHASES=(
     ["smoke"]="test-smoke.sh"
     ["integration"]="test-integration.sh"  
     ["unit"]="test-unit.sh"
+    ["security"]="test-security.sh"
     ["multi-realm"]="test-multi-realm.sh"
+    ["social-e2e"]="test-social-e2e.sh"
 )
 
 # Default to all tests
@@ -61,14 +63,20 @@ main() {
         unit)
             run_test_phase "unit" || exit_code=$?
             ;;
+        security)
+            run_test_phase "security" || exit_code=$?
+            ;;
         multi-realm)
             run_test_phase "multi-realm" || exit_code=$?
+            ;;
+        social-e2e)
+            run_test_phase "social-e2e" || exit_code=$?
             ;;
         all)
             log::info "Running all test phases..."
             
-            # Run tests in order: smoke -> unit -> integration -> multi-realm
-            for phase in smoke unit integration multi-realm; do
+            # Run tests in order: smoke -> unit -> integration -> security -> multi-realm -> social-e2e
+            for phase in smoke unit integration security multi-realm social-e2e; do
                 if ! run_test_phase "$phase"; then
                     exit_code=1
                     # Continue running other tests even if one fails
@@ -83,7 +91,7 @@ main() {
             ;;
         *)
             log::error "Unknown test type: $TEST_TYPE"
-            echo "Usage: $0 [smoke|integration|unit|all]"
+            echo "Usage: $0 [smoke|integration|unit|security|multi-realm|social-e2e|all]"
             exit 1
             ;;
     esac

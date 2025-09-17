@@ -51,13 +51,14 @@ export default function Dashboard() {
   const stats = [
     {
       title: 'System Health',
-      value: summary?.system_health_score,
-      unit: summary?.system_health_score !== null ? '%' : undefined,
+      value: summary?.system_health_score !== null && summary?.system_health_score !== undefined ? 
+        Math.round(summary.system_health_score * 10) / 10 : null,
+      unit: summary?.system_health_score !== null && summary?.system_health_score !== undefined ? '%' : undefined,
       icon: Activity,
       trend: hasScans ? (summary?.health_trend || 'stable') : undefined,
       color: !hasScans ? 'warning' : 
-             summary?.system_health_score >= 80 ? 'success' : 
-             summary?.system_health_score >= 60 ? 'warning' : 'danger',
+             (summary?.system_health_score ?? 0) >= 80 ? 'success' : 
+             (summary?.system_health_score ?? 0) >= 60 ? 'warning' : 'danger',
       hasWarning: !hasScans,
       warningMessage: !hasScans ? scanWarningMessage : undefined,
     },

@@ -98,6 +98,45 @@ if (result.status.id === 3) {  // Accepted
 }
 ```
 
+## 🆕 Advanced Features
+
+### Webhook Callbacks
+```bash
+# Configure webhook for async notifications
+vrooli resource judge0 webhook-test https://your-webhook.com/endpoint
+
+# Submit with callback
+curl -X POST http://localhost:2358/submissions \
+  -d '{"source_code": "print(1)", "language_id": 92, "callback_url": "https://webhook.com"}'
+```
+
+### Result Caching
+```bash
+# View cache statistics
+vrooli resource judge0 cache-stats
+
+# Warm cache with common tests
+vrooli resource judge0 cache-warm
+
+# Clear cache
+vrooli resource judge0 cache-clear
+```
+
+### Custom Languages
+```bash
+# Add custom language presets
+vrooli resource judge0 add-language-presets
+
+# List custom languages
+vrooli resource judge0 custom-languages
+
+# Add your own language
+vrooli resource judge0 content add \
+  --name "MyLang" \
+  --run "mylang {file}" \
+  --extension ".ml"
+```
+
 ### Multi-Language Testing
 ```bash
 # Test the same algorithm in multiple languages
@@ -148,14 +187,24 @@ Network access is disabled by default. Never enable for untrusted code:
 ENABLE_NETWORK=false  # Keep this disabled
 ```
 
-### 4. Security Validation
+### 4. Security Validation & Monitoring
 ```bash
-# Run security checks
-./manage.sh --action security-validate
+# View comprehensive security dashboard
+resource-judge0 test security-dashboard
 
-# Apply hardening
-./manage.sh --action security-harden
+# Run continuous security monitoring
+resource-judge0 test security
+
+# Check sandbox status
+resource-judge0 status --verbose
 ```
+
+The security dashboard provides:
+- Real-time sandbox validation status
+- Threat detection and alerting
+- Resource isolation metrics
+- Vulnerability scanning
+- Security recommendations
 
 ## 📊 Monitoring & Management
 

@@ -206,3 +206,9 @@
   - ✅ Better project path resolution in export command
   - ✅ Added graceful error handling for missing PCB/schematic files
   - ✅ All 67 tests passing with improved robustness
+- 2025-09-16: Security Validation Improvements (116%)
+  - ✅ Added strict path validation to simulation run and interactive commands
+  - ✅ Prevented path traversal vulnerabilities in simulation functions
+  - ✅ Enforced .net file extension requirement for netlist files
+  - ✅ Restricted file access to KiCad data directory only
+  - ✅ All 67 tests passing with enhanced security

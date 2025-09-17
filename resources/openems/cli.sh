@@ -22,6 +22,13 @@ for integration in n8n_integration superset_dashboards ditto_integration forecas
     fi
 done
 
+# Load P2 features if available
+for feature in alerts cosimulation; do
+    if [[ -f "${CLI_SCRIPT_DIR}/lib/${feature}.sh" ]]; then
+        source "${CLI_SCRIPT_DIR}/lib/${feature}.sh"
+    fi
+done
+
 # Command router
 main() {
     local command="${1:-help}"
@@ -65,10 +72,77 @@ main() {
         forecast)
             "${CLI_SCRIPT_DIR}/lib/forecast_models.sh" "$@"
             ;;
+        # P2 Feature Commands
+        alerts)
+            openems::alerts "$@"
+            ;;
+        cosim|cosimulation)
+            openems::cosim "$@"
+            ;;
         *)
             echo "❌ Unknown command: $command"
             openems::show_help
             exit 1
+            ;;
+    esac
+}
+
+# P2 Alert automation command handler
+openems::alerts() {
+    local subcommand="${1:-help}"
+    shift || true
+    
+    case "$subcommand" in
+        init)
+            openems::alerts::init
+            ;;
+        test)
+            openems::alerts::test
+            ;;
+        configure)
+            openems::alerts::configure "$@"
+            ;;
+        history)
+            openems::alerts::history "${1:-10}"
+            ;;
+        clear)
+            openems::alerts::clear_history
+            ;;
+        enable)
+            openems::alerts::configure "${1}" true
+            ;;
+        disable)
+            openems::alerts::configure "${1}" false
+            ;;
+        *)
+            echo "Usage: resource-openems alerts {init|test|configure|history|clear|enable|disable}"
+            ;;
+    esac
+}
+
+# P2 Co-simulation command handler
+openems::cosim() {
+    local subcommand="${1:-help}"
+    shift || true
+    
+    case "$subcommand" in
+        init)
+            openems::cosim::init
+            ;;
+        run)
+            openems::cosim::run_scenario "${1:-}"
+            ;;
+        list)
+            openems::cosim::list_scenarios
+            ;;
+        status)
+            openems::cosim::status
+            ;;
+        test)
+            openems::cosim::test
+            ;;
+        *)
+            echo "Usage: resource-openems cosim {init|run|list|status|test}"
             ;;
     esac
 }
@@ -90,10 +164,12 @@ COMMANDS:
     status      Show service status
     logs        View service logs
     credentials Display integration credentials
-    n8n         n8n workflow automation integration
-    superset    Apache Superset dashboard integration  
-    ditto       Eclipse Ditto digital twin integration
-    forecast    Energy forecast models
+    n8n         n8n workflow automation integration (P1)
+    superset    Apache Superset dashboard integration (P1)
+    ditto       Eclipse Ditto digital twin integration (P1)
+    forecast    Energy forecast models (P1)
+    alerts      Alert automation via Pushover/Twilio (P2)
+    cosim       Co-simulation with OTP/GeoNode (P2)
 
 EXAMPLES:
     # Start OpenEMS

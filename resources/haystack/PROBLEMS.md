@@ -74,14 +74,21 @@
 
 ## Known Limitations
 
-1. **File Upload**: Currently only supports text files, not PDFs or other formats
+1. ~~**File Upload**: Currently only supports text files, not PDFs or other formats~~ **RESOLVED 2025-01-16**
 2. **Pipeline Persistence**: Custom pipelines are not persisted across restarts
-3. **Concurrent Indexing**: Batch indexing uses ThreadPoolExecutor with fixed 4 workers
-4. **Error Recovery**: No automatic retry mechanism for failed operations
+3. ~~**Concurrent Indexing**: Batch indexing uses ThreadPoolExecutor with fixed 4 workers~~ **RESOLVED 2025-01-16**
+4. ~~**Error Recovery**: No automatic retry mechanism for failed operations~~ **RESOLVED 2025-01-16**
 
 ## Recent Improvements (2025-01-16)
 
-### Added Retry Logic with Recovery Hints
+### Latest Enhancements (Second Iteration)
+- **PDF Support Added**: Can now process PDF documents via upload endpoint
+- **Configurable Worker Pool**: HAYSTACK_WORKER_POOL_SIZE environment variable controls concurrency
+- **Exponential Backoff Retry**: Intelligent retry logic with exponential backoff for resilience
+- **Prometheus Metrics Endpoint**: /metrics endpoint exports comprehensive metrics in Prometheus format
+- **Enhanced Error Tracking**: Errors tracked by type for better diagnostics
+
+### Added Retry Logic with Recovery Hints (First Iteration)
 - Content operations now include 3-attempt retry logic for transient failures
 - Each operation provides clear recovery hints on failure
 - Improved error messages guide users to resolution steps
@@ -100,9 +107,12 @@
 
 ## Future Improvements
 
-1. Add support for PDF and other document formats
+1. ~~Add support for PDF and other document formats~~ **COMPLETED 2025-01-16**
 2. Implement pipeline persistence using JSON serialization
-3. Add configurable worker pool size for batch processing
-4. Add exponential backoff for retry delays
-5. Add comprehensive metrics endpoint with Prometheus format
+3. ~~Add configurable worker pool size for batch processing~~ **COMPLETED 2025-01-16**
+4. ~~Add exponential backoff for retry delays~~ **COMPLETED 2025-01-16**
+5. ~~Add comprehensive metrics endpoint with Prometheus format~~ **COMPLETED 2025-01-16**
 6. Consider adding authentication/authorization layer
+7. Add support for more document formats (DOCX, ODT, HTML)
+8. Implement caching layer for frequently accessed documents
+9. Add document versioning and update tracking

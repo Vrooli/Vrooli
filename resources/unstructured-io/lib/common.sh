@@ -369,15 +369,15 @@ unstructured_io::logs() {
 unstructured_io::info() {
     echo "Service: Unstructured.io Document Processing"
     echo "Container: ${UNSTRUCTURED_IO_CONTAINER_NAME:-unstructured-io}"
-    echo "Base URL: ${UNSTRUCTURED_IO_BASE_URL:-http://localhost:11450}"
-    echo "Port: ${UNSTRUCTURED_IO_PORT:-11450}"
+    echo "Base URL: ${UNSTRUCTURED_IO_BASE_URL}"
+    echo "Port: ${UNSTRUCTURED_IO_PORT}"
 }
 
 #######################################
 # Check if port is available
 #######################################
 unstructured_io::check_port_available() {
-    local port="${UNSTRUCTURED_IO_PORT:-11450}"
+    local port="${UNSTRUCTURED_IO_PORT}"
     ! ports::is_port_in_use "$port"
 }
 

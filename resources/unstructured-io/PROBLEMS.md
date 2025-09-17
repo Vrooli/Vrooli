@@ -3,6 +3,31 @@
 ## Current Problems
 None - All known issues have been resolved.
 
+## Recently Fixed Issues (2025-09-16)
+
+### 1. ✅ Security: Hardcoded Port Fallbacks (FIXED - 2025-09-16)
+**Previous Issue**: Several scripts had hardcoded port fallback values (11450) which violates security requirements.
+
+**Root Cause**: Legacy code pattern of providing fallback values for undefined environment variables.
+
+**Fix Applied**:
+- Removed fallback values from lib/common.sh (lines 372, 373, 380)
+- Removed fallback from lib/test-api.sh (line 15)
+- Removed fallback from test/integration-test.sh (line 22)
+- Now requires proper port configuration from environment
+
+**Status**: FIXED - No more hardcoded port values, properly uses port registry
+
+### 2. ✅ v2.0 Contract: Missing schema.json (FIXED - 2025-09-16)
+**Previous Issue**: Resource was missing config/schema.json required by v2.0 contract.
+
+**Fix Applied**:
+- Created comprehensive config/schema.json with all configuration options
+- Includes processing, cache, docker, health, and output format configurations
+- Follows JSON Schema draft-07 standard
+
+**Status**: FIXED - Resource now fully compliant with v2.0 universal contract
+
 ## Recently Fixed Issues (2025-01-15)
 
 ### 1. ✅ Unit Test CLI Handler Checks (FIXED - 2025-01-15)

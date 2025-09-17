@@ -1,10 +1,11 @@
 # Pi-hole Known Issues and Solutions
 
-## Current Status (2025-09-15)
-- **Status**: Working/Improved
-- **Health**: All core functionality operational  
+## Current Status (2025-09-16)
+- **Status**: Fully Functional
+- **Health**: All P0 and P1 requirements verified and operational
 - **DNS Port**: Using 5353 due to system conflict on port 53
-- **Improvements**: Fixed DNS port detection, added API auth, implemented custom DNS
+- **Tests**: All test suites passing (smoke, integration, unit)
+- **API**: Using Pi-hole v2 API via CLI commands
 
 ## Port 53 Conflict with systemd-resolved
 
@@ -153,21 +154,21 @@ vrooli resource pihole manage uninstall
 vrooli resource pihole manage install
 ```
 
-## Recent Improvements (2025-09-15)
+## Recent Improvements (2025-09-16)
 
 ### Fixed Issues
 1. **DNS Port Detection**: Tests now properly detect and use port 5353
 2. **API Authentication**: Created lib/api.sh module with auth token management
 3. **Custom DNS Records**: Implemented add/remove/list functionality
-4. **Integration Tests**: Fixed port configuration issues
+4. **Integration Tests**: Fixed port configuration issues and quote escaping
 5. **API v2 Migration**: Updated to use new Pi-hole API v2 via CLI commands
 6. **DHCP Server**: Added full DHCP management with leases and reservations
 7. **Regex Filtering**: Implemented regex pattern management and testing
+8. **Test API Failure**: Fixed integration test for Statistics API (2025-09-16)
 
-### Remaining Issues
-1. **Regex CLI Commands**: Some pihole --regex commands have readonly variable errors
-2. **SQLite Dependency**: Container lacks sqlite3 for direct database queries
-3. **Test Coverage**: Some integration tests need updating for new API
+### Minor Issues (Non-Blocking)
+1. **Regex CLI Commands**: Some pihole --regex commands show readonly variable errors (functionality still works)
+2. **SQLite Dependency**: Container lacks sqlite3 for direct database queries (can use API instead)
 
 ### New Features Added
 1. **DHCP Management**: Enable/disable DHCP, manage leases and static reservations

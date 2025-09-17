@@ -10,9 +10,12 @@ Open MCT (Open Mission Control Technologies) is a next-generation mission contro
 
 - **Real-time Telemetry Visualization** - Display live data streams with minimal latency
 - **Historical Data Analysis** - Browse and analyze past telemetry with time navigation
-- **Customizable Dashboards** - Drag-and-drop interface for creating mission-specific layouts
+- **Customizable Dashboards** - Pre-configured layouts with time scrubber controls
 - **Plugin Architecture** - Extend with custom visualizations and data adapters
-- **Multi-Source Integration** - Combine data from diverse telemetry providers
+- **Multi-Source Integration** - MQTT, Traccar, and simulation data adapters included
+- **Export Capabilities** - Send telemetry and anomalies to PostgreSQL/Qdrant
+- **WebSocket Support** - Real-time streaming on port 8198
+- **REST API** - Full telemetry ingestion and query endpoints
 
 ## Quick Start
 
@@ -108,12 +111,44 @@ curl -X POST http://localhost:8099/api/telemetry/mysensor/data \
 Connect for real-time streaming:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8099/api/telemetry/live');
+const ws = new WebSocket('ws://localhost:8198');
 ws.send(JSON.stringify({
   stream: 'mysensor',
   timestamp: Date.now(),
   value: 23.5
 }));
+```
+
+### External Data Adapters
+
+#### MQTT Adapter
+```bash
+# Configure MQTT source
+lib/adapters/mqtt.sh configure mqtt.broker.com telemetry/# 1883
+
+# Connect and stream
+lib/adapters/mqtt.sh connect mqtt.broker.com telemetry/#
+```
+
+#### Traccar GPS Adapter  
+```bash
+# Configure Traccar source
+lib/adapters/traccar.sh configure http://localhost:8082 api_key_here
+
+# Stream GPS positions
+lib/adapters/traccar.sh connect
+```
+
+#### Export to PostgreSQL/Qdrant
+```bash
+# Export telemetry to PostgreSQL
+lib/adapters/export.sh export-postgres satellite_position
+
+# Export anomalies to Qdrant
+lib/adapters/export.sh export-qdrant sensor_network 35.0
+
+# Schedule automatic exports every hour
+lib/adapters/export.sh schedule 3600 postgres
 ```
 
 ## Configuration

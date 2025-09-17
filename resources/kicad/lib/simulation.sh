@@ -124,10 +124,39 @@ kicad::simulation::run() {
         return 1
     fi
     
-    if [[ ! -f "$netlist" ]]; then
-        log::error "Netlist file not found: $netlist"
+    # Validate netlist path - must be a .net file
+    if [[ ! "$netlist" =~ \.net$ ]]; then
+        log::error "Invalid netlist file: must have .net extension"
         return 1
     fi
+    
+    # Initialize directories first
+    kicad::init_dirs
+    
+    # Check if file exists and is within allowed directories
+    local resolved_path=""
+    if [[ -f "${KICAD_PROJECTS_DIR}/${netlist}" ]]; then
+        resolved_path="${KICAD_PROJECTS_DIR}/${netlist}"
+    elif [[ -f "${KICAD_OUTPUTS_DIR}/${netlist}" ]]; then
+        resolved_path="${KICAD_OUTPUTS_DIR}/${netlist}"
+    elif [[ -f "$netlist" ]]; then
+        # Check if path is within KiCad data directory
+        local abs_path=$(realpath "$netlist" 2>/dev/null)
+        local data_dir=$(realpath "${KICAD_DATA_DIR}" 2>/dev/null)
+        if [[ "$abs_path" == "${data_dir}"* ]]; then
+            resolved_path="$netlist"
+        else
+            log::error "Netlist file must be within KiCad data directory"
+            echo "Place your netlist in: ${KICAD_PROJECTS_DIR} or ${KICAD_OUTPUTS_DIR}"
+            return 1
+        fi
+    else
+        log::error "Netlist file not found: $netlist"
+        echo "Looking in: ${KICAD_PROJECTS_DIR} and ${KICAD_OUTPUTS_DIR}"
+        return 1
+    fi
+    
+    netlist="$resolved_path"
     
     kicad::init_dirs
     local output_dir="${KICAD_OUTPUTS_DIR}/simulation"
@@ -237,6 +266,37 @@ kicad::simulation::interactive() {
         echo "Usage: resource-kicad simulation interactive <netlist.net>"
         return 1
     fi
+    
+    # Validate netlist path - must be a .net file
+    if [[ ! "$netlist" =~ \.net$ ]]; then
+        log::error "Invalid netlist file: must have .net extension"
+        return 1
+    fi
+    
+    # Initialize directories
+    kicad::init_dirs
+    
+    # Validate path is within allowed directories
+    local resolved_path=""
+    if [[ -f "${KICAD_PROJECTS_DIR}/${netlist}" ]]; then
+        resolved_path="${KICAD_PROJECTS_DIR}/${netlist}"
+    elif [[ -f "${KICAD_OUTPUTS_DIR}/${netlist}" ]]; then
+        resolved_path="${KICAD_OUTPUTS_DIR}/${netlist}"
+    elif [[ -f "$netlist" ]]; then
+        local abs_path=$(realpath "$netlist" 2>/dev/null)
+        local data_dir=$(realpath "${KICAD_DATA_DIR}" 2>/dev/null)
+        if [[ "$abs_path" == "${data_dir}"* ]]; then
+            resolved_path="$netlist"
+        else
+            log::error "Netlist file must be within KiCad data directory"
+            return 1
+        fi
+    else
+        log::error "Netlist file not found: $netlist"
+        return 1
+    fi
+    
+    netlist="$resolved_path"
     
     if ! kicad::simulation::check_ngspice; then
         log::error "Interactive mode requires ngspice installation"

@@ -3,13 +3,19 @@
 # OpenEMS Unit Tests
 # Library function validation (<60s)
 
-set -euo pipefail
+set -eo pipefail  # Remove 'u' to avoid unbound variable issues
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCE_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-# Source configuration (sets ports from registry)
-source "${RESOURCE_DIR}/config/defaults.sh"
+# Set default ports for testing
+export OPENEMS_PORT="${OPENEMS_PORT:-8084}"
+export OPENEMS_JSONRPC_PORT="${OPENEMS_JSONRPC_PORT:-8085}"
+export OPENEMS_MODBUS_PORT="${OPENEMS_MODBUS_PORT:-502}"
+export OPENEMS_BACKEND_PORT="${OPENEMS_BACKEND_PORT:-8086}"
+
+# Source configuration if available (but don't fail if it doesn't work)
+source "${RESOURCE_DIR}/config/defaults.sh" 2>/dev/null || true
 
 # Source libraries for testing
 source "${RESOURCE_DIR}/lib/core.sh"
@@ -23,12 +29,12 @@ run_test() {
     local test_name="$1"
     local command="$2"
     
-    ((TESTS_RUN++))
+    TESTS_RUN=$((TESTS_RUN + 1))
     echo -n "  Testing $test_name... "
     
     if eval "$command" &>/dev/null; then
         echo "✅"
-        ((TESTS_PASSED++))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
     else
         echo "❌"

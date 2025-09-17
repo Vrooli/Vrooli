@@ -366,6 +366,59 @@ print('Polar plot saved to: $output_file')
     echo "📊 Polar plot saved: $output_file"
 }
 
+# ==============================================================================
+# GROUP HANDLER FUNCTIONS
+# ==============================================================================
+cli::_handle_group_gpu() {
+    local subcmd="${1:-}"
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]] || [[ "$subcmd" == "-h" ]]; then
+        cli::_show_group_help "gpu"
+        return 0
+    fi
+    shift
+    cli::_dispatch_subcommand "gpu" "$subcmd" "$@"
+}
+
+cli::_handle_group_export() {
+    local subcmd="${1:-}"
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]] || [[ "$subcmd" == "-h" ]]; then
+        cli::_show_group_help "export"
+        return 0
+    fi
+    shift
+    cli::_dispatch_subcommand "export" "$subcmd" "$@"
+}
+
+cli::_handle_group_parallel() {
+    local subcmd="${1:-}"
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]] || [[ "$subcmd" == "-h" ]]; then
+        cli::_show_group_help "parallel"
+        return 0
+    fi
+    shift
+    cli::_dispatch_subcommand "parallel" "$subcmd" "$@"
+}
+
+cli::_handle_group_cache() {
+    local subcmd="${1:-}"
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]] || [[ "$subcmd" == "-h" ]]; then
+        cli::_show_group_help "cache"
+        return 0
+    fi
+    shift
+    cli::_dispatch_subcommand "cache" "$subcmd" "$@"
+}
+
+cli::_handle_group_plot() {
+    local subcmd="${1:-}"
+    if [[ -z "$subcmd" ]] || [[ "$subcmd" == "--help" ]] || [[ "$subcmd" == "-h" ]]; then
+        cli::_show_group_help "plot"
+        return 0
+    fi
+    shift
+    cli::_dispatch_subcommand "plot" "$subcmd" "$@"
+}
+
 # Only execute if script is run directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"

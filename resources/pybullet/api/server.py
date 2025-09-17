@@ -5,9 +5,10 @@ import time
 import asyncio
 from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, validator, Field
 import pybullet as p
 import pybullet_data
+import re
 
 app = FastAPI(title="PyBullet Physics API", version="1.0.0")
 
@@ -16,22 +17,40 @@ simulations: Dict[str, int] = {}
 simulation_metadata: Dict[str, Dict] = {}
 
 class SimulationCreate(BaseModel):
-    name: str
-    gravity: list = [0, 0, -9.81]
-    timestep: float = 1/240
+    name: str = Field(..., min_length=1, max_length=100, pattern="^[a-zA-Z0-9_-]+$")
+    gravity: list = Field(default=[0, 0, -9.81], min_items=3, max_items=3)
+    timestep: float = Field(default=1/240, gt=0, le=1.0)
     use_gui: bool = False
+    
+    @validator('gravity')
+    def validate_gravity(cls, v):
+        if not all(isinstance(x, (int, float)) and -100 <= x <= 100 for x in v):
+            raise ValueError('Gravity values must be numbers between -100 and 100')
+        return v
 
 class SimulationStep(BaseModel):
-    steps: int = 1
+    steps: int = Field(default=1, ge=1, le=10000)
     real_time: bool = False
-    target_fps: float = 60.0
+    target_fps: float = Field(default=60.0, ge=1.0, le=240.0)
 
 class SpawnObject(BaseModel):
-    shape: str = "box"
-    position: list = [0, 0, 1]
-    size: list = [1, 1, 1]
-    mass: float = 1.0
-    color: Optional[List[float]] = [0.5, 0.5, 0.5, 1.0]
+    shape: str = Field(default="box", pattern="^(box|sphere|cylinder)$")
+    position: list = Field(default=[0, 0, 1], min_items=3, max_items=3)
+    size: list = Field(default=[1, 1, 1], min_items=3, max_items=3)
+    mass: float = Field(default=1.0, gt=0, le=1000.0)
+    color: Optional[List[float]] = Field(default=[0.5, 0.5, 0.5, 1.0], min_items=4, max_items=4)
+    
+    @validator('position', 'size')
+    def validate_vectors(cls, v):
+        if not all(isinstance(x, (int, float)) and -1000 <= x <= 1000 for x in v):
+            raise ValueError('Vector values must be numbers between -1000 and 1000')
+        return v
+    
+    @validator('color')
+    def validate_color(cls, v):
+        if v and not all(isinstance(x, (int, float)) and 0 <= x <= 1 for x in v):
+            raise ValueError('Color values must be between 0 and 1')
+        return v
 
 class ApplyForce(BaseModel):
     body_id: int
@@ -59,6 +78,11 @@ async def health():
 @app.post("/simulation/create")
 async def create_simulation(config: SimulationCreate):
     """Create new simulation instance"""
+    # Check simulation limits
+    max_simulations = int(os.environ.get("PYBULLET_MAX_SIMULATIONS", "10"))
+    if len(simulations) >= max_simulations:
+        raise HTTPException(status_code=429, detail=f"Maximum number of simulations ({max_simulations}) reached")
+    
     if config.name in simulations:
         raise HTTPException(status_code=400, detail="Simulation already exists")
     
@@ -311,5 +335,9 @@ async def get_sensors(name: str, body_id: int):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PYBULLET_PORT", 11457))
+    # Port must come from environment, no fallback
+    port_str = os.environ.get("PYBULLET_PORT")
+    if not port_str:
+        raise ValueError("PYBULLET_PORT environment variable not set")
+    port = int(port_str)
     uvicorn.run(app, host="0.0.0.0", port=port)

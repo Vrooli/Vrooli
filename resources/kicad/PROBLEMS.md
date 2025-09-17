@@ -87,6 +87,10 @@ All tests pass in mock mode. When KiCad is installed:
 **Fixed**: Export commands now provide clear error messages when files are missing
 **Solution**: Added file detection and helpful error messages listing available projects
 
+### 3. Path Traversal Security (2025-09-16)
+**Fixed**: Simulation commands now validate file paths to prevent arbitrary file access
+**Solution**: Added strict validation requiring .net extension and files within KiCad data directory only
+
 ## Support
 
 For KiCad-specific issues:

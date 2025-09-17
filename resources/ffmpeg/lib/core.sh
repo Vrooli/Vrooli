@@ -510,6 +510,33 @@ ffmpeg::web::status() {
     return 1
 }
 
+# API server handlers
+ffmpeg::api::start() {
+    local port="${FFMPEG_API_PORT:-8097}"
+    export FFMPEG_API_PORT="$port"
+    
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    log::info "Starting FFmpeg API server on port $port"
+    "${script_dir}/api.sh" start
+}
+
+ffmpeg::api::stop() {
+    log::info "Stopping FFmpeg API server"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    "${script_dir}/api.sh" stop
+}
+
+ffmpeg::api::status() {
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    "${script_dir}/api.sh" status
+}
+
+ffmpeg::api::restart() {
+    log::info "Restarting FFmpeg API server"
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    "${script_dir}/api.sh" restart
+}
+
 ################################################################################
 # END: Web Interface Functions
 ################################################################################
@@ -558,6 +585,10 @@ export -f ffmpeg::stream::info
 export -f ffmpeg::web::start
 export -f ffmpeg::web::stop
 export -f ffmpeg::web::status
+export -f ffmpeg::api::start
+export -f ffmpeg::api::stop
+export -f ffmpeg::api::status
+export -f ffmpeg::api::restart
 export -f ffmpeg::monitor::start
 export -f ffmpeg::monitor::stop
 export -f ffmpeg::monitor::status

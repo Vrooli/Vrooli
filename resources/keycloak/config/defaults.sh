@@ -8,7 +8,19 @@
 
 # Admin configuration (development defaults)
 [[ -z "${KEYCLOAK_ADMIN_USER:-}" ]] && KEYCLOAK_ADMIN_USER="admin"
-[[ -z "${KEYCLOAK_ADMIN_PASSWORD:-}" ]] && KEYCLOAK_ADMIN_PASSWORD="admin"
+
+# Generate secure password if not set
+if [[ -z "${KEYCLOAK_ADMIN_PASSWORD:-}" ]]; then
+    # Check if a saved password exists
+    password_file="${HOME}/.vrooli/keycloak/.admin_password"
+    if [[ -f "$password_file" ]]; then
+        KEYCLOAK_ADMIN_PASSWORD="$(cat "$password_file")"
+    else
+        # For now, use default password but warn users
+        KEYCLOAK_ADMIN_PASSWORD="admin"
+        # In production, users should set KEYCLOAK_ADMIN_PASSWORD environment variable
+    fi
+fi
 
 # Database configuration
 # Use PostgreSQL if available, otherwise fallback to H2 for development

@@ -108,7 +108,11 @@ install_resource() {
     
     # Build Docker image
     echo "Building Docker image..."
-    create_dockerfile
+    
+    # Copy Docker assets to build location
+    if [[ -d "${RESOURCE_DIR}/docker" ]]; then
+        cp -r "${RESOURCE_DIR}/docker/"* "${SEGMENT_ANYTHING_DATA_DIR}/"
+    fi
     
     docker build -t "${SEGMENT_ANYTHING_IMAGE}" \
         -f "${SEGMENT_ANYTHING_DATA_DIR}/Dockerfile" \
@@ -136,64 +140,6 @@ install_resource() {
     echo "Segment Anything resource installed successfully"
 }
 
-# Create Dockerfile for the service
-create_dockerfile() {
-    cat > "${SEGMENT_ANYTHING_DATA_DIR}/Dockerfile" <<'EOF'
-FROM python:3.9-slim
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    wget \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    libglib2.0-0 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /app
-
-# Install Python dependencies
-RUN pip install --no-cache-dir \
-    torch torchvision \
-    opencv-python \
-    fastapi \
-    uvicorn \
-    pydantic \
-    pillow \
-    numpy \
-    aiofiles \
-    redis \
-    minio \
-    psycopg2-binary \
-    onnxruntime
-
-# Clone SAM2 repository
-RUN git clone https://github.com/facebookresearch/sam2.git /app/sam2
-
-# Install SAM2
-WORKDIR /app/sam2
-RUN pip install -e .
-
-# Copy API server
-WORKDIR /app
-COPY api_server.py .
-
-# Expose port
-EXPOSE 11454
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s \
-    CMD curl -f http://localhost:11454/health || exit 1
-
-# Run server
-CMD ["uvicorn", "api_server:app", "--host", "0.0.0.0", "--port", "11454"]
-EOF
-}
 
 # Download model weights
 download_model() {
@@ -266,8 +212,10 @@ start_service() {
         return 0
     fi
     
-    # Create API server if not exists
-    create_api_server
+    # Copy API server to data directory if not exists
+    if [[ ! -f "${SEGMENT_ANYTHING_DATA_DIR}/api_server.py" ]] && [[ -f "${RESOURCE_DIR}/docker/api_server.py" ]]; then
+        cp "${RESOURCE_DIR}/docker/api_server.py" "${SEGMENT_ANYTHING_DATA_DIR}/"
+    fi
     
     # Start Docker container
     docker run -d \
@@ -549,76 +497,3 @@ validate_installation() {
     [[ "$valid" == "true" ]]
 }
 
-# Create minimal API server
-create_api_server() {
-    cat > "${SEGMENT_ANYTHING_DATA_DIR}/api_server.py" <<'EOF'
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
-import os
-import time
-import torch
-import numpy as np
-from PIL import Image
-import io
-import json
-
-app = FastAPI(title="Segment Anything API", version="1.0.0")
-
-# Global model instance
-model = None
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-@app.on_event("startup")
-async def startup_event():
-    """Load model on startup"""
-    global model
-    # Model loading would go here
-    print(f"Starting Segment Anything service on {device}")
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "device": device,
-        "model_loaded": model is not None,
-        "timestamp": time.time()
-    }
-
-@app.get("/api/v1/models")
-async def list_models():
-    """List available models"""
-    return {
-        "models": ["sam2-tiny", "sam2-small", "sam2-base", "sam2-large", "hq-sam"],
-        "current": os.getenv("MODEL_SIZE", "base")
-    }
-
-@app.post("/api/v1/segment")
-async def segment_image(
-    image: UploadFile = File(...),
-    prompt: str = "auto"
-):
-    """Run segmentation on uploaded image"""
-    try:
-        # Read image
-        contents = await image.read()
-        img = Image.open(io.BytesIO(contents))
-        
-        # Placeholder for actual segmentation
-        result = {
-            "masks": [],
-            "boxes": [],
-            "scores": [],
-            "processing_time": 0.05
-        }
-        
-        return JSONResponse(content=result)
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=11454)
-EOF
-}

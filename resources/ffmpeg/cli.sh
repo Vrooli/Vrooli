@@ -95,11 +95,18 @@ cli::register_subcommand "stream" "capture" "Capture stream to file" "ffmpeg::st
 cli::register_subcommand "stream" "transcode" "Transcode live stream" "ffmpeg::stream::transcode"
 cli::register_subcommand "stream" "info" "Get stream information" "ffmpeg::stream::info"
 
-# Web interface and API commands group
-cli::register_command_group "web" "Web interface and API server"
+# Web interface commands group
+cli::register_command_group "web" "Web interface server"
 cli::register_subcommand "web" "start" "Start web interface server" "ffmpeg::web::start"
 cli::register_subcommand "web" "stop" "Stop web interface server" "ffmpeg::web::stop"
 cli::register_subcommand "web" "status" "Check web server status" "ffmpeg::web::status"
+
+# API server commands group
+cli::register_command_group "api" "RESTful API server"
+cli::register_subcommand "api" "start" "Start API server" "ffmpeg::api::start"
+cli::register_subcommand "api" "stop" "Stop API server" "ffmpeg::api::stop"
+cli::register_subcommand "api" "status" "Check API server status" "ffmpeg::api::status"
+cli::register_subcommand "api" "restart" "Restart API server" "ffmpeg::api::restart"
 
 # Performance monitoring commands group
 cli::register_command_group "monitor" "Performance monitoring and metrics"

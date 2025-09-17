@@ -116,7 +116,7 @@ test_integration() {
     
     # Test 3: Statistics API works
     echo -n "Test: Statistics API... "
-    if timeout 5 curl -sf "http://localhost:${PIHOLE_API_PORT}/admin/api.php?summary" | jq -e '.domains_being_blocked' >/dev/null 2>&1; then
+    if docker exec "${CONTAINER_NAME}" pihole api stats/summary | jq -e '.gravity.domains_being_blocked' >/dev/null 2>&1; then
         echo "PASS"
     else
         echo "FAIL"

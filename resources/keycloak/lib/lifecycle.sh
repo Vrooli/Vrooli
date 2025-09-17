@@ -104,7 +104,15 @@ keycloak::start() {
     
     # Start the container
     log::info "Starting Keycloak container on port ${port}..."
-    eval "${docker_cmd}" >/dev/null 2>&1
+    if ! eval "${docker_cmd}" >/dev/null 2>&1; then
+        log::error "Failed to start Keycloak container"
+        log::info "Recovery hints:"
+        log::info "  1. Check if port ${port} is already in use: lsof -i:${port}"
+        log::info "  2. Check Docker daemon is running: docker ps"
+        log::info "  3. Check network exists: docker network ls | grep ${KEYCLOAK_NETWORK}"
+        log::info "  4. Check image availability: docker pull ${KEYCLOAK_IMAGE}"
+        return 1
+    fi
     
     # Store container ID as PID for consistency with other resources
     docker inspect --format='{{.State.Pid}}' "${KEYCLOAK_CONTAINER_NAME}" > "${KEYCLOAK_PID_FILE}" 2>/dev/null || true
@@ -114,10 +122,21 @@ keycloak::start() {
     if keycloak::wait_for_ready 60; then
         log::success "Keycloak started successfully on port ${port}"
         log::info "Admin Console: http://localhost:${port}/admin"
-        log::info "Credentials: ${KEYCLOAK_ADMIN_USER}/${KEYCLOAK_ADMIN_PASSWORD}"
+        
+        # Show credentials with security warning if using defaults
+        if [[ "${KEYCLOAK_ADMIN_PASSWORD}" == "admin" ]]; then
+            log::warning "Using DEFAULT credentials: ${KEYCLOAK_ADMIN_USER}/${KEYCLOAK_ADMIN_PASSWORD}"
+            log::info "For production, set KEYCLOAK_ADMIN_PASSWORD environment variable"
+        else
+            log::info "Credentials: ${KEYCLOAK_ADMIN_USER}/[secure password set]"
+        fi
         return 0
     else
         log::error "Failed to start Keycloak service"
+        log::info "Recovery hints:"
+        log::info "  1. Check container logs: docker logs ${KEYCLOAK_CONTAINER_NAME}"
+        log::info "  2. Verify database connection: docker exec ${KEYCLOAK_CONTAINER_NAME} env | grep KC_DB"
+        log::info "  3. Check health endpoint: curl -sf http://localhost:${port}/health"
         keycloak::stop
         return 1
     fi

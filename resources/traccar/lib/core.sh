@@ -150,22 +150,26 @@ manage_install() {
     log::info "Pulling Traccar Docker image ${TRACCAR_DOCKER_IMAGE}..."
     docker pull "${TRACCAR_DOCKER_IMAGE}"
     
-    # Create Traccar configuration file
-    cat > "${TRACCAR_CONFIG_DIR}/traccar.xml" << EOF
+    # Create Traccar configuration file with proper XML structure
+    cat > "${TRACCAR_CONFIG_DIR}/traccar.xml" << 'EOF'
 <?xml version='1.0' encoding='UTF-8'?>
-<entry key='config.default'>./conf/default.xml</entry>
-<entry key='web.enable'>true</entry>
-<entry key='web.port'>${TRACCAR_PORT}</entry>
-<entry key='web.path'>./web</entry>
-<entry key='geocoder.enable'>false</entry>
-
-<entry key='database.driver'>org.postgresql.Driver</entry>
-<entry key='database.url'>jdbc:postgresql://${TRACCAR_DB_HOST}:${TRACCAR_DB_PORT}/${TRACCAR_DB_NAME}</entry>
-<entry key='database.user'>${TRACCAR_DB_USER}</entry>
-<entry key='database.password'>${TRACCAR_DB_PASSWORD}</entry>
-
-<entry key='server.statistics'>false</entry>
-<entry key='notificator.types'>web,mail</entry>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+    <entry key='config.default'>./conf/default.xml</entry>
+    <entry key='web.enable'>true</entry>
+    <entry key='web.port'>8082</entry>
+    <entry key='web.path'>./web</entry>
+    <entry key='geocoder.enable'>false</entry>
+    
+    <!-- In-memory H2 database for demo purposes -->
+    <entry key='database.driver'>org.h2.Driver</entry>
+    <entry key='database.url'>jdbc:h2:./data/database</entry>
+    <entry key='database.user'>sa</entry>
+    <entry key='database.password'></entry>
+    
+    <entry key='server.statistics'>false</entry>
+    <entry key='notificator.types'>web,mail</entry>
+</properties>
 EOF
     
     log::success "Traccar installed successfully"
@@ -224,6 +228,7 @@ manage_start() {
         --name "${TRACCAR_CONTAINER_NAME}" \
         -p "${TRACCAR_PORT}:8082" \
         -v "${TRACCAR_CONFIG_DIR}/traccar.xml:/opt/traccar/conf/traccar.xml:ro" \
+        -v "${TRACCAR_DATA_DIR}:/opt/traccar/data:rw" \
         -v "${TRACCAR_LOGS_DIR}:/opt/traccar/logs:rw" \
         -v "${TRACCAR_MEDIA_DIR}:/opt/traccar/media:rw" \
         --restart unless-stopped \

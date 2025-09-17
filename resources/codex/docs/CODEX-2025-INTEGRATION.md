@@ -37,7 +37,7 @@ codex::cli::execute() {
     local prompt="$1"
     
     # Use Codex CLI in non-interactive mode
-    echo "$prompt" | codex --mode auto --no-color
+    echo "$prompt" | codex exec --full-auto --no-color
 }
 ```
 
@@ -257,7 +257,7 @@ resource-codex agent "Create a REST API with FastAPI including tests"
 ### Codex CLI Sandboxing
 - Runs in specified directory only
 - Requires approval for sensitive operations
-- No internet access during execution
+- Network access enabled when sandbox policy allows
 - Can configure approval modes
 
 ### Resource-Codex Integration
@@ -292,10 +292,11 @@ codex::content::execute() {
         echo "$input" > "$prompt_file"
         
         # Run Codex CLI with appropriate flags
-        codex \
-            --mode "${CODEX_CLI_MODE:-auto}" \
+        codex exec \
+            --full-auto \
             --model "${CODEX_DEFAULT_MODEL:-codex-mini-latest}" \
-            --file "$prompt_file"
+            -c sandbox_workspace_write.network_access=true \
+            < "$prompt_file"
         
         rm -f "$prompt_file"
         return $?

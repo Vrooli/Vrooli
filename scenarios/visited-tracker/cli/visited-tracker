@@ -262,7 +262,15 @@ record_visit() {
         echo "Files recorded: $recorded"
         
         # Show visit counts for each file
-        echo "$response" | jq -r '.files[]? | "  \(.file_path): \(.visit_count) visits"'
+        echo "$response" | jq -r '
+            (.files // [])
+            | map(
+                if type == "object" then
+                    "  \(.file_path // .path // .file): \(.visit_count // 0) visits"
+                else
+                    "  \(.): recorded"
+                end
+            )[]'
     fi
 }
 

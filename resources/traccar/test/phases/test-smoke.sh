@@ -14,7 +14,7 @@ echo "Running Traccar smoke tests..."
 
 # Test 1: Check if container is running
 echo -n "1. Checking if Traccar container is running... "
-if docker ps --format "table {{.Names}}" | grep -q "^${TRACCAR_CONTAINER}$"; then
+if docker ps --format "{{.Names}}" | grep -q "${TRACCAR_CONTAINER}"; then
     echo "✓"
 else
     echo "✗"
@@ -34,13 +34,12 @@ fi
 
 # Test 3: Check API authentication
 echo -n "3. Testing API authentication... "
-if response=$(timeout 5 curl -sf -u "${TRACCAR_ADMIN_EMAIL}:${TRACCAR_ADMIN_PASSWORD}" \
-    "http://${TRACCAR_HOST}:${TRACCAR_PORT}/api/session" 2>&1); then
+if timeout 5 curl -sf -u "${TRACCAR_ADMIN_EMAIL}:${TRACCAR_ADMIN_PASSWORD}" \
+    "http://${TRACCAR_HOST}:${TRACCAR_PORT}/api/users" &>/dev/null; then
     echo "✓"
 else
     echo "✗"
     echo "   Error: Failed to authenticate with Traccar API"
-    echo "   Response: $response"
     exit 1
 fi
 

@@ -110,7 +110,10 @@ export default function HealthMonitor() {
               'relative flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br text-white',
               getHealthBg(summary?.system_health_score || 0)
             )}>
-              <span className="text-4xl font-bold">{summary?.system_health_score || 0}</span>
+              <span className="text-4xl font-bold">
+                {summary?.system_health_score !== null && summary?.system_health_score !== undefined ? 
+                  Math.round(summary.system_health_score * 10) / 10 : 0}
+              </span>
               <span className="absolute -bottom-2 text-xs font-medium bg-white text-dark-700 px-2 py-1 rounded-full shadow-sm">
                 / 100
               </span>

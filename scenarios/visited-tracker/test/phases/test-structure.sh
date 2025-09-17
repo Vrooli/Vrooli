@@ -7,6 +7,7 @@ set -euo pipefail
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 APP_ROOT="${APP_ROOT:-$(builtin cd "${SCENARIO_DIR}/../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+source "${SCENARIO_DIR}/test/utils/cli.sh"
 
 pushd "$SCENARIO_DIR" >/dev/null
 
@@ -121,47 +122,12 @@ fi
 
 # Check CLI tooling can be installed on demand
 echo "🔍 Validating CLI tooling..."
-CLI_INSTALL_SCRIPT="cli/install.sh"
-CLI_ENTRYPOINT="cli/visited-tracker"
-
-if [ ! -f "$CLI_INSTALL_SCRIPT" ]; then
-    log::error "❌ CLI install script missing: $CLI_INSTALL_SCRIPT"
-    error_count=$((error_count + 1))
-else
-    if [ ! -x "$CLI_INSTALL_SCRIPT" ]; then
-        log::error "❌ CLI install script is not executable: $CLI_INSTALL_SCRIPT"
-        error_count=$((error_count + 1))
-    else
-        log::success "✅ CLI install script available"
+if ! visited_tracker::validate_cli "$SCENARIO_DIR" false; then
+    cli_errors=$?
+    if [ $cli_errors -eq 0 ]; then
+        cli_errors=1
     fi
-fi
-
-if [ -f "$CLI_ENTRYPOINT" ]; then
-    if [ ! -x "$CLI_ENTRYPOINT" ]; then
-        log::warning "⚠️  CLI entrypoint exists but is not executable; attempting to reinstall"
-        chmod +x "$CLI_ENTRYPOINT" || true
-    fi
-else
-    log::warning "⚠️  CLI entrypoint missing; it will be installed dynamically"
-fi
-
-if command -v visited-tracker >/dev/null 2>&1; then
-    log::success "✅ visited-tracker CLI already installed"
-elif [ -x "$CLI_INSTALL_SCRIPT" ]; then
-    if "$CLI_INSTALL_SCRIPT" >/dev/null 2>&1; then
-        if command -v visited-tracker >/dev/null 2>&1; then
-            log::success "✅ visited-tracker CLI installed for tests"
-        else
-            log::error "❌ CLI installation script ran but CLI is still unavailable"
-            error_count=$((error_count + 1))
-        fi
-    else
-        log::error "❌ CLI installation script failed"
-        error_count=$((error_count + 1))
-    fi
-else
-    log::error "❌ CLI tooling unavailable and cannot be installed"
-    error_count=$((error_count + 1))
+    error_count=$((error_count + cli_errors))
 fi
 
 # Check modern test structure

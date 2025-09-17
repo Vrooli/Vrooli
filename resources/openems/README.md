@@ -18,6 +18,10 @@ Open-source platform for managing distributed energy resources, microgrids, and 
 - ✅ Eclipse Ditto digital twin models
 - ✅ Energy forecast models (solar/battery/consumption)
 
+**P2 Requirements: 100% Complete**
+- ✅ Alert automation via Pushover/Twilio
+- ✅ Co-simulation with OpenTripPlanner/GeoNode
+
 ## 🚀 Quick Start
 
 ```bash
@@ -207,6 +211,64 @@ Available forecasts:
 - Modbus communications are isolated
 - Rate limiting prevents telemetry flooding
 - Authentication required for control operations
+
+## 🔔 P2 Alert Automation
+
+Automated alert system for critical energy events:
+
+```bash
+# Initialize alert system
+vrooli resource openems alerts init
+
+# Configure alert channels
+vrooli resource openems alerts enable pushover
+vrooli resource openems alerts enable twilio
+
+# Test alert system
+vrooli resource openems alerts test
+
+# View alert history
+vrooli resource openems alerts history
+
+# Clear alert history
+vrooli resource openems alerts clear
+```
+
+Alert rules include:
+- Grid outage detection (critical)
+- Battery low state of charge (warning)
+- Solar generation offline during daylight (warning)
+- Peak demand threshold exceeded (info)
+- Battery system faults (critical)
+
+## 🔄 P2 Co-simulation
+
+Energy-aware mobility and spatial planning:
+
+```bash
+# Initialize co-simulation environment
+vrooli resource openems cosim init
+
+# List available scenarios
+vrooli resource openems cosim list
+
+# Run EV charging optimization scenario
+vrooli resource openems cosim run ev-charging-mobility
+
+# Check co-simulation status
+vrooli resource openems cosim status
+
+# Test co-simulation with mini scenario
+vrooli resource openems cosim test
+```
+
+Co-simulation features:
+- EV charging schedule optimization
+- Trip planning with energy constraints
+- Spatial analysis of charging infrastructure
+- SimPy discrete event simulation
+- Integration with OpenTripPlanner (when available)
+- Integration with GeoNode (when available)
 
 ## 📚 Documentation
 

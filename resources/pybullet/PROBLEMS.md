@@ -30,7 +30,7 @@
 
 ### Port Already in Use
 **Error**: "Address already in use"
-**Fix**: Check for existing processes on port 11457 with `lsof -i :11457`
+**Fix**: Check for existing processes on the assigned port with `lsof -i :$PYBULLET_PORT`
 
 ### Import Error
 **Error**: "No module named 'pybullet'"
@@ -46,6 +46,13 @@
 - Physics calculations are CPU-intensive
 - Headless mode is 2-3x faster than GUI mode
 - Network latency affects API response times
+
+## Recent Improvements (2025-09-16)
+
+1. **Port allocation fixed**: Moved from hardcoded port 11457 (conflicting with godot) to proper registry allocation at port 11460
+2. **Security hardening**: Added comprehensive input validation with Pydantic Field validators
+3. **Resource limits**: Added simulation count limits to prevent resource exhaustion
+4. **Better error handling**: No port fallbacks, explicit failures when environment not configured
 
 ## Future Improvements
 

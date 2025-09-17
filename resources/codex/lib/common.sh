@@ -1,4 +1,4 @@
-#\!/usr/bin/env bash
+#!/usr/bin/env bash
 # Codex Common Functions
 
 # Set script directory for sourcing
@@ -14,6 +14,54 @@ source "${APP_ROOT}/resources/codex/config/defaults.sh"
 source "${APP_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+
+#######################################
+# Determine writable Codex home directory
+# Returns:
+#   Path to writable Codex home directory
+#######################################
+codex::ensure_home() {
+    if [[ -n "${CODEX_EFFECTIVE_HOME:-}" && -d "${CODEX_EFFECTIVE_HOME}" ]]; then
+        echo "${CODEX_EFFECTIVE_HOME}"
+        return 0
+    fi
+
+    local preferred_home="${CODEX_HOME:-${HOME}/.codex}"
+    local resolved_home=""
+
+    if mkdir -p "${preferred_home}" 2>/dev/null; then
+        local test_file="${preferred_home}/.codex-write-test"
+        if touch "${test_file}" 2>/dev/null; then
+            rm -f "${test_file}"
+            resolved_home="${preferred_home}"
+            CODEX_HOME_OVERRIDE_REQUIRED="false"
+        else
+            resolved_home=""
+        fi
+    fi
+
+    if [[ -z "${resolved_home}" ]]; then
+        local workspace_base="${CODEX_WORKSPACE:-/tmp/codex-workspace}"
+        local fallback_home="${workspace_base}/.codex-home"
+        if mkdir -p "${fallback_home}" 2>/dev/null; then
+            resolved_home="${fallback_home}"
+            log::warn "Codex home ${preferred_home} is not writable. Using fallback: ${resolved_home}"
+        else
+            resolved_home="/tmp/codex-home"
+            mkdir -p "${resolved_home}" 2>/dev/null || true
+            log::warn "Codex home not writable. Falling back to ${resolved_home}"
+        fi
+        CODEX_HOME_OVERRIDE_REQUIRED="true"
+    fi
+
+    mkdir -p "${resolved_home}/sessions" "${resolved_home}/log" "${resolved_home}/logs" \
+        "${resolved_home}/scripts" "${resolved_home}/outputs" 2>/dev/null || true
+
+    export CODEX_HOME="${resolved_home}"
+    CODEX_EFFECTIVE_HOME="${resolved_home}"
+
+    echo "${resolved_home}"
+}
 
 #######################################
 # Get OpenAI API key from Vault or environment

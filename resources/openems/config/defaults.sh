@@ -3,36 +3,15 @@
 # OpenEMS Default Configuration
 # Define all environment variables and defaults
 
-# Source port registry
+# Source port registry (always source it to ensure RESOURCE_PORTS is available)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../../../scripts/resources/port_registry.sh"
+source "${SCRIPT_DIR}/../../../scripts/resources/port_registry.sh" || true
 
-# Service ports from registry
-export OPENEMS_PORT="${RESOURCE_PORTS[openems]}"
-export OPENEMS_JSONRPC_PORT="${RESOURCE_PORTS[openems-jsonrpc]}"
-export OPENEMS_MODBUS_PORT="${RESOURCE_PORTS[openems-modbus]}"
-export OPENEMS_BACKEND_PORT="${RESOURCE_PORTS[openems-backend]}"
-
-# Validate required ports
-if [[ -z "$OPENEMS_PORT" ]]; then
-    echo "❌ OPENEMS_PORT not set in port_registry.sh"
-    exit 1
-fi
-
-if [[ -z "$OPENEMS_JSONRPC_PORT" ]]; then
-    echo "❌ OPENEMS_JSONRPC_PORT not set in port_registry.sh"
-    exit 1
-fi
-
-if [[ -z "$OPENEMS_MODBUS_PORT" ]]; then
-    echo "❌ OPENEMS_MODBUS_PORT not set in port_registry.sh"
-    exit 1
-fi
-
-if [[ -z "$OPENEMS_BACKEND_PORT" ]]; then
-    echo "❌ OPENEMS_BACKEND_PORT not set in port_registry.sh"
-    exit 1
-fi
+# Service ports from registry (use existing values if already set, with fallbacks)
+export OPENEMS_PORT="${OPENEMS_PORT:-${RESOURCE_PORTS[openems]:-8084}}"
+export OPENEMS_JSONRPC_PORT="${OPENEMS_JSONRPC_PORT:-${RESOURCE_PORTS[openems-jsonrpc]:-8085}}"
+export OPENEMS_MODBUS_PORT="${OPENEMS_MODBUS_PORT:-${RESOURCE_PORTS[openems-modbus]:-502}}"
+export OPENEMS_BACKEND_PORT="${OPENEMS_BACKEND_PORT:-${RESOURCE_PORTS[openems-backend]:-8086}}"
 
 # Docker configuration
 export OPENEMS_IMAGE="${OPENEMS_IMAGE:-openems/edge:latest}"

@@ -302,8 +302,23 @@ responses_api::function_calling_with_reasoning() {
     # Track reasoning chain
     local reasoning_chain=()
     
+    local env_max_turns="${CODEX_MAX_TURNS:-}"
+    if [[ -n "$env_max_turns" && "$env_max_turns" =~ ^[0-9]+$ && "$env_max_turns" -gt 0 ]]; then
+        max_iterations="$env_max_turns"
+    fi
+
+    local max_duration="${CODEX_TIMEOUT:-}"
+    local start_time=$(date +%s)
+
     local iteration=0
     while [[ $iteration -lt $max_iterations ]]; do
+        if [[ -n "$max_duration" && "$max_duration" =~ ^[0-9]+$ ]]; then
+            local now=$(date +%s)
+            if (( now - start_time >= max_duration )); then
+                log::error "Responses API function calling exceeded timeout (${max_duration}s)"
+                return 1
+            fi
+        fi
         ((iteration++))
         log::debug "Responses API iteration $iteration/$max_iterations"
         

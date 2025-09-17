@@ -55,6 +55,12 @@ CODEX_MODEL_PRIORITY=codex-mini-latest,gpt-5-nano,gpt-4o
 - **TOOL-EXECUTION-ARCHITECTURE.md**: Comparison of approaches
 - **codex-cli-demo.sh**: Interactive demonstration script
 
+### 7. Non-interactive Execution & Guard Rails
+- Swapped CLI integration to `codex exec` (non-interactive) with workspace sandbox + network enabled by default
+- Enforced `CODEX_TIMEOUT` / `CODEX_MAX_TURNS` across CLI and API fallbacks
+- Permission system now filters tool catalog and honours `--skip-permissions`
+- Automatically relocates `CODEX_HOME` to a writable workspace when `~/.codex` is read-only
+
 ## How It Works Now
 
 ### Current Behavior (No CLI Installed)
@@ -119,7 +125,7 @@ resource-codex content execute "Build a complete web app"
 ### Agent Mode (With Codex CLI)
 - ✅ Sandboxed execution in `/tmp/codex-workspace`
 - ✅ User approval workflows for sensitive operations
-- ✅ No internet access during execution
+- ✅ Network access explicitly enabled when sandbox policy permits
 - ✅ Full audit logging
 - ✅ Can be disabled via `CODEX_CLI_ENABLED=false`
 

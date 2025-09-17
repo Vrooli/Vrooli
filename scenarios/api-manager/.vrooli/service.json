@@ -59,12 +59,12 @@
   "environment": {
     "API_MANAGER_URL": "http://localhost:${API_PORT}",
     "POSTGRES_HOST": "${POSTGRES_HOST:-localhost}",
-    "POSTGRES_PORT": "${POSTGRES_PORT:-5432}",
+    "POSTGRES_PORT": "${POSTGRES_PORT}",
     "POSTGRES_DB": "${POSTGRES_DB:-vrooli}",
-    "POSTGRES_USER": "${POSTGRES_USER:-postgres}",
+    "POSTGRES_USER": "${POSTGRES_USER}",
     "POSTGRES_PASSWORD": "${POSTGRES_PASSWORD}",
-    "OLLAMA_URL": "${OLLAMA_URL:-http://localhost:11434}",
-    "QDRANT_URL": "${QDRANT_URL:-http://localhost:6333}",
+    "OLLAMA_URL": "${OLLAMA_URL}",
+    "QDRANT_URL": "${QDRANT_URL}",
     "VROOLI_LIFECYCLE_MANAGED": "true"
   },
   "lifecycle": {
@@ -140,7 +140,7 @@
         },
         {
           "name": "init-database",
-          "run": "if [ -f initialization/storage/postgres/schema.sql ]; then PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST:-localhost} -p ${POSTGRES_PORT:-5432} -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-vrooli} -f initialization/storage/postgres/schema.sql 2>/dev/null || echo 'Schema already applied or database not ready'; else echo 'No schema file found'; fi",
+          "run": "if [ -f initialization/storage/postgres/schema.sql ]; then PGPASSWORD=${POSTGRES_PASSWORD} psql -h ${POSTGRES_HOST} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -f initialization/storage/postgres/schema.sql 2>/dev/null || echo 'Schema already applied or database not ready'; else echo 'No schema file found'; fi",
           "description": "Apply database schema if available"
         }
       ]
