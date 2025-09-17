@@ -156,14 +156,6 @@
       "required": true,
       "description": "Workflow automation platform"
     },
-    "windmill": {
-      "enabled": true,
-      "required": true,
-      "healthCheck": {
-        "intervalMs": 60000,
-        "timeoutMs": 5000
-      }
-    },
     "node-red": {
       "enabled": true,
       "required": false,
@@ -350,13 +342,12 @@
     "musicgen": {
       "enabled": true
     },
-    "automation": {
-      "windmill": {
-        "enabled": true,
-        "healthCheck": {
-          "intervalMs": 60000,
-          "timeoutMs": 5000
-        }
+    "windmill": {
+      "enabled": true,
+      "required": true,
+      "healthCheck": {
+        "intervalMs": 60000,
+        "timeoutMs": 5000
       }
     }
   },
@@ -491,22 +482,6 @@
           "description": "Remove build artifacts and dependencies"
         }
       ]
-    }
-  },
-  "services": {
-    "storage": {
-      "redis": {
-        "enabled": true,
-        "port": 6380,
-        "instances": {
-          "default": {
-            "port": 6380,
-            "maxMemory": "2gb",
-            "persistence": "rdb",
-            "password": ""
-          }
-        }
-      }
     }
   }
 }
