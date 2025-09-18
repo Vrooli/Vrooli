@@ -146,6 +146,9 @@ func main() {
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
+		
+		// Preview route for taking screenshots of URLs
+		r.Post("/preview-screenshot", handler.TakePreviewScreenshot)
 	})
 
 	// Get API host for logging
