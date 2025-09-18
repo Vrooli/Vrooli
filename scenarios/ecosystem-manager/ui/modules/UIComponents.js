@@ -9,7 +9,7 @@ export class UIComponents {
         const isRunning = !!runningProcesses[task.id];
         
         const card = document.createElement('div');
-        card.className = `task-card ${task.priority} ${isRunning ? 'task-executing' : ''} ${task.operation || 'generator'}`;
+        card.className = `task-card ${task.priority} ${isRunning ? 'task-executing' : ''} ${task.type || 'resource'} ${task.operation || 'generator'}`;
         card.id = `task-${task.id}`;
         card.draggable = true;
         
@@ -68,20 +68,14 @@ export class UIComponents {
 
     static getPhaseIcon(phase) {
         switch (phase) {
+            case 'pending':
+                return 'fa-clock';
+            case 'in-progress':
+                return 'fa-spinner';
             case 'completed':
                 return 'fa-check-circle';
-            case 'initialization':
-                return 'fa-play-circle';
-            case 'research':
-                return 'fa-search';
-            case 'implementation':
-                return 'fa-code';
-            case 'testing':
-                return 'fa-vial';
-            case 'documentation':
-                return 'fa-file-alt';
-            case 'prompt_assembled':
-                return 'fa-puzzle-piece';
+            case 'failed':
+                return 'fa-times-circle';
             default:
                 return 'fa-tasks';
         }

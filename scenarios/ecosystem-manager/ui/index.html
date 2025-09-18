@@ -6,6 +6,44 @@
     <title>Ecosystem Manager - Vrooli</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="styles.css" rel="stylesheet">
+    
+    <!-- Apply cached theme immediately to prevent flicker -->
+    <script>
+        (function() {
+            const cachedTheme = localStorage.getItem('ecosystemManager_theme');
+            if (cachedTheme === 'dark') {
+                // Inject dark mode styles immediately
+                const style = document.createElement('style');
+                style.textContent = `
+                    body { 
+                        background-color: #1a1a1a !important;
+                        color: #f3f4f6 !important;
+                    }
+                    .header {
+                        background: #2d2d2d !important;
+                        border-bottom-color: #404040 !important;
+                    }
+                    .fixed-top-container {
+                        background: #1a1a1a !important;
+                    }
+                    .kanban-column {
+                        background: #2d2d2d !important;
+                    }
+                    .column-header {
+                        background: #3a3a3a !important;
+                        border-bottom-color: #404040 !important;
+                    }
+                    .filters {
+                        background: #2d2d2d !important;
+                        border-bottom-color: #404040 !important;
+                    }
+                `;
+                document.head.appendChild(style);
+                // Also set a flag to transfer to proper dark mode when body loads
+                window.applyDarkModeOnLoad = true;
+            }
+        })();
+    </script>
 </head>
 <body>
     <!-- Fixed Top Container -->
@@ -296,130 +334,158 @@
                 <button class="modal-close" onclick="ecosystemManager.closeModal('settings-modal')">&times;</button>
             </div>
             
+            <!-- Settings Tabs Navigation (Desktop only) -->
+            <div class="settings-tabs-nav">
+                <button type="button" class="settings-tab-btn active" data-tab="processor" onclick="ecosystemManager.switchSettingsTab('processor')">
+                    <i class="fas fa-server"></i>
+                    <span>Processor</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="agent" onclick="ecosystemManager.switchSettingsTab('agent')">
+                    <i class="fas fa-robot"></i>
+                    <span>Agent</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="display" onclick="ecosystemManager.switchSettingsTab('display')">
+                    <i class="fas fa-palette"></i>
+                    <span>Display</span>
+                </button>
+                <button type="button" class="settings-tab-btn" data-tab="limits" onclick="ecosystemManager.switchSettingsTab('limits')">
+                    <i class="fas fa-hourglass-half"></i>
+                    <span>Rate Limits</span>
+                </button>
+            </div>
+            
             <form id="settings-form">
-                <div style="padding: 1.5rem;">
+                <div class="settings-content">
                     
-                    <!-- Display Settings -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">
-                            <i class="fas fa-palette"></i>
-                            Display Settings
-                        </h4>
-                        
-                        <div class="form-group">
-                            <label for="settings-theme">Theme</label>
-                            <select id="settings-theme" name="theme">
-                                <option value="light">Light</option>
-                                <option value="dark">Dark</option>
-                                <option value="auto">Auto (System Preference)</option>
-                            </select>
-                            <small class="form-help">Choose your preferred color theme</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="settings-condensed-mode">
-                                <input type="checkbox" id="settings-condensed-mode" name="condensed_mode">
-                                Condensed Task Cards
-                            </label>
-                            <small class="form-help">Show less information on task cards to fit more on screen</small>
-                        </div>
-                    </div>
-                    
-                    <!-- Queue Processor Settings -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">
-                            <i class="fas fa-server"></i>
-                            Queue Processor Settings
-                        </h4>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="settings-slots">Concurrent Task Slots</label>
-                                <div class="slider-container">
-                                    <input type="range" id="settings-slots" name="slots" min="1" max="5" value="1" 
-                                           oninput="ecosystemManager.updateSliderValue('settings-slots', 'slots-value')">
-                                    <span id="slots-value" class="slider-value">1</span>
+                    <!-- Queue Processor Settings Tab -->
+                    <div class="settings-tab-content active" data-tab="processor">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-server"></i>
+                                Queue Processor Settings
+                            </h4>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="settings-slots">Concurrent Task Slots</label>
+                                    <div class="slider-container">
+                                        <input type="range" id="settings-slots" name="slots" min="1" max="5" value="1" 
+                                               oninput="ecosystemManager.updateSliderValue('settings-slots', 'slots-value')">
+                                        <span id="slots-value" class="slider-value">1</span>
+                                    </div>
+                                    <small class="form-help">Number of tasks that can run simultaneously</small>
                                 </div>
-                                <small class="form-help">Number of tasks that can run simultaneously</small>
+                                
+                                <div class="form-group">
+                                    <label for="settings-refresh">Refresh Interval (seconds)</label>
+                                    <input type="number" id="settings-refresh" name="refresh_interval" 
+                                           min="5" max="300" value="30" step="1">
+                                    <small class="form-help">How often to check for new tasks</small>
+                                </div>
                             </div>
                             
                             <div class="form-group">
-                                <label for="settings-refresh">Refresh Interval (seconds)</label>
-                                <input type="number" id="settings-refresh" name="refresh_interval" 
-                                       min="5" max="300" value="30" step="1">
-                                <small class="form-help">How often to check for new tasks</small>
+                                <label for="settings-active">
+                                    <input type="checkbox" id="settings-active" name="active">
+                                    Processor Active
+                                </label>
+                                <small class="form-help">Enable automatic task processing (default: false for maintenance)</small>
                             </div>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="settings-active">
-                                <input type="checkbox" id="settings-active" name="active">
-                                Processor Active
-                            </label>
-                            <small class="form-help">Enable automatic task processing (default: false for maintenance)</small>
                         </div>
                     </div>
                     
-                    <!-- Agent Settings -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">
-                            <i class="fas fa-robot"></i>
-                            Claude Agent Settings
-                        </h4>
-                        
-                        <div class="form-group">
-                            <label for="settings-max-turns">Maximum Turns</label>
-                            <div class="slider-container">
-                                <input type="range" id="settings-max-turns" name="max_turns" min="5" max="80" value="60" 
-                                       oninput="ecosystemManager.updateSliderValue('settings-max-turns', 'max-turns-value')">
-                                <span id="max-turns-value" class="slider-value">60</span>
-                            </div>
-                            <small class="form-help">Maximum conversation turns Claude can use per task</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="settings-tools">Allowed Tools</label>
-                            <input type="text" id="settings-tools" name="allowed_tools" 
-                                   value="Read,Write,Edit,Bash,LS,Glob,Grep">
-                            <small class="form-help">Comma-separated list of tools Claude can use</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="settings-skip-permissions">
-                                <input type="checkbox" id="settings-skip-permissions" name="skip_permissions" checked>
-                                Skip Permission Checks
-                            </label>
-                            <small class="form-help">Allow Claude to bypass permission prompts for faster execution</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="settings-task-timeout">Task Timeout (minutes)</label>
-                            <div class="slider-container">
-                                <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30" 
-                                       oninput="ecosystemManager.updateSliderValue('settings-task-timeout', 'task-timeout-value')">
-                                <span id="task-timeout-value" class="slider-value">30</span>
-                            </div>
-                            <small class="form-help">Maximum time for task execution (5-240 minutes)</small>
-                        </div>
-                    </div>
-                    
-                    <!-- Rate Limit Management -->
-                    <div class="settings-section">
-                        <h4 class="settings-section-title">
-                            <i class="fas fa-hourglass-half"></i>
-                            Rate Limit Management
-                        </h4>
-                        
-                        <div class="form-group">
-                            <div id="rate-limit-status" style="margin-bottom: 1rem;">
-                                <!-- Rate limit status will be displayed here -->
+                    <!-- Agent Settings Tab -->
+                    <div class="settings-tab-content" data-tab="agent">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-robot"></i>
+                                Claude Agent Settings
+                            </h4>
+                            
+                            <div class="form-group">
+                                <label for="settings-max-turns">Maximum Turns</label>
+                                <div class="slider-container">
+                                    <input type="range" id="settings-max-turns" name="max_turns" min="5" max="80" value="60" 
+                                           oninput="ecosystemManager.updateSliderValue('settings-max-turns', 'max-turns-value')">
+                                    <span id="max-turns-value" class="slider-value">60</span>
+                                </div>
+                                <small class="form-help">Maximum conversation turns Claude can use per task</small>
                             </div>
                             
-                            <button type="button" id="reset-rate-limit-btn" class="btn btn-warning" onclick="ecosystemManager.resetRateLimit()">
-                                <i class="fas fa-refresh"></i>
-                                Reset Rate Limit Pause
-                            </button>
-                            <small class="form-help">Manually reset the rate limit pause if you've resolved the API limit issue</small>
+                            <div class="form-group">
+                                <label for="settings-tools">Allowed Tools</label>
+                                <input type="text" id="settings-tools" name="allowed_tools" 
+                                       value="Read,Write,Edit,Bash,LS,Glob,Grep">
+                                <small class="form-help">Comma-separated list of tools Claude can use</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-skip-permissions">
+                                    <input type="checkbox" id="settings-skip-permissions" name="skip_permissions" checked>
+                                    Skip Permission Checks
+                                </label>
+                                <small class="form-help">Allow Claude to bypass permission prompts for faster execution</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-task-timeout">Task Timeout (minutes)</label>
+                                <div class="slider-container">
+                                    <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30" 
+                                           oninput="ecosystemManager.updateSliderValue('settings-task-timeout', 'task-timeout-value')">
+                                    <span id="task-timeout-value" class="slider-value">30</span>
+                                </div>
+                                <small class="form-help">Maximum time for task execution (5-240 minutes)</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Display Settings Tab -->
+                    <div class="settings-tab-content" data-tab="display">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-palette"></i>
+                                Display Settings
+                            </h4>
+                            
+                            <div class="form-group">
+                                <label for="settings-theme">Theme</label>
+                                <select id="settings-theme" name="theme" onchange="ecosystemManager.previewTheme(this.value)">
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                    <option value="auto">Auto (System Preference)</option>
+                                </select>
+                                <small class="form-help">Choose your preferred color theme</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="settings-condensed-mode">
+                                    <input type="checkbox" id="settings-condensed-mode" name="condensed_mode">
+                                    Condensed Task Cards
+                                </label>
+                                <small class="form-help">Show less information on task cards to fit more on screen</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Rate Limit Management Tab -->
+                    <div class="settings-tab-content" data-tab="limits">
+                        <div class="settings-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-hourglass-half"></i>
+                                Rate Limit Management
+                            </h4>
+                            
+                            <div class="form-group">
+                                <div id="rate-limit-status" style="margin-bottom: 1rem;">
+                                    <!-- Rate limit status will be displayed here -->
+                                </div>
+                                
+                                <button type="button" id="reset-rate-limit-btn" class="btn btn-warning" onclick="ecosystemManager.resetRateLimit()">
+                                    <i class="fas fa-refresh"></i>
+                                    Reset Rate Limit Pause
+                                </button>
+                                <small class="form-help">Manually reset the rate limit pause if you've resolved the API limit issue</small>
+                            </div>
                         </div>
                     </div>
                     

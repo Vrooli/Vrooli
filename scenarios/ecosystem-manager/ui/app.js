@@ -40,6 +40,9 @@ class EcosystemManager {
         // Initialize UI
         this.initializeUI();
         
+        // Ensure cached theme is applied
+        SettingsManager.applyCachedTheme();
+        
         // Load initial data
         await this.loadInitialData();
         
@@ -62,6 +65,7 @@ class EcosystemManager {
                 console.error('Failed to load resources/scenarios:', err)
             );
         }, 100);
+        
         
         console.log('Ecosystem Manager initialized');
     }
@@ -106,6 +110,9 @@ class EcosystemManager {
             
             // Fetch queue processor status
             await this.fetchQueueProcessorStatus();
+            
+            // Update grid layout after initial load
+            this.updateGridLayout();
             
         } catch (error) {
             console.error('Error loading initial data:', error);
@@ -331,19 +338,26 @@ class EcosystemManager {
                             </div>
                         </div>
                         
-                        <!-- Current Phase -->
-                        <div class="form-group">
-                            <label for="edit-task-phase">Current Phase</label>
-                            <select id="edit-task-phase" name="current_phase">
-                                <option value="">No Phase</option>
-                                <option value="initialization" ${task.current_phase === 'initialization' ? 'selected' : ''}>Initialization</option>
-                                <option value="research" ${task.current_phase === 'research' ? 'selected' : ''}>Research</option>
-                                <option value="implementation" ${task.current_phase === 'implementation' ? 'selected' : ''}>Implementation</option>
-                                <option value="testing" ${task.current_phase === 'testing' ? 'selected' : ''}>Testing</option>
-                                <option value="documentation" ${task.current_phase === 'documentation' ? 'selected' : ''}>Documentation</option>
-                                <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
-                                <option value="prompt_assembled" ${task.current_phase === 'prompt_assembled' ? 'selected' : ''}>Prompt Assembled</option>
-                            </select>
+                        <!-- Current Phase and Operation Type -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="edit-task-phase">Current Phase</label>
+                                <select id="edit-task-phase" name="current_phase">
+                                    <option value="">No Phase</option>
+                                    <option value="pending" ${task.current_phase === 'pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="in-progress" ${task.current_phase === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
+                                    <option value="failed" ${task.current_phase === 'failed' ? 'selected' : ''}>Failed</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="edit-task-operation">Type</label>
+                                <select id="edit-task-operation" name="operation">
+                                    <option value="generator" ${task.operation === 'generator' ? 'selected' : ''}>Generator</option>
+                                    <option value="improver" ${task.operation === 'improver' ? 'selected' : ''}>Improver</option>
+                                </select>
+                            </div>
                         </div>
                         
                         <!-- Notes -->
@@ -476,9 +490,10 @@ class EcosystemManager {
         
         const updates = {
             title: formData.get('title'),
-            status: formData.get('status'),
+            status: formData.get('current_phase') || formData.get('status'), // Map current_phase to status for file movement
             priority: formData.get('priority'),
             current_phase: formData.get('current_phase'),
+            operation: formData.get('operation'),
             notes: formData.get('notes')
         };
         
@@ -640,6 +655,13 @@ class EcosystemManager {
             const result = await this.settingsManager.saveSettings(settings);
             
             if (result.success) {
+                // Apply theme immediately after successful save and update original theme
+                this.settingsManager.applyTheme(settings.theme || 'light');
+                this.settingsManager.originalTheme = settings.theme || 'light'; // Update original theme
+                
+                // Update processor status UI immediately
+                this.settingsManager.updateProcessorToggleUI(settings.active);
+                
                 this.showToast('Settings saved successfully', 'success');
                 this.closeModal('settings-modal');
             } else {
@@ -872,9 +894,25 @@ class EcosystemManager {
         });
     }
 
+    switchSettingsTab(tabName) {
+        // Update settings tab buttons
+        document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        
+        // Update settings tab content
+        document.querySelectorAll('.settings-tab-content').forEach(content => {
+            content.classList.toggle('active', content.dataset.tab === tabName);
+        });
+    }
+
     closeModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
+            // If closing settings modal, revert theme preview
+            if (modalId === 'settings-modal') {
+                this.settingsManager.revertThemePreview();
+            }
             modal.classList.remove('show');
             // Re-enable body scroll when closing modal
             document.body.style.overflow = '';
@@ -915,6 +953,11 @@ class EcosystemManager {
                 this.settingsManager.applySettingsToUI(settings);
             });
         }
+    }
+
+    previewTheme(theme) {
+        // Apply theme immediately for preview, but don't save it yet
+        this.settingsManager.applyTheme(theme);
     }
 
     resetSettingsToDefault() {
@@ -1094,8 +1137,34 @@ class EcosystemManager {
     hideColumn(status) {
         const column = document.querySelector(`[data-status="${status}"]`);
         if (column) {
-            column.style.display = 'none';
+            column.classList.add('hidden');
+            this.updateGridLayout();
             this.showToast(`${status.charAt(0).toUpperCase() + status.slice(1)} column hidden`, 'info');
+        }
+    }
+
+    showColumn(status) {
+        const column = document.querySelector(`[data-status="${status}"]`);
+        if (column) {
+            column.classList.remove('hidden');
+            this.updateGridLayout();
+            this.showToast(`${status.charAt(0).toUpperCase() + status.slice(1)} column shown`, 'info');
+        }
+    }
+
+    updateGridLayout() {
+        const board = document.querySelector('.kanban-board');
+        if (!board) return;
+
+        // Count visible columns
+        const visibleColumns = board.querySelectorAll('.kanban-column:not(.hidden)').length;
+        
+        // Remove all column classes
+        board.classList.remove('columns-1', 'columns-2', 'columns-3', 'columns-4');
+        
+        // Add appropriate class based on visible columns
+        if (visibleColumns > 0) {
+            board.classList.add(`columns-${visibleColumns}`);
         }
     }
 }

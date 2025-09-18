@@ -111,6 +111,11 @@ body.dark-mode .fixed-top-container {
     background: var(--dark-bg);
 }
 
+body.dark-mode .header {
+    background: var(--dark-card-bg);
+    border-bottom-color: var(--dark-border-gray);
+}
+
 /* Dark mode toggle */
 .dark-mode-toggle {
     background: rgba(255, 255, 255, 0.1);
@@ -348,6 +353,23 @@ main {
     margin: 0 auto;
     position: relative;
     z-index: 1;
+}
+
+/* Dynamic grid layouts based on visible columns */
+.kanban-board.columns-1 {
+    grid-template-columns: 1fr;
+}
+
+.kanban-board.columns-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.kanban-board.columns-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.kanban-board.columns-4 {
+    grid-template-columns: repeat(4, 1fr);
 }
 
 .kanban-column {
@@ -1843,8 +1865,66 @@ body.dark-mode .queue-info {
 
 
 /* Settings Modal Styles */
+
+/* Settings Tabs Navigation */
+.settings-tabs-nav {
+    display: flex;
+    background: var(--light-gray);
+    border-bottom: 1px solid var(--border-gray);
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+}
+
+.settings-tab-btn {
+    background: transparent;
+    border: none;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--medium-gray);
+    transition: all 0.2s ease;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    min-width: fit-content;
+}
+
+.settings-tab-btn:hover {
+    color: var(--text-color);
+    background: rgba(74, 144, 226, 0.05);
+}
+
+.settings-tab-btn.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: rgba(74, 144, 226, 0.08);
+}
+
+.settings-tab-btn i {
+    font-size: 1rem;
+}
+
+/* Settings Content Container */
+.settings-content {
+    padding: 1.5rem;
+}
+
+/* Tab Content Areas */
+.settings-tab-content {
+    display: none;
+}
+
+.settings-tab-content.active {
+    display: block;
+}
+
+/* Desktop Settings Sections (inside tabs) */
 .settings-section {
-    margin-bottom: 2rem;
+    margin-bottom: 0;
     padding: 1.5rem;
     background: var(--light-gray);
     border-radius: var(--border-radius);
@@ -1863,6 +1943,46 @@ body.dark-mode .queue-info {
 
 .settings-section-title i {
     font-size: 1rem;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    /* Hide tabs navigation on mobile */
+    .settings-tabs-nav {
+        display: none;
+    }
+    
+    /* Show all tab content on mobile */
+    .settings-tab-content {
+        display: block !important;
+    }
+    
+    /* Change settings sections to border style on mobile */
+    .settings-section {
+        margin-bottom: 1.5rem;
+        padding: 1.5rem 0;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid var(--border-gray);
+        border-radius: 0;
+    }
+    
+    /* Last section shouldn't have bottom border */
+    .settings-tab-content:last-of-type .settings-section {
+        border-bottom: none;
+    }
+    
+    /* Adjust section titles for mobile */
+    .settings-section-title {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+    }
+    
+    /* Remove content padding on mobile for full width sections */
+    .settings-content {
+        padding: 1rem;
+    }
 }
 
 /* Slider Styles */
@@ -1988,9 +2108,30 @@ body.dark-mode .execution-results .claude-output {
 }
 
 /* Dark Mode Adjustments for Settings */
+body.dark-mode .settings-tabs-nav {
+    background: var(--dark-light-gray);
+    border-color: var(--dark-border-gray);
+}
+
+body.dark-mode .settings-tab-btn:hover {
+    background: rgba(74, 144, 226, 0.1);
+}
+
+body.dark-mode .settings-tab-btn.active {
+    background: rgba(74, 144, 226, 0.15);
+}
+
 body.dark-mode .settings-section {
     background: var(--dark-light-gray);
     border-color: var(--dark-border-gray);
+}
+
+/* Dark mode mobile sections */
+@media (max-width: 768px) {
+    body.dark-mode .settings-section {
+        background: transparent;
+        border-bottom-color: var(--dark-border-gray);
+    }
 }
 
 body.dark-mode .slider-container input[type="range"] {

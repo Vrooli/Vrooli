@@ -170,9 +170,29 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	// Preserve certain fields that shouldn't be changed via general update
 	updatedTask.ID = currentTask.ID
 	updatedTask.Type = currentTask.Type
-	updatedTask.Operation = currentTask.Operation
 	updatedTask.CreatedBy = currentTask.CreatedBy
 	updatedTask.CreatedAt = currentTask.CreatedAt
+	
+	// Allow operation to be updated but preserve if not provided
+	if updatedTask.Operation == "" {
+		updatedTask.Operation = currentTask.Operation
+	}
+	
+	// Validate operation if it was changed
+	validOperations := []string{"generator", "improver"}
+	if !tasks.Contains(validOperations, updatedTask.Operation) {
+		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
+		return
+	}
+	
+	// Validate that we have configuration for the new operation combination
+	if updatedTask.Operation != currentTask.Operation {
+		_, err := h.assembler.SelectPromptAssembly(updatedTask.Type, updatedTask.Operation)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Unsupported operation combination after update: %v", err), http.StatusBadRequest)
+			return
+		}
+	}
 	
 	// Preserve all other fields if they weren't provided in the update
 	if updatedTask.Title == "" {
@@ -305,7 +325,10 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	log.Printf("Task %s updated successfully", taskID)
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedTask)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"task":    updatedTask,
+	})
 }
 
 // DeleteTaskHandler deletes a task
