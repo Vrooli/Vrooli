@@ -24,17 +24,17 @@
                 <!-- Queue Status Indicators -->
                 <div class="queue-status">
                     <div class="queue-info">
-                        <div class="queue-slots">
-                            <i class="fas fa-server"></i>
-                            <span id="queue-slots">Slots: <span id="available-slots">0</span>/<span id="max-slots">1</span></span>
+                        <div class="queue-processor-status">
+                            <i class="fas fa-play" id="processor-status-icon"></i>
+                            <span id="processor-status">Active</span>
                         </div>
                         <div class="queue-timer">
                             <i class="fas fa-clock"></i>
                             <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
                         </div>
-                        <div class="queue-processor-status">
-                            <i class="fas fa-play" id="processor-status-icon"></i>
-                            <span id="processor-status">Active</span>
+                        <div class="queue-slots">
+                            <i class="fas fa-server"></i>
+                            <span id="queue-slots">Slots: <span id="available-slots">0</span>/<span id="max-slots">1</span></span>
                         </div>
                         <!-- Process Monitor Widget -->
                         <div class="process-monitor" id="process-monitor" style="display: none;">
@@ -47,18 +47,18 @@
                         <button class="btn-icon refresh-all-btn" onclick="ecosystemManager.refreshAll()" title="Refresh All">
                             <i class="fas fa-sync-alt"></i>
                         </button>
+                        <button class="btn-icon settings-btn" onclick="ecosystemManager.openSettingsModal()" title="Settings">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                        <button class="btn btn-primary" onclick="ecosystemManager.showCreateTaskModal()">
+                            <i class="fas fa-plus"></i>
+                            New Task
+                        </button>
                     </div>
                 </div>
 
                 <div class="header-right">
-                    <button class="btn-icon settings-btn" onclick="openSettingsModal()" title="Settings">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                    
-                    <button class="btn btn-primary" onclick="openCreateTaskModal()">
-                        <i class="fas fa-plus"></i>
-                        New Task
-                    </button>
+                    <!-- All buttons moved to queue-info area -->
                 </div>
             </div>
         </header>
@@ -66,7 +66,7 @@
         <!-- Filters -->
         <section class="filters">
         <div class="filter-group">
-            <select id="filter-type" class="filter-select" onchange="applyFilters()" title="Type">
+            <select id="filter-type" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Type">
                 <option value="">All Types</option>
                 <option value="resource">Resources</option>
                 <option value="scenario">Scenarios</option>
@@ -74,7 +74,7 @@
         </div>
         
         <div class="filter-group">
-            <select id="filter-operation" class="filter-select" onchange="applyFilters()" title="Operation">
+            <select id="filter-operation" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Operation">
                 <option value="">All Operations</option>
                 <option value="generator">Generators</option>
                 <option value="improver">Improvers</option>
@@ -82,23 +82,7 @@
         </div>
         
         <div class="filter-group">
-            <select id="filter-category" class="filter-select" onchange="applyFilters()" title="Category">
-                <option value="">All Categories</option>
-                <option value="ai-ml">AI/ML</option>
-                <option value="communication">Communication</option>
-                <option value="data">Data</option>
-                <option value="security">Security</option>
-                <option value="automation">Automation</option>
-                <option value="monitoring">Monitoring</option>
-                <option value="productivity">Productivity</option>
-                <option value="business">Business</option>
-                <option value="personal">Personal</option>
-                <option value="entertainment">Entertainment</option>
-            </select>
-        </div>
-        
-        <div class="filter-group">
-            <select id="filter-priority" class="filter-select" onchange="applyFilters()" title="Priority">
+            <select id="filter-priority" class="filter-select" onchange="ecosystemManager.applyFilters()" title="Priority">
                 <option value="">All Priorities</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -108,7 +92,7 @@
         </div>
         
         <div class="filter-group">
-            <button class="btn btn-secondary" onclick="clearFilters()">
+            <button class="btn btn-secondary" onclick="ecosystemManager.clearFilters()">
                 <i class="fas fa-times"></i>
                 Clear Filters
             </button>
@@ -120,7 +104,7 @@
                 id="search-input" 
                 class="search-input" 
                 placeholder="Search tasks..."
-                oninput="applyFilters()"
+                oninput="ecosystemManager.applyFilters()"
             >
             <i class="fas fa-search search-icon"></i>
         </div>
@@ -137,6 +121,9 @@
                     <span>Pending</span>
                     <span class="task-count" id="pending-count">0</span>
                 </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('pending')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
             </div>
             <div class="column-content" id="pending-tasks">
                 <!-- Tasks will be loaded here -->
@@ -151,6 +138,9 @@
                     <span>In Progress</span>
                     <span class="task-count" id="in-progress-count">0</span>
                 </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('in-progress')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
             </div>
             <div class="column-content" id="in-progress-tasks">
                 <!-- Tasks will be loaded here -->
@@ -166,6 +156,9 @@
                     <span>Completed</span>
                     <span class="task-count" id="completed-count">0</span>
                 </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('completed')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
             </div>
             <div class="column-content" id="completed-tasks">
                 <!-- Tasks will be loaded here -->
@@ -180,6 +173,9 @@
                     <span>Failed</span>
                     <span class="task-count" id="failed-count">0</span>
                 </div>
+                <button class="btn-icon column-hide-btn" onclick="ecosystemManager.hideColumn('failed')" title="Hide Column">
+                    <i class="fas fa-eye-slash"></i>
+                </button>
             </div>
             <div class="column-content" id="failed-tasks">
                 <!-- Tasks will be loaded here -->
@@ -189,26 +185,27 @@
 
     <!-- Create Task Modal -->
     <div id="create-task-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content modal-extra-large">
             <div class="modal-header">
                 <h3>Create New Task</h3>
-                <button class="modal-close" onclick="closeCreateTaskModal()">&times;</button>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('create-task-modal')">&times;</button>
             </div>
             
-            <form id="create-task-form">
-                <div class="form-group">
-                    <label for="task-title">Title *</label>
-                    <input type="text" id="task-title" name="title" required 
-                           placeholder="e.g., Generate Matrix Synapse resource">
-                </div>
+            <form id="create-task-form" class="task-form-grid">
+                <div class="task-form-left">
+                    <div class="form-group">
+                        <label for="task-title">Title *</label>
+                        <input type="text" id="task-title" name="title" required 
+                               placeholder="e.g., Generate Matrix Synapse resource">
+                    </div>
                 
                 <div class="form-row">
                     <div class="form-group">
                         <label>Type *</label>
                         <div class="toggle-group" role="radiogroup" aria-label="Task type">
-                            <input type="radio" id="type-resource" name="type" value="resource" checked onchange="updateFormForType()" class="toggle-input">
+                            <input type="radio" id="type-resource" name="type" value="resource" checked onchange="ecosystemManager.updateFormForType().catch(console.error)" class="toggle-input">
                             <label for="type-resource" class="toggle-btn">Resource</label>
-                            <input type="radio" id="type-scenario" name="type" value="scenario" onchange="updateFormForType()" class="toggle-input">
+                            <input type="radio" id="type-scenario" name="type" value="scenario" onchange="ecosystemManager.updateFormForType().catch(console.error)" class="toggle-input">
                             <label for="type-scenario" class="toggle-btn">Scenario</label>
                         </div>
                     </div>
@@ -216,12 +213,12 @@
                     <div class="form-group">
                         <label>Operation *</label>
                         <div class="toggle-group" role="radiogroup" aria-label="Task operation">
-                            <input type="radio" id="op-generator" name="operation" value="generator" checked onchange="updateFormForOperation()" class="toggle-input">
+                            <input type="radio" id="op-generator" name="operation" value="generator" checked onchange="ecosystemManager.updateFormForOperation().catch(console.error)" class="toggle-input">
                             <label for="op-generator" class="toggle-btn">
                                 <i class="fas fa-plus-circle"></i>
                                 <span>Create New</span>
                             </label>
-                            <input type="radio" id="op-improver" name="operation" value="improver" onchange="updateFormForOperation()" class="toggle-input">
+                            <input type="radio" id="op-improver" name="operation" value="improver" onchange="ecosystemManager.updateFormForOperation().catch(console.error)" class="toggle-input">
                             <label for="op-improver" class="toggle-btn">
                                 <i class="fas fa-sparkles"></i>
                                 <span>Enhance</span>
@@ -230,54 +227,47 @@
                     </div>
                 </div>
                 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="task-priority">Priority</label>
-                        <select id="task-priority" name="priority">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                            <option value="critical">Critical</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="task-effort">Estimated Effort</label>
-                        <select id="task-effort" name="effort_estimate">
-                            <option value="1h">1 hour</option>
-                            <option value="2h">2 hours</option>
-                            <option value="4h" selected>4 hours</option>
-                            <option value="8h">8 hours</option>
-                            <option value="16h+">16+ hours</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label for="task-priority">Priority</label>
+                    <select id="task-priority" name="priority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
                 </div>
+                
                 
                 <!-- Target field for improver operations -->
                 <div class="form-group" id="target-group" style="display: none;">
                     <label for="task-target">Target (for improvements) *</label>
-                    <select id="task-target" name="target">
-                        <option value="">Select target to improve...</option>
+                    <select id="task-target" name="target" disabled>
+                        <option value="">Loading available targets...</option>
                     </select>
                     <small class="form-help">Choose the resource/scenario to improve</small>
                 </div>
                 
-                <div class="form-group">
-                    <label for="task-notes">Notes</label>
-                    <textarea id="task-notes" name="notes" rows="3" 
-                              placeholder="Additional details, requirements, or context..."></textarea>
                 </div>
                 
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeCreateTaskModal()">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-plus"></i>
-                        Create Task
-                    </button>
+                <div class="task-form-right">
+                    <div class="form-group">
+                        <label for="task-notes">Notes</label>
+                        <textarea id="task-notes" name="notes" rows="12" 
+                                  placeholder="Additional details, requirements, or context...">
+</textarea>
+                    </div>
                 </div>
             </form>
+            
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('create-task-modal')">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" form="create-task-form">
+                    <i class="fas fa-plus"></i>
+                    Create Task
+                </button>
+            </div>
         </div>
     </div>
 
@@ -286,7 +276,7 @@
         <div class="modal-content modal-large">
             <div class="modal-header">
                 <h3 id="task-details-title">Task Details</h3>
-                <button class="modal-close" onclick="closeTaskDetailsModal()">&times;</button>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('task-details-modal')">&times;</button>
             </div>
             
             <div id="task-details-content">
@@ -303,10 +293,10 @@
                     <i class="fas fa-cog"></i>
                     Settings
                 </h3>
-                <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('settings-modal')">&times;</button>
             </div>
             
-            <form id="settings-form" onsubmit="return false;">
+            <form id="settings-form">
                 <div style="padding: 1.5rem;">
                     
                     <!-- Display Settings -->
@@ -347,7 +337,7 @@
                                 <label for="settings-slots">Concurrent Task Slots</label>
                                 <div class="slider-container">
                                     <input type="range" id="settings-slots" name="slots" min="1" max="5" value="1" 
-                                           oninput="updateSliderValue('settings-slots', 'slots-value')">
+                                           oninput="ecosystemManager.updateSliderValue('settings-slots', 'slots-value')">
                                     <span id="slots-value" class="slider-value">1</span>
                                 </div>
                                 <small class="form-help">Number of tasks that can run simultaneously</small>
@@ -381,7 +371,7 @@
                             <label for="settings-max-turns">Maximum Turns</label>
                             <div class="slider-container">
                                 <input type="range" id="settings-max-turns" name="max_turns" min="5" max="80" value="60" 
-                                       oninput="updateSliderValue('settings-max-turns', 'max-turns-value')">
+                                       oninput="ecosystemManager.updateSliderValue('settings-max-turns', 'max-turns-value')">
                                 <span id="max-turns-value" class="slider-value">60</span>
                             </div>
                             <small class="form-help">Maximum conversation turns Claude can use per task</small>
@@ -406,7 +396,7 @@
                             <label for="settings-task-timeout">Task Timeout (minutes)</label>
                             <div class="slider-container">
                                 <input type="range" id="settings-task-timeout" name="task_timeout" min="5" max="240" value="30" 
-                                       oninput="updateSliderValue('settings-task-timeout', 'task-timeout-value')">
+                                       oninput="ecosystemManager.updateSliderValue('settings-task-timeout', 'task-timeout-value')">
                                 <span id="task-timeout-value" class="slider-value">30</span>
                             </div>
                             <small class="form-help">Maximum time for task execution (5-240 minutes)</small>
@@ -435,17 +425,17 @@
                     
                     <!-- Action Buttons -->
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">
+                        <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('settings-modal')">
                             <i class="fas fa-times"></i>
                             Cancel
                         </button>
                         
-                        <button type="button" class="btn btn-outline" onclick="resetSettingsToDefault()">
+                        <button type="button" class="btn btn-outline" onclick="ecosystemManager.resetSettingsToDefault()">
                             <i class="fas fa-undo"></i>
                             Reset to Defaults
                         </button>
                         
-                        <button type="button" class="btn btn-primary" onclick="saveSettings()">
+                        <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveSettingsFromForm()">
                             <i class="fas fa-save"></i>
                             Save Settings
                         </button>
@@ -460,6 +450,20 @@
         <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
             <div class="loading-text">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Prompt Viewer Modal -->
+    <div id="prompt-viewer-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>Task Prompt</h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('prompt-viewer-modal')">&times;</button>
+            </div>
+            
+            <div class="modal-body">
+                <pre id="prompt-content" style="white-space: pre-wrap; word-wrap: break-word; background: var(--light-gray); padding: 1rem; border-radius: var(--border-radius); max-height: 70vh; overflow-y: auto;"></pre>
+            </div>
         </div>
     </div>
 
@@ -496,6 +500,7 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="app.js"></script>
+    <!-- Modular application -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,1442 +1,230 @@
-// Ecosystem Manager UI JavaScript
+// Ecosystem Manager - Main Application
+import { TaskManager } from './modules/TaskManager.js';
+import { SettingsManager } from './modules/SettingsManager.js';
+import { ProcessMonitor } from './modules/ProcessMonitor.js';
+import { UIComponents } from './modules/UIComponents.js';
+import { WebSocketHandler } from './modules/WebSocketHandler.js';
+import { DragDropHandler } from './modules/DragDropHandler.js';
 
 class EcosystemManager {
     constructor() {
-        // Use relative paths - Vite proxy handles routing to the correct API port
+        // API Configuration - Use relative path so Vite proxy handles it
         this.apiBase = '/api';
-        this.tasks = {};
-        this.filteredTasks = {};
-        this.operations = {};
-        this.resources = [];
-        this.scenarios = [];
-        this.ws = null;
-        this.wsReconnectInterval = null;
         
-        // Target data caching and polling
-        this.targetCacheState = {
-            resources: { loading: false, lastUpdate: null, error: null, retryCount: 0 },
-            scenarios: { loading: false, lastUpdate: null, error: null, retryCount: 0 }
-        };
-        this.targetPollingInterval = null;
-        this.targetPollingIntervalMs = 300000; // Poll every 5 minutes (300 seconds)
-        this.maxTargetRetries = 3; // Maximum number of retries for failed target polls
+        // Initialize modules
+        this.taskManager = new TaskManager(
+            this.apiBase, 
+            this.showToast.bind(this), 
+            this.showLoading.bind(this)
+        );
+        this.settingsManager = new SettingsManager(this.apiBase, this.showToast.bind(this));
+        this.processMonitor = new ProcessMonitor(this.apiBase, this.showToast.bind(this));
+        this.webSocketHandler = new WebSocketHandler(
+            this.apiBase, 
+            this.handleWebSocketMessage.bind(this)
+        );
+        this.dragDropHandler = new DragDropHandler(this.handleTaskDrop.bind(this));
         
-        // Queue status tracking - will be updated from settings
-        this.queueStatus = {
-            maxConcurrent: 1,
-            availableSlots: 1,
-            processorActive: false, // Default to false for safety
-            lastRefresh: Date.now(),
-            refreshInterval: 30000, // 30 seconds default, will be updated from settings
-            refreshTimer: null
-        };
-        this.autoRefreshInterval = null; // Track the auto-refresh interval
+        // State
+        this.isLoading = false;
+        this.rateLimitEndTime = null;
         
-        // Configuration - will be loaded dynamically
-        this.categoryOptions = {
-            resource: [],
-            scenario: []
-        };
-        
-        // Initialize
-        this.init();
+        // Bind methods
+        this.init = this.init.bind(this);
+        this.refreshAll = this.refreshAll.bind(this);
     }
-    
+
     async init() {
-        console.log('🚀 Initializing Ecosystem Manager UI...');
+        console.log('Initializing Ecosystem Manager...');
         
-        try {
-            // Initialize settings (including theme) before loading content
-            await this.initSettings();
-            
-            // Set up dynamic layout adjustment
-            this.adjustMainLayout();
-            window.addEventListener('resize', () => this.adjustMainLayout());
-            
-            // Load critical data first (in parallel for speed)
-            await Promise.all([
-                this.loadOperations(),
-                this.loadCategories(),
-                this.loadAllTasks()  // Load tasks immediately
-            ]);
-            
-            // Load discovered resources and scenarios immediately and set up polling
-            try {
-                await this.loadDiscoveryData();
-                console.log('✅ Initial discovery data loaded');
-                
-                // Start target data polling for fresh information
-                this.startTargetPolling();
-                console.log('✅ Target polling started');
-                
-                // If modal is already open, refresh the dropdown
-                this.refreshDropdownIfNeeded(true, true);
-            } catch (error) {
-                console.error('❌ Failed to load initial discovery data:', error);
-                // Continue anyway - polling will retry
-                this.startTargetPolling();
-            }
-            
-            // Connect to WebSocket for real-time updates
-            this.connectWebSocket();
-            
-            // Set up auto-refresh (as fallback)
-            this.setupAutoRefresh();
-            
-            // Set up event listeners
-            this.setupEventListeners();
-            
-            // Set up cleanup handlers
-            this.setupCleanupHandlers();
-            
-            // Initialize queue status display
-            this.initQueueStatus();
-            
-            // Initialize process monitoring
-            this.initProcessMonitoring();
-            
-            // CRITICAL: Trigger immediate queue processing on page load
-            // Don't wait for the timer - check for tasks to process right now
-            setTimeout(() => {
-                this.triggerImmediateProcessing();
-            }, 1000); // Small delay to let initialization complete
-            
-            console.log('✅ Ecosystem Manager UI initialized successfully');
-        } catch (error) {
-            console.error('❌ Failed to initialize UI:', error);
-            this.showToast('Failed to initialize application', 'error');
-        }
+        // Initialize UI
+        this.initializeUI();
+        
+        // Load initial data
+        await this.loadInitialData();
+        
+        // Start monitoring
+        await this.processMonitor.startMonitoring();
+        
+        // Connect WebSocket
+        this.webSocketHandler.connect();
+        
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Initialize drag and drop
+        this.dragDropHandler.initializeDragDrop();
+        
+        // Load resources and scenarios in the background (non-blocking)
+        // This prevents slow startup while still having the data ready when needed
+        setTimeout(() => {
+            this.loadAvailableResourcesAndScenarios().catch(err => 
+                console.error('Failed to load resources/scenarios:', err)
+            );
+        }, 100);
+        
+        console.log('Ecosystem Manager initialized');
     }
-    
-    adjustMainLayout() {
-        const fixedContainer = document.getElementById('fixed-top-container');
-        const mainElement = document.querySelector('main');
+
+    initializeUI() {
+        // Set up modals
+        this.setupModals();
         
-        if (fixedContainer && mainElement) {
-            const containerHeight = fixedContainer.offsetHeight;
-            mainElement.style.marginTop = `${containerHeight + 20}px`;
-        }
-    }
-    
-    async loadOperations() {
-        try {
-            const response = await fetch(`${this.apiBase}/operations`);
-            if (!response.ok) throw new Error('Failed to load operations');
-            
-            this.operations = await response.json();
-            console.log('📝 Loaded operations:', Object.keys(this.operations));
-        } catch (error) {
-            console.error('Failed to load operations:', error);
-            throw error;
-        }
-    }
-    
-    async loadCategories() {
-        try {
-            const response = await fetch(`${this.apiBase}/categories`);
-            if (!response.ok) throw new Error('Failed to load categories');
-            
-            const categories = await response.json();
-            
-            // Convert to UI format
-            if (categories.resource_categories) {
-                this.categoryOptions.resource = Object.entries(categories.resource_categories).map(([key, label]) => ({
-                    value: key,
-                    label: label
-                }));
-            }
-            
-            if (categories.scenario_categories) {
-                this.categoryOptions.scenario = Object.entries(categories.scenario_categories).map(([key, label]) => ({
-                    value: key,
-                    label: label
-                }));
-            }
-            
-            console.log('📂 Loaded categories:', this.categoryOptions);
-            this.updateCategoryFilters();
-        } catch (error) {
-            console.error('Failed to load categories:', error);
-            // Fall back to default categories
-            this.categoryOptions = {
-                resource: [
-                    { value: 'ai-ml', label: 'AI/ML' },
-                    { value: 'storage', label: 'Storage' },
-                    { value: 'automation', label: 'Automation' },
-                    { value: 'monitoring', label: 'Monitoring' },
-                    { value: 'communication', label: 'Communication' },
-                    { value: 'security', label: 'Security' }
-                ],
-                scenario: [
-                    { value: 'productivity', label: 'Productivity' },
-                    { value: 'ai-tools', label: 'AI Tools' },
-                    { value: 'business', label: 'Business' },
-                    { value: 'personal', label: 'Personal' },
-                    { value: 'automation', label: 'Automation' },
-                    { value: 'entertainment', label: 'Entertainment' }
-                ]
-            };
-        }
-    }
-    
-    async loadDiscoveryData() {
-        try {
-            await this.pollTargets();
-        } catch (error) {
-            console.error('Failed to load discovery data:', error);
-            // Don't clear the arrays on error - keep any existing data
-            // this.resources = [];
-            // this.scenarios = [];
-            this.targetCacheState.resources.error = error.message;
-            this.targetCacheState.scenarios.error = error.message;
-        }
-    }
-    
-    startTargetPolling() {
-        // Clear any existing interval
-        if (this.targetPollingInterval) {
-            clearInterval(this.targetPollingInterval);
-        }
-        
-        // Start with normal polling interval - keep it simple and reliable
-        this.targetPollingInterval = setInterval(() => {
-            this.pollTargets().catch(error => {
-                console.warn('Target polling failed (will retry):', error);
-            });
-        }, this.targetPollingIntervalMs);
-        
-        console.log(`🔄 Started target polling every ${this.targetPollingIntervalMs/1000}s (${this.targetPollingIntervalMs/60000} minutes)`);
-    }
-    
-    stopTargetPolling() {
-        if (this.targetPollingInterval) {
-            clearInterval(this.targetPollingInterval);
-            this.targetPollingInterval = null;
-            console.log('🛑 Stopped target polling');
-        }
-    }
-    
-    async pollTargets() {
-        // Skip if either type is already loading
-        if (this.targetCacheState.resources.loading || this.targetCacheState.scenarios.loading) {
-            console.log('⏭️ Skipping target poll - previous request still in progress');
-            throw new Error('Poll already in progress');
-        }
-        
-        // Set loading states
-        this.targetCacheState.resources.loading = true;
-        this.targetCacheState.scenarios.loading = true;
-        
-        try {
-            // Load resources and scenarios in parallel
-            const [resourcesResponse, scenariosResponse] = await Promise.all([
-                fetch(`${this.apiBase}/resources`),
-                fetch(`${this.apiBase}/scenarios`)
-            ]);
-            
-            // Process resources
-            let resourcesUpdated = false;
-            let scenariosUpdated = false;
-            
-            if (resourcesResponse.ok) {
-                const newResources = await resourcesResponse.json();
-                const hadNoResources = this.resources.length === 0;
-                const prevCount = this.resources.length;
-                this.resources = newResources;
-                this.targetCacheState.resources.error = null;
-                this.targetCacheState.resources.lastUpdate = Date.now();
-                this.targetCacheState.resources.retryCount = 0; // Reset retry count on success
-                resourcesUpdated = hadNoResources && newResources.length > 0;
-                console.log(`🔧 Updated resources in cache: ${prevCount} → ${this.resources.length} (hadNoResources=${hadNoResources}, resourcesUpdated=${resourcesUpdated})`);
-                console.log(`🔧 Resources:`, this.resources.map(r => r.name).slice(0, 10) + (this.resources.length > 10 ? `... and ${this.resources.length - 10} more` : ''));
-            } else {
-                console.warn('Failed to load resources:', resourcesResponse.statusText);
-                this.targetCacheState.resources.error = `HTTP ${resourcesResponse.status}`;
-            }
-            
-            // Process scenarios
-            if (scenariosResponse.ok) {
-                const newScenarios = await scenariosResponse.json();
-                const hadNoScenarios = this.scenarios.length === 0;
-                const prevCount = this.scenarios.length;
-                this.scenarios = newScenarios;
-                this.targetCacheState.scenarios.error = null;
-                this.targetCacheState.scenarios.lastUpdate = Date.now();
-                this.targetCacheState.scenarios.retryCount = 0; // Reset retry count on success
-                scenariosUpdated = hadNoScenarios && newScenarios.length > 0;
-                console.log(`📋 Updated scenarios in cache: ${prevCount} → ${this.scenarios.length} (hadNoScenarios=${hadNoScenarios}, scenariosUpdated=${scenariosUpdated})`);
-                console.log(`📋 Scenarios:`, this.scenarios.map(s => s.name));
-            } else {
-                console.warn('Failed to load scenarios:', scenariosResponse.statusText);
-                this.targetCacheState.scenarios.error = `HTTP ${scenariosResponse.status}`;
-            }
-            
-            // Refresh dropdown if it's open and showing loading state
-            this.refreshDropdownIfNeeded(resourcesUpdated, scenariosUpdated);
-            
-        } catch (error) {
-            console.error('Failed to poll target data:', error);
-            this.targetCacheState.resources.error = error.message;
-            this.targetCacheState.scenarios.error = error.message;
-        } finally {
-            // Clear loading states
-            this.targetCacheState.resources.loading = false;
-            this.targetCacheState.scenarios.loading = false;
-        }
-    }
-    
-    refreshDropdownIfNeeded(resourcesUpdated, scenariosUpdated) {
-        // Check if the create task modal is open
-        const modal = document.getElementById('create-task-modal');
-        const isModalOpen = modal && modal.classList.contains('show');
-        
-        console.log(`🔍 Checking if dropdown refresh needed: Modal open=${isModalOpen}, Resources updated=${resourcesUpdated}, Scenarios updated=${scenariosUpdated}`);
-        
-        if (!isModalOpen) {
-            return; // Modal not open, nothing to refresh
-        }
-        
-        // Check if improver operation is selected
-        const operation = document.querySelector('input[name="operation"]:checked')?.value;
-        console.log(`🔍 Current operation: ${operation}`);
-        
-        if (operation !== 'improver') {
-            return; // Not showing target selector
-        }
-        
-        // Check which type is selected
-        const type = document.querySelector('input[name="type"]:checked')?.value || 'resource';
-        console.log(`🔍 Current type: ${type}`);
-        
-        // Check if we need to refresh based on what was updated
-        const shouldRefresh = (type === 'resource' && resourcesUpdated) || 
-                             (type === 'scenario' && scenariosUpdated);
-        
-        if (shouldRefresh) {
-            console.log(`🔄 Refreshing ${type} dropdown after background data load (${type === 'resource' ? this.resources.length : this.scenarios.length} items)`);
-            // Use the internal method to avoid debouncing
-            this._doUpdateTargetOptions(type);
-        } else {
-            console.log(`⏭️ No refresh needed for ${type} dropdown`);
-        }
-    }
-    
-    setupCleanupHandlers() {
-        // Stop polling when page is unloaded
-        window.addEventListener('beforeunload', () => {
-            this.stopTargetPolling();
+        // Initialize tabs if they exist
+        const tabButtons = document.querySelectorAll('.tab-button');
+        tabButtons.forEach(button => {
+            button.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
         });
         
-        // Stop polling on page visibility change (when tab becomes hidden)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                console.log('📱 Page hidden - stopping target polling');
-                this.stopTargetPolling();
-            } else {
-                console.log('📱 Page visible - resuming target polling');
-                this.startTargetPolling();
-                // Immediately poll for fresh data when page becomes visible again
-                this.pollTargets().catch(error => {
-                    console.warn('Failed to refresh targets on page visibility:', error);
-                });
-            }
-        });
-        
-        // Handle network connectivity changes
-        window.addEventListener('online', () => {
-            console.log('🌐 Network online - resuming target polling');
-            this.startTargetPolling();
-            this.pollTargets().catch(error => {
-                console.warn('Failed to refresh targets on network reconnect:', error);
+        // Set active tab
+        if (tabButtons.length > 0) {
+            this.switchTab('tasks');
+        }
+    }
+
+    setupModals() {
+        // Close modal when clicking outside
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('show');
+                    // Re-enable body scroll when closing modal by clicking backdrop
+                    document.body.style.overflow = '';
+                }
             });
         });
-        
-        window.addEventListener('offline', () => {
-            console.log('📴 Network offline - stopping target polling');
-            this.stopTargetPolling();
-        });
     }
-    
+
+    async loadInitialData() {
+        try {
+            // Load settings first
+            const settings = await this.settingsManager.loadSettings();
+            this.settingsManager.applySettingsToUI(settings);
+            
+            // Load tasks
+            await this.loadAllTasks();
+            
+            // Fetch queue processor status
+            await this.fetchQueueProcessorStatus();
+            
+        } catch (error) {
+            console.error('Error loading initial data:', error);
+            this.showToast('Failed to load initial data', 'error');
+        }
+    }
+
+    setupEventListeners() {
+        // Refresh button
+        const refreshBtn = document.getElementById('refresh-all-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.refreshAll());
+        }
+        
+        // Create task button
+        const createTaskBtn = document.getElementById('create-task-btn');
+        if (createTaskBtn) {
+            createTaskBtn.addEventListener('click', () => this.showCreateTaskModal());
+        }
+        
+        // Create task form
+        const createTaskForm = document.getElementById('create-task-form');
+        if (createTaskForm) {
+            createTaskForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.handleCreateTask();
+            });
+        }
+        
+        // Settings form
+        const settingsForm = document.getElementById('settings-form');
+        if (settingsForm) {
+            settingsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await this.saveSettingsFromForm();
+            });
+        }
+        
+        // Queue processor toggle
+        const processorToggle = document.getElementById('queue-processor-toggle');
+        if (processorToggle) {
+            processorToggle.addEventListener('change', async (e) => {
+                await this.toggleQueueProcessor(e.target.checked);
+            });
+        }
+    }
+
+    // Task Management Methods
     async loadAllTasks() {
         const statuses = ['pending', 'in-progress', 'completed', 'failed'];
-        
-        for (const status of statuses) {
-            await this.loadTasks(status);
-        }
-        
-        this.updateStats();
-        this.applyFilters();
-        this.updateQueueDisplay();
+        const promises = statuses.map(status => this.loadTasksForStatus(status));
+        await Promise.all(promises);
     }
-    
-    async loadTasks(status) {
+
+    async loadTasksForStatus(status) {
         try {
-            const response = await fetch(`${this.apiBase}/tasks?status=${status}`);
-            if (!response.ok) throw new Error(`Failed to load ${status} tasks`);
-            
-            const tasks = await response.json();
-            this.tasks[status] = tasks;
-            
-            console.log(`📋 Loaded ${tasks.length} ${status} tasks`);
+            const tasks = await this.taskManager.loadTasks(status);
+            this.renderTasks(tasks, status);
         } catch (error) {
-            console.error(`Failed to load ${status} tasks:`, error);
-            this.tasks[status] = [];
-        }
-    }
-    
-    connectWebSocket() {
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // Use relative path - Vite proxy handles routing to the correct API port  
-        const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-        
-        console.log('🔌 Connecting to WebSocket:', wsUrl);
-        
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onopen = () => {
-            console.log('✅ WebSocket connected');
-            this.showToast('Connected to real-time updates', 'success');
-            
-            // Clear any reconnection interval
-            if (this.wsReconnectInterval) {
-                clearInterval(this.wsReconnectInterval);
-                this.wsReconnectInterval = null;
-            }
-        };
-        
-        this.ws.onmessage = (event) => {
-            this.handleWebSocketMessage(event);
-        };
-        
-        this.ws.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            this.showToast('Real-time connection error', 'error');
-        };
-        
-        this.ws.onclose = () => {
-            console.log('WebSocket disconnected');
-            this.showToast('Real-time updates disconnected', 'warning');
-            
-            // Attempt to reconnect every 5 seconds
-            if (!this.wsReconnectInterval) {
-                this.wsReconnectInterval = setInterval(() => {
-                    console.log('Attempting to reconnect WebSocket...');
-                    this.connectWebSocket();
-                }, 5000);
-            }
-        };
-    }
-    
-    
-    updateTaskProgress(task) {
-        // Update task in memory
-        const oldStatus = this.findTaskStatus(task.id);
-        if (oldStatus && this.tasks[oldStatus]) {
-            const index = this.tasks[oldStatus].findIndex(t => t.id === task.id);
-            if (index !== -1) {
-                this.tasks[oldStatus][index] = task;
-            }
-        }
-        
-        // Update UI
-        this.updateTaskCard(task);
-        this.showToast(`Task ${task.id} progress: ${task.progress_percentage}%`, 'info');
-    }
-    
-    handleTaskStarted(task) {
-        // Refresh to move task from pending to in-progress
-        this.loadAllTasks();
-        this.showToast(`Task started: ${task.title}`, 'info');
-    }
-    
-    handleTaskCompleted(task) {
-        // Refresh to move task to completed
-        this.loadAllTasks();
-        this.showToast(`Task ${task.title} completed successfully!`, 'success');
-    }
-    
-    handleTaskFailed(task) {
-        // Refresh to move task to failed
-        this.loadAllTasks();
-        
-        // Show detailed error message
-        const errorMsg = task.results?.error || 'Unknown error occurred';
-        const truncatedError = errorMsg.length > 100 ? errorMsg.substring(0, 100) + '...' : errorMsg;
-        this.showToast(`Task ${task.title} failed: ${truncatedError}`, 'error');
-    }
-    
-    handleTaskCreated(task) {
-        // Refresh to show new task
-        this.loadAllTasks();
-        this.showToast(`New task created: ${task.title}`, 'info');
-    }
-    
-    handleTaskUpdated(task) {
-        // Refresh to show updated task in correct column
-        this.loadAllTasks();
-        this.showToast(`Task updated: ${task.title}`, 'info');
-    }
-    
-    handleQueueStatusChanged(status) {
-        // Update queue status display
-        this.queueStatus = status;
-        this.updateQueueDisplay();
-        // Refresh tasks in case status change affects them
-        this.loadAllTasks();
-    }
-    
-    findTaskStatus(taskId) {
-        for (const status in this.tasks) {
-            if (this.tasks[status].find(t => t.id === taskId)) {
-                return status;
-            }
-        }
-        return null;
-    }
-    
-    moveTaskBetweenColumns(task, fromStatus, toStatus) {
-        // Remove from old status
-        if (this.tasks[fromStatus]) {
-            const index = this.tasks[fromStatus].findIndex(t => t.id === task.id);
-            if (index !== -1) {
-                this.tasks[fromStatus].splice(index, 1);
-            }
-        }
-        
-        // Add to new status
-        if (!this.tasks[toStatus]) {
-            this.tasks[toStatus] = [];
-        }
-        this.tasks[toStatus].push(task);
-        
-        // Re-render and update queue status
-        this.renderTasks();
-        this.updateQueueDisplay();
-    }
-    
-    updateTaskCard(task) {
-        const card = document.querySelector(`[data-task-id="${task.id}"]`);
-        if (card) {
-            // Update progress bar
-            const progressBar = card.querySelector('.progress-fill');
-            if (progressBar) {
-                progressBar.style.width = `${task.progress_percentage || 0}%`;
-                progressBar.classList.add('progress-animating');
-                setTimeout(() => progressBar.classList.remove('progress-animating'), 500);
-            }
-            
-            // Update phase
-            const phaseElement = card.querySelector('.task-phase');
-            if (phaseElement && task.current_phase) {
-                phaseElement.textContent = `Phase: ${task.current_phase}`;
-            }
-            
-            // Update priority badge
-            const priorityBadge = card.querySelector('.priority-badge');
-            if (priorityBadge) {
-                priorityBadge.className = `priority-badge priority-${task.priority}`;
-                priorityBadge.textContent = task.priority;
+            if (error.isRateLimit) {
+                this.handleRateLimit(error.retryAfter);
+            } else {
+                console.error(`Error loading ${status} tasks:`, error);
+                this.showToast(`Failed to load ${status} tasks`, 'error');
             }
         }
     }
-    
-    setupAutoRefresh() {
-        // Clear any existing auto-refresh interval
-        if (this.autoRefreshInterval) {
-            clearInterval(this.autoRefreshInterval);
-        }
-        
-        // Use refresh interval from settings (convert seconds to milliseconds)
-        const refreshMs = (this.settings?.refresh_interval || 30) * 1000;
-        
-        // Refresh based on settings interval (as fallback if WebSocket fails)
-        this.autoRefreshInterval = setInterval(() => {
-            if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-                console.log('WebSocket not connected, refreshing tasks...');
-                this.loadAllTasks();
-            }
-        }, refreshMs);
-        
-        console.log(`Auto-refresh set to ${refreshMs/1000} seconds`);
-    }
-    
-    setupEventListeners() {
-        // Form submission
-        document.getElementById('create-task-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleCreateTask();
-        });
-        
-        // Event listeners are already set up via onchange attributes in HTML
-        // No need to add duplicate listeners here
-        
-        // Close modals on background click
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) {
-                this.closeAllModals();
-            }
-        });
-        
-        // Escape key closes modals
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                this.closeAllModals();
-            }
-        });
-    }
-    
-    updateStats() {
-        // Stats removed from header - column counts provide this information
-    }
-    
-    applyFilters() {
-        const typeFilter = document.getElementById('filter-type').value;
-        const operationFilter = document.getElementById('filter-operation').value;
-        const categoryFilter = document.getElementById('filter-category').value;
-        const priorityFilter = document.getElementById('filter-priority').value;
-        const searchTerm = document.getElementById('search-input').value.toLowerCase();
-        
-        // Apply filters to each status
-        Object.keys(this.tasks).forEach(status => {
-            let filtered = this.tasks[status] || [];
-            
-            if (typeFilter) {
-                filtered = filtered.filter(task => task.type === typeFilter);
-            }
-            
-            if (operationFilter) {
-                filtered = filtered.filter(task => task.operation === operationFilter);
-            }
-            
-            if (categoryFilter) {
-                filtered = filtered.filter(task => task.category === categoryFilter);
-            }
-            
-            if (priorityFilter) {
-                filtered = filtered.filter(task => task.priority === priorityFilter);
-            }
-            
-            if (searchTerm) {
-                filtered = filtered.filter(task => 
-                    task.title.toLowerCase().includes(searchTerm) ||
-                    task.id.toLowerCase().includes(searchTerm) ||
-                    (task.category && task.category.toLowerCase().includes(searchTerm))
-                );
-            }
-            
-            this.filteredTasks[status] = filtered;
-        });
-        
-        this.renderAllColumns();
-    }
-    
-    clearFilters() {
-        document.getElementById('filter-type').value = '';
-        document.getElementById('filter-operation').value = '';
-        document.getElementById('filter-category').value = '';
-        document.getElementById('filter-priority').value = '';
-        document.getElementById('search-input').value = '';
-        
-        this.applyFilters();
-    }
-    
-    renderTasks() {
-        // Wrapper function to render all tasks
-        this.renderAllColumns();
-    }
-    
-    renderAllColumns() {
-        const statuses = ['pending', 'in-progress', 'completed', 'failed'];
-        
-        statuses.forEach(status => {
-            this.renderColumn(status);
-        });
-        
-        // Adjust layout after rendering
-        setTimeout(() => this.adjustMainLayout(), 100);
-    }
-    
-    // Drag and Drop Methods
-    handleDragStart(e, task) {
-        this.draggedTask = task;
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', e.target.outerHTML);
-        
-        // Add visual feedback
-        e.target.classList.add('dragging');
-        
-        // Disable clicking during drag
-        e.target.onclick = null;
-        
-        // Start auto-scroll detection
-        this.startAutoScroll();
-        
-        // Add dragging indicator to body for visual feedback
-        document.body.classList.add('dragging-active');
-    }
-    
-    handleDragEnd(e) {
-        e.target.classList.remove('dragging');
-        
-        // Restore click handler after drag with proper binding
-        const taskId = e.target.getAttribute('data-task-id');
-        e.target.onclick = (event) => {
-            // Don't trigger if clicking on delete button
-            if (!event.target.closest('.btn-delete')) {
-                this.showTaskDetails(taskId);
-            }
-        };
-        
-        // Clean up drag indicators
-        document.querySelectorAll('.kanban-column').forEach(col => {
-            col.classList.remove('drag-over');
-        });
-        
-        // Stop auto-scroll
-        this.stopAutoScroll();
-        
-        // Remove dragging indicator from body
-        document.body.classList.remove('dragging-active');
-        
-        this.draggedTask = null;
-    }
-    
-    handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        
-        const column = e.currentTarget;
-        column.classList.add('drag-over');
-    }
-    
-    handleDragEnter(e) {
-        e.preventDefault();
-        e.currentTarget.classList.add('drag-over');
-    }
-    
-    handleDragLeave(e) {
-        e.preventDefault();
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-            e.currentTarget.classList.remove('drag-over');
-        }
-    }
-    
-    async handleDrop(e, targetStatus) {
-        e.preventDefault();
-        e.currentTarget.classList.remove('drag-over');
-        
-        if (!this.draggedTask) return;
-        
-        const sourceStatus = this.findTaskStatus(this.draggedTask.id);
-        
-        // Don't do anything if dropped in same column
-        if (sourceStatus === targetStatus) return;
-        
-        // Clean up task state when moving to a different status
-        const cleanedTask = { ...this.draggedTask };
-        
-        // Clear execution results when moving from completed/failed to pending/in-progress
-        const isBackwardsTransition = (sourceStatus === 'completed' || sourceStatus === 'failed') && 
-                                      (targetStatus === 'pending' || targetStatus === 'in-progress');
-        
-        if (isBackwardsTransition) {
-            // Clear all execution-related data for a fresh start
-            delete cleanedTask.results;
-            delete cleanedTask.started_at;
-            delete cleanedTask.completed_at;
-            cleanedTask.progress_percentage = 0;
-            cleanedTask.current_phase = '';
-        }
-        
-        // Update phase based on new status
-        if (targetStatus === 'pending') {
-            cleanedTask.current_phase = 'pending';
-            if (!isBackwardsTransition) {
-                cleanedTask.progress_percentage = 0;
-            }
-        } else if (targetStatus === 'in-progress') {
-            cleanedTask.current_phase = 'in-progress';
-            if (!isBackwardsTransition && (cleanedTask.progress_percentage === 0 || cleanedTask.progress_percentage === 100)) {
-                cleanedTask.progress_percentage = 25;
-            }
-            cleanedTask.progress_percentage = 75;
-        } else if (targetStatus === 'completed') {
-            cleanedTask.current_phase = 'completed';
-            cleanedTask.progress_percentage = 100;
-        } else if (targetStatus === 'failed') {
-            cleanedTask.current_phase = 'failed';
-        }
-        
-        // Update task status via API
-        try {
-            // Build the request body - explicitly include all fields we want to update
-            const requestBody = {
-                ...cleanedTask,
-                status: targetStatus,
-                updated_at: new Date().toISOString()
-            };
-            
-            // Log for debugging
-            console.log(`Moving task ${this.draggedTask.id} from ${sourceStatus} to ${targetStatus}`, {
-                isBackwardsTransition,
-                hasResults: !!requestBody.results,
-                requestBody
-            });
-            
-            const response = await fetch(`${this.apiBase}/tasks/${this.draggedTask.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestBody)
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to update task: ${response.status}`);
-            }
-            
-            const updatedTask = await response.json();
-            
-            // Log the response for debugging
-            console.log(`Task ${updatedTask.id} updated response:`, {
-                hasResults: !!updatedTask.results,
-                status: updatedTask.status,
-                updatedTask
-            });
-            
-            // Ensure results are cleared for pending/in-progress if they somehow persist
-            if ((targetStatus === 'pending' || targetStatus === 'in-progress') && 
-                (sourceStatus === 'completed' || sourceStatus === 'failed')) {
-                if (updatedTask.results) {
-                    console.warn(`WARNING: Backend didn't clear results for task ${updatedTask.id} when moving to ${targetStatus}. Clearing locally.`);
-                    delete updatedTask.results;
-                    delete updatedTask.started_at;
-                    delete updatedTask.completed_at;
-                }
-            }
-            
-            // Refresh all tasks to ensure UI is in sync with backend
-            await this.loadAllTasks();
-            this.updateStats();
-            this.applyFilters();
-            
-            this.showToast(`Task moved to ${targetStatus.replace('-', ' ')}`, 'success');
-            
-            // Trigger queue processing if task moved to pending or in-progress
-            if (targetStatus === 'pending' || targetStatus === 'in-progress') {
-                try {
-                    await this.triggerQueueProcessing();
-                    console.log('Queue processing triggered after task move');
-                } catch (error) {
-                    console.warn('Could not trigger queue processing after move:', error);
-                    // Don't fail the move operation if trigger fails
-                }
-            }
-            
-        } catch (error) {
-            console.error('Failed to update task status:', error);
-            this.showToast(`Failed to move task: ${error.message}`, 'error');
-        }
-    }
-    
-    // Auto-scrolling during drag operations
-    startAutoScroll() {
-        // Stop any existing auto-scroll
-        this.stopAutoScroll();
-        
-        // Track mouse/touch position and scroll state
-        this.autoScrollData = {
-            active: true,
-            mouseX: 0,
-            mouseY: 0,
-            scrollSpeed: 15,
-            edgeSize: 80, // Distance from edge to trigger scroll
-            animationId: null
-        };
-        
-        // Handle both mouse and touch events for position tracking
-        this.handleAutoScrollMove = (e) => {
-            if (!this.autoScrollData.active) return;
-            
-            // Get coordinates from mouse or touch event
-            if (e.type === 'touchmove' && e.touches && e.touches.length > 0) {
-                this.autoScrollData.mouseX = e.touches[0].clientX;
-                this.autoScrollData.mouseY = e.touches[0].clientY;
-            } else if (e.type === 'dragover') {
-                this.autoScrollData.mouseX = e.clientX;
-                this.autoScrollData.mouseY = e.clientY;
-            }
-        };
-        
-        // Listen for drag/touch movement
-        document.addEventListener('dragover', this.handleAutoScrollMove);
-        document.addEventListener('touchmove', this.handleAutoScrollMove, { passive: false });
-        
-        // Auto-scroll animation loop
-        const performAutoScroll = () => {
-            if (!this.autoScrollData || !this.autoScrollData.active) return;
-            
-            const { mouseX, mouseY, scrollSpeed, edgeSize } = this.autoScrollData;
-            const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
-            
-            // Calculate distance from edges
-            const distanceFromLeft = mouseX;
-            const distanceFromRight = viewportWidth - mouseX;
-            const distanceFromTop = mouseY;
-            const distanceFromBottom = viewportHeight - mouseY;
-            
-            let scrollX = 0;
-            let scrollY = 0;
-            
-            // Horizontal scrolling
-            if (distanceFromLeft < edgeSize && distanceFromLeft > 0) {
-                // Scroll left - stronger scroll the closer to edge
-                scrollX = -scrollSpeed * (1 - distanceFromLeft / edgeSize);
-            } else if (distanceFromRight < edgeSize && distanceFromRight > 0) {
-                // Scroll right
-                scrollX = scrollSpeed * (1 - distanceFromRight / edgeSize);
-            }
-            
-            // Vertical scrolling
-            if (distanceFromTop < edgeSize && distanceFromTop > 0) {
-                // Scroll up
-                scrollY = -scrollSpeed * (1 - distanceFromTop / edgeSize);
-            } else if (distanceFromBottom < edgeSize && distanceFromBottom > 0) {
-                // Scroll down
-                scrollY = scrollSpeed * (1 - distanceFromBottom / edgeSize);
-            }
-            
-            // Apply scrolling to the window
-            if (scrollX !== 0 || scrollY !== 0) {
-                window.scrollBy(scrollX, scrollY);
-                
-                // Also handle horizontal scrolling on the kanban board for responsive layouts
-                const kanbanBoard = document.querySelector('.kanban-board');
-                if (kanbanBoard) {
-                    const kanbanRect = kanbanBoard.getBoundingClientRect();
-                    const mouseRelativeX = mouseX - kanbanRect.left;
-                    
-                    // Check if kanban board has horizontal overflow
-                    if (kanbanBoard.scrollWidth > kanbanBoard.clientWidth) {
-                        if (mouseRelativeX < edgeSize && kanbanBoard.scrollLeft > 0) {
-                            kanbanBoard.scrollLeft -= scrollSpeed * (1 - mouseRelativeX / edgeSize);
-                        } else if (mouseRelativeX > kanbanRect.width - edgeSize && 
-                                 kanbanBoard.scrollLeft < kanbanBoard.scrollWidth - kanbanBoard.clientWidth) {
-                            kanbanBoard.scrollLeft += scrollSpeed * (1 - (kanbanRect.width - mouseRelativeX) / edgeSize);
-                        }
-                    }
-                }
-                
-                // Also check individual columns for vertical scrolling
-                const columns = document.querySelectorAll('.column-content');
-                columns.forEach(column => {
-                    const columnRect = column.getBoundingClientRect();
-                    // Check if mouse is over this column
-                    if (mouseX >= columnRect.left && mouseX <= columnRect.right) {
-                        const mouseRelativeY = mouseY - columnRect.top;
-                        
-                        // Vertical scrolling within column
-                        if (column.scrollHeight > column.clientHeight) {
-                            if (mouseRelativeY < edgeSize && column.scrollTop > 0) {
-                                column.scrollTop -= scrollSpeed * (1 - mouseRelativeY / edgeSize);
-                            } else if (mouseRelativeY > columnRect.height - edgeSize && 
-                                     column.scrollTop < column.scrollHeight - column.clientHeight) {
-                                column.scrollTop += scrollSpeed * (1 - (columnRect.height - mouseRelativeY) / edgeSize);
-                            }
-                        }
-                    }
-                });
-            }
-            
-            // Continue the animation loop
-            this.autoScrollData.animationId = requestAnimationFrame(performAutoScroll);
-        };
-        
-        // Start the animation loop
-        this.autoScrollData.animationId = requestAnimationFrame(performAutoScroll);
-    }
-    
-    stopAutoScroll() {
-        if (this.autoScrollData) {
-            this.autoScrollData.active = false;
-            
-            if (this.autoScrollData.animationId) {
-                cancelAnimationFrame(this.autoScrollData.animationId);
-            }
-        }
-        
-        if (this.handleAutoScrollMove) {
-            document.removeEventListener('dragover', this.handleAutoScrollMove);
-            document.removeEventListener('touchmove', this.handleAutoScrollMove);
-            this.handleAutoScrollMove = null;
-        }
-        
-        this.autoScrollData = null;
-    }
-    
-    // Touch support for mobile drag and drop
-    addTouchDragSupport(element, task) {
-        let touchItem = null;
-        let touchOffset = null;
-        let draggedClone = null;
-        
-        element.addEventListener('touchstart', (e) => {
-            // Prevent default to avoid scrolling while dragging
-            e.preventDefault();
-            
-            const touch = e.touches[0];
-            touchItem = element;
-            this.draggedTask = task;
-            
-            // Calculate offset from touch point to element position
-            const rect = element.getBoundingClientRect();
-            touchOffset = {
-                x: touch.clientX - rect.left,
-                y: touch.clientY - rect.top
-            };
-            
-            // Create a visual clone that follows the finger
-            draggedClone = element.cloneNode(true);
-            draggedClone.style.position = 'fixed';
-            draggedClone.style.width = rect.width + 'px';
-            draggedClone.style.opacity = '0.8';
-            draggedClone.style.zIndex = '10000';
-            draggedClone.style.pointerEvents = 'none';
-            draggedClone.style.transform = 'rotate(2deg)';
-            draggedClone.style.transition = 'none';
-            document.body.appendChild(draggedClone);
-            
-            // Position the clone at the touch point
-            draggedClone.style.left = (touch.clientX - touchOffset.x) + 'px';
-            draggedClone.style.top = (touch.clientY - touchOffset.y) + 'px';
-            
-            // Add dragging class to original element
-            element.classList.add('dragging');
-            
-            // Start auto-scroll
-            this.startAutoScroll();
-            
-            // Add dragging indicator to body for visual feedback
-            document.body.classList.add('dragging-active');
-        }, { passive: false });
-        
-        element.addEventListener('touchmove', (e) => {
-            if (!touchItem || !draggedClone) return;
-            e.preventDefault();
-            
-            const touch = e.touches[0];
-            
-            // Move the clone with the finger
-            draggedClone.style.left = (touch.clientX - touchOffset.x) + 'px';
-            draggedClone.style.top = (touch.clientY - touchOffset.y) + 'px';
-            
-            // Find the element under the touch point
-            draggedClone.style.display = 'none'; // Temporarily hide clone to get element below
-            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-            draggedClone.style.display = '';
-            
-            // Check if we're over a drop zone (kanban column)
-            if (elementBelow) {
-                const dropZone = elementBelow.closest('.kanban-column');
-                
-                // Remove drag-over class from all columns
-                document.querySelectorAll('.kanban-column').forEach(col => {
-                    col.classList.remove('drag-over');
-                });
-                
-                // Add drag-over class to current column
-                if (dropZone) {
-                    dropZone.classList.add('drag-over');
-                }
-            }
-        }, { passive: false });
-        
-        element.addEventListener('touchend', async (e) => {
-            if (!touchItem || !draggedClone) return;
-            e.preventDefault();
-            
-            const touch = e.changedTouches[0];
-            
-            // Remove the clone
-            if (draggedClone) {
-                draggedClone.remove();
-                draggedClone = null;
-            }
-            
-            // Remove dragging class
-            element.classList.remove('dragging');
-            
-            // Find the element under the touch point
-            const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-            
-            if (elementBelow) {
-                const dropZone = elementBelow.closest('.kanban-column');
-                
-                if (dropZone) {
-                    // Get the target status from the column
-                    const targetStatus = dropZone.getAttribute('data-status');
-                    
-                    if (targetStatus) {
-                        // Simulate the drop event
-                        const fakeDropEvent = {
-                            preventDefault: () => {},
-                            currentTarget: dropZone
-                        };
-                        
-                        await this.handleDrop(fakeDropEvent, targetStatus);
-                    }
-                }
-            }
-            
-            // Clean up
-            document.querySelectorAll('.kanban-column').forEach(col => {
-                col.classList.remove('drag-over');
-            });
-            
-            // Stop auto-scroll
-            this.stopAutoScroll();
-            
-            // Remove dragging indicator from body
-            document.body.classList.remove('dragging-active');
-            
-            touchItem = null;
-            touchOffset = null;
-            this.draggedTask = null;
-        }, { passive: false });
-        
-        // Prevent context menu on long press
-        element.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-        });
-    }
-    
-    renderColumn(status) {
-        const tasks = this.filteredTasks[status] || [];
+
+    renderTasks(tasks, status) {
         const container = document.getElementById(`${status}-tasks`);
-        const countElement = document.getElementById(`${status}-count`);
+        if (!container) return;
         
-        // Update count
-        if (countElement) {
-            countElement.textContent = tasks.length;
-        }
-        
-        // Check if container exists
-        if (!container) {
-            console.warn(`Container for ${status} tasks not found`);
-            return;
-        }
-        
-        // Add drop zone event listeners to column
-        const column = container.closest('.kanban-column');
-        if (column && !column.hasAttribute('data-drop-listeners-added')) {
-            column.addEventListener('dragover', (e) => this.handleDragOver(e));
-            column.addEventListener('dragenter', (e) => this.handleDragEnter(e));
-            column.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-            column.addEventListener('drop', (e) => this.handleDrop(e, status));
-            column.setAttribute('data-drop-listeners-added', 'true');
-        }
-        
-        // Clear container
         container.innerHTML = '';
         
         if (tasks.length === 0) {
-            container.innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.3;"></i>
-                    <div>No tasks in ${status.replace('-', ' ')}</div>
-                </div>
-            `;
+            container.innerHTML = `<div class="empty-state">No ${status} tasks</div>`;
             return;
         }
         
-        // Render tasks
         tasks.forEach(task => {
-            const taskCard = this.createTaskCard(task);
-            container.appendChild(taskCard);
-        });
-    }
-    
-    getPhaseIcon(phase) {
-        const phaseIconMap = {
-            'pending': 'fa-clock',
-            'in-progress': 'fa-spinner fa-spin',
-            'completed': 'fa-check-circle',
-            'failed': 'fa-exclamation-triangle',
-            'cancelled': 'fa-times-circle'
-        };
-        return phaseIconMap[phase] || 'fa-circle';
-    }
-    
-    createTaskCard(task) {
-        const card = document.createElement('div');
-        card.className = 'task-card';
-        card.setAttribute('data-task-id', task.id);
-        card.setAttribute('draggable', 'true');
-        
-        // Set onclick with proper binding
-        card.onclick = (e) => {
-            // Don't trigger if clicking on delete button
-            if (!e.target.closest('.btn-delete')) {
-                this.showTaskDetails(task.id);
-            }
-        };
-        
-        // Add drag event listeners
-        card.addEventListener('dragstart', (e) => this.handleDragStart(e, task));
-        card.addEventListener('dragend', (e) => this.handleDragEnd(e));
-        
-        // Add touch event support for mobile drag and drop
-        this.addTouchDragSupport(card, task);
-        
-        const typeIcon = task.type === 'resource' ? 'fas fa-cog' : 'fas fa-bullseye';
-        const operationClass = task.operation;
-        
-        card.innerHTML = `
-            <div class="task-header">
-                <div class="task-icon ${task.type} ${operationClass}">
-                    <i class="${typeIcon}"></i>
-                </div>
-                <div class="task-title">${this.escapeHtml(task.title)}</div>
-            </div>
+            const card = UIComponents.createTaskCard(task, this.processMonitor.runningProcesses);
+            this.dragDropHandler.setupTaskCardDragHandlers(card, task.id, status);
             
-            <div class="task-meta">
-                <span><i class="fas fa-layer-group"></i> ${task.type}</span>
-                <span><i class="fas fa-tools"></i> ${task.operation}</span>
-                ${task.effort_estimate ? `<span><i class="fas fa-clock"></i> ${task.effort_estimate}</span>` : ''}
-            </div>
-            
-            <div class="task-tags">
-                <span class="task-tag priority-badge priority-${task.priority}">${task.priority}</span>
-                ${task.category ? `<span class="task-tag category-${task.category}">${task.category}</span>` : ''}
-                ${task.tags ? task.tags.map(tag => `<span class="task-tag">${tag}</span>`).join('') : ''}
-            </div>
-            
-            ${task.current_phase ? `
-                <div class="task-phase-chip">
-                    <i class="fas ${this.getPhaseIcon(task.current_phase)}"></i> ${task.current_phase}
-                </div>
-            ` : ''}
-            
-            ${task.status === 'failed' && task.results && task.results.error ? `
-                <div class="task-error">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span class="error-message">${this.formatErrorText(task.results.error)}</span>
-                </div>
-            ` : ''}
-            
-            <div class="task-footer">
-                <div class="task-id">${task.id}</div>
-                <div class="task-actions">
-                    <button class="btn-icon btn-delete" onclick="event.stopPropagation(); ecosystemManager.deleteTask('${task.id}', '${task.status}')" title="Delete Task">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        return card;
-    }
-    
-    updateCategoryFilters() {
-        // Update filter dropdowns if they exist
-        const filterCategorySelect = document.getElementById('filter-category');
-        if (filterCategorySelect) {
-            const currentValue = filterCategorySelect.value;
-            filterCategorySelect.innerHTML = '<option value="">All Categories</option>';
-            
-            // Add all categories from both types
-            const allCategories = new Map();
-            Object.entries(this.categoryOptions).forEach(([type, cats]) => {
-                cats.forEach(cat => {
-                    if (!allCategories.has(cat.value)) {
-                        allCategories.set(cat.value, cat.label);
-                    }
-                });
-            });
-            
-            Array.from(allCategories.entries()).forEach(([value, label]) => {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = label;
-                filterCategorySelect.appendChild(option);
-            });
-            
-            // Restore previous selection if it still exists
-            if (currentValue && filterCategorySelect.querySelector(`option[value="${currentValue}"]`)) {
-                filterCategorySelect.value = currentValue;
-            }
-        }
-    }
-    
-    // Removed duplicate functions - see lines 1688 and 1698 for the actual implementations
-    
-    updateTargetOptions(type) {
-        console.log(`🎯 updateTargetOptions called with type: ${type}, resources count: ${this.resources.length}, scenarios count: ${this.scenarios.length}`);
-        
-        // Debounce rapid calls
-        const debounceKey = `updateTargetOptions_debounce_${type}`;
-        if (this[debounceKey]) {
-            clearTimeout(this[debounceKey]);
-        }
-        
-        this[debounceKey] = setTimeout(() => {
-            this._doUpdateTargetOptions(type);
-        }, 100); // 100ms debounce
-    }
-    
-    _doUpdateTargetOptions(type) {
-        // Prevent multiple concurrent update requests for the same type
-        const updateKey = `updateTargetOptions_${type}`;
-        if (this[updateKey + '_pending']) {
-            console.log(`⏭️ Skipping updateTargetOptions for ${type} - update already pending`);
-            return;
-        }
-        
-        const targetSelect = document.getElementById('task-target');
-        
-        // Exit early if element doesn't exist
-        if (!targetSelect) {
-            console.warn('Target select element not found');
-            return;
-        }
-        
-        // Convert input to select if it's not already
-        if (targetSelect.tagName !== 'SELECT') {
-            const newSelect = document.createElement('select');
-            newSelect.id = 'task-target';
-            newSelect.name = 'target';
-            newSelect.required = true;
-            newSelect.className = targetSelect.className;
-            targetSelect.parentNode.replaceChild(newSelect, targetSelect);
-        }
-        
-        const select = document.getElementById('task-target');
-        
-        try {
-            // Use cached data immediately - no loading state!
-            let targets = [];
-            if (type === 'resource') {
-                targets = [...this.resources];
-            } else if (type === 'scenario') {
-                targets = [...this.scenarios];
-            }
-            
-            // Sort targets alphabetically by name
-            targets.sort((a, b) => a.name.localeCompare(b.name));
-            
-            // Clear options and add base option
-            select.innerHTML = '<option value="">Select target to improve...</option>';
-            
-            // Add cache status information in the base option if data is stale or has errors
-            const cacheState = this.targetCacheState[type + 's']; // 'resources' or 'scenarios'
-            if (cacheState) {
-                const now = Date.now();
-                const dataAge = cacheState.lastUpdate ? Math.floor((now - cacheState.lastUpdate) / 1000) : null;
-                
-                if (cacheState.error) {
-                    select.options[0].textContent = `Select target (data error: ${cacheState.error})...`;
-                    select.options[0].style.color = '#dc3545';
-                } else if (cacheState.loading) {
-                    select.options[0].textContent = 'Select target (updating data)...';
-                    select.options[0].style.color = '#ffc107';
-                } else if (dataAge && dataAge > 60) {
-                    select.options[0].textContent = `Select target (data ${dataAge}s old)...`;
-                    select.options[0].style.color = '#6c757d';
-                }
-            }
-            
-            console.log(`🎯 Adding ${targets.length} ${type} targets to dropdown. First few:`, targets.slice(0, 3).map(t => t.name));
-            targets.forEach(target => {
-                const option = document.createElement('option');
-                option.value = target.name;
-                
-                // Build option text with enhanced status information
-                let optionText = target.name;
-                
-                // Add category if available
-                if (target.category) {
-                    optionText += ` (${target.category})`;
-                }
-                
-                // Add health status for resources only (scenarios don't have runtime health)
-                if (type === 'resource') {
-                    if (target.healthy === true) {
-                        optionText += ' ✓';
-                        option.style.color = '#28a745'; // Green for healthy/running
-                    } else if (target.healthy === false) {
-                        optionText += ' ✗';
-                        option.style.color = '#6c757d'; // Gray for stopped
-                    }
-                }
-                
-                // Add version or status for scenarios  
-                if (type === 'scenario') {
-                    if (target.version) {
-                        optionText += ` v${target.version}`;
-                    }
-                    // Set color based on availability
-                    if (target.status === 'available') {
-                        option.style.color = '#28a745'; // Green for available
-                    }
-                }
-                
-                // Add running status for resources
-                if (type === 'resource' && target.port) {
-                    optionText += ` :${target.port}`;
-                }
-                
-                option.textContent = optionText;
-                select.appendChild(option);
-            });
-            
-            console.log(`🎯 After adding all options, select now has ${select.options.length} options`);
-            
-            // If no targets found, show a helpful message
-            if (targets.length === 0) {
-                const option = document.createElement('option');
-                option.value = '';
-                
-                // Check current cache state
-                const cacheState = this.targetCacheState[type + 's'];
-                const isLoading = cacheState && cacheState.loading;
-                const hasError = cacheState && cacheState.error;
-                
-                if (isLoading) {
-                    option.textContent = `Loading ${type}s... please wait`;
-                    option.style.color = '#ffc107';
-                    console.log(`⏳ Currently loading ${type}s...`);
-                } else if (hasError) {
-                    option.textContent = `Failed to load ${type}s - check connection`;
-                    option.style.color = '#dc3545';
+            // Add click handler for task details
+            card.addEventListener('click', (e) => {
+                // Handle delete button click
+                const deleteBtn = e.target.closest('.task-delete-btn');
+                if (deleteBtn) {
+                    e.stopPropagation();
+                    const taskId = deleteBtn.dataset.taskId;
+                    const taskStatus = deleteBtn.dataset.taskStatus;
+                    this.deleteTask(taskId, taskStatus);
                 } else {
-                    option.textContent = `No ${type}s found - checking for updates...`;
-                    option.style.color = '#6c757d';
-                    
-                    // Trigger a background poll if we haven't loaded data yet
-                    if (!cacheState || !cacheState.lastUpdate) {
-                        console.log(`📊 No ${type}s loaded yet, triggering background poll...`);
-                        this.pollTargets().catch(err => {
-                            console.warn(`Background poll failed:`, err.message);
-                        });
-                    } else {
-                        option.textContent = `No ${type}s available`;
-                    }
+                    this.showTaskDetails(task.id);
                 }
-                
-                option.disabled = true;
-                option.style.fontStyle = 'italic';
-                select.appendChild(option);
-            }
+            });
             
-            console.log(`📋 Updated ${type} selector with ${targets.length} cached targets`);
-            
-        } catch (error) {
-            console.error(`Failed to populate ${type} targets:`, error);
-            select.innerHTML = `<option value="">Error populating ${type}s - please try again</option>`;
+            container.appendChild(card);
+        });
+        
+        // Update counter
+        const counter = document.querySelector(`[data-status="${status}"] .task-count`);
+        if (counter) {
+            counter.textContent = tasks.length;
         }
     }
-    
+
+    async showCreateTaskModal() {
+        const modal = document.getElementById('create-task-modal');
+        if (modal) {
+            // Initialize the form with default values
+            await this.updateFormForType();
+            await this.updateFormForOperation();
+            modal.classList.add('show');
+            // Disable body scroll when showing modal
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
     async handleCreateTask() {
         const form = document.getElementById('create-task-form');
         const formData = new FormData(form);
@@ -1445,1514 +233,75 @@ class EcosystemManager {
             title: formData.get('title'),
             type: formData.get('type'),
             operation: formData.get('operation'),
-            priority: formData.get('priority') || 'medium',
-            effort_estimate: formData.get('effort_estimate'),
-            notes: formData.get('notes') || ''
+            priority: formData.get('priority'),
+            notes: formData.get('notes'),
+            status: 'pending'
         };
         
-        // Add target for improver operations and infer category from it
-        if (taskData.operation === 'improver' && formData.get('target')) {
-            const targetName = formData.get('target');
-            taskData.requirements = {
-                [`target_${taskData.type}`]: targetName
-            };
-            
-            // Try to get category from the target resource/scenario
-            if (taskData.type === 'resource') {
-                const targetResource = this.resources.find(r => r.name === targetName);
-                if (targetResource && targetResource.category) {
-                    taskData.category = targetResource.category;
-                }
-            } else if (taskData.type === 'scenario') {
-                const targetScenario = this.scenarios.find(s => s.name === targetName);
-                if (targetScenario && targetScenario.category) {
-                    taskData.category = targetScenario.category;
-                }
-            }
-        }
-        
-        // Set a default category if none was inferred
-        if (!taskData.category) {
-            taskData.category = taskData.type === 'resource' ? 'general' : 'general';
+        // Add target for improver operations
+        if (taskData.operation === 'improver') {
+            taskData.target = formData.get('target');
         }
         
         this.showLoading(true);
         
         try {
-            const response = await fetch(`${this.apiBase}/tasks`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(taskData)
-            });
+            const result = await this.taskManager.createTask(taskData);
             
-            if (!response.ok) {
-                const error = await response.text();
-                throw new Error(error);
+            if (result.success) {
+                this.showToast('Task created successfully', 'success');
+                this.closeModal('create-task-modal');
+                form.reset(); // Reset the form
+                await this.refreshColumn('pending');
+            } else {
+                throw new Error(result.error || 'Failed to create task');
             }
-            
-            const createdTask = await response.json();
-            
-            this.showToast(`Task created successfully: ${createdTask.id}`, 'success');
-            this.closeCreateTaskModal();
-            form.reset();
-            
-            // Refresh all tasks to show the new task
-            await this.loadAllTasks();
-            this.updateStats();
-            this.applyFilters();
-            
         } catch (error) {
-            console.error('Failed to create task:', error);
+            console.error('Error creating task:', error);
             this.showToast(`Failed to create task: ${error.message}`, 'error');
         } finally {
             this.showLoading(false);
         }
     }
-    
+
     async showTaskDetails(taskId) {
         this.showLoading(true);
         
         try {
-            console.log(`Fetching task details for: ${taskId}`);
-            const response = await fetch(`${this.apiBase}/tasks/${taskId}`);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`Failed to load task ${taskId}:`, response.status, errorText);
-                throw new Error(`Failed to load task details: ${response.status}`);
-            }
-            
-            const task = await response.json();
-            console.log('Task details loaded:', task);
-            
-            const modal = document.getElementById('task-details-modal');
-            const titleElement = document.getElementById('task-details-title');
-            const contentElement = document.getElementById('task-details-content');
-            
-            titleElement.textContent = `Edit Task`;
-            
-            // Get category options based on task type
-            const categoryOptions = this.categoryOptions[task.type] || [];
-            
-            contentElement.innerHTML = `
-                <form id="edit-task-form" onsubmit="return false;">
-                    <div style="padding: 1.5rem;">
-                        <!-- Basic Information -->
-                        <div class="form-group">
-                            <label for="edit-task-title">Title *</label>
-                            <input type="text" id="edit-task-title" name="title" value="${this.escapeHtml(task.title)}" required>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-type">Type</label>
-                                <select id="edit-task-type" name="type" disabled>
-                                    <option value="resource" ${task.type === 'resource' ? 'selected' : ''}>Resource</option>
-                                    <option value="scenario" ${task.type === 'scenario' ? 'selected' : ''}>Scenario</option>
-                                </select>
-                                <small class="form-help">Type cannot be changed after creation</small>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-operation">Operation</label>
-                                <select id="edit-task-operation" name="operation" disabled>
-                                    <option value="generator" ${task.operation === 'generator' ? 'selected' : ''}>Generator</option>
-                                    <option value="improver" ${task.operation === 'improver' ? 'selected' : ''}>Improver</option>
-                                </select>
-                                <small class="form-help">Operation cannot be changed after creation</small>
-                            </div>
-                        </div>
-                        
-                        <!-- Status and Priority -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-status">Status *</label>
-                                <select id="edit-task-status" name="status" required>
-                                    <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>In Progress</option>
-                                    <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>Completed</option>
-                                    <option value="failed" ${task.status === 'failed' ? 'selected' : ''}>Failed</option>
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-priority">Priority *</label>
-                                <select id="edit-task-priority" name="priority" required>
-                                    <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
-                                    <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
-                                    <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
-                                    <option value="critical" ${task.priority === 'critical' ? 'selected' : ''}>Critical</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Category and Effort -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-category">Category</label>
-                                <select id="edit-task-category" name="category">
-                                    <option value="">Select category...</option>
-                                    ${categoryOptions.map(cat => `
-                                        <option value="${cat.value}" ${task.category === cat.value ? 'selected' : ''}>
-                                            ${cat.label}
-                                        </option>
-                                    `).join('')}
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-effort">Estimated Effort</label>
-                                <select id="edit-task-effort" name="effort_estimate">
-                                    <option value="1h" ${task.effort_estimate === '1h' ? 'selected' : ''}>1 hour</option>
-                                    <option value="2h" ${task.effort_estimate === '2h' ? 'selected' : ''}>2 hours</option>
-                                    <option value="4h" ${task.effort_estimate === '4h' ? 'selected' : ''}>4 hours</option>
-                                    <option value="8h" ${task.effort_estimate === '8h' ? 'selected' : ''}>8 hours</option>
-                                    <option value="16h+" ${task.effort_estimate === '16h+' ? 'selected' : ''}>16+ hours</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Progress -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-progress">Progress %</label>
-                                <input type="number" id="edit-task-progress" name="progress_percentage" 
-                                       min="0" max="100" value="${task.progress_percentage || 0}">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-phase">Current Phase</label>
-                                <input type="text" id="edit-task-phase" name="current_phase" 
-                                       value="${this.escapeHtml(task.current_phase || '')}"
-                                       placeholder="e.g., research, implementation, testing">
-                            </div>
-                        </div>
-                        
-                        <!-- Impact and Urgency -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-impact">Impact Score (1-10)</label>
-                                <input type="number" id="edit-task-impact" name="impact_score" 
-                                       min="1" max="10" value="${task.impact_score || 5}">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-urgency">Urgency</label>
-                                <select id="edit-task-urgency" name="urgency">
-                                    <option value="low" ${task.urgency === 'low' ? 'selected' : ''}>Low</option>
-                                    <option value="normal" ${task.urgency === 'normal' ? 'selected' : ''}>Normal</option>
-                                    <option value="high" ${task.urgency === 'high' ? 'selected' : ''}>High</option>
-                                    <option value="critical" ${task.urgency === 'critical' ? 'selected' : ''}>Critical</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Notes -->
-                        <div class="form-group">
-                            <label for="edit-task-notes">Notes</label>
-                            <textarea id="edit-task-notes" name="notes" rows="4" 
-                                      placeholder="Additional details, requirements, or context...">${this.escapeHtml(task.notes || '')}</textarea>
-                        </div>
-                        
-                        <!-- Task Results (only show for completed/failed tasks) -->
-                        ${task.results && (task.status === 'completed' || task.status === 'failed') ? `
-                            <div class="form-group">
-                                <label>Execution Results</label>
-                                <div class="execution-results ${task.results.success ? 'success' : 'error'}">
-                                    <div style="margin-bottom: 0.5rem;">
-                                        <strong>Status:</strong> 
-                                        <span class="${task.results.success ? 'status-success' : 'status-error'}">
-                                            ${task.results.success ? '✅ Success' : '❌ Failed'}
-                                        </span>
-                                        ${task.results.timeout_failure ? '<span style="color: #ff9800; margin-left: 8px;">⏰ TIMEOUT</span>' : ''}
-                                    </div>
-                                    
-                                    <!-- Timing Information -->
-                                    ${task.results.execution_time || task.results.timeout_allowed || task.results.prompt_size ? `
-                                        <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
-                                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
-                                                ${task.results.execution_time ? `<span><strong>⏱️ Runtime:</strong> ${task.results.execution_time}</span>` : ''}
-                                                ${task.results.timeout_allowed ? `<span><strong>⏰ Timeout:</strong> ${task.results.timeout_allowed}</span>` : ''}
-                                            </div>
-                                            ${task.results.prompt_size ? `<div style="font-size: 0.9em; margin-top: 4px;"><strong>📝 Prompt Size:</strong> ${task.results.prompt_size}</div>` : ''}
-                                            ${task.results.started_at ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px;">Started: ${new Date(task.results.started_at).toLocaleString()}</div>` : ''}
-                                        </div>
-                                    ` : ''}
-                                    ${task.results.error ? `
-                                        <div style="margin-bottom: 0.5rem;">
-                                            <strong>Error:</strong> 
-                                            <div class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px;">${this.formatErrorText(task.results.error)}</div>
-                                        </div>
-                                    ` : ''}
-                                    ${task.results.output ? `
-                                        <details style="margin-top: 0.5rem;">
-                                            <summary class="output-summary">
-                                                📋 View Claude Output (click to expand)
-                                            </summary>
-                                            <pre class="claude-output">${this.escapeHtml(task.results.output)}</pre>
-                                        </details>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Metadata (read-only) -->
-                        <div class="form-group">
-                            <label>Task Information</label>
-                            <div style="background: var(--light-gray); padding: 0.8rem; border-radius: var(--border-radius); font-size: 0.9rem;">
-                                <div><strong>ID:</strong> ${task.id}</div>
-                                ${task.created_at ? `<div><strong>Created:</strong> ${new Date(task.created_at).toLocaleString()}</div>` : ''}
-                                ${task.started_at ? `<div><strong>Started:</strong> ${new Date(task.started_at).toLocaleString()}</div>` : ''}
-                                ${task.completed_at ? `<div><strong>Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : ''}
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeTaskDetailsModal()">
-                                <i class="fas fa-times"></i>
-                                Cancel
-                            </button>
-                            
-                            <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude">
-                                <i class="fas fa-file-alt"></i>
-                                View Prompt
-                            </button>
-                            
-                            <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')">
-                                <i class="fas fa-save"></i>
-                                Save Changes
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            `;
-            
-            modal.classList.add('show');
-            
+            const task = await this.taskManager.getTaskDetails(taskId);
+            this.renderTaskDetailsModal(task);
         } catch (error) {
-            console.error('Failed to load task details:', error, error.stack);
+            console.error('Failed to load task details:', error);
             this.showToast(`Failed to load task details: ${error.message}`, 'error');
         } finally {
             this.showLoading(false);
         }
     }
-    
-    
-    async deleteTask(taskId, status) {
-        // No confirmation needed for completed or failed tasks
-        if (status !== 'completed' && status !== 'failed') {
-            const confirmed = confirm(`Are you sure you want to delete this ${status} task?`);
-            if (!confirmed) return;
-        }
-        
-        try {
-            const response = await fetch(`${this.apiBase}/tasks/${taskId}`, {
-                method: 'DELETE'
-            });
-            
-            if (!response.ok) {
-                throw new Error('Failed to delete task');
-            }
-            
-            // Refresh all tasks to ensure UI is in sync with backend
-            await this.loadAllTasks();
-            this.updateStats();
-            this.applyFilters();
-            
-            this.showToast('Task deleted successfully', 'success');
-        } catch (error) {
-            console.error('Failed to delete task:', error);
-            this.showToast('Failed to delete task', 'error');
-        }
-    }
-    
-    async saveTaskChanges(taskId) {
-        this.showLoading(true);
-        
-        try {
-            const form = document.getElementById('edit-task-form');
-            const formData = new FormData(form);
-            
-            // Build the update object from form data
-            const updateData = {
-                id: taskId,
-                title: formData.get('title'),
-                status: formData.get('status'),
-                priority: formData.get('priority'),
-                category: formData.get('category') || '',
-                effort_estimate: formData.get('effort_estimate') || '',
-                progress_percentage: parseInt(formData.get('progress_percentage')) || 0,
-                current_phase: formData.get('current_phase') || '',
-                impact_score: parseInt(formData.get('impact_score')) || 5,
-                urgency: formData.get('urgency') || 'normal',
-                notes: formData.get('notes') || '',
-                updated_at: new Date().toISOString()
-            };
-            
-            console.log('Saving task changes:', updateData);
-            
-            const response = await fetch(`${this.apiBase}/tasks/${taskId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updateData)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.text();
-                throw new Error(`Failed to update task: ${response.status} ${errorData}`);
-            }
-            
-            const updatedTask = await response.json();
-            console.log('Task updated successfully:', updatedTask);
-            
-            // Close the modal
-            this.closeTaskDetailsModal();
-            
-            // Refresh all tasks to show the updated task in the correct column
-            await this.loadAllTasks();
-            this.updateStats();
-            this.applyFilters();
-            
-            this.showToast('Task updated successfully!', 'success');
-            
-        } catch (error) {
-            console.error('Failed to save task changes:', error);
-            this.showToast(`Failed to save changes: ${error.message}`, 'error');
-        } finally {
-            this.showLoading(false);
-        }
-    }
-    
-    async refreshColumn(status) {
-        await this.loadTasks(status);
-        this.updateStats();
-        this.applyFilters();
-        this.showToast(`Refreshed ${status} tasks`, 'success');
-    }
-    
-    toggleCompletedVisibility() {
-        const completedColumn = document.querySelector('[data-status="completed"]');
-        const toggleBtn = document.getElementById('toggle-completed');
-        
-        if (completedColumn.style.display === 'none') {
-            completedColumn.style.display = 'flex';
-            toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
-        } else {
-            completedColumn.style.display = 'none';
-            toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
-        }
-    }
-    
-    // Modal functions
-    openCreateTaskModal() {
-        document.getElementById('create-task-modal').classList.add('show');
-        document.getElementById('task-title').focus();
-    }
-    
-    closeCreateTaskModal() {
-        document.getElementById('create-task-modal').classList.remove('show');
-    }
-    
-    closeTaskDetailsModal() {
-        document.getElementById('task-details-modal').classList.remove('show');
-    }
-    
-    async viewTaskPrompt(taskId) {
-        try {
-            const response = await fetch(`${this.apiBase}/tasks/${taskId}/prompt/assembled`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch prompt');
-            }
-            
-            const data = await response.json();
-            
-            // Remove any existing prompt modal first
-            const existingModal = document.getElementById('promptModal');
-            if (existingModal) {
-                existingModal.remove();
-            }
-            
-            // Create a modal to display the prompt
-            const modalDiv = document.createElement('div');
-            modalDiv.id = 'promptModal';
-            modalDiv.className = 'modal show';
-            modalDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 999999;';
-            
-            modalDiv.innerHTML = `
-                <div class="modal-content" style="background: white; border-radius: 8px; max-width: 900px; width: 90%; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;">
-                    <div class="modal-header" style="padding: 1rem; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center;">
-                        <h2 style="margin: 0;">Task Prompt - ${taskId}</h2>
-                        <button class="modal-close" onclick="document.getElementById('promptModal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="modal-body" style="padding: 1rem; overflow-y: auto; flex: 1;">
-                        <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f5f5f5; border-radius: 4px;">
-                            <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
-                                <div>
-                                    <strong>Prompt Length:</strong> ${data.prompt_length.toLocaleString()} characters
-                                </div>
-                                <div>
-                                    <strong>Source:</strong> ${data.prompt_cached ? '📁 Cached from execution' : '🔄 Freshly assembled'}
-                                </div>
-                                <div>
-                                    <strong>Task Status:</strong> ${data.task_status}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style="position: relative;">
-                            <button class="btn btn-sm btn-secondary" 
-                                    onclick="navigator.clipboard.writeText(document.getElementById('promptContent').textContent); ecosystemManager.showToast('Prompt copied to clipboard', 'success')"
-                                    style="position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10;">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
-                            <pre id="promptContent" style="background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow: auto; max-height: 60vh; white-space: pre-wrap; word-wrap: break-word; margin: 0;">${this.escapeHtml(data.prompt)}</pre>
-                        </div>
-                    </div>
-                    <div class="modal-footer" style="padding: 1rem; border-top: 1px solid #e0e0e0; display: flex; justify-content: flex-end;">
-                        <button class="btn btn-secondary" onclick="document.getElementById('promptModal').remove()">
-                            Close
-                        </button>
-                    </div>
-                </div>
-            `;
-            
-            // Add click handler to close on backdrop click
-            modalDiv.addEventListener('click', (e) => {
-                if (e.target === modalDiv) {
-                    modalDiv.remove();
-                }
-            });
-            
-            // Append to body
-            document.body.appendChild(modalDiv);
-            
-        } catch (error) {
-            console.error('Failed to fetch prompt:', error);
-            this.showToast(`Failed to fetch prompt: ${error.message}`, 'error');
-        }
-    }
-    
-    closeAllModals() {
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.classList.remove('show');
-        });
-    }
-    
-    async refreshAll() {
-        this.showLoading(true);
-        try {
-            // Set timeout for the entire refresh operation
-            const refreshPromise = Promise.race([
-                this.performRefreshOperations(),
-                new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('Refresh timeout')), 10000)
-                )
-            ]);
 
-            await refreshPromise;
-            this.showToast('All data refreshed', 'success');
-        } catch (error) {
-            console.error('Failed to refresh all data:', error);
-            if (error.message === 'Refresh timeout') {
-                this.showToast('Refresh timed out - server may be slow', 'warning');
-            } else {
-                this.showToast('Failed to refresh data', 'error');
-            }
-        } finally {
-            this.showLoading(false);
-        }
-    }
-
-    async performRefreshOperations() {
-        // Load all tasks with timeout
-        await this.loadAllTasks();
+    renderTaskDetailsModal(task) {
+        const modal = document.getElementById('task-details-modal');
+        const titleElement = document.getElementById('task-details-title');
+        const contentElement = document.getElementById('task-details-content');
         
-        // Refresh target data (resources and scenarios)
-        try {
-            await this.pollTargets();
-            console.log('🎯 Refreshed target data as part of full refresh');
-        } catch (error) {
-            console.warn('Could not refresh target data:', error);
-            // Don't fail the entire refresh if target refresh fails
-        }
+        titleElement.textContent = 'Edit Task';
         
-        // Fetch and update queue status
-        await this.fetchQueueProcessorStatus();
-        
-        // Trigger IMMEDIATE queue processing to start claude-code if there are pending tasks
-        try {
-            await this.triggerImmediateProcessing();
-        } catch (error) {
-            console.warn('Could not trigger immediate processing:', error);
-            // Don't fail the entire refresh if trigger fails
-        }
-        
-        // Update stats
-        this.updateStats();
-        
-        // Apply filters
-        this.applyFilters();
-    }
-
-    async triggerQueueProcessing() {
-        try {
-            const response = await fetch(`${this.apiBase}/queue/trigger`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                signal: AbortSignal.timeout(5000) // 5 second timeout
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to trigger queue processing');
-            }
-
-            const result = await response.json();
-            console.log('Queue processing triggered:', result);
-            return result;
-        } catch (error) {
-            console.warn('Failed to trigger queue processing:', error);
-            throw error;
-        }
-    }
-    
-    updateFormForType() {
-        const type = document.querySelector('input[name="type"]:checked')?.value || 'resource';
-        const operation = document.querySelector('input[name="operation"]:checked')?.value || 'generator';
-        
-        // Update target dropdown if needed
-        if (operation === 'improver') {
-            this.updateTargetOptions(type);
-        }
-    }
-    
-    updateFormForOperation() {
-        const operation = document.querySelector('input[name="operation"]:checked')?.value || 'generator';
-        const type = document.querySelector('input[name="type"]:checked')?.value || 'resource';
-        const targetGroup = document.getElementById('target-group');
-        
-        if (operation === 'improver' && type) {
-            // Show target field for improver operations
-            targetGroup.style.display = 'block';
-            document.getElementById('task-target').required = true;
-            this.updateTargetOptions(type);
-        } else {
-            // Hide target field for generator operations
-            targetGroup.style.display = 'none';
-            document.getElementById('task-target').required = false;
-            document.getElementById('task-target').value = '';
-        }
-    }
-    
-    
-    // Utility functions
-    showLoading(show = true) {
-        const overlay = document.getElementById('loading-overlay');
-        if (show) {
-            overlay.classList.add('show');
-        } else {
-            overlay.classList.remove('show');
-        }
-    }
-    
-    showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        
-        const icon = {
-            success: 'fas fa-check-circle',
-            error: 'fas fa-exclamation-circle',
-            warning: 'fas fa-exclamation-triangle',
-            info: 'fas fa-info-circle'
-        }[type] || 'fas fa-info-circle';
-        
-        toast.innerHTML = `
-            <i class="${icon}"></i>
-            <span>${this.escapeHtml(message)}</span>
-        `;
-        
-        container.appendChild(toast);
-        
-        // Auto remove after timeout (longer for errors)
-        const timeout = type === 'error' ? 15000 : 8000; // 15s for errors, 8s for others
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, timeout);
-        
-        // Click to dismiss
-        toast.addEventListener('click', () => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        });
-    }
-    
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // Format error text for display with proper line breaks and structure
-    formatErrorText(errorText) {
-        if (!errorText) return '';
-        
-        // First escape HTML to prevent XSS
-        const escapedText = this.escapeHtml(errorText);
-        
-        // Convert \n to actual line breaks
-        const withLineBreaks = escapedText.replace(/\\n/g, '\n');
-        
-        // Convert actual newlines to <br> tags
-        return withLineBreaks.replace(/\n/g, '<br>');
-    }
-    
-    // Dark mode functionality
-    // Settings Management
-    async initSettings() {
-        // Load settings from backend API, fallback to localStorage, then defaults
-        await this.loadSettingsFromBackend();
-        
-        // Apply settings to queue status
-        this.queueStatus.maxConcurrent = this.settings.slots || 1;
-        this.queueStatus.refreshInterval = (this.settings.refresh_interval || 30) * 1000; // Convert to milliseconds
-        this.queueStatus.processorActive = this.settings.active || false;
-        
-        console.log('Applied settings to queue:', {
-            slots: this.queueStatus.maxConcurrent,
-            refreshInterval: this.queueStatus.refreshInterval,
-            active: this.queueStatus.processorActive
-        });
-        
-        // If settings say processor should be active, apply that to backend
-        // This handles the case where API starts paused but settings say active
-        if (this.settings.active) {
-            console.log('Settings indicate processor should be active, applying to backend...');
-            this.applyProcessorActiveState(true);
-        }
-        
-        // Apply theme
-        this.applyTheme(this.settings.theme);
-        
-        // Apply condensed mode setting
-        this.applyCondensedMode(this.settings.condensed_mode);
-        
-        // Set up media query listener for auto theme
-        if (window.matchMedia) {
-            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-            mediaQuery.addListener(() => this.applyTheme(this.settings.theme));
-        }
-    }
-    
-    async loadSettingsFromBackend() {
-        const defaultSettings = {
-            // Display settings
-            theme: 'light',
-            condensed_mode: false,
-            
-            // Queue processor settings
-            slots: 1,
-            refresh_interval: 30,
-            active: false,
-            
-            // Agent settings
-            max_turns: 60,
-            allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
-            skip_permissions: true,
-            task_timeout: 30
-        };
-        
-        try {
-            // Try loading from backend first
-            const response = await fetch(`${this.apiBase}/settings`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.settings) {
-                    this.settings = data.settings;
-                    console.log('Settings loaded from backend:', this.settings);
-                    return;
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to load settings from backend:', error);
-        }
-        
-        // Fallback to localStorage
-        try {
-            const saved = localStorage.getItem('ecosystem-manager-settings');
-            if (saved) {
-                this.settings = { ...defaultSettings, ...JSON.parse(saved) };
-                console.log('Settings loaded from localStorage (backend unavailable)');
-                return;
-            }
-        } catch (error) {
-            console.warn('Failed to load settings from localStorage:', error);
-        }
-        
-        // Final fallback to defaults
-        this.settings = defaultSettings;
-        console.log('Settings loaded from defaults');
-    }
-    
-    loadSettings() {
-        // Legacy function - now replaced by loadSettingsFromBackend
-        return this.settings || this.loadSettingsFromBackend();
-    }
-    
-    async saveSettings(settings) {
-        try {
-            const newSettings = { ...this.settings, ...settings };
-            
-            // Save to backend API
-            const response = await fetch(`${this.apiBase}/settings`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newSettings)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    this.settings = data.settings;
-                    
-                    // Also save to localStorage as backup
-                    localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
-                    
-                    // Apply theme immediately if it changed
-                    if (settings.theme) {
-                        this.applyTheme(settings.theme);
-                    }
-                    if (settings.condensed_mode !== undefined) {
-                        this.applyCondensedMode(settings.condensed_mode);
-                    }
-                    
-                    console.log('Settings saved to backend successfully');
-                    return true;
-                }
-            }
-            
-            throw new Error('Backend save failed');
-            
-        } catch (error) {
-            console.error('Failed to save settings to backend:', error);
-            
-            // Fallback to localStorage only
-            try {
-                this.settings = { ...this.settings, ...settings };
-                localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
-                
-                if (settings.theme) {
-                    this.applyTheme(settings.theme);
-                }
-                if (settings.condensed_mode !== undefined) {
-                    this.applyCondensedMode(settings.condensed_mode);
-                }
-                
-                console.log('Settings saved to localStorage as fallback');
-                return true;
-            } catch (localError) {
-                console.error('Failed to save settings even to localStorage:', localError);
-                return false;
-            }
-        }
-    }
-    
-    async applyProcessorActiveState(shouldBeActive) {
-        // Apply the processor active state by re-saving settings
-        // This triggers the backend to start/stop the processor
-        try {
-            const response = await fetch(`${this.apiBase}/settings`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...this.settings,
-                    active: shouldBeActive
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    console.log(`Processor ${shouldBeActive ? 'activated' : 'paused'} successfully`);
-                    this.queueStatus.processorActive = shouldBeActive;
-                    this.updateQueueDisplay();
-                }
-            }
-        } catch (error) {
-            console.warn('Failed to apply processor active state:', error);
-        }
-    }
-    
-    applyTheme(theme) {
-        const body = document.body;
-        
-        switch (theme) {
-            case 'dark':
-                body.classList.add('dark-mode');
-                break;
-            case 'light':
-                body.classList.remove('dark-mode');
-                break;
-            case 'auto':
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    body.classList.add('dark-mode');
-                } else {
-                    body.classList.remove('dark-mode');
-                }
-                break;
-        }
-    }
-    
-    applyCondensedMode(condensed) {
-        const body = document.body;
-        if (condensed) {
-            body.classList.add('condensed-mode');
-        } else {
-            body.classList.remove('condensed-mode');
-        }
-    }
-    
-    openSettingsModal() {
-        const modal = document.getElementById('settings-modal');
-        
-        // Populate form with current settings
-        this.populateSettingsForm();
-        
-        // Update rate limit status
-        this.updateRateLimitStatus();
+        // Use the enhanced two-column layout
+        contentElement.innerHTML = this.getTaskDetailsHTML(task);
         
         modal.classList.add('show');
+        // Disable body scroll when showing modal
+        document.body.style.overflow = 'hidden';
     }
-    
-    closeSettingsModal() {
-        const modal = document.getElementById('settings-modal');
-        modal.classList.remove('show');
-    }
-    
-    populateSettingsForm() {
-        // Display settings
-        document.getElementById('settings-theme').value = this.settings.theme;
-        document.getElementById('settings-condensed-mode').checked = this.settings.condensed_mode;
+
+    getTaskDetailsHTML(task) {
+        const isRunning = this.processMonitor.isTaskRunning(task.id);
+        const runningProcess = isRunning ? this.processMonitor.getRunningProcess(task.id) : null;
         
-        // Queue processor settings
-        document.getElementById('settings-slots').value = this.settings.slots;
-        document.getElementById('slots-value').textContent = this.settings.slots;
-        document.getElementById('settings-refresh').value = this.settings.refresh_interval;
-        document.getElementById('settings-active').checked = this.settings.active;
-        
-        // Agent settings
-        document.getElementById('settings-max-turns').value = this.settings.max_turns;
-        document.getElementById('max-turns-value').textContent = this.settings.max_turns;
-        document.getElementById('settings-tools').value = this.settings.allowed_tools;
-        document.getElementById('settings-skip-permissions').checked = this.settings.skip_permissions;
-        document.getElementById('settings-task-timeout').value = this.settings.task_timeout || 30;
-        document.getElementById('task-timeout-value').textContent = this.settings.task_timeout || 30;
-    }
-    
-    async saveSettingsFromForm() {
-        const form = document.getElementById('settings-form');
-        const formData = new FormData(form);
-        
-        const newSettings = {
-            // Display settings
-            theme: formData.get('theme'),
-            condensed_mode: formData.get('condensed_mode') === 'on',
-            
-            // Queue processor settings
-            slots: parseInt(formData.get('slots')),
-            refresh_interval: parseInt(formData.get('refresh_interval')),
-            active: formData.get('active') === 'on',
-            
-            // Agent settings
-            max_turns: parseInt(formData.get('max_turns')),
-            allowed_tools: formData.get('allowed_tools'),
-            skip_permissions: formData.get('skip_permissions') === 'on',
-            task_timeout: parseInt(formData.get('task_timeout'))
-        };
-        
-        this.showLoading(true);
-        
-        try {
-            const success = await this.saveSettings(newSettings);
-            if (success) {
-                // Apply updated settings to queue status
-                this.queueStatus.maxConcurrent = newSettings.slots;
-                this.queueStatus.refreshInterval = newSettings.refresh_interval * 1000; // Convert to milliseconds
-                this.queueStatus.processorActive = newSettings.active;
-                
-                // Restart the refresh timer with new interval
-                this.queueStatus.lastRefresh = Date.now(); // Reset the timer
-                this.startRefreshTimer();
-                
-                // Update auto-refresh with new interval
-                this.setupAutoRefresh();
-                
-                // Update queue display immediately
-                this.updateQueueDisplay();
-                
-                this.closeSettingsModal();
-                this.showToast('Settings saved successfully', 'success');
-            } else {
-                this.showToast('Failed to save settings', 'error');
-            }
-        } catch (error) {
-            console.error('Error saving settings:', error);
-            this.showToast('Failed to save settings', 'error');
-        } finally {
-            this.showLoading(false);
-        }
-    }
-    
-    async resetSettingsToDefault() {
-        this.showLoading(true);
-        
-        try {
-            // Call the backend reset API
-            const response = await fetch(`${this.apiBase}/settings/reset`, {
-                method: 'POST'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    this.settings = data.settings;
-                    
-                    // Update localStorage as backup
-                    localStorage.setItem('ecosystem-manager-settings', JSON.stringify(this.settings));
-                    
-                    // Update UI
-                    this.populateSettingsForm();
-                    this.applyTheme(this.settings.theme);
-                    this.applyCondensedMode(this.settings.condensed_mode);
-                    
-                    this.showToast('Settings reset to defaults', 'info');
-                    console.log('Settings reset via backend API');
-                    return;
-                }
-            }
-            
-            throw new Error('Backend reset failed');
-            
-        } catch (error) {
-            console.error('Failed to reset settings via backend:', error);
-            
-            // Fallback to local reset
-            const defaultSettings = {
-                theme: 'light',
-                condensed_mode: false,
-                slots: 1,
-                refresh_interval: 30,
-                active: false,
-                max_turns: 60,
-                allowed_tools: 'Read,Write,Edit,Bash,LS,Glob,Grep',
-                skip_permissions: true,
-                task_timeout: 30
-            };
-            
-            const success = await this.saveSettings(defaultSettings);
-            if (success) {
-                this.populateSettingsForm();
-                this.showToast('Settings reset to defaults (fallback)', 'info');
-            } else {
-                this.showToast('Failed to reset settings', 'error');
-            }
-        } finally {
-            this.showLoading(false);
-        }
-    }
-    
-    updateSliderValue(sliderId, valueId) {
-        const slider = document.getElementById(sliderId);
-        const valueSpan = document.getElementById(valueId);
-        if (slider && valueSpan) {
-            valueSpan.textContent = slider.value;
-        }
-    }
-    
-    
-    // Legacy function name for backwards compatibility
-    initDarkMode() {
-        this.initSettings();
-    }
-    
-    // Queue Status Management
-    initQueueStatus() {
-        // Initialize UI elements with settings-based values
-        this.updateQueueDisplay();
-        
-        // Start the refresh countdown timer
-        this.startRefreshTimer();
-        
-        // Fetch initial queue processor status
-        this.fetchQueueProcessorStatus();
-        
-        console.log('🔄 Queue status indicators initialized with settings:', {
-            slots: this.queueStatus.maxConcurrent,
-            refreshInterval: this.queueStatus.refreshInterval / 1000 + 's',
-            active: this.queueStatus.processorActive
-        });
-    }
-    
-    updateQueueDisplay() {
-        // Calculate available slots based on in-progress tasks
-        const inProgressCount = (this.tasks['in-progress'] || []).length;
-        this.queueStatus.availableSlots = Math.max(0, this.queueStatus.maxConcurrent - inProgressCount);
-        
-        // Update UI elements
-        const availableSlotsEl = document.getElementById('available-slots');
-        const maxSlotsEl = document.getElementById('max-slots');
-        const processorStatusEl = document.getElementById('processor-status');
-        const processorIconEl = document.getElementById('processor-status-icon');
-        
-        if (availableSlotsEl) availableSlotsEl.textContent = this.queueStatus.availableSlots;
-        if (maxSlotsEl) maxSlotsEl.textContent = this.queueStatus.maxConcurrent;
-        
-        if (processorStatusEl && processorIconEl) {
-            // Check for rate limit pause first
-            if (this.queueStatus.rateLimitPaused) {
-                const now = new Date();
-                const pauseUntil = new Date(this.queueStatus.pauseUntil);
-                const remainingMs = pauseUntil - now;
-                const remainingMinutes = Math.ceil(remainingMs / 60000);
-                
-                processorStatusEl.innerHTML = `Rate Limited<br><small>Resumes in ${remainingMinutes} min</small>`;
-                processorIconEl.className = 'fas fa-ban';
-                processorIconEl.style.color = 'var(--error-color)';
-                
-                // Show rate limit notification if not already shown
-                this.showRateLimitNotification(pauseUntil);
-            } else if (this.queueStatus.processorActive) {
-                processorStatusEl.textContent = 'Active';
-                processorIconEl.className = 'fas fa-play';
-                processorIconEl.style.color = 'var(--success-color)';
-                this.hideRateLimitNotification();
-            } else {
-                processorStatusEl.textContent = 'Paused';
-                processorIconEl.className = 'fas fa-pause';
-                processorIconEl.style.color = 'var(--warning-color)';
-                this.hideRateLimitNotification();
-            }
-        }
-    }
-    
-    startRefreshTimer() {
-        // Clear existing timer
-        if (this.queueStatus.refreshTimer) {
-            clearInterval(this.queueStatus.refreshTimer);
-        }
-        
-        // Update countdown every second
-        this.queueStatus.refreshTimer = setInterval(() => {
-            const now = Date.now();
-            const elapsed = now - this.queueStatus.lastRefresh;
-            const remaining = Math.max(0, this.queueStatus.refreshInterval - elapsed);
-            const secondsRemaining = Math.ceil(remaining / 1000);
-            
-            const countdownEl = document.getElementById('refresh-countdown');
-            if (countdownEl) {
-                countdownEl.textContent = secondsRemaining;
-                
-                // Add visual indicator when refreshing
-                const timerEl = document.querySelector('.queue-timer');
-                if (secondsRemaining <= 1 && timerEl) {
-                    timerEl.classList.add('refreshing');
-                } else if (timerEl) {
-                    timerEl.classList.remove('refreshing');
-                }
-            }
-            
-            // Reset timer when cycle completes
-            if (remaining === 0) {
-                this.queueStatus.lastRefresh = now;
-                // Fetch fresh queue status from API
-                this.fetchQueueProcessorStatus();
-                // Also update queue display when refresh happens
-                this.updateQueueDisplay();
-            }
-        }, 1000);
-    }
-    
-    async fetchQueueProcessorStatus() {
-        try {
-            const response = await fetch(`${this.apiBase}/queue/status`);
-            if (response.ok) {
-                const status = await response.json();
-                // Update processor active status and rate limit info
-                this.queueStatus.processorActive = status.processor_active;
-                
-                // Check for rate limit status
-                if (status.rate_limit_info) {
-                    this.queueStatus.rateLimitPaused = status.rate_limit_info.paused;
-                    this.queueStatus.pauseUntil = status.rate_limit_info.pause_until;
-                }
-                
-                // Don't override maxConcurrent or refreshInterval - those come from settings
-                // Just update available slots based on current task count
-                this.updateQueueDisplay();
-            }
-        } catch (error) {
-            console.warn('Failed to fetch queue processor status:', error);
-            // Fallback to health endpoint  
-            try {
-                const healthResponse = await fetch('/health');
-                if (healthResponse.ok) {
-                    const healthStatus = await healthResponse.json();
-                    this.queueStatus.processorActive = healthStatus.maintenanceState === 'active';
-                    this.updateQueueDisplay();
-                }
-            } catch (fallbackError) {
-                console.warn('Failed to fetch health status as fallback:', fallbackError);
-            }
-        }
-    }
-    
-    // ====== PROCESS MONITOR & LOG VIEWER FUNCTIONALITY ======
-    
-    runningProcesses = {};
-    logViewerOpen = false;
-    logAutoScroll = true;
-    activeTaskTimers = {};
-    
-    // Initialize process monitoring
-    async initProcessMonitoring() {
-        // Start periodic process monitoring
-        setInterval(() => {
-            this.fetchRunningProcesses();
-        }, 5000); // Check every 5 seconds
-        
-        // Initial load
-        this.fetchRunningProcesses();
-    }
-    
-    async fetchRunningProcesses() {
-        try {
-            const response = await fetch(`${this.apiBase}/processes/running`);
-            if (!response.ok) throw new Error('Failed to fetch processes');
-            
-            const data = await response.json();
-            this.runningProcesses = {};
-            
-            // Convert array to object for easier lookup
-            if (data.processes && Array.isArray(data.processes)) {
-                data.processes.forEach(process => {
-                    this.runningProcesses[process.task_id] = process;
-                });
-            }
-            
-            this.updateProcessMonitor();
-            this.updateExecutionTimers();
-            
-        } catch (error) {
-            console.warn('Failed to fetch running processes:', error);
-            // Clear process monitor if API fails
-            this.runningProcesses = {};
-            this.updateProcessMonitor();
-        }
-    }
-    
-    updateProcessMonitor() {
-        const processMonitor = document.getElementById('process-monitor');
-        const processCount = document.getElementById('running-process-count');
-        const processDetails = document.getElementById('process-details');
-        
-        const activeProcesses = Object.keys(this.runningProcesses);
-        const count = activeProcesses.length;
-        
-        if (count > 0) {
-            processMonitor.style.display = 'flex';
-            processCount.textContent = count;
-            
-            // Show details of active processes
-            const processInfo = activeProcesses.map(taskId => {
-                const process = this.runningProcesses[taskId];
-                const duration = this.formatDuration(process.start_time);
-                return `${taskId.slice(0, 20)}... (${duration})`;
-            }).join(', ');
-            
-            processDetails.textContent = processInfo;
-            processDetails.title = activeProcesses.map(taskId => {
-                const process = this.runningProcesses[taskId];
-                return `Task: ${taskId}\nPID: ${process.process_id}\nRuntime: ${process.duration}`;
-            }).join('\n\n');
-            
-        } else {
-            processMonitor.style.display = 'none';
-        }
-        
-        // Update task cards with execution status
-        this.updateTaskExecutionStatus();
-    }
-    
-    updateTaskExecutionStatus() {
-        // Update all in-progress task cards
-        Object.keys(this.runningProcesses).forEach(taskId => {
-            const taskCard = document.querySelector(`[data-task-id="${taskId}"]`);
-            if (taskCard) {
-                this.addExecutionStatusToCard(taskCard, taskId);
-            }
-        });
-        
-        // Remove execution status from cards no longer running
-        document.querySelectorAll('.task-execution-status').forEach(statusEl => {
-            const taskCard = statusEl.closest('.task-card');
-            const taskId = taskCard?.getAttribute('data-task-id');
-            if (taskId && !this.runningProcesses[taskId]) {
-                statusEl.remove();
-            }
-        });
-    }
-    
-    addExecutionStatusToCard(taskCard, taskId) {
-        // Don't add if already exists
-        if (taskCard.querySelector('.task-execution-status')) return;
-        
-        const process = this.runningProcesses[taskId];
-        if (!process) return;
-        
-        const statusEl = document.createElement('div');
-        statusEl.className = 'task-execution-status executing';
-        statusEl.innerHTML = `
-            <i class="fas fa-brain fa-spin"></i>
-            <span>Executing with Claude Code...</span>
-            <span class="execution-timer" id="timer-${taskId}">--:--</span>
-            <button class="process-terminate-btn" onclick="ecosystemManager.terminateProcess('${taskId}')" title="Terminate Process">
-                <i class="fas fa-stop"></i>
-            </button>
-        `;
-        
-        // Insert after task-meta
-        const taskMeta = taskCard.querySelector('.task-meta');
-        if (taskMeta) {
-            taskMeta.insertAdjacentElement('afterend', statusEl);
-        } else {
-            // Fallback: insert at end of card
-            taskCard.appendChild(statusEl);
-        }
-        
-        // Start timer for this task
-        this.startExecutionTimer(taskId, process.start_time);
-    }
-    
-    startExecutionTimer(taskId, startTime) {
-        if (this.activeTaskTimers[taskId]) {
-            clearInterval(this.activeTaskTimers[taskId]);
-        }
-        
-        this.activeTaskTimers[taskId] = setInterval(() => {
-            const timerEl = document.getElementById(`timer-${taskId}`);
-            if (timerEl && this.runningProcesses[taskId]) {
-                const duration = this.formatDuration(startTime);
-                timerEl.textContent = duration;
-            } else {
-                // Clean up timer if element or process no longer exists
-                clearInterval(this.activeTaskTimers[taskId]);
-                delete this.activeTaskTimers[taskId];
-            }
-        }, 1000);
-    }
-    
-    updateExecutionTimers() {
-        Object.keys(this.runningProcesses).forEach(taskId => {
-            const process = this.runningProcesses[taskId];
-            const timerEl = document.getElementById(`timer-${taskId}`);
-            if (timerEl) {
-                timerEl.textContent = this.formatDuration(process.start_time);
-            }
-        });
-    }
-    
-    formatDuration(startTime) {
-        const start = new Date(startTime);
-        const now = new Date();
-        const diffMs = now - start;
-        const diffSec = Math.floor(diffMs / 1000);
-        const minutes = Math.floor(diffSec / 60);
-        const seconds = diffSec % 60;
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-    
-    async terminateProcess(taskId) {
-        const confirmed = confirm(`Are you sure you want to terminate the Claude Code process for task "${taskId}"? This will stop the current execution.`);
-        if (!confirmed) return;
-        
-        try {
-            const response = await fetch(`${this.apiBase}/queue/processes/terminate`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ task_id: taskId })
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to terminate process: ${response.statusText}`);
-            }
-            
-            this.showToast('Process terminated successfully', 'success');
-            
-            // Immediately update UI
-            delete this.runningProcesses[taskId];
-            this.updateProcessMonitor();
-            
-            // Clear timer
-            if (this.activeTaskTimers[taskId]) {
-                clearInterval(this.activeTaskTimers[taskId]);
-                delete this.activeTaskTimers[taskId];
-            }
-            
-        } catch (error) {
-            console.error('Failed to terminate process:', error);
-            this.showToast(`Failed to terminate process: ${error.message}`, 'error');
-        }
-    }
-    
-    // ====== LOG VIEWER FUNCTIONALITY ======
-    
-    openLogViewer(taskId) {
-        const modal = document.getElementById('log-viewer-modal');
-        const title = document.getElementById('log-viewer-title');
-        
-        title.textContent = `Task Execution Logs - ${taskId}`;
-        modal.classList.add('show');
-        this.logViewerOpen = true;
-        this.currentLogTaskId = taskId;
-        
-        // Clear previous logs
-        this.clearLogViewer();
-        
-        // Start log streaming (if process is running)
-        if (this.runningProcesses[taskId]) {
-            this.startLogStreaming(taskId);
-        } else {
-            this.addLogEntry('info', 'Task is not currently executing. Logs will appear when execution starts.');
-        }
-    }
-    
-    closeLogViewer() {
-        const modal = document.getElementById('log-viewer-modal');
-        modal.classList.remove('show');
-        this.logViewerOpen = false;
-        this.currentLogTaskId = null;
-        
-        // Stop log streaming
-        if (this.logStreamInterval) {
-            clearInterval(this.logStreamInterval);
-            this.logStreamInterval = null;
-        }
-    }
-    
-    clearLogViewer() {
-        const logOutput = document.getElementById('log-output');
-        logOutput.innerHTML = `
-            <div class="log-placeholder">
-                <i class="fas fa-terminal"></i>
-                <p>Waiting for task execution logs...</p>
-                <p class="log-hint">Logs will appear here when the task starts executing with Claude Code</p>
-            </div>
-        `;
-    }
-    
-    toggleLogAutoScroll() {
-        this.logAutoScroll = !this.logAutoScroll;
-        const button = document.getElementById('log-auto-scroll-toggle');
-        if (this.logAutoScroll) {
-            button.classList.add('log-auto-scroll-enabled');
-            this.scrollLogToBottom();
-        } else {
-            button.classList.remove('log-auto-scroll-enabled');
-        }
-    }
-    
-    addLogEntry(type, message) {
-        const logOutput = document.getElementById('log-output');
-        
-        // Remove placeholder if it exists
-        const placeholder = logOutput.querySelector('.log-placeholder');
-        if (placeholder) {
-            placeholder.remove();
-        }
-        
-        const timestamp = new Date().toLocaleTimeString();
-        const logEntry = document.createElement('div');
-        logEntry.className = `log-entry ${type}`;
-        logEntry.innerHTML = `
-            <span class="log-timestamp">[${timestamp}]</span>
-            <span class="log-message">${this.escapeHtml(message)}</span>
-        `;
-        
-        logOutput.appendChild(logEntry);
-        
-        // Auto-scroll if enabled
-        if (this.logAutoScroll) {
-            this.scrollLogToBottom();
-        }
-    }
-    
-    scrollLogToBottom() {
-        const logOutput = document.getElementById('log-output');
-        logOutput.scrollTop = logOutput.scrollHeight;
-    }
-    
-    startLogStreaming(taskId) {
-        // Mock log streaming - in real implementation, this would connect to actual logs
-        // For now, we'll simulate logs based on task phases
-        this.addLogEntry('info', `Starting execution for task: ${taskId}`);
-        this.addLogEntry('info', 'Assembled prompt and calling Claude Code...');
-        
-        // Simulate periodic log updates
-        this.logStreamInterval = setInterval(() => {
-            if (this.runningProcesses[taskId]) {
-                const messages = [
-                    'Claude Code is analyzing the task...',
-                    'Reading files and understanding context...',
-                    'Executing commands and making changes...',
-                    'Validating changes and running tests...',
-                ];
-                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-                this.addLogEntry('info', randomMessage);
-            }
-        }, 10000); // Add a message every 10 seconds
-    }
-    
-    // ====== ENHANCED TASK DETAILS MODAL ======
-    
-    // Override the existing showTaskDetails to add log viewer button
-    async showTaskDetails(taskId) {
-        this.showLoading(true);
-        
-        try {
-            const response = await fetch(`${this.apiBase}/tasks/${taskId}`);
-            if (!response.ok) {
-                throw new Error(`Failed to load task: ${response.status} ${response.statusText}`);
-            }
-            
-            const task = await response.json();
-            console.log('Task details loaded:', task);
-            
-            const modal = document.getElementById('task-details-modal');
-            const titleElement = document.getElementById('task-details-title');
-            const contentElement = document.getElementById('task-details-content');
-            
-            titleElement.textContent = `Edit Task`;
-            
-            // Get category options based on task type
-            const categoryOptions = this.categoryOptions[task.type] || [];
-            
-            contentElement.innerHTML = `
-                <form id="edit-task-form">
-                    <div class="task-details-container">
+        return `
+            <form id="edit-task-form">
+                <div class="task-details-container task-details-grid">
+                    <!-- Left Column: Form Fields -->
+                    <div class="task-form-column">
                         <!-- Basic Information -->
                         <div class="form-group">
                             <label for="edit-task-title">Title *</label>
@@ -2982,594 +331,777 @@ class EcosystemManager {
                             </div>
                         </div>
                         
-                        <!-- Category and Effort -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-category">Category</label>
-                                <select id="edit-task-category" name="category">
-                                    <option value="">No Category</option>
-                                    ${categoryOptions.map(cat => 
-                                        `<option value="${cat.value}" ${task.category === cat.value ? 'selected' : ''}>${cat.label}</option>`
-                                    ).join('')}
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-effort">Effort Estimate</label>
-                                <select id="edit-task-effort" name="effort_estimate">
-                                    <option value="1h" ${task.effort_estimate === '1h' ? 'selected' : ''}>1 hour</option>
-                                    <option value="2h" ${task.effort_estimate === '2h' ? 'selected' : ''}>2 hours</option>
-                                    <option value="4h" ${task.effort_estimate === '4h' ? 'selected' : ''}>4 hours</option>
-                                    <option value="8h" ${task.effort_estimate === '8h' ? 'selected' : ''}>8 hours</option>
-                                    <option value="16h+" ${task.effort_estimate === '16h+' ? 'selected' : ''}>16+ hours</option>
-                                </select>
-                            </div>
+                        <!-- Current Phase -->
+                        <div class="form-group">
+                            <label for="edit-task-phase">Current Phase</label>
+                            <select id="edit-task-phase" name="current_phase">
+                                <option value="">No Phase</option>
+                                <option value="initialization" ${task.current_phase === 'initialization' ? 'selected' : ''}>Initialization</option>
+                                <option value="research" ${task.current_phase === 'research' ? 'selected' : ''}>Research</option>
+                                <option value="implementation" ${task.current_phase === 'implementation' ? 'selected' : ''}>Implementation</option>
+                                <option value="testing" ${task.current_phase === 'testing' ? 'selected' : ''}>Testing</option>
+                                <option value="documentation" ${task.current_phase === 'documentation' ? 'selected' : ''}>Documentation</option>
+                                <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
+                                <option value="prompt_assembled" ${task.current_phase === 'prompt_assembled' ? 'selected' : ''}>Prompt Assembled</option>
+                            </select>
                         </div>
-                        
-                        <!-- Progress and Phase -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-progress">Progress (%)</label>
-                                <input type="range" id="edit-task-progress" name="progress_percentage" min="0" max="100" 
-                                       value="${task.progress_percentage || 0}" 
-                                       oninput="document.getElementById('progress-value').textContent = this.value + '%'">
-                                <span id="progress-value">${task.progress_percentage || 0}%</span>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-phase">Current Phase</label>
-                                <select id="edit-task-phase" name="current_phase">
-                                    <option value="">No Phase</option>
-                                    <option value="initialization" ${task.current_phase === 'initialization' ? 'selected' : ''}>Initialization</option>
-                                    <option value="research" ${task.current_phase === 'research' ? 'selected' : ''}>Research</option>
-                                    <option value="implementation" ${task.current_phase === 'implementation' ? 'selected' : ''}>Implementation</option>
-                                    <option value="testing" ${task.current_phase === 'testing' ? 'selected' : ''}>Testing</option>
-                                    <option value="documentation" ${task.current_phase === 'documentation' ? 'selected' : ''}>Documentation</option>
-                                    <option value="completed" ${task.current_phase === 'completed' ? 'selected' : ''}>Completed</option>
-                                    <option value="prompt_assembled" ${task.current_phase === 'prompt_assembled' ? 'selected' : ''}>Prompt Assembled</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Impact and Urgency -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-task-impact">Impact Score (1-10)</label>
-                                <input type="range" id="edit-task-impact" name="impact_score" min="1" max="10" 
-                                       value="${task.impact_score || 5}" 
-                                       oninput="document.getElementById('impact-value').textContent = this.value">
-                                <span id="impact-value">${task.impact_score || 5}</span>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="edit-task-urgency">Urgency</label>
-                                <select id="edit-task-urgency" name="urgency">
-                                    <option value="low" ${task.urgency === 'low' ? 'selected' : ''}>Low</option>
-                                    <option value="normal" ${task.urgency === 'normal' ? 'selected' : ''}>Normal</option>
-                                    <option value="high" ${task.urgency === 'high' ? 'selected' : ''}>High</option>
-                                    <option value="critical" ${task.urgency === 'critical' ? 'selected' : ''}>Critical</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <!-- Process Controls (show if task is running) -->
-                        ${this.runningProcesses[taskId] ? `
-                            <div class="task-execution-status executing">
-                                <i class="fas fa-brain fa-spin"></i>
-                                <span>Task is currently executing with Claude Code</span>
-                                <span class="execution-timer">${this.formatDuration(this.runningProcesses[taskId].start_time)}</span>
-                                <button type="button" class="btn btn-secondary" onclick="ecosystemManager.openLogViewer('${taskId}')">
-                                    <i class="fas fa-terminal"></i>
-                                    Follow Logs
-                                </button>
-                                <button type="button" class="process-terminate-btn" onclick="ecosystemManager.terminateProcess('${taskId}')">
-                                    <i class="fas fa-stop"></i>
-                                    Terminate
-                                </button>
-                            </div>
-                        ` : ''}
                         
                         <!-- Notes -->
                         <div class="form-group">
                             <label for="edit-task-notes">Notes</label>
-                            <textarea id="edit-task-notes" name="notes" rows="4" 
+                            <textarea id="edit-task-notes" name="notes" rows="16" 
                                       placeholder="Additional details, requirements, or context...">${this.escapeHtml(task.notes || '')}</textarea>
                         </div>
-                        
-                        <!-- Task Results (only show for completed/failed tasks) -->
-                        ${task.results && (task.status === 'completed' || task.status === 'failed') ? `
-                            <div class="form-group">
-                                <label>Execution Results</label>
-                                <div class="execution-results ${task.results.success ? 'success' : 'error'}">
-                                    <div style="margin-bottom: 0.5rem;">
-                                        <strong>Status:</strong> 
-                                        <span class="${task.results.success ? 'status-success' : 'status-error'}">
-                                            ${task.results.success ? '✅ Success' : '❌ Failed'}
-                                        </span>
-                                        ${task.results.timeout_failure ? '<span style="color: #ff9800; margin-left: 8px;">⏰ TIMEOUT</span>' : ''}
-                                    </div>
-                                    
-                                    <!-- Timing Information -->
-                                    ${task.results.execution_time || task.results.timeout_allowed || task.results.prompt_size ? `
-                                        <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
-                                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
-                                                ${task.results.execution_time ? `<span><strong>⏱️ Runtime:</strong> ${task.results.execution_time}</span>` : ''}
-                                                ${task.results.timeout_allowed ? `<span><strong>⏰ Timeout:</strong> ${task.results.timeout_allowed}</span>` : ''}
-                                            </div>
-                                            ${task.results.prompt_size ? `<div style="font-size: 0.9em; margin-top: 4px;"><strong>📝 Prompt Size:</strong> ${task.results.prompt_size}</div>` : ''}
-                                            ${task.results.started_at ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px;">Started: ${new Date(task.results.started_at).toLocaleString()}</div>` : ''}
-                                        </div>
-                                    ` : ''}
-                                    ${task.results.error ? `
-                                        <div style="margin-bottom: 0.5rem;">
-                                            <strong>Error:</strong> 
-                                            <div class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px;">${this.formatErrorText(task.results.error)}</div>
-                                        </div>
-                                    ` : ''}
-                                    ${task.results.output ? `
-                                        <details style="margin-top: 0.5rem;">
-                                            <summary class="output-summary">
-                                                📋 View Claude Output (click to expand)
-                                            </summary>
-                                            <pre class="claude-output">${this.escapeHtml(task.results.output)}</pre>
-                                        </details>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Metadata (read-only) -->
-                        <div class="form-group">
-                            <label>Task Information</label>
-                            <div style="background: var(--light-gray); padding: 0.8rem; border-radius: var(--border-radius); font-size: 0.9rem;">
-                                <div><strong>ID:</strong> ${task.id}</div>
-                                ${task.created_at ? `<div><strong>Created:</strong> ${new Date(task.created_at).toLocaleString()}</div>` : ''}
-                                ${task.started_at ? `<div><strong>Started:</strong> ${new Date(task.started_at).toLocaleString()}</div>` : ''}
-                                ${task.completed_at ? `<div><strong>Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : ''}
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="form-actions">
-                            <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeTaskDetailsModal()">
-                                <i class="fas fa-times"></i>
-                                Cancel
-                            </button>
-                            
-                            <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude">
-                                <i class="fas fa-file-alt"></i>
-                                View Prompt
-                            </button>
-                            
-                            ${task.status === 'in-progress' && !this.runningProcesses[taskId] ? `
-                                <button type="button" class="btn btn-secondary" onclick="ecosystemManager.openLogViewer('${taskId}')">
-                                    <i class="fas fa-terminal"></i>
-                                    View Logs
-                                </button>
-                            ` : ''}
-                            
-                            <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')">
-                                <i class="fas fa-save"></i>
-                                Save Changes
-                            </button>
-                        </div>
                     </div>
-                </form>
+                    
+                    <!-- Right Column: Execution Results and Task Information -->
+                    <div class="task-info-column">
+                        ${this.getTaskExecutionInfoHTML(task, isRunning, runningProcess)}
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="ecosystemManager.closeModal('task-details-modal')">
+                        <i class="fas fa-times"></i>
+                        Cancel
+                    </button>
+                    
+                    <button type="button" class="btn btn-info" onclick="ecosystemManager.viewTaskPrompt('${task.id}')" title="View the prompt that was/will be sent to Claude">
+                        <i class="fas fa-file-alt"></i>
+                        View Prompt
+                    </button>
+                    
+                    <button type="button" class="btn btn-primary" onclick="ecosystemManager.saveTaskChanges('${task.id}')">
+                        <i class="fas fa-save"></i>
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        `;
+    }
+
+    getTaskExecutionInfoHTML(task, isRunning, runningProcess) {
+        let html = '';
+        
+        // Process Controls
+        if (isRunning && runningProcess) {
+            html += `
+                <div class="task-execution-status executing">
+                    <i class="fas fa-brain fa-spin"></i>
+                    <span>Task is currently executing with Claude Code</span>
+                    <span class="execution-timer">${this.processMonitor.formatDuration(runningProcess.start_time)}</span>
+                    <button type="button" class="btn btn-secondary" onclick="ecosystemManager.processMonitor.openLogViewer('${task.id}')">
+                        <i class="fas fa-terminal"></i>
+                        Follow Logs
+                    </button>
+                    <button type="button" class="process-terminate-btn" onclick="ecosystemManager.terminateProcess('${task.id}')">
+                        <i class="fas fa-stop"></i>
+                        Terminate
+                    </button>
+                </div>
             `;
+        }
+        
+        // Task Results
+        if (task.results && (task.status === 'completed' || task.status === 'failed')) {
+            html += this.getTaskResultsHTML(task.results);
+        }
+        
+        // Task Information
+        html += `
+            <div class="form-group">
+                <label>Task Information</label>
+                <div style="background: var(--light-gray); padding: 0.8rem; border-radius: var(--border-radius); font-size: 0.9rem;">
+                    <div><strong>ID:</strong> ${task.id}</div>
+                    ${task.created_at ? `<div><strong>Created:</strong> ${new Date(task.created_at).toLocaleString()}</div>` : ''}
+                    ${task.started_at ? `<div><strong>Started:</strong> ${new Date(task.started_at).toLocaleString()}</div>` : ''}
+                    ${task.completed_at ? `<div><strong>Completed:</strong> ${new Date(task.completed_at).toLocaleString()}</div>` : ''}
+                </div>
+            </div>
+        `;
+        
+        return html;
+    }
+
+    getTaskResultsHTML(results) {
+        return `
+            <div class="form-group">
+                <label>Execution Results</label>
+                <div class="execution-results ${results.success ? 'success' : 'error'}">
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong>Status:</strong> 
+                        <span class="${results.success ? 'status-success' : 'status-error'}">
+                            ${results.success ? '✅ Success' : '❌ Failed'}
+                        </span>
+                        ${results.timeout_failure ? '<span style="color: #ff9800; margin-left: 8px;">⏰ TIMEOUT</span>' : ''}
+                    </div>
+                    
+                    ${results.execution_time || results.timeout_allowed || results.prompt_size ? `
+                        <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0, 0, 0, 0.05); border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.9em;">
+                                ${results.execution_time ? `<span><strong>⏱️ Runtime:</strong> ${results.execution_time}</span>` : ''}
+                                ${results.timeout_allowed ? `<span><strong>⏰ Timeout:</strong> ${results.timeout_allowed}</span>` : ''}
+                            </div>
+                            ${results.prompt_size ? `<div style="font-size: 0.9em; margin-top: 4px;"><strong>📝 Prompt Size:</strong> ${results.prompt_size}</div>` : ''}
+                            ${results.started_at ? `<div style="font-size: 0.8em; color: #666; margin-top: 4px;">Started: ${new Date(results.started_at).toLocaleString()}</div>` : ''}
+                        </div>
+                    ` : ''}
+                    
+                    ${results.error ? `
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>Error:</strong> 
+                            <div class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px;">
+                                ${this.taskManager.formatErrorText(results.error)}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${results.output ? `
+                        <details style="margin-top: 0.5rem;">
+                            <summary class="output-summary">
+                                📋 View Claude Output (click to expand)
+                            </summary>
+                            <pre class="claude-output">${this.escapeHtml(results.output)}</pre>
+                        </details>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    async saveTaskChanges(taskId) {
+        const form = document.getElementById('edit-task-form');
+        const formData = new FormData(form);
+        
+        const updates = {
+            title: formData.get('title'),
+            status: formData.get('status'),
+            priority: formData.get('priority'),
+            current_phase: formData.get('current_phase'),
+            notes: formData.get('notes')
+        };
+        
+        this.showLoading(true);
+        
+        try {
+            const result = await this.taskManager.updateTask(taskId, updates);
             
-            modal.classList.add('show');
-            
+            if (result.success) {
+                this.showToast('Task updated successfully', 'success');
+                this.closeModal('task-details-modal');
+                await this.refreshAll();
+            } else {
+                throw new Error(result.error || 'Failed to update task');
+            }
         } catch (error) {
-            console.error('Failed to load task details:', error, error.stack);
-            this.showToast(`Failed to load task details: ${error.message}`, 'error');
+            console.error('Error updating task:', error);
+            this.showToast(`Failed to update task: ${error.message}`, 'error');
         } finally {
             this.showLoading(false);
         }
     }
-    
-    // ====== WEBSOCKET ENHANCEMENTS ======
-    
-    handleWebSocketMessage(event) {
-        try {
-            const message = JSON.parse(event.data);
-            console.log('WebSocket message:', message);
-            
-            switch (message.type) {
-                case 'task_progress':
-                    this.handleTaskProgressUpdate(message.data);
-                    break;
-                case 'task_completed':
-                    this.handleTaskCompleted(message.data);
-                    break;
-                case 'task_failed':
-                    this.handleTaskFailed(message.data);
-                    break;
-                case 'process_started':
-                    this.handleProcessStarted(message.data);
-                    break;
-                case 'process_terminated':
-                    this.handleProcessTerminated(message.data);
-                    break;
-                case 'log_entry':
-                    this.handleLogEntry(message.data);
-                    break;
-                case 'rate_limit_pause':
-                case 'rate_limit_pause_started':
-                    this.handleRateLimitPause(message.data);
-                    break;
-                case 'rate_limit_resume':
-                    this.handleRateLimitResume(message.data);
-                    break;
-                case 'rate_limit_hit':
-                    this.handleRateLimitHit(message.data);
-                    break;
-                default:
-                    console.log('Unknown WebSocket message type:', message.type);
-            }
-        } catch (error) {
-            console.error('Failed to parse WebSocket message:', error);
-        }
-    }
-    
-    handleTaskProgressUpdate(taskData) {
-        // Update task in memory
-        const status = taskData.status;
-        if (this.tasks[status]) {
-            const taskIndex = this.tasks[status].findIndex(t => t.id === taskData.id);
-            if (taskIndex !== -1) {
-                this.tasks[status][taskIndex] = taskData;
-            }
-        }
-        
-        // Update task card UI
-        this.updateTaskCard(taskData);
-    }
-    
-    handleTaskCompleted(taskData) {
-        this.handleTaskStatusChange(taskData, 'completed');
-        // Remove from running processes
-        delete this.runningProcesses[taskData.id];
-        this.updateProcessMonitor();
-    }
-    
-    handleTaskFailed(taskData) {
-        this.handleTaskStatusChange(taskData, 'failed');
-        // Remove from running processes
-        delete this.runningProcesses[taskData.id];
-        this.updateProcessMonitor();
-    }
-    
-    handleProcessStarted(data) {
-        const { task_id, process_id, start_time } = data;
-        this.runningProcesses[task_id] = {
-            task_id,
-            process_id,
-            start_time
-        };
-        this.updateProcessMonitor();
-        
-        // Add log entry if log viewer is open for this task
-        if (this.logViewerOpen && this.currentLogTaskId === task_id) {
-            this.addLogEntry('success', `Process started (PID: ${process_id})`);
-        }
-    }
-    
-    handleProcessTerminated(data) {
-        const { task_id } = data;
-        delete this.runningProcesses[task_id];
-        this.updateProcessMonitor();
-        
-        // Add log entry if log viewer is open for this task
-        if (this.logViewerOpen && this.currentLogTaskId === task_id) {
-            this.addLogEntry('warning', 'Process terminated');
-        }
-    }
-    
-    handleLogEntry(data) {
-        const { task_id, level, message } = data;
-        if (this.logViewerOpen && this.currentLogTaskId === task_id) {
-            this.addLogEntry(level, message);
-        }
-    }
-    
-    handleTaskStatusChange(taskData, newStatus) {
-        // Move task between status arrays
-        const oldStatus = this.findTaskStatus(taskData.id);
-        if (oldStatus && oldStatus !== newStatus) {
-            // Remove from old status
-            this.tasks[oldStatus] = this.tasks[oldStatus].filter(t => t.id !== taskData.id);
-            
-            // Add to new status
-            if (!this.tasks[newStatus]) {
-                this.tasks[newStatus] = [];
-            }
-            this.tasks[newStatus].push(taskData);
-            
-            // Re-render and update queue status
-            this.renderTasks();
-            this.updateQueueDisplay();
-        }
-    }
-    
-    findTaskStatus(taskId) {
-        for (const [status, tasks] of Object.entries(this.tasks)) {
-            if (tasks.some(t => t.id === taskId)) {
-                return status;
-            }
-        }
-        return null;
-    }
-    
-    // Rate limit handling
-    handleRateLimitPause(data) {
-        console.log('⏸️ Rate limit pause received:', data);
-        this.queueStatus.rateLimitPaused = true;
-        this.queueStatus.pauseUntil = data.pause_until;
-        this.updateQueueDisplay();
-        
-        const pauseDuration = data.pause_duration || data.retry_after;
-        this.showToast(`API rate limit reached. Queue paused for ${Math.ceil(pauseDuration / 60)} minutes.`, 'warning');
-    }
-    
-    handleRateLimitResume(data) {
-        console.log('▶️ Rate limit resume received:', data);
-        this.queueStatus.rateLimitPaused = false;
-        this.queueStatus.pauseUntil = null;
-        this.updateQueueDisplay();
-        this.showToast('Queue processing resumed after rate limit pause', 'success');
-    }
-    
-    handleRateLimitHit(data) {
-        console.log('🚫 Rate limit hit:', data);
-        const taskId = data.task_id;
-        const retryAfter = data.retry_after;
-        
-        // Update the task if it's visible
-        const task = this.findTaskById(taskId);
-        if (task) {
-            task.current_phase = 'rate_limited';
-            this.updateTaskCard(task);
-        }
-        
-        this.showToast(`Task ${taskId} hit rate limit. Will retry in ${Math.ceil(retryAfter / 60)} minutes.`, 'warning');
-    }
-    
-    findTaskById(taskId) {
-        for (const tasks of Object.values(this.tasks)) {
-            const task = tasks.find(t => t.id === taskId);
-            if (task) return task;
-        }
-        return null;
-    }
-    
-    showRateLimitNotification(pauseUntil) {
-        // Check if notification already exists
-        if (document.getElementById('rate-limit-notification')) {
+
+    async deleteTask(taskId, status) {
+        if (!confirm('Are you sure you want to delete this task?')) {
             return;
         }
         
-        const notification = document.createElement('div');
-        notification.id = 'rate-limit-notification';
-        notification.className = 'rate-limit-notification';
-        notification.innerHTML = `
-            <div class="rate-limit-content">
-                <i class="fas fa-exclamation-triangle"></i>
-                <div class="rate-limit-text">
-                    <strong>Rate Limit Active</strong>
-                    <div id="rate-limit-countdown">Calculating...</div>
-                </div>
-                <button class="btn btn-sm" onclick="ecosystemManager.openRateLimitSettings()">
-                    <i class="fas fa-cog"></i> Settings
-                </button>
-            </div>
-        `;
-        
-        // Insert after header
-        const header = document.querySelector('.header');
-        if (header) {
-            header.parentNode.insertBefore(notification, header.nextSibling);
-        }
-        
-        // Start countdown
-        this.startRateLimitCountdown(pauseUntil);
-    }
-    
-    hideRateLimitNotification() {
-        const notification = document.getElementById('rate-limit-notification');
-        if (notification) {
-            notification.remove();
-        }
-        if (this.rateLimitCountdownInterval) {
-            clearInterval(this.rateLimitCountdownInterval);
-            this.rateLimitCountdownInterval = null;
-        }
-    }
-    
-    startRateLimitCountdown(pauseUntil) {
-        const updateCountdown = () => {
-            const now = new Date();
-            const target = new Date(pauseUntil);
-            const remainingMs = target - now;
-            
-            const countdownEl = document.getElementById('rate-limit-countdown');
-            if (!countdownEl) {
-                clearInterval(this.rateLimitCountdownInterval);
-                return;
-            }
-            
-            if (remainingMs <= 0) {
-                countdownEl.textContent = 'Resuming...';
-                clearInterval(this.rateLimitCountdownInterval);
-                this.hideRateLimitNotification();
-            } else {
-                const minutes = Math.floor(remainingMs / 60000);
-                const seconds = Math.floor((remainingMs % 60000) / 1000);
-                countdownEl.textContent = `Queue resumes in ${minutes}m ${seconds}s`;
-            }
-        };
-        
-        updateCountdown();
-        this.rateLimitCountdownInterval = setInterval(updateCountdown, 1000);
-    }
-    
-    openRateLimitSettings() {
-        this.openSettingsModal();
-        // Focus on the rate limit reset button when modal opens
-        setTimeout(() => {
-            const resetBtn = document.getElementById('reset-rate-limit-btn');
-            if (resetBtn) {
-                resetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                resetBtn.focus();
-            }
-        }, 100);
-    }
-    
-    updateRateLimitStatus() {
-        const statusEl = document.getElementById('rate-limit-status');
-        if (!statusEl) return;
-        
-        if (this.queueStatus.rateLimitPaused) {
-            const now = new Date();
-            const pauseUntil = new Date(this.queueStatus.pauseUntil);
-            const remainingMs = pauseUntil - now;
-            const remainingMinutes = Math.ceil(remainingMs / 60000);
-            
-            statusEl.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <strong>Rate Limit Active</strong><br>
-                    Queue processing is paused for ${remainingMinutes} minutes.<br>
-                    Resumes at: ${pauseUntil.toLocaleTimeString()}
-                </div>
-            `;
-            
-            document.getElementById('reset-rate-limit-btn').disabled = false;
-        } else {
-            statusEl.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i>
-                    <strong>No Rate Limit</strong><br>
-                    Queue processing is operating normally.
-                </div>
-            `;
-            
-            document.getElementById('reset-rate-limit-btn').disabled = true;
-        }
-    }
-    
-    async resetRateLimit() {
-        if (!confirm('Are you sure you want to manually reset the rate limit pause? This should only be done if you\'ve resolved the API limit issue.')) {
-            return;
-        }
+        this.showLoading(true);
         
         try {
-            const response = await fetch(`${this.apiBase}/queue/reset-rate-limit`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const result = await this.taskManager.deleteTask(taskId, status);
             
-            if (response.ok) {
-                // Clear local rate limit state
-                this.queueStatus.rateLimitPaused = false;
-                this.queueStatus.pauseUntil = null;
-                
-                // Update displays
-                this.updateQueueDisplay();
-                this.updateRateLimitStatus();
-                this.hideRateLimitNotification();
-                
-                this.showToast('Rate limit pause has been reset. Queue processing resumed.', 'success');
-                
-                // Trigger immediate processing
-                setTimeout(() => {
-                    this.triggerQueueProcessing();
-                }, 500);
+            if (result.success) {
+                this.showToast('Task deleted successfully', 'success');
+                await this.refreshColumn(status);
             } else {
-                const error = await response.text();
-                this.showToast(`Failed to reset rate limit: ${error}`, 'error');
+                throw new Error(result.error || 'Failed to delete task');
             }
         } catch (error) {
-            console.error('Error resetting rate limit:', error);
-            this.showToast('Failed to reset rate limit', 'error');
+            console.error('Error deleting task:', error);
+            this.showToast(`Failed to delete task: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
         }
     }
-    
-    // ====== IMMEDIATE PROCESSING FUNCTIONALITY ======
-    
-    async triggerImmediateProcessing() {
-        console.log('🚀 Triggering immediate queue processing...');
+
+    async viewTaskPrompt(taskId) {
+        this.showLoading(true);
+        
         try {
-            // First, check if processor is active
-            const statusResponse = await fetch(`${this.apiBase}/queue/status`);
-            if (statusResponse.ok) {
-                const status = await statusResponse.json();
-                if (!status.processor_active) {
-                    console.log('⚠️ Processor not active, skipping immediate processing');
-                    return;
-                }
+            const data = await this.taskManager.getTaskPrompt(taskId);
+            this.showPromptModal(data);
+        } catch (error) {
+            console.error('Error loading prompt:', error);
+            this.showToast(`Failed to load prompt: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    showPromptModal(data) {
+        const modal = document.getElementById('prompt-viewer-modal');
+        const contentElement = document.getElementById('prompt-content');
+        
+        if (modal && contentElement) {
+            let displayContent = '';
+            
+            // Check if we have the actual assembled prompt
+            if (data.prompt && typeof data.prompt === 'string') {
+                // We have the actual assembled prompt - show it
+                displayContent = data.prompt;
                 
-                console.log(`📊 Queue status: ${status.pending_count} pending, ${status.executing_count} executing, ${status.available_slots} slots available`);
-                
-                // If there are pending tasks and available slots, trigger processing
-                if (status.pending_count > 0 && status.available_slots > 0) {
-                    console.log('✅ Conditions met for immediate processing - triggering...');
-                    await this.triggerQueueProcessing();
-                    
-                    // Also refresh the UI to show any changes
-                    setTimeout(() => {
-                        this.loadAllTasks();
-                        this.fetchRunningProcesses();
-                    }, 2000);
+                // Add metadata header
+                let metadata = '=== PROMPT METADATA ===\n';
+                metadata += `Task ID: ${data.task_id || 'Unknown'}\n`;
+                metadata += `Operation: ${data.operation || 'Unknown'}\n`;
+                metadata += `Prompt Length: ${data.prompt_length || data.prompt.length} characters\n`;
+                if (data.prompt_cached) {
+                    metadata += `Source: Cached prompt (from previous execution)\n`;
                 } else {
-                    console.log('ℹ️ No processing needed:', {
-                        pending: status.pending_count,
-                        available: status.available_slots
+                    metadata += `Source: Freshly assembled\n`;
+                }
+                metadata += `\n${'='.repeat(50)}\n\n`;
+                
+                displayContent = metadata + displayContent;
+            } else {
+                // Fallback: show configuration data if actual prompt is not available
+                displayContent = '=== PROMPT CONFIGURATION ===\n\n';
+                displayContent += 'Note: This shows the prompt configuration. The actual assembled prompt is not available.\n\n';
+                
+                if (data.operation_config) {
+                    displayContent += `Operation: ${data.operation_config.name || data.operation}\n`;
+                    displayContent += `Type: ${data.operation_config.type || ''}\n`;
+                    displayContent += `Target: ${data.operation_config.target || ''}\n`;
+                    displayContent += `Description: ${data.operation_config.description || ''}\n`;
+                }
+                
+                if (data.task_details) {
+                    displayContent += '\n=== TASK DETAILS ===\n';
+                    displayContent += `ID: ${data.task_details.id || ''}\n`;
+                    displayContent += `Title: ${data.task_details.title || ''}\n`;
+                    displayContent += `Type: ${data.task_details.type || ''}\n`;
+                    displayContent += `Operation: ${data.task_details.operation || ''}\n`;
+                }
+                
+                if (data.prompt_sections) {
+                    displayContent += '\n=== PROMPT SECTIONS ===\n';
+                    data.prompt_sections.forEach((section, i) => {
+                        displayContent += `  ${i + 1}. ${section}\n`;
                     });
                 }
             }
+            
+            contentElement.textContent = displayContent || 'No prompt data available';
+            modal.classList.add('show');
+            // Disable body scroll when showing modal
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    // Drag and Drop
+    async handleTaskDrop(taskId, fromStatus, toStatus) {
+        this.showLoading(true);
+        
+        try {
+            const result = await this.taskManager.updateTask(taskId, { status: toStatus });
+            
+            if (result.success) {
+                this.showToast(`Task moved to ${toStatus}`, 'success');
+                // Refresh both columns to update task counts and positions
+                await Promise.all([
+                    this.loadTasksForStatus(fromStatus),
+                    this.loadTasksForStatus(toStatus)
+                ]);
+            } else {
+                throw new Error(result.error || 'Failed to move task');
+            }
         } catch (error) {
-            console.error('Failed to trigger immediate processing:', error);
-            // Don't show error toast as this is background operation
+            console.error('Error moving task:', error);
+            this.showToast(`Failed to move task: ${error.message}`, 'error');
+            // Reload both columns to restore correct state
+            await Promise.all([
+                this.loadTasksForStatus(fromStatus),
+                this.loadTasksForStatus(toStatus)
+            ]);
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    // Settings Management
+    async saveSettingsFromForm() {
+        const settings = this.settingsManager.getSettingsFromForm();
+        
+        this.showLoading(true);
+        
+        try {
+            const result = await this.settingsManager.saveSettings(settings);
+            
+            if (result.success) {
+                this.showToast('Settings saved successfully', 'success');
+                this.closeModal('settings-modal');
+            } else {
+                throw new Error(result.error || 'Failed to save settings');
+            }
+        } catch (error) {
+            console.error('Error saving settings:', error);
+            this.showToast(`Failed to save settings: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async toggleQueueProcessor(enabled) {
+        const settings = { ...this.settingsManager.settings, queueProcessingEnabled: enabled };
+        
+        try {
+            const result = await this.settingsManager.saveSettings(settings);
+            
+            if (result.success) {
+                this.settingsManager.updateProcessorToggleUI(enabled);
+                this.showToast(`Queue processor ${enabled ? 'enabled' : 'disabled'}`, 'success');
+            } else {
+                throw new Error(result.error || 'Failed to toggle queue processor');
+            }
+        } catch (error) {
+            console.error('Error toggling queue processor:', error);
+            this.showToast(`Failed to toggle queue processor: ${error.message}`, 'error');
+            // Reset toggle
+            document.getElementById('queue-processor-toggle').checked = !enabled;
+        }
+    }
+
+    // Queue Processing
+    async fetchQueueProcessorStatus() {
+        try {
+            const response = await fetch(`${this.apiBase}/queue/status`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch queue status: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            this.updateQueueStatusUI(data);
+        } catch (error) {
+            console.error('Error fetching queue status:', error);
+        }
+    }
+
+    updateQueueStatusUI(status) {
+        // Update queue metrics
+        const metrics = {
+            'queue-pending': status.pending_count || 0,
+            'queue-running': status.running_count || 0,
+            'queue-completed': status.completed_count || 0,
+            'queue-failed': status.failed_count || 0
+        };
+        
+        Object.entries(metrics).forEach(([id, value]) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = value;
+            }
+        });
+        
+        // Update last processed time
+        if (status.last_processed_at) {
+            const element = document.getElementById('last-processed-time');
+            if (element) {
+                element.textContent = new Date(status.last_processed_at).toLocaleString();
+            }
+        }
+    }
+
+    async triggerQueueProcessing() {
+        this.showLoading(true);
+        
+        try {
+            const response = await fetch(`${this.apiBase}/queue/trigger`, {
+                method: 'POST'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to trigger processing: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            this.showToast('Queue processing triggered successfully', 'success');
+            await this.fetchQueueProcessorStatus();
+        } catch (error) {
+            console.error('Error triggering queue processing:', error);
+            this.showToast(`Failed to trigger processing: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    // Process Management
+    async terminateProcess(taskId) {
+        if (!confirm('Are you sure you want to terminate this process?')) {
+            return;
+        }
+        
+        this.showLoading(true);
+        
+        try {
+            const result = await this.processMonitor.terminateProcess(taskId);
+            
+            if (result.success) {
+                this.showToast('Process terminated successfully', 'success');
+                await this.refreshAll();
+            } else {
+                throw new Error(result.error || 'Failed to terminate process');
+            }
+        } catch (error) {
+            console.error('Error terminating process:', error);
+            this.showToast(`Failed to terminate process: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    handleProcessStarted(taskId) {
+        // Update task card UI
+        const card = document.getElementById(`task-${taskId}`);
+        if (card) {
+            card.classList.add('task-executing');
+            
+            // Add execution indicator if not present
+            if (!card.querySelector('.task-execution-indicator')) {
+                const indicator = document.createElement('div');
+                indicator.className = 'task-execution-indicator';
+                indicator.innerHTML = `
+                    <i class="fas fa-brain fa-spin"></i>
+                    <span>Executing with Claude...</span>
+                `;
+                card.appendChild(indicator);
+            }
+        }
+    }
+
+    handleProcessCompleted(taskId) {
+        // Refresh the task to get updated results
+        this.refreshTaskCard(taskId);
+    }
+
+    async refreshTaskCard(taskId) {
+        try {
+            const task = await this.taskManager.getTaskDetails(taskId);
+            const card = document.getElementById(`task-${taskId}`);
+            
+            if (card) {
+                const newCard = UIComponents.createTaskCard(task, this.processMonitor.runningProcesses);
+                this.dragDropHandler.setupTaskCardDragHandlers(newCard, task.id, task.status);
+                
+                // Add click handler
+                newCard.addEventListener('click', (e) => {
+                    // Handle delete button click
+                    const deleteBtn = e.target.closest('.task-delete-btn');
+                    if (deleteBtn) {
+                        e.stopPropagation();
+                        const taskId = deleteBtn.dataset.taskId;
+                        const taskStatus = deleteBtn.dataset.taskStatus;
+                        this.deleteTask(taskId, taskStatus);
+                    } else {
+                        this.showTaskDetails(task.id);
+                    }
+                });
+                
+                card.replaceWith(newCard);
+            }
+        } catch (error) {
+            console.error('Error refreshing task card:', error);
+        }
+    }
+
+    // WebSocket Handling
+    handleWebSocketMessage(message) {
+        console.log('WebSocket message:', message);
+        
+        switch (message.type) {
+            case 'task_started':
+                this.handleProcessStarted(message.task_id);
+                break;
+            case 'task_completed':
+                this.handleProcessCompleted(message.task_id);
+                break;
+            case 'task_failed':
+                this.handleProcessCompleted(message.task_id);
+                break;
+            case 'queue_status':
+                this.updateQueueStatusUI(message.data);
+                break;
+            case 'log_entry':
+                if (this.processMonitor) {
+                    this.processMonitor.addLogEntry(message.level || 'info', message.message);
+                }
+                break;
+        }
+    }
+
+    // UI Helper Methods
+    async refreshAll() {
+        this.showLoading(true);
+        
+        try {
+            await this.loadAllTasks();
+            await this.fetchQueueProcessorStatus();
+            this.showToast('All data refreshed', 'success');
+        } catch (error) {
+            console.error('Error refreshing data:', error);
+            this.showToast('Failed to refresh data', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async refreshColumn(status) {
+        await this.loadTasksForStatus(status);
+    }
+
+    switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.toggle('active', content.id === `${tabName}-tab`);
+        });
+    }
+
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('show');
+            // Re-enable body scroll when closing modal
+            document.body.style.overflow = '';
+        }
+    }
+
+    showToast(message, type = 'info') {
+        UIComponents.showToast(message, type);
+    }
+
+    showLoading(show) {
+        UIComponents.showLoading(show);
+        this.isLoading = show;
+    }
+
+    handleRateLimit(retryAfter) {
+        this.rateLimitEndTime = Date.now() + (retryAfter * 1000);
+        UIComponents.showRateLimitNotification(retryAfter);
+    }
+
+    dismissRateLimitNotification(button) {
+        UIComponents.dismissRateLimitNotification(button);
+    }
+
+    escapeHtml(text) {
+        return UIComponents.escapeHtml(text);
+    }
+
+    // Additional UI Methods for HTML handlers
+    openSettingsModal() {
+        const modal = document.getElementById('settings-modal');
+        if (modal) {
+            modal.classList.add('show');
+            // Disable body scroll when showing modal
+            document.body.style.overflow = 'hidden';
+            // Load current settings into form
+            this.settingsManager.loadSettings().then(settings => {
+                this.settingsManager.applySettingsToUI(settings);
+            });
+        }
+    }
+
+    resetSettingsToDefault() {
+        if (confirm('Are you sure you want to reset all settings to defaults?')) {
+            this.settingsManager.resetToDefaults();
+            this.showToast('Settings reset to defaults', 'success');
+        }
+    }
+
+    applyFilters() {
+        const type = document.getElementById('filter-type')?.value;
+        const operation = document.getElementById('filter-operation')?.value;
+        const priority = document.getElementById('filter-priority')?.value;
+        const searchText = document.getElementById('search-input')?.value?.toLowerCase();
+
+        document.querySelectorAll('.task-card').forEach(card => {
+            let visible = true;
+
+            if (type && !card.classList.contains(type)) visible = false;
+            if (operation && !card.classList.contains(operation)) visible = false;
+            if (priority && !card.classList.contains(priority)) visible = false;
+            if (searchText) {
+                const title = card.querySelector('.task-title')?.textContent?.toLowerCase();
+                const notes = card.querySelector('.task-notes')?.textContent?.toLowerCase();
+                if (!title?.includes(searchText) && !notes?.includes(searchText)) {
+                    visible = false;
+                }
+            }
+
+            card.style.display = visible ? 'block' : 'none';
+        });
+    }
+
+    clearFilters() {
+        document.getElementById('filter-type').value = '';
+        document.getElementById('filter-operation').value = '';
+        document.getElementById('filter-priority').value = '';
+        document.getElementById('search-input').value = '';
+        this.applyFilters();
+    }
+
+    async updateFormForType() {
+        // When type changes and we're in improver mode, reload the targets
+        const operation = document.querySelector('input[name="operation"]:checked')?.value;
+        if (operation === 'improver') {
+            await this.loadAvailableTargets();
+        }
+    }
+
+    async updateFormForOperation() {
+        const operation = document.querySelector('input[name="operation"]:checked')?.value;
+        const targetGroup = document.getElementById('target-group');
+        if (targetGroup) {
+            targetGroup.style.display = operation === 'improver' ? 'block' : 'none';
+            
+            // Load available targets for improver operations
+            if (operation === 'improver') {
+                // Check if resources/scenarios are loaded yet
+                if (!this.availableResources && !this.availableScenarios) {
+                    // Try to load them now if not already loaded
+                    await this.loadAvailableResourcesAndScenarios();
+                }
+                await this.loadAvailableTargets();
+            }
+        }
+    }
+
+    async loadAvailableResourcesAndScenarios() {
+        try {
+            // Load both in parallel for better performance
+            const [resourcesResponse, scenariosResponse] = await Promise.all([
+                fetch(`${this.apiBase}/resources`),
+                fetch(`${this.apiBase}/scenarios`)
+            ]);
+            
+            if (resourcesResponse.ok) {
+                this.availableResources = await resourcesResponse.json();
+            } else {
+                this.availableResources = [];
+            }
+            
+            if (scenariosResponse.ok) {
+                this.availableScenarios = await scenariosResponse.json();
+            } else {
+                this.availableScenarios = [];
+            }
+            
+            console.log('Loaded resources:', this.availableResources?.length || 0, 'items');
+            console.log('Loaded scenarios:', this.availableScenarios?.length || 0, 'items');
+        } catch (error) {
+            console.error('Error loading resources and scenarios:', error);
+            this.availableResources = [];
+            this.availableScenarios = [];
+        }
+    }
+
+    async loadAvailableTargets() {
+        const type = document.querySelector('input[name="type"]:checked')?.value;
+        const targetSelect = document.getElementById('task-target');
+        
+        if (!targetSelect) return;
+        
+        // Show loading state
+        targetSelect.disabled = true;
+        targetSelect.innerHTML = '<option value="">Loading available targets...</option>';
+        
+        // If resources/scenarios aren't loaded yet, wait a bit for them
+        if (!this.availableResources && !this.availableScenarios) {
+            // Wait up to 3 seconds for resources to load
+            let waitCount = 0;
+            while ((!this.availableResources && !this.availableScenarios) && waitCount < 30) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                waitCount++;
+            }
+        }
+        
+        // Use pre-loaded resources or scenarios
+        const availableTargets = type === 'resource' ? this.availableResources : this.availableScenarios;
+        
+        // Enable and populate the select
+        targetSelect.disabled = false;
+        
+        if (!availableTargets || availableTargets.length === 0) {
+            targetSelect.innerHTML = `<option value="">No ${type}s available to improve</option>`;
+        } else {
+            targetSelect.innerHTML = '<option value="">Select target to improve...</option>';
+            availableTargets.forEach(target => {
+                const option = document.createElement('option');
+                // Use the name property which both resources and scenarios have
+                option.value = target.name;
+                // Display name with status if available
+                const statusLabel = target.status === 'implemented' ? ' ✓' : '';
+                option.textContent = target.name + statusLabel;
+                targetSelect.appendChild(option);
+            });
+        }
+    }
+
+    updateSliderValue(sliderId, valueId) {
+        const slider = document.getElementById(sliderId);
+        const valueDisplay = document.getElementById(valueId);
+        if (slider && valueDisplay) {
+            valueDisplay.textContent = slider.value;
+        }
+    }
+
+    resetRateLimit() {
+        this.rateLimitEndTime = null;
+        this.showToast('Rate limit pause has been reset', 'success');
+        const statusElement = document.getElementById('rate-limit-status');
+        if (statusElement) {
+            statusElement.innerHTML = '<span style="color: var(--success-color);">No rate limit currently active</span>';
+        }
+    }
+
+    toggleLogAutoScroll() {
+        if (this.processMonitor) {
+            this.processMonitor.toggleAutoScroll();
+        }
+    }
+
+    clearLogViewer() {
+        if (this.processMonitor) {
+            this.processMonitor.clearLogs();
+        }
+    }
+
+    closeLogViewer() {
+        const modal = document.getElementById('log-viewer-modal');
+        if (modal) {
+            modal.classList.remove('show');
+            // Re-enable body scroll when closing modal
+            document.body.style.overflow = '';
+        }
+    }
+
+    hideColumn(status) {
+        const column = document.querySelector(`[data-status="${status}"]`);
+        if (column) {
+            column.style.display = 'none';
+            this.showToast(`${status.charAt(0).toUpperCase() + status.slice(1)} column hidden`, 'info');
         }
     }
 }
 
-// Initialize when DOM is loaded
-let ecosystemManager;
-
-// Global functions for inline event handlers
-window.openCreateTaskModal = () => ecosystemManager?.openCreateTaskModal();
-window.closeCreateTaskModal = () => ecosystemManager?.closeCreateTaskModal();
-window.closeTaskDetailsModal = () => ecosystemManager?.closeTaskDetailsModal();
-window.applyFilters = () => ecosystemManager?.applyFilters();
-window.clearFilters = () => ecosystemManager?.clearFilters();
-window.refreshColumn = (status) => ecosystemManager?.refreshColumn(status);
-window.toggleCompletedVisibility = () => ecosystemManager?.toggleCompletedVisibility();
-// Form functions
-window.updateFormForType = () => ecosystemManager?.updateFormForType();
-window.updateFormForOperation = () => ecosystemManager?.updateFormForOperation();
-
-// Settings functions
-window.openSettingsModal = () => ecosystemManager?.openSettingsModal();
-window.closeSettingsModal = () => ecosystemManager?.closeSettingsModal();
-window.saveSettings = () => ecosystemManager?.saveSettingsFromForm();
-window.resetSettingsToDefault = () => ecosystemManager?.resetSettingsToDefault();
-window.updateSliderValue = (sliderId, valueId) => ecosystemManager?.updateSliderValue(sliderId, valueId);
-
-// Process monitoring and log viewer functions
-window.terminateProcess = (taskId) => ecosystemManager?.terminateProcess(taskId);
-window.openLogViewer = (taskId) => ecosystemManager?.openLogViewer(taskId);
-window.closeLogViewer = () => ecosystemManager?.closeLogViewer();
-window.toggleLogAutoScroll = () => ecosystemManager?.toggleLogAutoScroll();
-window.clearLogViewer = () => ecosystemManager?.clearLogViewer();
-
-// Legacy dark mode function (for backwards compatibility)
-window.toggleDarkMode = () => ecosystemManager?.toggleDarkMode();
-
+// Initialize the application when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    ecosystemManager = new EcosystemManager();
-    // Make it globally accessible for debugging
-    window.ecosystemManager = ecosystemManager;
+    window.ecosystemManager = new EcosystemManager();
+    window.ecosystemManager.init();
 });

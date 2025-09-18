@@ -173,6 +173,26 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	updatedTask.Operation = currentTask.Operation
 	updatedTask.CreatedBy = currentTask.CreatedBy
 	updatedTask.CreatedAt = currentTask.CreatedAt
+	
+	// Preserve all other fields if they weren't provided in the update
+	if updatedTask.Title == "" {
+		updatedTask.Title = currentTask.Title
+	}
+	if updatedTask.Priority == "" {
+		updatedTask.Priority = currentTask.Priority
+	}
+	if updatedTask.Category == "" {
+		updatedTask.Category = currentTask.Category
+	}
+	if updatedTask.Notes == "" {
+		updatedTask.Notes = currentTask.Notes
+	}
+	if updatedTask.EffortEstimate == "" {
+		updatedTask.EffortEstimate = currentTask.EffortEstimate
+	}
+	if updatedTask.CurrentPhase == "" && currentTask.CurrentPhase != "" {
+		updatedTask.CurrentPhase = currentTask.CurrentPhase
+	}
 
 	// Handle backwards status transitions (completed/failed -> pending/in-progress)
 	// This happens when users drag tasks back to re-execute them
