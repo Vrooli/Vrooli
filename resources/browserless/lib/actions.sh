@@ -283,8 +283,8 @@ EOF
         json_payload=$(echo "$json_payload" | jq '. + {"options": {"fullPage": true}}')
     fi
     
-    # Add viewport at root level if non-default viewport is specified
-    if [[ -n "$VIEWPORT_WIDTH" ]] && [[ -n "$VIEWPORT_HEIGHT" ]] && [[ "$VIEWPORT_WIDTH" != "1920" || "$VIEWPORT_HEIGHT" != "1080" ]]; then
+    # Always add viewport to ensure consistent sizing (browserless server may have different defaults)
+    if [[ -n "$VIEWPORT_WIDTH" ]] && [[ -n "$VIEWPORT_HEIGHT" ]]; then
         json_payload=$(echo "$json_payload" | jq --argjson width "$VIEWPORT_WIDTH" --argjson height "$VIEWPORT_HEIGHT" \
             '. + {"viewport": {"width": $width, "height": $height}}')
     fi
@@ -1602,6 +1602,484 @@ actions::extract_forms() {
 }
 
 #######################################
+# Extract interactive elements with metadata and selector options
+# Usage: browserless extract-elements --url <url> --output <file> --screenshot <file> [options]
+#######################################
+actions::extract_elements() {
+    # Reset defaults
+    OUTPUT_PATH=""
+    local screenshot_path=""
+    TIMEOUT_MS="30000"
+    WAIT_MS="3000"  # Longer wait for dynamic content
+    SESSION_NAME=""
+    FULL_PAGE="false"
+    VIEWPORT_WIDTH="1920"
+    VIEWPORT_HEIGHT="1080"
+    
+    local url_param=""
+    local remaining_args_array=()
+    
+    # Parse options directly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --url)
+                url_param="$2"
+                shift 2
+                ;;
+            --output)
+                OUTPUT_PATH="$2"
+                shift 2
+                ;;
+            --screenshot)
+                screenshot_path="$2"
+                shift 2
+                ;;
+            --timeout)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 1000 ]] || [[ "$2" -gt 300000 ]]; then
+                    echo "Warning: Invalid timeout value '$2', using default 30000ms" >&2
+                    TIMEOUT_MS="30000"
+                else
+                    TIMEOUT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --wait-ms)
+                if [[ ! "$2" =~ ^[0-9]+$ ]] || [[ "$2" -lt 0 ]] || [[ "$2" -gt 60000 ]]; then
+                    echo "Warning: Invalid wait-ms value '$2', using default 3000ms" >&2
+                    WAIT_MS="3000"
+                else
+                    WAIT_MS="$2"
+                fi
+                shift 2
+                ;;
+            --session)
+                SESSION_NAME="$2"
+                shift 2
+                ;;
+            --fullpage)
+                FULL_PAGE="true"
+                shift
+                ;;
+            --mobile)
+                VIEWPORT_WIDTH="390"
+                VIEWPORT_HEIGHT="844"
+                shift
+                ;;
+            --help|-h)
+                echo "Usage: browserless extract-elements --url URL --output FILE --screenshot FILE [OPTIONS]"
+                echo ""
+                echo "Arguments:"
+                echo "  --url URL              Target URL to analyze (required)"
+                echo "  --output FILE          Output file for element data (required)"
+                echo "  --screenshot FILE      Output file for screenshot (required)"
+                echo ""
+                echo "Options:"
+                echo "  --timeout MS           Timeout in milliseconds (default: 30000)"
+                echo "  --wait-ms MS           Wait time after load (default: 3000)"
+                echo "  --session NAME         Use persistent session"
+                echo "  --fullpage             Capture full page screenshot"
+                echo "  --mobile               Use mobile viewport (390x844)"
+                echo "  --help, -h             Show this help message"
+                echo ""
+                echo "Example:"
+                echo "  browserless extract-elements --url https://example.com --output elements.json --screenshot page.png"
+                return 0
+                ;;
+            *)
+                remaining_args_array+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Validate required parameters
+    if [[ -z "$url_param" ]]; then
+        echo "Error: --url is required" >&2
+        echo "Usage: browserless extract-elements --url URL --output FILE --screenshot FILE" >&2
+        return 1
+    fi
+    
+    if [[ -z "$OUTPUT_PATH" ]]; then
+        echo "Error: --output is required" >&2
+        echo "Usage: browserless extract-elements --url URL --output FILE --screenshot FILE" >&2
+        return 1
+    fi
+    
+    if [[ -z "$screenshot_path" ]]; then
+        echo "Error: --screenshot is required" >&2
+        echo "Usage: browserless extract-elements --url URL --output FILE --screenshot FILE" >&2
+        return 1
+    fi
+    
+    # Smart URL preprocessing
+    local url
+    url=$(actions::preprocess_url "$url_param")
+    log::debug "Preprocessed URL: $url"
+    
+    # Ensure output directories exist
+    if [[ "$OUTPUT_PATH" == */* ]]; then
+        mkdir -p "${OUTPUT_PATH%/*}"
+    fi
+    if [[ "$screenshot_path" == */* ]]; then
+        mkdir -p "${screenshot_path%/*}"
+    fi
+    
+    log::info "🔍 Extracting elements from $url"
+    
+    # Use browserless function API for comprehensive element extraction
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+    
+    # Create comprehensive JavaScript function for element extraction
+    local wrapped_code="export default async ({ page, context }) => {
+        try {
+            // Set viewport
+            await page.setViewport({ width: $VIEWPORT_WIDTH, height: $VIEWPORT_HEIGHT });
+            
+            // Navigate to the URL
+            await page.goto('$url', { 
+                waitUntil: 'networkidle2',
+                timeout: $TIMEOUT_MS 
+            });
+            
+            // Wait for page to stabilize
+            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
+            
+            // Wait for document ready
+            await page.waitForFunction(() => document.readyState === 'complete', { timeout: 5000 }).catch(() => {});
+            
+            // Extract page context information
+            const pageContext = await page.evaluate(() => {
+                const forms = document.querySelectorAll('form');
+                const buttons = document.querySelectorAll('button, input[type=\"button\"], input[type=\"submit\"], [role=\"button\"]');
+                const links = document.querySelectorAll('a[href]');
+                const passwordInputs = document.querySelectorAll('input[type=\"password\"]');
+                const searchInputs = document.querySelectorAll('input[placeholder*=\"search\" i], input[name*=\"search\" i], input[id*=\"search\" i]');
+                
+                return {
+                    title: document.title || '',
+                    url: window.location.href,
+                    hasLogin: passwordInputs.length > 0,
+                    hasSearch: searchInputs.length > 0,
+                    formCount: forms.length,
+                    buttonCount: buttons.length,
+                    linkCount: links.length,
+                    viewport: {
+                        width: window.innerWidth,
+                        height: window.innerHeight
+                    }
+                };
+            });
+            
+            // Extract interactive elements with comprehensive metadata
+            const elements = await page.evaluate(() => {
+                // Helper function to generate multiple selector options
+                function generateSelectors(element) {
+                    const selectors = [];
+                    
+                    // ID selector (highest robustness)
+                    if (element.id) {
+                        selectors.push({
+                            selector: '#' + element.id,
+                            type: 'id',
+                            robustness: 0.95,
+                            fallback: false
+                        });
+                    }
+                    
+                    // Data attribute selectors (high robustness)
+                    const dataAttrs = ['data-testid', 'data-test', 'data-qa', 'data-automation', 'data-cy'];
+                    for (const attr of dataAttrs) {
+                        if (element.hasAttribute(attr)) {
+                            selectors.push({
+                                selector: '[' + attr + '=\"' + element.getAttribute(attr) + '\"]',
+                                type: 'data-attr',
+                                robustness: 0.9,
+                                fallback: false
+                            });
+                        }
+                    }
+                    
+                    // Name attribute selector (medium-high robustness)
+                    if (element.name) {
+                        selectors.push({
+                            selector: '[name=\"' + element.name + '\"]',
+                            type: 'name',
+                            robustness: 0.8,
+                            fallback: false
+                        });
+                    }
+                    
+                    // Semantic class selectors (medium robustness)
+                    if (element.className) {
+                        const classes = element.className.split(' ').filter(c => c && !c.match(/^[a-z0-9]{6,}$/));
+                        if (classes.length > 0) {
+                            selectors.push({
+                                selector: '.' + classes[0],
+                                type: 'class',
+                                robustness: 0.6,
+                                fallback: false
+                            });
+                        }
+                    }
+                    
+                    // Text-based selector for buttons and links (medium robustness)
+                    const text = element.textContent?.trim();
+                    if (text && text.length < 50 && (element.tagName === 'BUTTON' || element.tagName === 'A')) {
+                        selectors.push({
+                            selector: element.tagName.toLowerCase() + ':contains(\"' + text + '\")',
+                            type: 'text',
+                            robustness: 0.7,
+                            fallback: false
+                        });
+                    }
+                    
+                    // Tag + type selector for inputs (medium robustness)
+                    if (element.tagName === 'INPUT' && element.type) {
+                        selectors.push({
+                            selector: 'input[type=\"' + element.type + '\"]',
+                            type: 'type',
+                            robustness: 0.5,
+                            fallback: true
+                        });
+                    }
+                    
+                    // CSS path fallback (low robustness)
+                    function getPath(el) {
+                        if (el.id) return '#' + el.id;
+                        if (el === document.body) return 'body';
+                        
+                        let path = [];
+                        while (el && el.nodeType === Node.ELEMENT_NODE) {
+                            let selector = el.nodeName.toLowerCase();
+                            if (el.id) {
+                                selector += '#' + el.id;
+                                path.unshift(selector);
+                                break;
+                            } else {
+                                let sibling = el;
+                                let nth = 1;
+                                while (sibling.previousElementSibling) {
+                                    sibling = sibling.previousElementSibling;
+                                    if (sibling.nodeName.toLowerCase() === selector) nth++;
+                                }
+                                if (nth !== 1) selector += ':nth-of-type(' + nth + ')';
+                            }
+                            path.unshift(selector);
+                            el = el.parentNode;
+                        }
+                        return path.join(' > ');
+                    }
+                    
+                    selectors.push({
+                        selector: getPath(element),
+                        type: 'path',
+                        robustness: 0.3,
+                        fallback: true
+                    });
+                    
+                    return selectors;
+                }
+                
+                // Helper function to classify element type
+                function classifyElement(element) {
+                    const tagName = element.tagName.toLowerCase();
+                    const type = element.type?.toLowerCase();
+                    const role = element.getAttribute('role')?.toLowerCase();
+                    
+                    if (tagName === 'button' || type === 'button' || type === 'submit' || role === 'button') {
+                        return 'button';
+                    } else if (tagName === 'input') {
+                        if (type === 'text' || type === 'email' || type === 'password' || !type) {
+                            return 'input';
+                        } else if (type === 'checkbox' || type === 'radio') {
+                            return 'checkbox';
+                        } else {
+                            return 'input';
+                        }
+                    } else if (tagName === 'select') {
+                        return 'select';
+                    } else if (tagName === 'textarea') {
+                        return 'textarea';
+                    } else if (tagName === 'a') {
+                        return 'link';
+                    } else if (tagName === 'form') {
+                        return 'form';
+                    } else {
+                        return 'element';
+                    }
+                }
+                
+                // Helper function to determine category
+                function categorizeElement(element, text) {
+                    const tagName = element.tagName.toLowerCase();
+                    const type = element.type?.toLowerCase();
+                    const classes = element.className.toLowerCase();
+                    const textLower = text.toLowerCase();
+                    
+                    // Authentication patterns
+                    if (type === 'password' || textLower.includes('login') || textLower.includes('sign in') || 
+                        textLower.includes('register') || textLower.includes('sign up') || classes.includes('auth')) {
+                        return 'authentication';
+                    }
+                    
+                    // Navigation patterns
+                    if (tagName === 'a' || textLower.includes('menu') || textLower.includes('nav') || 
+                        classes.includes('menu') || classes.includes('nav')) {
+                        return 'navigation';
+                    }
+                    
+                    // Data entry patterns
+                    if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || 
+                        textLower.includes('search') || type === 'email' || type === 'text') {
+                        return 'data-entry';
+                    }
+                    
+                    // Action patterns
+                    if (textLower.includes('submit') || textLower.includes('save') || textLower.includes('delete') || 
+                        textLower.includes('edit') || type === 'submit') {
+                        return 'actions';
+                    }
+                    
+                    // Content patterns
+                    if (textLower.includes('read more') || textLower.includes('expand') || textLower.includes('filter')) {
+                        return 'content';
+                    }
+                    
+                    return 'general';
+                }
+                
+                // Select interactive elements
+                const interactiveSelectors = [
+                    'button',
+                    'input',
+                    'select',
+                    'textarea',
+                    'a[href]',
+                    '[onclick]',
+                    '[role=\"button\"]',
+                    '[role=\"link\"]',
+                    '[role=\"menuitem\"]',
+                    '[tabindex]',
+                    'form'
+                ];
+                
+                const allElements = document.querySelectorAll(interactiveSelectors.join(', '));
+                
+                return Array.from(allElements).map((element, index) => {
+                    const rect = element.getBoundingClientRect();
+                    const text = element.textContent?.trim() || '';
+                    const placeholder = element.placeholder || '';
+                    const ariaLabel = element.getAttribute('aria-label') || '';
+                    const title = element.title || '';
+                    
+                    // Calculate confidence score based on various factors
+                    let confidence = 0.5; // Base confidence
+                    
+                    // Boost confidence for common interactive patterns
+                    if (element.tagName === 'BUTTON' || element.type === 'submit') confidence += 0.3;
+                    if (element.tagName === 'A' && element.href) confidence += 0.2;
+                    if (element.id || element.hasAttribute('data-testid')) confidence += 0.2;
+                    if (text.length > 0 && text.length < 100) confidence += 0.1;
+                    if (rect.width > 0 && rect.height > 0) confidence += 0.1;
+                    
+                    // Reduce confidence for hidden or very small elements
+                    if (rect.width < 10 || rect.height < 10) confidence -= 0.3;
+                    if (getComputedStyle(element).visibility === 'hidden') confidence -= 0.5;
+                    if (getComputedStyle(element).display === 'none') confidence -= 0.5;
+                    
+                    confidence = Math.max(0, Math.min(1, confidence));
+                    
+                    return {
+                        text: text,
+                        tagName: element.tagName,
+                        type: classifyElement(element),
+                        selectors: generateSelectors(element),
+                        boundingBox: {
+                            x: rect.x,
+                            y: rect.y,
+                            width: rect.width,
+                            height: rect.height
+                        },
+                        confidence: Math.round(confidence * 100) / 100,
+                        category: categorizeElement(element, text),
+                        attributes: {
+                            id: element.id || '',
+                            className: element.className || '',
+                            name: element.name || '',
+                            type: element.type || '',
+                            placeholder: placeholder,
+                            'aria-label': ariaLabel,
+                            title: title,
+                            href: element.href || '',
+                            role: element.getAttribute('role') || ''
+                        }
+                    };
+                }).filter(el => el.confidence > 0.1); // Filter out very low confidence elements
+            });
+            
+            // Take screenshot
+            const screenshot = await page.screenshot({ 
+                encoding: 'base64',
+                fullPage: ${FULL_PAGE:-false}
+            });
+            
+            return {
+                success: true,
+                elements: elements,
+                pageContext: pageContext,
+                screenshot: screenshot,
+                elementCount: elements.length,
+                timestamp: new Date().toISOString()
+            };
+        } catch (error) {
+            return { 
+                success: false, 
+                error: error.message,
+                stack: error.stack 
+            };
+        }
+    };"
+    
+    # Execute via browserless API
+    local result
+    result=$(curl -s -X POST \
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
+    
+    local success
+    success=$(echo "$result" | jq -r '.success // false')
+    if [[ "$success" == "true" ]]; then
+        # Extract and save screenshot
+        local screenshot_data=$(echo "$result" | jq -r '.screenshot')
+        echo "$screenshot_data" | base64 -d > "$screenshot_path"
+        
+        # Create final output with elements and context
+        local elements_output
+        elements_output=$(echo "$result" | jq '{
+            elements: .elements,
+            pageContext: .pageContext,
+            elementCount: .elementCount,
+            timestamp: .timestamp
+        }')
+        
+        # Save elements data
+        echo "$elements_output" > "$OUTPUT_PATH"
+        
+        local element_count=$(echo "$result" | jq -r '.elementCount')
+        echo "✅ Extracted $element_count interactive elements"
+        echo "Elements data saved: $OUTPUT_PATH"
+        echo "Screenshot saved: $screenshot_path"
+        
+        return 0
+    else
+        local error=$(echo "$result" | jq -r '.error // "Unknown error"')
+        echo "Error: Element extraction failed - $error" >&2
+        return 1
+    fi
+}
+
+#######################################
 # Dispatch function for CLI routing
 #######################################
 actions::dispatch() {
@@ -1618,6 +2096,7 @@ actions::dispatch() {
         echo "  extract-text   - Extract text content from elements" >&2
         echo "  extract        - Extract structured data with custom scripts" >&2
         echo "  extract-forms  - Extract form data and input fields" >&2
+        echo "  extract-elements - Extract interactive elements with metadata" >&2
         echo "  interact       - Perform form fills, clicks, and wait operations" >&2
         echo "  console        - Capture console logs from pages" >&2
         echo "  performance    - Measure page performance metrics" >&2
@@ -1662,6 +2141,9 @@ actions::dispatch() {
         extract-forms)
             actions::extract_forms "$@"
             ;;
+        extract-elements)
+            actions::extract_elements "$@"
+            ;;
         interact)
             actions::interact "$@"
             ;;
@@ -1682,6 +2164,7 @@ actions::dispatch() {
             echo "  extract-text   - Extract text content from elements" >&2
             echo "  extract        - Extract structured data with custom scripts" >&2
             echo "  extract-forms  - Extract form data and input fields" >&2
+            echo "  extract-elements - Extract interactive elements with metadata" >&2
             echo "  interact       - Perform form fills, clicks, and wait operations" >&2
             echo "  console        - Capture console logs from pages" >&2
             echo "  performance    - Measure page performance metrics" >&2

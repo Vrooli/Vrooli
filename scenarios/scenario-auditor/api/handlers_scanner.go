@@ -57,8 +57,10 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Parse request body for scan options
 	var scanRequest struct {
-		Type           string   `json:"type"`            // "quick", "full", or "targeted"
-		TargetedChecks []string `json:"targeted_checks"` // For targeted scans
+		Type             string   `json:"type"`              // "quick", "full", or "targeted"
+		TargetedChecks   []string `json:"targeted_checks"`   // For targeted scans
+		IncludeUnstable  bool     `json:"include_unstable"`  // Include rules with failing tests
+		SkipTestValidation bool   `json:"skip_test_validation"` // Skip pre-flight rule validation
 	}
 	if err := json.NewDecoder(r.Body).Decode(&scanRequest); err != nil {
 		scanRequest.Type = "quick" // Default to quick scan
@@ -94,6 +96,19 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	logger.Info("Scanner registration completed")
+
+	// Pre-flight rule validation (unless skipped)
+	var unstableRules []string
+	var skippedRuleCount int
+	
+	if !scanRequest.SkipTestValidation {
+		logger.Info("Running pre-flight rule validation...")
+		unstableRules, skippedRuleCount = validateRulesBeforeScan(logger, scanRequest.IncludeUnstable)
+		
+		if len(unstableRules) > 0 && !scanRequest.IncludeUnstable {
+			logger.Info(fmt.Sprintf("Found %d unstable rules (with failing tests). Use 'include_unstable: true' to include them in scan.", len(unstableRules)))
+		}
+	}
 
 	// Determine scan path
 	var scanPath string
@@ -217,6 +232,27 @@ func enhancedScanScenarioHandler(w http.ResponseWriter, r *http.Request) {
 		},
 		"statistics": result.Statistics,
 		"findings":   vulnerabilities,
+	}
+
+	// Add rule validation info to response
+	if !scanRequest.SkipTestValidation {
+		response["rule_validation"] = map[string]interface{}{
+			"enabled":        true,
+			"unstable_rules": unstableRules,
+			"skipped_count":  skippedRuleCount,
+			"include_unstable": scanRequest.IncludeUnstable,
+		}
+		
+		if len(unstableRules) > 0 && !scanRequest.IncludeUnstable {
+			response["warnings"] = []string{
+				fmt.Sprintf("%d rules skipped due to failing tests. Use 'include_unstable: true' to include them.", skippedRuleCount),
+			}
+		}
+	} else {
+		response["rule_validation"] = map[string]interface{}{
+			"enabled": false,
+			"message": "Rule validation was skipped",
+		}
 	}
 
 	// Add scenario-specific info
@@ -410,4 +446,79 @@ func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	json.NewEncoder(w).Encode(response)
+}
+
+// validateRulesBeforeScan runs pre-flight tests on all rules to identify unstable ones
+func validateRulesBeforeScan(logger *Logger, includeUnstable bool) (unstableRules []string, skippedCount int) {
+	// Load all available rules
+	ruleInfos, err := LoadRulesFromFiles()
+	if err != nil {
+		logger.Error("Failed to load rules for validation", err)
+		return []string{}, 0
+	}
+	
+	// Initialize test runner
+	testRunner := NewTestRunner()
+	unstableRulesList := []string{}
+	totalRules := len(ruleInfos)
+	stableRules := 0
+	
+	logger.Info(fmt.Sprintf("Validating %d rules with embedded test cases...", totalRules))
+	
+	// Test each rule
+	for ruleID, ruleInfo := range ruleInfos {
+		// Run all tests for this rule
+		testResults, err := testRunner.RunAllTests(ruleID, ruleInfo)
+		if err != nil {
+			logger.Info(fmt.Sprintf("WARNING: Failed to run tests for rule %s: %v", ruleID, err))
+			unstableRulesList = append(unstableRulesList, ruleID)
+			continue
+		}
+		
+		// Check if any tests failed
+		hasFailingTests := false
+		totalTests := len(testResults)
+		passedTests := 0
+		
+		for _, result := range testResults {
+			if result.Passed {
+				passedTests++
+			} else {
+				hasFailingTests = true
+			}
+		}
+		
+		if hasFailingTests || totalTests == 0 {
+			// Rule is unstable - has failing tests or no tests
+			unstableRulesList = append(unstableRulesList, ruleID)
+			
+			if totalTests == 0 {
+				logger.Info(fmt.Sprintf("WARNING: Rule %s has no test cases (considered unstable)", ruleID))
+			} else {
+				logger.Info(fmt.Sprintf("WARNING: Rule %s has failing tests: %d/%d passed", ruleID, passedTests, totalTests))
+			}
+		} else {
+			// Rule is stable - all tests pass
+			stableRules++
+			logger.Info(fmt.Sprintf("DEBUG: Rule %s is stable: %d/%d tests passed", ruleID, passedTests, totalTests))
+		}
+	}
+	
+	// Calculate statistics
+	unstableCount := len(unstableRulesList)
+	skippedCount = 0
+	if !includeUnstable {
+		skippedCount = unstableCount
+	}
+	
+	// Log summary
+	logger.Info(fmt.Sprintf("Rule validation complete: %d stable, %d unstable out of %d total rules", 
+		stableRules, unstableCount, totalRules))
+	
+	if unstableCount > 0 && !includeUnstable {
+		logger.Info(fmt.Sprintf("Skipping %d unstable rules during scan. Use 'include_unstable: true' to include them.", unstableCount))
+		logger.Info(fmt.Sprintf("Unstable rules: %s", strings.Join(unstableRulesList, ", ")))
+	}
+	
+	return unstableRulesList, skippedCount
 }

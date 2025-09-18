@@ -337,13 +337,20 @@ func main() {
 	api.HandleFunc("/agents/{agentId}/logs", getAgentLogsHandler).Methods("GET")
 	
 	// NEW: Rules management endpoints for scenario-auditor
+	// IMPORTANT: Specific routes must come before parameterized routes to avoid conflicts
 	api.HandleFunc("/rules", getRulesHandler).Methods("GET")
-	api.HandleFunc("/rules/{ruleId}", getRuleHandler).Methods("GET")
-	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")
-	api.HandleFunc("/rules/{ruleId}/toggle", toggleRuleHandler).Methods("POST")
+	api.HandleFunc("/rules/test-cache", clearTestCacheHandler).Methods("DELETE")
+	api.HandleFunc("/rules/test-coverage", getTestCoverageHandler).Methods("GET")
 	api.HandleFunc("/rules/categories", getRuleCategoriesHandler).Methods("GET")
 	api.HandleFunc("/rules/ai/create", createRuleWithAIHandler).Methods("POST")
 	api.HandleFunc("/rules/ai/edit/{ruleId}", editRuleWithAIHandler).Methods("POST")
+	// Parameterized routes come last
+	api.HandleFunc("/rules/{ruleId}", getRuleHandler).Methods("GET")
+	api.HandleFunc("/rules/{ruleId}", updateRuleHandler).Methods("PUT")
+	api.HandleFunc("/rules/{ruleId}/toggle", toggleRuleHandler).Methods("POST")
+	api.HandleFunc("/rules/{ruleId}/test", testRuleHandler).Methods("POST")
+	api.HandleFunc("/rules/{ruleId}/validate", validateRuleHandler).Methods("POST")
+	api.HandleFunc("/rules/{ruleId}/test-cache", clearTestCacheHandler).Methods("DELETE")
 	
 	// System operations
 	api.HandleFunc("/system/discover", discoverScenariosHandler).Methods("POST")
@@ -1456,34 +1463,6 @@ func stopAgentHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAgentLogsHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func getRulesHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func getRuleHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func updateRuleHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func getRuleCategoriesHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
-}
-
-func editRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
 	HTTPError(w, "Not implemented yet", http.StatusNotImplemented, nil)
 }
 

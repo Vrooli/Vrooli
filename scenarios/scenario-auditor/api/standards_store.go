@@ -52,7 +52,7 @@ func (ss *StandardsStore) enablePersistence() {
 	}
 	
 	// Create data directory if it doesn't exist
-	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "api-manager")
+	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
 	
 	// Check if parent directory exists first
 	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
@@ -67,7 +67,7 @@ func (ss *StandardsStore) enablePersistence() {
 	
 	// Now create our specific directory
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		logger.Error(fmt.Sprintf("Failed to create api-manager data directory %s", dataDir), err)
+		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
 		logger.Info("Standards store will operate in memory-only mode (no persistence)")
 		return
 	}

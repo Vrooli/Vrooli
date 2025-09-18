@@ -46,6 +46,12 @@ export default function Dashboard() {
     refetchInterval: 30000,
   })
 
+  const { data: testCoverage } = useQuery({
+    queryKey: ['testCoverage'],
+    queryFn: () => apiService.getTestCoverage(),
+    refetchInterval: 60000,
+  })
+
   const hasScans = summary?.scan_status?.has_scans ?? false
   const scanWarningMessage = "No security scans performed yet. Run a scan to assess system health and detect vulnerabilities."
 
@@ -87,6 +93,18 @@ export default function Dashboard() {
       icon: GitBranch,
       detail: `${summary?.endpoints?.monitored || 0} monitored`,
       color: 'primary',
+    },
+    {
+      title: 'Test Coverage',
+      value: testCoverage?.coverage_metrics?.coverage_percentage ? 
+        Math.round(testCoverage.coverage_metrics.coverage_percentage) : 0,
+      unit: '%',
+      icon: CheckCircle,
+      detail: testCoverage ? 
+        `${testCoverage.coverage_metrics?.rules_with_tests || 0}/${testCoverage.coverage_metrics?.total_rules || 0} rules` : 
+        'Loading...',
+      color: testCoverage?.coverage_metrics?.coverage_percentage >= 80 ? 'success' : 
+             testCoverage?.coverage_metrics?.coverage_percentage >= 60 ? 'warning' : 'danger',
     },
   ]
 
@@ -279,6 +297,75 @@ export default function Dashboard() {
           )}
         </Card>
       </div>
+
+      {/* Test Coverage Details */}
+      {testCoverage && (
+        <Card className="lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-dark-900">Test Coverage Details</h2>
+            <Link
+              to="/rules"
+              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1"
+            >
+              View All Rules
+              <ArrowUpRight className="h-3 w-3" />
+            </Link>
+          </div>
+          
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-dark-900">
+                {testCoverage.coverage_metrics?.total_test_cases || 0}
+              </p>
+              <p className="text-xs text-dark-600">Total Test Cases</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-success-600">
+                {testCoverage.test_results?.passing || 0}
+              </p>
+              <p className="text-xs text-dark-600">Passing Tests</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-danger-600">
+                {testCoverage.test_results?.failing || 0}
+              </p>
+              <p className="text-xs text-dark-600">Failing Tests</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-primary-600">
+                {testCoverage.coverage_metrics?.average_tests_per_rule?.toFixed(1) || 0}
+              </p>
+              <p className="text-xs text-dark-600">Avg Tests/Rule</p>
+            </div>
+          </div>
+          
+          {testCoverage.category_breakdown && (
+            <div className="mt-4 pt-4 border-t border-dark-200">
+              <p className="text-sm font-medium text-dark-700 mb-2">Coverage by Category</p>
+              <div className="space-y-2">
+                {Object.entries(testCoverage.category_breakdown).map(([category, stats]: [string, any]) => (
+                  <div key={category} className="flex items-center justify-between text-sm">
+                    <span className="text-dark-600 capitalize">{category}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-dark-900 font-medium">
+                        {stats.with_tests}/{stats.total} rules
+                      </span>
+                      <span className={clsx(
+                        'text-xs px-2 py-0.5 rounded-full',
+                        (stats.with_tests / stats.total) >= 0.8 ? 'bg-success-100 text-success-700' :
+                        (stats.with_tests / stats.total) >= 0.6 ? 'bg-warning-100 text-warning-700' :
+                        'bg-danger-100 text-danger-700'
+                      )}>
+                        {Math.round((stats.with_tests / stats.total) * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Recent Scans */}
       <Card>

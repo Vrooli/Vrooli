@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle } from 'lucide-react';
+import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain } from 'lucide-react';
 import { getConfig } from '../config';
 import toast from 'react-hot-toast';
+import BrowserInspectorTab from './BrowserInspectorTab';
 
 interface SelectorOption {
   selector: string;
@@ -53,6 +54,9 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
   const [clickPosition, setClickPosition] = useState<{x: number; y: number} | null>(null);
   const [screenshotDimensions, setScreenshotDimensions] = useState<{width: number; height: number} | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{x: number; y: number} | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<ElementInfo[]>([]);
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [userIntent, setUserIntent] = useState('');
 
   // Take screenshot when modal opens
   useEffect(() => {
@@ -158,6 +162,46 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
     setHoverPosition(null);
   }, []);
 
+  const analyzeWithAI = async () => {
+    if (!url || !userIntent.trim()) {
+      toast.error('Please provide a description of what element you want to select');
+      return;
+    }
+
+    setAiAnalyzing(true);
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/ai-analyze-elements`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          url, 
+          intent: userIntent.trim() 
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to analyze with AI: ${response.status}`);
+      }
+
+      const suggestions: ElementInfo[] = await response.json();
+      setAiSuggestions(suggestions);
+      
+      if (suggestions.length > 0) {
+        // Auto-select the top suggestion
+        setSelectedElement(suggestions[0]);
+        setCustomSelector(suggestions[0].selectors?.[0]?.selector || '');
+      }
+    } catch (error) {
+      console.error('Failed to analyze with AI:', error);
+      toast.error('AI analysis failed. Make sure Ollama is running.');
+    } finally {
+      setAiAnalyzing(false);
+    }
+  };
+
   const handleSelectorConfirm = useCallback(() => {
     if (customSelector && selectedElement) {
       onSelectElement(customSelector, selectedElement);
@@ -214,6 +258,28 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
           >
             <Eye size={16} />
             Visual Selection
+          </button>
+          <button
+            onClick={() => setActiveTab('suggestions')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
+              activeTab === 'suggestions'
+                ? 'border-b-2 border-blue-400 text-blue-400'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Brain size={16} />
+            AI Suggestions
+          </button>
+          <button
+            onClick={() => setActiveTab('browser')}
+            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors flex-shrink-0 ${
+              activeTab === 'browser'
+                ? 'border-b-2 border-blue-400 text-blue-400'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            <Monitor size={16} />
+            Browser Inspector
           </button>
           <button
             onClick={() => setActiveTab('custom')}
@@ -356,6 +422,102 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
                     </div>
                   )}
                 </div>
+              )}
+
+              {activeTab === 'suggestions' && (
+                <div className="p-4">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        What element are you looking for?
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g., 'search button', 'login form', 'submit button'..."
+                          value={userIntent}
+                          onChange={(e) => setUserIntent(e.target.value)}
+                          className="flex-1 px-3 py-2 bg-flow-bg border border-gray-700 rounded-lg text-sm focus:border-blue-400 focus:outline-none"
+                          onKeyPress={(e) => e.key === 'Enter' && !aiAnalyzing && analyzeWithAI()}
+                        />
+                        <button
+                          onClick={analyzeWithAI}
+                          disabled={aiAnalyzing || !userIntent.trim()}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                        >
+                          {aiAnalyzing ? (
+                            <>
+                              <Loader size={16} className="animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Brain size={16} />
+                              Analyze
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Describe what you want to interact with and AI will suggest the best elements
+                      </p>
+                    </div>
+
+                    {aiSuggestions.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-medium text-white">AI Suggestions</h3>
+                        {aiSuggestions.map((suggestion, index) => (
+                          <div
+                            key={index}
+                            className="p-3 bg-flow-bg border border-gray-700 rounded-lg cursor-pointer hover:border-purple-400 transition-colors"
+                            onClick={() => {
+                              setSelectedElement(suggestion);
+                              setCustomSelector(suggestion.selectors?.[0]?.selector || '');
+                              setActiveTab('custom');
+                            }}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-purple-300">
+                                Suggestion #{index + 1}
+                              </span>
+                              <span className={`px-2 py-1 text-xs rounded ${
+                                suggestion.confidence > 0.8 ? 'bg-green-900/20 text-green-300' :
+                                suggestion.confidence > 0.6 ? 'bg-yellow-900/20 text-yellow-300' :
+                                'bg-red-900/20 text-red-300'
+                              }`}>
+                                {Math.round(suggestion.confidence * 100)}% confidence
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-300 mb-2">
+                              {suggestion.text || `${suggestion.tagName.toLowerCase()} element`}
+                            </p>
+                            <code className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
+                              {suggestion.selectors?.[0]?.selector}
+                            </code>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {aiSuggestions.length === 0 && userIntent && !aiAnalyzing && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Brain size={32} className="mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No suggestions found. Try a different description.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'browser' && (
+                <BrowserInspectorTab
+                  url={url}
+                  onSelectElement={(selector, elementInfo) => {
+                    setSelectedElement(elementInfo);
+                    setCustomSelector(selector);
+                    setActiveTab('custom');
+                  }}
+                />
               )}
 
               {activeTab === 'custom' && (

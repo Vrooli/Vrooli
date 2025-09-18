@@ -58,10 +58,10 @@ func printUsage() {
 	fmt.Println("  help                Show this help")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  scenario-auditor scan api-manager")
+	fmt.Println("  scenario-auditor scan ecosystem-manager")
 	fmt.Println("  scenario-auditor scan              # Scan current scenario")
 	fmt.Println("  scenario-auditor rules --category config")
-	fmt.Println("  scenario-auditor fix api-manager --auto")
+	fmt.Println("  scenario-auditor fix ecosystem-manager --auto")
 	fmt.Println()
 }
 

@@ -214,6 +214,39 @@ class ApiService {
     return this.fetch(url)
   }
 
+  async getRule(ruleId: string): Promise<any> {
+    return this.fetch(`/rules/${encodeURIComponent(ruleId)}`)
+  }
+
+  async toggleRule(ruleId: string, enabled: boolean): Promise<any> {
+    return this.fetch(`/rules/${encodeURIComponent(ruleId)}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled })
+    })
+  }
+
+  async testRule(ruleId: string): Promise<any> {
+    return this.fetch(`/rules/${encodeURIComponent(ruleId)}/test`, {
+      method: 'POST'
+    })
+  }
+
+  async validateRule(ruleId: string, code: string, language?: string): Promise<any> {
+    return this.fetch(`/rules/${encodeURIComponent(ruleId)}/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ code, language: language || 'go' })
+    })
+  }
+
+  async clearTestCache(ruleId?: string): Promise<any> {
+    const url = ruleId ? `/rules/${encodeURIComponent(ruleId)}/test-cache` : '/rules/test-cache'
+    return this.fetch(url, { method: 'DELETE' })
+  }
+
+  async getTestCoverage(): Promise<any> {
+    return this.fetch('/rules/test-coverage')
+  }
+
   async getResults(): Promise<any> {
     return this.fetch('/scan-results')
   }

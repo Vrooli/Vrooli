@@ -1,15 +1,209 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Shield, Plus, Settings, Filter } from 'lucide-react'
+import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Highlight, themes } from 'prism-react-renderer'
 import { apiService } from '../services/api'
+
+// Code Block Component with syntax highlighting and line numbers
+function CodeBlock({ code }: { code: string }) {
+  if (!code) return <div className="text-gray-500 italic">No code available</div>
+  
+  return (
+    <Highlight theme={themes.vsDark} code={code} language="go">
+      {({ className, style, tokens, getLineProps, getTokenProps }) => (
+        <div className="relative">
+          <pre 
+            className={`${className} text-sm rounded-lg p-4 overflow-auto max-h-[500px]`} 
+            style={style}
+          >
+            <code className="block">
+              {tokens.map((line, i) => (
+                <div key={i} {...getLineProps({ line, key: i })} className="table-row">
+                  <span className="table-cell text-right pr-4 select-none text-gray-500 text-xs" style={{ minWidth: '3ch' }}>
+                    {i + 1}
+                  </span>
+                  <span className="table-cell">
+                    {line.map((token, key) => (
+                      <span key={key} {...getTokenProps({ token, key })} />
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </code>
+          </pre>
+        </div>
+      )}
+    </Highlight>
+  )
+}
+
+// Rule Card Component
+function RuleCard({ rule, onViewRule, onToggleRule }: { 
+  rule: any, 
+  onViewRule: (ruleId: string) => void,
+  onToggleRule: (ruleId: string, enabled: boolean) => void 
+}) {
+  const handleToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onToggleRule(rule.id, e.target.checked)
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow" data-testid={`rule-${rule.id}`}>
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="text-lg font-medium text-gray-900">{rule.name}</h3>
+            <p className="mt-1 text-sm text-gray-500">{rule.description}</p>
+          </div>
+          <div className="ml-4">
+            <button 
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              onClick={() => onViewRule(rule.id)}
+              title="View rule file"
+            >
+              <Terminal className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+        
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              rule.category === 'api' ? 'bg-blue-100 text-blue-800' :
+              rule.category === 'cli' ? 'bg-green-100 text-green-800' :
+              rule.category === 'config' ? 'bg-purple-100 text-purple-800' :
+              rule.category === 'test' ? 'bg-yellow-100 text-yellow-800' :
+              rule.category === 'ui' ? 'bg-pink-100 text-pink-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {rule.category}
+            </span>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              rule.severity === 'critical' ? 'bg-red-100 text-red-800' :
+              rule.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+              rule.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              rule.severity === 'low' ? 'bg-green-100 text-green-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {rule.severity}
+            </span>
+          </div>
+          <div className="flex items-center">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={rule.enabled}
+                onChange={handleToggle}
+                className="sr-only peer"
+                data-testid={`rule-toggle-${rule.id}`}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function RulesManager() {
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [selectedRule, setSelectedRule] = useState<string | null>(null)
+  const [localRules, setLocalRules] = useState<Record<string, any>>({})
+  const [activeTab, setActiveTab] = useState<'implementation' | 'tests' | 'playground'>('implementation')
+  const [testResults, setTestResults] = useState<any>(null)
+  const [isRunningTests, setIsRunningTests] = useState(false)
+  const [playgroundCode, setPlaygroundCode] = useState('')
+  const [playgroundResult, setPlaygroundResult] = useState<any>(null)
+  const [isRunningPlayground, setIsRunningPlayground] = useState(false)
 
-  const { data: rulesData, isLoading } = useQuery({
+  const { data: rulesData, isLoading, refetch } = useQuery({
     queryKey: ['rules', selectedCategory],
     queryFn: () => apiService.getRules(selectedCategory || undefined),
   })
+
+  const { data: ruleDetail, isLoading: ruleDetailLoading } = useQuery({
+    queryKey: ['rule', selectedRule],
+    queryFn: () => selectedRule ? apiService.getRule(selectedRule) : null,
+    enabled: !!selectedRule,
+  })
+
+  // Run tests when rule is selected and tests tab is active
+  const runRuleTests = async () => {
+    if (!selectedRule) return
+    
+    setIsRunningTests(true)
+    try {
+      const results = await apiService.testRule(selectedRule)
+      setTestResults(results)
+    } catch (error) {
+      console.error('Failed to run tests:', error)
+      setTestResults({ error: 'Failed to run tests' })
+    } finally {
+      setIsRunningTests(false)
+    }
+  }
+
+  // Run playground code validation
+  const runPlaygroundTest = async () => {
+    if (!selectedRule || !playgroundCode.trim()) return
+    
+    setIsRunningPlayground(true)
+    try {
+      const result = await apiService.validateRule(selectedRule, playgroundCode, 'go')
+      setPlaygroundResult(result)
+    } catch (error) {
+      console.error('Failed to run playground test:', error)
+      setPlaygroundResult({ error: 'Failed to run playground test' })
+    } finally {
+      setIsRunningPlayground(false)
+    }
+  }
+
+  // Reset tab and test data when rule changes
+  React.useEffect(() => {
+    if (selectedRule) {
+      setActiveTab('implementation')
+      setTestResults(null)
+      setPlaygroundCode('')
+      setPlaygroundResult(null)
+    }
+  }, [selectedRule])
+
+  // Sync local rules state with fetched data
+  React.useEffect(() => {
+    if (rulesData?.rules) {
+      setLocalRules(rulesData.rules)
+    }
+  }, [rulesData])
+
+  const handleToggleRule = async (ruleId: string, enabled: boolean) => {
+    // Optimistically update the UI
+    setLocalRules(prev => ({
+      ...prev,
+      [ruleId]: {
+        ...prev[ruleId],
+        enabled
+      }
+    }))
+
+    try {
+      // Call the API to toggle the rule
+      await apiService.toggleRule(ruleId, enabled)
+      // Refetch rules to ensure consistency
+      refetch()
+    } catch (error) {
+      console.error('Failed to toggle rule:', error)
+      // Revert on error
+      setLocalRules(prev => ({
+        ...prev,
+        [ruleId]: {
+          ...prev[ruleId],
+          enabled: !enabled
+        }
+      }))
+    }
+  }
 
   if (isLoading) {
     return (
@@ -29,7 +223,7 @@ export default function RulesManager() {
     )
   }
 
-  const rules = rulesData?.rules || {}
+  const rules = localRules
   const categories = rulesData?.categories || {}
 
   return (
@@ -70,45 +264,52 @@ export default function RulesManager() {
         </select>
       </div>
 
-      {/* Rules Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.values(rules).map((rule: any) => (
-          <div key={rule.id} className="card" data-testid={`rule-${rule.id}`}>
-            <div className="card-body">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium text-gray-900">{rule.name}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{rule.description}</p>
+      {/* Rules Display */}
+      {selectedCategory ? (
+        /* Single Category Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Object.values(rules).map((rule: any) => (
+            <RuleCard 
+              key={rule.id} 
+              rule={rule} 
+              onViewRule={setSelectedRule} 
+              onToggleRule={handleToggleRule}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Grouped by Category */
+        <div className="space-y-8">
+          {Object.values(categories).map((category: any) => {
+            const categoryRules = Object.values(rules).filter((rule: any) => rule.category === category.id)
+            
+            if (categoryRules.length === 0) return null
+            
+            return (
+              <div key={category.id} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">{category.name}</h2>
+                    <p className="text-sm text-gray-500">{category.description}</p>
+                  </div>
+                  <span className="text-sm text-gray-400">{categoryRules.length} rule{categoryRules.length !== 1 ? 's' : ''}</span>
                 </div>
-                <div className="ml-4">
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <Settings className="h-5 w-5" />
-                  </button>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {categoryRules.map((rule: any) => (
+                    <RuleCard 
+                      key={rule.id} 
+                      rule={rule} 
+                      onViewRule={setSelectedRule} 
+                      onToggleRule={handleToggleRule}
+                    />
+                  ))}
                 </div>
               </div>
-              
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium category-${rule.category}`}>
-                    {rule.category}
-                  </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium severity-${rule.severity}`}>
-                    {rule.severity}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={rule.enabled}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    data-testid={`rule-toggle-${rule.id}`}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {Object.keys(rules).length === 0 && (
         <div className="text-center py-12">
@@ -117,6 +318,350 @@ export default function RulesManager() {
           <p className="mt-1 text-sm text-gray-500">
             {selectedCategory ? 'No rules in this category.' : 'Get started by creating your first rule.'}
           </p>
+        </div>
+      )}
+
+      {/* Rule Detail Modal */}
+      {selectedRule && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setSelectedRule(null)} />
+            
+            <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
+              <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+                <button
+                  type="button"
+                  className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  onClick={() => setSelectedRule(null)}
+                >
+                  <span className="sr-only">Close</span>
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <Terminal className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left flex-1">
+                  <h3 className="text-base font-semibold leading-6 text-gray-900">
+                    {ruleDetail?.rule?.name || selectedRule}
+                  </h3>
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500">
+                      {ruleDetail?.rule?.description || 'Loading rule details...'}
+                    </p>
+                    {ruleDetail?.file_path && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {ruleDetail.file_path}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Tab Navigation */}
+              <div className="mt-5 border-b border-gray-200">
+                <div className="flex space-x-8">
+                  <button
+                    onClick={() => setActiveTab('implementation')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'implementation'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Code className="h-4 w-4 inline-block mr-2" />
+                    Implementation
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTab('tests')
+                      if (!testResults && !isRunningTests) runRuleTests()
+                    }}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'tests'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <TestTube className="h-4 w-4 inline-block mr-2" />
+                    Test Cases
+                    {testResults && (
+                      <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        testResults.error ? 'bg-red-100 text-red-800' :
+                        testResults.failed > 0 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-green-100 text-green-800'
+                      }`}>
+                        {testResults.error ? 'Error' : `${testResults.passed}/${testResults.total_tests}`}
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('playground')}
+                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                      activeTab === 'playground'
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <Play className="h-4 w-4 inline-block mr-2" />
+                    Playground
+                  </button>
+                </div>
+              </div>
+
+              {/* Tab Content */}
+              <div className="mt-5">
+                {activeTab === 'implementation' && (
+                  <div className="bg-gray-900 rounded-lg overflow-hidden">
+                    <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
+                      <h4 className="text-sm font-medium text-gray-200 flex items-center justify-between">
+                        <span>Rule Implementation</span>
+                        {ruleDetail?.file_path && (
+                          <span className="text-xs text-gray-400 font-mono">
+                            {ruleDetail.file_path.replace(/^.*\/rules\//, 'rules/')}
+                          </span>
+                        )}
+                      </h4>
+                    </div>
+                    <div className="p-0">
+                      {ruleDetailLoading ? (
+                        <div className="p-4">
+                          <div className="animate-pulse">
+                            <div className="h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
+                            <div className="h-4 bg-gray-700 rounded w-1/2 mb-2"></div>
+                            <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                          </div>
+                        </div>
+                      ) : (
+                        <CodeBlock code={ruleDetail?.file_content || ''} />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'tests' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-lg font-medium text-gray-900">Test Cases</h4>
+                      <button
+                        onClick={runRuleTests}
+                        disabled={isRunningTests}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {isRunningTests ? (
+                          <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4 mr-2" />
+                        )}
+                        {isRunningTests ? 'Running...' : 'Run All Tests'}
+                      </button>
+                    </div>
+
+                    {isRunningTests && (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                        <span className="ml-3 text-gray-600">Running tests...</span>
+                      </div>
+                    )}
+
+                    {testResults?.error && (
+                      <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                        <div className="text-red-800">
+                          <strong>Error:</strong> {testResults.error}
+                        </div>
+                      </div>
+                    )}
+
+                    {testResults?.tests && (
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between text-sm">
+                            <span>
+                              <strong>Results:</strong> {testResults.passed} passed, {testResults.failed} failed out of {testResults.total_tests} tests
+                            </span>
+                            {testResults.cached && (
+                              <span className="text-gray-500">(Cached)</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {testResults.tests.map((test: any, index: number) => (
+                          <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
+                            <div className={`px-4 py-3 border-b border-gray-200 ${
+                              test.passed ? 'bg-green-50' : 'bg-red-50'
+                            }`}>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center">
+                                  {test.passed ? (
+                                    <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                                  ) : (
+                                    <XCircle className="h-5 w-5 text-red-600 mr-2" />
+                                  )}
+                                  <div>
+                                    <h5 className="font-medium text-gray-900">{test.test_case.id}</h5>
+                                    <p className="text-sm text-gray-600">{test.test_case.description}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    test.test_case.should_fail ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                                  }`}>
+                                    {test.test_case.should_fail ? 'Should Fail' : 'Should Pass'}
+                                  </span>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                    test.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  }`}>
+                                    {test.passed ? 'PASS' : 'FAIL'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="p-4 space-y-4">
+                              <div>
+                                <h6 className="text-sm font-medium text-gray-900 mb-2">Test Input</h6>
+                                <div className="bg-gray-900 rounded-lg overflow-hidden">
+                                  <CodeBlock code={test.test_case.input} />
+                                </div>
+                              </div>
+                              
+                              {test.actual_violations && test.actual_violations.length > 0 && (
+                                <div>
+                                  <h6 className="text-sm font-medium text-gray-900 mb-2">Violations Found</h6>
+                                  <div className="space-y-2">
+                                    {test.actual_violations.map((violation: any, vIndex: number) => (
+                                      <div key={vIndex} className="bg-gray-50 rounded p-3 text-sm">
+                                        <div className="flex items-start justify-between">
+                                          <div>
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                              violation.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                              violation.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                                              violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                              'bg-blue-100 text-blue-800'
+                                            }`}>
+                                              {violation.severity}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <p className="mt-2 text-gray-800">{violation.message}</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {!isRunningTests && !testResults && (
+                      <div className="text-center py-8 text-gray-500">
+                        <TestTube className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                        <p>Click "Run All Tests" to execute test cases for this rule</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {activeTab === 'playground' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-lg font-medium text-gray-900">Test Playground</h4>
+                      <button
+                        onClick={runPlaygroundTest}
+                        disabled={isRunningPlayground || !playgroundCode.trim()}
+                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        {isRunningPlayground ? (
+                          <Clock className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Play className="h-4 w-4 mr-2" />
+                        )}
+                        {isRunningPlayground ? 'Testing...' : 'Test Code'}
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Enter Go code to test against this rule:
+                      </label>
+                      <textarea
+                        value={playgroundCode}
+                        onChange={(e) => setPlaygroundCode(e.target.value)}
+                        placeholder="func HandleRequest(w http.ResponseWriter, r *http.Request) {&#10;    // Your code here&#10;}"
+                        className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                      />
+                    </div>
+
+                    {playgroundResult && (
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className={`px-4 py-3 border-b border-gray-200 ${
+                          playgroundResult.error ? 'bg-red-50' :
+                          playgroundResult.actual_violations?.length > 0 ? 'bg-yellow-50' : 'bg-green-50'
+                        }`}>
+                          <h5 className="font-medium text-gray-900">Test Result</h5>
+                        </div>
+                        
+                        <div className="p-4">
+                          {playgroundResult.error ? (
+                            <div className="text-red-800">
+                              <strong>Error:</strong> {playgroundResult.error}
+                            </div>
+                          ) : playgroundResult.actual_violations?.length > 0 ? (
+                            <div className="space-y-3">
+                              <p className="text-gray-800">
+                                <strong>Found {playgroundResult.actual_violations.length} violation(s):</strong>
+                              </p>
+                              {playgroundResult.actual_violations.map((violation: any, index: number) => (
+                                <div key={index} className="bg-gray-50 rounded p-3">
+                                  <div className="flex items-start justify-between">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                      violation.severity === 'critical' ? 'bg-red-100 text-red-800' :
+                                      violation.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+                                      violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-blue-100 text-blue-800'
+                                    }`}>
+                                      {violation.severity}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 text-gray-800">{violation.message}</p>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-green-800">
+                              <CheckCircle className="h-5 w-5 inline-block mr-2" />
+                              <strong>No violations found!</strong> Your code follows this rule.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {!playgroundResult && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Code className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                        <p>Enter some Go code above and click "Test Code" to validate it against this rule</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+                <button
+                  type="button"
+                  className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:ml-3 sm:w-auto"
+                  onClick={() => setSelectedRule(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

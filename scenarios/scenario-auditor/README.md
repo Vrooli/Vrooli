@@ -60,7 +60,7 @@ open http://localhost:35001
 # Use the CLI
 scenario-auditor scan current
 scenario-auditor rules --category config
-scenario-auditor fix api-manager --auto
+scenario-auditor fix ecosystem-manager --auto
 ```
 
 ## 📋 CLI Commands
@@ -80,13 +80,13 @@ scenario-auditor help                # Show help
 scenario-auditor scan
 
 # Scan specific scenario
-scenario-auditor scan api-manager
+scenario-auditor scan ecosystem-manager
 
 # List rules by category
 scenario-auditor rules --category config
 
 # Generate automated fixes
-scenario-auditor fix api-manager --auto
+scenario-auditor fix ecosystem-manager --auto
 
 # Check system health
 scenario-auditor health

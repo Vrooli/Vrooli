@@ -155,6 +155,12 @@ func main() {
 		
 		// Element at coordinate route for click-based selector detection
 		r.Post("/element-at-coordinate", handler.GetElementAtCoordinate)
+		
+		// AI-powered element analysis route using Ollama text models with DOM
+		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
+		
+		// DOM tree extraction for Browser Inspector tab
+		r.Post("/dom-tree", handler.GetDOMTree)
 	})
 
 	// Get API host for logging
