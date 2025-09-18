@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { Node, Edge } from 'reactflow';
-import axios from 'axios';
-import { API_BASE } from '../config';
+import { getConfig } from '../config';
 
 interface Workflow {
   id: string;
@@ -26,6 +25,7 @@ interface WorkflowStore {
   saveWorkflow: () => Promise<void>;
   updateWorkflow: (updates: Partial<Workflow>) => void;
   generateWorkflow: (prompt: string, name: string, folderPath: string, projectId?: string) => Promise<void>;
+  modifyWorkflow: (prompt: string) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;
 }
 
@@ -37,12 +37,17 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   
   loadWorkflows: async (projectId?: string) => {
     try {
-      let url = `${API_BASE}/workflows`;
+      const config = await getConfig();
+      let url = `${config.API_URL}/workflows`;
       if (projectId) {
-        url = `${API_BASE}/projects/${projectId}/workflows`;
+        url = `${config.API_URL}/projects/${projectId}/workflows`;
       }
-      const response = await axios.get(url);
-      set({ workflows: response.data.workflows });
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load workflows: ${response.status}`);
+      }
+      const data = await response.json();
+      set({ workflows: data.workflows });
     } catch (error) {
       console.error('Failed to load workflows:', error);
     }
@@ -50,8 +55,12 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   
   loadWorkflow: async (id: string) => {
     try {
-      const response = await axios.get(`${API_BASE}/workflows/${id}`);
-      const workflow = response.data;
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/workflows/${id}`);
+      if (!response.ok) {
+        throw new Error(`Failed to load workflow: ${response.status}`);
+      }
+      const workflow = await response.json();
       set({ 
         currentWorkflow: workflow,
         nodes: workflow.nodes || [],
@@ -64,16 +73,26 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   
   createWorkflow: async (name: string, folderPath: string, projectId?: string) => {
     try {
-      const response = await axios.post(`${API_BASE}/workflows/create`, {
-        project_id: projectId,
-        name,
-        folder_path: folderPath,
-        flow_definition: {
-          nodes: [],
-          edges: []
-        }
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/workflows/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          name,
+          folder_path: folderPath,
+          flow_definition: {
+            nodes: [],
+            edges: []
+          }
+        }),
       });
-      const workflow = response.data;
+      if (!response.ok) {
+        throw new Error(`Failed to create workflow: ${response.status}`);
+      }
+      const workflow = await response.json();
       set({ 
         currentWorkflow: workflow,
         nodes: [],
@@ -90,12 +109,22 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     if (!currentWorkflow) return;
     
     try {
-      await axios.put(`${API_BASE}/workflows/${currentWorkflow.id}`, {
-        ...currentWorkflow,
-        nodes,
-        edges,
-        flow_definition: { nodes, edges }
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/workflows/${currentWorkflow.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...currentWorkflow,
+          nodes,
+          edges,
+          flow_definition: { nodes, edges }
+        }),
       });
+      if (!response.ok) {
+        throw new Error(`Failed to save workflow: ${response.status}`);
+      }
       set({ 
         currentWorkflow: { 
           ...currentWorkflow, 
@@ -124,13 +153,23 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   
   generateWorkflow: async (prompt: string, name: string, folderPath: string, projectId?: string) => {
     try {
-      const response = await axios.post(`${API_BASE}/workflows/create`, {
-        project_id: projectId,
-        name,
-        folder_path: folderPath,
-        ai_prompt: prompt
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/workflows/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project_id: projectId,
+          name,
+          folder_path: folderPath,
+          ai_prompt: prompt
+        }),
       });
-      const workflow = response.data;
+      if (!response.ok) {
+        throw new Error(`Failed to generate workflow: ${response.status}`);
+      }
+      const workflow = await response.json();
       set({ 
         currentWorkflow: workflow,
         nodes: workflow.nodes || [],
@@ -142,9 +181,48 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
     }
   },
   
+  modifyWorkflow: async (prompt: string) => {
+    const { currentWorkflow, nodes, edges } = get();
+    if (!currentWorkflow) {
+      throw new Error('No workflow loaded to modify');
+    }
+    
+    try {
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/workflows/${currentWorkflow.id}/modify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          modification_prompt: prompt,
+          current_flow: { nodes, edges }
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to modify workflow: ${response.status}`);
+      }
+      const modifiedWorkflow = await response.json();
+      set({ 
+        currentWorkflow: modifiedWorkflow,
+        nodes: modifiedWorkflow.nodes || [],
+        edges: modifiedWorkflow.edges || []
+      });
+    } catch (error) {
+      console.error('Failed to modify workflow:', error);
+      throw error;
+    }
+  },
+  
   deleteWorkflow: async (id: string) => {
     try {
-      await axios.delete(`${API_BASE}/workflows/${id}`);
+      const config = await getConfig();
+      const response = await fetch(`${config.API_URL}/workflows/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete workflow: ${response.status}`);
+      }
       const workflows = get().workflows.filter(w => w.id !== id);
       set({ workflows });
       if (get().currentWorkflow?.id === id) {

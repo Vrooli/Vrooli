@@ -1,11 +1,19 @@
 import { ChevronRight, ChevronDown, Folder, FolderOpen, FileCode, Plus, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import NodePalette from './NodePalette';
+import { getConfig } from '../config';
 
 interface SidebarProps {
   selectedFolder: string;
   onFolderSelect: (folder: string) => void;
   projectId?: string;
+}
+
+interface Workflow {
+  id: string;
+  name: string;
+  folder_path: string;
+  description?: string;
 }
 
 interface FolderItem {
@@ -14,45 +22,6 @@ interface FolderItem {
   children?: FolderItem[];
   workflows?: Array<{ id: string; name: string }>;
 }
-
-const mockFolders: FolderItem[] = [
-  {
-    path: '/ui-validation',
-    name: 'UI Validation',
-    children: [
-      {
-        path: '/ui-validation/checkout',
-        name: 'Checkout Flow',
-        workflows: [
-          { id: '1', name: 'checkout-test' },
-          { id: '2', name: 'payment-validation' },
-        ],
-      },
-      {
-        path: '/ui-validation/login',
-        name: 'Login Tests',
-        workflows: [
-          { id: '3', name: 'login-flow' },
-        ],
-      },
-    ],
-  },
-  {
-    path: '/data-collection',
-    name: 'Data Collection',
-    workflows: [
-      { id: '4', name: 'competitor-pricing' },
-      { id: '5', name: 'news-scraper' },
-    ],
-  },
-  {
-    path: '/automation',
-    name: 'Automation',
-    workflows: [
-      { id: '6', name: 'invoice-download' },
-    ],
-  },
-];
 
 function FolderTree({ 
   item, 
@@ -120,11 +89,93 @@ function FolderTree({
 }
 
 function Sidebar({ selectedFolder, onFolderSelect, projectId }: SidebarProps) {
-  // TODO: Implement project-specific workflow loading
-  console.log('Project ID:', projectId);
-  
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'folders' | 'nodes'>('nodes');
+  const [folderStructure, setFolderStructure] = useState<FolderItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch real workflows and organize into folder structure
+  useEffect(() => {
+    if (!projectId) return;
+    
+    const fetchWorkflows = async () => {
+      setIsLoading(true);
+      try {
+        const config = await getConfig();
+        const response = await fetch(`${config.API_URL}/projects/${projectId}/workflows`);
+        if (!response.ok) {
+          console.error('Failed to fetch workflows');
+          return;
+        }
+        const data = await response.json();
+        const workflows: Workflow[] = data.workflows || [];
+        
+        // Build folder structure from workflow paths
+        const folderMap = new Map<string, FolderItem>();
+        
+        workflows.forEach(workflow => {
+          const pathParts = workflow.folder_path.split('/').filter(Boolean);
+          let currentPath = '';
+          let parent: FolderItem | null = null;
+          
+          pathParts.forEach((part, index) => {
+            currentPath += '/' + part;
+            
+            if (!folderMap.has(currentPath)) {
+              const folder: FolderItem = {
+                path: currentPath,
+                name: part,
+                children: [],
+                workflows: []
+              };
+              folderMap.set(currentPath, folder);
+              
+              if (parent) {
+                if (!parent.children) parent.children = [];
+                parent.children.push(folder);
+              }
+            }
+            
+            parent = folderMap.get(currentPath) || null;
+            
+            // Add workflow to the deepest folder
+            if (index === pathParts.length - 1 && parent) {
+              if (!parent.workflows) parent.workflows = [];
+              parent.workflows.push({
+                id: workflow.id,
+                name: workflow.name
+              });
+            }
+          });
+        });
+        
+        // Get root folders
+        const rootFolders: FolderItem[] = [];
+        folderMap.forEach((folder, path) => {
+          if (path.split('/').filter(Boolean).length === 1) {
+            rootFolders.push(folder);
+          }
+        });
+        
+        // If no folder structure exists, create a default one with all workflows
+        if (rootFolders.length === 0 && workflows.length > 0) {
+          rootFolders.push({
+            path: '/workflows',
+            name: 'All Workflows',
+            workflows: workflows.map(w => ({ id: w.id, name: w.name }))
+          });
+        }
+        
+        setFolderStructure(rootFolders);
+      } catch (error) {
+        console.error('Failed to fetch workflows:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchWorkflows();
+  }, [projectId]);
 
   return (
     <div className="w-64 bg-flow-node border-r border-gray-800 flex flex-col">
@@ -167,16 +218,26 @@ function Sidebar({ selectedFolder, onFolderSelect, projectId }: SidebarProps) {
           </div>
           
           <div className="flex-1 overflow-y-auto p-3">
-            <div className="folder-tree">
-              {mockFolders.map((folder) => (
-                <FolderTree
-                  key={folder.path}
-                  item={folder}
-                  selectedFolder={selectedFolder}
-                  onFolderSelect={onFolderSelect}
-                />
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="text-center text-gray-400 text-sm py-4">
+                Loading workflows...
+              </div>
+            ) : folderStructure.length === 0 ? (
+              <div className="text-center text-gray-500 text-sm py-4">
+                No workflows found
+              </div>
+            ) : (
+              <div className="folder-tree">
+                {folderStructure.map((folder) => (
+                  <FolderTree
+                    key={folder.path}
+                    item={folder}
+                    selectedFolder={selectedFolder}
+                    onFolderSelect={onFolderSelect}
+                  />
+                ))}
+              </div>
+            )}
             
             <button className="w-full mt-4 p-2 border border-dashed border-gray-700 rounded-lg text-gray-400 hover:border-flow-accent hover:text-white transition-colors flex items-center justify-center gap-2">
               <Plus size={16} />

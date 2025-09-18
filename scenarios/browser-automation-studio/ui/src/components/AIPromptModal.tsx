@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Sparkles, Wand2, FileCode, Loader } from 'lucide-react';
+import { X, Sparkles, Wand2, FileCode, Loader, Wrench } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import toast from 'react-hot-toast';
 
@@ -7,6 +7,7 @@ interface AIPromptModalProps {
   onClose: () => void;
   folder: string;
   projectId?: string;
+  onSwitchToManual?: () => void;
 }
 
 const examplePrompts = [
@@ -17,7 +18,7 @@ const examplePrompts = [
   "Monitor a product page for price changes every hour",
 ];
 
-function AIPromptModal({ onClose, folder, projectId }: AIPromptModalProps) {
+function AIPromptModal({ onClose, folder, projectId, onSwitchToManual }: AIPromptModalProps) {
   const [prompt, setPrompt] = useState('');
   const [workflowName, setWorkflowName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -74,6 +75,28 @@ function AIPromptModal({ onClose, folder, projectId }: AIPromptModalProps) {
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Manual Builder Option */}
+          <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <Wrench size={16} className="text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-white">Prefer to build manually?</h3>
+                  <p className="text-xs text-gray-400">Use the visual workflow builder with drag-and-drop nodes</p>
+                </div>
+              </div>
+              <button
+                onClick={onSwitchToManual}
+                className="px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2"
+              >
+                <Wrench size={14} />
+                Manual Builder
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Workflow Name

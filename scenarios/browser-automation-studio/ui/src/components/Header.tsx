@@ -1,19 +1,37 @@
 import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft, Wifi, WifiOff } from 'lucide-react';
+import { useState } from 'react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { useExecutionStore } from '../stores/executionStore';
 import { Project, useProjectStore } from '../stores/projectStore';
+import AIEditModal from './AIEditModal';
 import toast from 'react-hot-toast';
+
+interface Workflow {
+  id: string;
+  name: string;
+  description?: string;
+  folderPath: string;
+  createdAt: Date;
+  updatedAt: Date;
+  projectId?: string;
+}
 
 interface HeaderProps {
   onNewWorkflow: () => void;
   onBackToDashboard?: () => void;
   currentProject?: Project | null;
+  currentWorkflow?: Workflow | null;
+  showBackToProject?: boolean;
 }
 
-function Header({ onNewWorkflow, onBackToDashboard, currentProject }: HeaderProps) {
+function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkflow: selectedWorkflow, showBackToProject }: HeaderProps) {
   const { currentWorkflow, saveWorkflow } = useWorkflowStore();
   const { startExecution } = useExecutionStore();
   const { isConnected, error } = useProjectStore();
+  const [showAIEditModal, setShowAIEditModal] = useState(false);
+  
+  // Use the workflow from props if provided, otherwise use the one from store
+  const displayWorkflow = selectedWorkflow || currentWorkflow;
 
   const handleSave = async () => {
     if (!currentWorkflow) {
@@ -42,108 +60,129 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject }: HeaderProp
   };
 
   const handleDebug = () => {
-    toast('Claude Code debugging coming soon!', { icon: '🤖' });
+    if (!currentWorkflow) {
+      toast.error('No workflow loaded to edit');
+      return;
+    }
+    setShowAIEditModal(true);
   };
 
   return (
-    <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {onBackToDashboard && (
+    <>
+      <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              {onBackToDashboard && (
+                <button
+                  onClick={onBackToDashboard}
+                  className="toolbar-button flex items-center gap-2"
+                  title={showBackToProject ? "Back to Project" : "Back to Dashboard"}
+                >
+                  <ArrowLeft size={16} />
+                </button>
+              )}
+              
+              <h1 className="text-xl font-bold text-white flex items-center gap-2">
+                <div className="w-8 h-8 bg-flow-accent rounded-lg flex items-center justify-center">
+                  <Brain size={20} />
+                </div>
+                {displayWorkflow ? displayWorkflow.name : (currentProject ? currentProject.name : 'Browser Automation Studio')}
+              </h1>
+              
+              {(currentProject || displayWorkflow) && (
+                <div className="text-sm text-gray-400">
+                  {displayWorkflow ? (
+                    <>
+                      <span className="mr-2">• {currentProject?.name}</span>
+                      <span className="text-xs">{displayWorkflow.folderPath}</span>
+                    </>
+                  ) : currentProject ? (
+                    <>
+                      {currentProject.description && (
+                        <span className="mr-2">• {currentProject.description}</span>
+                      )}
+                      <span className="text-xs">{currentProject.folder_path}</span>
+                    </>
+                  ) : null}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
               <button
-                onClick={onBackToDashboard}
+                onClick={onNewWorkflow}
                 className="toolbar-button flex items-center gap-2"
-                title="Back to Dashboard"
+                title="New Workflow"
               >
-                <ArrowLeft size={16} />
+                <Plus size={16} />
+                <span className="text-sm">New</span>
               </button>
-            )}
-            
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <div className="w-8 h-8 bg-flow-accent rounded-lg flex items-center justify-center">
-                <Brain size={20} />
-              </div>
-              {currentProject ? currentProject.name : 'Browser Automation Studio'}
-            </h1>
-            
-            {currentProject && (
-              <div className="text-sm text-gray-400">
-                {currentProject.description && (
-                  <span className="mr-2">• {currentProject.description}</span>
-                )}
-                <span className="text-xs">{currentProject.folder_path}</span>
-              </div>
-            )}
+              
+              <button
+                onClick={handleSave}
+                className="toolbar-button flex items-center gap-2"
+                title="Save Workflow"
+              >
+                <Save size={16} />
+                <span className="text-sm">Save</span>
+              </button>
+              
+              <button
+                className="toolbar-button flex items-center gap-2"
+                title="Open Workflow"
+              >
+                <FolderOpen size={16} />
+                <span className="text-sm">Open</span>
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
+            {/* API Status Indicator */}
+            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-flow-node border border-gray-700">
+              {isConnected ? (
+                <>
+                  <Wifi size={14} className="text-green-400" />
+                  <span className="text-xs text-green-400">Connected</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff size={14} className="text-red-400" />
+                  <span className="text-xs text-red-400" title={error || 'Connection failed'}>
+                    Disconnected
+                  </span>
+                </>
+              )}
+            </div>
+            
             <button
-              onClick={onNewWorkflow}
-              className="toolbar-button flex items-center gap-2"
-              title="New Workflow"
+              onClick={handleExecute}
+              className="bg-flow-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+              title="Execute Workflow"
             >
-              <Plus size={16} />
-              <span className="text-sm">New</span>
+              <Play size={16} />
+              <span className="text-sm font-medium">Execute</span>
             </button>
             
             <button
-              onClick={handleSave}
+              onClick={handleDebug}
               className="toolbar-button flex items-center gap-2"
-              title="Save Workflow"
+              title="Edit with AI"
             >
-              <Save size={16} />
-              <span className="text-sm">Save</span>
-            </button>
-            
-            <button
-              className="toolbar-button flex items-center gap-2"
-              title="Open Workflow"
-            >
-              <FolderOpen size={16} />
-              <span className="text-sm">Open</span>
+              <Bug size={16} />
+              <span className="text-sm">Debug</span>
             </button>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {/* API Status Indicator */}
-          <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-flow-node border border-gray-700">
-            {isConnected ? (
-              <>
-                <Wifi size={14} className="text-green-400" />
-                <span className="text-xs text-green-400">Connected</span>
-              </>
-            ) : (
-              <>
-                <WifiOff size={14} className="text-red-400" />
-                <span className="text-xs text-red-400" title={error || 'Connection failed'}>
-                  Disconnected
-                </span>
-              </>
-            )}
-          </div>
-          
-          <button
-            onClick={handleExecute}
-            className="bg-flow-accent hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-            title="Execute Workflow"
-          >
-            <Play size={16} />
-            <span className="text-sm font-medium">Execute</span>
-          </button>
-          
-          <button
-            onClick={handleDebug}
-            className="toolbar-button flex items-center gap-2"
-            title="Debug with Claude"
-          >
-            <Bug size={16} />
-            <span className="text-sm">Debug</span>
-          </button>
-        </div>
-      </div>
-    </header>
+      </header>
+      
+      {showAIEditModal && (
+        <AIEditModal
+          onClose={() => setShowAIEditModal(false)}
+        />
+      )}
+    </>
   );
 }
 
