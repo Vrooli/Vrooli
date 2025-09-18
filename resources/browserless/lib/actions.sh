@@ -31,6 +31,32 @@ VIEWPORT_WIDTH="1920"
 VIEWPORT_HEIGHT="1080"
 
 #######################################
+# Smart URL preprocessing - adds protocol if missing
+# Automatically adds http:// for localhost URLs and https:// for others
+# Arguments:
+#   $1 - Raw URL input
+# Returns:
+#   Properly formatted URL with protocol
+#######################################
+actions::preprocess_url() {
+    local raw_url="$1"
+    
+    # If URL already has protocol, return as-is
+    if [[ "$raw_url" =~ ^https?:// ]]; then
+        echo "$raw_url"
+        return 0
+    fi
+    
+    # Check if it's a localhost URL (localhost, 127.0.0.1, or starts with localhost:)
+    if [[ "$raw_url" =~ ^(localhost|127\.0\.0\.1)(:|$) ]] || [[ "$raw_url" =~ ^localhost: ]]; then
+        echo "http://$raw_url"
+    else
+        # For all other URLs, default to https://
+        echo "https://$raw_url"
+    fi
+}
+
+#######################################
 # Parse universal options from arguments
 # Sets global variables for common options
 #######################################
@@ -216,18 +242,17 @@ actions::screenshot() {
         echo "" >&2
         echo "Examples:" >&2
         echo "  browserless screenshot https://example.com --output page.png" >&2
+        echo "  browserless screenshot example.com --output page.png" >&2
+        echo "  browserless screenshot localhost:3000 --output page.png" >&2
         echo "  browserless screenshot --url https://example.com --fullpage" >&2
         echo "" >&2
         echo "Use --help for full documentation" >&2
         return 1
     fi
     
-    # Validate URL format
-    if [[ ! "$url" =~ ^https?:// ]]; then
-        echo "Error: Invalid URL format: $url" >&2
-        echo "URL must start with http:// or https://" >&2
-        return 1
-    fi
+    # Smart URL preprocessing - automatically add protocol if missing
+    url=$(actions::preprocess_url "$url")
+    log::debug "Preprocessed URL: $url"
     
     # Set default output if not specified
     if [[ -z "$OUTPUT_PATH" ]]; then
@@ -347,8 +372,17 @@ actions::navigate() {
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
         echo "Usage: browserless navigate <url> [--output result.json] [--wait-ms 2000]" >&2
+        echo "" >&2
+        echo "Examples:" >&2
+        echo "  browserless navigate https://example.com" >&2
+        echo "  browserless navigate example.com --output result.json" >&2
+        echo "  browserless navigate localhost:3000" >&2
         return 1
     fi
+    
+    # Smart URL preprocessing - automatically add protocol if missing
+    url=$(actions::preprocess_url "$url")
+    log::debug "Preprocessed URL: $url"
     
     local session_id
     session_id=$(actions::create_temp_session)
@@ -462,8 +496,17 @@ actions::health_check() {
     if [[ -z "$url" ]]; then
         echo "Error: URL required" >&2
         echo "Usage: browserless health-check <url> [expected-text] [--timeout 10000]" >&2
+        echo "" >&2
+        echo "Examples:" >&2
+        echo "  browserless health-check https://example.com" >&2
+        echo "  browserless health-check example.com" >&2
+        echo "  browserless health-check localhost:3000" >&2
         return 1
     fi
+    
+    # Smart URL preprocessing - automatically add protocol if missing
+    url=$(actions::preprocess_url "$url")
+    log::debug "Preprocessed URL: $url"
     
     local session_id
     session_id=$(actions::create_temp_session)
@@ -1150,55 +1193,53 @@ actions::console() {
     
     log::info "🖥️  Capturing console logs from $url"
     
-    # Use combined approach to capture console logs
+    # Use browserless function API with direct console event handling
+    local browserless_port="${BROWSERLESS_PORT:-4110}"
+    
+    # Create the JavaScript function for console capture using ES6 export default format
+    local wrapped_code="export default async ({ page, context }) => {
+        try {
+            const logs = [];
+            
+            // Set up console event listener before navigation
+            page.on('console', msg => {
+                logs.push({
+                    level: msg.type(),
+                    message: msg.text(),
+                    timestamp: new Date().toISOString()
+                });
+            });
+            
+            // Navigate to the URL
+            await page.goto('$url', { 
+                waitUntil: 'networkidle2',
+                timeout: 30000 
+            });
+            
+            // Wait for any additional console activity
+            await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
+            
+            return {
+                success: true,
+                logs: logs,
+                url: page.url(),
+                title: await page.title()
+            };
+        } catch (error) {
+            return { 
+                success: false, 
+                error: error.message,
+                stack: error.stack 
+            };
+        }
+    };"
+    
+    # Execute via browserless v2 API
     local result
-    result=$(browser::execute_js "
-        // Set up console log capturing
-        const logs = [];
-        const originalLog = console.log;
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        const originalInfo = console.info;
-        
-        console.log = function(...args) {
-            logs.push({level: 'log', message: args.join(' '), timestamp: new Date().toISOString()});
-            originalLog.apply(console, args);
-        };
-        console.error = function(...args) {
-            logs.push({level: 'error', message: args.join(' '), timestamp: new Date().toISOString()});
-            originalError.apply(console, args);
-        };
-        console.warn = function(...args) {
-            logs.push({level: 'warn', message: args.join(' '), timestamp: new Date().toISOString()});
-            originalWarn.apply(console, args);
-        };
-        console.info = function(...args) {
-            logs.push({level: 'info', message: args.join(' '), timestamp: new Date().toISOString()});
-            originalInfo.apply(console, args);
-        };
-        
-        // Navigate to the URL
-        await page.goto('$url', { 
-            waitUntil: 'networkidle2',
-            timeout: 30000 
-        });
-        
-        // Wait for any additional console activity
-        await new Promise(resolve => setTimeout(resolve, $WAIT_MS));
-        
-        // Also capture any existing console messages if available
-        const runtimeLogs = await page.evaluate(() => {
-            // Try to get existing console messages (this is limited by browser)
-            return logs;
-        });
-        
-        return {
-            success: true,
-            logs: runtimeLogs,
-            url: page.url(),
-            title: await page.title()
-        };
-    " "$session_id")
+    result=$(curl -s -X POST \
+        -H "Content-Type: application/javascript" \
+        -d "$wrapped_code" \
+        "http://localhost:${browserless_port}/chrome/function" 2>/dev/null)
     
     local success
     success=$(echo "$result" | jq -r '.success // false')
