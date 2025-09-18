@@ -149,6 +149,12 @@ func main() {
 		
 		// Preview route for taking screenshots of URLs
 		r.Post("/preview-screenshot", handler.TakePreviewScreenshot)
+		
+		// Element analysis route for intelligent selector detection
+		r.Post("/analyze-elements", handler.AnalyzeElements)
+		
+		// Element at coordinate route for click-based selector detection
+		r.Post("/element-at-coordinate", handler.GetElementAtCoordinate)
 	})
 
 	// Get API host for logging

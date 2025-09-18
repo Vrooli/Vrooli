@@ -1,10 +1,11 @@
 import { memo, FC } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Clock, Globe } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 
 const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
+  const { getNodes, setNodes } = useReactFlow();
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -28,7 +29,21 @@ const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
         className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
         defaultValue={data.waitType || 'time'}
         onChange={(e) => {
-          data.waitType = e.target.value;
+          const newType = e.target.value;
+          const nodes = getNodes();
+          const updatedNodes = nodes.map(node => {
+            if (node.id === id) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  waitType: newType
+                }
+              };
+            }
+            return node;
+          });
+          setNodes(updatedNodes);
         }}
       >
         <option value="time">Wait for time</option>
@@ -43,7 +58,21 @@ const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
           defaultValue={data.duration || 1000}
           onChange={(e) => {
-            data.duration = parseInt(e.target.value);
+            const newDuration = parseInt(e.target.value);
+            const nodes = getNodes();
+            const updatedNodes = nodes.map(node => {
+              if (node.id === id) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    duration: newDuration
+                  }
+                };
+              }
+              return node;
+            });
+            setNodes(updatedNodes);
           }}
         />
       ) : (
@@ -53,7 +82,21 @@ const WaitNode: FC<NodeProps> = ({ data, selected, id }) => {
           className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none"
           defaultValue={data.selector || ''}
           onChange={(e) => {
-            data.selector = e.target.value;
+            const newSelector = e.target.value;
+            const nodes = getNodes();
+            const updatedNodes = nodes.map(node => {
+              if (node.id === id) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    selector: newSelector
+                  }
+                };
+              }
+              return node;
+            });
+            setNodes(updatedNodes);
           }}
         />
       )}

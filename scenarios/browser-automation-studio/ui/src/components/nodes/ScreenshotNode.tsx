@@ -1,10 +1,11 @@
 import { memo, FC } from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import { Handle, Position, NodeProps, useReactFlow } from 'reactflow';
 import { Camera, Globe } from 'lucide-react';
 import { useUpstreamUrl } from '../../hooks/useUpstreamUrl';
 
 const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
   const upstreamUrl = useUpstreamUrl(id);
+  const { getNodes, setNodes } = useReactFlow();
 
   return (
     <div className={`workflow-node ${selected ? 'selected' : ''}`}>
@@ -30,7 +31,21 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
         className="w-full px-2 py-1 bg-flow-bg rounded text-xs border border-gray-700 focus:border-flow-accent focus:outline-none mb-2"
         defaultValue={data.name || ''}
         onChange={(e) => {
-          data.name = e.target.value;
+          const newName = e.target.value;
+          const nodes = getNodes();
+          const updatedNodes = nodes.map(node => {
+            if (node.id === id) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  name: newName
+                }
+              };
+            }
+            return node;
+          });
+          setNodes(updatedNodes);
         }}
       />
       
@@ -40,7 +55,21 @@ const ScreenshotNode: FC<NodeProps> = ({ data, selected, id }) => {
           className="rounded"
           defaultChecked={data.fullPage || false}
           onChange={(e) => {
-            data.fullPage = e.target.checked;
+            const isFullPage = e.target.checked;
+            const nodes = getNodes();
+            const updatedNodes = nodes.map(node => {
+              if (node.id === id) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    fullPage: isFullPage
+                  }
+                };
+              }
+              return node;
+            });
+            setNodes(updatedNodes);
           }}
         />
         <span>Full page</span>
