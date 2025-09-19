@@ -712,6 +712,29 @@ a.chrome-btn:hover::before {
     letter-spacing: 1px;
 }
 
+.secret-value-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.secret-value-row .chrome-input {
+    flex: 1;
+}
+
+.secret-toggle {
+    padding: 6px 12px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    min-width: 64px;
+}
+
+.secret-toggle.active {
+    border-color: var(--matrix-green);
+    color: var(--matrix-green);
+    box-shadow: 0 0 6px rgba(0, 255, 65, 0.35);
+}
+
 .form-actions {
     display: flex;
     gap: 10px;
@@ -1200,4 +1223,3 @@ a.chrome-btn:hover::before {
     display: inline-block;
     margin-top: 4px;
 }
-

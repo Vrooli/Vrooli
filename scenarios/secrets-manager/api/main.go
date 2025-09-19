@@ -18,57 +18,57 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
 // Data models
 type ResourceSecret struct {
-	ID                string     `json:"id" db:"id"`
-	ResourceName      string     `json:"resource_name" db:"resource_name"`
-	SecretKey         string     `json:"secret_key" db:"secret_key"`
-	SecretType        string     `json:"secret_type" db:"secret_type"`
-	Required          bool       `json:"required" db:"required"`
-	Description       *string    `json:"description" db:"description"`
-	ValidationPattern *string    `json:"validation_pattern" db:"validation_pattern"`
-	DocumentationURL  *string    `json:"documentation_url" db:"documentation_url"`
-	DefaultValue      *string    `json:"default_value" db:"default_value"`
-	CreatedAt         time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time  `json:"updated_at" db:"updated_at"`
+	ID                string    `json:"id" db:"id"`
+	ResourceName      string    `json:"resource_name" db:"resource_name"`
+	SecretKey         string    `json:"secret_key" db:"secret_key"`
+	SecretType        string    `json:"secret_type" db:"secret_type"`
+	Required          bool      `json:"required" db:"required"`
+	Description       *string   `json:"description" db:"description"`
+	ValidationPattern *string   `json:"validation_pattern" db:"validation_pattern"`
+	DocumentationURL  *string   `json:"documentation_url" db:"documentation_url"`
+	DefaultValue      *string   `json:"default_value" db:"default_value"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type SecretValidation struct {
-	ID                 string     `json:"id" db:"id"`
-	ResourceSecretID   string     `json:"resource_secret_id" db:"resource_secret_id"`
-	ValidationStatus   string     `json:"validation_status" db:"validation_status"`
-	ValidationMethod   string     `json:"validation_method" db:"validation_method"`
+	ID                  string    `json:"id" db:"id"`
+	ResourceSecretID    string    `json:"resource_secret_id" db:"resource_secret_id"`
+	ValidationStatus    string    `json:"validation_status" db:"validation_status"`
+	ValidationMethod    string    `json:"validation_method" db:"validation_method"`
 	ValidationTimestamp time.Time `json:"validation_timestamp" db:"validation_timestamp"`
-	ErrorMessage       *string    `json:"error_message" db:"error_message"`
-	ValidationDetails  *string    `json:"validation_details" db:"validation_details"`
+	ErrorMessage        *string   `json:"error_message" db:"error_message"`
+	ValidationDetails   *string   `json:"validation_details" db:"validation_details"`
 }
 
 type SecretScan struct {
-	ID                 string     `json:"id" db:"id"`
-	ScanType          string     `json:"scan_type" db:"scan_type"`
-	ResourcesScanned  []string   `json:"resources_scanned" db:"resources_scanned"`
-	SecretsDiscovered int        `json:"secrets_discovered" db:"secrets_discovered"`
-	ScanDurationMs    int        `json:"scan_duration_ms" db:"scan_duration_ms"`
-	ScanTimestamp     time.Time  `json:"scan_timestamp" db:"scan_timestamp"`
-	ScanStatus        string     `json:"scan_status" db:"scan_status"`
-	ErrorMessage      *string    `json:"error_message" db:"error_message"`
-	ScanMetadata      *string    `json:"scan_metadata" db:"scan_metadata"`
+	ID                string    `json:"id" db:"id"`
+	ScanType          string    `json:"scan_type" db:"scan_type"`
+	ResourcesScanned  []string  `json:"resources_scanned" db:"resources_scanned"`
+	SecretsDiscovered int       `json:"secrets_discovered" db:"secrets_discovered"`
+	ScanDurationMs    int       `json:"scan_duration_ms" db:"scan_duration_ms"`
+	ScanTimestamp     time.Time `json:"scan_timestamp" db:"scan_timestamp"`
+	ScanStatus        string    `json:"scan_status" db:"scan_status"`
+	ErrorMessage      *string   `json:"error_message" db:"error_message"`
+	ScanMetadata      *string   `json:"scan_metadata" db:"scan_metadata"`
 }
 
 type SecretHealthSummary struct {
-	ResourceName         string     `json:"resource_name"`
-	TotalSecrets         int        `json:"total_secrets"`
-	RequiredSecrets      int        `json:"required_secrets"`
-	ValidSecrets         int        `json:"valid_secrets"`
-	MissingRequiredSecrets int      `json:"missing_required_secrets"`
-	InvalidSecrets       int        `json:"invalid_secrets"`
-	LastValidation       *time.Time `json:"last_validation"`
+	ResourceName           string     `json:"resource_name"`
+	TotalSecrets           int        `json:"total_secrets"`
+	RequiredSecrets        int        `json:"required_secrets"`
+	ValidSecrets           int        `json:"valid_secrets"`
+	MissingRequiredSecrets int        `json:"missing_required_secrets"`
+	InvalidSecrets         int        `json:"invalid_secrets"`
+	LastValidation         *time.Time `json:"last_validation"`
 }
 
 // Vault-specific data structures
@@ -89,28 +89,28 @@ type VaultMissingSecret struct {
 }
 
 type VaultSecret struct {
-	Name               string `json:"name"`
-	Description        string `json:"description"`
-	Required           bool   `json:"required"`
-	Configured         bool   `json:"configured"`
-	SecretType         string `json:"type"` // api_key, endpoint, quota
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Required    bool   `json:"required"`
+	Configured  bool   `json:"configured"`
+	SecretType  string `json:"type"` // api_key, endpoint, quota
 	// Guidance fields for user assistance
-	DocumentationURL   string `json:"documentation_url,omitempty"`
-	AcquisitionURL     string `json:"acquisition_url,omitempty"`
-	SetupInstructions  string `json:"setup_instructions,omitempty"`
-	Example            string `json:"example,omitempty"`
-	ValidationHint     string `json:"validation_hint,omitempty"`
+	DocumentationURL  string `json:"documentation_url,omitempty"`
+	AcquisitionURL    string `json:"acquisition_url,omitempty"`
+	SetupInstructions string `json:"setup_instructions,omitempty"`
+	Example           string `json:"example,omitempty"`
+	ValidationHint    string `json:"validation_hint,omitempty"`
 }
 
 type VaultResourceStatus struct {
-	ResourceName    string         `json:"resource_name"`
-	SecretsTotal    int            `json:"secrets_total"`
-	SecretsFound    int            `json:"secrets_found"`
-	SecretsMissing  int            `json:"secrets_missing"`
-	SecretsOptional int            `json:"secrets_optional"`
-	HealthStatus    string         `json:"health_status"` // healthy, degraded, critical
-	LastChecked     time.Time      `json:"last_checked"`
-	AllSecrets      []VaultSecret  `json:"all_secrets,omitempty"` // All secrets for this resource
+	ResourceName    string        `json:"resource_name"`
+	SecretsTotal    int           `json:"secrets_total"`
+	SecretsFound    int           `json:"secrets_found"`
+	SecretsMissing  int           `json:"secrets_missing"`
+	SecretsOptional int           `json:"secrets_optional"`
+	HealthStatus    string        `json:"health_status"` // healthy, degraded, critical
+	LastChecked     time.Time     `json:"last_checked"`
+	AllSecrets      []VaultSecret `json:"all_secrets,omitempty"` // All secrets for this resource
 }
 
 type VaultValidationSummary struct {
@@ -120,25 +120,25 @@ type VaultValidationSummary struct {
 
 // Security scanning data structures
 type SecurityVulnerability struct {
-	ID            string    `json:"id"`
-	ComponentType string    `json:"component_type"` // "resource" or "scenario"
-	ComponentName string    `json:"component_name"` // Name of resource or scenario
-	FilePath      string    `json:"file_path"`
-	LineNumber    int       `json:"line_number"`
-	Severity      string    `json:"severity"` // critical, high, medium, low
-	Type          string    `json:"type"`     // sql_injection, hardcoded_secret, etc.
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	Code          string    `json:"code"`     // Affected code snippet
-	Recommendation string   `json:"recommendation"`
-	CanAutoFix    bool      `json:"can_auto_fix"`
-	DiscoveredAt  time.Time `json:"discovered_at"`
+	ID             string    `json:"id"`
+	ComponentType  string    `json:"component_type"` // "resource" or "scenario"
+	ComponentName  string    `json:"component_name"` // Name of resource or scenario
+	FilePath       string    `json:"file_path"`
+	LineNumber     int       `json:"line_number"`
+	Severity       string    `json:"severity"` // critical, high, medium, low
+	Type           string    `json:"type"`     // sql_injection, hardcoded_secret, etc.
+	Title          string    `json:"title"`
+	Description    string    `json:"description"`
+	Code           string    `json:"code"` // Affected code snippet
+	Recommendation string    `json:"recommendation"`
+	CanAutoFix     bool      `json:"can_auto_fix"`
+	DiscoveredAt   time.Time `json:"discovered_at"`
 }
 
 type SecurityScanResult struct {
 	ScanID            string                  `json:"scan_id"`
-	ComponentFilter   string                  `json:"component_filter,omitempty"`   // Optional filter for specific component
-	ComponentType     string                  `json:"component_type,omitempty"`     // Filter by "resource" or "scenario"
+	ComponentFilter   string                  `json:"component_filter,omitempty"` // Optional filter for specific component
+	ComponentType     string                  `json:"component_type,omitempty"`   // Filter by "resource" or "scenario"
 	Vulnerabilities   []SecurityVulnerability `json:"vulnerabilities"`
 	RiskScore         int                     `json:"risk_score"` // 0-100
 	ScanDurationMs    int                     `json:"scan_duration_ms"`
@@ -154,8 +154,8 @@ type RemediationSuggestion struct {
 	FixCommand        string   `json:"fix_command,omitempty"`
 	Documentation     string   `json:"documentation,omitempty"`
 	AffectedFiles     []string `json:"affected_files"`
-	Count            int      `json:"count"`
-	EstimatedEffort  string   `json:"estimated_effort"`
+	Count             int      `json:"count"`
+	EstimatedEffort   string   `json:"estimated_effort"`
 }
 
 type ComponentScanSummary struct {
@@ -166,19 +166,19 @@ type ComponentScanSummary struct {
 }
 
 type ScanMetrics struct {
-	FilesScanned         int      `json:"files_scanned"`
-	FilesSkipped         int      `json:"files_skipped"`
-	LargeFilesSkipped    int      `json:"large_files_skipped"`
-	TimeoutOccurred      bool     `json:"timeout_occurred"`
-	ScanErrors           []string `json:"scan_errors,omitempty"`
-	ResourceScanTimeMs   int      `json:"resource_scan_time_ms"`
-	ScenarioScanTimeMs   int      `json:"scenario_scan_time_ms"`
-	TotalScanTimeMs      int      `json:"total_scan_time_ms"`
+	FilesScanned       int      `json:"files_scanned"`
+	FilesSkipped       int      `json:"files_skipped"`
+	LargeFilesSkipped  int      `json:"large_files_skipped"`
+	TimeoutOccurred    bool     `json:"timeout_occurred"`
+	ScanErrors         []string `json:"scan_errors,omitempty"`
+	ResourceScanTimeMs int      `json:"resource_scan_time_ms"`
+	ScenarioScanTimeMs int      `json:"scenario_scan_time_ms"`
+	TotalScanTimeMs    int      `json:"total_scan_time_ms"`
 	// Progressive scanning fields
-	ScanComplete         bool     `json:"scan_complete"`
-	EstimatedTotalFiles  int      `json:"estimated_total_files"`
-	BatchesProcessed     int      `json:"batches_processed"`
-	LastBatchTime        string   `json:"last_batch_time,omitempty"`
+	ScanComplete        bool   `json:"scan_complete"`
+	EstimatedTotalFiles int    `json:"estimated_total_files"`
+	BatchesProcessed    int    `json:"batches_processed"`
+	LastBatchTime       string `json:"last_batch_time,omitempty"`
 }
 
 // ProgressiveScanResult represents an ongoing scan session
@@ -198,14 +198,14 @@ type ProgressiveScanResult struct {
 }
 
 type ComplianceMetrics struct {
-	VaultSecretsHealth  int `json:"vault_secrets_health"`  // 0-100
-	SecurityScore       int `json:"security_score"`        // 0-100
-	OverallCompliance   int `json:"overall_compliance"`    // 0-100
+	VaultSecretsHealth   int `json:"vault_secrets_health"` // 0-100
+	SecurityScore        int `json:"security_score"`       // 0-100
+	OverallCompliance    int `json:"overall_compliance"`   // 0-100
 	ConfiguredComponents int `json:"configured_components"`
-	CriticalIssues      int `json:"critical_issues"`
-	HighIssues          int `json:"high_issues"`
-	MediumIssues        int `json:"medium_issues"`
-	LowIssues           int `json:"low_issues"`
+	CriticalIssues       int `json:"critical_issues"`
+	HighIssues           int `json:"high_issues"`
+	MediumIssues         int `json:"medium_issues"`
+	LowIssues            int `json:"low_issues"`
 }
 
 // API request/response types
@@ -215,10 +215,10 @@ type ScanRequest struct {
 }
 
 type ScanResponse struct {
-	ScanID           string           `json:"scan_id"`
+	ScanID            string           `json:"scan_id"`
 	DiscoveredSecrets []ResourceSecret `json:"discovered_secrets"`
-	ScanDurationMs   int              `json:"scan_duration_ms"`
-	ResourcesScanned []string         `json:"resources_scanned"`
+	ScanDurationMs    int              `json:"scan_duration_ms"`
+	ResourcesScanned  []string         `json:"resources_scanned"`
 }
 
 type ValidationRequest struct {
@@ -226,27 +226,25 @@ type ValidationRequest struct {
 }
 
 type ValidationResponse struct {
-	ValidationID     string              `json:"validation_id"`
-	TotalSecrets     int                 `json:"total_secrets"`
-	ValidSecrets     int                 `json:"valid_secrets"`
-	MissingSecrets   []SecretValidation  `json:"missing_secrets"`
-	InvalidSecrets   []SecretValidation  `json:"invalid_secrets"`
-	HealthSummary    []SecretHealthSummary `json:"health_summary"`
+	ValidationID   string                `json:"validation_id"`
+	TotalSecrets   int                   `json:"total_secrets"`
+	ValidSecrets   int                   `json:"valid_secrets"`
+	MissingSecrets []SecretValidation    `json:"missing_secrets"`
+	InvalidSecrets []SecretValidation    `json:"invalid_secrets"`
+	HealthSummary  []SecretHealthSummary `json:"health_summary"`
 }
 
 type ProvisionRequest struct {
-	SecretKey      string `json:"secret_key"`
-	SecretValue    string `json:"secret_value"`
-	StorageMethod  string `json:"storage_method"`
+	SecretKey     string `json:"secret_key"`
+	SecretValue   string `json:"secret_value"`
+	StorageMethod string `json:"storage_method"`
 }
 
 type ProvisionResponse struct {
-	Success            bool              `json:"success"`
-	StorageLocation    string            `json:"storage_location"`
-	ValidationResult   SecretValidation  `json:"validation_result"`
+	Success          bool             `json:"success"`
+	StorageLocation  string           `json:"storage_location"`
+	ValidationResult SecretValidation `json:"validation_result"`
 }
-
-
 
 // Database connection
 var db *sql.DB
@@ -259,7 +257,7 @@ var activeScans = make(map[string]*ProgressiveScanResult)
 
 func initDB() {
 	var err error
-	
+
 	// Database configuration - support both POSTGRES_URL and individual components
 	connStr := os.Getenv("POSTGRES_URL")
 	if connStr == "" {
@@ -269,72 +267,72 @@ func initDB() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		connStr = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			dbHost, dbPort, dbUser, dbPassword, dbName)
 	}
-	
+
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	
+
 	// Set connection pool settings
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(5 * time.Minute)
-	
+
 	// Implement exponential backoff for database connection
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📆 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
-	
+
 	// Initialize scanner and validator components (will be nil without DB)
 	// scanner = NewSecretScanner(db)
 	// validator = NewSecretValidator(db)
@@ -358,7 +356,7 @@ func getVaultSecretsStatus(resourceFilter string) (*VaultSecretsStatus, error) {
 func getVaultSecretsStatusFromCLI(resourceFilter string) (*VaultSecretsStatus, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	// Use resource-vault secrets validate to get status
 	var cmd *exec.Cmd
 	if resourceFilter != "" {
@@ -366,16 +364,16 @@ func getVaultSecretsStatusFromCLI(resourceFilter string) (*VaultSecretsStatus, e
 	} else {
 		cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "validate")
 	}
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("resource-vault command failed: %w", err)
 	}
-	
+
 	// Parse the output from resource-vault
 	status := parseVaultCLIOutput(string(output), resourceFilter)
 	status.LastUpdated = time.Now()
-	
+
 	return status, nil
 }
 
@@ -385,18 +383,18 @@ func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
 		MissingSecrets:   []VaultMissingSecret{},
 		ResourceStatuses: []VaultResourceStatus{},
 	}
-	
+
 	lines := strings.Split(output, "\n")
 	var currentResource string
 	resourceCount := 0
 	configuredCount := 0
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Look for resource headers like "✓ postgres: 3 secrets defined"
 		if strings.Contains(line, "✓") && strings.Contains(line, ":") {
 			parts := strings.SplitN(line, ":", 2)
@@ -404,14 +402,14 @@ func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
 				resourceName := strings.TrimSpace(strings.Replace(parts[0], "✓", "", 1))
 				currentResource = resourceName
 				resourceCount++
-				
+
 				// Check if all secrets are configured (no missing indicators)
 				if !strings.Contains(parts[1], "MISSING") {
 					configuredCount++
 				}
 			}
 		}
-		
+
 		// Look for missing secrets like "✗ POSTGRES_PASSWORD: MISSING"
 		if strings.Contains(line, "✗") && strings.Contains(line, "MISSING") {
 			parts := strings.Split(line, ":")
@@ -427,7 +425,7 @@ func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
 				status.MissingSecrets = append(status.MissingSecrets, missing)
 			}
 		}
-		
+
 		// Look for "Fully configured: X" summary
 		if strings.Contains(line, "Fully configured:") {
 			fields := strings.Fields(line)
@@ -440,19 +438,18 @@ func parseVaultCLIOutput(output, resourceFilter string) *VaultSecretsStatus {
 			}
 		}
 	}
-	
+
 	status.TotalResources = resourceCount
 	status.ConfiguredResources = configuredCount
-	
+
 	return status
 }
-
 
 // Parse vault scan output to extract resource names
 func parseVaultScanOutput(output string) []string {
 	var resources []string
 	lines := strings.Split(output, "\n")
-	
+
 	for _, line := range lines {
 		// Look for lines like "  ✓ openrouter: 3 secrets defined"
 		if strings.Contains(line, "✓") && strings.Contains(line, ":") && strings.Contains(line, "secrets defined") {
@@ -465,7 +462,7 @@ func parseVaultScanOutput(output string) []string {
 			}
 		}
 	}
-	
+
 	return resources
 }
 
@@ -473,10 +470,10 @@ func parseVaultScanOutput(output string) []string {
 func parseVaultValidationOutput(output string) VaultValidationSummary {
 	var summary VaultValidationSummary
 	lines := strings.Split(output, "\n")
-	
+
 	configuredCount := 0
 	var missingSecrets []VaultMissingSecret
-	
+
 	for _, line := range lines {
 		// Look for "Fully configured: X"
 		if strings.Contains(line, "Fully configured:") {
@@ -487,7 +484,7 @@ func parseVaultValidationOutput(output string) VaultValidationSummary {
 				}
 			}
 		}
-		
+
 		// Look for missing secret indicators (this would need more sophisticated parsing)
 		if strings.Contains(line, "✗") && strings.Contains(line, "MISSING") {
 			// Parse missing secret details - simplified for now
@@ -499,10 +496,10 @@ func parseVaultValidationOutput(output string) VaultValidationSummary {
 			})
 		}
 	}
-	
+
 	summary.ConfiguredCount = configuredCount
 	summary.MissingSecrets = missingSecrets
-	
+
 	return summary
 }
 
@@ -512,9 +509,9 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 		ResourceName: resourceName,
 		LastChecked:  time.Now(),
 	}
-	
+
 	lines := strings.Split(output, "\n")
-	
+
 	for _, line := range lines {
 		if strings.Contains(line, "Found:") {
 			parts := strings.Fields(line)
@@ -535,9 +532,9 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 			}
 		}
 	}
-	
+
 	status.SecretsTotal = status.SecretsFound + status.SecretsMissing + status.SecretsOptional
-	
+
 	// Determine health status
 	if status.SecretsMissing == 0 {
 		status.HealthStatus = "healthy"
@@ -546,7 +543,7 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 	} else {
 		status.HealthStatus = "critical"
 	}
-	
+
 	return status
 }
 
@@ -554,7 +551,7 @@ func parseVaultResourceCheck(resourceName, output string) VaultResourceStatus {
 func startProgressiveScan(componentFilter, componentTypeFilter, severityFilter string) (*ProgressiveScanResult, error) {
 	scanID := uuid.New().String()
 	startTime := time.Now()
-	
+
 	// Initialize progressive scan
 	progressiveScan := &ProgressiveScanResult{
 		ScanID:          scanID,
@@ -565,22 +562,22 @@ func startProgressiveScan(componentFilter, componentTypeFilter, severityFilter s
 		ComponentType:   componentTypeFilter,
 		Vulnerabilities: []SecurityVulnerability{},
 		ScanMetrics: ScanMetrics{
-			ScanErrors:         []string{},
-			ScanComplete:       false,
-			BatchesProcessed:   0,
-			LastBatchTime:      startTime.Format(time.RFC3339),
+			ScanErrors:       []string{},
+			ScanComplete:     false,
+			BatchesProcessed: 0,
+			LastBatchTime:    startTime.Format(time.RFC3339),
 		},
 		EstimatedProgress: 0.0,
 	}
-	
+
 	// Store in active scans
 	activeScansMutex.Lock()
 	activeScans[scanID] = progressiveScan
 	activeScansMutex.Unlock()
-	
+
 	// Start background scanning
 	go performProgressiveScan(progressiveScan, componentFilter, componentTypeFilter, severityFilter)
-	
+
 	// Return immediate partial results (empty initially)
 	return progressiveScan, nil
 }
@@ -595,7 +592,7 @@ func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, compon
 		scan.LastUpdate = time.Now()
 		scan.EstimatedProgress = 1.0
 		activeScansMutex.Unlock()
-		
+
 		log.Printf("Progressive scan %s completed: %d vulnerabilities found", scan.ScanID, len(scan.Vulnerabilities))
 	}()
 
@@ -612,15 +609,15 @@ func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, compon
 
 	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
 	resourcesPath := filepath.Join(vrooliRoot, "resources")
-	
+
 	// Estimate total files for progress tracking
 	estimatedFiles := estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter)
 	scan.ScanMetrics.EstimatedTotalFiles = estimatedFiles
-	
+
 	const batchSize = 150 // Process files in batches
 	var allVulnerabilities []SecurityVulnerability
 	var resourcesScanned, scenariosScanned int
-	
+
 	// TODO: Progressive scanning implementation - for now use existing method
 	result, err := scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter)
 	if err != nil {
@@ -628,11 +625,11 @@ func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, compon
 		scan.ScanMetrics.ScanErrors = append(scan.ScanMetrics.ScanErrors, fmt.Sprintf("Scan failed: %v", err))
 		return
 	}
-	
+
 	allVulnerabilities = result.Vulnerabilities
 	resourcesScanned = result.ComponentsSummary.ResourcesScanned
 	scenariosScanned = result.ComponentsSummary.ScenariosScanned
-	
+
 	// Final update
 	activeScansMutex.Lock()
 	scan.Vulnerabilities = allVulnerabilities
@@ -651,7 +648,7 @@ func performProgressiveScan(scan *ProgressiveScanResult, componentFilter, compon
 func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter string) (*SecurityScanResult, error) {
 	startTime := time.Now()
 	scanID := uuid.New().String()
-	
+
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
 		home, err := os.UserHomeDir()
@@ -660,30 +657,30 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 		}
 		vrooliRoot = filepath.Join(home, "Vrooli")
 	}
-	
+
 	scenariosPath := filepath.Join(vrooliRoot, "scenarios")
 	resourcesPath := filepath.Join(vrooliRoot, "resources")
 	var vulnerabilities []SecurityVulnerability
 	var resourcesScanned, scenariosScanned int
 	seenResources := make(map[string]bool)
 	seenScenarios := make(map[string]bool)
-	
+
 	// Initialize scan metrics
 	metrics := ScanMetrics{
 		ScanErrors: []string{},
 	}
-	
+
 	// Scan scenarios if not filtering for resources only
 	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
 		scenarioStartTime := time.Now()
 		// Create timeout context for scenario scanning
 		ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // Increased timeout for large projects
 		defer cancel()
-		
+
 		scenarioFilesScanned := 0
-		maxScenarioFiles := 25000 // Significantly increased limit for large projects
+		maxScenarioFiles := 25000                // Significantly increased limit for large projects
 		filesPerScenario := make(map[string]int) // Track files per scenario to balance scanning
-		
+
 		err := filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
 			// Check timeout
 			select {
@@ -694,56 +691,56 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 				return filepath.SkipAll
 			default:
 			}
-			
+
 			if err != nil {
 				metrics.FilesSkipped++
 				return nil // Skip files we can't read
 			}
-			
+
 			// Only scan source files in scenarios
 			if d.IsDir() {
 				return nil
 			}
-			
-			// Extract scenario name first to apply per-scenario limits  
+
+			// Extract scenario name first to apply per-scenario limits
 			relPath, _ := filepath.Rel(scenariosPath, path)
 			pathParts := strings.Split(relPath, string(filepath.Separator))
 			if len(pathParts) == 0 {
 				return nil
 			}
 			scenarioName := pathParts[0]
-			
+
 			// Limit files scanned
 			if scenarioFilesScanned >= maxScenarioFiles {
 				log.Printf("Scenario scanning stopped after %d files (limit reached)", maxScenarioFiles)
 				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Scenario file limit reached (%d files)", maxScenarioFiles))
 				return filepath.SkipAll
 			}
-			
+
 			// Limit files per scenario to ensure we scan more scenarios
 			const maxFilesPerScenario = 200 // Increased limit per scenario for large projects
 			if filesPerScenario[scenarioName] >= maxFilesPerScenario {
 				return nil // Skip additional files from this scenario
 			}
-			
+
 			// Check file size
 			info, err := d.Info()
 			if err == nil && info.Size() > 500*1024 { // Skip files larger than 500KB for scenarios
 				metrics.LargeFilesSkipped++
 				return nil
 			}
-			
+
 			// Check if it's a source file we should scan
 			ext := strings.ToLower(filepath.Ext(path))
 			if ext != ".go" && ext != ".js" && ext != ".ts" && ext != ".py" && ext != ".sh" {
 				return nil
 			}
-			
+
 			// Skip if filtering by specific component
 			if componentFilter != "" && componentFilter != scenarioName {
 				return nil
 			}
-			
+
 			// Track unique scenarios scanned
 			if strings.Contains(path, "/"+scenarioName+"/") {
 				// Only count each scenario once per scan
@@ -752,12 +749,12 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 					seenScenarios[scenarioName] = true
 				}
 			}
-			
+
 			// Increment counters
 			scenarioFilesScanned++
 			filesPerScenario[scenarioName]++
 			metrics.FilesScanned++
-			
+
 			// Scan file for vulnerabilities
 			fileVulns, err := scanFileForVulnerabilities(path, "scenario", scenarioName)
 			if err != nil {
@@ -765,36 +762,36 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to scan %s: %v", filepath.Base(path), err))
 				return nil
 			}
-			
+
 			// Filter by severity if specified
 			for _, vuln := range fileVulns {
 				if severityFilter == "" || vuln.Severity == severityFilter {
 					vulnerabilities = append(vulnerabilities, vuln)
 				}
 			}
-			
+
 			return nil
 		})
-		
+
 		metrics.ScenarioScanTimeMs = int(time.Since(scenarioStartTime).Milliseconds())
-		
+
 		if err != nil {
 			log.Printf("Warning: failed to walk scenarios directory: %v", err)
 			metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to walk scenarios directory: %v", err))
 		}
 	}
-	
+
 	// Scan resources if not filtering for scenarios only
 	if componentTypeFilter == "" || componentTypeFilter == "resource" {
 		resourceStartTime := time.Now()
 		// Create timeout context for resource scanning
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second) // Increased timeout for large projects
 		defer cancel()
-		
+
 		resourceFilesScanned := 0
-		maxFiles := 15000 // Significantly increased limit for large projects
+		maxFiles := 15000                        // Significantly increased limit for large projects
 		filesPerResource := make(map[string]int) // Track files per resource to balance scanning
-		
+
 		err := filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
 			// Check timeout
 			select {
@@ -805,17 +802,17 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 				return filepath.SkipAll
 			default:
 			}
-			
+
 			if err != nil {
 				metrics.FilesSkipped++
 				return nil // Skip files we can't read
 			}
-			
+
 			// Only scan config files in resources
 			if d.IsDir() {
 				return nil
 			}
-			
+
 			// Extract resource name first to apply per-resource limits
 			relPath, _ := filepath.Rel(resourcesPath, path)
 			pathParts := strings.Split(relPath, string(filepath.Separator))
@@ -823,38 +820,38 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 				return nil
 			}
 			resourceName := pathParts[0]
-			
+
 			// Limit number of files scanned to prevent runaway scanning
 			if resourceFilesScanned >= maxFiles {
 				log.Printf("Resource scanning stopped after %d files (limit reached)", maxFiles)
 				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Resource file limit reached (%d files)", maxFiles))
 				return filepath.SkipAll
 			}
-			
+
 			// Limit files per resource to ensure we scan more resources
 			const maxFilesPerResource = 100 // Increased limit per resource for large projects
 			if filesPerResource[resourceName] >= maxFilesPerResource {
 				return nil // Skip additional files from this resource
 			}
-			
+
 			// Check file size to prevent scanning huge files
 			info, err := d.Info()
 			if err == nil && info.Size() > 200*1024 { // Skip files larger than 200KB for resources
 				metrics.LargeFilesSkipped++
 				return nil
 			}
-			
-			// Check if it's a config file we should scan  
+
+			// Check if it's a config file we should scan
 			ext := strings.ToLower(filepath.Ext(path))
 			if ext != ".sh" && ext != ".yaml" && ext != ".yml" && ext != ".json" && ext != ".env" {
 				return nil
 			}
-			
+
 			// Skip if filtering by specific component
 			if componentFilter != "" && componentFilter != resourceName {
 				return nil
 			}
-			
+
 			// Track unique resources scanned
 			if strings.Contains(path, "/"+resourceName+"/") {
 				// Only count each resource once per scan
@@ -863,12 +860,12 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 					seenResources[resourceName] = true
 				}
 			}
-			
+
 			// Increment counters
 			resourceFilesScanned++
 			filesPerResource[resourceName]++
 			metrics.FilesScanned++
-			
+
 			// Use optimized resource scanning with timeout
 			fileVulns, err := scanResourceFileForVulnerabilities(ctx, path, "resource", resourceName)
 			if err != nil {
@@ -876,36 +873,35 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 				metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to scan resource %s: %v", filepath.Base(path), err))
 				return nil
 			}
-			
+
 			// Filter by severity if specified
 			for _, vuln := range fileVulns {
 				if severityFilter == "" || vuln.Severity == severityFilter {
 					vulnerabilities = append(vulnerabilities, vuln)
 				}
 			}
-			
+
 			return nil
 		})
-		
+
 		metrics.ResourceScanTimeMs = int(time.Since(resourceStartTime).Milliseconds())
-		
+
 		if err != nil {
 			log.Printf("Warning: failed to walk resources directory: %v", err)
 			metrics.ScanErrors = append(metrics.ScanErrors, fmt.Sprintf("Failed to walk resources directory: %v", err))
 		}
 	}
-	
-	
+
 	// Calculate risk score based on vulnerabilities
 	riskScore := calculateRiskScore(vulnerabilities)
-	
+
 	// Generate remediation suggestions
 	recommendations := generateRemediationSuggestions(vulnerabilities)
-	
+
 	// Finalize scan metrics
 	totalScanTime := int(time.Since(startTime).Milliseconds())
 	metrics.TotalScanTimeMs = totalScanTime
-	
+
 	// Log scan summary
 	log.Printf("Vulnerability scan completed:")
 	log.Printf("  📊 Total scan time: %dms", totalScanTime)
@@ -916,7 +912,7 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 	if metrics.TimeoutOccurred {
 		log.Printf("  ⏰ Timeout occurred during scanning")
 	}
-	
+
 	return &SecurityScanResult{
 		ScanID:          scanID,
 		ComponentFilter: componentFilter,
@@ -938,7 +934,7 @@ func scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, seve
 // Optimized resource scanning function with timeout protection
 func scanResourceFileForVulnerabilities(ctx context.Context, filePath, componentType, componentName string) ([]SecurityVulnerability, error) {
 	var vulnerabilities []SecurityVulnerability
-	
+
 	// Check timeout before starting
 	select {
 	case <-ctx.Done():
@@ -951,51 +947,51 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
-	
+
 	if len(content) > 50*1024 {
 		return nil, fmt.Errorf("file too large: %d bytes", len(content))
 	}
-	
+
 	contentStr := string(content)
 	lines := strings.Split(contentStr, "\n")
 
 	// Resource-specific vulnerability patterns (simplified, no AST parsing)
 	resourcePatterns := []VulnerabilityPattern{
 		{
-			Type:        "hardcoded_secret_resource",
-			Severity:    "critical",
-			Pattern:     `(PASSWORD|SECRET|TOKEN|KEY|API_KEY)\s*=\s*[\"'](?!.*\$|.*env|.*getenv)[^\"']{8,}[\"']`,
-			Description: "Hardcoded secret found in resource configuration",
-			Title:       "Hardcoded Secret in Resource",
+			Type:           "hardcoded_secret_resource",
+			Severity:       "critical",
+			Pattern:        `(PASSWORD|SECRET|TOKEN|KEY|API_KEY)\s*=\s*[\"'](?!.*\$|.*env|.*getenv)[^\"']{8,}[\"']`,
+			Description:    "Hardcoded secret found in resource configuration",
+			Title:          "Hardcoded Secret in Resource",
 			Recommendation: "Move secret to vault using resource-vault CLI",
-			CanAutoFix:  false,
+			CanAutoFix:     false,
 		},
 		{
-			Type:        "database_url_hardcoded",
-			Severity:    "critical", 
-			Pattern:     `(DATABASE_URL|DB_URL|POSTGRES_URL)\s*=\s*[\"'](?!.*\$)[^\"']*://[^\"']*:[^\"']*@[^\"']+`,
-			Description: "Database URL with hardcoded credentials",
-			Title:       "Hardcoded Database Credentials",
+			Type:           "database_url_hardcoded",
+			Severity:       "critical",
+			Pattern:        `(DATABASE_URL|DB_URL|POSTGRES_URL)\s*=\s*[\"'](?!.*\$)[^\"']*://[^\"']*:[^\"']*@[^\"']+`,
+			Description:    "Database URL with hardcoded credentials",
+			Title:          "Hardcoded Database Credentials",
 			Recommendation: "Use environment variables or vault for database credentials",
-			CanAutoFix:  false,
+			CanAutoFix:     false,
 		},
 		{
-			Type:        "missing_env_var_validation",
-			Severity:    "medium",
-			Pattern:     `\$\{?([A-Z_]+[A-Z0-9_]*)\}?(?!\s*:-|\s*\|\|)`,
-			Description: "Environment variable used without fallback or validation",
-			Title:       "Missing Environment Variable Validation", 
+			Type:           "missing_env_var_validation",
+			Severity:       "medium",
+			Pattern:        `\$\{?([A-Z_]+[A-Z0-9_]*)\}?(?!\s*:-|\s*\|\|)`,
+			Description:    "Environment variable used without fallback or validation",
+			Title:          "Missing Environment Variable Validation",
 			Recommendation: "Add fallback values or validation for environment variables",
-			CanAutoFix:  true,
+			CanAutoFix:     true,
 		},
 		{
-			Type:        "weak_permissions",
-			Severity:    "medium",
-			Pattern:     `chmod\s+(777|666|755)`,
-			Description: "Potentially insecure file permissions",
-			Title:       "Weak File Permissions",
+			Type:           "weak_permissions",
+			Severity:       "medium",
+			Pattern:        `chmod\s+(777|666|755)`,
+			Description:    "Potentially insecure file permissions",
+			Title:          "Weak File Permissions",
 			Recommendation: "Use more restrictive file permissions (644, 600, etc.)",
-			CanAutoFix:  true,
+			CanAutoFix:     true,
 		},
 	}
 
@@ -1007,7 +1003,7 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 			return vulnerabilities, fmt.Errorf("scanning timeout during pattern matching")
 		default:
 		}
-		
+
 		regex, err := regexp.Compile(pattern.Pattern)
 		if err != nil {
 			continue
@@ -1017,26 +1013,26 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 		for _, match := range matches {
 			// Find line number
 			lineNum := findLineNumber(contentStr, match[0])
-			
+
 			// Extract code snippet
 			codeSnippet := extractCodeSnippet(lines, lineNum-1, 2)
-			
+
 			vulnerability := SecurityVulnerability{
-				ID:           uuid.New().String(),
-				ComponentType: componentType,
-				ComponentName: componentName,
-				FilePath:     filePath,
-				LineNumber:   lineNum,
-				Severity:     pattern.Severity,
-				Type:         pattern.Type,
-				Title:        pattern.Title,
-				Description:  pattern.Description,
-				Code:         codeSnippet,
+				ID:             uuid.New().String(),
+				ComponentType:  componentType,
+				ComponentName:  componentName,
+				FilePath:       filePath,
+				LineNumber:     lineNum,
+				Severity:       pattern.Severity,
+				Type:           pattern.Type,
+				Title:          pattern.Title,
+				Description:    pattern.Description,
+				Code:           codeSnippet,
 				Recommendation: pattern.Recommendation,
-				CanAutoFix:   pattern.CanAutoFix,
-				DiscoveredAt: time.Now(),
+				CanAutoFix:     pattern.CanAutoFix,
+				DiscoveredAt:   time.Now(),
 			}
-			
+
 			vulnerabilities = append(vulnerabilities, vulnerability)
 		}
 	}
@@ -1049,7 +1045,7 @@ func scanResourceFileForVulnerabilities(ctx context.Context, filePath, component
 // estimateFileCount provides a quick count of scannable files
 func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string) int {
 	count := 0
-	
+
 	if componentTypeFilter == "" || componentTypeFilter == "scenario" {
 		filepath.WalkDir(scenariosPath, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
@@ -1062,7 +1058,7 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 			return nil
 		})
 	}
-	
+
 	if componentTypeFilter == "" || componentTypeFilter == "resource" {
 		filepath.WalkDir(resourcesPath, func(path string, d os.DirEntry, err error) error {
 			if err != nil || d.IsDir() {
@@ -1075,44 +1071,40 @@ func estimateFileCount(scenariosPath, resourcesPath, componentTypeFilter string)
 			return nil
 		})
 	}
-	
+
 	return count
 }
 
-
-
-
-
 func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, error) {
 	var secrets []ResourceSecret
-	
+
 	// Patterns to look for environment variables and credentials
 	envVarPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`\$\{([A-Z_]+[A-Z0-9_]*)\}`),        // ${VAR_NAME}
-		regexp.MustCompile(`\$([A-Z_]+[A-Z0-9_]*)`),            // $VAR_NAME
-		regexp.MustCompile(`([A-Z_]+[A-Z0-9_]*)=`),             // VAR_NAME=
-		regexp.MustCompile(`env\.([A-Z_]+[A-Z0-9_]*)`),         // env.VAR_NAME
-		regexp.MustCompile(`getenv\("([A-Z_]+[A-Z0-9_]*)"\)`),  // getenv("VAR_NAME")
+		regexp.MustCompile(`\$\{([A-Z_]+[A-Z0-9_]*)\}`),           // ${VAR_NAME}
+		regexp.MustCompile(`\$([A-Z_]+[A-Z0-9_]*)`),               // $VAR_NAME
+		regexp.MustCompile(`([A-Z_]+[A-Z0-9_]*)=`),                // VAR_NAME=
+		regexp.MustCompile(`env\.([A-Z_]+[A-Z0-9_]*)`),            // env.VAR_NAME
+		regexp.MustCompile(`getenv\("([A-Z_]+[A-Z0-9_]*)"\)`),     // getenv("VAR_NAME")
 		regexp.MustCompile(`os\.Getenv\("([A-Z_]+[A-Z0-9_]*)"\)`), // os.Getenv("VAR_NAME")
 	}
-	
+
 	// Walk through resource directory
 	err := filepath.WalkDir(resourceDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // Skip files we can't read
 		}
-		
+
 		// Skip directories and non-text files
 		if d.IsDir() || !isTextFile(path) {
 			return nil
 		}
-		
+
 		// Read file content
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil // Skip files we can't read
 		}
-		
+
 		// Search for environment variables
 		foundVars := make(map[string]bool)
 		for _, pattern := range envVarPatterns {
@@ -1122,7 +1114,7 @@ func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, 
 					varName := match[1]
 					if !foundVars[varName] && isLikelySecret(varName) {
 						foundVars[varName] = true
-						
+
 						secret := ResourceSecret{
 							ID:                uuid.New().String(),
 							ResourceName:      resourceName,
@@ -1141,27 +1133,27 @@ func scanResourceDirectory(resourceName, resourceDir string) ([]ResourceSecret, 
 				}
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return secrets, nil
 }
 
 func isTextFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
 	textExtensions := []string{".sh", ".bash", ".yml", ".yaml", ".json", ".env", ".conf", ".config", ".md", ".txt", ".go", ".js", ".py", ".dockerfile", ".sql"}
-	
+
 	for _, textExt := range textExtensions {
 		if ext == textExt {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -1169,14 +1161,14 @@ func isLikelySecret(varName string) bool {
 	secretKeywords := []string{
 		"PASSWORD", "PASS", "PWD", "SECRET", "KEY", "TOKEN", "AUTH", "API", "CREDENTIAL", "CERT", "TLS", "SSL", "PRIVATE",
 	}
-	
+
 	upperVar := strings.ToUpper(varName)
 	for _, keyword := range secretKeywords {
 		if strings.Contains(upperVar, keyword) {
 			return true
 		}
 	}
-	
+
 	// Also include common configuration variables that might be sensitive
 	configKeywords := []string{"HOST", "PORT", "URL", "ADDR", "DATABASE", "DB", "USER", "NAMESPACE"}
 	for _, keyword := range configKeywords {
@@ -1184,13 +1176,13 @@ func isLikelySecret(varName string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 func classifySecretType(varName string) string {
 	upperVar := strings.ToUpper(varName)
-	
+
 	if strings.Contains(upperVar, "PASSWORD") || strings.Contains(upperVar, "PASS") || strings.Contains(upperVar, "PWD") {
 		return "password"
 	}
@@ -1206,20 +1198,20 @@ func classifySecretType(varName string) string {
 	if strings.Contains(upperVar, "CERT") || strings.Contains(upperVar, "TLS") || strings.Contains(upperVar, "SSL") {
 		return "certificate"
 	}
-	
+
 	return "env_var"
 }
 
 func isLikelyRequired(varName string) bool {
 	requiredKeywords := []string{"PASSWORD", "SECRET", "TOKEN", "KEY", "DATABASE", "DB", "HOST"}
 	upperVar := strings.ToUpper(varName)
-	
+
 	for _, keyword := range requiredKeywords {
 		if strings.Contains(upperVar, keyword) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -1232,40 +1224,40 @@ func validateSecrets(resource string) (ValidationResponse, error) {
 		FROM resource_secrets rs
 	`
 	args := []interface{}{}
-	
+
 	if resource != "" {
 		query += " WHERE rs.resource_name = $1"
 		args = append(args, resource)
 	}
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		return ValidationResponse{}, err
 	}
 	defer rows.Close()
-	
+
 	var secrets []ResourceSecret
 	for rows.Next() {
 		var secret ResourceSecret
-		err := rows.Scan(&secret.ID, &secret.ResourceName, &secret.SecretKey, 
+		err := rows.Scan(&secret.ID, &secret.ResourceName, &secret.SecretKey,
 			&secret.SecretType, &secret.Required, &secret.Description, &secret.ValidationPattern)
 		if err != nil {
 			continue
 		}
 		secrets = append(secrets, secret)
 	}
-	
+
 	// Validate each secret
 	var validSecrets, totalSecrets int
 	var missingSecrets, invalidSecrets []SecretValidation
-	
+
 	for _, secret := range secrets {
 		totalSecrets++
 		validation := validateSingleSecret(secret)
-		
+
 		// Store validation result
 		storeValidationResult(validation)
-		
+
 		switch validation.ValidationStatus {
 		case "valid":
 			validSecrets++
@@ -1275,10 +1267,10 @@ func validateSecrets(resource string) (ValidationResponse, error) {
 			invalidSecrets = append(invalidSecrets, validation)
 		}
 	}
-	
+
 	// Get health summary
 	healthSummary, _ := getHealthSummary()
-	
+
 	return ValidationResponse{
 		ValidationID:   uuid.New().String(),
 		TotalSecrets:   totalSecrets,
@@ -1295,12 +1287,12 @@ func validateSingleSecret(secret ResourceSecret) SecretValidation {
 		ResourceSecretID:    secret.ID,
 		ValidationTimestamp: time.Now(),
 	}
-	
+
 	// Check environment variable
 	envValue := os.Getenv(secret.SecretKey)
 	if envValue != "" {
 		validation.ValidationMethod = "env"
-		
+
 		// Validate against pattern if provided
 		if secret.ValidationPattern != nil {
 			if matched, _ := regexp.MatchString(*secret.ValidationPattern, envValue); matched {
@@ -1324,26 +1316,26 @@ func validateSingleSecret(secret ResourceSecret) SecretValidation {
 			validation.ErrorMessage = stringPtr("Environment variable not set and not found in vault")
 		}
 	}
-	
+
 	return validation
 }
 
 func getVaultSecret(key string) (string, error) {
 	// Use resource-vault CLI to get secret value
 	cmd := exec.Command("resource-vault", "secrets", "get", key)
-	
+
 	// Set timeout for vault command
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	cmd = exec.CommandContext(ctx, "resource-vault", "secrets", "get", key)
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		// Check if it's a timeout or command not found
 		if ctx.Err() == context.DeadlineExceeded {
 			return "", fmt.Errorf("vault command timeout")
 		}
-		
+
 		// If exit error, likely secret not found or vault unavailable
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			// resource-vault typically returns exit code 1 for not found
@@ -1352,18 +1344,112 @@ func getVaultSecret(key string) (string, error) {
 			}
 			return "", fmt.Errorf("vault command failed: %v", err)
 		}
-		
+
 		return "", fmt.Errorf("failed to execute resource-vault command: %v", err)
 	}
-	
+
 	// Clean up the output (remove trailing whitespace/newlines)
 	secretValue := strings.TrimSpace(string(output))
-	
+
 	if secretValue == "" {
 		return "", fmt.Errorf("empty secret value returned from vault")
 	}
-	
+
 	return secretValue, nil
+}
+
+func getLocalSecretsPath() (string, error) {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		vrooliRoot = filepath.Join(home, "Vrooli")
+	}
+
+	secretsDir := filepath.Join(vrooliRoot, ".vrooli")
+	if err := os.MkdirAll(secretsDir, 0o755); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(secretsDir, "secrets.json"), nil
+}
+
+func loadLocalSecretsFile() (map[string]interface{}, error) {
+	path, err := getLocalSecretsPath()
+	if err != nil {
+		return nil, err
+	}
+
+	store := map[string]interface{}{}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			store["_metadata"] = map[string]interface{}{
+				"environment":  "development",
+				"last_updated": time.Now().Format(time.RFC3339),
+			}
+			return store, nil
+		}
+		return nil, err
+	}
+
+	if len(data) == 0 {
+		store["_metadata"] = map[string]interface{}{
+			"environment":  "development",
+			"last_updated": time.Now().Format(time.RFC3339),
+		}
+		return store, nil
+	}
+
+	if err := json.Unmarshal(data, &store); err != nil {
+		return nil, err
+	}
+
+	return store, nil
+}
+
+func saveSecretsToLocalStore(secrets map[string]string) (int, error) {
+	if len(secrets) == 0 {
+		return 0, nil
+	}
+
+	store, err := loadLocalSecretsFile()
+	if err != nil {
+		return 0, err
+	}
+
+	for key, value := range secrets {
+		store[key] = value
+	}
+
+	meta, ok := store["_metadata"].(map[string]interface{})
+	if !ok || meta == nil {
+		meta = map[string]interface{}{}
+	}
+	if _, exists := meta["environment"]; !exists {
+		meta["environment"] = "development"
+	}
+	meta["last_updated"] = time.Now().Format(time.RFC3339)
+	store["_metadata"] = meta
+
+	path, err := getLocalSecretsPath()
+	if err != nil {
+		return 0, err
+	}
+
+	encoded, err := json.MarshalIndent(store, "", "  ")
+	if err != nil {
+		return 0, err
+	}
+
+	if err := os.WriteFile(path, encoded, 0o600); err != nil {
+		return 0, err
+	}
+
+	return len(secrets), nil
 }
 
 func storeValidationResult(validation SecretValidation) {
@@ -1372,8 +1458,8 @@ func storeValidationResult(validation SecretValidation) {
 			validation_method, validation_timestamp, error_message)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`
-	_, err := db.Exec(query, validation.ID, validation.ResourceSecretID, 
-		validation.ValidationStatus, validation.ValidationMethod, 
+	_, err := db.Exec(query, validation.ID, validation.ResourceSecretID,
+		validation.ValidationStatus, validation.ValidationMethod,
 		validation.ValidationTimestamp, validation.ErrorMessage)
 	if err != nil {
 		log.Printf("Failed to store validation result: %v", err)
@@ -1382,13 +1468,13 @@ func storeValidationResult(validation SecretValidation) {
 
 func getHealthSummary() ([]SecretHealthSummary, error) {
 	query := `SELECT * FROM secret_health_summary ORDER BY resource_name`
-	
+
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	
+
 	var summaries []SecretHealthSummary
 	for rows.Next() {
 		var summary SecretHealthSummary
@@ -1401,7 +1487,7 @@ func getHealthSummary() ([]SecretHealthSummary, error) {
 		}
 		summaries = append(summaries, summary)
 	}
-	
+
 	return summaries, nil
 }
 
@@ -1413,7 +1499,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		"version":   "1.0.0",
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1421,14 +1507,14 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 // Vault secrets status handler
 func vaultSecretsStatusHandler(w http.ResponseWriter, r *http.Request) {
 	resourceFilter := r.URL.Query().Get("resource")
-	
+
 	status, err := getVaultSecretsStatus(resourceFilter)
 	if err != nil {
 		log.Printf("Error getting vault status: %v, using mock data", err)
 		// Use mock data as ultimate fallback
 		status = getMockVaultStatus()
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(status)
 }
@@ -1438,57 +1524,73 @@ func securityScanHandler(w http.ResponseWriter, r *http.Request) {
 	componentFilter := r.URL.Query().Get("component")
 	componentTypeFilter := r.URL.Query().Get("component_type")
 	severityFilter := r.URL.Query().Get("severity")
-	
+
 	// Support legacy scenario parameter
 	if scenarioFilter := r.URL.Query().Get("scenario"); scenarioFilter != "" && componentFilter == "" {
 		componentFilter = scenarioFilter
 		componentTypeFilter = "scenario"
 	}
-	
+
 	result, err := scanComponentsForVulnerabilities(componentFilter, componentTypeFilter, severityFilter)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Security scan failed: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(result)
 }
 
-// Vault provision handler  
+// Vault provision handler
 func vaultProvisionHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ResourceName string            `json:"resource_name"`
 		Secrets      map[string]string `json:"secrets"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.ResourceName == "" {
 		http.Error(w, "resource_name is required", http.StatusBadRequest)
 		return
 	}
-	
-	// Use resource-vault CLI to provision secrets
-	// For now, just trigger the interactive init - in a real implementation,
-	// we'd need to pass the secrets programmatically
-	initCmd := exec.Command("resource-vault", "secrets", "init", req.ResourceName)
-	output, err := initCmd.Output()
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to provision secrets: %v", err), http.StatusInternalServerError)
+
+	updates := map[string]string{}
+	for key, value := range req.Secrets {
+		envName := strings.TrimSpace(key)
+		if envName == "" || strings.EqualFold(envName, "default") {
+			continue
+		}
+
+		lower := strings.ToLower(envName)
+		if strings.HasPrefix(lower, "resource:") {
+			continue
+		}
+		envName = strings.ToUpper(strings.ReplaceAll(envName, " ", "_"))
+		updates[envName] = strings.TrimSpace(value)
+	}
+
+	if len(updates) == 0 {
+		http.Error(w, "no secrets provided", http.StatusBadRequest)
 		return
 	}
-	
-	response := map[string]interface{}{
-		"success": true,
-		"provisioned_secrets": []string{}, // Would be populated from actual provisioning
-		"vault_paths": map[string]string{}, // Would be populated with actual paths
-		"message": string(output),
+
+	saved, err := saveSecretsToLocalStore(updates)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to update local secrets store: %v", err), http.StatusInternalServerError)
+		return
 	}
-	
+
+	response := map[string]interface{}{
+		"success":            true,
+		"stored_count":       saved,
+		"resource_name":      req.ResourceName,
+		"stored_environment": updates,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1501,33 +1603,33 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to get vault status: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Get security scan results for all components
 	securityResults, err := scanComponentsForVulnerabilities("", "", "")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to scan for vulnerabilities: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Calculate compliance metrics
 	vaultHealth := 0
 	if vaultStatus.TotalResources > 0 {
 		vaultHealth = (vaultStatus.ConfiguredResources * 100) / vaultStatus.TotalResources
 	}
-	
+
 	securityScore := 100 - securityResults.RiskScore
 	if securityScore < 0 {
 		securityScore = 0
 	}
-	
+
 	overallCompliance := (vaultHealth + securityScore) / 2
-	
+
 	// Count vulnerabilities by severity
 	criticalCount := 0
 	highCount := 0
-	mediumCount := 0  
+	mediumCount := 0
 	lowCount := 0
-	
+
 	for _, vuln := range securityResults.Vulnerabilities {
 		switch vuln.Severity {
 		case "critical":
@@ -1540,13 +1642,13 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 			lowCount++
 		}
 	}
-	
+
 	// Calculate configured components from vault status and scenarios
 	configuredComponents := vaultStatus.ConfiguredResources
 	if securityResults.ComponentsSummary.TotalComponents > 0 {
 		configuredComponents += securityResults.ComponentsSummary.ConfiguredCount
 	}
-	
+
 	compliance := ComplianceMetrics{
 		VaultSecretsHealth:   vaultHealth,
 		SecurityScore:        securityScore,
@@ -1557,26 +1659,26 @@ func complianceHandler(w http.ResponseWriter, r *http.Request) {
 		MediumIssues:         mediumCount,
 		LowIssues:            lowCount,
 	}
-	
+
 	response := map[string]interface{}{
-		"overall_score":         compliance.OverallCompliance,
-		"vault_secrets_health":  compliance.VaultSecretsHealth,
+		"overall_score":        compliance.OverallCompliance,
+		"vault_secrets_health": compliance.VaultSecretsHealth,
 		"vulnerability_summary": map[string]int{
 			"critical": compliance.CriticalIssues,
 			"high":     compliance.HighIssues,
 			"medium":   compliance.MediumIssues,
 			"low":      compliance.LowIssues,
 		},
-		"remediation_progress":     compliance,
-		"total_resources":          vaultStatus.TotalResources,
-		"configured_resources":     vaultStatus.ConfiguredResources,
-		"configured_components":    compliance.ConfiguredComponents,
-		"total_components":         securityResults.ComponentsSummary.TotalComponents,
-		"components_summary":       securityResults.ComponentsSummary,
-		"total_vulnerabilities":    len(securityResults.Vulnerabilities),
-		"last_updated":            time.Now(),
+		"remediation_progress":  compliance,
+		"total_resources":       vaultStatus.TotalResources,
+		"configured_resources":  vaultStatus.ConfiguredResources,
+		"configured_components": compliance.ConfiguredComponents,
+		"total_components":      securityResults.ComponentsSummary.TotalComponents,
+		"components_summary":    securityResults.ComponentsSummary,
+		"total_vulnerabilities": len(securityResults.Vulnerabilities),
+		"last_updated":          time.Now(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1586,20 +1688,20 @@ func vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	severity := r.URL.Query().Get("severity")
 	component := r.URL.Query().Get("component")
 	componentType := r.URL.Query().Get("component_type")
-	
+
 	// Support legacy scenario parameter
 	if scenario := r.URL.Query().Get("scenario"); scenario != "" && component == "" {
 		component = scenario
 		componentType = "scenario"
 	}
-	
+
 	// Get security scan results from real filesystem scan
 	securityResults, err := scanComponentsForVulnerabilities(component, componentType, severity)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to scan for vulnerabilities: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"vulnerabilities": securityResults.Vulnerabilities,
 		"total_count":     len(securityResults.Vulnerabilities),
@@ -1608,13 +1710,10 @@ func vulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 		"risk_score":      securityResults.RiskScore,
 		"recommendations": securityResults.Recommendations,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
-
-
-
 
 func validateHandler(w http.ResponseWriter, r *http.Request) {
 	var req ValidationRequest
@@ -1624,13 +1723,13 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	
+
 	response, err := validator.ValidateSecrets(req.Resource)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Validation failed: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1641,7 +1740,7 @@ func provisionHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	
+
 	// TODO: Implement secret provisioning to vault or environment
 	response := ProvisionResponse{
 		Success:         false,
@@ -1651,7 +1750,7 @@ func provisionHandler(w http.ResponseWriter, r *http.Request) {
 			ErrorMessage:     stringPtr("Provisioning not yet implemented"),
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1669,9 +1768,9 @@ func storeDiscoveredSecret(secret ResourceSecret) {
 			description = EXCLUDED.description,
 			updated_at = CURRENT_TIMESTAMP
 	`
-	
+
 	_, err := db.Exec(query, secret.ID, secret.ResourceName, secret.SecretKey,
-		secret.SecretType, secret.Required, secret.Description, 
+		secret.SecretType, secret.Required, secret.Description,
 		secret.ValidationPattern, secret.DocumentationURL, secret.DefaultValue,
 		secret.CreatedAt, secret.UpdatedAt)
 	if err != nil {
@@ -1722,11 +1821,11 @@ func fixVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	response := map[string]interface{}{
-		"status":           "accepted",
-		"fix_request_id":   fixRequestID,
-		"vulnerabilities":  len(req.Vulnerabilities),
-		"message":          "Claude Code vulnerability fixer agent has been spawned",
-		"timestamp":        time.Now().Format(time.RFC3339),
+		"status":          "accepted",
+		"fix_request_id":  fixRequestID,
+		"vulnerabilities": len(req.Vulnerabilities),
+		"message":         "Claude Code vulnerability fixer agent has been spawned",
+		"timestamp":       time.Now().Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1741,12 +1840,12 @@ func fixProgressHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		FixRequestID     string `json:"fix_request_id"`
-		VulnerabilityID  string `json:"vulnerability_id"`
-		Status           string `json:"status"` // completed, failed, skipped
-		Message          string `json:"message"`
-		FilesModified    []string `json:"files_modified,omitempty"`
-		VaultPath        string `json:"vault_path,omitempty"`
+		FixRequestID    string   `json:"fix_request_id"`
+		VulnerabilityID string   `json:"vulnerability_id"`
+		Status          string   `json:"status"` // completed, failed, skipped
+		Message         string   `json:"message"`
+		FilesModified   []string `json:"files_modified,omitempty"`
+		VaultPath       string   `json:"vault_path,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -1761,11 +1860,11 @@ func fixProgressHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Log the progress update
 	log.Printf("Fix progress [%s]: %s - %s (%s)", req.FixRequestID, req.VulnerabilityID, req.Status, req.Message)
-	
+
 	if len(req.FilesModified) > 0 {
 		log.Printf("  Files modified: %v", req.FilesModified)
 	}
-	
+
 	if req.VaultPath != "" {
 		log.Printf("  Vault path: %s", req.VaultPath)
 	}
@@ -1807,7 +1906,7 @@ func fileContentHandler(w http.ResponseWriter, r *http.Request) {
 	// Clean and resolve the file path
 	cleanPath := filepath.Clean(filePath)
 	var fullPath string
-	
+
 	// Handle both absolute and relative paths
 	if filepath.IsAbs(cleanPath) {
 		fullPath = cleanPath
@@ -1862,42 +1961,42 @@ func fileContentHandler(w http.ResponseWriter, r *http.Request) {
 // getLanguageFromPath determines the programming language based on file extension
 func getLanguageFromPath(filePath string) string {
 	ext := strings.ToLower(filepath.Ext(filePath))
-	
+
 	// Map extensions to Prism.js language identifiers
 	languageMap := map[string]string{
-		".js":     "javascript",
-		".ts":     "typescript", 
-		".go":     "go",
-		".py":     "python",
-		".sh":     "bash",
-		".bash":   "bash",
-		".zsh":    "bash",
-		".fish":   "bash",
-		".json":   "json",
-		".yaml":   "yaml",
-		".yml":    "yaml",
-		".toml":   "toml",
-		".sql":    "sql",
-		".md":     "markdown",
-		".html":   "html",
-		".css":    "css",
-		".scss":   "scss",
-		".sass":   "sass",
-		".java":   "java",
-		".cpp":    "cpp",
-		".c":      "c",
-		".rs":     "rust",
-		".php":    "php",
-		".rb":     "ruby",
-		".swift":  "swift",
-		".kt":     "kotlin",
-		".dart":   "dart",
-		".r":      "r",
+		".js":         "javascript",
+		".ts":         "typescript",
+		".go":         "go",
+		".py":         "python",
+		".sh":         "bash",
+		".bash":       "bash",
+		".zsh":        "bash",
+		".fish":       "bash",
+		".json":       "json",
+		".yaml":       "yaml",
+		".yml":        "yaml",
+		".toml":       "toml",
+		".sql":        "sql",
+		".md":         "markdown",
+		".html":       "html",
+		".css":        "css",
+		".scss":       "scss",
+		".sass":       "sass",
+		".java":       "java",
+		".cpp":        "cpp",
+		".c":          "c",
+		".rs":         "rust",
+		".php":        "php",
+		".rb":         "ruby",
+		".swift":      "swift",
+		".kt":         "kotlin",
+		".dart":       "dart",
+		".r":          "r",
 		".dockerfile": "dockerfile",
-		".xml":    "xml",
-		".ini":    "ini",
-		".cfg":    "ini",
-		".conf":   "nginx", // Common for config files
+		".xml":        "xml",
+		".ini":        "ini",
+		".cfg":        "ini",
+		".conf":       "nginx", // Common for config files
 	}
 
 	if lang, exists := languageMap[ext]; exists {
@@ -2036,20 +2135,20 @@ func main() {
 	// initDB()
 	// defer db.Close()
 	log.Println("🚀 Starting Secrets Manager API (database optional)")
-	
+
 	// Create router
 	r := mux.NewRouter()
-	
+
 	// Health check
 	r.HandleFunc("/health", healthHandler).Methods("GET")
-	
+
 	// API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
-	
+
 	// Vault secrets integration routes
 	api.HandleFunc("/vault/secrets/status", vaultSecretsStatusHandler).Methods("GET")
 	api.HandleFunc("/vault/secrets/provision", vaultProvisionHandler).Methods("POST")
-	
+
 	// Security scanning routes
 	api.HandleFunc("/security/scan", securityScanHandler).Methods("GET")
 	api.HandleFunc("/security/compliance", complianceHandler).Methods("GET")
@@ -2057,17 +2156,17 @@ func main() {
 	api.HandleFunc("/vulnerabilities/fix", fixVulnerabilitiesHandler).Methods("POST")
 	api.HandleFunc("/vulnerabilities/fix/progress", fixProgressHandler).Methods("POST")
 	api.HandleFunc("/files/content", fileContentHandler).Methods("GET")
-	
+
 	// Legacy routes (keep for backward compatibility)
 	api.HandleFunc("/secrets/scan", vaultSecretsStatusHandler).Methods("GET", "POST")
 	api.HandleFunc("/secrets/validate", validateHandler).Methods("GET", "POST")
 	api.HandleFunc("/secrets/provision", provisionHandler).Methods("POST")
-	
+
 	// CORS headers
 	corsHeaders := handlers.AllowedHeaders([]string{"X-Requested-With", "Content-Type", "Authorization"})
 	corsMethods := handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"})
 	corsOrigins := handlers.AllowedOrigins([]string{"*"})
-	
+
 	// Get port from environment - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -2076,17 +2175,17 @@ func main() {
 			log.Fatal("❌ API_PORT or PORT environment variable is required")
 		}
 	}
-	
+
 	log.Printf("🔐 Secrets Manager API starting on port %s", port)
 	log.Printf("   📊 Health check: http://localhost:%s/health", port)
 	log.Printf("   🔍 Scan endpoint: http://localhost:%s/api/v1/secrets/scan", port)
 	log.Printf("   ✅ Validate endpoint: http://localhost:%s/api/v1/secrets/validate", port)
-	
+
 	// Start server
 	server := &http.Server{
 		Addr:    ":" + port,
 		Handler: handlers.CORS(corsHeaders, corsMethods, corsOrigins)(r),
 	}
-	
+
 	log.Fatal(server.ListenAndServe())
 }

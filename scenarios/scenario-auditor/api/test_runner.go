@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -34,8 +36,19 @@ type TestResult struct {
 	Passed           bool         `json:"passed"`
 	ActualViolations []Violation  `json:"actual_violations"`
 	Judge0Result     *Judge0Response `json:"judge0_result,omitempty"`
+	ExecutionOutput  ExecutionOutput `json:"execution_output"`
 	ExecutedAt       time.Time    `json:"executed_at"`
 	Error            string       `json:"error,omitempty"`
+}
+
+// ExecutionOutput captures all execution details
+type ExecutionOutput struct {
+	Stdout        string `json:"stdout,omitempty"`
+	Stderr        string `json:"stderr,omitempty"`
+	CompileOutput string `json:"compile_output,omitempty"`
+	ExitCode      int    `json:"exit_code,omitempty"`
+	ExecutionTime string `json:"execution_time,omitempty"`
+	Method        string `json:"method"` // "judge0" or "direct"
 }
 
 // Judge0Response represents the response from Judge0
@@ -221,6 +234,14 @@ func (tr *TestRunner) RunTest(testCase TestCase, rule RuleInfo) TestResult {
 		
 		result.Judge0Result = judge0Result
 		
+		// Populate execution output from Judge0 result
+		result.ExecutionOutput = ExecutionOutput{
+			Stdout:        judge0Result.Output,
+			Stderr:        judge0Result.Error,
+			CompileOutput: judge0Result.CompileOutput,
+			Method:        "judge0",
+		}
+		
 		// If Judge0 execution was successful, run rule check on the code
 		if judge0Result.Status == "3" { // Accepted (successful execution)
 			violations, err := rule.Check(testCase.Input, fmt.Sprintf("test_%s.%s", testCase.ID, testCase.Language))
@@ -245,26 +266,393 @@ func (tr *TestRunner) RunTest(testCase TestCase, rule RuleInfo) TestResult {
 	return result
 }
 
+// createExecutableProgram wraps a test case in a complete program for runtime validation
+func (tr *TestRunner) createExecutableProgram(testCase TestCase, rule RuleInfo) (string, error) {
+	if testCase.Language != "go" {
+		return "", fmt.Errorf("only Go programs supported for runtime validation")
+	}
+	
+	// Determine rule-specific test wrapper based on rule ID
+	switch rule.ID {
+	case "content_type_headers":
+		return tr.createHTTPTestProgram(testCase)
+	case "structured_logging":
+		return tr.createLoggingTestProgram(testCase)
+	case "health_check":
+		return tr.createHealthCheckTestProgram(testCase)
+	default:
+		// For other rules, just try to create a basic program
+		return tr.createBasicTestProgram(testCase)
+	}
+}
+
+// createHTTPTestProgram creates a complete HTTP test program
+func (tr *TestRunner) createHTTPTestProgram(testCase TestCase) (string, error) {
+	// Extract function name from the input
+	funcName := "handleAPI" // default
+	lines := strings.Split(testCase.Input, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "func ") && strings.Contains(line, "http.ResponseWriter") {
+			// Extract function name
+			parts := strings.Fields(line)
+			for i, part := range parts {
+				if part == "func" && i+1 < len(parts) {
+					funcName = strings.Split(parts[i+1], "(")[0]
+					break
+				}
+			}
+			break
+		}
+	}
+	
+	program := fmt.Sprintf(`package main
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"fmt"
+	"strings"
+)
+
+%s
+
+func main() {
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	
+	%s(w, req)
+	
+	// Check Content-Type header
+	contentType := w.Header().Get("Content-Type")
+	body := w.Body.String()
+	
+	fmt.Printf("Response Headers: %%v\n", w.Header())
+	fmt.Printf("Response Body: %%s\n", body)
+	
+	// Detect if JSON is being written
+	if strings.Contains(body, "{") || strings.Contains(testCode, "json.") {
+		if contentType == "" {
+			fmt.Println("VIOLATION: Missing Content-Type header for JSON response")
+		} else if !strings.Contains(contentType, "application/json") {
+			fmt.Printf("VIOLATION: Incorrect Content-Type header: %%s (expected application/json)\n", contentType)
+		} else {
+			fmt.Printf("OK: Correct Content-Type header: %%s\n", contentType)
+		}
+	} else {
+		if contentType == "" {
+			fmt.Println("VIOLATION: Missing Content-Type header")
+		} else {
+			fmt.Printf("OK: Content-Type header present: %%s\n", contentType)
+		}
+	}
+}
+
+const testCode = ` + "`" + `%s` + "`" + `
+`, testCase.Input, funcName, testCase.Input)
+	
+	return program, nil
+}
+
+// createLoggingTestProgram creates a program to test logging patterns
+func (tr *TestRunner) createLoggingTestProgram(testCase TestCase) (string, error) {
+	program := fmt.Sprintf(`package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"strings"
+	"io"
+)
+
+%s
+
+func main() {
+	// Capture stdout to check for unstructured logging
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	
+	// Capture stderr for log output
+	oldStderr := os.Stderr
+	r2, w2, _ := os.Pipe()
+	os.Stderr = w2
+	
+	// Try to call any functions in the test code
+	// This is a simple attempt - in practice, we'd need more sophisticated analysis
+	
+	// Restore stdout/stderr
+	w.Close()
+	w2.Close()
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+	
+	// Read captured output
+	output, _ := io.ReadAll(r)
+	errOutput, _ := io.ReadAll(r2)
+	
+	fmt.Printf("Stdout captured: %%s\n", string(output))
+	fmt.Printf("Stderr captured: %%s\n", string(errOutput))
+	
+	// Check test code for unstructured logging patterns
+	testCode := ` + "`" + `%s` + "`" + `
+	if strings.Contains(testCode, "fmt.Print") {
+		fmt.Println("VIOLATION: Using fmt.Print* for logging")
+	} else if strings.Contains(testCode, "log.Print") {
+		fmt.Println("VIOLATION: Using basic log.Print* without structure")
+	} else if strings.Contains(testCode, "logger.Info") || strings.Contains(testCode, "slog.") {
+		fmt.Println("OK: Using structured logging")
+	} else {
+		fmt.Println("OK: No obvious logging violations")
+	}
+}
+`, testCase.Input, testCase.Input)
+	
+	return program, nil
+}
+
+// createHealthCheckTestProgram creates a program to test health check endpoints
+func (tr *TestRunner) createHealthCheckTestProgram(testCase TestCase) (string, error) {
+	program := fmt.Sprintf(`package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+)
+
+%s
+
+func main() {
+	// Try to find health endpoint registration
+	testCode := ` + "`" + `%s` + "`" + `
+	
+	if strings.Contains(testCode, "/health") && strings.Contains(testCode, "HandleFunc") {
+		fmt.Println("OK: Health endpoint found")
+	} else if strings.Contains(testCode, "/api/health") {
+		fmt.Println("OK: Health endpoint found at /api/health")
+	} else {
+		fmt.Println("VIOLATION: No health check endpoint found")
+	}
+	
+	// If we can identify a main function or router setup, we could test it more thoroughly
+	fmt.Printf("Test code analysis: %%s\n", testCode)
+}
+`, testCase.Input, testCase.Input)
+	
+	return program, nil
+}
+
+// createBasicTestProgram creates a basic test program for other rules
+func (tr *TestRunner) createBasicTestProgram(testCase TestCase) (string, error) {
+	program := fmt.Sprintf(`package main
+
+import (
+	"fmt"
+)
+
+%s
+
+func main() {
+	fmt.Println("Executing test code...")
+	fmt.Printf("Test input: %%s\n", ` + "`" + `%s` + "`" + `)
+	
+	// Basic execution - the static analysis will handle most validation
+	fmt.Println("OK: Code compiled and executed successfully")
+}
+`, testCase.Input, testCase.Input)
+	
+	return program, nil
+}
+
+// executeProgram compiles and runs a Go program, returning its output
+func (tr *TestRunner) executeProgram(program, language string) (string, error) {
+	if language != "go" {
+		return "", fmt.Errorf("only Go execution supported")
+	}
+	
+	// For now, use Judge0 if available, otherwise return program for inspection
+	if tr.hasJudge0() {
+		// Create a temporary test case for the generated program
+		tempTestCase := TestCase{
+			ID:       "runtime-execution",
+			Input:    program,
+			Language: language,
+		}
+		
+		result, err := tr.executeWithJudge0(tempTestCase)
+		if err != nil {
+			return "", err
+		}
+		
+		if result.Status == "3" { // Accepted
+			return result.Output, nil
+		} else {
+			return "", fmt.Errorf("execution failed: %s", result.Error)
+		}
+	}
+	
+	// Fallback: execute locally using go run
+	return tr.executeLocally(program)
+}
+
+// executeLocally executes a Go program locally using go run
+func (tr *TestRunner) executeLocally(program string) (string, error) {
+	// Create a temporary directory for the Go file
+	tempDir, err := os.MkdirTemp("", "rule_test_*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir) // Clean up
+	
+	// Create temporary Go file
+	tempFile := filepath.Join(tempDir, "main.go")
+	err = os.WriteFile(tempFile, []byte(program), 0644)
+	if err != nil {
+		return "", fmt.Errorf("failed to write temp file: %v", err)
+	}
+	
+	// Execute with go run
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	cmd := exec.CommandContext(ctx, "go", "run", tempFile)
+	
+	// Capture both stdout and stderr
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	
+	// Execute the command
+	err = cmd.Run()
+	
+	// Combine output
+	output := stdout.String()
+	if stderr.String() != "" {
+		if output != "" {
+			output += "\n--- STDERR ---\n"
+		}
+		output += stderr.String()
+	}
+	
+	if err != nil {
+		if output == "" {
+			output = fmt.Sprintf("Execution failed: %v", err)
+		} else {
+			output += fmt.Sprintf("\n--- EXECUTION ERROR ---\n%v", err)
+		}
+	}
+	
+	return output, nil
+}
+
+// hasJudge0 checks if Judge0 is available (placeholder implementation)
+func (tr *TestRunner) hasJudge0() bool {
+	// For now, assume Judge0 is not available and use fallback
+	return false
+}
+
 // runTestDirect executes test case directly without Judge0 (fallback method)
 func (tr *TestRunner) runTestDirect(testCase TestCase, rule RuleInfo) TestResult {
 	result := TestResult{
 		TestCase:   testCase,
 		ExecutedAt: time.Now(),
+		ExecutionOutput: ExecutionOutput{
+			Method: "direct",
+		},
 	}
 	
-	// Run the rule's Check function directly
-	violations, err := rule.Check(testCase.Input, fmt.Sprintf("test_%s.%s", testCase.ID, testCase.Language))
+	// Try to create and execute a complete program for runtime validation
+	completeProgram, err := tr.createExecutableProgram(testCase, rule)
+	if err != nil {
+		result.ExecutionOutput.Stderr = fmt.Sprintf("Failed to create executable program: %v", err)
+		result.ExecutionOutput.Method = "direct"
+	} else {
+		// Execute the complete program
+		output, err := tr.executeProgram(completeProgram, testCase.Language)
+		if err != nil {
+			result.ExecutionOutput.Stderr = fmt.Sprintf("Execution failed: %v", err)
+			result.ExecutionOutput.Method = "local"
+		} else {
+			result.ExecutionOutput.Stdout = output
+			result.ExecutionOutput.Method = "local"
+		}
+	}
 	
+	// Run the rule's Check function for static analysis
+	staticViolations, err := rule.Check(testCase.Input, fmt.Sprintf("test_%s.%s", testCase.ID, testCase.Language))
 	if err != nil {
 		result.Error = err.Error()
 		result.Passed = false
 		return result
 	}
 	
-	result.ActualViolations = violations
-	result.Passed = tr.evaluateTestResult(testCase, violations)
+	// Parse runtime violations from execution output
+	runtimeViolations := tr.parseRuntimeViolations(result.ExecutionOutput.Stdout, testCase, rule)
+	
+	// Combine static and runtime violations (prefer runtime if available)
+	if len(runtimeViolations) > 0 {
+		result.ActualViolations = runtimeViolations
+	} else {
+		result.ActualViolations = staticViolations
+	}
+	
+	result.Passed = tr.evaluateTestResult(testCase, result.ActualViolations)
 	
 	return result
+}
+
+// parseRuntimeViolations extracts violations from runtime execution output
+func (tr *TestRunner) parseRuntimeViolations(executionOutput string, testCase TestCase, rule RuleInfo) []Violation {
+	var violations []Violation
+	
+	if executionOutput == "" {
+		return violations
+	}
+	
+	lines := strings.Split(executionOutput, "\n")
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		
+		// Look for VIOLATION: messages in the output
+		if strings.HasPrefix(trimmedLine, "VIOLATION:") {
+			violationMessage := strings.TrimPrefix(trimmedLine, "VIOLATION:")
+			violationMessage = strings.TrimSpace(violationMessage)
+			
+			// Create a violation based on the runtime detection
+			violation := Violation{
+				RuleID:   rule.ID,
+				Severity: "medium", // Default severity, could be parsed from output
+				Message:  violationMessage,
+				File:     fmt.Sprintf("test_%s.%s", testCase.ID, testCase.Language),
+				Line:     i + 1,
+			}
+			violations = append(violations, violation)
+		}
+	}
+	
+	return violations
+}
+
+// getRuntimeRecommendation provides rule-specific recommendations for runtime violations
+func (tr *TestRunner) getRuntimeRecommendation(ruleID, violationMessage string) string {
+	switch ruleID {
+	case "content_type_headers":
+		if strings.Contains(violationMessage, "Missing Content-Type") {
+			return "Add w.Header().Set(\"Content-Type\", \"application/json\") before writing JSON response"
+		} else if strings.Contains(violationMessage, "Incorrect Content-Type") {
+			return "Set proper Content-Type header: w.Header().Set(\"Content-Type\", \"application/json\")"
+		}
+		return "Ensure proper Content-Type headers are set for all responses"
+	case "structured_logging":
+		return "Use structured logging libraries (zap, slog) instead of fmt.Print or log.Print"
+	case "health_check":
+		return "Add a /health endpoint that returns service status information"
+	default:
+		return "Follow the coding standards for this rule category"
+	}
 }
 
 // evaluateTestResult determines if a test passed based on expected vs actual violations

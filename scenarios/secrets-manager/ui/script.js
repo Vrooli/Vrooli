@@ -118,6 +118,18 @@ class SecretsManager {
                 this.hideModal();
             }
         });
+
+        const toggleSecretBtn = document.getElementById('toggle-secret-visibility');
+        if (toggleSecretBtn) {
+            toggleSecretBtn.addEventListener('click', () => {
+                const input = document.getElementById('secret-value');
+                const isPassword = input.getAttribute('type') === 'password';
+                input.setAttribute('type', isPassword ? 'text' : 'password');
+                toggleSecretBtn.textContent = isPassword ? 'HIDE' : 'SHOW';
+                toggleSecretBtn.classList.toggle('active', !isPassword);
+                input.focus();
+            });
+        }
         
         // Make stat boxes clickable and add visual feedback
         document.querySelectorAll('.stat-card').forEach(card => {
@@ -1455,8 +1467,12 @@ ${vuln.code}</pre>
                 this.hideModal();
                 // Clear resource data
                 delete secretKeyElement.dataset.resource;
+                delete secretKeyElement.dataset.secretName;
                 // Refresh vault status after provisioning
-                setTimeout(() => this.loadVaultStatus(), 1000);
+                await this.loadVaultStatus();
+                if (this.currentView !== 'vault') {
+                    this.restoreCurrentView();
+                }
             } else {
                 this.showNotification('Provisioning failed: ' + (data.message || 'Unknown error'), 'error');
             }

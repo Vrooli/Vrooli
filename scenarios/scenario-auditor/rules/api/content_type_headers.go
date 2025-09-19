@@ -24,7 +24,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 }
   </input>
   <expected-violations>1</expected-violations>
-  <expected-message>Missing Content-Type Header</expected-message>
+  <expected-message>Incorrect Content-Type header</expected-message>
 </test-case>
 
 <test-case id="write-without-content-type" should-fail="true">

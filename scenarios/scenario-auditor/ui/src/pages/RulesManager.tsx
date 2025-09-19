@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock } from 'lucide-react'
+import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
 import { apiService } from '../services/api'
+import { CodeEditor } from '../components/CodeEditor'
 
 // Code Block Component with syntax highlighting and line numbers
 function CodeBlock({ code }: { code: string }) {
@@ -116,6 +117,7 @@ export default function RulesManager() {
   const [playgroundCode, setPlaygroundCode] = useState('')
   const [playgroundResult, setPlaygroundResult] = useState<any>(null)
   const [isRunningPlayground, setIsRunningPlayground] = useState(false)
+  const [showExecutionOutput, setShowExecutionOutput] = useState<{[key: number]: boolean}>({})
 
   const { data: rulesData, isLoading, refetch } = useQuery({
     queryKey: ['rules', selectedCategory],
@@ -393,7 +395,7 @@ export default function RulesManager() {
                         testResults.failed > 0 ? 'bg-yellow-100 text-yellow-800' :
                         'bg-green-100 text-green-800'
                       }`}>
-                        {testResults.error ? 'Error' : `${testResults.passed}/${testResults.total_tests}`}
+                        {testResults.error ? 'Error' : `${testResults.passed}/${testResults.total_tests} correct`}
                       </span>
                     )}
                   </button>
@@ -479,7 +481,7 @@ export default function RulesManager() {
                         <div className="bg-gray-50 rounded-lg p-4">
                           <div className="flex items-center justify-between text-sm">
                             <span>
-                              <strong>Results:</strong> {testResults.passed} passed, {testResults.failed} failed out of {testResults.total_tests} tests
+                              <strong>Results:</strong> {testResults.passed} behaving correctly, {testResults.failed} not behaving as expected out of {testResults.total_tests} tests
                             </span>
                             {testResults.cached && (
                               <span className="text-gray-500">(Cached)</span>
@@ -490,7 +492,7 @@ export default function RulesManager() {
                         {testResults.tests.map((test: any, index: number) => (
                           <div key={index} className="border border-gray-200 rounded-lg overflow-hidden">
                             <div className={`px-4 py-3 border-b border-gray-200 ${
-                              test.passed ? 'bg-green-50' : 'bg-red-50'
+                              test.passed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                             }`}>
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center">
@@ -508,14 +510,36 @@ export default function RulesManager() {
                                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                     test.test_case.should_fail ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
                                   }`}>
-                                    {test.test_case.should_fail ? 'Should Fail' : 'Should Pass'}
+                                    Expected: {test.test_case.should_fail ? 'Violations' : 'No Violations'}
                                   </span>
                                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                                     test.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                                   }`}>
-                                    {test.passed ? 'PASS' : 'FAIL'}
+                                    {test.passed ? '✅ BEHAVED CORRECTLY' : '❌ UNEXPECTED BEHAVIOR'}
                                   </span>
                                 </div>
+                              </div>
+                              {/* Show actual vs expected */}
+                              <div className="mt-2 text-xs text-gray-600">
+                                <span className="font-medium">Actual: </span>
+                                {test.actual_violations && test.actual_violations.length > 0 ? (
+                                  <span className="text-orange-600">{test.actual_violations.length} violation(s) found</span>
+                                ) : (
+                                  <span className="text-green-600">No violations found</span>
+                                )}
+                                {test.test_case.should_fail ? (
+                                  test.actual_violations && test.actual_violations.length > 0 ? (
+                                    <span className="ml-2 text-green-600">✓ As expected</span>
+                                  ) : (
+                                    <span className="ml-2 text-red-600">✗ Expected violations</span>
+                                  )
+                                ) : (
+                                  test.actual_violations && test.actual_violations.length > 0 ? (
+                                    <span className="ml-2 text-red-600">✗ Expected no violations</span>
+                                  ) : (
+                                    <span className="ml-2 text-green-600">✓ As expected</span>
+                                  )
+                                )}
                               </div>
                             </div>
                             
@@ -549,6 +573,74 @@ export default function RulesManager() {
                                       </div>
                                     ))}
                                   </div>
+                                </div>
+                              )}
+
+                              {/* Execution Output */}
+                              {test.execution_output && (
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h6 className="text-sm font-medium text-gray-900">Execution Output</h6>
+                                    <button
+                                      onClick={() => setShowExecutionOutput(prev => ({
+                                        ...prev,
+                                        [index]: !prev[index]
+                                      }))}
+                                      className="inline-flex items-center text-xs text-gray-600 hover:text-gray-800"
+                                    >
+                                      {showExecutionOutput[index] ? (
+                                        <>
+                                          <EyeOff className="h-3 w-3 mr-1" />
+                                          Hide
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Eye className="h-3 w-3 mr-1" />
+                                          Show
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                  
+                                  {showExecutionOutput[index] && (
+                                    <div className="bg-gray-50 rounded p-3 text-xs space-y-2">
+                                      <div className="flex items-center gap-2 text-gray-600">
+                                        <span className="font-medium">Method:</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs ${
+                                          test.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                        }`}>
+                                          {test.execution_output.method}
+                                        </span>
+                                      </div>
+                                      
+                                      {test.execution_output.stdout && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Stdout:</span>
+                                          <pre className="mt-1 bg-gray-900 text-gray-100 p-2 rounded text-xs whitespace-pre-wrap">{test.execution_output.stdout}</pre>
+                                        </div>
+                                      )}
+                                      
+                                      {test.execution_output.stderr && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Stderr:</span>
+                                          <pre className="mt-1 bg-red-900 text-red-100 p-2 rounded text-xs whitespace-pre-wrap">{test.execution_output.stderr}</pre>
+                                        </div>
+                                      )}
+                                      
+                                      {test.execution_output.compile_output && (
+                                        <div>
+                                          <span className="font-medium text-gray-700">Compile Output:</span>
+                                          <pre className="mt-1 bg-yellow-900 text-yellow-100 p-2 rounded text-xs whitespace-pre-wrap">{test.execution_output.compile_output}</pre>
+                                        </div>
+                                      )}
+                                      
+                                      {test.execution_output.exit_code !== undefined && (
+                                        <div className="text-gray-600">
+                                          <span className="font-medium">Exit Code:</span> {test.execution_output.exit_code}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -588,12 +680,17 @@ export default function RulesManager() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Enter Go code to test against this rule:
                       </label>
-                      <textarea
-                        value={playgroundCode}
-                        onChange={(e) => setPlaygroundCode(e.target.value)}
-                        placeholder="func HandleRequest(w http.ResponseWriter, r *http.Request) {&#10;    // Your code here&#10;}"
-                        className="w-full h-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
-                      />
+                      <div className="h-64">
+                        <CodeEditor
+                          value={playgroundCode}
+                          onChange={setPlaygroundCode}
+                          language="go"
+                          placeholder="func HandleRequest(w http.ResponseWriter, r *http.Request) {
+    // Your code here
+}"
+                          className="h-full"
+                        />
+                      </div>
                     </div>
 
                     {playgroundResult && (
@@ -635,6 +732,50 @@ export default function RulesManager() {
                             <div className="text-green-800">
                               <CheckCircle className="h-5 w-5 inline-block mr-2" />
                               <strong>No violations found!</strong> Your code follows this rule.
+                            </div>
+                          )}
+                          
+                          {/* Execution Output for Playground */}
+                          {playgroundResult.test_result?.execution_output && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <h6 className="text-sm font-medium text-gray-900 mb-2">Execution Output</h6>
+                              <div className="bg-gray-50 rounded p-3 text-xs space-y-2">
+                                <div className="flex items-center gap-2 text-gray-600">
+                                  <span className="font-medium">Method:</span>
+                                  <span className={`px-2 py-0.5 rounded text-xs ${
+                                    playgroundResult.test_result.execution_output.method === 'judge0' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                                  }`}>
+                                    {playgroundResult.test_result.execution_output.method}
+                                  </span>
+                                </div>
+                                
+                                {playgroundResult.test_result.execution_output.stdout && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Stdout:</span>
+                                    <pre className="mt-1 bg-gray-900 text-gray-100 p-2 rounded text-xs whitespace-pre-wrap">{playgroundResult.test_result.execution_output.stdout}</pre>
+                                  </div>
+                                )}
+                                
+                                {playgroundResult.test_result.execution_output.stderr && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Stderr:</span>
+                                    <pre className="mt-1 bg-red-900 text-red-100 p-2 rounded text-xs whitespace-pre-wrap">{playgroundResult.test_result.execution_output.stderr}</pre>
+                                  </div>
+                                )}
+                                
+                                {playgroundResult.test_result.execution_output.compile_output && (
+                                  <div>
+                                    <span className="font-medium text-gray-700">Compile Output:</span>
+                                    <pre className="mt-1 bg-yellow-900 text-yellow-100 p-2 rounded text-xs whitespace-pre-wrap">{playgroundResult.test_result.execution_output.compile_output}</pre>
+                                  </div>
+                                )}
+                                
+                                {playgroundResult.test_result.execution_output.exit_code !== undefined && (
+                                  <div className="text-gray-600">
+                                    <span className="font-medium">Exit Code:</span> {playgroundResult.test_result.execution_output.exit_code}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>

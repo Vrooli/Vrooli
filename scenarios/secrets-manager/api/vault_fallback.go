@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -14,29 +16,36 @@ import (
 
 // ResourceSecretsConfig represents a resource's secrets.yaml file
 type ResourceSecretsConfig struct {
-	Version        string `yaml:"version"`
-	Resource       string `yaml:"resource"`
-	Description    string `yaml:"description"`
-	Secrets        struct {
-		APIKeys []SecretDefinition `yaml:"api_keys"`
-		Endpoints []SecretDefinition `yaml:"endpoints"`
-		Quotas []SecretDefinition `yaml:"quotas"`
-	} `yaml:"secrets"`
-	Initialization *InitializationConfig `yaml:"initialization"`
+	Version        string                        `yaml:"version"`
+	Resource       string                        `yaml:"resource"`
+	Description    string                        `yaml:"description"`
+	Secrets        map[string][]SecretDefinition `yaml:"secrets"`
+	Initialization *InitializationConfig         `yaml:"initialization"`
 }
 
 // SecretDefinition represents a single secret configuration
 type SecretDefinition struct {
-	Name           string `yaml:"name"`
-	Description    string `yaml:"description"`
-	Required       bool   `yaml:"required"`
-	DefaultEnv     string `yaml:"default_env"`
-	Example        string `yaml:"example"`
-	Documentation  string `yaml:"documentation"`
-	Path           string `yaml:"path"`
-	Format         string `yaml:"format"`
-	Validation     *ValidationConfig `yaml:"validation"`
-	Fallback       string `yaml:"fallback"`
+	Name          string              `yaml:"name"`
+	Description   string              `yaml:"description"`
+	Required      bool                `yaml:"required"`
+	DefaultEnv    string              `yaml:"default_env"`
+	Example       string              `yaml:"example"`
+	Documentation string              `yaml:"documentation"`
+	Path          string              `yaml:"path"`
+	Format        string              `yaml:"format"`
+	Validation    *ValidationConfig   `yaml:"validation"`
+	Fallback      string              `yaml:"fallback"`
+	Fields        []map[string]string `yaml:"fields"`
+	Links         []SecretLink        `yaml:"links"`
+	TTL           string              `yaml:"ttl"`
+	Renewable     bool                `yaml:"renewable"`
+	AutoGenerate  bool                `yaml:"auto_generate"`
+	Regenerate    string              `yaml:"regenerate"`
+}
+
+type SecretLink struct {
+	Label string `yaml:"label"`
+	URL   string `yaml:"url"`
 }
 
 // InitializationConfig represents initialization guidance
@@ -52,6 +61,54 @@ type InitializationConfig struct {
 // ValidationConfig represents validation rules
 type ValidationConfig struct {
 	Pattern string `yaml:"pattern"`
+}
+
+func extractFieldEnvVars(secret SecretDefinition) []string {
+	var envs []string
+	for _, field := range secret.Fields {
+		for _, value := range field {
+			if value != "" {
+				envs = append(envs, value)
+			}
+		}
+	}
+	return envs
+}
+
+func normalizeName(name string) string {
+	name = strings.ToLower(name)
+	name = strings.ReplaceAll(name, "-", "_")
+	name = strings.ReplaceAll(name, ".", "_")
+	name = strings.ReplaceAll(name, " ", "_")
+	return name
+}
+
+func extractPromptInfo(init *InitializationConfig, secret SecretDefinition) (string, string, string) {
+	if init == nil {
+		return "", "", ""
+	}
+
+	secretNameNorm := normalizeName(secret.Name)
+	defaultEnvNorm := normalizeName(secret.DefaultEnv)
+
+	for _, prompt := range init.PromptUser {
+		promptNorm := normalizeName(prompt.Name)
+		if promptNorm == secretNameNorm || (defaultEnvNorm != "" && promptNorm == defaultEnvNorm) {
+			acquisitionURL := ""
+			if urlStart := strings.Index(prompt.Prompt, "https://"); urlStart != -1 {
+				rest := prompt.Prompt[urlStart:]
+				urlEnd := strings.IndexAny(rest, " \t\n)")
+				if urlEnd == -1 {
+					acquisitionURL = rest
+				} else {
+					acquisitionURL = rest[:urlEnd]
+				}
+			}
+			return prompt.Prompt, prompt.Validation, acquisitionURL
+		}
+	}
+
+	return "", "", ""
 }
 
 // scanResourcesDirectly scans resources directory for secrets.yaml files
@@ -105,7 +162,7 @@ func loadResourceSecrets(resourceName string) (*ResourceSecretsConfig, error) {
 	}
 
 	secretsPath := filepath.Join(vrooliRoot, "resources", resourceName, "config", "secrets.yaml")
-	
+
 	data, err := ioutil.ReadFile(secretsPath)
 	if err != nil {
 		return nil, err
@@ -123,7 +180,7 @@ func loadResourceSecrets(resourceName string) (*ResourceSecretsConfig, error) {
 // checkVaultForSecret checks if a secret exists in vault (simplified check)
 func checkVaultForSecret(resourceName, secretName string) bool {
 	var envName string
-	
+
 	// If resourceName is empty, use secretName directly (for default_env fields)
 	if resourceName == "" {
 		envName = secretName
@@ -132,23 +189,62 @@ func checkVaultForSecret(resourceName, secretName string) bool {
 		envName = fmt.Sprintf("%s_%s", strings.ToUpper(resourceName), strings.ToUpper(secretName))
 		envName = strings.ReplaceAll(envName, "-", "_")
 	}
-	
+
 	log.Printf("🔍 checkVaultForSecret: resource=%s, secret=%s, envName=%s", resourceName, secretName, envName)
-	
+
 	// Use getVaultSecret which already implements resource-vault CLI access
 	if value, err := getVaultSecret(envName); err == nil && value != "" {
 		log.Printf("✅ Found secret %s in vault", envName)
 		return true
 	}
-	
+
 	// Fall back to environment variables
 	if envValue := os.Getenv(envName); envValue != "" {
 		log.Printf("✅ Found secret %s in environment", envName)
 		return true
 	}
-	
+
+	// Fall back to local secrets file (~/.vrooli/secrets.json)
+	if value, err := loadLocalSecret(envName); err == nil && value != "" {
+		log.Printf("✅ Found secret %s in local secrets store", envName)
+		return true
+	}
+
 	log.Printf("❌ Secret %s not found in vault or environment", envName)
 	return false
+}
+
+func loadLocalSecret(key string) (string, error) {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		vrooliRoot = filepath.Join(home, "Vrooli")
+	}
+
+	secretsPath := filepath.Join(vrooliRoot, ".vrooli", "secrets.json")
+	data, err := os.ReadFile(secretsPath)
+	if err != nil {
+		return "", err
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return "", err
+	}
+
+	if value, ok := payload[key]; ok {
+		switch v := value.(type) {
+		case string:
+			if strings.TrimSpace(v) != "" {
+				return v, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("secret %s not found in local store", key)
 }
 
 // getVaultSecretsStatusFallback provides fallback implementation when vault CLI hangs
@@ -174,195 +270,87 @@ func getVaultSecretsStatusFallback(resourceFilter string) (*VaultSecretsStatus, 
 			log.Printf("  ❌ Error loading %s secrets: %v", resourceName, err)
 			continue // Skip resources we can't read
 		}
-		log.Printf("  📋 Processing %s: %d api_keys, %d endpoints, %d quotas", 
-			resourceName, len(config.Secrets.APIKeys), len(config.Secrets.Endpoints), len(config.Secrets.Quotas))
+		var categoryNames []string
+		for category := range config.Secrets {
+			categoryNames = append(categoryNames, category)
+		}
+		sort.Strings(categoryNames)
+		log.Printf("  📋 Processing %s: categories=%v", resourceName, categoryNames)
 
-		// Count all secrets across all categories
-		totalSecrets := len(config.Secrets.APIKeys) + len(config.Secrets.Endpoints) + len(config.Secrets.Quotas)
-		
+		totalSecrets := 0
+
 		status := VaultResourceStatus{
 			ResourceName: resourceName,
-			SecretsTotal: totalSecrets,
 			LastChecked:  time.Now(),
 			AllSecrets:   []VaultSecret{},
 		}
 
-		// Check API keys
-		for _, secret := range config.Secrets.APIKeys {
-			isConfigured := checkVaultForSecret("", secret.DefaultEnv) // Use direct env name, not prefixed
-			
-			// Extract guidance information
-			vaultSecret := VaultSecret{
-				Name:               secret.DefaultEnv,
-				Description:        secret.Description,
-				Required:           secret.Required,
-				Configured:         isConfigured,
-				SecretType:         "api_key",
-				DocumentationURL:   secret.Documentation,
-				Example:            secret.Example,
-			}
-			
-			// Extract setup instructions and acquisition URL from initialization config
-			if config.Initialization != nil {
-				for _, prompt := range config.Initialization.PromptUser {
-					// Try to match by converting secret name to match initialization format
-					// e.g., "openrouter_api_key" (yaml) vs "OPENROUTER_API_KEY" (env var)
-					promptNameUpper := strings.ToUpper(strings.ReplaceAll(prompt.Name, "-", "_"))
-					secretNameNormalized := strings.ToUpper(strings.ReplaceAll(secret.Name, "-", "_"))
-					
-					if prompt.Name == secret.Name || promptNameUpper == secretNameNormalized {
-						vaultSecret.SetupInstructions = prompt.Prompt
-						vaultSecret.ValidationHint = prompt.Validation
-						
-						// Extract URL from prompt text (look for https:// patterns)
-						if urlStart := strings.Index(prompt.Prompt, "https://"); urlStart != -1 {
-							urlEnd := strings.IndexAny(prompt.Prompt[urlStart:], " \t\n)")
-							if urlEnd == -1 {
-								vaultSecret.AcquisitionURL = prompt.Prompt[urlStart:]
-							} else {
-								vaultSecret.AcquisitionURL = prompt.Prompt[urlStart:urlStart+urlEnd]
-							}
+		for _, category := range categoryNames {
+			secrets := config.Secrets[category]
+			totalSecrets += len(secrets)
+
+			for _, secret := range secrets {
+				fieldEnvs := extractFieldEnvVars(secret)
+				envName := secret.DefaultEnv
+				if envName == "" && len(fieldEnvs) > 0 {
+					envName = fieldEnvs[0]
+				}
+				if envName == "" {
+					envName = strings.ToUpper(strings.ReplaceAll(secret.Name, "-", "_"))
+				}
+
+				configured := false
+				if envName != "" {
+					configured = checkVaultForSecret("", envName)
+				}
+				if !configured && len(fieldEnvs) > 0 {
+					configured = true
+					for _, fieldEnv := range fieldEnvs {
+						if !checkVaultForSecret("", fieldEnv) {
+							configured = false
+							break
 						}
-						break
 					}
 				}
-			}
-			
-			// Add to AllSecrets list
-			status.AllSecrets = append(status.AllSecrets, vaultSecret)
-			
-			if isConfigured {
-				status.SecretsFound++
-			} else if secret.Required {
-				status.SecretsMissing++
-				allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
-					ResourceName: resourceName,
-					SecretName:   secret.DefaultEnv, // Use env var name
-					Required:     secret.Required,
-					Description:  secret.Description,
-				})
-			} else {
-				status.SecretsOptional++
-			}
-		}
-		
-		// Check endpoints
-		for _, secret := range config.Secrets.Endpoints {
-			isConfigured := checkVaultForSecret("", secret.DefaultEnv) // Use direct env name, not prefixed
-			
-			// Extract guidance information
-			vaultSecret := VaultSecret{
-				Name:               secret.DefaultEnv,
-				Description:        secret.Description,
-				Required:           secret.Required,
-				Configured:         isConfigured,
-				SecretType:         "endpoint",
-				DocumentationURL:   secret.Documentation,
-				Example:            secret.Example,
-			}
-			
-			// Extract setup instructions and acquisition URL from initialization config
-			if config.Initialization != nil {
-				for _, prompt := range config.Initialization.PromptUser {
-					// Try to match by converting secret name to match initialization format
-					// e.g., "openrouter_api_key" (yaml) vs "OPENROUTER_API_KEY" (env var)
-					promptNameUpper := strings.ToUpper(strings.ReplaceAll(prompt.Name, "-", "_"))
-					secretNameNormalized := strings.ToUpper(strings.ReplaceAll(secret.Name, "-", "_"))
-					
-					if prompt.Name == secret.Name || promptNameUpper == secretNameNormalized {
-						vaultSecret.SetupInstructions = prompt.Prompt
-						vaultSecret.ValidationHint = prompt.Validation
-						
-						// Extract URL from prompt text (look for https:// patterns)
-						if urlStart := strings.Index(prompt.Prompt, "https://"); urlStart != -1 {
-							urlEnd := strings.IndexAny(prompt.Prompt[urlStart:], " \t\n)")
-							if urlEnd == -1 {
-								vaultSecret.AcquisitionURL = prompt.Prompt[urlStart:]
-							} else {
-								vaultSecret.AcquisitionURL = prompt.Prompt[urlStart:urlStart+urlEnd]
-							}
-						}
-						break
-					}
+
+				setupInstructions, validationHint, acquisitionURL := extractPromptInfo(config.Initialization, secret)
+				if acquisitionURL == "" && len(secret.Links) > 0 {
+					acquisitionURL = secret.Links[0].URL
+				}
+
+				vaultSecret := VaultSecret{
+					Name:              envName,
+					Description:       secret.Description,
+					Required:          secret.Required,
+					Configured:        configured,
+					SecretType:        category,
+					DocumentationURL:  secret.Documentation,
+					AcquisitionURL:    acquisitionURL,
+					SetupInstructions: setupInstructions,
+					Example:           secret.Example,
+					ValidationHint:    validationHint,
+				}
+
+				status.AllSecrets = append(status.AllSecrets, vaultSecret)
+
+				if configured {
+					status.SecretsFound++
+				} else if secret.Required {
+					status.SecretsMissing++
+					allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
+						ResourceName: resourceName,
+						SecretName:   envName,
+						SecretPath:   secret.Path,
+						Required:     secret.Required,
+						Description:  secret.Description,
+					})
+				} else {
+					status.SecretsOptional++
 				}
 			}
-			
-			// Add to AllSecrets list
-			status.AllSecrets = append(status.AllSecrets, vaultSecret)
-			
-			if isConfigured {
-				status.SecretsFound++
-			} else if secret.Required {
-				status.SecretsMissing++
-				allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
-					ResourceName: resourceName,
-					SecretName:   secret.DefaultEnv,
-					Required:     secret.Required,
-					Description:  secret.Description,
-				})
-			} else {
-				status.SecretsOptional++
-			}
 		}
-		
-		// Check quotas
-		for _, secret := range config.Secrets.Quotas {
-			isConfigured := checkVaultForSecret("", secret.DefaultEnv) // Use direct env name, not prefixed
-			
-			// Extract guidance information
-			vaultSecret := VaultSecret{
-				Name:               secret.DefaultEnv,
-				Description:        secret.Description,
-				Required:           secret.Required,
-				Configured:         isConfigured,
-				SecretType:         "quota",
-				DocumentationURL:   secret.Documentation,
-				Example:            secret.Example,
-			}
-			
-			// Extract setup instructions and acquisition URL from initialization config
-			if config.Initialization != nil {
-				for _, prompt := range config.Initialization.PromptUser {
-					// Try to match by converting secret name to match initialization format
-					// e.g., "openrouter_api_key" (yaml) vs "OPENROUTER_API_KEY" (env var)
-					promptNameUpper := strings.ToUpper(strings.ReplaceAll(prompt.Name, "-", "_"))
-					secretNameNormalized := strings.ToUpper(strings.ReplaceAll(secret.Name, "-", "_"))
-					
-					if prompt.Name == secret.Name || promptNameUpper == secretNameNormalized {
-						vaultSecret.SetupInstructions = prompt.Prompt
-						vaultSecret.ValidationHint = prompt.Validation
-						
-						// Extract URL from prompt text (look for https:// patterns)
-						if urlStart := strings.Index(prompt.Prompt, "https://"); urlStart != -1 {
-							urlEnd := strings.IndexAny(prompt.Prompt[urlStart:], " \t\n)")
-							if urlEnd == -1 {
-								vaultSecret.AcquisitionURL = prompt.Prompt[urlStart:]
-							} else {
-								vaultSecret.AcquisitionURL = prompt.Prompt[urlStart:urlStart+urlEnd]
-							}
-						}
-						break
-					}
-				}
-			}
-			
-			// Add to AllSecrets list
-			status.AllSecrets = append(status.AllSecrets, vaultSecret)
-			
-			if isConfigured {
-				status.SecretsFound++
-			} else if secret.Required {
-				status.SecretsMissing++
-				allMissingSecrets = append(allMissingSecrets, VaultMissingSecret{
-					ResourceName: resourceName,
-					SecretName:   secret.DefaultEnv,
-					Required:     secret.Required,
-					Description:  secret.Description,
-				})
-			} else {
-				status.SecretsOptional++
-			}
-		}
+
+		status.SecretsTotal = totalSecrets
 
 		// Determine health status
 		if status.SecretsMissing == 0 {
