@@ -9,7 +9,8 @@ import {
   AutomatedFixConfig,
   AutomatedFix,
   BreakingChange,
-  ApiResponse
+  AgentInfo,
+  FixAgentResponse
 } from '@/types/api'
 
 const API_BASE = '/api/v1'
@@ -183,17 +184,10 @@ class ApiService {
 
   // Claude Fix
   async triggerClaudeFix(
-    scenarioName: string, 
+    scenarioName: string,
     fixType: 'standards' | 'vulnerabilities',
     issueIds?: string[]
-  ): Promise<{
-    success: boolean
-    message: string
-    fix_id: string
-    started_at: string
-    output?: string
-    error?: string
-  }> {
+  ): Promise<FixAgentResponse> {
     return this.fetch('/claude/fix', {
       method: 'POST',
       body: JSON.stringify({
@@ -204,7 +198,7 @@ class ApiService {
     })
   }
 
-  async getClaudeFixStatus(fixId: string): Promise<any> {
+  async getClaudeFixStatus(fixId: string): Promise<{ success: boolean; status: string; agent: AgentInfo }> {
     return this.fetch(`/claude/fix/${fixId}/status`)
   }
 
@@ -236,6 +230,31 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ code, language: language || 'go' })
     })
+  }
+
+  async startRuleAgent(ruleId: string, action: 'add_rule_tests' | 'fix_rule_tests', label?: string): Promise<{ success: boolean; agent: AgentInfo; message: string; prompt_len: number }> {
+    const payload: Record<string, unknown> = { action, rule_id: ruleId }
+    if (label) {
+      payload.label = label
+    }
+    return this.fetch('/agents', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+  }
+
+  async getActiveAgents(): Promise<{ count: number; agents: AgentInfo[] }> {
+    return this.fetch('/agents')
+  }
+
+  async stopAgent(agentId: string): Promise<{ success: boolean; message: string }> {
+    return this.fetch(`/agents/${encodeURIComponent(agentId)}/stop`, {
+      method: 'POST'
+    })
+  }
+
+  async getAgentLogs(agentId: string): Promise<{ agent_id: string; logs: string }> {
+    return this.fetch(`/agents/${encodeURIComponent(agentId)}/logs`)
   }
 
   async clearTestCache(ruleId?: string): Promise<any> {

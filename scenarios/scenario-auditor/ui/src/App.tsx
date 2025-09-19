@@ -16,7 +16,8 @@ import {
   Server,
   FileText,
   ClipboardList,
-  Sliders
+  Sliders,
+  Brain
 } from 'lucide-react'
 import clsx from 'clsx'
 import Dashboard from './components/Dashboard'
@@ -32,6 +33,7 @@ import RulesManager from './pages/RulesManager'
 import ResultsViewer from './pages/ResultsViewer'
 import Preferences from './pages/Preferences'
 import { apiService } from './services/api'
+import { AgentInfo } from '@/types/api'
 
 export default function App() {
   const navigate = useNavigate()
@@ -48,6 +50,7 @@ export default function App() {
     const saved = localStorage.getItem('sidebarCollapsed')
     return saved !== null ? JSON.parse(saved) : false
   })
+  const [agentsMenuOpen, setAgentsMenuOpen] = useState(false)
   
   const { 
     data: systemStatus, 
@@ -60,6 +63,12 @@ export default function App() {
     queryFn: () => apiService.getSystemStatus(),
     refetchInterval: 30000,
     retry: 3,
+  })
+
+  const { data: activeAgentsData } = useQuery({
+    queryKey: ['activeAgents'],
+    queryFn: () => apiService.getActiveAgents(),
+    refetchInterval: 2000,
   })
 
 
@@ -80,6 +89,27 @@ export default function App() {
   // Get current view based on location
   const currentView = navigation.find(n => n.path === location.pathname)?.id || 'dashboard'
 
+  const formatDuration = (seconds: number) => {
+    if (!seconds || seconds < 1) return '<1s'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (mins > 0) {
+      return `${mins}m ${secs}s`
+    }
+    return `${secs}s`
+  }
+
+  const describeAgentAction = (action: string) => {
+    switch (action) {
+      case 'add_rule_tests':
+        return 'Add test cases'
+      case 'fix_rule_tests':
+        return 'Fix test cases'
+      default:
+        return action
+    }
+  }
+
   // Save sidebar state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('sidebarOpen', JSON.stringify(sidebarOpen))
@@ -88,6 +118,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', JSON.stringify(sidebarCollapsed))
   }, [sidebarCollapsed])
+
+  useEffect(() => {
+    if ((activeAgentsData?.count || 0) === 0) {
+      setAgentsMenuOpen(false)
+    }
+  }, [activeAgentsData?.count])
 
   useEffect(() => {
     const handleResize = () => {
@@ -329,6 +365,43 @@ export default function App() {
             </h1>
             
             <div className="flex items-center gap-4">
+              {!!(activeAgentsData?.count) && (
+                <div
+                  className="relative"
+                >
+                  <button
+                    className="inline-flex items-center gap-2 rounded-md border border-primary-200 bg-white px-3 py-2 text-sm font-medium text-primary-700 shadow-sm hover:bg-primary-50 focus:outline-none focus:ring-2 focus:ring-primary-400"
+                    onClick={() => setAgentsMenuOpen(prev => !prev)}
+                  >
+                    <Brain className="h-4 w-4" />
+                    <span>{activeAgentsData.count} Active</span>
+                  </button>
+                  {agentsMenuOpen && (
+                    <div className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-lg border border-dark-200 bg-white shadow-xl">
+                      <div className="border-b border-dark-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-dark-500">
+                        Active Agents
+                      </div>
+                      <ul className="max-h-64 divide-y divide-dark-100 overflow-auto">
+                        {activeAgentsData.agents.map((agent: AgentInfo) => {
+                          const scenarioName = agent.metadata?.scenario || agent.scenario || agent.rule_id
+                          return (
+                          <li key={agent.id} className="px-3 py-2 text-sm">
+                            <div className="font-medium text-dark-800">{agent.label || agent.name}</div>
+                            <div className="mt-1 flex items-center justify-between text-xs text-dark-500">
+                              <span>
+                                {describeAgentAction(agent.action)}
+                                {scenarioName ? ` • ${scenarioName}` : ''}
+                              </span>
+                              <span>{formatDuration(agent.duration_seconds)}</span>
+                            </div>
+                          </li>
+                          )
+                        })}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
               {/* Quick stats */}
               <div className="hidden sm:flex items-center gap-4">
                 <div className="flex items-center gap-2">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   Shield, 
@@ -29,6 +29,7 @@ import { apiService } from '../services/api'
 import { Card } from './common/Card'
 import { Badge } from './common/Badge'
 import { Dialog } from './common/Dialog'
+import { AgentInfo } from '@/types/api'
 
 interface StandardsViolation {
   id: string
@@ -45,23 +46,11 @@ interface StandardsViolation {
   discovered_at: string
 }
 
-interface Agent {
-  id: string
-  pid: number
-  status: 'running' | 'stopped' | 'crashed'
-  start_time: string
-  last_seen: string
-  command: string
-  type?: string
-  scenario?: string
-  log_file?: string
-}
-
-interface AgentTracker {
+interface CompletedAgentStatus {
   agentId: string
   scenario: string
   startTime: Date
-  status: 'running' | 'completed' | 'failed'
+  status: 'completed' | 'failed'
   message?: string
 }
 
@@ -73,9 +62,27 @@ export default function StandardsCompliance() {
   const [showDisabledTooltip, setShowDisabledTooltip] = useState(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [severityFilter, setSeverityFilter] = useState<string | null>(null)
-  const [runningAgents, setRunningAgents] = useState<Map<string, AgentTracker>>(new Map())
-  const [completedAgents, setCompletedAgents] = useState<Map<string, AgentTracker>>(new Map())
+  const [completedAgents, setCompletedAgents] = useState<Map<string, CompletedAgentStatus>>(new Map())
+  const [launchingScenario, setLaunchingScenario] = useState<string | null>(null)
+  const prevAgentsRef = useRef<Map<string, string>>(new Map())
   const queryClient = useQueryClient()
+  const { data: activeAgentsData } = useQuery({
+    queryKey: ['activeAgents'],
+    queryFn: () => apiService.getActiveAgents(),
+    refetchInterval: 2000,
+  })
+
+  const standardsAgents = useMemo(() => {
+    const map = new Map<string, AgentInfo>()
+    const agents = activeAgentsData?.agents ?? []
+    for (const agent of agents as AgentInfo[]) {
+      if (agent.action !== 'standards_fix') continue
+      const scenarioId = agent.metadata?.scenario || agent.scenario || agent.rule_id
+      if (!scenarioId) continue
+      map.set(scenarioId, agent)
+    }
+    return map
+  }, [activeAgentsData])
 
   const { data: scenarios } = useQuery({
     queryKey: ['scenarios'],
@@ -97,65 +104,6 @@ export default function StandardsCompliance() {
       refetch()
     },
   })
-
-  // Poll for agent status updates
-  useEffect(() => {
-    if (runningAgents.size === 0) return
-
-    const pollAgentStatus = async () => {
-      try {
-        const response = await fetch('/api/v1/agents')
-        const data = await response.json()
-        const agents: Record<string, Agent> = data.agents || {}
-
-        setRunningAgents(prev => {
-          const updated = new Map(prev)
-          const newCompleted = new Map(completedAgents)
-
-          for (const [scenario, tracker] of prev) {
-            const agent = agents[tracker.agentId]
-            
-            if (!agent) {
-              // Agent not found, assume completed successfully
-              const completedTracker: AgentTracker = {
-                ...tracker,
-                status: 'completed',
-                message: 'Fix completed successfully'
-              }
-              newCompleted.set(scenario, completedTracker)
-              updated.delete(scenario)
-            } else if (agent.status === 'stopped') {
-              // Agent completed
-              const completedTracker: AgentTracker = {
-                ...tracker,
-                status: 'completed',
-                message: 'Fix completed successfully'
-              }
-              newCompleted.set(scenario, completedTracker)
-              updated.delete(scenario)
-            } else if (agent.status === 'crashed') {
-              // Agent failed
-              const failedTracker: AgentTracker = {
-                ...tracker,
-                status: 'failed',
-                message: 'Fix failed - check agent logs for details'
-              }
-              newCompleted.set(scenario, failedTracker)
-              updated.delete(scenario)
-            }
-          }
-
-          setCompletedAgents(newCompleted)
-          return updated
-        })
-      } catch (error) {
-        console.error('Failed to poll agent status:', error)
-      }
-    }
-
-    const interval = setInterval(pollAgentStatus, 2000) // Poll every 2 seconds
-    return () => clearInterval(interval)
-  }, [runningAgents.size, completedAgents])
 
   // Auto-refresh violations when agents complete successfully
   useEffect(() => {
@@ -262,6 +210,89 @@ export default function StandardsCompliance() {
     medium: violations?.filter(v => v.severity === 'medium').length || 0,
     low: violations?.filter(v => v.severity === 'low').length || 0,
   }
+
+  const formatDurationSeconds = (seconds?: number) => {
+    if (!seconds || seconds <= 0) return '<1s'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (mins > 0) {
+      return `${mins}m ${secs}s`
+    }
+    return `${secs}s`
+  }
+
+  const handleAgentCompletion = useCallback(async (agentId: string, scenario: string) => {
+    try {
+      const status = await apiService.getClaudeFixStatus(agentId)
+      const agent = status.agent as AgentInfo | undefined
+      const finalStatus = (status.status || agent?.status || 'completed').toLowerCase() === 'failed' ? 'failed' : 'completed'
+      const message = agent?.error || (finalStatus === 'failed' ? 'Fix failed - review agent logs' : 'Fix completed successfully')
+
+      setCompletedAgents(prev => {
+        const updated = new Map(prev)
+        updated.set(scenario, {
+          agentId,
+          scenario,
+          startTime: agent?.started_at ? new Date(agent.started_at) : new Date(),
+          status: finalStatus,
+          message,
+        })
+        return updated
+      })
+
+      if (launchingScenario === scenario) {
+        setLaunchingScenario(null)
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['standardsViolations'] })
+      queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+      refetch()
+    } catch (error) {
+      setCompletedAgents(prev => {
+        const updated = new Map(prev)
+        updated.set(scenario, {
+          agentId,
+          scenario,
+          startTime: new Date(),
+          status: 'failed',
+          message: error instanceof Error ? error.message : 'Unable to determine agent status',
+        })
+        return updated
+      })
+      if (launchingScenario === scenario) {
+        setLaunchingScenario(null)
+      }
+    }
+  }, [launchingScenario, queryClient, refetch])
+
+  useEffect(() => {
+    const prev = prevAgentsRef.current
+    const currentScenarios = new Set<string>()
+    standardsAgents.forEach((_, scenario) => {
+      currentScenarios.add(scenario)
+    })
+
+    // Detect completed agents
+    prev.forEach((agentId, scenario) => {
+      if (!currentScenarios.has(scenario)) {
+        void handleAgentCompletion(agentId, scenario)
+        prev.delete(scenario)
+      }
+    })
+
+    // Track currently running agents
+    standardsAgents.forEach((agent, scenario) => {
+      prev.set(scenario, agent.id)
+    })
+  }, [standardsAgents, handleAgentCompletion])
+
+  useEffect(() => {
+    if (completedAgents.size === 0) return
+    const timer = setTimeout(() => {
+      setCompletedAgents(new Map())
+    }, 6000)
+    return () => clearTimeout(timer)
+  }, [completedAgents])
 
   return (
     <div className="space-y-6 animate-in">
@@ -529,7 +560,11 @@ export default function StandardsCompliance() {
             </div>
           ) : filteredViolations && filteredViolations.length > 0 ? (
             <div className="space-y-4">
-              {Object.entries(groupedViolations || {}).map(([scenario, scenarioViolations]) => (
+              {Object.entries(groupedViolations || {}).map(([scenario, scenarioViolations]) => {
+                const scenarioAgent = standardsAgents.get(scenario)
+                const isLaunching = launchingScenario === scenario
+                const hasActiveAgent = Boolean(scenarioAgent)
+                return (
                 <div key={scenario} className="border border-dark-200 rounded-lg">
                   <div className="bg-dark-50 px-4 py-2 border-b border-dark-200 flex items-center justify-between">
                     <h3 className="font-medium text-dark-900">{scenario}</h3>
@@ -542,61 +577,66 @@ export default function StandardsCompliance() {
                           if (!confirm(`Trigger Claude agent to fix ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
                             return
                           }
-                          
+
+                          setLaunchingScenario(scenario)
+                          setCompletedAgents(prev => {
+                            const updated = new Map(prev)
+                            updated.delete(scenario)
+                            return updated
+                          })
+
                           try {
                             const result = await apiService.triggerClaudeFix(
                               scenario,
                               'standards',
                               scenarioViolations.map(v => v.id)
                             )
-                            
-                            if (result.success && result.fix_id) {
-                              // Track the agent
-                              const tracker: AgentTracker = {
-                                agentId: result.fix_id,
-                                scenario: scenario,
-                                startTime: new Date(result.started_at),
-                                status: 'running'
-                              }
-                              
-                              setRunningAgents(prev => new Map([...prev, [scenario, tracker]]))
-                              
-                              // Clear any previous completed results for this scenario
+
+                            if (!result.success || !result.agent) {
                               setCompletedAgents(prev => {
                                 const updated = new Map(prev)
-                                updated.delete(scenario)
+                                updated.set(scenario, {
+                                  agentId: result.fix_id || 'unknown',
+                                  scenario,
+                                  startTime: new Date(),
+                                  status: 'failed',
+                                  message: result.error || result.message || 'Failed to start agent',
+                                })
                                 return updated
                               })
-                            } else {
-                              // Immediate failure
-                              const failedTracker: AgentTracker = {
-                                agentId: result.fix_id || 'unknown',
-                                scenario: scenario,
+                              setLaunchingScenario(null)
+                              return
+                            }
+
+                            await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+                          } catch (error) {
+                            setCompletedAgents(prev => {
+                              const updated = new Map(prev)
+                              updated.set(scenario, {
+                                agentId: 'unknown',
+                                scenario,
                                 startTime: new Date(),
                                 status: 'failed',
-                                message: result.error || result.message || 'Failed to start agent'
-                              }
-                              setCompletedAgents(prev => new Map([...prev, [scenario, failedTracker]]))
-                            }
-                          } catch (error) {
-                            const failedTracker: AgentTracker = {
-                              agentId: 'unknown',
-                              scenario: scenario,
-                              startTime: new Date(),
-                              status: 'failed',
-                              message: error instanceof Error ? error.message : 'Failed to trigger fix'
-                            }
-                            setCompletedAgents(prev => new Map([...prev, [scenario, failedTracker]]))
+                                message: error instanceof Error ? error.message : 'Failed to trigger fix',
+                              })
+                              return updated
+                            })
+                            setLaunchingScenario(null)
                           }
                         }}
-                        disabled={runningAgents.has(scenario)}
+                        disabled={hasActiveAgent || isLaunching}
                         className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
                         title="Fix violations with Claude agent"
                       >
-                        {runningAgents.has(scenario) ? (
+                        {hasActiveAgent ? (
                           <>
                             <Loader2 className="h-3 w-3 animate-spin" />
-                            Fixing... ({getElapsedTime(runningAgents.get(scenario)!.startTime)})
+                            Fixing... ({formatDurationSeconds(scenarioAgent?.duration_seconds)})
+                          </>
+                        ) : isLaunching ? (
+                          <>
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Starting...
                           </>
                         ) : (
                           <>
@@ -658,7 +698,8 @@ export default function StandardsCompliance() {
                     ))}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-12">

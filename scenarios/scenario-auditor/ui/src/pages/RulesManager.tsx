@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff, Brain, CircleStop } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
+import { AgentInfo } from '@/types/api'
 import { apiService } from '../services/api'
 import { CodeEditor } from '../components/CodeEditor'
 
@@ -117,6 +118,44 @@ export default function RulesManager() {
   const [playgroundCode, setPlaygroundCode] = useState('')
   const [playgroundResult, setPlaygroundResult] = useState<any>(null)
   const [isRunningPlayground, setIsRunningPlayground] = useState(false)
+  const [isLaunchingAgent, setIsLaunchingAgent] = useState(false)
+  const [agentError, setAgentError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+
+  const { data: activeAgentsData } = useQuery({
+    queryKey: ['activeAgents'],
+    queryFn: () => apiService.getActiveAgents(),
+    refetchInterval: 2000,
+  })
+
+  const ruleAgents = useMemo(() => {
+    if (!selectedRule) return []
+    return (activeAgentsData?.agents || []).filter((agent: AgentInfo) => agent.rule_id === selectedRule)
+  }, [activeAgentsData, selectedRule])
+
+  const isAgentRunning = ruleAgents.length > 0
+
+  const formatDuration = (seconds: number) => {
+    if (!seconds || seconds < 1) return '<1s'
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (mins > 0) {
+      return `${mins}m ${secs}s`
+    }
+    return `${secs}s`
+  }
+
+  const describeAgentAction = (action: string) => {
+    switch (action) {
+      case 'add_rule_tests':
+        return 'Add Test Cases'
+      case 'fix_rule_tests':
+        return 'Fix Test Cases'
+      default:
+        return action
+    }
+  }
+
   const [showExecutionOutput, setShowExecutionOutput] = useState<{[key: number]: boolean}>({})
 
   const { data: rulesData, isLoading, refetch } = useQuery({
@@ -162,8 +201,38 @@ export default function RulesManager() {
     }
   }
 
+  const handleStartAgent = async (action: 'add_rule_tests' | 'fix_rule_tests') => {
+    if (!selectedRule) return
+    setAgentError(null)
+    setIsLaunchingAgent(true)
+    try {
+      await apiService.startRuleAgent(selectedRule, action)
+      await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+    } catch (error) {
+      console.error('Failed to start agent:', error)
+      setAgentError((error as Error).message)
+    } finally {
+      setIsLaunchingAgent(false)
+    }
+  }
+
+  const handleStopAgent = async (agentId: string) => {
+    setAgentError(null)
+    setIsLaunchingAgent(true)
+    try {
+      await apiService.stopAgent(agentId)
+      await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+    } catch (error) {
+      console.error('Failed to stop agent:', error)
+      setAgentError((error as Error).message)
+    } finally {
+      setIsLaunchingAgent(false)
+    }
+  }
+
   // Reset tab and test data when rule changes
   React.useEffect(() => {
+    setAgentError(null)
     if (selectedRule) {
       setActiveTab('implementation')
       setTestResults(null)
@@ -445,34 +514,86 @@ export default function RulesManager() {
 
                 {activeTab === 'tests' && (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <h4 className="text-lg font-medium text-gray-900">Test Cases</h4>
-                      <button
-                        onClick={runRuleTests}
-                        disabled={isRunningTests}
-                        className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                      >
-                        {isRunningTests ? (
-                          <Clock className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Play className="h-4 w-4 mr-2" />
-                        )}
-                        {isRunningTests ? 'Running...' : 'Run All Tests'}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={runRuleTests}
+                          disabled={isRunningTests}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          {isRunningTests ? (
+                            <Clock className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Play className="h-4 w-4 mr-2" />
+                          )}
+                          {isRunningTests ? 'Running...' : 'Run All Tests'}
+                        </button>
+                        <button
+                          onClick={() => handleStartAgent('add_rule_tests')}
+                          disabled={isLaunchingAgent || isAgentRunning || !selectedRule}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                        >
+                          <Brain className="h-4 w-4 mr-2" />
+                          Add Tests (AI)
+                        </button>
+                        <button
+                          onClick={() => handleStartAgent('fix_rule_tests')}
+                          disabled={isLaunchingAgent || isAgentRunning || !selectedRule}
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
+                        >
+                          <Brain className="h-4 w-4 mr-2" />
+                          Fix Tests (AI)
+                        </button>
+                      </div>
                     </div>
+
+                    {agentError && (
+                      <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-700">
+                        {agentError}
+                      </div>
+                    )}
+
+                    {isLaunchingAgent && !isAgentRunning && (
+                      <div className="flex items-center gap-2 text-sm text-blue-700">
+                        <Clock className="h-4 w-4 animate-spin" />
+                        <span>Preparing AI agent…</span>
+                      </div>
+                    )}
+
+                    {ruleAgents.map((agent: AgentInfo) => (
+                      <div key={agent.id} className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-white">
+                              <Brain className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-blue-900">{agent.label || agent.name}</p>
+                              <p className="text-xs text-blue-700">{describeAgentAction(agent.action)} · {formatDuration(agent.duration_seconds)} elapsed</p>
+                              {agent.metadata?.rule_file && (
+                                <p className="text-xs text-blue-600">Rule file: {agent.metadata.rule_file}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => handleStopAgent(agent.id)}
+                              disabled={isLaunchingAgent}
+                              className="inline-flex items-center px-3 py-2 border border-red-200 text-sm font-medium rounded-md text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              <CircleStop className="h-4 w-4 mr-2" />
+                              Stop
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
 
                     {isRunningTests && (
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                         <span className="ml-3 text-gray-600">Running tests...</span>
-                      </div>
-                    )}
-
-                    {testResults?.error && (
-                      <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                        <div className="text-red-800">
-                          <strong>Error:</strong> {testResults.error}
-                        </div>
                       </div>
                     )}
 

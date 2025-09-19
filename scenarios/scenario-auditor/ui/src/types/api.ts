@@ -159,3 +159,31 @@ export interface ApiResponse<T> {
   message?: string
   timestamp: string
 }
+export interface AgentInfo {
+  id: string
+  name: string
+  label: string
+  action: string
+  rule_id?: string
+  scenario?: string
+  model: string
+  status: string
+  started_at: string
+  ended_at?: string
+  duration_seconds: number
+  command: string[]
+  prompt_length: number
+  pid?: number
+  metadata?: Record<string, string>
+  issue_ids?: string[]
+  error?: string
+}
+
+export interface FixAgentResponse {
+  success: boolean
+  message: string
+  fix_id: string
+  started_at: string
+  agent?: AgentInfo
+  error?: string
+}

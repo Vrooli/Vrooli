@@ -27,6 +27,20 @@ for lib in common install status docker content test; do
     fi
 done
 
+# Agent management integration (shared framework)
+if [[ -f "${OPENCODE_CLI_DIR}/config/agents.conf" ]]; then
+    # shellcheck disable=SC1091
+    source "${OPENCODE_CLI_DIR}/config/agents.conf"
+    if [[ -f "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${APP_ROOT}/scripts/resources/agents/agent-manager.sh"
+        if type -t agent_manager::load_config &>/dev/null; then
+            agent_manager::load_config "opencode" >/dev/null 2>&1 || true
+            agent_manager::init_registry >/dev/null 2>&1 || true
+        fi
+    fi
+fi
+
 cli::init "opencode" "OpenCode AI CLI" "v2"
 
 CLI_COMMAND_HANDLERS["manage::install"]="opencode::install::execute"
@@ -51,12 +65,28 @@ opencode::cli::dispatch() {
         echo "Try 'resource-opencode run --help' for CLI options."
         return 1
     fi
-    opencode::run_cli "$@"
+    if type -t agents::track_operation &>/dev/null; then
+        agents::track_operation "run" opencode::run_cli "$@"
+    else
+        opencode::run_cli "$@"
+    fi
 }
 
 cli::register_command "status" "Show OpenCode status" "opencode::status"
 cli::register_command "run" "Execute raw OpenCode CLI commands" "opencode::cli::dispatch"
 cli::register_command "logs" "Show log directory" "opencode::docker::logs"
+
+opencode::agents::command() {
+    if type -t agent_manager::load_config &>/dev/null; then
+        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="opencode" "$@"
+    else
+        log::error "Agent management not available"
+        return 1
+    fi
+}
+export -f opencode::agents::command
+
+cli::register_command "agents" "Manage running OpenCode agents" "opencode::agents::command"
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     cli::dispatch "$@"
