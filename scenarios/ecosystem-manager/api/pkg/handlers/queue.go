@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
 
@@ -14,13 +15,15 @@ import (
 type QueueHandlers struct {
 	processor *queue.Processor
 	wsManager *websocket.Manager
+	storage   *tasks.Storage
 }
 
 // NewQueueHandlers creates a new queue handlers instance
-func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager) *QueueHandlers {
+func NewQueueHandlers(processor *queue.Processor, wsManager *websocket.Manager, storage *tasks.Storage) *QueueHandlers {
 	return &QueueHandlers{
 		processor: processor,
 		wsManager: wsManager,
+		storage:   storage,
 	}
 }
 
@@ -146,6 +149,39 @@ func (h *QueueHandlers) TerminateProcessHandler(w http.ResponseWriter, r *http.R
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
+	}
+
+	// Find the task and move it back to pending with cleared state
+	task, currentStatus, err := h.storage.GetTaskByID(request.TaskID)
+	if err == nil && task != nil && currentStatus == "in-progress" {
+		// Clear execution state and move to pending
+		task.Status = "pending"
+		task.CurrentPhase = ""
+		task.ProgressPercent = 0
+		task.StartedAt = ""
+		task.Results = nil
+
+		// Move task from in-progress to pending
+		if err := h.storage.MoveTask(request.TaskID, "in-progress", "pending"); err != nil {
+			log.Printf("Warning: Failed to move cancelled task %s to pending: %v", request.TaskID, err)
+		} else {
+			// Save the updated task with cleared state
+			if err := h.storage.SaveQueueItem(*task, "pending"); err != nil {
+				log.Printf("Warning: Failed to update cancelled task %s state: %v", request.TaskID, err)
+			}
+			// Reset any cached logs so future runs start clean
+			h.processor.ResetTaskLogs(request.TaskID)
+
+			// Broadcast task status change for UI update
+			h.wsManager.BroadcastUpdate("task_status_changed", map[string]interface{}{
+				"task_id":    request.TaskID,
+				"old_status": "in-progress",
+				"new_status": "pending",
+				"task":       task,
+			})
+
+			log.Printf("Cancelled task %s moved back to pending", request.TaskID)
+		}
 	}
 
 	// Broadcast termination event

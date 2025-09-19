@@ -28,6 +28,9 @@ class EcosystemManager {
         // State
         this.isLoading = false;
         this.rateLimitEndTime = null;
+        this.refreshCountdownInterval = null;
+        this.lastRefreshTime = Date.now();
+        this.refreshInterval = 30; // Default 30 seconds
         
         // Bind methods
         this.init = this.init.bind(this);
@@ -39,7 +42,10 @@ class EcosystemManager {
         
         // Initialize UI
         this.initializeUI();
-        
+
+        // Prepare process monitor dropdown interactions
+        this.processMonitor.initializeDropdown();
+
         // Ensure cached theme is applied
         SettingsManager.applyCachedTheme();
         
@@ -105,6 +111,14 @@ class EcosystemManager {
             const settings = await this.settingsManager.loadSettings();
             this.settingsManager.applySettingsToUI(settings);
             
+            // Store refresh interval from settings
+            this.refreshInterval = settings.refresh_interval || 30;
+            
+            // Start refresh countdown timer if processor is active
+            if (settings.active) {
+                this.startRefreshCountdown();
+            }
+            
             // Load tasks
             await this.loadAllTasks();
             
@@ -117,6 +131,42 @@ class EcosystemManager {
         } catch (error) {
             console.error('Error loading initial data:', error);
             this.showToast('Failed to load initial data', 'error');
+        }
+    }
+    
+    startRefreshCountdown() {
+        // Clear any existing countdown
+        if (this.refreshCountdownInterval) {
+            clearInterval(this.refreshCountdownInterval);
+        }
+        
+        // Update the countdown every second
+        this.refreshCountdownInterval = setInterval(() => {
+            const now = Date.now();
+            const elapsed = Math.floor((now - this.lastRefreshTime) / 1000);
+            const remaining = Math.max(0, this.refreshInterval - elapsed);
+            
+            const countdownElement = document.getElementById('refresh-countdown');
+            if (countdownElement) {
+                countdownElement.textContent = remaining;
+            }
+            
+            // If countdown reaches 0, reset the timer
+            if (remaining === 0) {
+                this.lastRefreshTime = now;
+            }
+        }, 1000);
+    }
+    
+    stopRefreshCountdown() {
+        if (this.refreshCountdownInterval) {
+            clearInterval(this.refreshCountdownInterval);
+            this.refreshCountdownInterval = null;
+        }
+        
+        const countdownElement = document.getElementById('refresh-countdown');
+        if (countdownElement) {
+            countdownElement.textContent = '--';
         }
     }
 
@@ -465,9 +515,7 @@ class EcosystemManager {
                     ${results.error ? `
                         <div style="margin-bottom: 0.5rem;">
                             <strong>Error:</strong> 
-                            <div class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px;">
-                                ${this.taskManager.formatErrorText(results.error)}
-                            </div>
+                            <pre class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px; white-space: pre-wrap;">${this.escapeHtml(this.taskManager.formatErrorText(results.error))}</pre>
                         </div>
                     ` : ''}
                     
@@ -620,10 +668,45 @@ class EcosystemManager {
         this.showLoading(true);
         
         try {
-            const result = await this.taskManager.updateTask(taskId, { status: toStatus });
+            // If moving from in-progress to any other status, automatically terminate the running process
+            if (fromStatus === 'in-progress' && toStatus !== 'in-progress') {
+                const isRunning = this.processMonitor.isTaskRunning(taskId);
+                if (isRunning) {
+                    console.log(`Auto-terminating running process for task ${taskId} (moved from in-progress to ${toStatus})`);
+                    try {
+                        await this.processMonitor.terminateProcess(taskId);
+                        this.showToast('Running task automatically stopped', 'info');
+                    } catch (terminateError) {
+                        console.warn('Failed to auto-terminate process:', terminateError);
+                        // Continue with the move even if termination fails
+                    }
+                }
+            }
+            
+            // Clear task state when moving to specific columns
+            const updates = { status: toStatus };
+            
+            // Set appropriate current_phase based on the target status
+            // Use empty string to clear, as the backend preserves non-empty values
+            if (toStatus === 'pending') {
+                updates.current_phase = '';  // Empty string to clear
+            } else if (toStatus === 'in-progress') {
+                updates.current_phase = 'in-progress';
+            } else if (toStatus === 'completed') {
+                updates.current_phase = 'completed';
+            } else if (toStatus === 'failed') {
+                updates.current_phase = 'failed';
+            }
+            
+            const result = await this.taskManager.updateTask(taskId, updates);
             
             if (result.success) {
                 this.showToast(`Task moved to ${toStatus}`, 'success');
+                
+                // Give the backend a moment to complete the file move operation
+                // This prevents seeing duplicates during the transition
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
                 // Refresh both columns to update task counts and positions
                 await Promise.all([
                     this.loadTasksForStatus(fromStatus),
@@ -635,6 +718,10 @@ class EcosystemManager {
         } catch (error) {
             console.error('Error moving task:', error);
             this.showToast(`Failed to move task: ${error.message}`, 'error');
+            
+            // Small delay before refresh to let backend settle
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
             // Reload both columns to restore correct state
             await Promise.all([
                 this.loadTasksForStatus(fromStatus),
@@ -725,7 +812,17 @@ class EcosystemManager {
                 element.textContent = value;
             }
         });
-        
+
+        const availableSlotsEl = document.getElementById('available-slots');
+        if (availableSlotsEl && typeof status.available_slots === 'number') {
+            availableSlotsEl.textContent = status.available_slots;
+        }
+
+        const maxSlotsEl = document.getElementById('max-slots');
+        if (maxSlotsEl && typeof status.max_concurrent === 'number') {
+            maxSlotsEl.textContent = status.max_concurrent;
+        }
+
         // Update last processed time
         if (status.last_processed_at) {
             const element = document.getElementById('last-processed-time');
@@ -783,28 +880,217 @@ class EcosystemManager {
         }
     }
 
-    handleProcessStarted(taskId) {
-        // Update task card UI
-        const card = document.getElementById(`task-${taskId}`);
-        if (card) {
-            card.classList.add('task-executing');
+    async handleProcessStarted(info) {
+        const taskId = typeof info === 'string' ? info : (info?.task_id || info?.id);
+        if (!taskId) {
+            return;
+        }
+
+        const eventData = (info && typeof info === 'object') ? info : {};
+        const startTime = eventData.start_time ? new Date(eventData.start_time) : new Date();
+        const startIso = startTime.toISOString();
+        const agentId = eventData.agent_id || '';
+        const processId = eventData.process_id;
+
+        // Get the task's current status
+        try {
+            const task = await this.taskManager.getTaskDetails(taskId);
+            const oldCard = document.getElementById(`task-${taskId}`);
+            const oldStatus = oldCard ? oldCard.closest('.kanban-column')?.dataset.status : task.status;
             
-            // Add execution indicator if not present
-            if (!card.querySelector('.task-execution-indicator')) {
-                const indicator = document.createElement('div');
-                indicator.className = 'task-execution-indicator';
-                indicator.innerHTML = `
-                    <i class="fas fa-brain fa-spin"></i>
-                    <span>Executing with Claude...</span>
-                `;
-                card.appendChild(indicator);
+            // If task is not already in-progress, move it there
+            if (task.status !== 'in-progress') {
+                // Update task status to in-progress
+                await this.taskManager.updateTask(taskId, { status: 'in-progress' });
+                
+                // Refresh both columns to move the task
+                await Promise.all([
+                    this.loadTasksForStatus(oldStatus),
+                    this.loadTasksForStatus('in-progress')
+                ]);
+            } else {
+                // Task already in in-progress, just update the card UI
+                const card = document.getElementById(`task-${taskId}`);
+                if (card) {
+                    card.classList.add('task-executing');
+                    
+                    // Add execution indicator if not present
+                    if (!card.querySelector('.task-execution-indicator')) {
+                        const indicator = document.createElement('div');
+                        indicator.className = 'task-execution-indicator';
+                        indicator.innerHTML = `
+                            <i class="fas fa-brain fa-spin"></i>
+                            <span>Executing with Claude...</span>
+                        `;
+                        card.appendChild(indicator);
+                    }
+                }
+            }
+
+            // Record running state for downstream UI components
+            this.processMonitor.runningProcesses[task.id] = {
+                task_id: task.id,
+                status: 'running',
+                start_time: startIso,
+                agent_id: agentId,
+                process_id: processId,
+                duration: this.processMonitor.formatDuration(startIso)
+            };
+
+            this.refreshTaskCard(task.id);
+            this.startElapsedTimeCounter(task.id, startTime);
+            this.processMonitor.renderProcessWidget(this.processMonitor.runningProcesses);
+        } catch (error) {
+            console.error('Error handling process start:', error);
+        }
+    }
+
+    updateTaskProgress(task) {
+        const card = document.getElementById(`task-${task.id}`);
+        if (card) {
+            // Update progress indicator
+            const phaseElement = card.querySelector('.task-phase');
+            if (phaseElement) {
+                phaseElement.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> ${task.current_phase || 'Processing'}`;
+            } else if (task.current_phase) {
+                // Add phase element if it doesn't exist
+                const titleElement = card.querySelector('.task-title');
+                if (titleElement) {
+                    const newPhase = document.createElement('div');
+                    newPhase.className = 'task-phase';
+                    newPhase.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> ${task.current_phase}`;
+                    titleElement.insertAdjacentElement('afterend', newPhase);
+                }
             }
         }
     }
 
-    handleProcessCompleted(taskId) {
-        // Refresh the task to get updated results
-        this.refreshTaskCard(taskId);
+    handleClaudeExecutionStarted(task) {
+        const card = document.getElementById(`task-${task.id}`);
+        if (card) {
+            // Add executing class
+            card.classList.add('task-executing');
+            
+            // Update or add execution indicator
+            let indicator = card.querySelector('.task-execution-indicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'task-execution-indicator';
+                card.appendChild(indicator);
+            }
+            
+            const startTime = new Date();
+            indicator.innerHTML = `
+                <i class="fas fa-brain fa-spin"></i>
+                <div class="execution-details">
+                    <span>Executing with Claude...</span>
+                    <div class="phase-info">${task.current_phase || 'Processing'}</div>
+                    <div class="duration-info" id="duration-${task.id}">Running: 0s</div>
+                </div>
+                <button class="btn-stop-execution" onclick="event.stopPropagation(); ecosystemManager.stopTaskExecution('${task.id}')" title="Stop execution">
+                    <i class="fas fa-stop"></i>
+                </button>
+            `;
+            
+            // Also update process monitor tracking with duration calculation
+            this.processMonitor.runningProcesses[task.id] = {
+                task_id: task.id,
+                status: 'running',
+                start_time: startTime.toISOString(),
+                duration: '0s'
+            };
+            
+            // Start elapsed time counter
+            this.startElapsedTimeCounter(task.id, startTime);
+            this.processMonitor.renderProcessWidget(this.processMonitor.runningProcesses);
+        }
+    }
+
+    startElapsedTimeCounter(taskId, startTime) {
+        // Clear any existing timer
+        if (this.elapsedTimers && this.elapsedTimers[taskId]) {
+            clearInterval(this.elapsedTimers[taskId]);
+        }
+        
+        // Initialize timers object if needed
+        if (!this.elapsedTimers) {
+            this.elapsedTimers = {};
+        }
+        
+        // Update elapsed time every second
+        this.elapsedTimers[taskId] = setInterval(() => {
+            const durationElement = document.getElementById(`duration-${taskId}`);
+            if (durationElement) {
+                const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000);
+                const hours = Math.floor(elapsed / 3600);
+                const minutes = Math.floor((elapsed % 3600) / 60);
+                const seconds = elapsed % 60;
+                
+                let durationText;
+                if (hours > 0) {
+                    durationText = `${hours}h ${minutes}m ${seconds}s`;
+                } else if (minutes > 0) {
+                    durationText = `${minutes}m ${seconds}s`;
+                } else {
+                    durationText = `${seconds}s`;
+                }
+                
+                durationElement.textContent = `Running: ${durationText}`;
+                
+                // Also update the process monitor data
+                if (this.processMonitor.runningProcesses[taskId]) {
+                    this.processMonitor.runningProcesses[taskId].duration = durationText;
+                }
+
+                const chip = document.querySelector(`.process-detail-item[data-task-id="${taskId}"]`);
+                if (chip) {
+                    const chipParts = [taskId, durationText];
+                    const agent = this.processMonitor.runningProcesses[taskId]?.agent_id;
+                    if (agent) chipParts.push(agent);
+                    chip.textContent = chipParts.filter(Boolean).join(' · ');
+                }
+            } else {
+                // Element no longer exists, clear timer
+                clearInterval(this.elapsedTimers[taskId]);
+                delete this.elapsedTimers[taskId];
+            }
+        }, 1000);
+    }
+
+    async handleProcessCompleted(taskId) {
+        // Clean up elapsed timer
+        if (this.elapsedTimers && this.elapsedTimers[taskId]) {
+            clearInterval(this.elapsedTimers[taskId]);
+            delete this.elapsedTimers[taskId];
+        }
+        
+        // Clean up process monitor tracking
+        if (this.processMonitor.runningProcesses[taskId]) {
+            delete this.processMonitor.runningProcesses[taskId];
+        }
+        this.processMonitor.renderProcessWidget(this.processMonitor.runningProcesses);
+
+        // Refresh the task to get updated results and check if it moved to a new column
+        try {
+            const task = await this.taskManager.getTaskDetails(taskId);
+            const oldCard = document.getElementById(`task-${taskId}`);
+            const oldStatus = oldCard ? oldCard.closest('.kanban-column')?.dataset.status : null;
+            
+            // If task moved to a different status, refresh both columns
+            if (oldStatus && oldStatus !== task.status) {
+                await Promise.all([
+                    this.loadTasksForStatus(oldStatus),
+                    this.loadTasksForStatus(task.status)
+                ]);
+            } else {
+                // Just refresh the task card in place
+                this.refreshTaskCard(taskId);
+            }
+        } catch (error) {
+            console.error('Error handling process completion:', error);
+            // Fallback: refresh the task card
+            this.refreshTaskCard(taskId);
+        }
     }
 
     async refreshTaskCard(taskId) {
@@ -843,22 +1129,55 @@ class EcosystemManager {
         
         switch (message.type) {
             case 'task_started':
-                this.handleProcessStarted(message.task_id);
+                this.handleProcessStarted(message.data || message);
+                break;
+            case 'task_progress':
+                // Update task card to show progress
+                if (message.data) {
+                    this.updateTaskProgress(message.data);
+                }
+                break;
+            case 'task_executing':
+                // Claude Code has started executing
+                if (message.data) {
+                    this.handleClaudeExecutionStarted(message.data);
+                }
+                break;
+            case 'claude_execution_complete':
+                // Claude Code execution finished
+                if (message.data) {
+                    this.refreshTaskCard(message.data.id);
+                }
                 break;
             case 'task_completed':
-                this.handleProcessCompleted(message.task_id);
+                this.handleProcessCompleted(message.task_id || message.data?.id);
                 break;
             case 'task_failed':
-                this.handleProcessCompleted(message.task_id);
+                this.handleProcessCompleted(message.task_id || message.data?.id);
+                break;
+            case 'task_status_changed':
+                // Handle real-time task status changes
+                this.handleTaskStatusChanged(message.data.task_id, message.data.old_status, message.data.new_status);
                 break;
             case 'queue_status':
                 this.updateQueueStatusUI(message.data);
                 break;
             case 'log_entry':
-                if (this.processMonitor) {
-                    this.processMonitor.addLogEntry(message.level || 'info', message.message);
+                if (this.processMonitor && message.data) {
+                    this.processMonitor.addLogEntry(message.data);
                 }
                 break;
+        }
+    }
+
+    async handleTaskStatusChanged(taskId, oldStatus, newStatus) {
+        console.log(`Task ${taskId} status changed from ${oldStatus} to ${newStatus}`);
+        // Handle real-time task status changes by refreshing both affected columns
+        if (oldStatus !== newStatus) {
+            await Promise.all([
+                this.loadTasksForStatus(oldStatus),
+                this.loadTasksForStatus(newStatus)
+            ]);
         }
     }
 
@@ -964,6 +1283,86 @@ class EcosystemManager {
         if (confirm('Are you sure you want to reset all settings to defaults?')) {
             this.settingsManager.resetToDefaults();
             this.showToast('Settings reset to defaults', 'success');
+        }
+    }
+
+    async toggleProcessor() {
+        try {
+            // Get current settings first
+            const currentSettings = await this.settingsManager.loadSettings();
+            
+            // Toggle the active state
+            const newActiveState = !currentSettings.active;
+            const updatedSettings = { ...currentSettings, active: newActiveState };
+            
+            this.showLoading(true);
+            
+            // Save the updated settings
+            const result = await this.settingsManager.saveSettings(updatedSettings);
+            
+            if (result.success) {
+                // Update UI immediately
+                this.settingsManager.updateProcessorToggleUI(newActiveState);
+                
+                // Start or stop refresh countdown based on active state
+                if (newActiveState) {
+                    this.startRefreshCountdown();
+                } else {
+                    this.stopRefreshCountdown();
+                }
+                
+                this.showToast(`Processor ${newActiveState ? 'activated' : 'paused'}`, 'success');
+            } else {
+                throw new Error(result.error || 'Failed to toggle processor');
+            }
+        } catch (error) {
+            console.error('Error toggling processor:', error);
+            this.showToast(`Failed to toggle processor: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    async stopTaskExecution(taskId) {
+        if (!confirm('Are you sure you want to stop this task execution?')) {
+            return;
+        }
+
+        try {
+            this.showLoading(true);
+            
+            const response = await fetch(`${this.apiBase}/queue/processes/terminate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    task_id: taskId
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to stop execution: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showToast('Task execution stopped', 'success');
+                if (this.processMonitor.runningProcesses[taskId]) {
+                    delete this.processMonitor.runningProcesses[taskId];
+                    this.processMonitor.renderProcessWidget(this.processMonitor.runningProcesses);
+                }
+                // Refresh the task card to show updated state
+                await this.refreshTaskCard(taskId);
+            } else {
+                throw new Error(result.message || 'Failed to stop execution');
+            }
+        } catch (error) {
+            console.error('Error stopping task execution:', error);
+            this.showToast(`Failed to stop execution: ${error.message}`, 'error');
+        } finally {
+            this.showLoading(false);
         }
     }
 

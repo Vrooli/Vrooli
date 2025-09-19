@@ -1,7 +1,9 @@
 package queue
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/settings"
@@ -32,7 +35,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	if err != nil {
 		executionTime := time.Since(executionStartTime)
 		log.Printf("Failed to assemble prompt for task %s: %v", task.ID, err)
-		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Prompt assembly failed: %v", err), executionStartTime, executionTime, timeoutDuration)
+		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Prompt assembly failed: %v", err), "", executionStartTime, executionTime, timeoutDuration)
 		return
 	}
 
@@ -62,15 +65,15 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 	if err != nil {
 		log.Printf("Failed to execute task %s with Claude Code: %v", task.ID, err)
-		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Claude Code execution failed: %v", err), executionStartTime, executionTime, timeoutDuration)
+		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Claude Code execution failed: %v", err), "", executionStartTime, executionTime, timeoutDuration)
 		return
 	}
 
 	// Process the result
 	// Debug: always log the execution result for debugging
-	log.Printf("🔍 Task %s execution result: Success=%v, RateLimited=%v, Error=%q", 
+	log.Printf("🔍 Task %s execution result: Success=%v, RateLimited=%v, Error=%q",
 		task.ID, result.Success, result.RateLimited, result.Error)
-	
+
 	if result.Success {
 		log.Printf("Task %s completed successfully in %v (timeout was %v)", task.ID, executionTime.Round(time.Second), timeoutDuration)
 
@@ -88,6 +91,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		task.ProgressPercent = 100
 		task.CurrentPhase = "completed"
 		task.Status = "completed"
+		task.CompletedAt = time.Now().Format(time.RFC3339)
 		if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
 			log.Printf("ERROR: Failed to save completed task %s: %v", task.ID, err)
 			// Still try to move the task even if save failed
@@ -102,21 +106,28 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		// Check if this is a rate limit error
 		if result.RateLimited {
 			log.Printf("🚫 Task %s hit rate limit. Pausing queue for %d seconds", task.ID, result.RetryAfter)
-			
+
 			// Move task back to pending (don't mark as failed)
 			task.CurrentPhase = "rate_limited"
-			task.Notes = fmt.Sprintf("Rate limited at %s. Will retry after %d seconds.", 
-				time.Now().Format(time.RFC3339), result.RetryAfter)
+			// Store rate limit info in results, NOT in notes (preserve user notes)
+			if task.Results == nil {
+				task.Results = make(map[string]interface{})
+			}
+			task.Results["rate_limit_info"] = map[string]interface{}{
+				"hit_at":      time.Now().Format(time.RFC3339),
+				"retry_after": result.RetryAfter,
+				"message":     fmt.Sprintf("Rate limited at %s. Will retry after %d seconds.", time.Now().Format(time.RFC3339), result.RetryAfter),
+			}
 			qp.storage.SaveQueueItem(task, "in-progress")
-			
+
 			// Move back to pending queue for retry
 			if err := qp.storage.MoveTask(task.ID, "in-progress", "pending"); err != nil {
 				log.Printf("Failed to move rate-limited task %s back to pending: %v", task.ID, err)
 			}
-			
+
 			// Trigger a pause of the queue processor
 			qp.handleRateLimitPause(result.RetryAfter)
-			
+
 			// Broadcast rate limit event
 			qp.broadcastUpdate("rate_limit_hit", map[string]interface{}{
 				"task_id":     task.ID,
@@ -125,7 +136,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			})
 		} else {
 			log.Printf("Task %s failed after %v: %s", task.ID, executionTime.Round(time.Second), result.Error)
-			qp.handleTaskFailureWithTiming(task, result.Error, executionStartTime, executionTime, timeoutDuration)
+			qp.handleTaskFailureWithTiming(task, result.Error, result.Output, executionStartTime, executionTime, timeoutDuration)
 		}
 	}
 }
@@ -150,7 +161,7 @@ func (qp *Processor) handleTaskFailure(task tasks.TaskItem, errorMsg string) {
 }
 
 // handleTaskFailureWithTiming handles a failed task with execution timing information
-func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg string, startTime time.Time, executionTime time.Duration, timeoutAllowed time.Duration) {
+func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg string, output string, startTime time.Time, executionTime time.Duration, timeoutAllowed time.Duration) {
 	// Determine if this was a timeout failure
 	isTimeout := strings.Contains(errorMsg, "timed out") || strings.Contains(errorMsg, "timeout")
 
@@ -161,6 +172,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 	task.Results = map[string]interface{}{
 		"success":         false,
 		"error":           errorMsg,
+		"output":          output,
 		"execution_time":  executionTime.Round(time.Second).String(),
 		"timeout_allowed": timeoutAllowed.String(),
 		"started_at":      startTime.Format(time.RFC3339),
@@ -171,6 +183,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 
 	task.CurrentPhase = "failed"
 	task.Status = "failed"
+	task.CompletedAt = time.Now().Format(time.RFC3339)
 	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
 		log.Printf("ERROR: Failed to save failed task %s with timing: %v", task.ID, err)
 		// Still try to move the task even if save failed
@@ -191,18 +204,16 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 	}
 }
 
-// callClaudeCode calls the Claude Code resource using stdin to avoid argument length limits
+// callClaudeCode executes Claude Code while streaming logs for real-time monitoring
 func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTime time.Time, timeoutDuration time.Duration) (*tasks.ClaudeCodeResponse, error) {
 	log.Printf("Executing Claude Code for task %s (prompt length: %d characters, timeout: %v)", task.ID, len(prompt), timeoutDuration)
 
-	// Get Vrooli root directory
+	// Resolve Vrooli root to ensure resource CLI works no matter where binary runs
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
-		// Fallback to detecting from current path
 		if wd, err := os.Getwd(); err == nil {
-			// Navigate up to find Vrooli root (contains .vrooli directory)
 			for dir := wd; dir != "/" && dir != "."; dir = filepath.Dir(dir) {
-				if _, err := os.Stat(filepath.Join(dir, ".vrooli")); err == nil {
+				if _, statErr := os.Stat(filepath.Join(dir, ".vrooli")); statErr == nil {
 					vrooliRoot = dir
 					break
 				}
@@ -210,271 +221,209 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		}
 	}
 	if vrooliRoot == "" {
-		vrooliRoot = "." // Fallback to current directory
+		vrooliRoot = "."
 	}
 
-	// Set timeout (passed from caller)
+	timeoutSeconds := int(timeoutDuration.Seconds())
 	ctx, cancel := context.WithTimeout(context.Background(), timeoutDuration)
 	defer cancel()
 
-	// Use stdin instead of command line argument to avoid "argument list too long"
-	// Pass the timeout in seconds to resource-claude-code via environment variable
-	timeoutSeconds := int(timeoutDuration.Seconds())
-	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "-")
+	agentTag := fmt.Sprintf("ecosystem-%s", task.ID)
+	cmd := exec.CommandContext(ctx, "resource-claude-code", "run", "--tag", agentTag, "-")
 	cmd.Dir = vrooliRoot
 
-	// Apply settings to Claude execution via environment variables
 	currentSettings := settings.GetSettings()
+	skipPermissionsValue := "no"
+	if currentSettings.SkipPermissions {
+		skipPermissionsValue = "yes"
+	}
+
 	cmd.Env = append(os.Environ(),
 		"MAX_TURNS="+strconv.Itoa(currentSettings.MaxTurns),
 		"ALLOWED_TOOLS="+currentSettings.AllowedTools,
 		"TIMEOUT="+strconv.Itoa(timeoutSeconds),
+		"SKIP_PERMISSIONS="+skipPermissionsValue,
+		"AGENT_TAG="+agentTag,
 	)
-
-	if currentSettings.SkipPermissions {
-		cmd.Env = append(cmd.Env, "SKIP_PERMISSIONS=yes")
-	} else {
-		cmd.Env = append(cmd.Env, "SKIP_PERMISSIONS=no")
-	}
 
 	log.Printf("Claude execution settings: MAX_TURNS=%d, ALLOWED_TOOLS=%s, SKIP_PERMISSIONS=%v, TIMEOUT=%ds (%dm)",
 		currentSettings.MaxTurns, currentSettings.AllowedTools, currentSettings.SkipPermissions, timeoutSeconds, currentSettings.TaskTimeout)
 	log.Printf("Working directory: %s", cmd.Dir)
-	log.Printf("Full environment: %v", cmd.Env)
 
-	// Set up pipes for stdin and stdout
-	stdinPipe, err := cmd.StdinPipe()
-	if err != nil {
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create stdin pipe: %v", err),
-		}, nil
-	}
+	cmd.Stdin = strings.NewReader(prompt)
+
+	// Ensure the agent runs in its own process group so we can terminate it cleanly
+	SetProcessGroup(cmd)
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create stdout pipe: %v", err),
-		}, nil
+		log.Printf("Failed to obtain stdout pipe for task %s: %v", task.ID, err)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stdout pipe: %v", err)}, nil
 	}
-
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to create stderr pipe: %v", err),
-		}, nil
+		log.Printf("Failed to obtain stderr pipe for task %s: %v", task.ID, err)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stderr pipe: %v", err)}, nil
 	}
 
-	// Start the command
 	if err := cmd.Start(); err != nil {
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to start Claude Code: %v", err),
-		}, nil
+		log.Printf("Failed to start Claude Code for task %s: %v", task.ID, err)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code: %v", err)}, nil
 	}
 
-	// Register the running process for tracking
-	qp.registerRunningProcess(task.ID, cmd, ctx, cancel)
-	defer qp.unregisterRunningProcess(task.ID) // Always cleanup on exit
+	qp.registerRunningProcess(task.ID, cmd, ctx, cancel, agentTag)
+	defer qp.unregisterRunningProcess(task.ID)
 
-	// Send prompt via stdin in a goroutine
-	go func() {
-		defer stdinPipe.Close()
-		if _, err := stdinPipe.Write([]byte(prompt)); err != nil {
-			log.Printf("Error writing prompt to stdin for task %s: %v", task.ID, err)
+	qp.initTaskLogBuffer(task.ID, agentTag, cmd.Process.Pid)
+	defer qp.markTaskLogsCompleted(task.ID)
+
+	qp.appendTaskLog(task.ID, agentTag, "stdout", fmt.Sprintf("▶ Claude Code agent %s started (pid %d)", agentTag, cmd.Process.Pid))
+	qp.broadcastUpdate("task_started", map[string]interface{}{
+		"task_id":    task.ID,
+		"agent_id":   agentTag,
+		"process_id": cmd.Process.Pid,
+		"start_time": startTime.Format(time.RFC3339),
+	})
+
+	task.CurrentPhase = "executing_claude"
+	task.ProgressPercent = 50
+	task.StartedAt = startTime.Format(time.RFC3339)
+	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
+		log.Printf("Warning: failed to persist in-progress task %s: %v", task.ID, err)
+	}
+	qp.broadcastUpdate("task_executing", task)
+
+	var stdoutBuilder, stderrBuilder, combinedBuilder strings.Builder
+	var combinedMu sync.Mutex
+
+	streamPipe := func(stream string, reader io.ReadCloser) {
+		defer reader.Close()
+		scanner := bufio.NewScanner(reader)
+		buf := make([]byte, 1024)
+		scanner.Buffer(buf, 1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			qp.appendTaskLog(task.ID, agentTag, stream, line)
+			combinedMu.Lock()
+			if stream == "stderr" {
+				stderrBuilder.WriteString(line)
+				stderrBuilder.WriteByte('\n')
+			} else {
+				stdoutBuilder.WriteString(line)
+				stdoutBuilder.WriteByte('\n')
+			}
+			combinedBuilder.WriteString(line)
+			combinedBuilder.WriteByte('\n')
+			combinedMu.Unlock()
 		}
+		if scanErr := scanner.Err(); scanErr != nil && scanErr != io.EOF {
+			log.Printf("Error reading %s for task %s: %v", stream, task.ID, scanErr)
+		}
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() { defer wg.Done(); streamPipe("stdout", stdoutPipe) }()
+	go func() { defer wg.Done(); streamPipe("stderr", stderrPipe) }()
+
+	readsDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(readsDone)
 	}()
 
-	// Read output from stdout and stderr
-	output, err := io.ReadAll(stdoutPipe)
-	if err != nil {
-		// Ensure process is terminated on read error
-		log.Printf("Failed to read stdout for task %s, terminating process: %v", task.ID, err)
-		if cancel != nil {
-			cancel() // Signal context cancellation
-		}
-		// Give process time to exit gracefully, then force kill if needed
-		time.Sleep(100 * time.Millisecond)
-		if cmd.Process != nil && cmd.ProcessState == nil {
-			cmd.Process.Kill()
-		}
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to read output: %v", err),
-		}, nil
+	waitErrChan, pmErr := qp.processManager.StartProcessWithCoordination(task.ID, cmd, ctx, cancel, readsDone)
+	if pmErr != nil {
+		log.Printf("Process manager coordination failed for task %s: %v (falling back to direct wait)", task.ID, pmErr)
+		fallbackChan := make(chan error, 1)
+		go func() {
+			fallbackChan <- cmd.Wait()
+			close(fallbackChan)
+		}()
+		waitErrChan = fallbackChan
 	}
 
-	stderrOutput, err := io.ReadAll(stderrPipe)
-	if err != nil {
-		log.Printf("Warning: Failed to read stderr: %v", err)
-		stderrOutput = []byte("(failed to read stderr)")
+	waitErr := <-waitErrChan
+	wg.Wait()
+
+	stdoutOutput := stdoutBuilder.String()
+	stderrOutput := stderrBuilder.String()
+	combinedOutput := combinedBuilder.String()
+	if strings.TrimSpace(combinedOutput) == "" && strings.TrimSpace(stdoutOutput) == "" && strings.TrimSpace(stderrOutput) == "" {
+		combinedOutput = "(no output captured from Claude Code)"
 	}
 
-	// Wait for completion
-	waitErr := cmd.Wait()
-
-	// Log the exit details for debugging
-	if waitErr != nil {
-		log.Printf("Command failed with error: %v", waitErr)
-		log.Printf("STDERR: %s", string(stderrOutput))
-		if exitError, ok := waitErr.(*exec.ExitError); ok {
-			log.Printf("Exit code: %d", exitError.ExitCode())
-		}
-	} else {
-		log.Printf("Command completed successfully")
-	}
-
-	// Handle different exit scenarios
+	// Timeout takes precedence regardless of wait error
 	if ctx.Err() == context.DeadlineExceeded {
 		actualRuntime := time.Since(startTime).Round(time.Second)
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking if task is stuck in an infinite loop", timeoutDuration, actualRuntime),
-		}, nil
+		msg := fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking for blocking steps in the prompt", timeoutDuration, actualRuntime)
+		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, nil
+	}
+
+	// Detect manual termination (context cancelled) before evaluating generic errors
+	if ctx.Err() == context.Canceled {
+		qp.appendTaskLog(task.ID, agentTag, "stderr", "⛔ Task execution was cancelled")
+		return &tasks.ClaudeCodeResponse{Success: false, Error: "Task execution was cancelled", Output: combinedOutput}, nil
 	}
 
 	if waitErr != nil {
-		// Check if the process was terminated intentionally
-		if _, wasTerminated := qp.getRunningProcess(task.ID); !wasTerminated {
-			// Process was terminated by our termination logic
-			return &tasks.ClaudeCodeResponse{
-				Success: false,
-				Error:   "Task execution was cancelled (moved out of in-progress)",
-			}, nil
+		if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag); handled {
+			return response, nil
 		}
 
-		// Extract exit code and check for rate limits in the error path too
-		combinedOutput := string(output)
-		if len(stderrOutput) > 0 {
-			combinedOutput += "\n\nSTDERR:\n" + string(stderrOutput)
-		}
-		
-		// Check for rate limits in error path
-		lowerOutput := strings.ToLower(combinedOutput)
-		isRateLimit := strings.Contains(lowerOutput, "usage limit") ||
-					   strings.Contains(lowerOutput, "rate limit") ||
-					   strings.Contains(lowerOutput, "ai usage limit reached") ||
-					   strings.Contains(lowerOutput, "rate/usage limit reached") ||
-					   strings.Contains(lowerOutput, "usage limit reached") ||
-					   strings.Contains(lowerOutput, "claude ai usage limit reached") ||
-					   strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
-					   strings.Contains(lowerOutput, "429") ||
-					   strings.Contains(lowerOutput, "too many requests") ||
-					   strings.Contains(lowerOutput, "quota exceeded") ||
-					   strings.Contains(lowerOutput, "rate limits are critical")
-		
-		if exitError, ok := waitErr.(*exec.ExitError); ok {
-			// Exit code 429 is often used for rate limits
-			if exitError.ExitCode() == 429 {
-				isRateLimit = true
-			}
-			
-			if isRateLimit {
-				log.Printf("🚫 Rate limit detected in error path for task %s (exit code %d)", task.ID, exitError.ExitCode())
-				log.Printf("Rate limit output: %s", combinedOutput)
-				return &tasks.ClaudeCodeResponse{
-					Success:       false,
-					Error:        "RATE_LIMIT: API rate limit reached",
-					RateLimited:  true,
-					RetryAfter:   qp.extractRetryAfter(combinedOutput),
-					Output:       string(output),
-				}, nil
-			}
-			
-			log.Printf("Claude Code failed with exit code %d: %s", exitError.ExitCode(), combinedOutput)
-			return &tasks.ClaudeCodeResponse{
-				Success: false,
-				Error:   fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitError.ExitCode(), combinedOutput),
-			}, nil
-		}
-		
-		if isRateLimit {
-			log.Printf("🚫 Rate limit detected in error path for task %s", task.ID)
-			log.Printf("Rate limit output: %s", combinedOutput)
-			return &tasks.ClaudeCodeResponse{
-				Success:       false,
-				Error:        "RATE_LIMIT: API rate limit reached",
-				RateLimited:  true,
-				RetryAfter:   qp.extractRetryAfter(combinedOutput),
-				Output:       string(output),
-			}, nil
-		}
-		
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   fmt.Sprintf("Failed to execute Claude Code: %v", waitErr),
-		}, nil
+		log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, nil
 	}
 
-	// Check output for error patterns even if exit code is 0
-	outputStr := string(output)
-	stderrStr := string(stderrOutput)
-	combinedOutput := outputStr + "\n" + stderrStr
-
-	// Check for rate limit errors FIRST - be more comprehensive
 	lowerOutput := strings.ToLower(combinedOutput)
-	isRateLimit := strings.Contains(lowerOutput, "usage limit") ||
-				   strings.Contains(lowerOutput, "rate limit") ||
-				   strings.Contains(lowerOutput, "ai usage limit reached") ||
-				   strings.Contains(lowerOutput, "rate/usage limit reached") ||
-				   strings.Contains(lowerOutput, "usage limit reached") ||
-				   strings.Contains(lowerOutput, "claude ai usage limit reached") ||
-				   strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
-				   strings.Contains(lowerOutput, "429") ||
-				   strings.Contains(lowerOutput, "too many requests") ||
-				   strings.Contains(lowerOutput, "quota exceeded") ||
-				   strings.Contains(lowerOutput, "rate limits are critical")
-	
-	// Also check for exit code patterns that indicate rate limiting
-	if waitErr != nil {
-		if exitError, ok := waitErr.(*exec.ExitError); ok {
-			// Exit code 429 is often used for rate limits
-			if exitError.ExitCode() == 429 {
-				isRateLimit = true
-			}
-		}
-	}
-	
-	if isRateLimit {
-		log.Printf("🚫 Rate limit detected for task %s", task.ID)
-		log.Printf("Rate limit output: %s", combinedOutput)
+	if strings.Contains(lowerOutput, "usage limit") ||
+		strings.Contains(lowerOutput, "rate limit") ||
+		strings.Contains(lowerOutput, "ai usage limit reached") ||
+		strings.Contains(lowerOutput, "rate/usage limit reached") ||
+		strings.Contains(lowerOutput, "claude ai usage limit reached") ||
+		strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
+		strings.Contains(lowerOutput, "429") ||
+		strings.Contains(lowerOutput, "too many requests") ||
+		strings.Contains(lowerOutput, "quota exceeded") ||
+		strings.Contains(lowerOutput, "rate limits are critical") {
+		retryAfter := qp.extractRetryAfter(combinedOutput)
+		qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit detected. Suggested backoff %d seconds", retryAfter))
 		return &tasks.ClaudeCodeResponse{
-			Success:       false,
-			Error:        "RATE_LIMIT: API rate limit reached",
-			RateLimited:  true,
-			RetryAfter:   qp.extractRetryAfter(combinedOutput),
-			Output:       outputStr,
+			Success:     false,
+			Error:       "RATE_LIMIT: API rate limit reached",
+			RateLimited: true,
+			RetryAfter:  retryAfter,
+			Output:      combinedOutput,
 		}, nil
 	}
 
-	// Check for common error patterns that might not set exit code
-	if strings.Contains(outputStr, "Error: Reached max turns") {
-		log.Printf("Claude Code hit max turns limit for task %s", task.ID)
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   "Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS.",
-			Output:  outputStr,
-		}, nil
+	if strings.Contains(combinedOutput, "Error: Reached max turns") {
+		msg := "Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS."
+		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, nil
 	}
 
-	if strings.Contains(outputStr, "error:") || strings.Contains(outputStr, "Error:") {
-		log.Printf("Claude Code returned error for task %s: %s", task.ID, outputStr)
-		return &tasks.ClaudeCodeResponse{
-			Success: false,
-			Error:   "Claude execution failed - check output for details",
-			Output:  outputStr,
-		}, nil
+	if strings.Contains(strings.ToLower(combinedOutput), "error:") {
+		msg := "Claude execution reported an error – review output for details."
+		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
+		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, nil
 	}
 
-	// Success case
-	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(outputStr))
+	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(combinedOutput))
+	qp.appendTaskLog(task.ID, agentTag, "stdout", "✅ Claude Code execution finished")
+
+	task.CurrentPhase = "claude_completed"
+	task.ProgressPercent = 90
+	if err := qp.storage.SaveQueueItem(task, "in-progress"); err != nil {
+		log.Printf("Warning: failed to persist claude completion for task %s: %v", task.ID, err)
+	}
+	qp.broadcastUpdate("claude_execution_complete", task)
 
 	return &tasks.ClaudeCodeResponse{
 		Success: true,
 		Message: "Task completed successfully",
-		Output:  outputStr,
+		Output:  combinedOutput,
 	}, nil
 }
 
@@ -483,28 +432,28 @@ func (qp *Processor) extractRetryAfter(output string) int {
 	// Default to 30 minutes if we can't parse
 	defaultRetry := 1800 // 30 minutes in seconds
 	lowerOutput := strings.ToLower(output)
-	
+
 	// Look for common time patterns
-	if strings.Contains(lowerOutput, "5 hour") || strings.Contains(lowerOutput, "5-hour") || 
-	   strings.Contains(lowerOutput, "every 5 hours") {
+	if strings.Contains(lowerOutput, "5 hour") || strings.Contains(lowerOutput, "5-hour") ||
+		strings.Contains(lowerOutput, "every 5 hours") {
 		return 5 * 3600 // 5 hours
 	}
-	
+
 	if strings.Contains(lowerOutput, "4 hour") || strings.Contains(lowerOutput, "4-hour") {
-		return 4 * 3600 // 4 hours  
+		return 4 * 3600 // 4 hours
 	}
-	
+
 	if strings.Contains(lowerOutput, "1 hour") || strings.Contains(lowerOutput, "1-hour") {
 		return 3600 // 1 hour
 	}
-	
+
 	// Look for "retry_after" or "retry-after" patterns
 	if strings.Contains(lowerOutput, "retry") && (strings.Contains(lowerOutput, "after") || strings.Contains(lowerOutput, "_after")) {
 		// Try to extract number after retry_after or retry-after
 		parts := strings.FieldsFunc(output, func(r rune) bool {
 			return r == ':' || r == '=' || r == ' ' || r == '\t' || r == '\n'
 		})
-		
+
 		for i, part := range parts {
 			if strings.Contains(strings.ToLower(part), "retry") && i+1 < len(parts) {
 				if seconds, err := strconv.Atoi(strings.Trim(parts[i+1], "\"'")); err == nil && seconds > 0 {
@@ -514,33 +463,94 @@ func (qp *Processor) extractRetryAfter(output string) int {
 					}
 					// Minimum 5 minutes
 					if seconds < 300 {
-						return 300 
+						return 300
 					}
 					return seconds
 				}
 			}
 		}
 	}
-	
+
 	// If we see "critical" rate limits, use a longer default
 	if strings.Contains(lowerOutput, "critical") {
 		return 3600 // 1 hour for critical rate limits
 	}
-	
+
 	return defaultRetry
+}
+
+func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string) (*tasks.ClaudeCodeResponse, bool) {
+	// Determine exit code if available
+	exitCode, hasExit := exitCodeFromError(waitErr)
+	if !hasExit {
+		return nil, false
+	}
+
+	lowerOutput := strings.ToLower(combinedOutput)
+	isRateLimit := strings.Contains(lowerOutput, "usage limit") ||
+		strings.Contains(lowerOutput, "rate limit") ||
+		strings.Contains(lowerOutput, "ai usage limit reached") ||
+		strings.Contains(lowerOutput, "rate/usage limit reached") ||
+		strings.Contains(lowerOutput, "claude ai usage limit reached") ||
+		strings.Contains(lowerOutput, "you've reached your claude usage limit") ||
+		strings.Contains(lowerOutput, "429") ||
+		strings.Contains(lowerOutput, "too many requests") ||
+		strings.Contains(lowerOutput, "quota exceeded") ||
+		strings.Contains(lowerOutput, "rate limits are critical")
+
+	if exitCode == 429 {
+		isRateLimit = true
+	}
+
+	if isRateLimit {
+		retryAfter := qp.extractRetryAfter(combinedOutput)
+		qp.appendTaskLog(task.ID, agentTag, "stderr", fmt.Sprintf("🚫 Rate limit hit. Pausing for %d seconds", retryAfter))
+		return &tasks.ClaudeCodeResponse{
+			Success:     false,
+			Error:       "RATE_LIMIT: API rate limit reached",
+			RateLimited: true,
+			RetryAfter:  retryAfter,
+			Output:      combinedOutput,
+		}, true
+	}
+
+	log.Printf("Claude Code exited with non-zero status for task %s (code %d)", task.ID, exitCode)
+	return &tasks.ClaudeCodeResponse{
+		Success: false,
+		Error:   fmt.Sprintf("Claude Code execution failed (exit code %d): %s", exitCode, combinedOutput),
+		Output:  combinedOutput,
+	}, true
+}
+
+func exitCodeFromError(err error) (int, bool) {
+	var exitCoder interface {
+		ExitCode() int
+	}
+	if errors.As(err, &exitCoder) {
+		return exitCoder.ExitCode(), true
+	}
+
+	var statusErr interface {
+		ExitStatus() int
+	}
+	if errors.As(err, &statusErr) {
+		return statusErr.ExitStatus(), true
+	}
+
+	return 0, false
 }
 
 // broadcastUpdate sends updates to all connected WebSocket clients
 func (qp *Processor) broadcastUpdate(updateType string, data interface{}) {
-	update := map[string]interface{}{
+	// Send the typed update directly, not wrapped in another object
+	// The WebSocket manager will wrap it properly
+	select {
+	case qp.broadcast <- map[string]interface{}{
 		"type":      updateType,
 		"data":      data,
 		"timestamp": time.Now().Unix(),
-	}
-
-	// Non-blocking send to broadcast channel
-	select {
-	case qp.broadcast <- update:
+	}:
+		log.Printf("Broadcast %s update for task", updateType)
 	default:
 		log.Printf("Warning: WebSocket broadcast channel full, dropping update")
 	}

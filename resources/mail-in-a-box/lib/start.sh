@@ -22,10 +22,17 @@ mailinabox_start() {
             return 1
         fi
     fi
-    
+
     # Create directories for Radicale if needed
     mkdir -p "${MAILINABOX_DATA_DIR:-/var/lib/mailinabox}/radicale/data"
     mkdir -p "${MAILINABOX_CONFIG_DIR:-/var/lib/mailinabox}/radicale/config"
+
+    if ! mailinabox_required_secrets_configured; then
+        log::error "Mail-in-a-Box secrets are not configured. Configure MAILINABOX_* variables via secrets-manager first."
+        return 1
+    fi
+
+    mailinabox_write_env_file
     
     # Check if already running
     if mailinabox_is_running; then
@@ -49,6 +56,7 @@ mailinabox_start() {
             
             while [[ $attempt -lt $max_attempts ]]; do
                 if mailinabox_is_running && [[ "$(mailinabox_get_health)" == "healthy" ]]; then
+                    mailinabox_bootstrap_accounts || true
                     log::success "Mail-in-a-Box started successfully"
                     log::info "Email Server: SMTP port ${MAILINABOX_PORT_SMTP}, IMAP port ${MAILINABOX_PORT_IMAPS}"
                     log::info "Webmail: http://${MAILINABOX_BIND_ADDRESS}:8080"
@@ -60,8 +68,9 @@ mailinabox_start() {
                 ((attempt++))
             done
             
+            mailinabox_bootstrap_accounts || true
             log::warning "Services started but may not be fully ready"
-            return 0
+            return 1
         else
             log::warning "Docker-compose failed, trying basic start..."
         fi
@@ -77,6 +86,7 @@ mailinabox_start() {
         
         while [[ $attempt -lt $max_attempts ]]; do
             if mailinabox_is_running && [[ "$(mailinabox_get_health)" == "healthy" ]]; then
+                mailinabox_bootstrap_accounts || true
                 log::success "Mail-in-a-Box started successfully"
                 log::info "Email Server: SMTP port ${MAILINABOX_PORT_SMTP}, IMAP port ${MAILINABOX_PORT_IMAPS}"
                 log::info "Default admin: ${MAILINABOX_ADMIN_EMAIL}"
@@ -85,9 +95,10 @@ mailinabox_start() {
             sleep 2
             ((attempt++))
         done
-        
+
+        mailinabox_bootstrap_accounts || true
         log::warning "Mail-in-a-Box started but may not be fully ready"
-        return 0
+        return 1
     else
         log::error "Failed to start Mail-in-a-Box"
         return 1

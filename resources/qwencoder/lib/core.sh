@@ -3,6 +3,51 @@
 
 set -euo pipefail
 
+# Resolve paths
+APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
+RESOURCE_DIR="${APP_ROOT}/resources/qwencoder"
+
+# Secret loading helpers
+qwencoder_load_secrets() {
+    if [[ "${QWENCODER_SECRETS_LOADED:-0}" -eq 1 ]]; then
+        return 0
+    fi
+
+    local export_cmd
+    if command -v resource-vault &>/dev/null; then
+        if export_cmd=$(resource-vault secrets export qwencoder 2>/dev/null); then
+            if [[ -n "$export_cmd" ]]; then
+                eval "$export_cmd"
+            fi
+        fi
+    fi
+
+    if command -v jq &>/dev/null; then
+        local vrooli_root="${VROOLI_ROOT:-"$HOME/Vrooli"}"
+        local secrets_file="${vrooli_root}/.vrooli/secrets.json"
+        if [[ -f "$secrets_file" ]]; then
+            local vars=(
+                HUGGINGFACEHUB_API_TOKEN
+                HF_HUB_TOKEN
+                QWENCODER_MODEL_ENDPOINT
+            )
+            for var_name in "${vars[@]}"; do
+                if [[ -z "${!var_name:-}" ]]; then
+                    local value
+                    value=$(jq -r --arg key "$var_name" '.[$key] // empty' "$secrets_file" 2>/dev/null)
+                    if [[ -n "$value" && "$value" != "null" ]]; then
+                        export "$var_name"="$value"
+                    fi
+                fi
+            done
+        fi
+    fi
+
+    QWENCODER_SECRETS_LOADED=1
+}
+
+qwencoder_load_secrets || true
+
 # Configuration
 readonly QWENCODER_PORT="${QWENCODER_PORT:-11452}"
 readonly QWENCODER_MODEL="${QWENCODER_MODEL:-qwencoder-1.5b}"

@@ -125,7 +125,7 @@ func initializeComponents() error {
 
 	// Initialize handlers
 	taskHandlers = handlers.NewTaskHandlers(storage, assembler, processor, wsManager)
-	queueHandlers = handlers.NewQueueHandlers(processor, wsManager)
+	queueHandlers = handlers.NewQueueHandlers(processor, wsManager, storage)
 	discoveryHandlers = handlers.NewDiscoveryHandlers(assembler)
 	healthHandlers = handlers.NewHealthHandlers(processor)
 	settingsHandlers = handlers.NewSettingsHandlers(processor, wsManager)
@@ -154,6 +154,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/tasks/{id}", taskHandlers.UpdateTaskHandler).Methods("PUT")
 	api.HandleFunc("/tasks/{id}", taskHandlers.DeleteTaskHandler).Methods("DELETE")
 	api.HandleFunc("/tasks/{id}/status", taskHandlers.UpdateTaskStatusHandler).Methods("PUT") // Missing route
+	api.HandleFunc("/tasks/{id}/logs", taskHandlers.GetTaskLogsHandler).Methods("GET")
 
 	// Task prompt operations
 	api.HandleFunc("/tasks/{id}/prompt", taskHandlers.GetTaskPromptHandler).Methods("GET")

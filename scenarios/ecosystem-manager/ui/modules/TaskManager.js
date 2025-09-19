@@ -74,7 +74,19 @@ export class TaskManager {
             throw new Error(`Failed to delete task: ${response.status} ${response.statusText}`);
         }
 
-        return await response.json();
+        // Check if response has content before parsing JSON
+        const text = await response.text();
+        if (!text.trim()) {
+            // Empty response means successful deletion
+            return { success: true };
+        }
+        
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            // If JSON parsing fails but response was ok, assume success
+            return { success: true };
+        }
     }
 
     async getTaskDetails(taskId) {

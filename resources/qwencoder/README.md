@@ -39,7 +39,10 @@ QWENCODER_PORT=11452              # API port (default: 11452)
 QWENCODER_MODEL=qwencoder-1.5b    # Default model
 QWENCODER_DEVICE=auto             # Device: auto, cpu, cuda
 QWENCODER_MAX_MEMORY=16GB         # Memory limit
+HUGGINGFACEHUB_API_TOKEN=hf_xxx   # Optional: unlock gated model downloads / avoid rate limits
 ```
+
+> **Secrets Manager integration:** use the secrets-manager scenario to store `HUGGINGFACEHUB_API_TOKEN` so QwenCoder can authenticate against Hugging Face when fetching models. The token is optional but recommended for consistent downloads.
 
 ### Model Selection
 - **qwencoder-0.5b**: Lightweight completions (2GB RAM)

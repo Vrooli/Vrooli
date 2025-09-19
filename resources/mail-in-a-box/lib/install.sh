@@ -22,7 +22,15 @@ mailinabox_install() {
     # Create data directories
     log::info "Creating data directories..."
     mkdir -p "$MAILINABOX_DATA_DIR"/{mail,config,ssl,backup,roundcube/db,roundcube/config,radicale/data,radicale/config}
-    
+
+    # Ensure secrets are configured and apply runtime configuration
+    if ! mailinabox_required_secrets_configured; then
+        log::error "Mail-in-a-Box secrets are not configured. Use secrets-manager or set MAILINABOX_* environment variables first."
+        return 1
+    fi
+
+    mailinabox_write_env_file
+
     # Pull Docker images
     log::info "Pulling Mail-in-a-Box Docker images..."
     if ! docker pull "$MAILINABOX_IMAGE"; then

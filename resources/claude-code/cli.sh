@@ -567,7 +567,27 @@ claude_code_for() {
 
 # Run command - CRITICAL for auto/ folder functionality
 claude_code_run() {
-    local prompt="${*:-}"
+    local agent_tag=""
+    local prompt=""
+    
+    # Parse arguments properly
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --tag)
+                agent_tag="$2"
+                shift 2
+                ;;
+            -)
+                prompt="-"
+                shift
+                break
+                ;;
+            *)
+                prompt="$*"
+                break
+                ;;
+        esac
+    done
     
     # Check if prompt is "-" to read from stdin
     if [[ "$prompt" == "-" ]]; then
@@ -579,20 +599,29 @@ claude_code_run() {
         fi
     elif [[ -z "$prompt" ]]; then
         log::error "Prompt required"
-        echo "Usage: resource-claude-code run <prompt>"
-        echo "  or: echo \"prompt\" | resource-claude-code run -"
+        echo "Usage: resource-claude-code run [--tag <tag>] <prompt>"
+        echo "  or: echo \"prompt\" | resource-claude-code run [--tag <tag>] -"
         echo ""
         echo "Examples:"
         echo "  resource-claude-code run \"Write a hello world program\""
-        echo "  resource-claude-code run \"Fix the bug in main.py\""
+        echo "  resource-claude-code run --tag my-task-123 \"Fix the bug in main.py\""
+        echo "  echo \"test prompt\" | resource-claude-code run --tag test-agent -"
         return 1
     fi
     
     # Register agent if agent management is available
     local agent_id=""
+    local command_string=""
     if type -t agent_manager::register &>/dev/null; then
-        agent_id=$(agent_manager::generate_id)
-        local command_string="resource-claude-code run $*"
+        # Use tag as agent_id if provided, otherwise generate
+        if [[ -n "$agent_tag" ]]; then
+            agent_id="$agent_tag"
+            command_string="resource-claude-code run (via ecosystem-manager)"
+        else
+            agent_id=$(agent_manager::generate_id)
+            command_string="resource-claude-code run"
+        fi
+        
         if agent_manager::register "$agent_id" $$ "$command_string"; then
             log::debug "Registered agent: $agent_id"
             

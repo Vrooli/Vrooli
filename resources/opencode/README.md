@@ -1,38 +1,50 @@
 # OpenCode AI CLI Resource
 
-This resource packages the terminal-first [OpenCode](https://opencode.ai) workflow so agents can drive AI-assisted coding without launching VS Code. It wraps a lightweight Python entry point that talks to Ollama, OpenRouter, or Cloudflare AI Gateway and stores configuration under `data/opencode/`.
+This resource installs the official [OpenCode](https://opencode.ai) CLI so agents can drive the terminal-first coding workflow inside Vrooli. The binary is downloaded from the upstream GitHub releases and isolated under `data/opencode/` alongside configuration, cache, and auth state.
 
 ## Quick start
 ```bash
-# Install the CLI and create a default (Ollama) config
+# Download the latest OpenCode binary and scaffold a config
 resource-opencode manage install
 
-# Inspect status / configured providers
+# Inspect installation details and config
 resource-opencode status
 
-# Send a chat completion
-resource-opencode run chat --prompt "Summarise the repo" --provider openrouter --model openrouter/gpt-4o-mini
+# Run a one-off command (non-interactive)
+resource-opencode run run "Summarise the repo"
+
+# Explore the interactive TUI
+resource-opencode run
 ```
 
 ## Configuration & Secrets
-- Configurations live at `data/opencode/config-*.json`. Activate a saved config with `resource-opencode content execute <name>`.
-- The active config (`config.json`) can include optional `openrouter_api_key`, `cloudflare_api_token`, and `cloudflare_gateway_url`. These are pulled automatically from Vault / `~/.vrooli/secrets.json` when present.
-- Secrets are declared in `config/secrets.yaml` so the Secrets Manager scenario can guide provisioning. Keys from the `openrouter` or `cloudflare-ai-gateway` resources can be reused.
+- The active config lives at `data/opencode/config/opencode.json`. Alternate profiles are stored as `config-*.json` in the same directory and can be activated via `resource-opencode content execute <name>`.
+- Environment secrets such as `OPENROUTER_API_KEY` or `CLOUDFLARE_API_TOKEN` are loaded automatically from Vault / `~/.vrooli/secrets.json` and exposed to the CLI. They can also be written into the CLI's auth store with `resource-opencode run auth login`.
+- Secrets remain declared in `config/secrets.yaml`, allowing the Secrets Manager scenario to prompt for and provision credentials.
+
+## AGENTS.md & custom instructions
+- The official CLI recursively scans for `AGENTS.md` from the working directory upward (and respects any paths listed in `opencode.json`).
+- The resource's default config pins `OPENCODE_CONFIG` to `data/opencode/config/opencode.json` so you can manage instructions without touching global user state.
 
 ## Models
-`resource-opencode run models list --json` queries:
-- Local Ollama models (`ollama list`)
-- OpenRouter remote models (needs `OPENROUTER_API_KEY`)
-- Cloudflare AI Gateway models (`cloudflare_gateway_url` + `CLOUDFLARE_API_TOKEN`)
-- Custom references stored in `available-models.json`
+Use the upstream CLI to enumerate available models once you've configured credentials:
+
+```bash
+resource-opencode run models
+```
+
+Model discovery pulls from local Ollama installs as well as any provider keys configured via `opencode auth login` or environment variables.
 
 ## Programmatic usage
-Every resource command ultimately shells out to `lib/opencode_cli.py`, which exposes:
-- `info` – machine-readable config summary
-- `models list` – structured model inventory
-- `chat` – single-turn chat completion across providers
+`resource-opencode run …` is a thin wrapper around the official `opencode` binary. Pass arguments exactly as you would to the upstream CLI:
 
-You can call it directly with `resource-opencode run …` or import the Python script into your own automation.
+```bash
+# Non-interactive run with explicit model override
+resource-opencode run run --model openrouter/gpt-4o-mini "Generate release notes for the last commit"
+
+# Manage credentials
+resource-opencode run auth login
+```
 
 ## Logs
-Outputs are tracked in `data/opencode/logs/opencode.log` (JSONL). Each entry records timestamp, provider, and approximate response length for traceability.
+Standard output is streamed directly to the caller. The resource also sets `OPENCODE_LOG_DIR` to `data/opencode/logs/` so you can enable structured logging via the CLI's `--print-logs` or config options if desired.

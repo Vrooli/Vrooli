@@ -28,9 +28,12 @@ type Processor struct {
 	storage         *tasks.Storage
 	assembler       *prompts.Assembler
 
-	// Running processes registry
+	// Running processes registry (legacy - will be phased out)
 	runningProcesses      map[string]*tasks.RunningProcess
 	runningProcessesMutex sync.RWMutex
+
+	// New process manager for robust process lifecycle
+	processManager *ProcessManager
 
 	// Broadcast channel for WebSocket updates
 	broadcast chan<- interface{}
@@ -41,11 +44,19 @@ type Processor struct {
 	// Process health monitoring
 	healthCheckInterval time.Duration
 	stopHealthCheck     chan bool
-	
+
 	// Rate limit pause management
 	rateLimitPaused bool
 	pauseUntil      time.Time
 	pauseMutex      sync.Mutex
+
+	// Task log buffers for streaming execution logs
+	taskLogs      map[string]*TaskLogBuffer
+	taskLogsMutex sync.RWMutex
+
+	// Bookkeeping for queue activity
+	lastProcessedMu sync.RWMutex
+	lastProcessedAt time.Time
 }
 
 // NewProcessor creates a new queue processor
@@ -56,10 +67,12 @@ func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *pro
 		storage:             storage,
 		assembler:           assembler,
 		runningProcesses:    make(map[string]*tasks.RunningProcess),
+		processManager:      NewProcessManager(), // Initialize the new process manager
 		broadcast:           broadcast,
 		processFile:         filepath.Join(os.TempDir(), "ecosystem-manager-processes.json"),
 		healthCheckInterval: 30 * time.Second,
 		stopHealthCheck:     make(chan bool),
+		taskLogs:            make(map[string]*TaskLogBuffer),
 	}
 
 	// Load persisted processes on startup
@@ -108,6 +121,12 @@ func (qp *Processor) Stop() {
 	qp.stopChannel <- true
 	qp.isRunning = false
 	log.Println("Queue processor stopped")
+
+	// Terminate all managed processes gracefully
+	if qp.processManager != nil {
+		log.Println("Terminating all managed processes...")
+		qp.processManager.TerminateAll(10 * time.Second)
+	}
 
 	// Clean up process persistence file
 	qp.clearPersistedProcesses()
@@ -163,7 +182,13 @@ func (qp *Processor) ProcessQueue() {
 		// Skip processing while in maintenance mode
 		return
 	}
-	
+
+	// CRITICAL: Also check settings active state
+	if !settings.IsActive() {
+		// Skip processing if not active in settings
+		return
+	}
+
 	// Check if rate limit paused
 	qp.pauseMutex.Lock()
 	if qp.rateLimitPaused {
@@ -171,7 +196,7 @@ func (qp *Processor) ProcessQueue() {
 			remaining := qp.pauseUntil.Sub(time.Now())
 			log.Printf("⏸️ Queue paused due to rate limit. Resuming in %v", remaining.Round(time.Second))
 			qp.pauseMutex.Unlock()
-			
+
 			// Broadcast pause status
 			qp.broadcastUpdate("rate_limit_pause", map[string]interface{}{
 				"paused":         true,
@@ -184,7 +209,7 @@ func (qp *Processor) ProcessQueue() {
 			qp.rateLimitPaused = false
 			qp.pauseUntil = time.Time{}
 			log.Printf("✅ Rate limit pause expired. Resuming queue processing.")
-			
+
 			// Broadcast resume
 			qp.broadcastUpdate("rate_limit_resume", map[string]interface{}{
 				"paused": false,
@@ -192,6 +217,8 @@ func (qp *Processor) ProcessQueue() {
 		}
 	}
 	qp.pauseMutex.Unlock()
+
+	qp.setLastProcessed(time.Now())
 
 	// Check current in-progress tasks
 	inProgressTasks, err := qp.storage.GetQueueItems("in-progress")
@@ -277,6 +304,15 @@ func (qp *Processor) ProcessQueue() {
 			log.Printf("Failed to move task to in-progress: %v", err)
 			return
 		}
+		// Broadcast that the task has moved to in-progress
+		selectedTask.Status = "in-progress"
+		selectedTask.CurrentPhase = "in-progress"
+		qp.broadcastUpdate("task_status_changed", map[string]interface{}{
+			"task_id":    selectedTask.ID,
+			"old_status": "pending",
+			"new_status": "in-progress",
+			"task":       selectedTask,
+		})
 	}
 
 	// Process the task asynchronously
@@ -284,7 +320,7 @@ func (qp *Processor) ProcessQueue() {
 }
 
 // Process registry management
-func (qp *Processor) registerRunningProcess(taskID string, cmd *exec.Cmd, ctx context.Context, cancel context.CancelFunc) {
+func (qp *Processor) registerRunningProcess(taskID string, cmd *exec.Cmd, ctx context.Context, cancel context.CancelFunc, agentID string) {
 	qp.runningProcessesMutex.Lock()
 	defer qp.runningProcessesMutex.Unlock()
 
@@ -295,6 +331,7 @@ func (qp *Processor) registerRunningProcess(taskID string, cmd *exec.Cmd, ctx co
 		Cancel:    cancel,
 		StartTime: time.Now(),
 		ProcessID: cmd.Process.Pid,
+		AgentID:   agentID,
 	}
 
 	qp.runningProcesses[taskID] = process
@@ -326,48 +363,133 @@ func (qp *Processor) getRunningProcess(taskID string) (*tasks.RunningProcess, bo
 }
 
 func (qp *Processor) TerminateRunningProcess(taskID string) error {
-	qp.runningProcessesMutex.Lock()
-	defer qp.runningProcessesMutex.Unlock()
+	process, hasProcess := qp.getRunningProcess(taskID)
 
+	agentIdentifier := fmt.Sprintf("ecosystem-%s", taskID)
+	if hasProcess && process.AgentID != "" {
+		agentIdentifier = process.AgentID
+	}
+
+	pid := 0
+	if hasProcess {
+		pid = process.ProcessID
+	}
+
+	if qp.processManager != nil && qp.processManager.IsProcessActive(taskID) {
+		log.Printf("Using ProcessManager to terminate task %s", taskID)
+		if err := qp.processManager.TerminateProcess(taskID, 5*time.Second); err != nil {
+			log.Printf("ProcessManager termination failed for task %s: %v", taskID, err)
+		} else {
+			qp.stopClaudeAgent(agentIdentifier, pid)
+			qp.cleanupClaudeAgentRegistry()
+			qp.ResetTaskLogs(taskID)
+			qp.unregisterRunningProcess(taskID)
+			return nil
+		}
+	}
+
+	return qp.legacyTerminateRunningProcess(taskID, agentIdentifier, pid)
+}
+
+func (qp *Processor) legacyTerminateRunningProcess(taskID, agentIdentifier string, pid int) error {
+	qp.runningProcessesMutex.Lock()
 	process, exists := qp.runningProcesses[taskID]
 	if !exists {
+		qp.runningProcessesMutex.Unlock()
 		return fmt.Errorf("no running process found for task %s", taskID)
 	}
 
-	log.Printf("Terminating process %d for task %s", process.ProcessID, taskID)
+	cmd, _ := process.Cmd.(*exec.Cmd)
+	var cancel context.CancelFunc
+	if c, ok := process.Cancel.(context.CancelFunc); ok {
+		cancel = c
+	}
+	var ctx context.Context
+	if c, ok := process.Context.(context.Context); ok {
+		ctx = c
+	}
+	if agentIdentifier == "" {
+		agentIdentifier = process.AgentID
+		if agentIdentifier == "" {
+			agentIdentifier = fmt.Sprintf("ecosystem-%s", taskID)
+		}
+	}
+	if pid == 0 {
+		pid = process.ProcessID
+	}
+	qp.runningProcessesMutex.Unlock()
 
-	// First try graceful cancellation via context
-	if cancel, ok := process.Cancel.(context.CancelFunc); ok {
+	log.Printf("Using legacy termination for process %d (task %s)", pid, taskID)
+
+	qp.stopClaudeAgent(agentIdentifier, pid)
+	time.Sleep(500 * time.Millisecond)
+
+	if cancel != nil {
 		cancel()
 	}
 
-	// Give it 5 seconds to shut down gracefully
-	select {
-	case <-time.After(5 * time.Second):
-		// If still running, force kill
-		if cmd, ok := process.Cmd.(*exec.Cmd); ok && cmd.Process != nil {
-			log.Printf("Force killing process %d for task %s", process.ProcessID, taskID)
-			if err := cmd.Process.Kill(); err != nil {
-				log.Printf("Error force killing process: %v", err)
-			}
+	graceful := false
+	if ctx != nil {
+		select {
+		case <-ctx.Done():
+			log.Printf("Process %d for task %s terminated gracefully", pid, taskID)
+			graceful = true
+		case <-time.After(5 * time.Second):
+			log.Printf("Process %d for task %s did not terminate within grace period", pid, taskID)
 		}
-	case <-func() <-chan struct{} {
-		done := make(chan struct{})
-		if ctx, ok := process.Context.(context.Context); ok {
-			go func() {
-				<-ctx.Done()
-				close(done)
-			}()
-		}
-		return done
-	}():
-		// Process terminated gracefully
-		log.Printf("Process %d for task %s terminated gracefully", process.ProcessID, taskID)
 	}
 
-	// Clean up registry
+	if !graceful && cmd != nil && cmd.Process != nil {
+		if pid > 0 {
+			if err := KillProcessGroup(pid); err != nil {
+				log.Printf("Failed to kill process group -%d: %v", pid, err)
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+
+		if qp.isProcessAlive(pid) {
+			log.Printf("Force killing process %d for task %s", pid, taskID)
+			if err := cmd.Process.Kill(); err != nil {
+				log.Printf("Error force killing process %d: %v", pid, err)
+			}
+		}
+	}
+
+	qp.cleanupClaudeAgentRegistry()
+
+	qp.runningProcessesMutex.Lock()
 	delete(qp.runningProcesses, taskID)
+	qp.runningProcessesMutex.Unlock()
+	go qp.persistProcesses()
+
+	qp.ResetTaskLogs(taskID)
 	return nil
+}
+
+func (qp *Processor) stopClaudeAgent(agentIdentifier string, pid int) {
+	if agentIdentifier != "" {
+		if err := exec.Command("resource-claude-code", "agents", "stop", agentIdentifier).Run(); err != nil {
+			log.Printf("Failed to stop claude-code agent %s: %v", agentIdentifier, err)
+		} else {
+			log.Printf("Successfully stopped claude-code agent %s", agentIdentifier)
+			return
+		}
+	}
+
+	if pid > 0 {
+		if err := exec.Command("resource-claude-code", "agents", "stop", strconv.Itoa(pid)).Run(); err != nil {
+			log.Printf("Failed to stop claude-code agent by PID %d: %v", pid, err)
+		} else {
+			log.Printf("Successfully stopped claude-code agent by PID %d", pid)
+		}
+	}
+}
+
+func (qp *Processor) cleanupClaudeAgentRegistry() {
+	cleanupCmd := exec.Command("resource-claude-code", "agents", "cleanup")
+	if err := cleanupCmd.Run(); err != nil {
+		log.Printf("Warning: Failed to cleanup claude-code agents: %v", err)
+	}
 }
 
 func (qp *Processor) ListRunningProcesses() []string {
@@ -395,6 +517,7 @@ func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
 			ProcessID: process.ProcessID,
 			StartTime: process.StartTime.Format(time.RFC3339),
 			Duration:  duration.Round(time.Second).String(),
+			AgentID:   process.AgentID,
 		})
 	}
 
@@ -406,6 +529,145 @@ type ProcessInfo struct {
 	ProcessID int    `json:"process_id"`
 	StartTime string `json:"start_time"`
 	Duration  string `json:"duration"`
+	AgentID   string `json:"agent_id,omitempty"`
+}
+
+const maxTaskLogEntries = 2000
+
+// TaskLogBuffer keeps a bounded rolling log for a running or recently completed task
+type TaskLogBuffer struct {
+	AgentID      string
+	ProcessID    int
+	Entries      []LogEntry
+	LastSequence int64
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	Completed    bool
+}
+
+// LogEntry represents a single line of task execution output
+type LogEntry struct {
+	Sequence  int64     `json:"sequence"`
+	Timestamp time.Time `json:"timestamp"`
+	Stream    string    `json:"stream"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+}
+
+// initTaskLogBuffer prepares a fresh log buffer for a task execution
+func (qp *Processor) initTaskLogBuffer(taskID, agentID string, pid int) {
+	qp.taskLogsMutex.Lock()
+	defer qp.taskLogsMutex.Unlock()
+
+	qp.taskLogs[taskID] = &TaskLogBuffer{
+		AgentID:      agentID,
+		ProcessID:    pid,
+		Entries:      make([]LogEntry, 0, 64),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+		LastSequence: 0,
+	}
+}
+
+// appendTaskLog stores a log entry and emits websocket updates
+func (qp *Processor) appendTaskLog(taskID, agentID, stream, message string) LogEntry {
+	entry := LogEntry{
+		Timestamp: time.Now(),
+		Stream:    stream,
+		Level:     map[string]string{"stderr": "error"}[stream],
+		Message:   message,
+	}
+
+	if entry.Level == "" {
+		entry.Level = "info"
+	}
+
+	qp.taskLogsMutex.Lock()
+	buffer, exists := qp.taskLogs[taskID]
+	if !exists {
+		buffer = &TaskLogBuffer{
+			AgentID:   agentID,
+			ProcessID: 0,
+			Entries:   make([]LogEntry, 0, 64),
+			CreatedAt: time.Now(),
+		}
+		qp.taskLogs[taskID] = buffer
+	}
+	if buffer.AgentID == "" {
+		buffer.AgentID = agentID
+	}
+	buffer.LastSequence++
+	entry.Sequence = buffer.LastSequence
+	buffer.UpdatedAt = entry.Timestamp
+	buffer.Entries = append(buffer.Entries, entry)
+	if len(buffer.Entries) > maxTaskLogEntries {
+		buffer.Entries = buffer.Entries[len(buffer.Entries)-maxTaskLogEntries:]
+	}
+	qp.taskLogsMutex.Unlock()
+
+	qp.broadcastUpdate("log_entry", map[string]interface{}{
+		"task_id":   taskID,
+		"agent_id":  buffer.AgentID,
+		"stream":    entry.Stream,
+		"level":     entry.Level,
+		"message":   entry.Message,
+		"sequence":  entry.Sequence,
+		"timestamp": entry.Timestamp.Format(time.RFC3339Nano),
+	})
+
+	return entry
+}
+
+// markTaskLogsCompleted flags the log buffer as finished while retaining the output
+func (qp *Processor) markTaskLogsCompleted(taskID string) {
+	qp.taskLogsMutex.Lock()
+	if buffer, exists := qp.taskLogs[taskID]; exists {
+		buffer.Completed = true
+		buffer.UpdatedAt = time.Now()
+	}
+	qp.taskLogsMutex.Unlock()
+}
+
+// clearTaskLogs removes the log buffer for a task (used when resetting state)
+func (qp *Processor) clearTaskLogs(taskID string) {
+	qp.taskLogsMutex.Lock()
+	delete(qp.taskLogs, taskID)
+	qp.taskLogsMutex.Unlock()
+}
+
+// ResetTaskLogs removes any cached logs for a task (used when task is retried)
+func (qp *Processor) ResetTaskLogs(taskID string) {
+	qp.clearTaskLogs(taskID)
+}
+
+// GetTaskLogs returns log entries newer than the requested sequence number
+func (qp *Processor) GetTaskLogs(taskID string, afterSeq int64) ([]LogEntry, int64, bool, string, bool, int) {
+	qp.taskLogsMutex.RLock()
+	buffer, exists := qp.taskLogs[taskID]
+	qp.taskLogsMutex.RUnlock()
+
+	isRunning := qp.IsTaskRunning(taskID)
+	if !exists {
+		return []LogEntry{}, afterSeq, isRunning, "", false, 0
+	}
+
+	entries := make([]LogEntry, 0, len(buffer.Entries))
+	for _, entry := range buffer.Entries {
+		if entry.Sequence > afterSeq {
+			entries = append(entries, entry)
+		}
+	}
+
+	return entries, buffer.LastSequence, isRunning, buffer.AgentID, buffer.Completed, buffer.ProcessID
+}
+
+// IsTaskRunning returns true if the task currently has a live managed process
+func (qp *Processor) IsTaskRunning(taskID string) bool {
+	if qp.processManager != nil && qp.processManager.IsProcessActive(taskID) {
+		return true
+	}
+	_, exists := qp.getRunningProcess(taskID)
+	return exists
 }
 
 // GetQueueStatus returns current queue processor status and metrics
@@ -415,7 +677,7 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	isPaused := qp.isPaused
 	isRunning := qp.isRunning
 	qp.mu.Unlock()
-	
+
 	// Check rate limit pause status
 	rateLimitPaused, pauseUntil := qp.IsRateLimitPaused()
 	var rateLimitInfo map[string]interface{}
@@ -435,6 +697,9 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	// Count tasks by status
 	inProgressTasks, _ := qp.storage.GetQueueItems("in-progress")
 	pendingTasks, _ := qp.storage.GetQueueItems("pending")
+	completedTasks, _ := qp.storage.GetQueueItems("completed")
+	failedTasks, _ := qp.storage.GetQueueItems("failed")
+	reviewTasks, _ := qp.storage.GetQueueItems("review")
 
 	// Count actually executing tasks using process registry (more accurate)
 	qp.runningProcessesMutex.RLock()
@@ -453,20 +718,52 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	currentSettings := settings.GetSettings()
 	maxConcurrent := currentSettings.Slots
 	availableSlots := maxConcurrent - executingCount
+	if availableSlots < 0 {
+		availableSlots = 0
+	}
+
+	// Check if processor should be active (both internal state and settings)
+	settingsActive := currentSettings.Active
+	processorActive := !isPaused && isRunning && !rateLimitPaused && settingsActive
+
+	lastProcessed := qp.getLastProcessed()
+	var lastProcessedAt interface{}
+	if !lastProcessed.IsZero() {
+		lastProcessedAt = lastProcessed.Format(time.RFC3339)
+	}
 
 	return map[string]interface{}{
-		"processor_active":  !isPaused && isRunning && !rateLimitPaused,
+		"processor_active":  processorActive,
+		"settings_active":   settingsActive,
 		"maintenance_state": map[bool]string{true: "inactive", false: "active"}[isPaused],
 		"rate_limit_info":   rateLimitInfo,
 		"max_concurrent":    maxConcurrent,
 		"executing_count":   executingCount,
+		"running_count":     executingCount,
 		"available_slots":   availableSlots,
 		"pending_count":     len(pendingTasks),
+		"in_progress_count": len(inProgressTasks),
+		"completed_count":   len(completedTasks),
+		"failed_count":      len(failedTasks),
+		"review_count":      len(reviewTasks),
 		"ready_in_progress": readyInProgress,
 		"refresh_interval":  currentSettings.RefreshInterval, // from settings
-		"processor_running": isRunning && !isPaused && !rateLimitPaused,
+		"processor_running": processorActive,
 		"timestamp":         time.Now().Unix(),
+		"last_processed_at": lastProcessedAt,
 	}
+}
+
+func (qp *Processor) setLastProcessed(t time.Time) {
+	qp.lastProcessedMu.Lock()
+	qp.lastProcessedAt = t
+	qp.lastProcessedMu.Unlock()
+}
+
+func (qp *Processor) getLastProcessed() time.Time {
+	qp.lastProcessedMu.RLock()
+	defer qp.lastProcessedMu.RUnlock()
+	return qp.lastProcessedAt
 }
 
 // Process persistence and health monitoring methods
@@ -498,9 +795,9 @@ func (qp *Processor) loadPersistedProcesses() {
 	aliveCount := 0
 	for _, pp := range persistedProcesses {
 		if qp.isProcessAlive(pp.ProcessID) {
-			log.Printf("Found alive orphaned process: TaskID=%s PID=%d (running since %v)", 
+			log.Printf("Found alive orphaned process: TaskID=%s PID=%d (running since %v)",
 				pp.TaskID, pp.ProcessID, pp.StartTime.Format(time.RFC3339))
-			
+
 			// Attempt to kill orphaned process
 			if err := qp.killProcess(pp.ProcessID); err != nil {
 				log.Printf("Failed to kill orphaned process %d: %v", pp.ProcessID, err)
@@ -585,7 +882,7 @@ func (qp *Processor) checkProcessHealth() {
 
 	for taskID, process := range qp.runningProcesses {
 		if !qp.isProcessAlive(process.ProcessID) {
-			log.Printf("Process %d for task %s is no longer alive - removing from registry", 
+			log.Printf("Process %d for task %s is no longer alive - removing from registry",
 				process.ProcessID, taskID)
 			deadProcesses = append(deadProcesses, taskID)
 		}
@@ -696,25 +993,25 @@ func (qp *Processor) killProcess(pid int) error {
 func (qp *Processor) handleRateLimitPause(retryAfterSeconds int) {
 	qp.pauseMutex.Lock()
 	defer qp.pauseMutex.Unlock()
-	
+
 	// Cap the pause duration at 4 hours
 	if retryAfterSeconds > 14400 {
 		retryAfterSeconds = 14400
 	}
-	
+
 	// Minimum pause of 5 minutes
 	if retryAfterSeconds < 300 {
 		retryAfterSeconds = 300
 	}
-	
+
 	pauseDuration := time.Duration(retryAfterSeconds) * time.Second
 	qp.rateLimitPaused = true
 	qp.pauseUntil = time.Now().Add(pauseDuration)
-	
-	log.Printf("🛑 RATE LIMIT HIT: Pausing queue processor for %v (until %s)", 
+
+	log.Printf("🛑 RATE LIMIT HIT: Pausing queue processor for %v (until %s)",
 		pauseDuration, qp.pauseUntil.Format(time.RFC3339))
-	
-	// Broadcast the pause event  
+
+	// Broadcast the pause event
 	qp.broadcastUpdate("rate_limit_pause_started", map[string]interface{}{
 		"pause_duration": retryAfterSeconds,
 		"pause_until":    qp.pauseUntil.Format(time.RFC3339),
@@ -726,7 +1023,7 @@ func (qp *Processor) handleRateLimitPause(retryAfterSeconds int) {
 func (qp *Processor) IsRateLimitPaused() (bool, time.Time) {
 	qp.pauseMutex.Lock()
 	defer qp.pauseMutex.Unlock()
-	
+
 	if qp.rateLimitPaused && time.Now().Before(qp.pauseUntil) {
 		return true, qp.pauseUntil
 	}
@@ -737,14 +1034,14 @@ func (qp *Processor) IsRateLimitPaused() (bool, time.Time) {
 func (qp *Processor) ResetRateLimitPause() {
 	qp.pauseMutex.Lock()
 	defer qp.pauseMutex.Unlock()
-	
+
 	wasRateLimited := qp.rateLimitPaused
 	qp.rateLimitPaused = false
 	qp.pauseUntil = time.Time{}
-	
+
 	if wasRateLimited {
 		log.Printf("✅ Rate limit pause manually reset. Queue processing resumed.")
-		
+
 		// Broadcast the resume event
 		qp.broadcastUpdate("rate_limit_manual_reset", map[string]interface{}{
 			"paused": false,

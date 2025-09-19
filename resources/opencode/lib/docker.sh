@@ -5,7 +5,7 @@ source "${BASH_SOURCE[0]%/*}/common.sh"
 
 opencode::docker::start() {
     log::info "OpenCode CLI does not require background services."
-    log::info "Use 'resource-opencode run chat --prompt "Hello"' to issue requests."
+    log::info "Use \"resource-opencode run --help\" or \"resource-opencode run run 'Hello'\" to issue requests."
 }
 
 opencode::docker::stop() {

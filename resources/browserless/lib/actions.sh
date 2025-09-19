@@ -911,16 +911,16 @@ actions::extract() {
             if result=$(browser::evaluate "$script" "$session_id"); then
                 local eval_success=$(echo "$result" | jq -r '.success // false')
                 if [[ "$eval_success" == "true" ]]; then
-                    local extracted_data=$(echo "$result" | jq '.result')
+                    local extracted_data=$(echo "$result" | jq -r '.result')
                     
                     if [[ -n "$OUTPUT_PATH" ]]; then
                         mkdir -p "${OUTPUT_PATH%/*}"
-                        echo "$extracted_data" | jq '.' > "$OUTPUT_PATH"
+                        echo "$extracted_data" > "$OUTPUT_PATH"
                         echo "Data saved: $OUTPUT_PATH"
                     fi
                     
                     echo "Extracted data:"
-                    echo "$extracted_data" | jq '.'
+                    echo "$extracted_data"
                     actions::cleanup_temp_session "$session_id"
                     return 0
                 else

@@ -444,7 +444,7 @@ main {
     background: var(--card-bg);
     border: 1px solid var(--border-gray);
     border-radius: var(--border-radius);
-    padding: 1rem;
+    padding: 1rem 1rem 3rem 1rem;
     margin-bottom: 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -886,6 +886,58 @@ body.dark-mode .task-delete-btn:hover {
     background: rgba(255, 193, 7, 0.1);
     border-color: rgba(255, 193, 7, 0.2);
     color: #856404;
+}
+
+/* Task Execution Indicator */
+.task-execution-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(74, 144, 226, 0.1);
+    border: 1px solid rgba(74, 144, 226, 0.2);
+    border-radius: var(--border-radius);
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--primary-color);
+}
+
+.task-execution-indicator .execution-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.task-execution-indicator .progress-info {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--success-color);
+}
+
+.task-execution-indicator .duration-info {
+    font-size: 0.75rem;
+    color: var(--medium-gray);
+}
+
+.btn-stop-execution {
+    background: var(--error-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s ease;
+    margin-left: auto;
+}
+
+.btn-stop-execution:hover {
+    background: #c82333;
+    transform: scale(1.05);
+}
+
+.btn-stop-execution:active {
+    transform: scale(0.95);
 }
 
 .execution-timer {
@@ -1739,31 +1791,91 @@ body.dark-mode .task-error .error-message {
 
 /* Process Monitor Widget */
 .process-monitor {
+    position: relative;
+    animation: pulse 2s ease-in-out infinite alternate;
+}
+
+.process-monitor-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
     background: rgba(255, 215, 0, 0.15);
     border: 1px solid rgba(255, 215, 0, 0.3);
     border-radius: 6px;
-    padding: 0.4rem 0.8rem;
-    animation: pulse 2s ease-in-out infinite alternate;
+    padding: 0.35rem 0.75rem;
+    color: inherit;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+    font-family: inherit;
+    line-height: 1.1;
 }
 
-.process-monitor:hover {
+.process-monitor-toggle:hover,
+.process-monitor-toggle:focus {
     background: rgba(255, 215, 0, 0.25);
-    transform: scale(1.05);
+    outline: none;
 }
 
-.process-monitor .process-info {
-    display: flex;
+.process-monitor-toggle .process-info {
+    display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     font-weight: 500;
 }
 
-.process-monitor .process-details {
-    font-size: 0.75rem;
-    margin-top: 0.2rem;
-    opacity: 0.9;
+.process-monitor-arrow {
+    transition: transform 0.2s ease;
+}
+
+.process-monitor-arrow.open {
+    transform: rotate(180deg);
+}
+
+.process-dropdown {
+    position: absolute;
+    top: calc(100% + 0.4rem);
+    right: 0;
+    min-width: 260px;
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-gray);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    padding: 0.4rem 0;
+    display: none;
+    z-index: 30;
+}
+
+.process-dropdown.show {
+    display: block;
+}
+
+.process-detail-item {
+    padding: 0.5rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.8rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.process-detail-item:last-child {
+    border-bottom: none;
+}
+
+.process-detail-item:hover {
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.process-detail-item strong {
+    font-size: 0.82rem;
+}
+
+.process-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    color: var(--text-muted, #6b7280);
 }
 
 @keyframes pulse {
@@ -1791,6 +1903,27 @@ body.dark-mode .task-error .error-message {
 
 .queue-processor-status i.fa-stop {
     color: var(--error-color);
+}
+
+/* Processor Toggle Button */
+.btn-processor-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+    font-size: 0.8rem;
+    color: var(--text-color);
+}
+
+.btn-processor-toggle:hover {
+    background: rgba(74, 144, 226, 0.1);
+    transform: translateY(-1px);
+}
+
+.btn-processor-toggle:active {
+    transform: translateY(0);
 }
 
 /* Refresh All Button */
@@ -2255,4 +2388,3 @@ body.dark-mode .rate-limit-notification {
     gap: 0.5rem;
     justify-content: flex-end;
 }
-

@@ -82,6 +82,7 @@ type RunningProcess struct {
 	Cancel    interface{} // Will hold context.CancelFunc
 	StartTime time.Time
 	ProcessID int
+	AgentID   string
 }
 
 // ResourceInfo represents information about a discovered resource

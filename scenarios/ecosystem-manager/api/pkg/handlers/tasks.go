@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -149,6 +150,37 @@ func (h *TaskHandlers) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(task)
 }
 
+// GetTaskLogsHandler streams back collected execution logs for a task
+func (h *TaskHandlers) GetTaskLogsHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	taskID := vars["id"]
+
+	afterParam := r.URL.Query().Get("after")
+	var afterSeq int64
+	if afterParam != "" {
+		seq, err := strconv.ParseInt(afterParam, 10, 64)
+		if err != nil {
+			http.Error(w, "after must be an integer", http.StatusBadRequest)
+			return
+		}
+		afterSeq = seq
+	}
+
+	entries, nextSeq, running, agentID, completed, processID := h.processor.GetTaskLogs(taskID, afterSeq)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"task_id":       taskID,
+		"agent_id":      agentID,
+		"process_id":    processID,
+		"running":       running,
+		"completed":     completed,
+		"next_sequence": nextSeq,
+		"entries":       entries,
+		"timestamp":     time.Now().Unix(),
+	})
+}
+
 // UpdateTaskHandler updates an existing task
 func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
@@ -172,19 +204,19 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 	updatedTask.Type = currentTask.Type
 	updatedTask.CreatedBy = currentTask.CreatedBy
 	updatedTask.CreatedAt = currentTask.CreatedAt
-	
+
 	// Allow operation to be updated but preserve if not provided
 	if updatedTask.Operation == "" {
 		updatedTask.Operation = currentTask.Operation
 	}
-	
+
 	// Validate operation if it was changed
 	validOperations := []string{"generator", "improver"}
 	if !tasks.Contains(validOperations, updatedTask.Operation) {
 		http.Error(w, fmt.Sprintf("Invalid operation: %s. Must be one of: %v", updatedTask.Operation, validOperations), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Validate that we have configuration for the new operation combination
 	if updatedTask.Operation != currentTask.Operation {
 		_, err := h.assembler.SelectPromptAssembly(updatedTask.Type, updatedTask.Operation)
@@ -193,7 +225,7 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-	
+
 	// Preserve all other fields if they weren't provided in the update
 	if updatedTask.Title == "" {
 		updatedTask.Title = currentTask.Title

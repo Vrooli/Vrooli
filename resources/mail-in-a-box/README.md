@@ -37,6 +37,11 @@ Environment variables can be set to customize Mail-in-a-Box:
 - `MAILINABOX_ADMIN_EMAIL`: Administrator email (default: admin@mail.local)
 - `MAILINABOX_ADMIN_PASSWORD`: Administrator password
 - `MAILINABOX_BIND_ADDRESS`: Bind address for services (default: 127.0.0.1)
+- `MAILINABOX_POSTMASTER_ALIAS`: Forwarding target for postmaster@ and abuse@ aliases (defaults to the admin mailbox)
+- `MAILINABOX_DEFAULT_MAILBOX`: Optional mailbox (user@domain) to create on first start
+- `MAILINABOX_DEFAULT_MAILBOX_PASSWORD`: Password for the optional mailbox
+
+> **Vault integration:** Use the Secrets Manager scenario (`vrooli scenario run secrets-manager`) to populate these values in Vault. The resource automatically loads the secrets, regenerates the docker-mailserver config, and provisions the admin + optional mailboxes on startup.
 
 ## Injection Support
 

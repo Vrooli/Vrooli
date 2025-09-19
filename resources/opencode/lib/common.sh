@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Core helpers for the OpenCode AI CLI resource
+# Core helpers for the OpenCode AI CLI resource (official binary integration)
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
@@ -11,16 +11,31 @@ source "${OPENCODE_DIR}/config/defaults.sh"
 
 # Data directories (var_DATA_DIR is exported by the global resource runtime)
 OPENCODE_DATA_DIR="${var_DATA_DIR:-${APP_ROOT}/data}/opencode"
-OPENCODE_CONFIG_FILE="${OPENCODE_DATA_DIR}/config.json"
+OPENCODE_BIN_DIR="${OPENCODE_DATA_DIR}/bin"
+OPENCODE_BIN="${OPENCODE_BIN_DIR}/opencode"
+OPENCODE_CACHE_DIR="${OPENCODE_DATA_DIR}/cache"
 OPENCODE_LOG_DIR="${OPENCODE_DATA_DIR}/logs"
+OPENCODE_VERSION_FILE="${OPENCODE_DATA_DIR}/VERSION"
+
+# Config paths (we pin them via env vars before invoking the CLI)
+OPENCODE_CONFIG_DIR="${OPENCODE_DATA_DIR}/config"
+OPENCODE_CONFIG_FILE="${OPENCODE_CONFIG_DIR}/opencode.json"
+OPENCODE_XDG_CONFIG_HOME="${OPENCODE_DATA_DIR}/xdg-config"
+OPENCODE_XDG_DATA_HOME="${OPENCODE_DATA_DIR}/xdg-data"
 
 # Secrets loading cache flag
 OPENCODE_SECRETS_LOADED=${OPENCODE_SECRETS_LOADED:-0}
 
 opencode::ensure_dirs() {
     mkdir -p "${OPENCODE_DATA_DIR}"
+    mkdir -p "${OPENCODE_BIN_DIR}"
+    mkdir -p "${OPENCODE_CACHE_DIR}"
     mkdir -p "${OPENCODE_LOG_DIR}"
-    mkdir -p "${OPENCODE_DATA_DIR}/cache"
+    mkdir -p "${OPENCODE_CONFIG_DIR}"
+    mkdir -p "${OPENCODE_XDG_CONFIG_HOME}"
+    mkdir -p "${OPENCODE_XDG_CONFIG_HOME}/opencode"
+    mkdir -p "${OPENCODE_XDG_DATA_HOME}"
+    mkdir -p "${OPENCODE_XDG_DATA_HOME}/opencode"
 }
 
 opencode::load_secrets() {
@@ -63,26 +78,6 @@ opencode::load_secrets() {
     return 0
 }
 
-opencode::python_bin() {
-    if command -v python3 &>/dev/null; then
-        echo "python3"
-    elif command -v python &>/dev/null; then
-        echo "python"
-    else
-        echo "" 
-    fi
-}
-
-opencode::ensure_python() {
-    local py
-    py=$(opencode::python_bin)
-    if [[ -z "${py}" ]]; then
-        log::error "Python 3 is required for OpenCode CLI. Install python3 and retry."
-        return 1
-    fi
-    return 0
-}
-
 opencode::supported_provider() {
     local provider="${1:-}"
     for candidate in "${OPENCODE_SUPPORTED_PROVIDERS[@]}"; do
@@ -93,31 +88,58 @@ opencode::supported_provider() {
     return 1
 }
 
-opencode::read_config() {
-    local key="${1:-}"
-    if [[ ! -f "${OPENCODE_CONFIG_FILE}" ]]; then
-        echo ""
+opencode::ensure_cli() {
+    if [[ ! -x "${OPENCODE_BIN}" ]]; then
+        log::error "OpenCode CLI binary not found at ${OPENCODE_BIN}"
+        log::info "Run 'resource-opencode manage install' to download the official CLI."
+        return 1
+    fi
+    return 0
+}
+
+opencode::export_runtime_env() {
+    export OPENCODE_CONFIG="${OPENCODE_CONFIG_FILE}"
+    export XDG_CONFIG_HOME="${OPENCODE_XDG_CONFIG_HOME}"
+    export XDG_DATA_HOME="${OPENCODE_XDG_DATA_HOME}"
+    export XDG_CACHE_HOME="${OPENCODE_CACHE_DIR}"
+}
+
+opencode::default_config_payload() {
+    local provider="${1:-${OPENCODE_DEFAULT_PROVIDER}}"
+    local chat_model="${2:-${OPENCODE_DEFAULT_CHAT_MODEL}}"
+    local completion_model="${3:-${OPENCODE_DEFAULT_COMPLETION_MODEL}}"
+
+    cat <<EOF
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "model": "${provider}/${chat_model}",
+  "small_model": "${provider}/${completion_model}",
+  "instructions": [
+    "AGENTS.md"
+  ]
+}
+EOF
+}
+
+opencode::ensure_config() {
+    if [[ -f "${OPENCODE_CONFIG_FILE}" ]]; then
         return 0
     fi
-    if command -v jq &>/dev/null; then
-        jq -r --arg key "${key}" '.[$key] // ""' "${OPENCODE_CONFIG_FILE}" 2>/dev/null
-    else
-        # Fallback: simple grep (best effort)
-        grep -E "\"${key}\"" "${OPENCODE_CONFIG_FILE}" | head -n1 | sed -E 's/.*: \"(.*)\".*/\1/'
-    fi
+    log::info "Creating default OpenCode config at ${OPENCODE_CONFIG_FILE}"
+    mkdir -p "${OPENCODE_CONFIG_DIR}"
+    opencode::default_config_payload >"${OPENCODE_CONFIG_FILE}"
 }
 
 opencode::run_cli() {
-    opencode::ensure_python || return 1
+    opencode::ensure_dirs
+    opencode::ensure_cli || return 1
+    opencode::ensure_config
     opencode::load_secrets || true
+    opencode::export_runtime_env
 
-    local py
-    py=$(opencode::python_bin)
-    "${py}" "${OPENCODE_CLI_ENTRYPOINT}" --config "${OPENCODE_CONFIG_FILE}" "$@"
-}
-
-opencode::models_json() {
-    opencode::run_cli models list --json
+    PATH="${OPENCODE_BIN_DIR}:${PATH}" \
+    OPENCODE_LOG_DIR="${OPENCODE_LOG_DIR}" \
+        "${OPENCODE_BIN}" "$@"
 }
 
 opencode::require_config() {

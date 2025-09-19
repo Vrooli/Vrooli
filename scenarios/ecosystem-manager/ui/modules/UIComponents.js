@@ -31,7 +31,14 @@ export class UIComponents {
             ${isRunning ? `
                 <div class="task-execution-indicator">
                     <i class="fas fa-brain fa-spin"></i>
-                    <span>Executing with Claude...</span>
+                    <div class="execution-details">
+                        <span>Executing with Claude...</span>
+                        ${runningProcesses[task.id] && runningProcesses[task.id].duration ? `<div class="duration-info">Running: ${this.formatDuration(runningProcesses[task.id].duration)}</div>` : ''}
+                        ${runningProcesses[task.id] && runningProcesses[task.id].agent_id ? `<div class="agent-info">Agent: ${this.escapeHtml(runningProcesses[task.id].agent_id)}</div>` : ''}
+                    </div>
+                    <button class="btn-stop-execution" onclick="event.stopPropagation(); ecosystemManager.stopTaskExecution('${task.id}')" title="Stop execution">
+                        <i class="fas fa-stop"></i>
+                    </button>
                 </div>
             ` : ''}
             ${task.results && task.status === 'completed' ? `
@@ -179,6 +186,35 @@ export class UIComponents {
                 notification.remove();
             }, 300);
         }
+    }
+
+    static formatDuration(durationStr) {
+        if (!durationStr) return '';
+        
+        // If it's already formatted nicely (like "4m 10s"), return as is
+        if (durationStr.includes(' ')) {
+            return durationStr;
+        }
+        
+        // Parse durations like "4m10s" or "1h30m5s" and format them nicely
+        const duration = durationStr.toString();
+        
+        // Extract hours, minutes, seconds
+        const hourMatch = duration.match(/(\d+)h/);
+        const minuteMatch = duration.match(/(\d+)m/);
+        const secondMatch = duration.match(/(\d+)s/);
+        
+        const hours = hourMatch ? parseInt(hourMatch[1]) : 0;
+        const minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+        const seconds = secondMatch ? parseInt(secondMatch[1]) : 0;
+        
+        // Format nicely
+        const parts = [];
+        if (hours > 0) parts.push(`${hours}h`);
+        if (minutes > 0) parts.push(`${minutes}m`);
+        if (seconds > 0) parts.push(`${seconds}s`);
+        
+        return parts.join(' ') || '0s';
     }
 
     static escapeHtml(text) {

@@ -62,10 +62,10 @@
                 <!-- Queue Status Indicators -->
                 <div class="queue-status">
                     <div class="queue-info">
-                        <div class="queue-processor-status">
+                        <button class="queue-processor-status btn-processor-toggle" id="processor-toggle-btn" onclick="ecosystemManager.toggleProcessor()" title="Click to toggle processor">
                             <i class="fas fa-play" id="processor-status-icon"></i>
                             <span id="processor-status">Active</span>
-                        </div>
+                        </button>
                         <div class="queue-timer">
                             <i class="fas fa-clock"></i>
                             <span id="next-refresh">Next: <span id="refresh-countdown">--</span>s</span>
@@ -76,11 +76,14 @@
                         </div>
                         <!-- Process Monitor Widget -->
                         <div class="process-monitor" id="process-monitor" style="display: none;">
-                            <div class="process-info">
-                                <i class="fas fa-brain"></i>
-                                <span id="running-process-count">0</span> Claude
-                            </div>
-                            <div class="process-details" id="process-details"></div>
+                            <button type="button" class="process-monitor-toggle" id="process-monitor-toggle" title="View running agents">
+                                <span class="process-info">
+                                    <i class="fas fa-brain"></i>
+                                    <span id="running-process-count">0</span> Claude
+                                </span>
+                                <i class="fas fa-chevron-down process-monitor-arrow" id="process-monitor-arrow"></i>
+                            </button>
+                            <div class="process-dropdown" id="process-monitor-dropdown"></div>
                         </div>
                         <button class="btn-icon refresh-all-btn" onclick="ecosystemManager.refreshAll()" title="Refresh All">
                             <i class="fas fa-sync-alt"></i>

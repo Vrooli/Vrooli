@@ -5,7 +5,8 @@ services:
     image: mailserver/docker-mailserver:latest
     container_name: mailinabox
     hostname: mail.local
-    env_file: ./config/mailserver.env
+    env_file:
+      - ${MAILINABOX_CONFIG_DIR:-${HOME}/.mailinabox/config}/mailserver.env
     ports:
       - "127.0.0.1:25:25"
       - "127.0.0.1:587:587"

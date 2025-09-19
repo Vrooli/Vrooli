@@ -505,9 +505,19 @@ browser::evaluate() {
         const result = await page.evaluate(() => {
             ${script}
         });
+        // Handle both JSON strings and objects
+        let finalResult = result;
+        if (typeof result === 'string') {
+            try {
+                finalResult = JSON.parse(result);
+            } catch (e) {
+                // If parsing fails, keep as string
+                finalResult = result;
+            }
+        }
         return { 
             success: true, 
-            result: result 
+            result: finalResult 
         };"
     
     browser::execute_js "$js_code" "$session_id"

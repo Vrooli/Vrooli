@@ -169,7 +169,7 @@ claude_code::run() {
     
     # Use timeout with streaming to prevent hanging, capture minimal output for error handling
     # Pass prompt via stdin to avoid argument length limits
-    # The --print flag is already added above, so stdin will work
+    # Claude reads from stdin automatically when using --print with no prompt argument
     {
         echo "$PROMPT" | timeout "${TIMEOUT:-600}" claude "${cmd_args[@]}" 2>&1
         echo ${PIPESTATUS[1]} > "${temp_output_file}.exit"
