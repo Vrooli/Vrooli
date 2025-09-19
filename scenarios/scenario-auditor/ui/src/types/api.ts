@@ -188,6 +188,12 @@ export interface RuleTestStatus {
   has_issues: boolean
 }
 
+export interface RuleImplementationStatus {
+  valid: boolean
+  error?: string
+  details?: string
+}
+
 export interface FixAgentResponse {
   success: boolean
   message: string

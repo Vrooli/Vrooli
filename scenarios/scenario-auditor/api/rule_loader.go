@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,24 +11,32 @@ import (
 
 // Violation represents a rule violation
 type Violation struct {
-	RuleID   string `json:"rule_id"`
-	Severity string `json:"severity"`
-	Message  string `json:"message"`
-	File     string `json:"file"`
-	Line     int    `json:"line"`
+	RuleID         string `json:"rule_id"`
+	Severity       string `json:"severity"`
+	Title          string `json:"title,omitempty"`
+	Message        string `json:"message"`
+	File           string `json:"file,omitempty"`
+	FilePath       string `json:"file_path,omitempty"`
+	Line           int    `json:"line,omitempty"`
+	CodeSnippet    string `json:"code_snippet,omitempty"`
+	Recommendation string `json:"recommendation,omitempty"`
+	Standard       string `json:"standard,omitempty"`
+	Category       string `json:"category,omitempty"`
 }
 
 // RuleInfo represents metadata extracted from a rule file
 type RuleInfo struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Reason      string `json:"reason"`
-	Category    string `json:"category"`
-	Severity    string `json:"severity"`
-	Standard    string `json:"standard"`
-	FilePath    string `json:"file_path"`
-	Enabled     bool   `json:"enabled"`
+	ID             string                   `json:"id"`
+	Name           string                   `json:"name"`
+	Description    string                   `json:"description"`
+	Reason         string                   `json:"reason"`
+	Category       string                   `json:"category"`
+	Severity       string                   `json:"severity"`
+	Standard       string                   `json:"standard"`
+	FilePath       string                   `json:"file_path"`
+	Enabled        bool                     `json:"enabled"`
+	Implementation RuleImplementationStatus `json:"implementation"`
+	executor       ruleExecutor             `json:"-"`
 }
 
 type RuleExecutionInfo struct {
@@ -49,17 +58,16 @@ type RuleExecutionCall struct {
 	Reference   string `json:"reference"`
 }
 
-// Check method for RuleInfo - delegates to the actual rule implementation
+// Check executes the underlying rule implementation if one is available.
 func (r RuleInfo) Check(content string, filepath string) ([]Violation, error) {
-	// Look up the rule implementation in the registry
-	impl, exists := RuleRegistry[r.ID]
-	if !exists {
-		// No implementation found, return empty violations
-		return []Violation{}, nil
+	if r.executor == nil {
+		if !r.Implementation.Valid {
+			return nil, fmt.Errorf("rule implementation unavailable: %s", r.Implementation.Error)
+		}
+		return nil, fmt.Errorf("rule execution not configured for %s", r.ID)
 	}
 
-	// Execute the rule
-	return impl.Check(content, filepath)
+	return r.executor.Execute(content, filepath)
 }
 
 // LoadRulesFromFiles scans the rules directory and extracts rule metadata
@@ -84,22 +92,35 @@ func LoadRulesFromFiles() (map[string]RuleInfo, error) {
 			continue
 		}
 
-		// Read all .go files in the category
+		// Read all rule files in the category
 		files, err := ioutil.ReadDir(categoryDir)
 		if err != nil {
 			continue
 		}
 
 		for _, file := range files {
-			if !strings.HasSuffix(file.Name(), ".go") || file.Name() == "types.go" {
+			name := file.Name()
+			if strings.HasSuffix(name, "_test.go") {
 				continue
 			}
 
-			filePath := filepath.Join(categoryDir, file.Name())
+			ext := filepath.Ext(name)
+			if ext != ".go" {
+				continue
+			}
+			if name == "types.go" {
+				continue
+			}
+
+			filePath := filepath.Join(categoryDir, name)
 			rule, err := extractRuleMetadata(filePath, category)
 			if err != nil {
 				continue
 			}
+
+			executor, status := compileGoRule(&rule)
+			rule.executor = executor
+			rule.Implementation = status
 
 			if rule.ID != "" {
 				rules[rule.ID] = rule
@@ -237,8 +258,8 @@ func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
 		CallFlow: []RuleExecutionCall{
 			{
 				Source:      "RuleInfo.Check",
-				Description: "Looks up the rule implementation in `api/rule_registry.go` and forwards the call with `content` and `filepath`.",
-				Reference:   "scenarios/scenario-auditor/api/rule_loader.go:33",
+				Description: "Dispatches to a dynamically loaded rule executor and forwards `content`/`filepath`.",
+				Reference:   "scenarios/scenario-auditor/api/rule_loader.go:43",
 			},
 			{
 				Source:      "TestRunner.RunTest",
@@ -252,7 +273,7 @@ func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
 			},
 		},
 		Notes: []string{
-			"Implementations must be registered in `api/rule_registry.go`; absent entries are never called.",
+			"Go rule implementations are interpreted at runtime, eliminating manual registry updates.",
 			"Rules receive plain text and should perform their own parsing or scanning without relying on additional context.",
 			"The auditor merges runtime violations when available, but the static `Check` output alone must accurately describe issues.",
 		},
@@ -262,12 +283,13 @@ func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
 // ConvertRuleInfoToRule converts RuleInfo to the Rule struct used by the API
 func ConvertRuleInfoToRule(info RuleInfo) Rule {
 	return Rule{
-		ID:          info.ID,
-		Name:        info.Name,
-		Description: info.Description,
-		Category:    info.Category,
-		Severity:    info.Severity,
-		Enabled:     info.Enabled,
-		Standard:    info.Standard,
+		ID:             info.ID,
+		Name:           info.Name,
+		Description:    info.Description,
+		Category:       info.Category,
+		Severity:       info.Severity,
+		Enabled:        info.Enabled,
+		Standard:       info.Standard,
+		Implementation: info.Implementation,
 	}
 }

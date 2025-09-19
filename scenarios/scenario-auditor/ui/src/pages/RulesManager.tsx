@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff, Brain, CircleStop, AlertTriangle, Info, ChevronDown } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
-import { AgentInfo, RuleTestStatus } from '@/types/api'
+import { AgentInfo, RuleImplementationStatus, RuleTestStatus } from '@/types/api'
 import { apiService } from '../services/api'
 import { CodeEditor } from '../components/CodeEditor'
 
@@ -62,7 +62,9 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   }
 
   const testStatus: RuleTestStatus | undefined = status || rule?.test_status
-  const showWarning = Boolean(testStatus?.has_issues)
+  const implementationStatus: RuleImplementationStatus | undefined = rule?.implementation
+  const implementationError = Boolean(implementationStatus && implementationStatus.valid === false)
+  const showWarning = Boolean(testStatus?.has_issues || implementationError)
   const tooltipLines: string[] = []
   if (testStatus?.warning) {
     tooltipLines.push(testStatus.warning)
@@ -76,6 +78,9 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   if (testStatus?.error) {
     tooltipLines.push(`Test execution error: ${testStatus.error}`)
   }
+  if (implementationError) {
+    tooltipLines.push(implementationStatus?.error || 'Rule implementation failed to load')
+  }
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow" data-testid={`rule-${rule.id}`}>
@@ -84,6 +89,11 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
           <div className="flex-1">
             <h3 className="text-lg font-medium text-gray-900">{rule.name}</h3>
             <p className="mt-1 text-sm text-gray-500">{rule.description}</p>
+            {implementationError && (
+              <p className="mt-2 text-xs text-red-600">
+                Implementation error: {implementationStatus?.error || 'Rule implementation unavailable'}
+              </p>
+            )}
           </div>
           <div className="ml-4 flex items-center space-x-2">
             {showWarning && (
@@ -687,6 +697,15 @@ export default function RulesManager() {
                         {ruleDetail.file_path}
                       </p>
                     )}
+                    {ruleDetail?.rule?.implementation && ruleDetail.rule.implementation.valid === false && (
+                      <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                        <p className="font-medium">Implementation error</p>
+                        <p>{ruleDetail.rule.implementation.error || 'Rule implementation failed to load.'}</p>
+                        {ruleDetail.rule.implementation.details && (
+                          <p className="mt-1 text-red-600/80">{ruleDetail.rule.implementation.details}</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -746,6 +765,16 @@ export default function RulesManager() {
               <div className="mt-5">
                 {activeTab === 'implementation' && (
                   <div className="space-y-4">
+                    {ruleDetail?.rule?.implementation && ruleDetail.rule.implementation.valid === false && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <p className="font-semibold">Rule implementation could not be loaded.</p>
+                        <p className="mt-1">{ruleDetail.rule.implementation.error || 'An unknown error occurred while loading this rule.'}</p>
+                        {ruleDetail.rule.implementation.details && (
+                          <p className="mt-1 text-red-600/80">{ruleDetail.rule.implementation.details}</p>
+                        )}
+                      </div>
+                    )}
+
                     {executionInfo && (
                       <div className="rounded-lg border border-blue-200 bg-blue-50/80 text-blue-900 shadow-sm">
                         <button

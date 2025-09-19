@@ -21,14 +21,15 @@ var ruleStates = struct {
 }
 
 type Rule struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Category    string          `json:"category"`
-	Severity    string          `json:"severity"`
-	Enabled     bool            `json:"enabled"`
-	Standard    string          `json:"standard"`
-	TestStatus  *RuleTestStatus `json:"test_status,omitempty"`
+	ID             string                   `json:"id"`
+	Name           string                   `json:"name"`
+	Description    string                   `json:"description"`
+	Category       string                   `json:"category"`
+	Severity       string                   `json:"severity"`
+	Enabled        bool                     `json:"enabled"`
+	Standard       string                   `json:"standard"`
+	TestStatus     *RuleTestStatus          `json:"test_status,omitempty"`
+	Implementation RuleImplementationStatus `json:"implementation"`
 }
 
 type RuleCategory struct {
@@ -133,6 +134,18 @@ func computeRuleTestStatuses(ruleInfos map[string]RuleInfo) map[string]RuleTestS
 
 	for ruleID, ruleInfo := range ruleInfos {
 		status := RuleTestStatus{}
+
+		if !ruleInfo.Implementation.Valid {
+			status.Error = ruleInfo.Implementation.Error
+			if status.Error == "" {
+				status.Error = "rule implementation failed to load"
+			}
+			status.Warning = "Rule implementation unavailable"
+			status.HasIssues = true
+			statuses[ruleID] = status
+			continue
+		}
+
 		results, err := testRunner.RunAllTests(ruleID, ruleInfo)
 		if err != nil {
 			status.Error = err.Error()
@@ -160,14 +173,6 @@ func computeRuleTestStatuses(ruleInfos map[string]RuleInfo) map[string]RuleTestS
 			} else {
 				status.HasIssues = false
 			}
-		}
-
-		if _, implemented := RuleRegistry[ruleID]; !implemented {
-			if status.Warning != "" {
-				status.Warning += "; "
-			}
-			status.Warning += "Rule implementation not registered"
-			status.HasIssues = true
 		}
 
 		statuses[ruleID] = status

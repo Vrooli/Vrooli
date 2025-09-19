@@ -9,3 +9,5 @@ require (
 	github.com/rs/cors v1.10.1
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+require github.com/traefik/yaegi v0.15.1 // indirect
