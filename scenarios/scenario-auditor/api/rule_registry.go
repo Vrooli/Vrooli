@@ -14,6 +14,7 @@ type RuleImplementation interface {
 var RuleRegistry = map[string]RuleImplementation{
 	"security_headers": &SecurityHeadersRule{},
 	"env_validation":   &EnvValidationRule{},
+	"exit_code_test":   &ExitCodeTestRule{},
 }
 
 // SecurityHeadersRule - Updated implementation matching /rules/api/security_headers.go
@@ -216,4 +217,13 @@ func isSensitiveVar(name string) bool {
 	}
 	
 	return false
+}
+
+// ExitCodeTestRule - Test rule for verifying exit code handling
+type ExitCodeTestRule struct{}
+
+func (r *ExitCodeTestRule) Check(content string, filepath string) ([]Violation, error) {
+	// This rule doesn't check for violations
+	// It's used to test exit code handling
+	return []Violation{}, nil
 }

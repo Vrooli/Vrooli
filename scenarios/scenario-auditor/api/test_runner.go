@@ -251,19 +251,21 @@ func (tr *TestRunner) RunTest(testCase TestCase, rule RuleInfo) TestResult {
 				return result
 			}
 			result.ActualViolations = violations
+			result.ExecutionOutput.ExitCode = 0
 		} else {
 			// Code failed to compile/execute - treat as test failure
 			result.Error = fmt.Sprintf("Code execution failed: %s", judge0Result.Error)
 			result.ActualViolations = []Violation{}
+			result.ExecutionOutput.ExitCode = 1
 		}
+		
+		// Determine if test passed based on violations and exit code
+		result.Passed = tr.evaluateTestResult(testCase, result.ActualViolations, result.ExecutionOutput.ExitCode)
+		return result
 	} else {
 		// For non-Go languages or when Judge0 is not available, use direct execution
 		return tr.runTestDirect(testCase, rule)
 	}
-	
-	// Determine if test passed based on violations
-	result.Passed = tr.evaluateTestResult(testCase, result.ActualViolations)
-	return result
 }
 
 // createExecutableProgram wraps a test case in a complete program for runtime validation
@@ -467,10 +469,10 @@ func main() {
 	return program, nil
 }
 
-// executeProgram compiles and runs a Go program, returning its output
-func (tr *TestRunner) executeProgram(program, language string) (string, error) {
+// executeProgram compiles and runs a Go program, returning its output and exit code
+func (tr *TestRunner) executeProgram(program, language string) (string, int, error) {
 	if language != "go" {
-		return "", fmt.Errorf("only Go execution supported")
+		return "", 1, fmt.Errorf("only Go execution supported")
 	}
 	
 	// For now, use Judge0 if available, otherwise return program for inspection
@@ -484,13 +486,13 @@ func (tr *TestRunner) executeProgram(program, language string) (string, error) {
 		
 		result, err := tr.executeWithJudge0(tempTestCase)
 		if err != nil {
-			return "", err
+			return "", 1, err
 		}
 		
 		if result.Status == "3" { // Accepted
-			return result.Output, nil
+			return result.Output, 0, nil
 		} else {
-			return "", fmt.Errorf("execution failed: %s", result.Error)
+			return "", 1, fmt.Errorf("execution failed: %s", result.Error)
 		}
 	}
 	
@@ -499,11 +501,11 @@ func (tr *TestRunner) executeProgram(program, language string) (string, error) {
 }
 
 // executeLocally executes a Go program locally using go run
-func (tr *TestRunner) executeLocally(program string) (string, error) {
+func (tr *TestRunner) executeLocally(program string) (string, int, error) {
 	// Create a temporary directory for the Go file
 	tempDir, err := os.MkdirTemp("", "rule_test_*")
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp dir: %v", err)
+		return "", 1, fmt.Errorf("failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(tempDir) // Clean up
 	
@@ -511,7 +513,7 @@ func (tr *TestRunner) executeLocally(program string) (string, error) {
 	tempFile := filepath.Join(tempDir, "main.go")
 	err = os.WriteFile(tempFile, []byte(program), 0644)
 	if err != nil {
-		return "", fmt.Errorf("failed to write temp file: %v", err)
+		return "", 1, fmt.Errorf("failed to write temp file: %v", err)
 	}
 	
 	// Execute with go run
@@ -525,8 +527,16 @@ func (tr *TestRunner) executeLocally(program string) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	
-	// Execute the command
+	// Execute the command and get exit code
 	err = cmd.Run()
+	exitCode := 0
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			exitCode = 1 // Default to 1 for other errors
+		}
+	}
 	
 	// Combine output
 	output := stdout.String()
@@ -545,7 +555,7 @@ func (tr *TestRunner) executeLocally(program string) (string, error) {
 		}
 	}
 	
-	return output, nil
+	return output, exitCode, nil
 }
 
 // hasJudge0 checks if Judge0 is available (placeholder implementation)
@@ -569,15 +579,19 @@ func (tr *TestRunner) runTestDirect(testCase TestCase, rule RuleInfo) TestResult
 	if err != nil {
 		result.ExecutionOutput.Stderr = fmt.Sprintf("Failed to create executable program: %v", err)
 		result.ExecutionOutput.Method = "direct"
+		result.ExecutionOutput.ExitCode = 1
 	} else {
 		// Execute the complete program
-		output, err := tr.executeProgram(completeProgram, testCase.Language)
+		output, exitCode, err := tr.executeProgram(completeProgram, testCase.Language)
+		result.ExecutionOutput.Stdout = output
+		result.ExecutionOutput.ExitCode = exitCode
+		result.ExecutionOutput.Method = "local"
+		
 		if err != nil {
-			result.ExecutionOutput.Stderr = fmt.Sprintf("Execution failed: %v", err)
-			result.ExecutionOutput.Method = "local"
-		} else {
-			result.ExecutionOutput.Stdout = output
-			result.ExecutionOutput.Method = "local"
+			if result.ExecutionOutput.Stderr != "" {
+				result.ExecutionOutput.Stderr += "\n"
+			}
+			result.ExecutionOutput.Stderr += fmt.Sprintf("Execution failed: %v", err)
 		}
 	}
 	
@@ -599,7 +613,7 @@ func (tr *TestRunner) runTestDirect(testCase TestCase, rule RuleInfo) TestResult
 		result.ActualViolations = staticViolations
 	}
 	
-	result.Passed = tr.evaluateTestResult(testCase, result.ActualViolations)
+	result.Passed = tr.evaluateTestResult(testCase, result.ActualViolations, result.ExecutionOutput.ExitCode)
 	
 	return result
 }
@@ -655,8 +669,8 @@ func (tr *TestRunner) getRuntimeRecommendation(ruleID, violationMessage string) 
 	}
 }
 
-// evaluateTestResult determines if a test passed based on expected vs actual violations
-func (tr *TestRunner) evaluateTestResult(testCase TestCase, violations []Violation) bool {
+// evaluateTestResult determines if a test passed based on expected vs actual violations and exit code
+func (tr *TestRunner) evaluateTestResult(testCase TestCase, violations []Violation, exitCode int) bool {
 	actualViolationCount := len(violations)
 	
 	if testCase.ShouldFail {
@@ -681,8 +695,11 @@ func (tr *TestRunner) evaluateTestResult(testCase TestCase, violations []Violati
 		}
 		return passed
 	} else {
-		// Test expects no violations
-		return actualViolationCount == 0
+		// Test expects no violations AND successful execution
+		// For a test to truly pass, it must:
+		// 1. Have no violations
+		// 2. Execute successfully (exit code 0)
+		return actualViolationCount == 0 && exitCode == 0
 	}
 }
 
