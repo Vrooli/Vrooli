@@ -5,6 +5,7 @@
 source "${BASH_SOURCE[0]%/*}/common.sh"
 
 opencode::docker::start() {
+    opencode_detect_vscode
     log::info "OpenCode is a VS Code extension and doesn't require Docker services"
     log::info "The extension runs within VS Code when VS Code is started"
     
@@ -49,6 +50,7 @@ opencode::docker::start() {
 }
 
 opencode::docker::stop() {
+    opencode_detect_vscode
     log::info "OpenCode is a VS Code extension and doesn't have Docker services to stop"
     log::info "The extension stops when VS Code is closed"
     
@@ -63,6 +65,7 @@ opencode::docker::stop() {
 }
 
 opencode::docker::restart() {
+    opencode_detect_vscode
     log::info "OpenCode is a VS Code extension - restart involves reloading the extension or restarting VS Code"
     
     if [[ -n "${VSCODE_COMMAND}" ]]; then

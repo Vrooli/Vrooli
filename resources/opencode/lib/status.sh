@@ -6,7 +6,9 @@ source "${BASH_SOURCE[0]%/*}/common.sh"
 
 opencode::status() {
     local status_code=0
-    
+
+    opencode_detect_vscode
+
     log::info "OpenCode Extension Status:"
     echo "=========================="
     

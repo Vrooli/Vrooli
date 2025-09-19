@@ -28,15 +28,56 @@ opencode::content::add_config() {
     local provider="${3:-ollama}"
     local chat_model="${4:-llama3.2:3b}"
     local completion_model="${5:-qwen2.5-coder:3b}"
-    
+
     log::info "Adding OpenCode configuration: ${config_name}"
-    
+
     # Ensure directories exist
     opencode_ensure_dirs
-    
+    opencode_load_secrets || true
+
     # Create or update configuration
     local config_file="${OPENCODE_DATA_DIR}/config-${config_name}.json"
-    cat > "${config_file}" <<EOF
+    local timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+    if command -v jq &>/dev/null; then
+        local gateway_url=""
+        local slug="${CLOUDFLARE_AI_GATEWAY_SLUG:-}"
+        if [[ -n "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
+            if [[ -z "$slug" ]]; then
+                slug="vrooli"
+            fi
+            gateway_url="https://gateway.ai.cloudflare.com/v1/${CLOUDFLARE_ACCOUNT_ID}/${slug}"
+        fi
+
+        jq -n \
+            --arg name "${config_name}" \
+            --arg provider "${provider}" \
+            --arg chat "${chat_model}" \
+            --arg completion "${completion_model}" \
+            --arg created "${timestamp}" \
+            --arg openrouter_key "${OPENROUTER_API_KEY:-}" \
+            --arg cloudflare_token "${CLOUDFLARE_API_TOKEN:-}" \
+            --arg cloudflare_account "${CLOUDFLARE_ACCOUNT_ID:-}" \
+            --arg cloudflare_slug "$slug" \
+            --arg cloudflare_url "$gateway_url" \
+            --argjson port ${OPENCODE_PORT} \
+            '{
+                name: $name,
+                provider: $provider,
+                chat_model: $chat,
+                completion_model: $completion,
+                port: $port,
+                auto_suggest: true,
+                enable_logging: true,
+                created: $created
+            }
+            | if $openrouter_key != "" then .openrouter_api_key = $openrouter_key else . end
+            | if $cloudflare_token != "" then .cloudflare_api_token = $cloudflare_token else . end
+            | if $cloudflare_account != "" then .cloudflare_account_id = $cloudflare_account else . end
+            | if $cloudflare_slug != "" then .cloudflare_gateway_slug = $cloudflare_slug else . end
+            | if $cloudflare_url != "" then .cloudflare_gateway_url = $cloudflare_url else . end' > "${config_file}"
+    else
+        cat > "${config_file}" <<EOF
 {
   "name": "${config_name}",
   "provider": "${provider}",
@@ -45,10 +86,11 @@ opencode::content::add_config() {
   "port": ${OPENCODE_PORT},
   "auto_suggest": true,
   "enable_logging": true,
-  "created": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  "created": "${timestamp}"
 }
 EOF
-    
+    fi
+
     log::success "Configuration '${config_name}' saved to ${config_file}"
     log::info "To activate this configuration, run: opencode content activate ${config_name}"
 }
