@@ -13,28 +13,18 @@ opencode::test::smoke() {
 opencode::test::integration() {
     log::info "Running OpenCode integration tests..."
     local test_result=0
-    
-    # Test 1: VS Code availability
-    log::info "Test 1: VS Code availability"
-    if [[ -n "${VSCODE_COMMAND}" ]]; then
-        log::success "✅ VS Code command available: ${VSCODE_COMMAND}"
+
+    # Test 1: Python availability
+    log::info "Test 1: Python availability"
+    if opencode::ensure_python; then
+        log::success "✅ Python interpreter detected"
     else
-        log::error "❌ VS Code command not found"
+        log::error "❌ Python 3 not available"
         test_result=1
     fi
-    
-    # Test 2: Extension installation
-    log::info "Test 2: Extension installation"
-    if opencode_is_installed; then
-        local version=$(opencode_get_version)
-        log::success "✅ Twinny extension installed: v${version}"
-    else
-        log::error "❌ Twinny extension not installed"
-        test_result=1
-    fi
-    
-    # Test 3: Configuration file
-    log::info "Test 3: Configuration file"
+
+    # Test 2: Configuration file
+    log::info "Test 2: Configuration file"
     if [[ -f "${OPENCODE_CONFIG_FILE}" ]]; then
         if command -v jq &>/dev/null && jq . "${OPENCODE_CONFIG_FILE}" >/dev/null 2>&1; then
             log::success "✅ Configuration file is valid JSON"
@@ -43,19 +33,33 @@ opencode::test::integration() {
             test_result=1
         fi
     else
-        log::warning "⚠️  Configuration file not found (this is OK for fresh installs)"
+        log::warning "⚠️  Configuration file not found (run manage install)"
+        test_result=1
     fi
-    
-    # Test 4: Available models
-    log::info "Test 4: Model availability"
-    local models=$(opencode_get_models)
-    local model_count=$(echo "${models}" | jq '. | length')
-    if [[ "${model_count}" -gt 0 ]]; then
-        log::success "✅ Found ${model_count} available models"
+
+    # Test 3: CLI info command
+    log::info "Test 3: CLI info command"
+    if opencode::run_cli info >/dev/null; then
+        log::success "✅ CLI info command executed"
     else
-        log::warning "⚠️  No models found (install Ollama or configure OpenRouter)"
+        log::error "❌ CLI info command failed"
+        test_result=1
     fi
-    
+
+    # Test 4: Model listing (non-fatal)
+    log::info "Test 4: Model availability"
+    if command -v jq &>/dev/null && models_json=$(opencode::models_json 2>/dev/null); then
+        local model_count
+        model_count=$(echo "${models_json}" | jq 'flatten | length')
+        if [[ "${model_count}" -gt 0 ]]; then
+            log::success "✅ Found ${model_count} model entries"
+        else
+            log::warning "⚠️  No models detected. Configure Ollama/OpenRouter for remote completions."
+        fi
+    else
+        log::warning "⚠️  Unable to enumerate models (jq missing or CLI error)"
+    fi
+
     # Test 5: Data directory structure
     log::info "Test 5: Data directory structure"
     local required_dirs=(

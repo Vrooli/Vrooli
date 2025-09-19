@@ -1,122 +1,68 @@
 #!/bin/bash
-# OpenCode Installation Functions
+# OpenCode installation and teardown helpers
 
-# Source common functions
 source "${BASH_SOURCE[0]%/*}/common.sh"
 
-opencode::install::install_code_server() {
-    opencode_detect_vscode
-    if [[ -n "${VSCODE_COMMAND}" ]]; then
-        return 0
-    fi
-
-    if ! command -v curl &>/dev/null; then
-        log::error "curl is required to install code-server automatically"
-        return 1
-    fi
-
-    local install_prefix="${HOME}/.local"
-    local install_script
-    install_script=$(mktemp)
-
-    log::info "Downloading code-server installation script..."
-    if ! curl -fsSL https://code-server.dev/install.sh -o "${install_script}"; then
-        log::error "Failed to download code-server installer"
-        rm -f "${install_script}"
-        return 1
-    fi
-
-    log::info "Installing code-server to ${install_prefix} (standalone method)..."
-    if ! sh "${install_script}" --method standalone --prefix "${install_prefix}" >/dev/null 2>&1; then
-        log::error "code-server installation failed"
-        rm -f "${install_script}"
-        return 1
-    fi
-
-    rm -f "${install_script}"
-
-    if [[ -x "${install_prefix}/bin/code-server" ]]; then
-        export PATH="${install_prefix}/bin:${PATH}"
-    fi
-
-    opencode_detect_vscode
-
-    if [[ -z "${VSCODE_COMMAND}" ]]; then
-        log::warn "code-server installed but not detected on PATH. Add ${install_prefix}/bin to PATH and retry."
-        return 1
-    fi
-
-    log::success "code-server installed successfully (${VSCODE_COMMAND})"
-    log::info "Ensure ${install_prefix}/bin is on your PATH for future shells."
-    return 0
-}
-
 opencode::install::execute() {
-    log::info "Installing OpenCode VS Code extension..."
+    log::info "Installing OpenCode AI CLI"
 
-    opencode_detect_vscode
-    if [[ -z "${VSCODE_COMMAND}" ]]; then
-        log::warn "VS Code command not found. Attempting to install code-server automatically..."
-        if ! opencode::install::install_code_server; then
-            log::error "Unable to install code-server automatically. Install VS Code or code-server manually and rerun."
-            return 1
-        fi
-    fi
-
-    opencode_detect_vscode
-
-    # Ensure directories exist
-    opencode_ensure_dirs
-
-    # Install the Twinny extension
-    log::info "Installing Twinny AI extension (${OPENCODE_EXTENSION_ID})..."
-    if ${VSCODE_COMMAND} --install-extension "${OPENCODE_EXTENSION_ID}" --force; then
-        log::success "Twinny extension installed successfully"
-    else
-        log::error "Failed to install Twinny extension"
+    if ! opencode::ensure_python; then
         return 1
     fi
 
-    # Create default configuration if it doesn't exist
-    if [[ ! -f "${OPENCODE_CONFIG_FILE}" ]]; then
-        log::info "Creating default configuration..."
-        cat > "${OPENCODE_CONFIG_FILE}" <<EOF_CFG
+    opencode::ensure_dirs
+    opencode::load_secrets || true
+
+    if [[ -f "${OPENCODE_CONFIG_FILE}" ]]; then
+        log::info "Configuration already exists at ${OPENCODE_CONFIG_FILE}"
+    else
+        log::info "Creating default configuration"
+        local provider="${OPENCODE_DEFAULT_PROVIDER}"
+        local chat_model="${OPENCODE_DEFAULT_CHAT_MODEL}"
+        local completion_model="${OPENCODE_DEFAULT_COMPLETION_MODEL}"
+        local timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+        if command -v jq &>/dev/null; then
+            jq -n \
+                --arg provider "${provider}" \
+                --arg chat "${chat_model}" \
+                --arg completion "${completion_model}" \
+                --arg created "${timestamp}" \
+                --argjson port ${OPENCODE_PORT} \
+                '{
+                    provider: $provider,
+                    chat_model: $chat,
+                    completion_model: $completion,
+                    port: $port,
+                    auto_suggest: true,
+                    enable_logging: true,
+                    created: $created
+                }' > "${OPENCODE_CONFIG_FILE}"
+        else
+            cat > "${OPENCODE_CONFIG_FILE}" <<'JSON'
 {
-  "provider": "${DEFAULT_MODEL_PROVIDER}",
-  "chat_model": "${DEFAULT_CHAT_MODEL}",
-  "completion_model": "${DEFAULT_COMPLETION_MODEL}",
+  "provider": "${provider}",
+  "chat_model": "${chat_model}",
+  "completion_model": "${completion_model}",
   "port": ${OPENCODE_PORT},
   "auto_suggest": true,
-  "enable_logging": true
+  "enable_logging": true,
+  "created": "${timestamp}"
 }
-EOF_CFG
-        log::success "Default configuration created at ${OPENCODE_CONFIG_FILE}"
+JSON
+        fi
+        log::success "Default configuration created"
     fi
 
-    log::success "OpenCode installation completed"
+    log::success "OpenCode CLI installation complete"
 }
 
 opencode::install::uninstall() {
-    log::info "Uninstalling OpenCode VS Code extension..."
-
-    opencode_detect_vscode
-
-    # Uninstall the extension
-    if [[ -n "${VSCODE_COMMAND}" ]]; then
-        log::info "Uninstalling Twinny extension..."
-        if ${VSCODE_COMMAND} --uninstall-extension "${OPENCODE_EXTENSION_ID}"; then
-            log::success "Twinny extension uninstalled successfully"
-        else
-            log::warning "Failed to uninstall extension or extension was not installed"
-        fi
-    fi
-
-    # Remove configuration and data
+    log::info "Uninstalling OpenCode AI CLI"
     if [[ -d "${OPENCODE_DATA_DIR}" ]]; then
-        log::info "Removing OpenCode data directory..."
         rm -rf "${OPENCODE_DATA_DIR}"
-        log::success "OpenCode data directory removed"
+        log::success "Removed ${OPENCODE_DATA_DIR}"
+    else
+        log::info "No data directory to remove"
     fi
-
-    log::success "OpenCode uninstallation completed"
 }

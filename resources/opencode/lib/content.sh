@@ -181,39 +181,49 @@ opencode::content::list_configs() {
 }
 
 opencode::content::list_models() {
+    if ! command -v jq &>/dev/null; then
+        log::error "jq is required to list models"
+        return 1
+    fi
+
+    local models_json
+    if ! models_json=$(opencode::models_json 2>/dev/null); then
+        log::error "Unable to retrieve models from OpenCode CLI"
+        return 1
+    fi
+
     log::info "Available AI Models:"
-    
-    # Get models from Ollama if available
-    local ollama_models=$(opencode_get_models ollama)
-    local ollama_count=$(echo "${ollama_models}" | jq '. | length')
-    
+
+    local ollama_models=$(echo "${models_json}" | jq '.ollama // []')
+    local ollama_count=$(echo "${ollama_models}" | jq 'length')
     if [[ "${ollama_count}" -gt 0 ]]; then
         echo "🦙 Ollama models (${ollama_count}):"
         echo "${ollama_models}" | jq -r '.[]' | sed 's/^/   - /'
     else
-        echo "🦙 Ollama models: None found (is Ollama running?)"
+        echo "🦙 Ollama models: None detected"
     fi
-    
-    # Get OpenRouter models if configured
-    local openrouter_models=$(opencode_get_models openrouter) 
-    local openrouter_count=$(echo "${openrouter_models}" | jq '. | length')
-    
+
+    local openrouter_models=$(echo "${models_json}" | jq '.openrouter // []')
+    local openrouter_count=$(echo "${openrouter_models}" | jq 'length')
     if [[ "${openrouter_count}" -gt 0 ]]; then
         echo "🔄 OpenRouter models (${openrouter_count}):"
         echo "${openrouter_models}" | jq -r '.[]' | sed 's/^/   - /'
     else
-        echo "🔄 OpenRouter models: None configured"
+        echo "🔄 OpenRouter models: None detected"
     fi
-    
-    # Show custom models list if it exists
-    local models_file="${OPENCODE_DATA_DIR}/available-models.json"
-    if [[ -f "${models_file}" ]]; then
-        local custom_models=$(cat "${models_file}")
-        local custom_count=$(echo "${custom_models}" | jq '. | length')
-        if [[ "${custom_count}" -gt 0 ]]; then
-            echo "📝 Custom model references (${custom_count}):"
-            echo "${custom_models}" | jq -r '.[]' | sed 's/^/   - /'
-        fi
+
+    local cloudflare_models=$(echo "${models_json}" | jq '.cloudflare // []')
+    local cloudflare_count=$(echo "${cloudflare_models}" | jq 'length')
+    if [[ "${cloudflare_count}" -gt 0 ]]; then
+        echo "☁️  Cloudflare Gateway models (${cloudflare_count}):"
+        echo "${cloudflare_models}" | jq -r '.[]' | sed 's/^/   - /'
+    fi
+
+    local custom_models=$(echo "${models_json}" | jq '.custom // []')
+    local custom_count=$(echo "${custom_models}" | jq 'length')
+    if [[ "${custom_count}" -gt 0 ]]; then
+        echo "📝 Custom model references (${custom_count}):"
+        echo "${custom_models}" | jq -r '.[]' | sed 's/^/   - /'
     fi
 }
 
@@ -272,20 +282,22 @@ opencode::content::get_model() {
         return 1
     fi
     
-    # Check if model exists in available models
-    local all_models=$(opencode_get_models)
-    if echo "${all_models}" | jq -e --arg model "${model_name}" 'any(. == $model)' >/dev/null; then
+    if ! command -v jq &>/dev/null; then
+        log::error "jq is required for this command"
+        return 1
+    fi
+
+    local models_json
+    if ! models_json=$(opencode::models_json 2>/dev/null); then
+        log::error "Unable to retrieve models from OpenCode CLI"
+        return 1
+    fi
+
+    if echo "${models_json}" | jq -e --arg model "${model_name}" 'flatten | any(. == $model)' >/dev/null; then
         log::success "Model '${model_name}' is available"
         log::info "Model: ${model_name}"
-        
-        # Show additional info if it's an Ollama model
-        if command -v ollama &>/dev/null && ollama list 2>/dev/null | grep -q "^${model_name}"; then
-            echo "Provider: Ollama"
-            echo "Status: Installed locally"
-            ollama show "${model_name}" 2>/dev/null | head -10 || true
-        else
-            echo "Provider: Remote/API"
-        fi
+        local provider=$(echo "${models_json}" | jq -r --arg model "${model_name}" 'to_entries | map(select(.value | any(. == $model))) | first.key // "unknown"')
+        echo "Provider: ${provider}"
     else
         log::error "Model '${model_name}' not found in available models"
         log::info "Use 'opencode content list models' to see available models"
