@@ -29,6 +29,7 @@ const (
 	agentActionFixRuleTests     = "fix_rule_tests"
 	agentActionStandardsFix     = "standards_fix"
 	agentActionVulnerabilityFix = "vulnerability_fix"
+	agentActionCreateRule       = "create_rule"
 )
 
 const (
@@ -333,6 +334,11 @@ func fallbackAgentName(name, label, action, ruleID string) string {
 			return fmt.Sprintf("Fix tests for %s", ruleID)
 		}
 		return "Fix rule tests"
+	case agentActionCreateRule:
+		if label != "" {
+			return label
+		}
+		return "Create new rule"
 	case agentActionStandardsFix:
 		if label != "" {
 			return label

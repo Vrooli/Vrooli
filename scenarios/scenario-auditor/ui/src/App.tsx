@@ -14,9 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Server,
-  FileText,
   ClipboardList,
-  Sliders,
   Brain
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -30,8 +28,6 @@ import AutomatedFixPanel from './components/AutomatedFixPanel'
 import StandardsCompliance from './components/StandardsCompliance'
 import SettingsPanel from './components/SettingsPanel'
 import RulesManager from './pages/RulesManager'
-import ResultsViewer from './pages/ResultsViewer'
-import Preferences from './pages/Preferences'
 import { apiService } from './services/api'
 import { AgentInfo } from '@/types/api'
 
@@ -68,7 +64,8 @@ export default function App() {
   const { data: activeAgentsData } = useQuery({
     queryKey: ['activeAgents'],
     queryFn: () => apiService.getActiveAgents(),
-    refetchInterval: 2000,
+    refetchInterval: 4000,
+    retry: false,
   })
 
 
@@ -78,11 +75,9 @@ export default function App() {
     { id: 'vulnerabilities', name: 'Security Scanner', icon: Shield, path: '/vulnerabilities' },
     { id: 'standards', name: 'Standards Compliance', icon: AlertTriangle, path: '/standards' },
     { id: 'rules', name: 'Rules Manager', icon: ClipboardList, path: '/rules' },
-    { id: 'scan-results', name: 'Scan Results', icon: FileText, path: '/scan-results' },
     { id: 'health', name: 'Health Monitor', icon: Activity, path: '/monitoring' },
     { id: 'performance', name: 'Performance', icon: Zap, path: '/performance' },
     { id: 'automated-fixes', name: 'Automated Fixes', icon: Terminal, path: '/fixes' },
-    { id: 'preferences', name: 'Preferences', icon: Sliders, path: '/preferences' },
     { id: 'settings', name: 'Settings', icon: Settings, path: '/settings' },
   ]
   
@@ -436,11 +431,11 @@ export default function App() {
               <Route path="/vulnerabilities" element={<VulnerabilityScanner />} />
               <Route path="/standards" element={<StandardsCompliance />} />
               <Route path="/rules" element={<RulesManager />} />
-              <Route path="/scan-results" element={<ResultsViewer />} />
+              <Route path="/scan-results" element={<Navigate to="/vulnerabilities" replace />} />
               <Route path="/monitoring" element={<HealthMonitor />} />
               <Route path="/performance" element={<PerformanceMetrics />} />
               <Route path="/fixes" element={<AutomatedFixPanel />} />
-              <Route path="/preferences" element={<Preferences />} />
+              <Route path="/preferences" element={<Navigate to="/settings" replace />} />
               <Route path="/settings" element={<SettingsPanel />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -30,6 +30,25 @@ type RuleInfo struct {
 	Enabled     bool   `json:"enabled"`
 }
 
+type RuleExecutionInfo struct {
+	Signature string              `json:"signature"`
+	Arguments []RuleArgumentInfo  `json:"arguments"`
+	CallFlow  []RuleExecutionCall `json:"call_flow"`
+	Notes     []string            `json:"notes"`
+}
+
+type RuleArgumentInfo struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+type RuleExecutionCall struct {
+	Source      string `json:"source"`
+	Description string `json:"description"`
+	Reference   string `json:"reference"`
+}
+
 // Check method for RuleInfo - delegates to the actual rule implementation
 func (r RuleInfo) Check(content string, filepath string) ([]Violation, error) {
 	// Look up the rule implementation in the registry
@@ -38,7 +57,7 @@ func (r RuleInfo) Check(content string, filepath string) ([]Violation, error) {
 		// No implementation found, return empty violations
 		return []Violation{}, nil
 	}
-	
+
 	// Execute the rule
 	return impl.Check(content, filepath)
 }
@@ -46,48 +65,48 @@ func (r RuleInfo) Check(content string, filepath string) ([]Violation, error) {
 // LoadRulesFromFiles scans the rules directory and extracts rule metadata
 func LoadRulesFromFiles() (map[string]RuleInfo, error) {
 	rules := make(map[string]RuleInfo)
-	
+
 	// Get the rules directory path
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
 		vrooliRoot = os.Getenv("HOME") + "/Vrooli"
 	}
 	rulesDir := filepath.Join(vrooliRoot, "scenarios", "scenario-auditor", "rules")
-	
+
 	// Walk through all subdirectories
 	categories := []string{"api", "cli", "config", "test", "ui"}
-	
+
 	for _, category := range categories {
 		categoryDir := filepath.Join(rulesDir, category)
-		
+
 		// Check if directory exists
 		if _, err := os.Stat(categoryDir); os.IsNotExist(err) {
 			continue
 		}
-		
+
 		// Read all .go files in the category
 		files, err := ioutil.ReadDir(categoryDir)
 		if err != nil {
 			continue
 		}
-		
+
 		for _, file := range files {
 			if !strings.HasSuffix(file.Name(), ".go") || file.Name() == "types.go" {
 				continue
 			}
-			
+
 			filePath := filepath.Join(categoryDir, file.Name())
 			rule, err := extractRuleMetadata(filePath, category)
 			if err != nil {
 				continue
 			}
-			
+
 			if rule.ID != "" {
 				rules[rule.ID] = rule
 			}
 		}
 	}
-	
+
 	return rules, nil
 }
 
@@ -98,26 +117,26 @@ func extractRuleMetadata(filePath string, defaultCategory string) (RuleInfo, err
 		return RuleInfo{}, err
 	}
 	defer file.Close()
-	
+
 	rule := RuleInfo{
 		Category: defaultCategory,
 		FilePath: filePath,
 		Enabled:  true,
 	}
-	
+
 	scanner := bufio.NewScanner(file)
 	inComment := false
 	commentLines := []string{}
-	
+
 	// Read the file to find the metadata comment block
 	for scanner.Scan() {
 		line := scanner.Text()
-		
+
 		if strings.HasPrefix(line, "/*") {
 			inComment = true
 			continue
 		}
-		
+
 		if inComment {
 			if strings.HasPrefix(line, "*/") {
 				inComment = false
@@ -127,19 +146,19 @@ func extractRuleMetadata(filePath string, defaultCategory string) (RuleInfo, err
 			}
 			commentLines = append(commentLines, line)
 		}
-		
+
 		// Stop after we've processed the first comment block
 		if !inComment && len(commentLines) > 0 {
 			break
 		}
 	}
-	
+
 	// Generate ID from filename if not set
 	if rule.ID == "" {
 		baseName := strings.TrimSuffix(filepath.Base(filePath), ".go")
 		rule.ID = baseName
 	}
-	
+
 	return rule, nil
 }
 
@@ -147,7 +166,7 @@ func extractRuleMetadata(filePath string, defaultCategory string) (RuleInfo, err
 func parseCommentBlock(lines []string, rule RuleInfo) RuleInfo {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		// Parse key: value pairs
 		if strings.HasPrefix(line, "Rule:") {
 			rule.Name = strings.TrimSpace(strings.TrimPrefix(line, "Rule:"))
@@ -163,7 +182,7 @@ func parseCommentBlock(lines []string, rule RuleInfo) RuleInfo {
 			rule.Standard = strings.TrimSpace(strings.TrimPrefix(line, "Standard:"))
 		}
 	}
-	
+
 	return rule
 }
 
@@ -194,6 +213,48 @@ func GetRuleCategories() map[string]RuleCategory {
 			ID:          "ui",
 			Name:        "User Interface",
 			Description: "Rules for UI components and frontend code",
+		},
+	}
+}
+
+func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
+	_ = rule // reserved for future rule-specific detail
+
+	return RuleExecutionInfo{
+		Signature: "Check(content string, filepath string) ([]Violation, error)",
+		Arguments: []RuleArgumentInfo{
+			{
+				Name:        "content",
+				Type:        "string",
+				Description: "Raw source being evaluated. For embedded tests and the playground this is exactly the `<input>` snippet; for repository scans it is the file contents read from disk.",
+			},
+			{
+				Name:        "filepath",
+				Type:        "string",
+				Description: "Path hint for the content. Test executions synthesize names like `test_<case>.go`, while repository scans pass the relative file path.",
+			},
+		},
+		CallFlow: []RuleExecutionCall{
+			{
+				Source:      "RuleInfo.Check",
+				Description: "Looks up the rule implementation in `api/rule_registry.go` and forwards the call with `content` and `filepath`.",
+				Reference:   "scenarios/scenario-auditor/api/rule_loader.go:33",
+			},
+			{
+				Source:      "TestRunner.RunTest",
+				Description: "Executes `<test-case>` snippets and invokes the rule with the snippet text and a synthetic filename.",
+				Reference:   "scenarios/scenario-auditor/api/test_runner.go:247",
+			},
+			{
+				Source:      "TestRunner.runTestDirect",
+				Description: "Fallback path when Judge0 is unavailable; still dispatches to the same `Check` signature.",
+				Reference:   "scenarios/scenario-auditor/api/test_runner.go:599",
+			},
+		},
+		Notes: []string{
+			"Implementations must be registered in `api/rule_registry.go`; absent entries are never called.",
+			"Rules receive plain text and should perform their own parsing or scanning without relying on additional context.",
+			"The auditor merges runtime violations when available, but the static `Check` output alone must accurately describe issues.",
 		},
 	}
 }

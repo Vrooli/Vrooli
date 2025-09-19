@@ -3,6 +3,7 @@ package scanners
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 	"time"
 )
 
@@ -32,16 +33,16 @@ const (
 
 // ScanOptions configures a security scan
 type ScanOptions struct {
-	Path             string            `json:"path"`
-	ScanType         string            `json:"scan_type"` // quick, full, targeted
-	TargetedChecks   []string          `json:"targeted_checks,omitempty"`
-	IncludePatterns  []string          `json:"include_patterns,omitempty"`
-	ExcludePatterns  []string          `json:"exclude_patterns,omitempty"`
-	Timeout          time.Duration     `json:"timeout,omitempty"`
-	MaxConcurrency   int               `json:"max_concurrency,omitempty"`
-	CustomRules      []CustomRule      `json:"custom_rules,omitempty"`
-	EnabledScanners  []ScannerType     `json:"enabled_scanners,omitempty"`
-	Context          context.Context   `json:"-"`
+	Path            string          `json:"path"`
+	ScanType        string          `json:"scan_type"` // quick, full, targeted
+	TargetedChecks  []string        `json:"targeted_checks,omitempty"`
+	IncludePatterns []string        `json:"include_patterns,omitempty"`
+	ExcludePatterns []string        `json:"exclude_patterns,omitempty"`
+	Timeout         time.Duration   `json:"timeout,omitempty"`
+	MaxConcurrency  int             `json:"max_concurrency,omitempty"`
+	CustomRules     []CustomRule    `json:"custom_rules,omitempty"`
+	EnabledScanners []ScannerType   `json:"enabled_scanners,omitempty"`
+	Context         context.Context `json:"-"`
 }
 
 // CustomRule defines a custom security rule
@@ -80,38 +81,38 @@ type Finding struct {
 
 // ScanResult contains the results from a security scan
 type ScanResult struct {
-	ScanID          string        `json:"scan_id"`
-	ScannerType     ScannerType   `json:"scanner_type"`
-	StartTime       time.Time     `json:"start_time"`
-	EndTime         time.Time     `json:"end_time"`
-	Duration        time.Duration `json:"duration"`
-	ScannedPath     string        `json:"scanned_path"`
-	Findings        []Finding     `json:"findings"`
-	FilesScanned    int           `json:"files_scanned"`
-	LinesScanned    int           `json:"lines_scanned"`
-	ErrorCount      int           `json:"error_count,omitempty"`
-	Errors          []string      `json:"errors,omitempty"`
-	ToolVersion     string        `json:"tool_version,omitempty"`
-	RulesVersion    string        `json:"rules_version,omitempty"`
+	ScanID       string        `json:"scan_id"`
+	ScannerType  ScannerType   `json:"scanner_type"`
+	StartTime    time.Time     `json:"start_time"`
+	EndTime      time.Time     `json:"end_time"`
+	Duration     time.Duration `json:"duration"`
+	ScannedPath  string        `json:"scanned_path"`
+	Findings     []Finding     `json:"findings"`
+	FilesScanned int           `json:"files_scanned"`
+	LinesScanned int           `json:"lines_scanned"`
+	ErrorCount   int           `json:"error_count,omitempty"`
+	Errors       []string      `json:"errors,omitempty"`
+	ToolVersion  string        `json:"tool_version,omitempty"`
+	RulesVersion string        `json:"rules_version,omitempty"`
 }
 
 // Scanner interface that all security scanners must implement
 type Scanner interface {
 	// Scan performs a security scan on the specified path
 	Scan(opts ScanOptions) (*ScanResult, error)
-	
+
 	// IsAvailable checks if the scanner tool is installed and available
 	IsAvailable() bool
-	
+
 	// GetType returns the scanner type
 	GetType() ScannerType
-	
+
 	// GetVersion returns the scanner tool version
 	GetVersion() (string, error)
-	
+
 	// GetSupportedLanguages returns the languages this scanner supports
 	GetSupportedLanguages() []string
-	
+
 	// GetDefaultRules returns the default rules/checks for this scanner
 	GetDefaultRules() []CustomRule
 }
@@ -137,14 +138,14 @@ func (so *ScanOrchestrator) RegisterScanner(scanner Scanner) error {
 		so.logger.Warn("Scanner %s is not available (tool not installed)", scanner.GetType())
 		return nil // Don't error, just skip unavailable scanners
 	}
-	
+
 	version, err := scanner.GetVersion()
 	if err != nil {
 		so.logger.Warn("Failed to get version for scanner %s: %v", scanner.GetType(), err)
 	} else {
 		so.logger.Info("Registered scanner %s v%s", scanner.GetType(), version)
 	}
-	
+
 	so.scanners[scanner.GetType()] = scanner
 	so.enabledScanners = append(so.enabledScanners, scanner.GetType())
 	return nil
@@ -153,24 +154,24 @@ func (so *ScanOrchestrator) RegisterScanner(scanner Scanner) error {
 // Scan performs a comprehensive scan using all registered scanners
 func (so *ScanOrchestrator) Scan(opts ScanOptions) (*AggregatedScanResult, error) {
 	startTime := time.Now()
-	
+
 	// Determine which scanners to use
 	scannersToUse := so.enabledScanners
 	if len(opts.EnabledScanners) > 0 {
 		scannersToUse = opts.EnabledScanners
 	}
-	
+
 	// Filter based on scan type
 	if opts.ScanType == "quick" {
 		// For quick scans, only use fast scanners
 		scannersToUse = so.filterQuickScanners(scannersToUse)
 	}
-	
+
 	results := make([]*ScanResult, 0)
 	allFindings := make([]Finding, 0)
 	totalFilesScanned := 0
 	totalLinesScanned := 0
-	
+
 	// Run each scanner
 	for _, scannerType := range scannersToUse {
 		scanner, exists := so.scanners[scannerType]
@@ -178,65 +179,65 @@ func (so *ScanOrchestrator) Scan(opts ScanOptions) (*AggregatedScanResult, error
 			so.logger.Warn("Scanner %s not registered", scannerType)
 			continue
 		}
-		
+
 		so.logger.Info("Running %s scanner...", scannerType)
 		result, err := scanner.Scan(opts)
 		if err != nil {
 			so.logger.Error("Scanner %s failed: %v", scannerType, err)
 			continue
 		}
-		
+
 		results = append(results, result)
 		allFindings = append(allFindings, result.Findings...)
 		totalFilesScanned += result.FilesScanned
 		totalLinesScanned += result.LinesScanned
-		
+
 		so.logger.Info("%s found %d issues", scannerType, len(result.Findings))
 	}
-	
+
 	// Deduplicate findings
 	dedupedFindings := so.deduplicateFindings(allFindings)
-	
+
 	// Sort by severity
 	sortedFindings := so.sortFindingsBySeverity(dedupedFindings)
-	
+
 	return &AggregatedScanResult{
-		ScanID:        generateScanID(),
-		StartTime:     startTime,
-		EndTime:       time.Now(),
-		Duration:      time.Since(startTime),
-		ScannedPath:   opts.Path,
-		ScanType:      opts.ScanType,
-		Findings:      sortedFindings,
-		FilesScanned:  totalFilesScanned,
-		LinesScanned:  totalLinesScanned,
+		ScanID:         generateScanID(),
+		StartTime:      startTime,
+		EndTime:        time.Now(),
+		Duration:       time.Since(startTime),
+		ScannedPath:    opts.Path,
+		ScanType:       opts.ScanType,
+		Findings:       sortedFindings,
+		FilesScanned:   totalFilesScanned,
+		LinesScanned:   totalLinesScanned,
 		ScannerResults: results,
-		Statistics:    so.calculateStatistics(sortedFindings),
+		Statistics:     so.calculateStatistics(sortedFindings),
 	}, nil
 }
 
 // AggregatedScanResult combines results from multiple scanners
 type AggregatedScanResult struct {
-	ScanID         string                 `json:"scan_id"`
-	StartTime      time.Time              `json:"start_time"`
-	EndTime        time.Time              `json:"end_time"`
-	Duration       time.Duration          `json:"duration"`
-	ScannedPath    string                 `json:"scanned_path"`
-	ScanType       string                 `json:"scan_type"`
-	Findings       []Finding              `json:"findings"`
-	FilesScanned   int                    `json:"files_scanned"`
-	LinesScanned   int                    `json:"lines_scanned"`
-	ScannerResults []*ScanResult          `json:"scanner_results"`
-	Statistics     ScanStatistics         `json:"statistics"`
+	ScanID         string         `json:"scan_id"`
+	StartTime      time.Time      `json:"start_time"`
+	EndTime        time.Time      `json:"end_time"`
+	Duration       time.Duration  `json:"duration"`
+	ScannedPath    string         `json:"scanned_path"`
+	ScanType       string         `json:"scan_type"`
+	Findings       []Finding      `json:"findings"`
+	FilesScanned   int            `json:"files_scanned"`
+	LinesScanned   int            `json:"lines_scanned"`
+	ScannerResults []*ScanResult  `json:"scanner_results"`
+	Statistics     ScanStatistics `json:"statistics"`
 }
 
 // ScanStatistics provides summary statistics for a scan
 type ScanStatistics struct {
-	TotalFindings    int            `json:"total_findings"`
-	BySeverity       map[string]int `json:"by_severity"`
-	ByCategory       map[string]int `json:"by_category"`
-	ByScanner        map[string]int `json:"by_scanner"`
-	TopVulnerableFiles []FileStats  `json:"top_vulnerable_files"`
+	TotalFindings      int            `json:"total_findings"`
+	BySeverity         map[string]int `json:"by_severity"`
+	ByCategory         map[string]int `json:"by_category"`
+	ByScanner          map[string]int `json:"by_scanner"`
+	TopVulnerableFiles []FileStats    `json:"top_vulnerable_files"`
 }
 
 // FileStats provides statistics for a specific file
@@ -253,7 +254,7 @@ func (so *ScanOrchestrator) filterQuickScanners(scanners []ScannerType) []Scanne
 		ScannerGitleaks, // Fast secret scanning
 		ScannerCustom,   // Fast pattern matching
 	}
-	
+
 	filtered := make([]ScannerType, 0)
 	for _, s := range scanners {
 		for _, q := range quickScanners {
@@ -269,16 +270,16 @@ func (so *ScanOrchestrator) filterQuickScanners(scanners []ScannerType) []Scanne
 func (so *ScanOrchestrator) deduplicateFindings(findings []Finding) []Finding {
 	seen := make(map[string]bool)
 	deduped := make([]Finding, 0)
-	
+
 	for _, finding := range findings {
 		// Create a unique key for the finding
-		key := finding.FilePath + ":" + string(finding.LineNumber) + ":" + finding.RuleID
+		key := finding.FilePath + ":" + strconv.Itoa(finding.LineNumber) + ":" + finding.RuleID
 		if !seen[key] {
 			seen[key] = true
 			deduped = append(deduped, finding)
 		}
 	}
-	
+
 	return deduped
 }
 
@@ -289,7 +290,7 @@ func (so *ScanOrchestrator) sortFindingsBySeverity(findings []Finding) []Finding
 	medium := make([]Finding, 0)
 	low := make([]Finding, 0)
 	info := make([]Finding, 0)
-	
+
 	for _, f := range findings {
 		switch f.Severity {
 		case SeverityCritical:
@@ -304,14 +305,14 @@ func (so *ScanOrchestrator) sortFindingsBySeverity(findings []Finding) []Finding
 			info = append(info, f)
 		}
 	}
-	
+
 	sorted := make([]Finding, 0, len(findings))
 	sorted = append(sorted, critical...)
 	sorted = append(sorted, high...)
 	sorted = append(sorted, medium...)
 	sorted = append(sorted, low...)
 	sorted = append(sorted, info...)
-	
+
 	return sorted
 }
 
@@ -322,19 +323,19 @@ func (so *ScanOrchestrator) calculateStatistics(findings []Finding) ScanStatisti
 		ByCategory:    make(map[string]int),
 		ByScanner:     make(map[string]int),
 	}
-	
+
 	fileStats := make(map[string]*FileStats)
-	
+
 	for _, f := range findings {
 		// Count by severity
 		stats.BySeverity[string(f.Severity)]++
-		
+
 		// Count by category
 		stats.ByCategory[f.Category]++
-		
+
 		// Count by scanner
 		stats.ByScanner[string(f.ScannerType)]++
-		
+
 		// Track file statistics
 		if _, exists := fileStats[f.FilePath]; !exists {
 			fileStats[f.FilePath] = &FileStats{
@@ -348,17 +349,17 @@ func (so *ScanOrchestrator) calculateStatistics(findings []Finding) ScanStatisti
 			fileStats[f.FilePath].HighCount++
 		}
 	}
-	
+
 	// Get top vulnerable files
 	for _, fs := range fileStats {
 		stats.TopVulnerableFiles = append(stats.TopVulnerableFiles, *fs)
 	}
-	
+
 	// Sort top files by finding count (simplified)
 	if len(stats.TopVulnerableFiles) > 10 {
 		stats.TopVulnerableFiles = stats.TopVulnerableFiles[:10]
 	}
-	
+
 	return stats
 }
 

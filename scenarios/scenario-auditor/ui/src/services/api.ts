@@ -243,8 +243,20 @@ class ApiService {
     })
   }
 
+  async createRuleWithAI(payload: { name: string; description: string; category: string; severity: string; motivation?: string }): Promise<{ success: boolean; message: string; agent: AgentInfo; metadata?: Record<string, string> }> {
+    return this.fetch('/rules/ai/create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
   async getActiveAgents(): Promise<{ count: number; agents: AgentInfo[] }> {
-    return this.fetch('/agents')
+    try {
+      return await this.fetch('/agents')
+    } catch (error) {
+      console.warn('Active agents request failed:', error)
+      return { count: 0, agents: [] }
+    }
   }
 
   async stopAgent(agentId: string): Promise<{ success: boolean; message: string }> {

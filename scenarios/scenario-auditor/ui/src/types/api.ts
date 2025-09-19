@@ -179,6 +179,15 @@ export interface AgentInfo {
   error?: string
 }
 
+export interface RuleTestStatus {
+  total: number
+  passed: number
+  failed: number
+  warning?: string
+  error?: string
+  has_issues: boolean
+}
+
 export interface FixAgentResponse {
   success: boolean
   message: string

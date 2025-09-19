@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff, Brain, CircleStop } from 'lucide-react'
+import { Shield, Plus, Terminal, X, Play, TestTube, Code, CheckCircle, XCircle, Clock, Eye, EyeOff, Brain, CircleStop, AlertTriangle, Info, ChevronDown } from 'lucide-react'
 import { Highlight, themes } from 'prism-react-renderer'
-import { AgentInfo } from '@/types/api'
+import { AgentInfo, RuleTestStatus } from '@/types/api'
 import { apiService } from '../services/api'
 import { CodeEditor } from '../components/CodeEditor'
 
@@ -19,18 +19,29 @@ function CodeBlock({ code }: { code: string }) {
             style={style}
           >
             <code className="block">
-              {tokens.map((line, i) => (
-                <div key={i} {...getLineProps({ line, key: i })} className="table-row">
-                  <span className="table-cell text-right pr-4 select-none text-gray-500 text-xs" style={{ minWidth: '3ch' }}>
-                    {i + 1}
-                  </span>
-                  <span className="table-cell">
-                    {line.map((token, key) => (
-                      <span key={key} {...getTokenProps({ token, key })} />
-                    ))}
-                  </span>
-                </div>
-              ))}
+              {tokens.map((line, i) => {
+                const lineProps = getLineProps({ line, key: i })
+                const { key: lineKey, className: lineClassName = '', ...restLineProps } = lineProps
+
+                return (
+                  <div
+                    key={lineKey ?? i}
+                    className={`table-row ${lineClassName}`.trim()}
+                    {...restLineProps}
+                  >
+                    <span className="table-cell text-right pr-4 select-none text-gray-500 text-xs" style={{ minWidth: '3ch' }}>
+                      {i + 1}
+                    </span>
+                    <span className="table-cell">
+                      {line.map((token, key) => {
+                        const tokenProps = getTokenProps({ token, key })
+                        const { key: tokenKey, ...restTokenProps } = tokenProps
+                        return <span key={tokenKey ?? key} {...restTokenProps} />
+                      })}
+                    </span>
+                  </div>
+                )
+              })}
             </code>
           </pre>
         </div>
@@ -40,13 +51,30 @@ function CodeBlock({ code }: { code: string }) {
 }
 
 // Rule Card Component
-function RuleCard({ rule, onViewRule, onToggleRule }: { 
-  rule: any, 
+function RuleCard({ rule, status, onViewRule, onToggleRule }: { 
+  rule: any,
+  status?: RuleTestStatus,
   onViewRule: (ruleId: string) => void,
   onToggleRule: (ruleId: string, enabled: boolean) => void 
 }) {
   const handleToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     onToggleRule(rule.id, e.target.checked)
+  }
+
+  const testStatus: RuleTestStatus | undefined = status || rule?.test_status
+  const showWarning = Boolean(testStatus?.has_issues)
+  const tooltipLines: string[] = []
+  if (testStatus?.warning) {
+    tooltipLines.push(testStatus.warning)
+  }
+  if (!testStatus?.warning && typeof testStatus?.failed === 'number' && typeof testStatus?.total === 'number' && testStatus.total > 0) {
+    tooltipLines.push(`${testStatus.failed}/${testStatus.total} tests are failing`)
+  }
+  if (typeof testStatus?.total === 'number' && testStatus.total === 0 && !tooltipLines.some(line => line.toLowerCase().includes('test cases'))) {
+    tooltipLines.push('No test cases defined for this rule')
+  }
+  if (testStatus?.error) {
+    tooltipLines.push(`Test execution error: ${testStatus.error}`)
   }
 
   return (
@@ -57,7 +85,19 @@ function RuleCard({ rule, onViewRule, onToggleRule }: {
             <h3 className="text-lg font-medium text-gray-900">{rule.name}</h3>
             <p className="mt-1 text-sm text-gray-500">{rule.description}</p>
           </div>
-          <div className="ml-4">
+          <div className="ml-4 flex items-center space-x-2">
+            {showWarning && (
+              <div className="relative group">
+                <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" />
+                <div className="absolute right-0 z-20 mt-2 hidden w-64 rounded-md border border-amber-200 bg-white p-3 text-xs text-gray-700 shadow-lg group-hover:block">
+                  <p className="font-semibold text-amber-700">Rule enforcement paused</p>
+                  {tooltipLines.map((line, idx) => (
+                    <p key={idx} className="mt-1 text-amber-800">{line}</p>
+                  ))}
+                  <p className="mt-2 text-[0.7rem] text-amber-700">Fix the failing tests to restore enforcement.</p>
+                </div>
+              </div>
+            )}
             <button 
               className="text-gray-400 hover:text-gray-600 transition-colors"
               onClick={() => onViewRule(rule.id)}
@@ -120,6 +160,17 @@ export default function RulesManager() {
   const [isRunningPlayground, setIsRunningPlayground] = useState(false)
   const [isLaunchingAgent, setIsLaunchingAgent] = useState(false)
   const [agentError, setAgentError] = useState<string | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isCreatingRule, setIsCreatingRule] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createSuccess, setCreateSuccess] = useState<string | null>(null)
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    description: '',
+    category: 'api',
+    severity: 'medium',
+    motivation: '',
+  })
   const queryClient = useQueryClient()
 
   const { data: activeAgentsData } = useQuery({
@@ -151,12 +202,15 @@ export default function RulesManager() {
         return 'Add Test Cases'
       case 'fix_rule_tests':
         return 'Fix Test Cases'
+      case 'create_rule':
+        return 'Create Rule'
       default:
         return action
     }
   }
 
   const [showExecutionOutput, setShowExecutionOutput] = useState<{[key: number]: boolean}>({})
+  const [executionInfoExpanded, setExecutionInfoExpanded] = useState(false)
 
   const { data: rulesData, isLoading, refetch } = useQuery({
     queryKey: ['rules', selectedCategory],
@@ -168,6 +222,23 @@ export default function RulesManager() {
     queryFn: () => selectedRule ? apiService.getRule(selectedRule) : null,
     enabled: !!selectedRule,
   })
+
+  const categories = rulesData?.categories || {}
+  const executionInfo = ruleDetail?.execution_info
+
+  useEffect(() => {
+    setExecutionInfoExpanded(false)
+  }, [selectedRule])
+
+  const ruleStatuses = (rulesData?.rule_statuses || {}) as Record<string, RuleTestStatus>
+  const categoryEntries = Object.keys(categories).length > 0
+    ? Object.entries(categories)
+    : [
+        ['api', { name: 'API Standards' }],
+        ['config', { name: 'Configuration' }],
+        ['test', { name: 'Testing' }],
+        ['ui', { name: 'User Interface' }],
+      ]
 
   // Run tests when rule is selected and tests tab is active
   const runRuleTests = async () => {
@@ -227,6 +298,59 @@ export default function RulesManager() {
       setAgentError((error as Error).message)
     } finally {
       setIsLaunchingAgent(false)
+    }
+  }
+
+  const severityOptions = ['critical', 'high', 'medium', 'low']
+
+  const openCreateRuleModal = () => {
+    const availableCategories = categoryEntries.map(([key]) => key as string)
+    const defaultCategory = availableCategories.includes('api')
+      ? 'api'
+      : (availableCategories[0] || 'api')
+
+    setCreateForm({
+      name: '',
+      description: '',
+      category: defaultCategory,
+      severity: 'medium',
+      motivation: '',
+    })
+    setCreateError(null)
+    setCreateSuccess(null)
+    setIsCreateModalOpen(true)
+  }
+
+  const handleCreateRule = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    if (!createForm.name.trim() || !createForm.description.trim()) {
+      setCreateError('Rule name and description are required')
+      return
+    }
+
+    setCreateError(null)
+    setIsCreatingRule(true)
+
+    try {
+      const payload = {
+        name: createForm.name.trim(),
+        description: createForm.description.trim(),
+        category: createForm.category,
+        severity: createForm.severity,
+        motivation: createForm.motivation.trim(),
+      }
+
+      const response = await apiService.createRuleWithAI(payload)
+
+      setIsCreateModalOpen(false)
+      setCreateSuccess(response.message || `Started rule creation agent for ${payload.name}`)
+      await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+      await refetch()
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : 'Failed to start rule creation agent')
+    } finally {
+      setIsCreatingRule(false)
     }
   }
 
@@ -295,7 +419,6 @@ export default function RulesManager() {
   }
 
   const rules = localRules
-  const categories = rulesData?.categories || {}
 
   return (
     <div className="px-6">
@@ -310,13 +433,24 @@ export default function RulesManager() {
           </p>
         </div>
         <button 
-          className="btn-primary"
+          type="button"
+          className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           data-testid="create-rule-btn"
+          onClick={openCreateRuleModal}
         >
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Create Rule
         </button>
       </div>
+
+      {createSuccess && (
+        <div className="mb-6 rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <div className="flex items-start">
+            <CheckCircle className="mr-2 h-4 w-4 flex-shrink-0" />
+            <span>{createSuccess}</span>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-6 flex items-center space-x-4">
@@ -327,9 +461,9 @@ export default function RulesManager() {
           data-testid="category-filter"
         >
           <option value="">All Categories</option>
-          {Object.values(categories).map((category: any) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
+          {categoryEntries.map(([key, category]: [string, any]) => (
+            <option key={key} value={key}>
+              {category.name || key}
             </option>
           ))}
         </select>
@@ -342,7 +476,8 @@ export default function RulesManager() {
           {Object.values(rules).map((rule: any) => (
             <RuleCard 
               key={rule.id} 
-              rule={rule} 
+              rule={rule}
+              status={ruleStatuses[rule.id]}
               onViewRule={setSelectedRule} 
               onToggleRule={handleToggleRule}
             />
@@ -351,16 +486,17 @@ export default function RulesManager() {
       ) : (
         /* Grouped by Category */
         <div className="space-y-8">
-          {Object.values(categories).map((category: any) => {
-            const categoryRules = Object.values(rules).filter((rule: any) => rule.category === category.id)
+          {categoryEntries.map(([key, category]: [string, any]) => {
+            const displayName = category.name || key
+            const categoryRules = Object.values(rules).filter((rule: any) => rule.category === key)
             
             if (categoryRules.length === 0) return null
             
             return (
-              <div key={category.id} className="space-y-4">
+              <div key={key} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">{category.name}</h2>
+                    <h2 className="text-xl font-semibold text-gray-900">{displayName}</h2>
                     <p className="text-sm text-gray-500">{category.description}</p>
                   </div>
                   <span className="text-sm text-gray-400">{categoryRules.length} rule{categoryRules.length !== 1 ? 's' : ''}</span>
@@ -370,7 +506,8 @@ export default function RulesManager() {
                   {categoryRules.map((rule: any) => (
                     <RuleCard 
                       key={rule.id} 
-                      rule={rule} 
+                      rule={rule}
+                      status={ruleStatuses[rule.id]}
                       onViewRule={setSelectedRule} 
                       onToggleRule={handleToggleRule}
                     />
@@ -389,6 +526,129 @@ export default function RulesManager() {
           <p className="mt-1 text-sm text-gray-500">
             {selectedCategory ? 'No rules in this category.' : 'Get started by creating your first rule.'}
           </p>
+        </div>
+      )}
+
+      {/* Create Rule Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsCreateModalOpen(false)} />
+
+            <div className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-xl sm:p-6">
+              <div className="absolute right-0 top-0 hidden pr-4 pt-4 sm:block">
+                <button
+                  type="button"
+                  className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  onClick={() => setIsCreateModalOpen(false)}
+                >
+                  <span className="sr-only">Close</span>
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="sm:flex sm:items-start">
+                <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <Plus className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                  <h3 className="text-base font-semibold leading-6 text-gray-900">Create New Rule</h3>
+                  <p className="mt-1 text-sm text-gray-500">Provide the details for the rule you want an agent to implement.</p>
+                </div>
+              </div>
+
+              <form className="mt-5 space-y-4" onSubmit={handleCreateRule}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="rule-name">Rule name</label>
+                  <input
+                    id="rule-name"
+                    type="text"
+                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="rule-description">What should this rule enforce?</label>
+                  <textarea
+                    id="rule-description"
+                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    rows={4}
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="rule-category">Category</label>
+                    <select
+                      id="rule-category"
+                      className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      value={createForm.category}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
+                    >
+                      {categoryEntries.map(([key, value]: [string, any]) => (
+                        <option key={key} value={key}>{value.name || key}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700" htmlFor="rule-severity">Severity</label>
+                    <select
+                      id="rule-severity"
+                      className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                      value={createForm.severity}
+                      onChange={(e) => setCreateForm(prev => ({ ...prev, severity: e.target.value }))}
+                    >
+                      {severityOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700" htmlFor="rule-motivation">Additional context (optional)</label>
+                  <textarea
+                    id="rule-motivation"
+                    className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    rows={3}
+                    value={createForm.motivation}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, motivation: e.target.value }))}
+                    placeholder="Share scenarios, edge cases, or references that will help the agent design the rule."
+                  />
+                </div>
+
+                {createError && (
+                  <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {createError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    onClick={() => setIsCreateModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-blue-400"
+                    disabled={isCreatingRule}
+                  >
+                    {isCreatingRule ? 'Starting agent…' : 'Start Agent'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       )}
 
@@ -485,29 +745,105 @@ export default function RulesManager() {
               {/* Tab Content */}
               <div className="mt-5">
                 {activeTab === 'implementation' && (
-                  <div className="bg-gray-900 rounded-lg overflow-hidden">
-                    <div className="bg-gray-800 px-4 py-2 border-b border-gray-700">
-                      <h4 className="text-sm font-medium text-gray-200 flex items-center justify-between">
-                        <span>Rule Implementation</span>
-                        {ruleDetail?.file_path && (
-                          <span className="text-xs text-gray-400 font-mono">
-                            {ruleDetail.file_path.replace(/^.*\/rules\//, 'rules/')}
-                          </span>
-                        )}
-                      </h4>
-                    </div>
-                    <div className="p-0">
-                      {ruleDetailLoading ? (
-                        <div className="p-4">
-                          <div className="animate-pulse">
-                            <div className="h-4 bg-gray-700 rounded w-3/4 mb-2"></div>
-                            <div className="h-4 bg-gray-700 rounded w-1/2 mb-2"></div>
-                            <div className="h-4 bg-gray-700 rounded w-2/3"></div>
+                  <div className="space-y-4">
+                    {executionInfo && (
+                      <div className="rounded-lg border border-blue-200 bg-blue-50/80 text-blue-900 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => setExecutionInfoExpanded(prev => !prev)}
+                          className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                              <Info className="h-4 w-4" aria-hidden="true" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold">How this rule is executed</p>
+                              <p className="text-xs text-blue-700">Expand to review signature, arguments, and call flow.</p>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <CodeBlock code={ruleDetail?.file_content || ''} />
-                      )}
+                          <ChevronDown
+                            className={'h-4 w-4 text-blue-600 transition-transform ' + (executionInfoExpanded ? 'rotate-180' : '')}
+                            aria-hidden="true"
+                          />
+                        </button>
+                        {executionInfoExpanded && (
+                          <div className="space-y-3 border-t border-blue-100 px-4 py-3 text-sm">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-medium">Signature:</span>
+                              <code className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs text-blue-900">
+                                {executionInfo.signature}
+                              </code>
+                            </div>
+                            {executionInfo.arguments && executionInfo.arguments.length > 0 && (
+                              <div>
+                                <span className="font-medium">Arguments</span>
+                                <ul className="mt-1 space-y-1 text-blue-800">
+                                  {executionInfo.arguments.map((arg: any) => (
+                                    <li key={arg.name} className="leading-5">
+                                      <span className="font-semibold capitalize">{arg.name}</span>
+                                      <span className="text-blue-800"> — {arg.description}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {executionInfo.call_flow && executionInfo.call_flow.length > 0 && (
+                              <div>
+                                <span className="font-medium">Call flow</span>
+                                <ul className="mt-1 space-y-1 text-blue-800">
+                                  {executionInfo.call_flow.map((step: any, index: number) => (
+                                    <li key={`${step.source}-${index}`} className="leading-5">
+                                      <span className="font-semibold">{step.source}:</span>
+                                      <span className="text-blue-800"> {step.description}</span>
+                                      {step.reference && (
+                                        <span className="ml-1 text-blue-700">({step.reference})</span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {executionInfo.notes && executionInfo.notes.length > 0 && (
+                              <div>
+                                <span className="font-medium">Key points</span>
+                                <ul className="mt-1 list-disc pl-5 space-y-1 text-blue-800">
+                                  {executionInfo.notes.map((note: string, index: number) => (
+                                    <li key={index}>{note}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+
+                    <div className="overflow-hidden rounded-lg bg-gray-900">
+                      <div className="border-b border-gray-700 bg-gray-800 px-4 py-2">
+                        <h4 className="flex items-center justify-between text-sm font-medium text-gray-200">
+                          <span>Rule Implementation</span>
+                          {ruleDetail?.file_path && (
+                            <span className="font-mono text-xs text-gray-400">
+                              {ruleDetail.file_path.replace(/^.*\/rules\//, 'rules/')}
+                            </span>
+                          )}
+                        </h4>
+                      </div>
+                      <div className="p-0">
+                        {ruleDetailLoading ? (
+                          <div className="p-4">
+                            <div className="animate-pulse">
+                              <div className="mb-2 h-4 w-3/4 rounded bg-gray-700"></div>
+                              <div className="mb-2 h-4 w-1/2 rounded bg-gray-700"></div>
+                              <div className="h-4 w-2/3 rounded bg-gray-700"></div>
+                            </div>
+                          </div>
+                        ) : (
+                          <CodeBlock code={ruleDetail?.file_content || ''} />
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
