@@ -35,7 +35,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	if err != nil {
 		executionTime := time.Since(executionStartTime)
 		log.Printf("Failed to assemble prompt for task %s: %v", task.ID, err)
-		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Prompt assembly failed: %v", err), "", executionStartTime, executionTime, timeoutDuration)
+		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Prompt assembly failed: %v", err), "", executionStartTime, executionTime, timeoutDuration, nil)
 		return
 	}
 
@@ -65,7 +65,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 	if err != nil {
 		log.Printf("Failed to execute task %s with Claude Code: %v", task.ID, err)
-		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Claude Code execution failed: %v", err), "", executionStartTime, executionTime, timeoutDuration)
+		qp.handleTaskFailureWithTiming(task, fmt.Sprintf("Claude Code execution failed: %v", err), "", executionStartTime, executionTime, timeoutDuration, nil)
 		return
 	}
 
@@ -136,7 +136,11 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			})
 		} else {
 			log.Printf("Task %s failed after %v: %s", task.ID, executionTime.Round(time.Second), result.Error)
-			qp.handleTaskFailureWithTiming(task, result.Error, result.Output, executionStartTime, executionTime, timeoutDuration)
+			var extras map[string]interface{}
+			if result.MaxTurnsExceeded {
+				extras = map[string]interface{}{"max_turns_exceeded": true}
+			}
+			qp.handleTaskFailureWithTiming(task, result.Error, result.Output, executionStartTime, executionTime, timeoutDuration, extras)
 		}
 	}
 }
@@ -161,7 +165,7 @@ func (qp *Processor) handleTaskFailure(task tasks.TaskItem, errorMsg string) {
 }
 
 // handleTaskFailureWithTiming handles a failed task with execution timing information
-func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg string, output string, startTime time.Time, executionTime time.Duration, timeoutAllowed time.Duration) {
+func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg string, output string, startTime time.Time, executionTime time.Duration, timeoutAllowed time.Duration, extras map[string]interface{}) {
 	// Determine if this was a timeout failure
 	isTimeout := strings.Contains(errorMsg, "timed out") || strings.Contains(errorMsg, "timeout")
 
@@ -169,7 +173,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 	prompt, _ := qp.assembler.AssemblePromptForTask(task)
 	promptSizeKB := float64(len(prompt)) / 1024.0
 
-	task.Results = map[string]interface{}{
+	results := map[string]interface{}{
 		"success":         false,
 		"error":           errorMsg,
 		"output":          output,
@@ -180,6 +184,11 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 		"timeout_failure": isTimeout,
 		"prompt_size":     fmt.Sprintf("%d chars (%.2f KB)", len(prompt), promptSizeKB),
 	}
+	for k, v := range extras {
+		results[k] = v
+	}
+
+	task.Results = results
 
 	task.CurrentPhase = "failed"
 	task.Status = "failed"
@@ -368,7 +377,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	}
 
 	if waitErr != nil {
-		if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag); handled {
+		if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns); handled {
 			return response, nil
 		}
 
@@ -398,10 +407,15 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		}, nil
 	}
 
-	if strings.Contains(combinedOutput, "Error: Reached max turns") {
-		msg := "Claude reached maximum turns limit. Consider breaking the task into smaller parts or increasing MAX_TURNS."
-		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, nil
+	if detectMaxTurnsExceeded(combinedOutput) {
+		maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
+		qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
+		return &tasks.ClaudeCodeResponse{
+			Success:          false,
+			Error:            maxTurnsMsg,
+			Output:           combinedOutput,
+			MaxTurnsExceeded: true,
+		}, nil
 	}
 
 	if strings.Contains(strings.ToLower(combinedOutput), "error:") {
@@ -479,11 +493,22 @@ func (qp *Processor) extractRetryAfter(output string) int {
 	return defaultRetry
 }
 
-func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string) (*tasks.ClaudeCodeResponse, bool) {
+func (qp *Processor) handleNonZeroExit(waitErr error, combinedOutput string, task tasks.TaskItem, agentTag string, maxTurns int) (*tasks.ClaudeCodeResponse, bool) {
 	// Determine exit code if available
 	exitCode, hasExit := exitCodeFromError(waitErr)
 	if !hasExit {
 		return nil, false
+	}
+
+	if detectMaxTurnsExceeded(combinedOutput) {
+		msg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", maxTurns)
+		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
+		return &tasks.ClaudeCodeResponse{
+			Success:          false,
+			Error:            msg,
+			Output:           combinedOutput,
+			MaxTurnsExceeded: true,
+		}, true
 	}
 
 	lowerOutput := strings.ToLower(combinedOutput)
@@ -538,6 +563,11 @@ func exitCodeFromError(err error) (int, bool) {
 	}
 
 	return 0, false
+}
+
+func detectMaxTurnsExceeded(output string) bool {
+	lower := strings.ToLower(output)
+	return strings.Contains(lower, "max turns") && strings.Contains(lower, "reached")
 }
 
 // broadcastUpdate sends updates to all connected WebSocket clients

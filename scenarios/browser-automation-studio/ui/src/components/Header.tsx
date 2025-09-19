@@ -1,5 +1,5 @@
-import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft, Wifi, WifiOff } from 'lucide-react';
-import { useState } from 'react';
+import { Plus, Play, Save, FolderOpen, Brain, Bug, ArrowLeft, Wifi, WifiOff, Edit2, Check, X } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { useWorkflowStore } from '../stores/workflowStore';
 import { useExecutionStore } from '../stores/executionStore';
 import { Project, useProjectStore } from '../stores/projectStore';
@@ -25,10 +25,13 @@ interface HeaderProps {
 }
 
 function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkflow: selectedWorkflow, showBackToProject }: HeaderProps) {
-  const { currentWorkflow, saveWorkflow } = useWorkflowStore();
+  const { currentWorkflow, saveWorkflow, updateWorkflow } = useWorkflowStore();
   const { startExecution } = useExecutionStore();
   const { isConnected, error } = useProjectStore();
   const [showAIEditModal, setShowAIEditModal] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
   
   // Use the workflow from props if provided, otherwise use the one from store
   const displayWorkflow = selectedWorkflow || currentWorkflow;
@@ -67,6 +70,48 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
     setShowAIEditModal(true);
   };
 
+  const handleStartEditTitle = () => {
+    if (!displayWorkflow) return;
+    setEditTitle(displayWorkflow.name);
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!displayWorkflow || !editTitle.trim()) {
+      setIsEditingTitle(false);
+      return;
+    }
+    
+    try {
+      await updateWorkflow({ ...displayWorkflow, name: editTitle.trim() });
+      setIsEditingTitle(false);
+      toast.success('Workflow title updated');
+    } catch (error) {
+      toast.error('Failed to update workflow title');
+    }
+  };
+
+  const handleCancelEditTitle = () => {
+    setIsEditingTitle(false);
+    setEditTitle('');
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      handleCancelEditTitle();
+    }
+  };
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
   return (
     <>
       <header className="bg-flow-node border-b border-gray-800 px-4 py-3">
@@ -87,7 +132,51 @@ function Header({ onNewWorkflow, onBackToDashboard, currentProject, currentWorkf
                 <div className="w-8 h-8 bg-flow-accent rounded-lg flex items-center justify-center">
                   <Brain size={20} />
                 </div>
-                {displayWorkflow ? displayWorkflow.name : (currentProject ? currentProject.name : 'Browser Automation Studio')}
+                {displayWorkflow ? (
+                  <div className="flex items-center gap-2">
+                    {isEditingTitle ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={titleInputRef}
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onKeyDown={handleTitleKeyDown}
+                          onBlur={handleSaveTitle}
+                          className="bg-gray-800 text-white px-2 py-1 rounded border border-gray-600 focus:border-flow-accent focus:outline-none"
+                          placeholder="Workflow name..."
+                        />
+                        <button
+                          onClick={handleSaveTitle}
+                          className="text-green-400 hover:text-green-300 p-1"
+                          title="Save title"
+                        >
+                          <Check size={14} />
+                        </button>
+                        <button
+                          onClick={handleCancelEditTitle}
+                          className="text-red-400 hover:text-red-300 p-1"
+                          title="Cancel editing"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 group">
+                        <span className="cursor-pointer" onClick={handleStartEditTitle}>
+                          {displayWorkflow.name}
+                        </span>
+                        <button
+                          onClick={handleStartEditTitle}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white transition-opacity p-1"
+                          title="Edit workflow name"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (currentProject ? currentProject.name : 'Browser Automation Studio')}
               </h1>
               
               {(currentProject || displayWorkflow) && (

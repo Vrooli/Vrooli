@@ -1,11 +1,21 @@
 import { ZoomIn, ZoomOut, Maximize2, Grid, Lock, Unlock, Copy, Trash2, Undo, Redo } from 'lucide-react';
 import { useReactFlow } from 'reactflow';
-import { useState } from 'react';
 
-function WorkflowToolbar() {
+interface WorkflowToolbarProps {
+  showGrid: boolean;
+  onToggleGrid: () => void;
+  locked: boolean;
+  onToggleLock: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}
+
+function WorkflowToolbar({ showGrid, onToggleGrid, locked, onToggleLock, onUndo, onRedo, canUndo, canRedo, onDuplicate, onDelete }: WorkflowToolbarProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
-  const [locked, setLocked] = useState(false);
-  const [showGrid, setShowGrid] = useState(true);
 
   return (
     <div className="absolute top-4 left-4 z-10 workflow-toolbar">
@@ -36,7 +46,7 @@ function WorkflowToolbar() {
       <div className="w-px h-6 bg-gray-700" />
       
       <button
-        onClick={() => setShowGrid(!showGrid)}
+        onClick={onToggleGrid}
         className={`toolbar-button ${showGrid ? 'active' : ''}`}
         title="Toggle Grid"
       >
@@ -44,7 +54,7 @@ function WorkflowToolbar() {
       </button>
       
       <button
-        onClick={() => setLocked(!locked)}
+        onClick={onToggleLock}
         className="toolbar-button"
         title={locked ? 'Unlock' : 'Lock'}
       >
@@ -54,15 +64,19 @@ function WorkflowToolbar() {
       <div className="w-px h-6 bg-gray-700" />
       
       <button
-        className="toolbar-button"
+        onClick={onUndo}
+        className={`toolbar-button ${!canUndo ? 'opacity-50 cursor-not-allowed' : ''}`}
         title="Undo"
+        disabled={!canUndo}
       >
         <Undo size={18} />
       </button>
       
       <button
-        className="toolbar-button"
+        onClick={onRedo}
+        className={`toolbar-button ${!canRedo ? 'opacity-50 cursor-not-allowed' : ''}`}
         title="Redo"
+        disabled={!canRedo}
       >
         <Redo size={18} />
       </button>
@@ -70,15 +84,17 @@ function WorkflowToolbar() {
       <div className="w-px h-6 bg-gray-700" />
       
       <button
+        onClick={onDuplicate}
         className="toolbar-button"
-        title="Duplicate"
+        title="Duplicate Selected"
       >
         <Copy size={18} />
       </button>
       
       <button
+        onClick={onDelete}
         className="toolbar-button text-red-400 hover:text-red-300"
-        title="Delete"
+        title="Delete Selected"
       >
         <Trash2 size={18} />
       </button>

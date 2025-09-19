@@ -518,6 +518,15 @@ class EcosystemManager {
                             <pre class="status-error" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(244, 67, 54, 0.1); border-radius: 4px; white-space: pre-wrap;">${this.escapeHtml(this.taskManager.formatErrorText(results.error))}</pre>
                         </div>
                     ` : ''}
+
+                    ${results.max_turns_exceeded ? `
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong>Max Turns:</strong>
+                            <div class="status-warning" style="margin-top: 0.5rem; padding: 0.5rem; background: rgba(255, 193, 7, 0.15); border-radius: 4px;">
+                                Claude stopped after reaching the configured MAX_TURNS limit. Increase the limit or simplify the task.
+                            </div>
+                        </div>
+                    ` : ''}
                     
                     ${results.output ? `
                         <details style="margin-top: 0.5rem;">

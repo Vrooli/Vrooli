@@ -72,6 +72,7 @@ type ClaudeCodeResponse struct {
 	Error       string `json:"error,omitempty"`
 	RateLimited bool   `json:"rate_limited,omitempty"`
 	RetryAfter  int    `json:"retry_after,omitempty"` // Seconds to wait before retry
+	MaxTurnsExceeded bool `json:"max_turns_exceeded,omitempty"`
 }
 
 // RunningProcess tracks an executing claude-code process

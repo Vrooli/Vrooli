@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { io, Socket } from 'socket.io-client';
-import { API_BASE, WS_BASE } from '../config';
+import { getConfig } from '../config';
 
 interface Screenshot {
   id: string;
@@ -39,7 +39,7 @@ interface ExecutionStore {
   stopExecution: (executionId: string) => Promise<void>;
   loadExecutions: (workflowId?: string) => Promise<void>;
   loadExecution: (executionId: string) => Promise<void>;
-  connectWebSocket: (executionId: string) => void;
+  connectWebSocket: (executionId: string) => Promise<void>;
   disconnectWebSocket: () => void;
   addScreenshot: (screenshot: Screenshot) => void;
   addLog: (log: LogEntry) => void;
@@ -54,7 +54,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   
   startExecution: async (workflowId: string) => {
     try {
-      const response = await axios.post(`${API_BASE}/workflows/${workflowId}/execute`, {
+      const config = await getConfig();
+      const response = await axios.post(`${config.API_URL}/workflows/${workflowId}/execute`, {
         wait_for_completion: false
       });
       
@@ -69,7 +70,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
       };
       
       set({ currentExecution: execution });
-      get().connectWebSocket(execution.id);
+      await get().connectWebSocket(execution.id);
     } catch (error) {
       console.error('Failed to start execution:', error);
       throw error;
@@ -78,7 +79,8 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   
   stopExecution: async (executionId: string) => {
     try {
-      await axios.post(`${API_BASE}/executions/${executionId}/stop`);
+      const config = await getConfig();
+      await axios.post(`${config.API_URL}/executions/${executionId}/stop`);
       get().disconnectWebSocket();
       set((state) => ({
         currentExecution: state.currentExecution?.id === executionId 
@@ -92,9 +94,10 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   
   loadExecutions: async (workflowId?: string) => {
     try {
+      const config = await getConfig();
       const url = workflowId 
-        ? `${API_BASE}/workflows/${workflowId}/executions`
-        : `${API_BASE}/executions`;
+        ? `${config.API_URL}/workflows/${workflowId}/executions`
+        : `${config.API_URL}/executions`;
       const response = await axios.get(url);
       set({ executions: response.data.executions });
     } catch (error) {
@@ -104,15 +107,17 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   
   loadExecution: async (executionId: string) => {
     try {
-      const response = await axios.get(`${API_BASE}/executions/${executionId}`);
+      const config = await getConfig();
+      const response = await axios.get(`${config.API_URL}/executions/${executionId}`);
       set({ currentExecution: response.data });
     } catch (error) {
       console.error('Failed to load execution:', error);
     }
   },
   
-  connectWebSocket: (executionId: string) => {
-    const socket = io(WS_BASE, {
+  connectWebSocket: async (executionId: string) => {
+    const config = await getConfig();
+    const socket = io(config.WS_URL, {
       query: { executionId }
     });
     

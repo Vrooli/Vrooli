@@ -1374,49 +1374,51 @@ func (h *Handler) extractDOMTree(ctx context.Context, url string) (string, error
 		url = "https://" + url
 	}
 
-	// JavaScript to extract DOM tree with selectors
+	// JavaScript to extract DOM tree with selectors - simplified and robust
 	script := `
-	function extractDOM(element, depth = 0, maxDepth = 10) {
-		if (depth > maxDepth) return null;
+	try {
+		// Wait a bit for React to render
+		await new Promise(resolve => setTimeout(resolve, 2000));
 		
-		const node = {
-			tagName: element.tagName,
-			id: element.id || null,
-			className: element.className || null,
-			text: element.textContent ? element.textContent.substring(0, 100).trim() : null,
-			type: element.type || null,
-			href: element.href || null,
-			ariaLabel: element.getAttribute('aria-label'),
-			placeholder: element.getAttribute('placeholder'),
-			value: element.value || null,
-			selector: ''
+		const body = document.body || document.documentElement;
+		const result = {
+			tagName: "BODY",
+			id: null,
+			className: null,
+			text: null,
+			selector: "body",
+			children: []
 		};
 		
-		// Generate selector
-		if (element.id) {
-			node.selector = '#' + element.id;
-		} else if (element.className) {
-			node.selector = element.tagName.toLowerCase() + '.' + element.className.split(' ').join('.');
-		} else {
-			node.selector = element.tagName.toLowerCase();
+		if (!body) {
+			return result;
 		}
 		
-		// Only extract interactive elements and their immediate context
-		const interactiveTags = ['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'A', 'FORM'];
-		if (interactiveTags.includes(element.tagName) || depth < 3) {
-			const children = [];
-			for (let child of element.children) {
-				const extracted = extractDOM(child, depth + 1, maxDepth);
-				if (extracted) children.push(extracted);
+		// Simple extraction - just get immediate children
+		const children = Array.from(body.children || []);
+		for (let i = 0; i < Math.min(children.length, 10); i++) {
+			const child = children[i];
+			if (child && child.tagName && !['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(child.tagName)) {
+				const childData = {
+					tagName: child.tagName,
+					id: child.id || null,
+					className: child.className || null,
+					text: (child.textContent || "").substring(0, 50).trim() || null,
+					selector: child.id ? "#" + child.id : child.tagName.toLowerCase()
+				};
+				result.children.push(childData);
 			}
-			if (children.length > 0) node.children = children;
 		}
 		
-		return node;
-	}
-	
-	return JSON.stringify(extractDOM(document.body), null, 2);
-	`
+		return result;
+	} catch (e) {
+		return {
+			tagName: "ERROR",
+			selector: "error", 
+			text: e.message,
+			children: []
+		};
+	}`
 
 	// Create temp file for output
 	tmpFile, err := os.CreateTemp("", "dom-extract-*.json")
@@ -1442,6 +1444,7 @@ func (h *Handler) extractDOMTree(ctx context.Context, url string) (string, error
 		return "", fmt.Errorf("failed to read DOM data: %w", err)
 	}
 
+	// Return the extracted DOM data directly (browserless now returns proper JSON)
 	return string(domData), nil
 }
 

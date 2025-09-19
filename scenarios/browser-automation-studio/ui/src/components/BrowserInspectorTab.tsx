@@ -136,6 +136,11 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
   };
 
   const renderNode = (node: DOMNode, depth: number = 0): JSX.Element => {
+    // Ensure node has required properties
+    if (!node || !node.tagName) {
+      return <></>;
+    }
+    
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedNodes.has(node.selector);
     const isSelected = selectedNode?.selector === node.selector;
@@ -146,7 +151,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
       node.tagName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (node.text && node.text.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (node.id && node.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      node.selector.toLowerCase().includes(searchQuery.toLowerCase());
+      (node.selector && node.selector.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (!matchesSearch && !hasChildren) {
       return <></>;
@@ -175,7 +180,7 @@ const BrowserInspectorTab: React.FC<BrowserInspectorTabProps> = ({ url, onSelect
           {!hasChildren && <span className="w-5" />}
           
           <span className="font-mono text-xs">
-            &lt;{node.tagName.toLowerCase()}
+            &lt;{node.tagName ? node.tagName.toLowerCase() : 'unknown'}
             {node.id && <span className="text-green-400"> id="{node.id}"</span>}
             {node.className && <span className="text-yellow-400"> class="{node.className.substring(0, 30)}..."</span>}
             &gt;
