@@ -14,7 +14,7 @@ Severity: medium
 Standard: logging-v1
 Targets: cli, api
 
-<test-case id="unstructured-logging" should-fail="true">
+<test-case id="unstructured-logging" should-fail="true" path="cli/service.go">
   <description>Using fmt.Print and basic log.Print for logging</description>
   <input language="go">
 func processRequest(data string) error {
@@ -34,7 +34,7 @@ func processRequest(data string) error {
   <expected-message>Unstructured Logging</expected-message>
 </test-case>
 
-<test-case id="structured-logging-with-zap" should-fail="false">
+<test-case id="structured-logging-with-zap" should-fail="false" path="cli/service.go">
   <description>Using structured logging with zap</description>
   <input language="go">
 func processRequest(logger *zap.Logger, data string) error {
@@ -52,7 +52,7 @@ func processRequest(logger *zap.Logger, data string) error {
   </input>
 </test-case>
 
-<test-case id="structured-logging-with-slog" should-fail="false">
+<test-case id="structured-logging-with-slog" should-fail="false" path="cli/service.go">
   <description>Using structured logging with slog</description>
   <input language="go">
 func handleEvent(ctx context.Context, event Event) {
@@ -74,7 +74,7 @@ func handleEvent(ctx context.Context, event Event) {
   </input>
 </test-case>
 
-<test-case id="custom-logger-wrapper" should-fail="false">
+<test-case id="custom-logger-wrapper" should-fail="false" path="cli/service.go">
   <description>Using custom NewLogger wrapper</description>
   <input language="go">
 func setupService() {

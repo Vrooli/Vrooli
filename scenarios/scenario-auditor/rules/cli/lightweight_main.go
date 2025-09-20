@@ -13,7 +13,7 @@ Severity: medium
 Standard: code-structure-v1
 Targets: cli, main_go
 
-<test-case id="complex-main-function" should-fail="true">
+<test-case id="complex-main-function" should-fail="true" path="cli/main.go">
   <description>Main function with too much business logic</description>
   <input language="go">
 package main
@@ -57,7 +57,7 @@ func main() {
   <expected-message>Main function contains too much logic</expected-message>
 </test-case>
 
-<test-case id="lightweight-cobra-main" should-fail="false">
+<test-case id="lightweight-cobra-main" should-fail="false" path="cli/main.go">
   <description>Main function delegating to cobra cmd.Execute()</description>
   <input language="go">
 package main
@@ -77,7 +77,7 @@ func main() {
   </input>
 </test-case>
 
-<test-case id="lightweight-urfave-cli" should-fail="false">
+<test-case id="lightweight-urfave-cli" should-fail="false" path="cli/main.go">
   <description>Main function using urfave/cli pattern</description>
   <input language="go">
 package main
@@ -102,7 +102,7 @@ func main() {
   </input>
 </test-case>
 
-<test-case id="minimal-main-with-setup" should-fail="false">
+<test-case id="minimal-main-with-setup" should-fail="false" path="cli/main.go">
   <description>Minimal main that calls a setup function</description>
   <input language="go">
 package main

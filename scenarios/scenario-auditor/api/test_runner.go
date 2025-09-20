@@ -21,6 +21,7 @@ type TestCase struct {
 	ShouldFail         bool   `json:"should_fail"`
 	ExpectedViolations int    `json:"expected_violations"`
 	ExpectedMessage    string `json:"expected_message"`
+	FilePath           string `json:"file_path"`
 }
 
 // TestResult represents the result of running a test case
@@ -67,27 +68,41 @@ func NewTestRunner() *TestRunner {
 func (tr *TestRunner) ExtractTestCases(content string) ([]TestCase, error) {
 	var testCases []TestCase
 
-	// Regex to match test case blocks
-	testCaseRegex := regexp.MustCompile(`(?s)<test-case\s+id="([^"]+)"(?:\s+should-fail="([^"]+)")?\s*>(.*?)</test-case>`)
+	// Regex to match test case blocks and capture attributes
+	testCaseRegex := regexp.MustCompile(`(?s)<test-case\s+([^>]*)>(.*?)</test-case>`)
 
 	matches := testCaseRegex.FindAllStringSubmatch(content, -1)
+	attrRegex := regexp.MustCompile(`([A-Za-z0-9_-]+)\s*=\s*"([^"]*)"`)
 
 	for _, match := range matches {
-		if len(match) < 4 {
+		if len(match) < 3 {
 			continue
 		}
 
-		testCase := TestCase{
-			ID: match[1],
+		attrs := match[1]
+		innerContent := match[2]
+
+		testCase := TestCase{}
+
+		for _, attr := range attrRegex.FindAllStringSubmatch(attrs, -1) {
+			if len(attr) < 3 {
+				continue
+			}
+			name := strings.ToLower(strings.TrimSpace(attr[1]))
+			value := strings.TrimSpace(attr[2])
+			switch name {
+			case "id":
+				testCase.ID = value
+			case "should-fail":
+				testCase.ShouldFail = strings.EqualFold(value, "true")
+			case "path", "file", "filepath":
+				testCase.FilePath = value
+			}
 		}
 
-		// Parse should-fail attribute
-		if match[2] != "" {
-			testCase.ShouldFail = match[2] == "true"
+		if testCase.ID == "" {
+			continue
 		}
-
-		// Extract inner content
-		innerContent := match[3]
 
 		// Extract description
 		descRegex := regexp.MustCompile(`(?s)<description>(.*?)</description>`)
@@ -193,7 +208,12 @@ func (tr *TestRunner) RunTest(testCase TestCase, rule RuleInfo) TestResult {
 		ExecutedAt: time.Now(),
 	}
 
-	violations, err := rule.Check(testCase.Input, fmt.Sprintf("test_%s.%s", testCase.ID, testCase.Language))
+	pathHint := fmt.Sprintf("test_%s.%s", testCase.ID, testCase.Language)
+	if strings.TrimSpace(testCase.FilePath) != "" {
+		pathHint = testCase.FilePath
+	}
+
+	violations, err := rule.Check(testCase.Input, pathHint)
 	if err != nil {
 		result.Error = err.Error()
 		result.Passed = false
@@ -272,6 +292,7 @@ func (tr *TestRunner) ValidateCustomInput(ruleID string, rule RuleInfo, input st
 		Input:       input,
 		Language:    language,
 		ShouldFail:  false,
+		FilePath:    fmt.Sprintf("custom_%s.%s", ruleID, language),
 	}
 
 	result := tr.RunTest(testCase, rule)

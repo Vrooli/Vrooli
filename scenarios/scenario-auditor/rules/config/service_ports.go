@@ -16,7 +16,7 @@ Severity: high
 Standard: configuration-v1
 Targets: service_json
 
-<test-case id="missing-ports-block" should-fail="true">
+<test-case id="missing-ports-block" should-fail="true" path=".vrooli/service.json">
   <description>service.json without a ports section</description>
   <input language="json">
 {
@@ -29,7 +29,7 @@ Targets: service_json
   <expected-message>ports</expected-message>
 </test-case>
 
-<test-case id="incorrect-api-env-var" should-fail="true">
+<test-case id="incorrect-api-env-var" should-fail="true" path=".vrooli/service.json">
   <description>API port defined with wrong env var</description>
   <input language="json">
 {
@@ -45,7 +45,7 @@ Targets: service_json
   <expected-message>API_PORT</expected-message>
 </test-case>
 
-<test-case id="incorrect-api-range" should-fail="true">
+<test-case id="incorrect-api-range" should-fail="true" path=".vrooli/service.json">
   <description>API port range outside the allowed window</description>
   <input language="json">
 {
@@ -61,7 +61,7 @@ Targets: service_json
   <expected-message>15000-19999</expected-message>
 </test-case>
 
-<test-case id="ui-env-var-check" should-fail="true">
+<test-case id="ui-env-var-check" should-fail="true" path=".vrooli/service.json">
   <description>UI port defined without the expected env var</description>
   <input language="json">
 {
@@ -81,7 +81,7 @@ Targets: service_json
   <expected-message>UI_PORT</expected-message>
 </test-case>
 
-<test-case id="valid-config" should-fail="false">
+<test-case id="valid-config" should-fail="false" path=".vrooli/service.json">
   <description>Valid ports configuration with api and ui ranges</description>
   <input language="json">
 {
@@ -242,9 +242,6 @@ func shouldCheckServiceJSON(path string) bool {
 	}
 	base := strings.ToLower(filepath.Base(path))
 	if base == "service.json" {
-		return true
-	}
-	if strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".json") {
 		return true
 	}
 	return false

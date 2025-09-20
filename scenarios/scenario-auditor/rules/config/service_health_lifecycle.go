@@ -16,7 +16,7 @@ Severity: high
 Standard: configuration-v1
 Targets: service_json
 
-<test-case id="missing-lifecycle" should-fail="true">
+<test-case id="missing-lifecycle" should-fail="true" path=".vrooli/service.json">
   <description>service.json missing lifecycle section</description>
   <input language="json">
 {
@@ -27,7 +27,7 @@ Targets: service_json
   <expected-message>lifecycle.health</expected-message>
 </test-case>
 
-<test-case id="missing-endpoints" should-fail="true">
+<test-case id="missing-endpoints" should-fail="true" path=".vrooli/service.json">
   <description>health block without endpoints</description>
   <input language="json">
 {
@@ -42,7 +42,7 @@ Targets: service_json
   <expected-message>endpoints</expected-message>
 </test-case>
 
-<test-case id="missing-api-endpoint" should-fail="true">
+<test-case id="missing-api-endpoint" should-fail="true" path=".vrooli/service.json">
   <description>health endpoints missing api route</description>
   <input language="json">
 {
@@ -58,7 +58,7 @@ Targets: service_json
   <expected-message>api endpoint</expected-message>
 </test-case>
 
-<test-case id="missing-api-check" should-fail="true">
+<test-case id="missing-api-check" should-fail="true" path=".vrooli/service.json">
   <description>health checks missing api_endpoint entry</description>
   <input language="json">
 {
@@ -74,7 +74,7 @@ Targets: service_json
   <expected-message>api_endpoint</expected-message>
 </test-case>
 
-<test-case id="ui-requires-endpoint" should-fail="true">
+<test-case id="ui-requires-endpoint" should-fail="true" path=".vrooli/service.json">
   <description>UI port defined but no UI endpoint</description>
   <input language="json">
 {
@@ -103,7 +103,7 @@ Targets: service_json
   <expected-message>ui endpoint</expected-message>
 </test-case>
 
-<test-case id="valid-health-config" should-fail="false">
+<test-case id="valid-health-config" should-fail="false" path=".vrooli/service.json">
   <description>Valid lifecycle health configuration for API and UI</description>
   <input language="json">
 {
@@ -377,9 +377,6 @@ func shouldCheckServiceJSON(path string) bool {
 	}
 	base := strings.ToLower(filepath.Base(path))
 	if base == "service.json" {
-		return true
-	}
-	if strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".json") {
 		return true
 	}
 	return false

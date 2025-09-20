@@ -62,6 +62,7 @@ Create rules following this YAML format:
 3. **Include Fixes**: When possible, provide automated fix suggestions
 4. **Use Examples**: Reference existing scenarios that follow the pattern
 5. **Consider Impact**: Balance strictness with practicality
+6. **Add Embedded Tests**: Include `<test-case>` snippets in Go rule files. When a rule depends on the file path, set `path="relative/path.ext"` so the harness sends the correct filename hint during testing.
 
 ## Example Rules
 

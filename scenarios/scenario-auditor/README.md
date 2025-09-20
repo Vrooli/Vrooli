@@ -237,6 +237,11 @@ scenario-auditor/
     - required
 ```
 
+### Embedded Rule Tests
+- Use `<test-case ...>` blocks inside Go rule files to describe sample inputs.
+- Provide `path="relative/file.ext"` when a rule depends on filename or location (e.g., `.vrooli/service.json`, `api/main.go`). The test runner passes this path to the rule exactly as it would appear during a real scan.
+- Supported attributes: `id`, `should-fail`, `path`/`file`/`filepath`, plus the existing `<input>`, `<expected-violations>`, and `<expected-message>` sections.
+
 ## 🔗 Integration
 
 ### With Scenario Development

@@ -13,7 +13,7 @@ Severity: critical
 Standard: vrooli-lifecycle-v1
 Targets: main_go
 
-<test-case id="missing-lifecycle-check" should-fail="true">
+<test-case id="missing-lifecycle-check" should-fail="true" path="api/main.go">
   <description>main.go without lifecycle protection</description>
   <input language="go">
 package main
@@ -38,7 +38,7 @@ func main() {
   <expected-message>Missing Lifecycle Protection</expected-message>
 </test-case>
 
-<test-case id="proper-lifecycle-check" should-fail="false">
+<test-case id="proper-lifecycle-check" should-fail="false" path="api/main.go">
   <description>main.go with proper lifecycle protection</description>
   <input language="go">
 package main
@@ -74,7 +74,7 @@ func main() {
   </input>
 </test-case>
 
-<test-case id="incorrect-lifecycle-message" should-fail="true">
+<test-case id="incorrect-lifecycle-message" should-fail="true" path="api/main.go">
   <description>lifecycle check present but message differs from required instructional text</description>
   <input language="go">
 package main
@@ -106,7 +106,7 @@ func main() {
   <expected-message>Missing Lifecycle Protection</expected-message>
 </test-case>
 
-<test-case id="lifecycle-check-with-lookupenv" should-fail="false">
+<test-case id="lifecycle-check-with-lookupenv" should-fail="false" path="api/main.go">
   <description>main.go using os.LookupEnv for lifecycle check</description>
   <input language="go">
 package main
@@ -136,7 +136,7 @@ func main() {
   </input>
 </test-case>
 
-<test-case id="missing-lifecycle-check-condition" should-fail="true">
+<test-case id="missing-lifecycle-check-condition" should-fail="true" path="api/main.go">
   <description>instructional message present without enforcing lifecycle condition</description>
   <input language="go">
 package main
