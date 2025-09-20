@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -12,12 +13,153 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// Global state for rule enabled/disabled status
-var ruleStates = struct {
-	mu     sync.RWMutex
-	states map[string]bool
-}{
-	states: make(map[string]bool),
+// Persistent store for rule enabled/disabled status
+type RuleStateStore struct {
+	mu       sync.RWMutex
+	states   map[string]bool
+	filePath string
+}
+
+type ruleStateData struct {
+	States     map[string]bool `json:"states"`
+	LastUpdate time.Time       `json:"last_update"`
+}
+
+var ruleStateStore = initRuleStateStore()
+
+func initRuleStateStore() *RuleStateStore {
+	fmt.Fprintf(os.Stderr, "[INIT] Initializing rule state store...\n")
+	store := &RuleStateStore{
+		states: make(map[string]bool),
+	}
+	store.enablePersistence()
+	return store
+}
+
+func (rs *RuleStateStore) enablePersistence() {
+	logger := NewLogger()
+
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+
+	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
+	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(parentDir, 0755); err != nil {
+			logger.Error(fmt.Sprintf("Failed to create parent data directory %s", parentDir), err)
+			logger.Info("Rule state store will operate in memory-only mode (no persistence)")
+			return
+		}
+	}
+
+	dataDir := filepath.Join(parentDir, "scenario-auditor")
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
+		logger.Info("Rule state store will operate in memory-only mode (no persistence)")
+		return
+	}
+
+	rs.filePath = filepath.Join(dataDir, "rule-preferences.json")
+
+	if err := rs.loadFromFile(); err != nil {
+		logger.Error(fmt.Sprintf("Failed to load existing rule states from %s", rs.filePath), err)
+	} else {
+		if len(rs.states) > 0 {
+			logger.Info(fmt.Sprintf("Loaded %d rule state preference entries", len(rs.states)))
+		}
+	}
+
+	logger.Info(fmt.Sprintf("Rule state persistence enabled at: %s", rs.filePath))
+}
+
+func (rs *RuleStateStore) loadFromFile() error {
+	if rs.filePath == "" {
+		return nil
+	}
+
+	rs.mu.Lock()
+	defer rs.mu.Unlock()
+
+	data, err := os.ReadFile(rs.filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	var stored ruleStateData
+	if err := json.Unmarshal(data, &stored); err != nil {
+		return err
+	}
+
+	if stored.States == nil {
+		stored.States = make(map[string]bool)
+	}
+
+	rs.states = stored.States
+	return nil
+}
+
+func (rs *RuleStateStore) saveToFileLocked() error {
+	if rs.filePath == "" {
+		return nil
+	}
+
+	payload := ruleStateData{
+		States:     make(map[string]bool, len(rs.states)),
+		LastUpdate: time.Now(),
+	}
+	for id, enabled := range rs.states {
+		payload.States[id] = enabled
+	}
+
+	bytes, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	tmpPath := rs.filePath + ".tmp"
+	if err := os.WriteFile(tmpPath, bytes, 0644); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpPath, rs.filePath)
+}
+
+func (rs *RuleStateStore) SetState(ruleID string, enabled bool) error {
+	if ruleID == "" {
+		return fmt.Errorf("rule ID is required")
+	}
+
+	rs.mu.Lock()
+	if rs.states == nil {
+		rs.states = make(map[string]bool)
+	}
+	rs.states[ruleID] = enabled
+	err := rs.saveToFileLocked()
+	rs.mu.Unlock()
+	return err
+}
+
+func (rs *RuleStateStore) GetState(ruleID string) (bool, bool) {
+	rs.mu.RLock()
+	defer rs.mu.RUnlock()
+
+	enabled, ok := rs.states[ruleID]
+	return enabled, ok
+}
+
+func (rs *RuleStateStore) GetAllStates() map[string]bool {
+	rs.mu.RLock()
+	defer rs.mu.RUnlock()
+
+	result := make(map[string]bool, len(rs.states))
+	for id, enabled := range rs.states {
+		result[id] = enabled
+	}
+	return result
 }
 
 type Rule struct {
@@ -61,18 +203,16 @@ func getRulesHandler(w http.ResponseWriter, r *http.Request) {
 		ruleInfos = getDefaultRules()
 	}
 
-	// Convert RuleInfo to Rule and apply enabled states
+	// Convert RuleInfo to Rule and apply persisted enabled states
 	rules := make(map[string]Rule)
-	ruleStates.mu.RLock()
+	states := ruleStateStore.GetAllStates()
 	for id, info := range ruleInfos {
 		rule := ConvertRuleInfoToRule(info)
-		// Check if we have a stored enabled state for this rule
-		if enabled, exists := ruleStates.states[id]; exists {
+		if enabled, exists := states[id]; exists {
 			rule.Enabled = enabled
 		}
 		rules[id] = rule
 	}
-	ruleStates.mu.RUnlock()
 
 	testStatuses := computeRuleTestStatuses(ruleInfos)
 	ruleStatusMap := make(map[string]RuleTestStatus)
@@ -222,11 +362,11 @@ func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("Toggling rule " + ruleID + " enabled: " + fmt.Sprintf("%v", toggleReq.Enabled))
 
-	// For now, we'll store the state in memory
-	// In a production system, this would be persisted to a database
-	ruleStates.mu.Lock()
-	ruleStates.states[ruleID] = toggleReq.Enabled
-	ruleStates.mu.Unlock()
+	if err := ruleStateStore.SetState(ruleID, toggleReq.Enabled); err != nil {
+		logger.Error("Failed to persist rule state", err)
+		HTTPError(w, "Failed to persist rule state", http.StatusInternalServerError, err)
+		return
+	}
 
 	// Return success response
 	response := map[string]interface{}{
@@ -285,6 +425,9 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Convert to rule and add file content
 	rule := ConvertRuleInfoToRule(ruleInfo)
+	if enabled, ok := ruleStateStore.GetState(ruleID); ok {
+		rule.Enabled = enabled
+	}
 
 	if status, ok := computeRuleTestStatuses(map[string]RuleInfo{ruleID: ruleInfo})[ruleID]; ok {
 		s := status
