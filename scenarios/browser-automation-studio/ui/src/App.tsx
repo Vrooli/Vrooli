@@ -172,6 +172,18 @@ function App() {
     }
   };
 
+  const handleWorkflowGenerated = async (workflow: any) => {
+    if (!workflow?.id || !currentProject) {
+      return;
+    }
+
+    try {
+      await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
+    } catch (error) {
+      console.error('Failed to open generated workflow:', error);
+    }
+  };
+
   useEffect(() => {
     const resolvePath = async (path: string, replace = false) => {
       const normalized = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
@@ -261,6 +273,7 @@ function App() {
             folder={selectedFolder}
             projectId={currentProject.id}
             onSwitchToManual={handleSwitchToManualBuilder}
+            onSuccess={handleWorkflowGenerated}
           />
         )}
       </div>
@@ -305,6 +318,7 @@ function App() {
             folder={selectedFolder}
             projectId={currentProject?.id}
             onSwitchToManual={handleSwitchToManualBuilder}
+            onSuccess={handleWorkflowGenerated}
           />
         )}
       </div>

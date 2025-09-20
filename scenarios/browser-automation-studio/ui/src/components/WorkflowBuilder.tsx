@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -26,6 +26,7 @@ import WorkflowCallNode from './nodes/WorkflowCallNode';
 import WorkflowToolbar from './WorkflowToolbar';
 import CustomConnectionLine from './CustomConnectionLine';
 import 'reactflow/dist/style.css';
+import toast from 'react-hot-toast';
 
 const nodeTypes: NodeTypes = {
   browserAction: BrowserActionNode,
@@ -81,24 +82,149 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   // Undo/Redo state
   const [history, setHistory] = useState<Array<{nodes: any[], edges: any[]}>>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [viewMode, setViewMode] = useState<'visual' | 'code'>('visual');
+  const [codeValue, setCodeValue] = useState('');
+  const [codeDirty, setCodeDirty] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
+
+  const buildJsonFromState = useCallback(() => {
+    try {
+      return JSON.stringify(
+        {
+          nodes: storeNodes ?? [],
+          edges: storeEdges ?? [],
+        },
+        null,
+        2
+      );
+    } catch (error) {
+      console.error('Failed to stringify workflow definition:', error);
+      return '{\n  "nodes": [],\n  "edges": []\n}';
+    }
+  }, [storeNodes, storeEdges]);
+
+  useEffect(() => {
+    if (!codeDirty || viewMode !== 'code') {
+      setCodeValue(buildJsonFromState());
+      if (viewMode !== 'code') {
+        setCodeDirty(false);
+        setCodeError(null);
+      }
+    }
+  }, [buildJsonFromState, codeDirty, viewMode]);
+
+  const normalizeNodesFromCode = useCallback((rawNodes: any): Node[] => {
+    if (!Array.isArray(rawNodes)) {
+      return [];
+    }
+    return rawNodes.map((node: any, index: number) => {
+      const id = node?.id ? String(node.id) : `node-${index + 1}`;
+      const type = node?.type ? String(node.type) : 'navigate';
+      const position = {
+        x: Number(node?.position?.x ?? 100 + index * 200) || 0,
+        y: Number(node?.position?.y ?? 100 + index * 120) || 0,
+      };
+      const data = node?.data && typeof node.data === 'object' ? node.data : {};
+      return {
+        ...node,
+        id,
+        type,
+        position,
+        data,
+      } as Node;
+    });
+  }, []);
+
+  const normalizeEdgesFromCode = useCallback((rawEdges: any): Edge[] => {
+    if (!Array.isArray(rawEdges)) {
+      return [];
+    }
+    return rawEdges
+      .map((edge: any, index: number) => {
+        const id = edge?.id ? String(edge.id) : `edge-${index + 1}`;
+        const source = edge?.source ? String(edge.source) : '';
+        const target = edge?.target ? String(edge.target) : '';
+        if (!source || !target) return null;
+        return {
+          ...edge,
+          id,
+          source,
+          target,
+        } as Edge;
+      })
+      .filter(Boolean) as Edge[];
+  }, []);
 
   // Save current state to history
   const saveToHistory = useCallback(() => {
     const currentState = { nodes: [...nodes], edges: [...edges] };
     setHistory(prev => {
-      // Remove any future history if we're not at the end
       const newHistory = prev.slice(0, historyIndex + 1);
-      // Add new state
       newHistory.push(currentState);
-      // Limit history size to prevent memory issues
       if (newHistory.length > 50) {
         newHistory.shift();
-        setHistoryIndex(prev => prev - 1);
+        setHistoryIndex(prevIndex => prevIndex - 1);
       }
       return newHistory;
     });
     setHistoryIndex(prev => prev + 1);
-  }, [nodes, edges, historyIndex]);
+  }, [edges, historyIndex, nodes]);
+
+  const applyCodeChanges = useCallback((options?: { silent?: boolean }) => {
+    try {
+      const parsed = JSON.parse(codeValue || '{}');
+      const parsedNodes = normalizeNodesFromCode(parsed?.nodes ?? []);
+      const parsedEdges = normalizeEdgesFromCode(parsed?.edges ?? []);
+
+      saveToHistory();
+      setNodes(parsedNodes);
+      setEdges(parsedEdges);
+      updateWorkflow({ nodes: parsedNodes, edges: parsedEdges });
+      setCodeDirty(false);
+      setCodeError(null);
+      if (!options?.silent) {
+        toast.success('Workflow updated from JSON');
+      }
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Invalid JSON';
+      setCodeError(message);
+      toast.error(`Invalid workflow JSON: ${message}`);
+      return false;
+    }
+  }, [codeValue, normalizeEdgesFromCode, normalizeNodesFromCode, saveToHistory, setEdges, setNodes, updateWorkflow]);
+
+  const handleViewModeChange = useCallback((mode: 'visual' | 'code') => {
+    if (mode === viewMode) {
+      return;
+    }
+
+    if (mode === 'visual' && viewMode === 'code' && codeDirty) {
+      const applied = applyCodeChanges({ silent: true });
+      if (!applied) {
+        return;
+      }
+    }
+
+    setViewMode(mode);
+    if (mode === 'code') {
+      setCodeValue(buildJsonFromState());
+      setCodeDirty(false);
+      setCodeError(null);
+    }
+  }, [applyCodeChanges, buildJsonFromState, codeDirty, viewMode]);
+
+  const handleCodeChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
+    setCodeValue(event.target.value);
+    setCodeDirty(true);
+    setCodeError(null);
+  };
+
+  const handleResetCode = () => {
+    setCodeValue(buildJsonFromState());
+    setCodeDirty(false);
+    setCodeError(null);
+  };
 
   // Undo function
   const undo = useCallback(() => {
@@ -258,70 +384,121 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
 
   return (
     <div className="flex-1 relative">
-      <WorkflowToolbar 
-        showGrid={showGrid} 
-        onToggleGrid={() => setShowGrid(!showGrid)}
-        locked={locked}
-        onToggleLock={() => setLocked(!locked)}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={historyIndex > 0}
-        canRedo={historyIndex < history.length - 1}
-        onDuplicate={duplicateSelected}
-        onDelete={deleteSelected}
-      />
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChangeHandler}
-        onEdgesChange={onEdgesChangeHandler}
-        onConnect={onConnect}
-        onConnectStart={onConnectStart}
-        onConnectEnd={onConnectEnd}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        nodeTypes={nodeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
-        fitView
-        className="bg-flow-bg"
-        connectOnClick={false}
-        connectionMode={ConnectionMode.Loose}
-        connectionRadius={50}
-        connectionLineComponent={CustomConnectionLine}
-        nodesDraggable={!locked}
-        nodesConnectable={!locked}
-        elementsSelectable={!locked}
-        edgesUpdatable={!locked}
-      >
-        <MiniMap
-          nodeStrokeColor={(node) => {
-            switch (node.type) {
-              case 'navigate': return '#3b82f6';
-              case 'click': return '#10b981';
-              case 'type': return '#f59e0b';
-              case 'screenshot': return '#8b5cf6';
-              case 'extract': return '#ec4899';
-              case 'wait': return '#6b7280';
-              case 'workflowCall': return '#a855f7';
-              default: return '#4a5568';
-            }
-          }}
-          nodeColor={(node) => {
-            switch (node.type) {
-              case 'navigate': return '#1e40af';
-              case 'click': return '#065f46';
-              case 'type': return '#92400e';
-              case 'screenshot': return '#5b21b6';
-              case 'extract': return '#9f1239';
-              case 'wait': return '#374151';
-              case 'workflowCall': return '#7c3aed';
-              default: return '#1a1d29';
-            }
-          }}
-          nodeBorderRadius={8}
+      {viewMode === 'visual' && (
+        <WorkflowToolbar 
+          showGrid={showGrid} 
+          onToggleGrid={() => setShowGrid(!showGrid)}
+          locked={locked}
+          onToggleLock={() => setLocked(!locked)}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={historyIndex > 0}
+          canRedo={historyIndex < history.length - 1}
+          onDuplicate={duplicateSelected}
+          onDelete={deleteSelected}
         />
-        {showGrid && <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#1a1d29" />}
-      </ReactFlow>
+      )}
+
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <button
+          onClick={() => handleViewModeChange('visual')}
+          className={`toolbar-button px-3 ${viewMode === 'visual' ? 'active' : ''}`}
+        >
+          Visual Builder
+        </button>
+        <button
+          onClick={() => handleViewModeChange('code')}
+          className={`toolbar-button px-3 ${viewMode === 'code' ? 'active' : ''}`}
+        >
+          JSON Editor
+        </button>
+      </div>
+
+      {viewMode === 'visual' ? (
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChangeHandler}
+          onEdgesChange={onEdgesChangeHandler}
+          onConnect={onConnect}
+          onConnectStart={onConnectStart}
+          onConnectEnd={onConnectEnd}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          nodeTypes={nodeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
+          fitView
+          className="bg-flow-bg"
+          style={{ width: '100%', height: '100%' }}
+          connectOnClick={false}
+          connectionMode={ConnectionMode.Loose}
+          connectionRadius={50}
+          connectionLineComponent={CustomConnectionLine}
+          nodesDraggable={!locked}
+          nodesConnectable={!locked}
+          elementsSelectable={!locked}
+          edgesUpdatable={!locked}
+        >
+          <MiniMap
+            nodeStrokeColor={(node) => {
+              switch (node.type) {
+                case 'navigate': return '#3b82f6';
+                case 'click': return '#10b981';
+                case 'type': return '#f59e0b';
+                case 'screenshot': return '#8b5cf6';
+                case 'extract': return '#ec4899';
+                case 'wait': return '#6b7280';
+                case 'workflowCall': return '#a855f7';
+                default: return '#4a5568';
+              }
+            }}
+            nodeColor={(node) => {
+              switch (node.type) {
+                case 'navigate': return '#1e40af';
+                case 'click': return '#065f46';
+                case 'type': return '#92400e';
+                case 'screenshot': return '#5b21b6';
+                case 'extract': return '#9f1239';
+                case 'wait': return '#374151';
+                case 'workflowCall': return '#7c3aed';
+                default: return '#1a1d29';
+              }
+            }}
+            nodeBorderRadius={8}
+          />
+          {showGrid && <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#1a1d29" />}
+        </ReactFlow>
+      ) : (
+        <div className="absolute inset-0 flex flex-col bg-[#0f172a] border border-gray-800 rounded-lg">
+          <textarea
+            className="flex-1 bg-transparent text-gray-200 font-mono text-xs p-4 focus:outline-none resize-none"
+            value={codeValue}
+            onChange={handleCodeChange}
+            spellCheck={false}
+          />
+          <div className="flex items-center justify-between border-t border-gray-800 bg-[#111827] px-4 py-3">
+            <div className="text-xs h-4 text-red-400">
+              {codeError}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleResetCode}
+                className="px-3 py-1.5 rounded-md text-xs bg-gray-700 text-gray-200 hover:bg-gray-600 transition-all disabled:opacity-50"
+                disabled={!codeDirty}
+              >
+                Reset
+              </button>
+              <button
+                onClick={applyCodeChanges}
+                className="px-3 py-1.5 rounded-md text-xs bg-purple-600 text-white hover:bg-purple-500 transition-all disabled:opacity-50"
+                disabled={!codeDirty}
+              >
+                Apply Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

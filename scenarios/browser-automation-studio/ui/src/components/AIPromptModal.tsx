@@ -8,6 +8,7 @@ interface AIPromptModalProps {
   folder: string;
   projectId?: string;
   onSwitchToManual?: () => void;
+  onSuccess?: (workflow: any) => Promise<void> | void;
 }
 
 const examplePrompts = [
@@ -18,11 +19,21 @@ const examplePrompts = [
   "Monitor a product page for price changes every hour",
 ];
 
-function AIPromptModal({ onClose, folder, projectId, onSwitchToManual }: AIPromptModalProps) {
+function AIPromptModal({ onClose, folder, projectId, onSwitchToManual, onSuccess }: AIPromptModalProps) {
   const [prompt, setPrompt] = useState('');
   const [workflowName, setWorkflowName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const { generateWorkflow } = useWorkflowStore();
+
+  const formatErrorMessage = (message: string) => {
+    if (!message) return 'Failed to generate workflow';
+
+    // Replace escaped quotes and underscores that come back from the API so the
+    // guidance reads like a normal sentence for the user.
+    const decoded = message.replace(/\\"/g, '"');
+    const hasUnderscores = /[A-Z][A-Z_]+/.test(decoded) || decoded.includes('_');
+    return hasUnderscores ? decoded.replace(/_/g, ' ') : decoded;
+  };
 
   const handleGenerate = async () => {
     if (!prompt.trim()) {
@@ -43,10 +54,13 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual }: AIPromp
         throw new Error('AI did not return any workflow steps. Please refine your prompt and try again.');
       }
       toast.success('Workflow generated successfully!');
+      if (onSuccess) {
+        await Promise.resolve(onSuccess(workflow));
+      }
       onClose();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to generate workflow';
-      toast.error(message);
+      toast.error(formatErrorMessage(message));
     } finally {
       setIsGenerating(false);
     }

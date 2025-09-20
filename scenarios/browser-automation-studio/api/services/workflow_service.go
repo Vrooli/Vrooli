@@ -29,6 +29,17 @@ type WorkflowService struct {
 	aiClient    *OpenRouterClient
 }
 
+// AIWorkflowError represents a structured error returned by the AI generator when
+// it cannot produce a valid workflow definition for the given prompt.
+type AIWorkflowError struct {
+	Reason string
+}
+
+// Error implements the error interface.
+func (e *AIWorkflowError) Error() string {
+	return e.Reason
+}
+
 // NewWorkflowService creates a new workflow service
 func NewWorkflowService(repo database.Repository, browserless *browserless.Client, wsHub *wsHub.Hub, log *logrus.Logger) *WorkflowService {
 	return &WorkflowService{
@@ -335,6 +346,10 @@ User prompt:
 		return nil, fmt.Errorf("failed to parse OpenRouter JSON: %w", err)
 	}
 
+	if err := detectAIWorkflowError(payload); err != nil {
+		return nil, err
+	}
+
 	definition, err := normalizeFlowDefinition(payload)
 	if err != nil {
 		return nil, err
@@ -373,6 +388,10 @@ func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, 
 		candidate = workflow
 	}
 
+	if err := detectAIWorkflowError(candidate); err != nil {
+		return nil, err
+	}
+
 	rawNodes, ok := candidate["nodes"]
 	if !ok {
 		if steps, ok := candidate["steps"].([]interface{}); ok {
@@ -383,7 +402,7 @@ func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, 
 
 	nodes, ok := rawNodes.([]interface{})
 	if !ok || len(nodes) == 0 {
-		return nil, errors.New("AI response missing usable nodes array")
+		return nil, &AIWorkflowError{Reason: "AI workflow generation did not return any steps. Specify real URLs, selectors, and actions, then try again."}
 	}
 
 	for i, rawNode := range nodes {
@@ -425,6 +444,42 @@ func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, 
 	candidate["edges"] = edges
 
 	return database.JSONMap(candidate), nil
+}
+
+func detectAIWorkflowError(payload map[string]interface{}) error {
+	if reason := extractAIErrorMessage(payload); reason != "" {
+		return &AIWorkflowError{Reason: reason}
+	}
+	return nil
+}
+
+func extractAIErrorMessage(value interface{}) string {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		if msg, ok := typed["error"].(string); ok {
+			trimmed := strings.TrimSpace(msg)
+			if trimmed != "" {
+				return trimmed
+			}
+		}
+		if msg, ok := typed["message"].(string); ok {
+			trimmed := strings.TrimSpace(msg)
+			if trimmed != "" {
+				return trimmed
+			}
+		}
+		if workflow, ok := typed["workflow"].(map[string]interface{}); ok {
+			if nested := extractAIErrorMessage(workflow); nested != "" {
+				return nested
+			}
+		}
+		for _, nested := range typed {
+			if nestedMsg := extractAIErrorMessage(nested); nestedMsg != "" {
+				return nestedMsg
+			}
+		}
+	}
+	return ""
 }
 
 func defaultWorkflowDefinition() database.JSONMap {

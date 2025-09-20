@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -599,7 +600,12 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		h.log.WithError(err).Error("Failed to create workflow")
 		status := http.StatusInternalServerError
 		message := "Failed to create workflow"
-		if strings.TrimSpace(req.AIPrompt) != "" {
+		var aiErr *services.AIWorkflowError
+		switch {
+		case errors.As(err, &aiErr):
+			status = http.StatusBadRequest
+			message = aiErr.Reason
+		case strings.TrimSpace(req.AIPrompt) != "":
 			status = http.StatusBadGateway
 			message = err.Error()
 		}
