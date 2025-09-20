@@ -267,5 +267,7 @@ export interface FixAgentResponse {
   fix_id: string
   started_at: string
   agent?: AgentInfo
+  scenarios?: string[]
+  user_instructions?: string
   error?: string
 }

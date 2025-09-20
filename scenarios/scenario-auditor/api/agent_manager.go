@@ -33,8 +33,12 @@ const (
 )
 
 const (
-	openRouterModel = "qwen/qwen3-coder-flash"
+	// defaultOpenRouterModel must include the provider prefix so resource-opencode
+	// resolves it correctly via OpenRouter (provider/model syntax).
+	defaultOpenRouterModel = "openrouter/qwen/qwen3-coder"
 )
+
+var openRouterModel = resolveOpenRouterModel()
 
 // AgentInfo represents an active agent process that the API is tracking.
 type AgentInfo struct {
@@ -77,6 +81,24 @@ func NewAgentManager() *AgentManager {
 		logger:  NewLogger(),
 		history: make(map[string]AgentInfo),
 	}
+}
+
+func resolveOpenRouterModel() string {
+	if override := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MODEL")); override != "" {
+		return override
+	}
+	return defaultOpenRouterModel
+}
+
+func cloneMetadata(input map[string]string) map[string]string {
+	if len(input) == 0 {
+		return map[string]string{}
+	}
+	result := make(map[string]string, len(input))
+	for key, value := range input {
+		result[key] = value
+	}
+	return result
 }
 
 type AgentStartConfig struct {
@@ -150,6 +172,9 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		return nil, fmt.Errorf("failed to start agent process: %w", err)
 	}
 
+	metadata := cloneMetadata(cfg.Metadata)
+	metadata["log_path"] = logPath
+
 	agentInfo := AgentInfo{
 		ID:           agentID,
 		Name:         fallbackAgentName(cfg.Name, cfg.Label, cfg.Action, cfg.RuleID),
@@ -163,7 +188,7 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		Command:      []string{"resource-opencode", "run", "run", "--model", cfg.Model},
 		PromptLength: len([]rune(cfg.Prompt)),
 		PID:          cmd.Process.Pid,
-		Metadata:     cfg.Metadata,
+		Metadata:     metadata,
 		IssueIDs:     append([]string(nil), cfg.IssueIDs...),
 	}
 
@@ -213,12 +238,27 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		finalInfo.DurationSeconds = int(endTime.Sub(finalInfo.StartedAt).Seconds())
 		if err != nil {
 			finalInfo.Status = agentStatusFailed
-			finalInfo.Error = err.Error()
+			failureMessage, summary := summariseAgentFailure(agent.logPath, err)
+			if failureMessage != "" {
+				finalInfo.Error = failureMessage
+			} else {
+				finalInfo.Error = err.Error()
+			}
+			if summary != "" {
+				if finalInfo.Metadata == nil {
+					finalInfo.Metadata = make(map[string]string)
+				}
+				finalInfo.Metadata["failure_reason"] = summary
+			}
 		} else if finalInfo.Status == agentStatusStopping {
 			finalInfo.Status = agentStatusStopped
 		} else {
 			finalInfo.Status = agentStatusCompleted
 		}
+		if finalInfo.Metadata == nil {
+			finalInfo.Metadata = make(map[string]string)
+		}
+		finalInfo.Metadata["log_path"] = agent.logPath
 		am.history[agentID] = finalInfo
 		if len(am.history) > 50 {
 			for key := range am.history {
@@ -361,6 +401,77 @@ var (
 	scenarioRootOnce sync.Once
 	scenarioRootPath string
 )
+
+func summariseAgentFailure(logPath string, execErr error) (string, string) {
+	message := strings.TrimSpace(execErr.Error())
+	logSummary, err := extractFailureSummary(logPath)
+	if err != nil || logSummary == "" {
+		return message, ""
+	}
+	if message == "" {
+		return logSummary, logSummary
+	}
+	if strings.Contains(logSummary, message) {
+		return logSummary, logSummary
+	}
+	return fmt.Sprintf("%s (process reported: %s)", logSummary, message), logSummary
+}
+
+func extractFailureSummary(logPath string) (string, error) {
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(string(data), "\n")
+	var fallback string
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		if fallback == "" {
+			fallback = line
+		}
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "providermodelnotfounderror") {
+			modelID := extractFieldValue(line, "modelID")
+			if modelID == "" {
+				modelID = extractFieldValue(line, "model")
+			}
+			return fmt.Sprintf("ProviderModelNotFoundError: model %s is not available for resource-opencode. Configure provider credentials or set SCENARIO_AUDITOR_AGENT_MODEL to a supported model.", safeValue(modelID)), nil
+		}
+		if strings.Contains(lower, "invalid api key") {
+			return "Authentication failed for resource-opencode provider (invalid API key). Update credentials and retry.", nil
+		}
+		if strings.Contains(lower, "error") {
+			return line, nil
+		}
+	}
+	if fallback != "" {
+		if len(fallback) > 400 {
+			fallback = fallback[:400]
+		}
+		return fallback, nil
+	}
+	return "", nil
+}
+
+func extractFieldValue(line, key string) string {
+	keyEq := key + "="
+	for _, part := range strings.Fields(line) {
+		if strings.HasPrefix(part, keyEq) {
+			return strings.Trim(part[len(keyEq):], "\" ")
+		}
+	}
+	return ""
+}
+
+func safeValue(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "(unspecified)"
+	}
+	return value
+}
 
 func getScenarioRoot() string {
 	scenarioRootOnce.Do(func() {

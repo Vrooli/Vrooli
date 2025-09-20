@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -32,28 +33,28 @@ func initStandardsStore() *StandardsStore {
 		violations: make(map[string][]StandardsViolation),
 		lastCheck:  make(map[string]time.Time),
 	}
-	
+
 	// Try to enable persistence, but don't fail if we can't
 	fmt.Fprintf(os.Stderr, "[INIT] Enabling standards store persistence...\n")
 	store.enablePersistence()
 	fmt.Fprintf(os.Stderr, "[INIT] Standards store initialized\n")
-	
+
 	return store
 }
 
 // enablePersistence attempts to enable file-based persistence
 func (ss *StandardsStore) enablePersistence() {
 	logger := NewLogger()
-	
+
 	// Get Vrooli root directory
 	vrooliRoot := os.Getenv("VROOLI_ROOT")
 	if vrooliRoot == "" {
 		vrooliRoot = os.Getenv("HOME") + "/Vrooli"
 	}
-	
+
 	// Create data directory if it doesn't exist
 	dataDir := filepath.Join(vrooliRoot, ".vrooli", "data", "scenario-auditor")
-	
+
 	// Check if parent directory exists first
 	parentDir := filepath.Join(vrooliRoot, ".vrooli", "data")
 	if _, err := os.Stat(parentDir); os.IsNotExist(err) {
@@ -64,17 +65,17 @@ func (ss *StandardsStore) enablePersistence() {
 			return
 		}
 	}
-	
+
 	// Now create our specific directory
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		logger.Error(fmt.Sprintf("Failed to create scenario-auditor data directory %s", dataDir), err)
 		logger.Info("Standards store will operate in memory-only mode (no persistence)")
 		return
 	}
-	
+
 	// Set the file path
 	ss.filePath = filepath.Join(dataDir, "standards-violations.json")
-	
+
 	// Try to load existing data
 	if err := ss.loadFromFile(); err != nil {
 		logger.Error(fmt.Sprintf("Failed to load existing standards data from %s", ss.filePath), err)
@@ -88,7 +89,7 @@ func (ss *StandardsStore) enablePersistence() {
 			logger.Info(fmt.Sprintf("Loaded %d existing standards violations from persistent storage", count))
 		}
 	}
-	
+
 	logger.Info(fmt.Sprintf("Standards store persistence enabled at: %s", ss.filePath))
 }
 
@@ -96,14 +97,78 @@ func (ss *StandardsStore) enablePersistence() {
 func (ss *StandardsStore) StoreViolations(scenarioName string, violations []StandardsViolation) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	
-	// Clear existing violations for this scenario
-	ss.violations[scenarioName] = []StandardsViolation{}
-	
-	// Store new violations
-	ss.violations[scenarioName] = append(ss.violations[scenarioName], violations...)
-	ss.lastCheck[scenarioName] = time.Now()
-	
+
+	normalised := strings.TrimSpace(scenarioName)
+	if normalised == "" {
+		normalised = "all"
+	}
+
+	now := time.Now()
+
+	if normalised == "all" {
+		// Rebuild aggregated results when scanning everything so the fix pipeline
+		// can access scenario-specific violations even if the scan was global.
+		bucketed := make(map[string][]StandardsViolation)
+		for _, violation := range violations {
+			scenario := strings.TrimSpace(violation.ScenarioName)
+			if scenario == "" || scenario == "unknown" {
+				scenario = extractScenarioName(violation.FilePath)
+			}
+			scenario = strings.TrimSpace(scenario)
+			if scenario == "" {
+				scenario = "unknown"
+			}
+			bucketed[scenario] = append(bucketed[scenario], violation)
+		}
+
+		// Start fresh to avoid retaining stale results for scenarios that are now clean.
+		ss.violations = make(map[string][]StandardsViolation, len(bucketed)+1)
+		ss.lastCheck = make(map[string]time.Time, len(bucketed)+1)
+
+		ss.violations["all"] = append([]StandardsViolation(nil), violations...)
+		ss.lastCheck["all"] = now
+
+		for scenario, list := range bucketed {
+			ss.violations[scenario] = append([]StandardsViolation(nil), list...)
+			ss.lastCheck[scenario] = now
+		}
+	} else {
+		// Clear existing violations for this scenario before storing new ones
+		ss.violations[normalised] = []StandardsViolation{}
+		ss.violations[normalised] = append(ss.violations[normalised], violations...)
+		ss.lastCheck[normalised] = now
+
+		// Keep the aggregated "all" view in sync when a targeted scan runs.
+		if len(violations) > 0 {
+			// Ensure we don't accidentally append duplicates when multiple targeted scans run.
+			rest := ss.violations["all"]
+			var filtered []StandardsViolation
+			for _, v := range rest {
+				if strings.TrimSpace(v.ScenarioName) == normalised {
+					continue
+				}
+				filtered = append(filtered, v)
+			}
+			ss.violations["all"] = append(filtered, append([]StandardsViolation(nil), violations...)...)
+			ss.lastCheck["all"] = now
+		} else {
+			// Remove any stale entries for this scenario from the aggregated list
+			var filtered []StandardsViolation
+			for _, v := range ss.violations["all"] {
+				if strings.TrimSpace(v.ScenarioName) == normalised {
+					continue
+				}
+				filtered = append(filtered, v)
+			}
+			ss.violations["all"] = filtered
+			if len(filtered) == 0 {
+				delete(ss.lastCheck, "all")
+			} else {
+				ss.lastCheck["all"] = now
+			}
+		}
+	}
+
 	// Save to file if persistence is enabled
 	if ss.filePath != "" {
 		if err := ss.saveToFile(); err != nil {
@@ -118,17 +183,27 @@ func (ss *StandardsStore) StoreViolations(scenarioName string, violations []Stan
 func (ss *StandardsStore) GetViolations(scenarioName string) []StandardsViolation {
 	ss.mu.RLock()
 	defer ss.mu.RUnlock()
-	
+
 	if scenarioName == "" || scenarioName == "all" {
-		// Return all violations
+		if aggregate, exists := ss.violations["all"]; exists {
+			return append([]StandardsViolation(nil), aggregate...)
+		}
+
 		var allViolations []StandardsViolation
-		for _, violations := range ss.violations {
+		for scenario, violations := range ss.violations {
+			if scenario == "all" {
+				continue
+			}
 			allViolations = append(allViolations, violations...)
 		}
 		return allViolations
 	}
-	
-	return ss.violations[scenarioName]
+
+	if violations, exists := ss.violations[scenarioName]; exists {
+		return append([]StandardsViolation(nil), violations...)
+	}
+
+	return nil
 }
 
 // GetAllViolations returns all stored violations
@@ -140,7 +215,7 @@ func (ss *StandardsStore) GetAllViolations() []StandardsViolation {
 func (ss *StandardsStore) GetLastCheckTime(scenarioName string) *time.Time {
 	ss.mu.RLock()
 	defer ss.mu.RUnlock()
-	
+
 	if t, exists := ss.lastCheck[scenarioName]; exists {
 		return &t
 	}
@@ -151,10 +226,10 @@ func (ss *StandardsStore) GetLastCheckTime(scenarioName string) *time.Time {
 func (ss *StandardsStore) ClearViolations(scenarioName string) {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
-	
+
 	delete(ss.violations, scenarioName)
 	delete(ss.lastCheck, scenarioName)
-	
+
 	// Save to file if persistence is enabled
 	if ss.filePath != "" {
 		if err := ss.saveToFile(); err != nil {
@@ -168,18 +243,18 @@ func (ss *StandardsStore) ClearViolations(scenarioName string) {
 func (ss *StandardsStore) GetStats() map[string]interface{} {
 	ss.mu.RLock()
 	defer ss.mu.RUnlock()
-	
+
 	stats := map[string]interface{}{
-		"total":    0,
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
+		"total":                     0,
+		"critical":                  0,
+		"high":                      0,
+		"medium":                    0,
+		"low":                       0,
 		"scenarios_with_violations": 0,
 	}
-	
+
 	scenariosWithViolations := make(map[string]bool)
-	
+
 	for scenario, violations := range ss.violations {
 		if len(violations) > 0 {
 			scenariosWithViolations[scenario] = true
@@ -198,7 +273,7 @@ func (ss *StandardsStore) GetStats() map[string]interface{} {
 			}
 		}
 	}
-	
+
 	stats["scenarios_with_violations"] = len(scenariosWithViolations)
 	return stats
 }
@@ -209,22 +284,22 @@ func (ss *StandardsStore) saveToFile() error {
 	if ss.filePath == "" {
 		return nil
 	}
-	
+
 	data := StandardsData{
 		Violations: ss.violations,
 		LastCheck:  ss.lastCheck,
 		LastUpdate: time.Now(),
 	}
-	
+
 	jsonData, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal standards data: %w", err)
 	}
-	
+
 	if err := os.WriteFile(ss.filePath, jsonData, 0644); err != nil {
 		return fmt.Errorf("failed to write standards data to %s: %w", ss.filePath, err)
 	}
-	
+
 	return nil
 }
 
@@ -234,7 +309,7 @@ func (ss *StandardsStore) loadFromFile() error {
 	if ss.filePath == "" {
 		return nil
 	}
-	
+
 	data, err := os.ReadFile(ss.filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -243,16 +318,16 @@ func (ss *StandardsStore) loadFromFile() error {
 		}
 		return fmt.Errorf("failed to read standards data from %s: %w", ss.filePath, err)
 	}
-	
+
 	var standardsData StandardsData
 	if err := json.Unmarshal(data, &standardsData); err != nil {
 		return fmt.Errorf("failed to unmarshal standards data from %s: %w", ss.filePath, err)
 	}
-	
+
 	// Load the data
 	ss.violations = standardsData.Violations
 	ss.lastCheck = standardsData.LastCheck
-	
+
 	// Initialize maps if they're nil
 	if ss.violations == nil {
 		ss.violations = make(map[string][]StandardsViolation)
@@ -260,6 +335,6 @@ func (ss *StandardsStore) loadFromFile() error {
 	if ss.lastCheck == nil {
 		ss.lastCheck = make(map[string]time.Time)
 	}
-	
+
 	return nil
 }

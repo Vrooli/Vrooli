@@ -378,7 +378,12 @@ export default function App() {
                       </div>
                       <ul className="max-h-64 divide-y divide-dark-100 overflow-auto">
                         {activeAgentsData.agents.map((agent: AgentInfo) => {
-                          const scenarioName = agent.metadata?.scenario || agent.scenario || agent.rule_id
+                          const metadataScenarios = typeof agent.metadata?.scenarios === 'string'
+                            ? agent.metadata.scenarios.split(',').map(item => item.trim()).filter(Boolean)
+                            : []
+                          const scenarioName = metadataScenarios.length > 0
+                            ? `${metadataScenarios.slice(0, 3).join(', ')}${metadataScenarios.length > 3 ? '…' : ''}`
+                            : agent.metadata?.scenario || agent.scenario || agent.rule_id
                           return (
                           <li key={agent.id} className="px-3 py-2 text-sm">
                             <div className="font-medium text-dark-800">{agent.label || agent.name}</div>
@@ -389,6 +394,16 @@ export default function App() {
                               </span>
                               <span>{formatDuration(agent.duration_seconds)}</span>
                             </div>
+                            {agent.status === 'failed' && (agent.error || agent.metadata?.failure_reason) && (
+                              <div className="mt-1 text-xs text-danger-600">
+                                Failure: {agent.error || agent.metadata?.failure_reason}
+                              </div>
+                            )}
+                            {agent.metadata?.log_path && (
+                              <div className="mt-1 text-[0.65rem] text-dark-400 break-all">
+                                Logs: {agent.metadata.log_path}
+                              </div>
+                            )}
                           </li>
                           )
                         })}

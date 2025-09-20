@@ -42,12 +42,13 @@ type standardsFixMultiScenario struct {
 }
 
 type standardsFixMultiPromptData struct {
-	Targets         []standardsFixMultiScenario
-	TotalViolations int
-	SeverityCounts  map[string]int
-	IssueIDs        []string
-	Instructions    string
-	Timestamp       string
+	Targets          []standardsFixMultiScenario
+	TotalViolations  int
+	SeverityCounts   map[string]int
+	IssueIDs         []string
+	Instructions     string
+	UserInstructions string
+	Timestamp        string
 }
 
 type vulnerabilityFixPromptData struct {
@@ -69,12 +70,13 @@ type vulnerabilityFixMultiScenario struct {
 }
 
 type vulnerabilityFixMultiPromptData struct {
-	Targets        []vulnerabilityFixMultiScenario
-	TotalFindings  int
-	SeverityCounts map[string]int
-	IssueIDs       []string
-	Instructions   string
-	Timestamp      string
+	Targets          []vulnerabilityFixMultiScenario
+	TotalFindings    int
+	SeverityCounts   map[string]int
+	IssueIDs         []string
+	Instructions     string
+	UserInstructions string
+	Timestamp        string
 }
 
 func loadFixInstructions() (string, error) {
@@ -174,7 +176,7 @@ func buildStandardsFixPrompt(scenarioName, scenarioPath string, violations []Sta
 	return buffer.String(), "Fix Standards Violations", metadata, nil
 }
 
-func buildMultiStandardsFixPrompt(targets []standardsFixMultiScenario) (string, string, map[string]string, error) {
+func buildMultiStandardsFixPrompt(targets []standardsFixMultiScenario, userInstructions string) (string, string, map[string]string, error) {
 	if len(targets) == 0 {
 		return "", "", nil, fmt.Errorf("no standards violations provided for prompt generation")
 	}
@@ -212,12 +214,13 @@ func buildMultiStandardsFixPrompt(targets []standardsFixMultiScenario) (string, 
 	sort.Strings(issueIDs)
 
 	data := standardsFixMultiPromptData{
-		Targets:         targets,
-		TotalViolations: total,
-		SeverityCounts:  severityCounts,
-		IssueIDs:        issueIDs,
-		Instructions:    instructions,
-		Timestamp:       time.Now().Format(time.RFC3339),
+		Targets:          targets,
+		TotalViolations:  total,
+		SeverityCounts:   severityCounts,
+		IssueIDs:         issueIDs,
+		Instructions:     instructions,
+		UserInstructions: strings.TrimSpace(userInstructions),
+		Timestamp:        time.Now().Format(time.RFC3339),
 	}
 
 	templatePath := filepath.Join(getScenarioRoot(), "prompts", "standards-fix-multi.tmpl")
@@ -343,7 +346,7 @@ func buildVulnerabilityFixPrompt(scenarioName, scenarioPath string, findings []S
 	return buffer.String(), "Fix Vulnerabilities", metadata, nil
 }
 
-func buildMultiVulnerabilityFixPrompt(targets []vulnerabilityFixMultiScenario) (string, string, map[string]string, error) {
+func buildMultiVulnerabilityFixPrompt(targets []vulnerabilityFixMultiScenario, userInstructions string) (string, string, map[string]string, error) {
 	if len(targets) == 0 {
 		return "", "", nil, fmt.Errorf("no vulnerabilities provided for prompt generation")
 	}
@@ -381,12 +384,13 @@ func buildMultiVulnerabilityFixPrompt(targets []vulnerabilityFixMultiScenario) (
 	sort.Strings(issueIDs)
 
 	data := vulnerabilityFixMultiPromptData{
-		Targets:        targets,
-		TotalFindings:  total,
-		SeverityCounts: severityCounts,
-		IssueIDs:       issueIDs,
-		Instructions:   instructions,
-		Timestamp:      time.Now().Format(time.RFC3339),
+		Targets:          targets,
+		TotalFindings:    total,
+		SeverityCounts:   severityCounts,
+		IssueIDs:         issueIDs,
+		Instructions:     instructions,
+		UserInstructions: strings.TrimSpace(userInstructions),
+		Timestamp:        time.Now().Format(time.RFC3339),
 	}
 
 	templatePath := filepath.Join(getScenarioRoot(), "prompts", "vulnerability-fix-multi.tmpl")

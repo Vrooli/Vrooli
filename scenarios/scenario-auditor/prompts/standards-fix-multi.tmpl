@@ -23,6 +23,10 @@ Bring every listed scenario back into compliance by resolving the supplied viola
 {{ end }}
 {{ end }}
 
+{{ if .UserInstructions }}## Additional Guidance
+{{ .UserInstructions }}
+
+{{ end }}
 ## Constraints
 1. Modify **only** the scenario directories listed above.
 2. Do not touch other scenarios, shared infrastructure, or templates.

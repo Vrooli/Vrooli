@@ -17,6 +17,7 @@ type claudeFixRequest struct {
 	FixType      string            `json:"fix_type"`
 	IssueIDs     []string          `json:"issue_ids"`
 	Targets      []claudeFixTarget `json:"targets"`
+	ExtraPrompt  string            `json:"extra_prompt"`
 }
 
 type claudeFixTarget struct {
@@ -39,6 +40,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	issueIDs := normaliseIDs(req.IssueIDs)
+	extraPrompt := strings.TrimSpace(req.ExtraPrompt)
 
 	var (
 		prompt            string
@@ -60,7 +62,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 				HTTPError(w, err.Error(), http.StatusBadRequest, nil)
 				return
 			}
-			prompt, label, metadata, err = buildMultiStandardsFixPrompt(multiTargets)
+			prompt, label, metadata, err = buildMultiStandardsFixPrompt(multiTargets, extraPrompt)
 			if err != nil {
 				HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
 				return
@@ -68,6 +70,9 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			metadata["fix_type"] = fixType
 			scenarioNames := extractStandardsScenarioNames(multiTargets)
 			metadata["scenarios"] = strings.Join(scenarioNames, ",")
+			if extraPrompt != "" {
+				metadata["user_instructions"] = extraPrompt
+			}
 			action = agentActionStandardsFix
 			agentCfg = AgentStartConfig{
 				Label:    label,
@@ -87,7 +92,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 				HTTPError(w, err.Error(), http.StatusBadRequest, nil)
 				return
 			}
-			prompt, label, metadata, err = buildMultiVulnerabilityFixPrompt(multiTargets)
+			prompt, label, metadata, err = buildMultiVulnerabilityFixPrompt(multiTargets, extraPrompt)
 			if err != nil {
 				HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
 				return
@@ -95,6 +100,9 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			metadata["fix_type"] = fixType
 			scenarioNames := extractVulnerabilityScenarioNames(multiTargets)
 			metadata["scenarios"] = strings.Join(scenarioNames, ",")
+			if extraPrompt != "" {
+				metadata["user_instructions"] = extraPrompt
+			}
 			action = agentActionVulnerabilityFix
 			agentCfg = AgentStartConfig{
 				Label:    label,
@@ -163,6 +171,10 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if err == nil && extraPrompt != "" {
+			prompt = appendUserInstructions(prompt, extraPrompt)
+		}
+
 		if err != nil {
 			HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
 			return
@@ -174,6 +186,9 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		metadata["scenario"] = scenarioName
 		metadata["scenario_path"] = scenarioPath
 		metadata["fix_type"] = fixType
+		if extraPrompt != "" {
+			metadata["user_instructions"] = extraPrompt
+		}
 
 		agentCfg = AgentStartConfig{
 			Label:    label,
@@ -202,6 +217,9 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		"started_at": agentInfo.StartedAt,
 		"agent":      agentInfo,
 		"scenarios":  responseScenarios,
+	}
+	if extraPrompt != "" {
+		response["user_instructions"] = extraPrompt
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -476,4 +494,17 @@ func sortedKeys(set map[string]struct{}) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func appendUserInstructions(basePrompt, extra string) string {
+	extra = strings.TrimSpace(extra)
+	if extra == "" {
+		return basePrompt
+	}
+	var builder strings.Builder
+	builder.WriteString(basePrompt)
+	builder.WriteString("\n\n## Additional Guidance\n")
+	builder.WriteString(extra)
+	builder.WriteString("\n")
+	return builder.String()
 }

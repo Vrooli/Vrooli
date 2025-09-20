@@ -58,6 +58,7 @@ export default function StandardsCompliance() {
   const [bulkFixSubmitting, setBulkFixSubmitting] = useState(false)
   const [bulkFixError, setBulkFixError] = useState<string | null>(null)
   const [bulkFixSuccess, setBulkFixSuccess] = useState<string | null>(null)
+  const [bulkFixNotes, setBulkFixNotes] = useState('')
   const prevAgentsRef = useRef<Map<string, string>>(new Map())
   const queryClient = useQueryClient()
   const { data: activeAgentsData } = useQuery({
@@ -71,9 +72,22 @@ export default function StandardsCompliance() {
     const agents = activeAgentsData?.agents ?? []
     for (const agent of agents as AgentInfo[]) {
       if (agent.action !== 'standards_fix') continue
+
+      const metadataScenarios = agent.metadata?.scenarios
+      if (typeof metadataScenarios === 'string' && metadataScenarios.trim().length > 0) {
+        metadataScenarios
+          .split(',')
+          .map(item => item.trim())
+          .filter(Boolean)
+          .forEach(scenarioName => {
+            map.set(scenarioName, agent)
+          })
+      }
+
       const scenarioId = agent.metadata?.scenario || agent.scenario || agent.rule_id
-      if (!scenarioId) continue
-      map.set(scenarioId, agent)
+      if (scenarioId) {
+        map.set(scenarioId, agent)
+      }
     }
     return map
   }, [activeAgentsData])
@@ -357,6 +371,7 @@ export default function StandardsCompliance() {
     setBulkFixCount(Math.max(1, Math.min(5, maxSelectable)))
     setBulkFixError(null)
     setBulkFixSuccess(null)
+    setBulkFixNotes('')
     setBulkFixOpen(true)
   }, [filteredViolations])
 
@@ -388,7 +403,7 @@ export default function StandardsCompliance() {
     }
 
     try {
-      const response = await apiService.triggerBulkFix('standards', targets)
+      const response = await apiService.triggerBulkFix('standards', targets, bulkFixNotes.trim() || undefined)
       if (!response.success) {
         setBulkFixError(response.error || response.message || 'Failed to start bulk standards fix agent')
       } else {
@@ -400,14 +415,20 @@ export default function StandardsCompliance() {
     } finally {
       setBulkFixSubmitting(false)
     }
-  }, [apiService, bulkSelection, bulkSelectionByScenario, queryClient])
+  }, [apiService, bulkSelection, bulkSelectionByScenario, bulkFixNotes, queryClient])
 
   const handleAgentCompletion = useCallback(async (agentId: string, scenario: string) => {
     try {
       const status = await apiService.getClaudeFixStatus(agentId)
       const agent = status.agent as AgentInfo | undefined
       const finalStatus = (status.status || agent?.status || 'completed').toLowerCase() === 'failed' ? 'failed' : 'completed'
-      const message = agent?.error || (finalStatus === 'failed' ? 'Fix failed - review agent logs' : 'Fix completed successfully')
+      const failureMessage = agent?.error || agent?.metadata?.failure_reason
+      const logPath = agent?.metadata?.log_path
+      const message = failureMessage
+        ? `${failureMessage}${logPath ? ` (logs: ${logPath})` : ''}`
+        : finalStatus === 'failed'
+          ? 'Fix failed - review agent logs'
+          : 'Fix completed successfully'
 
       setCompletedAgents(prev => {
         const updated = new Map(prev)
@@ -1133,6 +1154,21 @@ export default function StandardsCompliance() {
             {bulkSelection.length > 10 && (
               <p className="mt-2 text-xs text-dark-500">…and {bulkSelection.length - 10} more will be included.</p>
             )}
+          </div>
+
+          <div>
+            <label htmlFor="standards-bulk-notes" className="block text-sm font-medium text-dark-700">
+              Additional guidance (optional)
+            </label>
+            <textarea
+              id="standards-bulk-notes"
+              value={bulkFixNotes}
+              onChange={(event) => setBulkFixNotes(event.target.value)}
+              rows={3}
+              className="mt-2 w-full rounded-md border border-dark-300 bg-white p-2 text-sm text-dark-900 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              placeholder="Add extra instructions or context for the agent"
+              disabled={bulkFixSubmitting}
+            />
           </div>
 
           {bulkFixSuccess && (

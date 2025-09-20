@@ -122,6 +122,8 @@ scenario-auditor health
 - ✅ Binary naming conventions (`<scenario>-api`, `<scenario>`)
 - ✅ Health check configuration (API + UI endpoints)
 - ✅ Required step ordering and presence
+- ✅ Ports configuration enforces API_PORT 15000-19999 and UI_PORT 35000-39999 ranges
+- ✅ Lifecycle.health config enforces /health endpoints and http checks
 
 ### UI Testing Best Practices
 - ✅ Unique element IDs for reliable testing
