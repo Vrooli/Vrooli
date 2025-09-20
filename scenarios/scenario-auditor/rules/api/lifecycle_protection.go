@@ -28,7 +28,7 @@ func main() {
     if port == "" {
         port = "8080"
     }
-    
+
     fmt.Printf("Starting server on port %s\n", port)
     http.ListenAndServe(":"+port, nil)
 }
@@ -55,12 +55,12 @@ func main() {
         fmt.Fprintln(os.Stderr, "Use: vrooli scenario run <name>")
         os.Exit(1)
     }
-    
+
     port := os.Getenv("PORT")
     if port == "" {
         port = "8080"
     }
-    
+
     fmt.Printf("Starting server on port %s\n", port)
     http.ListenAndServe(":"+port, nil)
 }
@@ -84,7 +84,7 @@ func main() {
         fmt.Fprintln(os.Stderr, "Error: Must be run through Vrooli lifecycle system")
         os.Exit(1)
     }
-    
+
     startApplication()
 }
   </input>
@@ -94,23 +94,28 @@ func main() {
 // CheckLifecycleProtection validates that main functions include lifecycle protection
 func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 	contentStr := string(content)
-	
-	// Only check main.go files with main() function
-	if !strings.HasSuffix(filePath, "main.go") || !strings.Contains(contentStr, "func main()") {
-		return nil
+
+	// Only check Go entrypoints. During unit tests the runner feeds code snippets
+	// through synthetic filenames (e.g. test_<id>.go), so fall back to detecting
+	// package main + func main() when the real filename hint is absent.
+	hasMainFunc := strings.Contains(contentStr, "func main()")
+	if !(strings.HasSuffix(filePath, "main.go") && hasMainFunc) {
+		if !(strings.Contains(contentStr, "package main") && hasMainFunc) {
+			return nil
+		}
 	}
-	
+
 	// Check for lifecycle protection
 	hasLifecycleCheck := strings.Contains(contentStr, "VROOLI_LIFECYCLE_MANAGED") &&
 		(strings.Contains(contentStr, "os.Getenv(\"VROOLI_LIFECYCLE_MANAGED\")") ||
 			strings.Contains(contentStr, "os.LookupEnv(\"VROOLI_LIFECYCLE_MANAGED\")"))
-	
+
 	if !hasLifecycleCheck {
 		return &Violation{
 			Type:        "lifecycle_protection",
 			Severity:    "critical",
 			Title:       "Missing Lifecycle Protection",
-			Description: "main.go missing VROOLI_LIFECYCLE_MANAGED check",
+			Description: "Missing Lifecycle Protection",
 			FilePath:    filePath,
 			LineNumber:  findMainFunctionLine(contentStr),
 			CodeSnippet: extractCodeSnippet(contentStr, "func main()"),
@@ -122,7 +127,7 @@ func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 			Standard: "vrooli-lifecycle-v1",
 		}
 	}
-	
+
 	return nil
 }
 
@@ -142,7 +147,7 @@ func extractCodeSnippet(content, pattern string) string {
 	if idx == -1 {
 		return ""
 	}
-	
+
 	// Extract a few lines around the pattern
 	start := idx - 50
 	if start < 0 {
@@ -152,6 +157,6 @@ func extractCodeSnippet(content, pattern string) string {
 	if end > len(content) {
 		end = len(content)
 	}
-	
+
 	return content[start:end]
 }

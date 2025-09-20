@@ -207,6 +207,10 @@ export interface ScriptExecution {
   output?: string;
   error?: string;
   exit_code?: number;
+  stdout?: string;
+  stderr?: string;
+  timed_out?: boolean;
+  duration_seconds?: number;
 }
 
 // Report Types

@@ -58,7 +58,24 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   onToggleRule: (ruleId: string, enabled: boolean) => void 
 }) {
   const handleToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation()
     onToggleRule(rule.id, e.target.checked)
+  }
+
+  const handleActivate = () => {
+    onViewRule(rule.id)
+  }
+
+  const handleCardClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    handleActivate()
+  }
+
+  const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      handleActivate()
+    }
   }
 
   const testStatus: RuleTestStatus | undefined = status || rule?.test_status
@@ -83,7 +100,14 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow" data-testid={`rule-${rule.id}`}>
+    <div
+      className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-400"
+      data-testid={`rule-${rule.id}`}
+      role="button"
+      tabIndex={0}
+      onClick={handleCardClick}
+      onKeyDown={handleCardKeyDown}
+    >
       <div className="p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
@@ -110,14 +134,18 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
             )}
             <button 
               className="text-gray-400 hover:text-gray-600 transition-colors"
-              onClick={() => onViewRule(rule.id)}
+              onClick={(event) => {
+                event.stopPropagation()
+                onViewRule(rule.id)
+              }}
               title="View rule file"
+              type="button"
             >
               <Terminal className="h-5 w-5" />
             </button>
           </div>
         </div>
-        
+
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -141,7 +169,10 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
             </span>
           </div>
           <div className="flex items-center">
-            <label className="relative inline-flex items-center cursor-pointer">
+            <label
+              className="relative inline-flex items-center cursor-pointer"
+              onClick={(event) => event.stopPropagation()}
+            >
               <input
                 type="checkbox"
                 checked={rule.enabled}
@@ -241,6 +272,27 @@ export default function RulesManager() {
   }, [selectedRule])
 
   const ruleStatuses = (rulesData?.rule_statuses || {}) as Record<string, RuleTestStatus>
+  const currentRuleStatus = selectedRule ? ruleStatuses[selectedRule] : undefined
+  const allTestsPassing = useMemo(() => {
+    if (testResults) {
+      if (testResults.error) {
+        return false
+      }
+      if (typeof testResults.failed === 'number' && typeof testResults.total_tests === 'number' && testResults.total_tests > 0) {
+        return testResults.failed === 0
+      }
+      return false
+    }
+    if (currentRuleStatus) {
+      if (currentRuleStatus.error) {
+        return false
+      }
+      if (typeof currentRuleStatus.failed === 'number' && typeof currentRuleStatus.total === 'number' && currentRuleStatus.total > 0) {
+        return currentRuleStatus.failed === 0
+      }
+    }
+    return false
+  }, [testResults, currentRuleStatus])
   const categoryEntries = Object.keys(categories).length > 0
     ? Object.entries(categories)
     : [
@@ -902,14 +954,16 @@ export default function RulesManager() {
                           <Brain className="h-4 w-4 mr-2" />
                           Add Tests (AI)
                         </button>
-                        <button
-                          onClick={() => handleStartAgent('fix_rule_tests')}
-                          disabled={isLaunchingAgent || isAgentRunning || !selectedRule}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
-                        >
-                          <Brain className="h-4 w-4 mr-2" />
-                          Fix Tests (AI)
-                        </button>
+                        {!allTestsPassing && (
+                          <button
+                            onClick={() => handleStartAgent('fix_rule_tests')}
+                            disabled={isLaunchingAgent || isAgentRunning || !selectedRule}
+                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-amber-600 hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 disabled:opacity-50"
+                          >
+                            <Brain className="h-4 w-4 mr-2" />
+                            Fix Tests (AI)
+                          </button>
+                        )}
                       </div>
                     </div>
 

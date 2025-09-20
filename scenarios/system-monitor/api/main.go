@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -22,7 +24,7 @@ import (
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	
+
 	"system-monitor-api/internal/handlers"
 	"system-monitor-api/internal/services"
 )
@@ -71,27 +73,28 @@ type TriggerConfig struct {
 }
 
 type investigationScriptManifestEntry struct {
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	File         string `json:"file"`
-	Category     string `json:"category"`
-	Author       string `json:"author"`
-	Created      string `json:"created"`
-	LastModified string `json:"last_modified"`
-	SafetyLevel  string `json:"safety_level"`
-	Enabled      *bool  `json:"enabled,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
+	Name                  string   `json:"name"`
+	Description           string   `json:"description"`
+	File                  string   `json:"file"`
+	Category              string   `json:"category"`
+	Author                string   `json:"author"`
+	Created               string   `json:"created"`
+	LastModified          string   `json:"last_modified"`
+	SafetyLevel           string   `json:"safety_level"`
+	Enabled               *bool    `json:"enabled,omitempty"`
+	Tags                  []string `json:"tags,omitempty"`
+	ExecutionTimeEstimate string   `json:"execution_time_estimate,omitempty"`
 }
 
 type investigationScriptListItem struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
-	Author      string `json:"author"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
-	Enabled     bool   `json:"enabled"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Category    string   `json:"category"`
+	Author      string   `json:"author"`
+	CreatedAt   string   `json:"created_at"`
+	UpdatedAt   string   `json:"updated_at"`
+	Enabled     bool     `json:"enabled"`
 	Tags        []string `json:"tags,omitempty"`
 }
 
@@ -110,13 +113,13 @@ type TCPConnectionStates struct {
 }
 
 type ConnectionPoolInfo struct {
-	Name        string `json:"name"`
-	Active      int    `json:"active"`
-	Idle        int    `json:"idle"`
-	MaxSize     int    `json:"max_size"`
-	Waiting     int    `json:"waiting"`
-	Healthy     bool   `json:"healthy"`
-	LeakRisk    string `json:"leak_risk"`
+	Name     string `json:"name"`
+	Active   int    `json:"active"`
+	Idle     int    `json:"idle"`
+	MaxSize  int    `json:"max_size"`
+	Waiting  int    `json:"waiting"`
+	Healthy  bool   `json:"healthy"`
+	LeakRisk string `json:"leak_risk"`
 }
 
 type NetworkStats struct {
@@ -129,44 +132,44 @@ type NetworkStats struct {
 
 type SystemHealthDetails struct {
 	FileDescriptors struct {
-		Used     int `json:"used"`
-		Max      int `json:"max"`
-		Percent  float64 `json:"percent"`
+		Used    int     `json:"used"`
+		Max     int     `json:"max"`
+		Percent float64 `json:"percent"`
 	} `json:"file_descriptors"`
-	ServiceDependencies []ServiceHealth `json:"service_dependencies"`
+	ServiceDependencies []ServiceHealth   `json:"service_dependencies"`
 	Certificates        []CertificateInfo `json:"certificates"`
 }
 
 type ServiceHealth struct {
-	Name       string  `json:"name"`
-	Status     string  `json:"status"`
-	LatencyMs  float64 `json:"latency_ms"`
-	LastCheck  string  `json:"last_check"`
-	Endpoint   string  `json:"endpoint"`
+	Name      string  `json:"name"`
+	Status    string  `json:"status"`
+	LatencyMs float64 `json:"latency_ms"`
+	LastCheck string  `json:"last_check"`
+	Endpoint  string  `json:"endpoint"`
 }
 
 type CertificateInfo struct {
-	Domain      string `json:"domain"`
-	DaysToExpiry int   `json:"days_to_expiry"`
-	Status      string `json:"status"`
+	Domain       string `json:"domain"`
+	DaysToExpiry int    `json:"days_to_expiry"`
+	Status       string `json:"status"`
 }
 
 // Detailed metric responses for expandable cards
 type DetailedMetricsResponse struct {
 	CPUDetails struct {
-		Usage        float64       `json:"usage"`
-		TopProcesses []ProcessInfo `json:"top_processes"`
-		LoadAverage  []float64     `json:"load_average"`
-		ContextSwitches int64      `json:"context_switches"`
-		Goroutines   int           `json:"total_goroutines"`
+		Usage           float64       `json:"usage"`
+		TopProcesses    []ProcessInfo `json:"top_processes"`
+		LoadAverage     []float64     `json:"load_average"`
+		ContextSwitches int64         `json:"context_switches"`
+		Goroutines      int           `json:"total_goroutines"`
 	} `json:"cpu_details"`
 	MemoryDetails struct {
-		Usage        float64       `json:"usage"`
-		TopProcesses []ProcessInfo `json:"top_processes"`
+		Usage          float64       `json:"usage"`
+		TopProcesses   []ProcessInfo `json:"top_processes"`
 		GrowthPatterns []struct {
-			Process   string  `json:"process"`
+			Process         string  `json:"process"`
 			GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
-			RiskLevel string  `json:"risk_level"`
+			RiskLevel       string  `json:"risk_level"`
 		} `json:"growth_patterns"`
 		SwapUsage struct {
 			Used    int64   `json:"used"`
@@ -180,21 +183,21 @@ type DetailedMetricsResponse struct {
 		} `json:"disk_usage"`
 	} `json:"memory_details"`
 	NetworkDetails struct {
-		TCPStates      TCPConnectionStates   `json:"tcp_states"`
-		PortUsage      struct {
+		TCPStates TCPConnectionStates `json:"tcp_states"`
+		PortUsage struct {
 			Used  int `json:"used"`
 			Total int `json:"total"`
 		} `json:"port_usage"`
-		NetworkStats   NetworkStats          `json:"network_stats"`
+		NetworkStats    NetworkStats         `json:"network_stats"`
 		ConnectionPools []ConnectionPoolInfo `json:"connection_pools"`
 	} `json:"network_details"`
-	SystemDetails  SystemHealthDetails   `json:"system_details"`
-	Timestamp      string               `json:"timestamp"`
+	SystemDetails SystemHealthDetails `json:"system_details"`
+	Timestamp     string              `json:"timestamp"`
 }
 
 type ProcessMonitorResponse struct {
 	ProcessHealth struct {
-		TotalProcesses int           `json:"total_processes"`
+		TotalProcesses  int           `json:"total_processes"`
 		ZombieProcesses []ProcessInfo `json:"zombie_processes"`
 		HighThreadCount []ProcessInfo `json:"high_thread_count"`
 		LeakCandidates  []ProcessInfo `json:"leak_candidates"`
@@ -206,15 +209,15 @@ type ProcessMonitorResponse struct {
 type InfrastructureMonitorResponse struct {
 	DatabasePools   []ConnectionPoolInfo `json:"database_pools"`
 	HTTPClientPools []ConnectionPoolInfo `json:"http_client_pools"`
-	MessageQueues struct {
+	MessageQueues   struct {
 		RedisPubSub struct {
 			Subscribers int `json:"subscribers"`
 			Channels    int `json:"channels"`
 		} `json:"redis_pubsub"`
 		BackgroundJobs struct {
-			Pending   int `json:"pending"`
-			Active    int `json:"active"`
-			Failed    int `json:"failed"`
+			Pending int `json:"pending"`
+			Active  int `json:"active"`
+			Failed  int `json:"failed"`
 		} `json:"background_jobs"`
 	} `json:"message_queues"`
 	StorageIO struct {
@@ -223,7 +226,7 @@ type InfrastructureMonitorResponse struct {
 		ReadMBPerSec   float64 `json:"read_mb_per_sec"`
 		WriteMBPerSec  float64 `json:"write_mb_per_sec"`
 	} `json:"storage_io"`
-	Timestamp       string               `json:"timestamp"`
+	Timestamp string `json:"timestamp"`
 }
 
 type Investigation struct {
@@ -265,27 +268,27 @@ type GeneratedReport struct {
 	DateRange   string    `json:"date_range"`
 	Status      string    `json:"status"`
 	// Full report content
-	Content     *FullReportContent `json:"content,omitempty"`
+	Content *FullReportContent `json:"content,omitempty"`
 }
 
 // FullReportContent represents the detailed report data
 type FullReportContent struct {
 	ExecutiveSummary    ReportExecutiveSummary    `json:"executive_summary"`
 	PerformanceAnalysis ReportPerformanceAnalysis `json:"performance"`
-	Trends             []ReportTrend             `json:"trends"`
-	Recommendations    []string                  `json:"recommendations"`
-	Highlights         []string                  `json:"highlights"`
-	MetricsCount       int                       `json:"metrics_count"`
-	AlertsCount        int                       `json:"alerts_count"`
-	ActualDuration     string                    `json:"actual_duration"`
-	DateRangeDisplay   string                    `json:"date_range_display"`
+	Trends              []ReportTrend             `json:"trends"`
+	Recommendations     []string                  `json:"recommendations"`
+	Highlights          []string                  `json:"highlights"`
+	MetricsCount        int                       `json:"metrics_count"`
+	AlertsCount         int                       `json:"alerts_count"`
+	ActualDuration      string                    `json:"actual_duration"`
+	DateRangeDisplay    string                    `json:"date_range_display"`
 }
 
 type ReportExecutiveSummary struct {
-	OverallHealth     string   `json:"overall_health"`
-	KeyFindings       []string `json:"key_findings"`
-	TimeDescription   string   `json:"time_description"`
-	MetricsAnalyzed   int      `json:"metrics_analyzed"`
+	OverallHealth   string   `json:"overall_health"`
+	KeyFindings     []string `json:"key_findings"`
+	TimeDescription string   `json:"time_description"`
+	MetricsAnalyzed int      `json:"metrics_analyzed"`
 }
 
 type ReportPerformanceAnalysis struct {
@@ -316,12 +319,12 @@ var (
 	latestInvestigation *Investigation
 	investigations      = make(map[string]*Investigation)
 	investigationsMutex sync.RWMutex
-	
+
 	// Cooldown configuration
 	cooldownPeriodSeconds = 300 // Default 5 minutes
-	lastTriggerTime      time.Time
-	cooldownMutex        sync.RWMutex
-	
+	lastTriggerTime       time.Time
+	cooldownMutex         sync.RWMutex
+
 	// Trigger configurations
 	triggers = map[string]*TriggerConfig{
 		"high_cpu": {
@@ -380,24 +383,24 @@ var (
 			Condition:   "above",
 		},
 	}
-	triggersMutex sync.RWMutex
+	triggersMutex       sync.RWMutex
 	startTime           = time.Now()
 	monitoringProcessor *MonitoringProcessor
-	
+
 	// Settings management
-	settingsManager     *services.SettingsManager
-	settingsHandler     *handlers.SettingsHandler
-	monitoringService   *services.MonitoringService
-	
+	settingsManager   *services.SettingsManager
+	settingsHandler   *handlers.SettingsHandler
+	monitoringService *services.MonitoringService
+
 	// Error tracking for system output
-	errorLogs           []ErrorLog
-	errorLogsMutex      sync.RWMutex
-	unreadErrorCount    int
-	lastErrorReadTime   time.Time
-	
+	errorLogs         []ErrorLog
+	errorLogsMutex    sync.RWMutex
+	unreadErrorCount  int
+	lastErrorReadTime time.Time
+
 	// Generated reports storage
-	generatedReports    []GeneratedReport
-	reportsMutex        sync.RWMutex
+	generatedReports []GeneratedReport
+	reportsMutex     sync.RWMutex
 )
 
 type ReportRequest struct {
@@ -414,12 +417,12 @@ func loadTriggerConfig() error {
 		}
 		configPath = filepath.Join(homeDir, "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
 	}
-	
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
 	}
-	
+
 	var config struct {
 		Triggers []struct {
 			ID          string  `json:"id"`
@@ -433,15 +436,15 @@ func loadTriggerConfig() error {
 			Condition   string  `json:"condition"`
 		} `json:"triggers"`
 	}
-	
+
 	if err := json.Unmarshal(data, &config); err != nil {
 		return err
 	}
-	
+
 	// Update triggers map
 	triggersMutex.Lock()
 	defer triggersMutex.Unlock()
-	
+
 	for _, t := range config.Triggers {
 		triggers[t.ID] = &TriggerConfig{
 			ID:          t.ID,
@@ -455,7 +458,7 @@ func loadTriggerConfig() error {
 			Condition:   t.Condition,
 		}
 	}
-	
+
 	return nil
 }
 
@@ -469,7 +472,7 @@ func saveTriggerConfig() error {
 		}
 		configPath = filepath.Join(homeDir, "Vrooli/scenarios/system-monitor/initialization/configuration/investigation-triggers.json")
 	}
-	
+
 	// Copy trigger data while holding the lock
 	triggersCopy := make(map[string]*TriggerConfig)
 	triggersMutex.Lock()
@@ -487,7 +490,7 @@ func saveTriggerConfig() error {
 		}
 	}
 	triggersMutex.Unlock()
-	
+
 	// Now do file I/O without holding the lock
 	// Read existing config to preserve extra fields
 	existingData, err := os.ReadFile(configPath)
@@ -497,10 +500,10 @@ func saveTriggerConfig() error {
 	} else {
 		existingConfig = make(map[string]interface{})
 	}
-	
+
 	// Build triggers array
 	var triggerList []map[string]interface{}
-	
+
 	// First, preserve any existing triggers with their extra fields
 	if existingTriggers, ok := existingConfig["triggers"].([]interface{}); ok {
 		for _, et := range existingTriggers {
@@ -523,7 +526,7 @@ func saveTriggerConfig() error {
 			}
 		}
 	}
-	
+
 	// Add any new triggers that weren't in the file
 	for id, trigger := range triggersCopy {
 		found := false
@@ -547,21 +550,21 @@ func saveTriggerConfig() error {
 			})
 		}
 	}
-	
+
 	// Update the config
 	existingConfig["triggers"] = triggerList
-	
+
 	// Update metadata
 	if metadata, ok := existingConfig["metadata"].(map[string]interface{}); ok {
 		metadata["last_modified"] = time.Now().Format(time.RFC3339)
 	}
-	
+
 	// Marshal with indentation
 	data, err := json.MarshalIndent(existingConfig, "", "    ")
 	if err != nil {
 		return err
 	}
-	
+
 	// Write to file
 	return os.WriteFile(configPath, data, 0644)
 }
@@ -601,24 +604,24 @@ func main() {
 			for attempt := 0; attempt < maxRetries; attempt++ {
 				pingErr = db.Ping()
 				if pingErr == nil {
-					log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+					log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 					break
 				}
-				
+
 				// Calculate exponential backoff delay
 				delay := time.Duration(math.Min(
-					float64(baseDelay) * math.Pow(2, float64(attempt)),
+					float64(baseDelay)*math.Pow(2, float64(attempt)),
 					float64(maxDelay),
 				))
-				
+
 				// Add progressive jitter to prevent thundering herd
 				jitterRange := float64(delay) * 0.25
 				jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 				actualDelay := delay + jitter
-				
-				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+				log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 				log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-				
+
 				time.Sleep(actualDelay)
 			}
 
@@ -634,14 +637,14 @@ func main() {
 
 	// Initialize MonitoringProcessor
 	monitoringProcessor = NewMonitoringProcessor(db)
-	
+
 	// Initialize Settings Manager
 	settingsManager = services.NewSettingsManager()
 	settingsHandler = handlers.NewSettingsHandler(settingsManager)
-	
+
 	// Initialize Monitoring Service
 	monitoringService = services.NewMonitoringService(settingsManager)
-	
+
 	// Set up monitoring callbacks
 	monitoringService.SetThresholdChecker(func(ctx context.Context) error {
 		log.Println("🔍 Running threshold check...")
@@ -655,7 +658,7 @@ func main() {
 		log.Println("✅ Threshold check completed")
 		return nil
 	})
-	
+
 	monitoringService.SetAnomalyDetector(func(ctx context.Context) error {
 		log.Println("🔍 Running anomaly detection...")
 		// Use existing anomaly detection logic
@@ -674,7 +677,7 @@ func main() {
 		log.Println("✅ Anomaly detection completed")
 		return nil
 	})
-	
+
 	monitoringService.SetReportGenerator(func(ctx context.Context) error {
 		log.Println("📊 Generating system report...")
 		// Use existing report generation logic
@@ -691,7 +694,7 @@ func main() {
 		log.Println("✅ System report generated")
 		return nil
 	})
-	
+
 	// Set callback for when active status changes
 	settingsManager.SetActiveChangedCallback(func(active bool) {
 		if active {
@@ -700,12 +703,12 @@ func main() {
 			log.Println("🔴 System monitor deactivated - monitoring loops paused")
 		}
 	})
-	
+
 	// Start the monitoring service
 	if err := monitoringService.Start(); err != nil {
 		log.Printf("Failed to start monitoring service: %v", err)
 	}
-	
+
 	// Load trigger configuration from file
 	if err := loadTriggerConfig(); err != nil {
 		log.Printf("Failed to load trigger config, using defaults: %v", err)
@@ -734,6 +737,7 @@ func main() {
 	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/scripts", listInvestigationScriptsHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/scripts/{id}", getInvestigationScriptHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/scripts/{id}/execute", executeInvestigationScriptHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/agent/spawn", spawnAgentHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/agent/{id}/status", getAgentStatusHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/agent/current", getCurrentAgentHandler).Methods("GET")
@@ -761,7 +765,7 @@ func main() {
 
 	// Debug logs endpoint for UI troubleshooting
 	r.HandleFunc("/api/logs", getLogsHandler).Methods("GET")
-	
+
 	// Error logs endpoint for system output
 	r.HandleFunc("/api/errors", getErrorsHandler).Methods("GET")
 	r.HandleFunc("/api/errors/mark-read", markErrorsReadHandler).Methods("POST")
@@ -771,7 +775,7 @@ func main() {
 
 	// Enable CORS
 	r.Use(corsMiddleware)
-	
+
 	// Enable comprehensive request/response logging
 	r.Use(loggingMiddleware)
 
@@ -784,33 +788,33 @@ func main() {
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		
+
 		// Log incoming request
 		reqMsg := fmt.Sprintf(">>> INCOMING REQUEST: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 		log.Printf(reqMsg)
 		addLogEntry("INFO", reqMsg, "http-server")
-		
+
 		headerMsg := fmt.Sprintf("    Headers: %+v", r.Header)
 		log.Printf(headerMsg)
 		addLogEntry("DEBUG", headerMsg, "http-server")
-		
+
 		userAgentMsg := fmt.Sprintf("    User-Agent: %s", r.UserAgent())
 		log.Printf(userAgentMsg)
 		addLogEntry("DEBUG", userAgentMsg, "http-server")
-		
+
 		// Create a response writer that captures status and size
 		rw := &responseWriter{ResponseWriter: w, statusCode: 200}
-		
+
 		// Call the next handler
 		next.ServeHTTP(rw, r)
-		
+
 		// Log response
 		duration := time.Since(start)
-		respMsg := fmt.Sprintf("<<< RESPONSE: %s %s - Status: %d - Duration: %v", 
+		respMsg := fmt.Sprintf("<<< RESPONSE: %s %s - Status: %d - Duration: %v",
 			r.Method, r.URL.Path, rw.statusCode, duration)
 		log.Printf(respMsg)
 		addLogEntry("INFO", respMsg, "http-server")
-		
+
 		// Log any errors
 		if rw.statusCode >= 400 {
 			errorMsg := fmt.Sprintf("!!! ERROR RESPONSE: %s %s returned %d", r.Method, r.URL.Path, rw.statusCode)
@@ -849,55 +853,55 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Perform health checks
 	checks := make(map[string]interface{})
 	overallStatus := "healthy"
-	
+
 	// Check metrics collection capability
 	cpuUsage := getCPUUsage()
 	memUsage := getMemoryUsage()
-	
+
 	if cpuUsage >= 0 && memUsage >= 0 {
 		checks["metrics_collection"] = map[string]interface{}{
-			"status": "healthy",
+			"status":  "healthy",
 			"message": fmt.Sprintf("Collecting metrics - CPU: %.1f%%, Memory: %.1f%%", cpuUsage, memUsage),
 		}
 	} else {
 		checks["metrics_collection"] = map[string]interface{}{
-			"status": "degraded",
+			"status":  "degraded",
 			"message": "Unable to collect some metrics",
 		}
 		overallStatus = "degraded"
 	}
-	
+
 	// Check investigation system
 	investigationsMutex.RLock()
 	investigationCount := len(investigations)
 	investigationsMutex.RUnlock()
-	
+
 	checks["investigation_system"] = map[string]interface{}{
-		"status": "healthy",
+		"status":  "healthy",
 		"message": fmt.Sprintf("Investigation system operational - %d investigations tracked", investigationCount),
 	}
-	
+
 	// Check filesystem access (for logs/reports)
 	if _, err := os.Stat("/tmp"); err == nil {
 		checks["filesystem"] = map[string]interface{}{
-			"status": "healthy",
+			"status":  "healthy",
 			"message": "Filesystem accessible",
 		}
 	} else {
 		checks["filesystem"] = map[string]interface{}{
 			"status": "unhealthy",
-			"error": "Cannot access filesystem",
+			"error":  "Cannot access filesystem",
 		}
 		overallStatus = "unhealthy"
 	}
-	
+
 	// Calculate uptime
 	uptime := time.Since(startTime).Seconds()
-	
+
 	// Get processor status
 	processorActive := settingsManager.IsActive()
 	maintenanceState := settingsManager.GetMaintenanceState()
-	
+
 	response := HealthResponse{
 		Status:           overallStatus,
 		Service:          "system-monitor",
@@ -908,7 +912,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		ProcessorActive:  processorActive,
 		MaintenanceState: maintenanceState,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -954,7 +958,7 @@ func generateReportHandler(w http.ResponseWriter, r *http.Request) {
 	// Mock report generation
 	reportID := "report_" + strconv.FormatInt(time.Now().Unix(), 10)
 	now := time.Now()
-	
+
 	// Store the generated report
 	reportsMutex.Lock()
 	generatedReport := GeneratedReport{
@@ -965,13 +969,13 @@ func generateReportHandler(w http.ResponseWriter, r *http.Request) {
 		Status:      "success",
 	}
 	generatedReports = append(generatedReports, generatedReport)
-	
+
 	// Keep only last 100 reports
 	if len(generatedReports) > 100 {
 		generatedReports = generatedReports[len(generatedReports)-100:]
 	}
 	reportsMutex.Unlock()
-	
+
 	response := map[string]interface{}{
 		"status":       "success",
 		"report_id":    reportID,
@@ -987,7 +991,7 @@ func generateReportHandler(w http.ResponseWriter, r *http.Request) {
 func logError(level, message, source, details string) {
 	errorLogsMutex.Lock()
 	defer errorLogsMutex.Unlock()
-	
+
 	errorLog := ErrorLog{
 		ID:        fmt.Sprintf("err_%d", time.Now().UnixNano()),
 		Timestamp: time.Now(),
@@ -997,15 +1001,15 @@ func logError(level, message, source, details string) {
 		Details:   details,
 		Unread:    true,
 	}
-	
+
 	errorLogs = append(errorLogs, errorLog)
 	unreadErrorCount++
-	
+
 	// Keep only last 1000 errors
 	if len(errorLogs) > 1000 {
 		errorLogs = errorLogs[len(errorLogs)-1000:]
 	}
-	
+
 	// Also log to stdout for debugging
 	log.Printf("[%s] %s: %s (source: %s)", level, message, details, source)
 }
@@ -1013,16 +1017,16 @@ func logError(level, message, source, details string) {
 func getReportHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	reportID := vars["id"]
-	
+
 	if reportID == "" {
 		logError("error", "Report ID is required", "getReportHandler", "Missing report ID in URL")
 		http.Error(w, "Report ID is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	reportsMutex.RLock()
 	defer reportsMutex.RUnlock()
-	
+
 	// Find the report by ID
 	var foundReport *GeneratedReport
 	for i, report := range generatedReports {
@@ -1031,19 +1035,19 @@ func getReportHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	
+
 	if foundReport == nil {
 		logError("warning", "Report not found", "getReportHandler", fmt.Sprintf("Report ID: %s", reportID))
 		http.Error(w, "Report not found", http.StatusNotFound)
 		return
 	}
-	
+
 	// If report doesn't have content, generate it now
 	if foundReport.Content == nil {
 		content := generateReportContent(foundReport.ReportType)
 		foundReport.Content = content
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(foundReport); err != nil {
 		logError("error", "Failed to encode report response", "getReportHandler", err.Error())
@@ -1053,7 +1057,7 @@ func getReportHandler(w http.ResponseWriter, r *http.Request) {
 func listReportsHandler(w http.ResponseWriter, r *http.Request) {
 	reportsMutex.RLock()
 	defer reportsMutex.RUnlock()
-	
+
 	// Return the list of generated reports (without full content)
 	reports := make([]GeneratedReport, len(generatedReports))
 	for i, report := range generatedReports {
@@ -1066,12 +1070,12 @@ func listReportsHandler(w http.ResponseWriter, r *http.Request) {
 			// Don't include content in list view for performance
 		}
 	}
-	
+
 	response := map[string]interface{}{
 		"reports": reports,
 		"count":   len(reports),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		logError("error", "Failed to encode reports response", "listReportsHandler", err.Error())
@@ -1081,26 +1085,26 @@ func listReportsHandler(w http.ResponseWriter, r *http.Request) {
 // generateReportContent creates realistic report content
 func generateReportContent(reportType string) *FullReportContent {
 	now := time.Now()
-	
+
 	// Get current metrics for realistic data
 	cpuUsage := getCPUUsage()
 	memoryUsage := getMemoryUsage()
 	tcpConnections := getTCPConnections()
-	
+
 	// Generate realistic historical data points
 	baseTime := now.Add(-24 * time.Hour)
 	if reportType == "weekly" {
 		baseTime = now.Add(-7 * 24 * time.Hour)
 	}
-	
+
 	// Simulate metrics with some variation
 	cpuMin := cpuUsage * 0.3
 	cpuMax := cpuUsage * 1.8
 	memMin := memoryUsage * 0.8
 	memMax := memoryUsage * 1.2
-	
+
 	executiveSummary := ReportExecutiveSummary{
-		OverallHealth:   "healthy",
+		OverallHealth: "healthy",
 		KeyFindings: []string{
 			fmt.Sprintf("Average CPU usage: %.1f%%", cpuUsage),
 			fmt.Sprintf("Average memory usage: %.1f%%", memoryUsage),
@@ -1110,12 +1114,12 @@ func generateReportContent(reportType string) *FullReportContent {
 		TimeDescription: "24 hours",
 		MetricsAnalyzed: 288, // 24 hours * 12 (5-min intervals)
 	}
-	
+
 	if reportType == "weekly" {
 		executiveSummary.TimeDescription = "7 days"
 		executiveSummary.MetricsAnalyzed = 2016 // 7 days * 288
 	}
-	
+
 	performanceAnalysis := ReportPerformanceAnalysis{
 		CPU: ReportMetricStats{
 			Average:   cpuUsage,
@@ -1139,7 +1143,7 @@ func generateReportContent(reportType string) *FullReportContent {
 			baseTime.Format("2006-01-02 15:04"),
 			now.Format("2006-01-02 15:04")),
 	}
-	
+
 	// Determine health status
 	if cpuUsage > 80 || memoryUsage > 85 {
 		executiveSummary.OverallHealth = "warning"
@@ -1147,7 +1151,7 @@ func generateReportContent(reportType string) *FullReportContent {
 	if cpuUsage > 95 || memoryUsage > 95 {
 		executiveSummary.OverallHealth = "critical"
 	}
-	
+
 	// Generate trends
 	trends := []ReportTrend{}
 	if cpuUsage > 15 {
@@ -1158,7 +1162,7 @@ func generateReportContent(reportType string) *FullReportContent {
 			ChangePercent: 1.5,
 		})
 	}
-	
+
 	// Generate recommendations
 	recommendations := []string{"System performance appears normal - continue regular monitoring"}
 	if cpuUsage > 80 {
@@ -1167,7 +1171,7 @@ func generateReportContent(reportType string) *FullReportContent {
 	if memoryUsage > 85 {
 		recommendations = append(recommendations, "Monitor memory usage closely and consider increasing available memory")
 	}
-	
+
 	// Generate highlights
 	highlights := []string{
 		fmt.Sprintf("Analyzed %d metric data points over %s", executiveSummary.MetricsAnalyzed, executiveSummary.TimeDescription),
@@ -1178,23 +1182,23 @@ func generateReportContent(reportType string) *FullReportContent {
 	if memMax > 90 {
 		highlights = append(highlights, fmt.Sprintf("Peak memory usage: %.1f%% at %s", memMax, performanceAnalysis.Memory.PeakTime.Format("Jan 02 15:04")))
 	}
-	
+
 	duration := now.Sub(baseTime)
 	actualDuration := formatDuration(duration)
 	dateRangeDisplay := fmt.Sprintf("%s to %s",
 		baseTime.Format("January 2, 2006 3:04 PM MST"),
 		now.Format("January 2, 2006 3:04 PM MST"))
-	
+
 	return &FullReportContent{
 		ExecutiveSummary:    executiveSummary,
 		PerformanceAnalysis: performanceAnalysis,
-		Trends:             trends,
-		Recommendations:    recommendations,
-		Highlights:         highlights,
-		MetricsCount:       executiveSummary.MetricsAnalyzed,
-		AlertsCount:        0,
-		ActualDuration:     actualDuration,
-		DateRangeDisplay:   dateRangeDisplay,
+		Trends:              trends,
+		Recommendations:     recommendations,
+		Highlights:          highlights,
+		MetricsCount:        executiveSummary.MetricsAnalyzed,
+		AlertsCount:         0,
+		ActualDuration:      actualDuration,
+		DateRangeDisplay:    dateRangeDisplay,
 	}
 }
 
@@ -1288,30 +1292,30 @@ func getTCPConnections() int {
 // Get detailed TCP connection states
 func getTCPConnectionStates() TCPConnectionStates {
 	states := TCPConnectionStates{}
-	
+
 	// Parse netstat output for connection states
 	cmd := exec.Command("bash", "-c", "netstat -tn 2>/dev/null | awk 'NR>2 {print $6}' | sort | uniq -c")
 	output, err := cmd.Output()
 	if err != nil {
 		return states
 	}
-	
+
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		parts := strings.Fields(line)
 		if len(parts) != 2 {
 			continue
 		}
-		
+
 		count, err := strconv.Atoi(parts[0])
 		if err != nil {
 			continue
 		}
-		
+
 		state := strings.ToUpper(parts[1])
 		switch state {
 		case "ESTABLISHED":
@@ -1335,109 +1339,109 @@ func getTCPConnectionStates() TCPConnectionStates {
 		case "LISTEN":
 			states.Listen = count
 		}
-		
+
 		states.Total += count
 	}
-	
+
 	return states
 }
 
 // Get top processes by CPU usage
 func getTopProcessesByCPU(limit int) []ProcessInfo {
 	var processes []ProcessInfo
-	
+
 	// Use ps to get process info sorted by CPU
-	cmd := exec.Command("bash", "-c", 
+	cmd := exec.Command("bash", "-c",
 		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,nlwp --sort=-%%cpu --no-headers | head -%d", limit))
 	output, err := cmd.Output()
 	if err != nil {
 		return processes
 	}
-	
+
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		fields := strings.Fields(line)
 		if len(fields) < 5 {
 			continue
 		}
-		
+
 		pid, _ := strconv.Atoi(fields[0])
 		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
 		memoryPercent, _ := strconv.ParseFloat(fields[3], 64)
 		threads, _ := strconv.Atoi(fields[4])
-		
+
 		// Get memory in MB (rough calculation)
 		memoryMB := memoryPercent * getSystemMemoryGB() * 1024 / 100
-		
+
 		// Get file descriptors for this process
 		fdCount := getProcessFileDescriptors(pid)
-		
+
 		processes = append(processes, ProcessInfo{
-			PID:         pid,
-			Name:        fields[1],
-			CPUPercent:  cpuPercent,
-			MemoryMB:    memoryMB,
-			Threads:     threads,
-			FDs:         fdCount,
-			Status:      "running",
-			Goroutines:  getProcessGoroutines(fields[1], pid),
+			PID:        pid,
+			Name:       fields[1],
+			CPUPercent: cpuPercent,
+			MemoryMB:   memoryMB,
+			Threads:    threads,
+			FDs:        fdCount,
+			Status:     "running",
+			Goroutines: getProcessGoroutines(fields[1], pid),
 		})
 	}
-	
+
 	return processes
 }
 
 // Get top processes by memory usage
 func getTopProcessesByMemory(limit int) []ProcessInfo {
 	var processes []ProcessInfo
-	
+
 	// Use ps to get process info sorted by memory
-	cmd := exec.Command("bash", "-c", 
+	cmd := exec.Command("bash", "-c",
 		fmt.Sprintf("ps -eo pid,comm,%%cpu,%%mem,nlwp,rss --sort=-%%mem --no-headers | head -%d", limit))
 	output, err := cmd.Output()
 	if err != nil {
 		return processes
 	}
-	
+
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		fields := strings.Fields(line)
 		if len(fields) < 6 {
 			continue
 		}
-		
+
 		pid, _ := strconv.Atoi(fields[0])
 		cpuPercent, _ := strconv.ParseFloat(fields[2], 64)
 		_ = fields[3] // ignore memory percent, we use RSS instead
 		threads, _ := strconv.Atoi(fields[4])
 		rssKB, _ := strconv.ParseFloat(fields[5], 64)
-		
+
 		// Convert RSS from KB to MB
 		memoryMB := rssKB / 1024
-		
+
 		// Get file descriptors for this process
 		fdCount := getProcessFileDescriptors(pid)
-		
+
 		processes = append(processes, ProcessInfo{
-			PID:         pid,
-			Name:        fields[1],
-			CPUPercent:  cpuPercent,
-			MemoryMB:    memoryMB,
-			Threads:     threads,
-			FDs:         fdCount,
-			Status:      "running",
-			Goroutines:  getProcessGoroutines(fields[1], pid),
+			PID:        pid,
+			Name:       fields[1],
+			CPUPercent: cpuPercent,
+			MemoryMB:   memoryMB,
+			Threads:    threads,
+			FDs:        fdCount,
+			Status:     "running",
+			Goroutines: getProcessGoroutines(fields[1], pid),
 		})
 	}
-	
+
 	return processes
 }
 
@@ -1448,7 +1452,7 @@ func getSystemMemoryGB() float64 {
 	if err != nil {
 		return 8.0 // fallback
 	}
-	
+
 	memGB, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
 	if err != nil {
 		return 8.0
@@ -1471,7 +1475,7 @@ func getProcessGoroutines(processName string, pid int) int {
 	if !strings.Contains(processName, "api") && !strings.Contains(processName, "go") {
 		return 0
 	}
-	
+
 	// Try to get goroutine count from pprof endpoint (if available)
 	// This is a mock implementation - in real world you'd query the actual pprof endpoint
 	return 0
@@ -1483,16 +1487,16 @@ func getLoadAverage() []float64 {
 	if err != nil {
 		return []float64{0.0, 0.0, 0.0}
 	}
-	
+
 	fields := strings.Fields(strings.TrimSpace(string(output)))
 	if len(fields) < 3 {
 		return []float64{0.0, 0.0, 0.0}
 	}
-	
+
 	load1, _ := strconv.ParseFloat(fields[0], 64)
 	load5, _ := strconv.ParseFloat(fields[1], 64)
 	load15, _ := strconv.ParseFloat(fields[2], 64)
-	
+
 	return []float64{load1, load5, load15}
 }
 
@@ -1502,7 +1506,7 @@ func getContextSwitches() int64 {
 	if err != nil {
 		return 0
 	}
-	
+
 	ctxt, _ := strconv.ParseInt(strings.TrimSpace(string(output)), 10, 64)
 	return ctxt
 }
@@ -1534,10 +1538,10 @@ func NewRateLimiter(limit int, window time.Duration) *RateLimiter {
 func (rl *RateLimiter) Allow(key string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
-	
+
 	now := time.Now()
 	windowStart := now.Add(-rl.window)
-	
+
 	// Clean old requests
 	var validRequests []time.Time
 	for _, t := range rl.requests[key] {
@@ -1545,13 +1549,13 @@ func (rl *RateLimiter) Allow(key string) bool {
 			validRequests = append(validRequests, t)
 		}
 	}
-	
+
 	// Check if under limit
 	if len(validRequests) >= rl.limit {
 		rl.requests[key] = validRequests
 		return false
 	}
-	
+
 	// Add new request
 	validRequests = append(validRequests, now)
 	rl.requests[key] = validRequests
@@ -1585,21 +1589,21 @@ func getSystemFileDescriptors() (int, int) {
 			used, _ = strconv.Atoi(parts[0])
 		}
 	}
-	
+
 	// Get max FD limit
 	data2, err2 := os.ReadFile("/proc/sys/fs/file-max")
 	max := 65536 // fallback
 	if err2 == nil {
 		max, _ = strconv.Atoi(strings.TrimSpace(string(data2)))
 	}
-	
+
 	// Update cache
 	fdCacheMutex.Lock()
 	fdCacheUsed = used
 	fdCacheMax = max
 	fdCacheTime = time.Now()
 	fdCacheMutex.Unlock()
-	
+
 	return used, max
 }
 
@@ -1612,11 +1616,11 @@ func spawnAgentHandler(w http.ResponseWriter, r *http.Request) {
 func getAgentStatusHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
-	
+
 	investigationsMutex.RLock()
 	investigation, exists := investigations[id]
 	investigationsMutex.RUnlock()
-	
+
 	if !exists {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -1625,7 +1629,7 @@ func getAgentStatusHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"id":       investigation.ID,
@@ -1638,7 +1642,7 @@ func getAgentStatusHandler(w http.ResponseWriter, r *http.Request) {
 func getCurrentAgentHandler(w http.ResponseWriter, r *http.Request) {
 	investigationsMutex.RLock()
 	var currentAgent *Investigation
-	
+
 	// Find the most recent running investigation
 	for _, inv := range investigations {
 		if inv.Status == "in_progress" || inv.Status == "queued" {
@@ -1648,14 +1652,14 @@ func getCurrentAgentHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	investigationsMutex.RUnlock()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if currentAgent != nil {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent": map[string]interface{}{
-				"id":       currentAgent.ID,
-				"status":   currentAgent.Status,
-				"progress": currentAgent.Progress,
+				"id":        currentAgent.ID,
+				"status":    currentAgent.Status,
+				"progress":  currentAgent.Progress,
 				"startTime": currentAgent.StartTime.Format(time.RFC3339),
 			},
 		})
@@ -1697,7 +1701,7 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 	if !reqBody.AutoFix {
 		investigation.Details["operation_mode"] = "report-only"
 	}
-	
+
 	// Store optional user note if provided
 	if reqBody.Note != "" {
 		investigation.Details["user_note"] = reqBody.Note
@@ -1728,10 +1732,10 @@ func triggerInvestigationHandler(w http.ResponseWriter, r *http.Request) {
 func getCooldownStatusHandler(w http.ResponseWriter, r *http.Request) {
 	cooldownMutex.RLock()
 	defer cooldownMutex.RUnlock()
-	
+
 	remainingSeconds := 0
 	isReady := true
-	
+
 	if !lastTriggerTime.IsZero() {
 		elapsed := time.Since(lastTriggerTime)
 		cooldownDuration := time.Duration(cooldownPeriodSeconds) * time.Second
@@ -1740,14 +1744,14 @@ func getCooldownStatusHandler(w http.ResponseWriter, r *http.Request) {
 			isReady = false
 		}
 	}
-	
+
 	response := map[string]interface{}{
 		"cooldown_period_seconds": cooldownPeriodSeconds,
 		"remaining_seconds":       remainingSeconds,
 		"last_trigger_time":       lastTriggerTime,
 		"is_ready":                isReady,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1756,9 +1760,9 @@ func getCooldownStatusHandler(w http.ResponseWriter, r *http.Request) {
 func resetCooldownHandler(w http.ResponseWriter, r *http.Request) {
 	cooldownMutex.Lock()
 	defer cooldownMutex.Unlock()
-	
+
 	lastTriggerTime = time.Time{} // Reset to zero time
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "cooldown_reset"})
 }
@@ -1768,18 +1772,18 @@ func updateCooldownPeriodHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CooldownPeriodSeconds int `json:"cooldown_period_seconds"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	cooldownMutex.Lock()
 	cooldownPeriodSeconds = req.CooldownPeriodSeconds
 	cooldownMutex.Unlock()
-	
+
 	// TODO: Save to configuration file if needed
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
@@ -1788,7 +1792,7 @@ func updateCooldownPeriodHandler(w http.ResponseWriter, r *http.Request) {
 func getTriggersHandler(w http.ResponseWriter, r *http.Request) {
 	triggersMutex.RLock()
 	defer triggersMutex.RUnlock()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(triggers)
 }
@@ -1797,18 +1801,18 @@ func getTriggersHandler(w http.ResponseWriter, r *http.Request) {
 func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	triggerID := vars["id"]
-	
+
 	var req struct {
 		Enabled   *bool    `json:"enabled,omitempty"`
 		AutoFix   *bool    `json:"auto_fix,omitempty"`
 		Threshold *float64 `json:"threshold,omitempty"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	// Update trigger with lock
 	triggersMutex.Lock()
 	trigger, exists := triggers[triggerID]
@@ -1817,7 +1821,7 @@ func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Trigger not found", http.StatusNotFound)
 		return
 	}
-	
+
 	if req.Enabled != nil {
 		trigger.Enabled = *req.Enabled
 	}
@@ -1827,14 +1831,14 @@ func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
 	if req.Threshold != nil {
 		trigger.Threshold = *req.Threshold
 	}
-	triggersMutex.Unlock()  // Release lock before file I/O
-	
+	triggersMutex.Unlock() // Release lock before file I/O
+
 	// Save to configuration file (without holding lock)
 	if err := saveTriggerConfig(); err != nil {
 		log.Printf("Failed to save trigger config: %v", err)
 		// Continue anyway - in-memory update succeeded
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
@@ -1843,29 +1847,29 @@ func updateTriggerHandler(w http.ResponseWriter, r *http.Request) {
 func updateTriggerThresholdHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	triggerID := vars["id"]
-	
+
 	var req struct {
 		Threshold float64 `json:"threshold"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
+
 	triggersMutex.Lock()
 	defer triggersMutex.Unlock()
-	
+
 	trigger, exists := triggers[triggerID]
 	if !exists {
 		http.Error(w, "Trigger not found", http.StatusNotFound)
 		return
 	}
-	
+
 	trigger.Threshold = req.Threshold
-	
+
 	// TODO: Save to configuration file if needed
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 }
@@ -1884,13 +1888,13 @@ func runClaudeInvestigation(investigationID string, autoFix bool, userNote strin
 	// Try Claude Code first, but have a good fallback
 	var findings string
 	var details map[string]interface{}
-	
+
 	// Determine operation mode
 	operationMode := "report-only"
 	if autoFix {
 		operationMode = "auto-fix"
 	}
-	
+
 	// Load investigation prompt with system context and script capabilities
 	prompt, err := loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage, tcpConnections, timestamp, investigationID, operationMode, userNote)
 	if err != nil {
@@ -1999,36 +2003,36 @@ Please begin your systematic investigation now, utilizing the investigation scri
 
 				// Read output
 				output, err = io.ReadAll(stdoutPipe)
-				
+
 				// Wait for command to complete
 				waitErr := cmd.Wait()
-				
+
 				// Check if Claude Code actually worked
 				claudeWorked = err == nil && waitErr == nil && !strings.Contains(string(output), "USAGE:") && !strings.Contains(string(output), "Failed to load library")
-				
+
 				if !claudeWorked {
 					log.Printf("Claude Code execution failed - err: %v, waitErr: %v, output preview: %.500s", err, waitErr, string(output))
 				}
 			}
 		}
 	}
-	
+
 	if claudeWorked {
 		findings = string(output)
 		details = map[string]interface{}{
-			"source": "claude_code",
+			"source":     "claude_code",
 			"risk_level": "low",
 		}
 	} else {
 		// Fallback: Perform basic system analysis
 		log.Printf("Claude Code unavailable, using fallback investigation")
 		updateInvestigationField(investigationID, "Progress", 25)
-		
+
 		// Analyze system metrics
 		riskLevel := "low"
 		anomalies := []string{}
 		recommendations := []string{}
-		
+
 		if cpuUsage > 80 {
 			riskLevel = "high"
 			anomalies = append(anomalies, fmt.Sprintf("High CPU usage: %.2f%%", cpuUsage))
@@ -2037,9 +2041,9 @@ Please begin your systematic investigation now, utilizing the investigation scri
 			riskLevel = "medium"
 			anomalies = append(anomalies, fmt.Sprintf("Elevated CPU usage: %.2f%%", cpuUsage))
 		}
-		
+
 		updateInvestigationField(investigationID, "Progress", 50)
-		
+
 		if memoryUsage > 90 {
 			if riskLevel == "low" {
 				riskLevel = "high"
@@ -2052,9 +2056,9 @@ Please begin your systematic investigation now, utilizing the investigation scri
 			}
 			anomalies = append(anomalies, fmt.Sprintf("High memory usage: %.2f%%", memoryUsage))
 		}
-		
+
 		updateInvestigationField(investigationID, "Progress", 75)
-		
+
 		if tcpConnections > 500 {
 			if riskLevel == "low" {
 				riskLevel = "medium"
@@ -2062,7 +2066,7 @@ Please begin your systematic investigation now, utilizing the investigation scri
 			anomalies = append(anomalies, fmt.Sprintf("High number of TCP connections: %d", tcpConnections))
 			recommendations = append(recommendations, "Review network connections with 'netstat -tuln'")
 		}
-		
+
 		// Build findings report
 		findings = fmt.Sprintf(`### Investigation Summary
 
@@ -2133,16 +2137,16 @@ System metrics are %s. %s`,
 				return "No immediate action required."
 			}(),
 		)
-		
+
 		details = map[string]interface{}{
-			"source":               "fallback_analysis",
-			"risk_level":          riskLevel,
-			"anomalies_found":     len(anomalies),
+			"source":                "fallback_analysis",
+			"risk_level":            riskLevel,
+			"anomalies_found":       len(anomalies),
 			"recommendations_count": len(recommendations),
-			"critical_issues":     riskLevel == "high",
+			"critical_issues":       riskLevel == "high",
 		}
 	}
-	
+
 	// Update investigation with findings
 	investigationsMutex.Lock()
 	if inv, exists := investigations[investigationID]; exists {
@@ -2165,7 +2169,7 @@ func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpCon
 		}
 		vrooliRoot = filepath.Join(homeDir, "Vrooli")
 	}
-	
+
 	// Construct scenarios directory path
 	scenariosDir := filepath.Join(vrooliRoot, "scenarios")
 
@@ -2201,14 +2205,14 @@ func loadAndProcessPromptWithInvestigation(cpuUsage, memoryUsage float64, tcpCon
 	prompt = strings.ReplaceAll(prompt, "{{INVESTIGATION_ID}}", investigationID)
 	prompt = strings.ReplaceAll(prompt, "{{API_BASE_URL}}", "http://localhost:8080")
 	prompt = strings.ReplaceAll(prompt, "{{OPERATION_MODE}}", operationMode)
-	
+
 	// Add user note if provided
 	if userNote != "" {
 		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", userNote)
 	} else {
 		prompt = strings.ReplaceAll(prompt, "{{USER_NOTE}}", "No specific instructions provided.")
 	}
-	
+
 	// Process conditional sections based on operation mode
 	if operationMode == "auto-fix" {
 		// Remove report-only sections and their markers
@@ -2452,6 +2456,123 @@ func getInvestigationScriptHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func executeInvestigationScriptHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scriptID := vars["id"]
+
+	var req struct {
+		TimeoutSeconds int      `json:"timeout_seconds,omitempty"`
+		Args           []string `json:"args,omitempty"`
+	}
+
+	if r.Body != nil {
+		defer r.Body.Close()
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+	}
+
+	scripts, baseDir, err := loadInvestigationScripts()
+	if err != nil {
+		log.Printf("Failed to load investigation scripts: %v", err)
+		http.Error(w, "Failed to load investigation scripts", http.StatusInternalServerError)
+		return
+	}
+
+	entry, exists := scripts[scriptID]
+	if !exists {
+		http.Error(w, "Script not found", http.StatusNotFound)
+		return
+	}
+
+	scriptPath := filepath.Join(baseDir, filepath.Clean(entry.File))
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		log.Printf("Failed to resolve script base path: %v", err)
+		http.Error(w, "Failed to execute script", http.StatusInternalServerError)
+		return
+	}
+	absScript, err := filepath.Abs(scriptPath)
+	if err != nil {
+		log.Printf("Failed to resolve script path for %s: %v", scriptID, err)
+		http.Error(w, "Failed to execute script", http.StatusInternalServerError)
+		return
+	}
+
+	if !strings.HasPrefix(absScript, absBase+string(os.PathSeparator)) && absScript != absBase {
+		http.Error(w, "Invalid script path", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := os.Stat(absScript); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			http.Error(w, "Script file not found", http.StatusNotFound)
+		} else {
+			log.Printf("Failed to stat script %s: %v", scriptID, err)
+			http.Error(w, "Failed to execute script", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	timeout := time.Duration(req.TimeoutSeconds) * time.Second
+	if timeout <= 0 {
+		timeout = defaultScriptTimeout(entry)
+	}
+	if timeout <= 0 {
+		timeout = 10 * time.Minute
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	cmdArgs := append([]string{absScript}, req.Args...)
+	cmd := exec.CommandContext(ctx, "bash", cmdArgs...)
+	cmd.Dir = filepath.Dir(absScript)
+
+	var stdoutBuf, stderrBuf bytes.Buffer
+	cmd.Stdout = &stdoutBuf
+	cmd.Stderr = &stderrBuf
+
+	started := time.Now()
+	execErr := cmd.Run()
+	completed := time.Now()
+
+	exitCode := 0
+	if cmd.ProcessState != nil {
+		exitCode = cmd.ProcessState.ExitCode()
+	}
+
+	timedOut := ctx.Err() == context.DeadlineExceeded
+	durationSeconds := completed.Sub(started).Seconds()
+
+	response := map[string]interface{}{
+		"script_id":        scriptID,
+		"stdout":           stdoutBuf.String(),
+		"stderr":           stderrBuf.String(),
+		"exit_code":        exitCode,
+		"duration_seconds": durationSeconds,
+		"timed_out":        timedOut,
+		"started_at":       started.Format(time.RFC3339),
+		"completed_at":     completed.Format(time.RFC3339),
+	}
+
+	if execErr != nil {
+		response["error"] = execErr.Error()
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if timedOut {
+		w.WriteHeader(http.StatusGatewayTimeout)
+	} else {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("Failed to encode script execution response: %v", err)
+	}
+}
+
 func manifestEntryToListItem(id string, entry investigationScriptManifestEntry) investigationScriptListItem {
 	enabled := true
 	if entry.Enabled != nil {
@@ -2563,11 +2684,48 @@ func findInvestigationManifest() (string, error) {
 	return "", fmt.Errorf("investigation scripts manifest not found")
 }
 
+func defaultScriptTimeout(entry investigationScriptManifestEntry) time.Duration {
+	if entry.ExecutionTimeEstimate != "" {
+		if estimate := parseExecutionEstimate(entry.ExecutionTimeEstimate); estimate > 0 {
+			// Add a buffer and ensure a sensible minimum window
+			timeout := estimate + 15*time.Second
+			if timeout < 5*time.Minute {
+				return 5 * time.Minute
+			}
+			return timeout
+		}
+	}
+	return 5 * time.Minute
+}
+
+func parseExecutionEstimate(value string) time.Duration {
+	clean := strings.TrimSpace(value)
+	if clean == "" {
+		return 0
+	}
+	if strings.Contains(clean, "-") {
+		parts := strings.Split(clean, "-")
+		clean = parts[len(parts)-1]
+	}
+	clean = strings.TrimSpace(clean)
+	if clean == "" {
+		return 0
+	}
+	if !strings.HasSuffix(clean, "s") && !strings.HasSuffix(clean, "m") && !strings.HasSuffix(clean, "h") {
+		clean += "s"
+	}
+	dur, err := time.ParseDuration(clean)
+	if err != nil {
+		return 0
+	}
+	return dur
+}
+
 // Log storage for debugging
 var (
 	logBuffer []LogEntry
-	logMutex sync.RWMutex
-	maxLogs = 1000 // Keep last 1000 log entries
+	logMutex  sync.RWMutex
+	maxLogs   = 1000 // Keep last 1000 log entries
 )
 
 type LogEntry struct {
@@ -2580,14 +2738,14 @@ type LogEntry struct {
 func addLogEntry(level, message, source string) {
 	logMutex.Lock()
 	defer logMutex.Unlock()
-	
+
 	entry := LogEntry{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Level:     level,
 		Message:   message,
 		Source:    source,
 	}
-	
+
 	logBuffer = append(logBuffer, entry)
 	if len(logBuffer) > maxLogs {
 		logBuffer = logBuffer[1:] // Remove oldest entry
@@ -2597,10 +2755,10 @@ func addLogEntry(level, message, source string) {
 func getErrorsHandler(w http.ResponseWriter, r *http.Request) {
 	errorLogsMutex.RLock()
 	defer errorLogsMutex.RUnlock()
-	
+
 	// Get query parameters
 	unreadOnly := r.URL.Query().Get("unread_only") == "true"
-	
+
 	var filteredLogs []ErrorLog
 	if unreadOnly {
 		for _, log := range errorLogs {
@@ -2611,13 +2769,13 @@ func getErrorsHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		filteredLogs = errorLogs
 	}
-	
+
 	response := map[string]interface{}{
 		"errors":       filteredLogs,
 		"total_count":  len(filteredLogs),
 		"unread_count": unreadErrorCount,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode errors response: %v", err)
@@ -2627,19 +2785,19 @@ func getErrorsHandler(w http.ResponseWriter, r *http.Request) {
 func markErrorsReadHandler(w http.ResponseWriter, r *http.Request) {
 	errorLogsMutex.Lock()
 	defer errorLogsMutex.Unlock()
-	
+
 	// Mark all errors as read
 	for i := range errorLogs {
 		errorLogs[i].Unread = false
 	}
 	unreadErrorCount = 0
 	lastErrorReadTime = time.Now()
-	
+
 	response := map[string]interface{}{
 		"status":  "success",
 		"message": "All errors marked as read",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode mark-read response: %v", err)
@@ -2650,18 +2808,18 @@ func markErrorsReadHandler(w http.ResponseWriter, r *http.Request) {
 func killProcessHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	pidStr := vars["pid"]
-	
+
 	pid, err := strconv.Atoi(pidStr)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error": "Invalid PID format",
+			"error":   "Invalid PID format",
 		})
 		return
 	}
-	
+
 	// Kill the process with SIGKILL
 	cmd := exec.Command("kill", "-9", strconv.Itoa(pid))
 	if err := cmd.Run(); err != nil {
@@ -2673,37 +2831,37 @@ func killProcessHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"success": false,
-				"error": "Process not found",
+				"error":   "Process not found",
 			})
 			return
 		}
-		
+
 		// Process exists but couldn't be killed (permission issue)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusForbidden)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
-			"error": "Permission denied. Try running with elevated privileges.",
+			"error":   "Permission denied. Try running with elevated privileges.",
 		})
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"message": fmt.Sprintf("Process %d terminated successfully", pid),
-	})  
+	})
 }
 
 func getLogsHandler(w http.ResponseWriter, r *http.Request) {
 	logMutex.RLock()
 	defer logMutex.RUnlock()
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"logs": logBuffer,
-		"count": len(logBuffer),
+		"logs":      logBuffer,
+		"count":     len(logBuffer),
 		"timestamp": time.Now().Format(time.RFC3339),
 	})
 }
@@ -2716,11 +2874,11 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	timestamp := time.Now().Format(time.RFC3339)
-	
+
 	// Gather all detailed metrics
 	cpuUsage := getCPUUsage()
 	memoryUsage := getMemoryUsage()
@@ -2730,14 +2888,14 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	loadAvg := getLoadAverage()
 	contextSwitches := getContextSwitches()
 	fdUsed, fdMax := getSystemFileDescriptors()
-	
+
 	response := DetailedMetricsResponse{
 		CPUDetails: struct {
-			Usage        float64       `json:"usage"`
-			TopProcesses []ProcessInfo `json:"top_processes"`
-			LoadAverage  []float64     `json:"load_average"`
-			ContextSwitches int64      `json:"context_switches"`
-			Goroutines   int           `json:"total_goroutines"`
+			Usage           float64       `json:"usage"`
+			TopProcesses    []ProcessInfo `json:"top_processes"`
+			LoadAverage     []float64     `json:"load_average"`
+			ContextSwitches int64         `json:"context_switches"`
+			Goroutines      int           `json:"total_goroutines"`
 		}{
 			Usage:           cpuUsage,
 			TopProcesses:    topCPUProcesses,
@@ -2746,12 +2904,12 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 			Goroutines:      getTotalGoroutines(),
 		},
 		MemoryDetails: struct {
-			Usage        float64       `json:"usage"`
-			TopProcesses []ProcessInfo `json:"top_processes"`
+			Usage          float64       `json:"usage"`
+			TopProcesses   []ProcessInfo `json:"top_processes"`
 			GrowthPatterns []struct {
-				Process   string  `json:"process"`
+				Process         string  `json:"process"`
 				GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
-				RiskLevel string  `json:"risk_level"`
+				RiskLevel       string  `json:"risk_level"`
 			} `json:"growth_patterns"`
 			SwapUsage struct {
 				Used    int64   `json:"used"`
@@ -2764,31 +2922,31 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 				Percent float64 `json:"percent"`
 			} `json:"disk_usage"`
 		}{
-			Usage:        memoryUsage,
-			TopProcesses: topMemoryProcesses,
+			Usage:          memoryUsage,
+			TopProcesses:   topMemoryProcesses,
 			GrowthPatterns: getMemoryGrowthPatterns(),
-			SwapUsage:    getSwapUsage(),
-			DiskUsage:    getDiskUsage(),
+			SwapUsage:      getSwapUsage(),
+			DiskUsage:      getDiskUsage(),
 		},
 		NetworkDetails: struct {
-			TCPStates      TCPConnectionStates   `json:"tcp_states"`
-			PortUsage      struct {
+			TCPStates TCPConnectionStates `json:"tcp_states"`
+			PortUsage struct {
 				Used  int `json:"used"`
 				Total int `json:"total"`
 			} `json:"port_usage"`
-			NetworkStats   NetworkStats          `json:"network_stats"`
+			NetworkStats    NetworkStats         `json:"network_stats"`
 			ConnectionPools []ConnectionPoolInfo `json:"connection_pools"`
 		}{
-			TCPStates:      tcpStates,
-			PortUsage:      getPortUsage(),
-			NetworkStats:   getNetworkStats(),
+			TCPStates:       tcpStates,
+			PortUsage:       getPortUsage(),
+			NetworkStats:    getNetworkStats(),
 			ConnectionPools: getHTTPConnectionPools(),
 		},
 		SystemDetails: SystemHealthDetails{
 			FileDescriptors: struct {
-				Used     int `json:"used"`
-				Max      int `json:"max"`
-				Percent  float64 `json:"percent"`
+				Used    int     `json:"used"`
+				Max     int     `json:"max"`
+				Percent float64 `json:"percent"`
 			}{
 				Used:    fdUsed,
 				Max:     fdMax,
@@ -2799,7 +2957,7 @@ func getDetailedMetricsHandler(w http.ResponseWriter, r *http.Request) {
 		},
 		Timestamp: timestamp,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -2810,30 +2968,30 @@ func getProcessMonitorHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	zombieProcesses := getZombieProcesses()
 	highThreadProcesses := getHighThreadCountProcesses()
 	leakCandidates := getResourceLeakCandidates()
 	resourceMatrix := getTopProcessesByCPU(10) // Top 10 for resource matrix
-	
+
 	response := ProcessMonitorResponse{
 		ProcessHealth: struct {
-			TotalProcesses int           `json:"total_processes"`
+			TotalProcesses  int           `json:"total_processes"`
 			ZombieProcesses []ProcessInfo `json:"zombie_processes"`
 			HighThreadCount []ProcessInfo `json:"high_thread_count"`
 			LeakCandidates  []ProcessInfo `json:"leak_candidates"`
 		}{
-			TotalProcesses: getTotalProcessCount(),
+			TotalProcesses:  getTotalProcessCount(),
 			ZombieProcesses: zombieProcesses,
 			HighThreadCount: highThreadProcesses,
-			LeakCandidates: leakCandidates,
+			LeakCandidates:  leakCandidates,
 		},
 		ResourceMatrix: resourceMatrix,
-		Timestamp: time.Now().Format(time.RFC3339),
+		Timestamp:      time.Now().Format(time.RFC3339),
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -2844,9 +3002,9 @@ func getInfrastructureMonitorHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Rate limit exceeded. Please wait before making another request.", http.StatusTooManyRequests)
 		return
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	response := InfrastructureMonitorResponse{
 		DatabasePools:   getDatabasePools(),
 		HTTPClientPools: getHTTPConnectionPools(),
@@ -2856,9 +3014,9 @@ func getInfrastructureMonitorHandler(w http.ResponseWriter, r *http.Request) {
 				Channels    int `json:"channels"`
 			} `json:"redis_pubsub"`
 			BackgroundJobs struct {
-				Pending   int `json:"pending"`
-				Active    int `json:"active"`
-				Failed    int `json:"failed"`
+				Pending int `json:"pending"`
+				Active  int `json:"active"`
+				Failed  int `json:"failed"`
 			} `json:"background_jobs"`
 		}{
 			RedisPubSub:    getRedisPubSubStats(),
@@ -2867,7 +3025,7 @@ func getInfrastructureMonitorHandler(w http.ResponseWriter, r *http.Request) {
 		StorageIO: getStorageIOStats(),
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -2878,15 +3036,15 @@ func getTotalGoroutines() int {
 }
 
 func getMemoryGrowthPatterns() []struct {
-	Process   string  `json:"process"`
+	Process         string  `json:"process"`
 	GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
-	RiskLevel string  `json:"risk_level"`
+	RiskLevel       string  `json:"risk_level"`
 } {
 	// Mock implementation - in reality you'd track memory usage over time
 	return []struct {
-		Process   string  `json:"process"`
+		Process         string  `json:"process"`
 		GrowthMBPerHour float64 `json:"growth_mb_per_hour"`
-		RiskLevel string  `json:"risk_level"`
+		RiskLevel       string  `json:"risk_level"`
 	}{
 		{Process: "scenario-api-1", GrowthMBPerHour: 15.0, RiskLevel: "medium"},
 		{Process: "postgres", GrowthMBPerHour: 2.0, RiskLevel: "low"},
@@ -2907,7 +3065,7 @@ func getSwapUsage() struct {
 			Percent float64 `json:"percent"`
 		}{0, 0, 0.0}
 	}
-	
+
 	fields := strings.Fields(strings.TrimSpace(string(output)))
 	if len(fields) < 2 {
 		return struct {
@@ -2916,14 +3074,14 @@ func getSwapUsage() struct {
 			Percent float64 `json:"percent"`
 		}{0, 0, 0.0}
 	}
-	
+
 	total, _ := strconv.ParseInt(fields[0], 10, 64)
 	used, _ := strconv.ParseInt(fields[1], 10, 64)
 	percent := 0.0
 	if total > 0 {
 		percent = float64(used) / float64(total) * 100
 	}
-	
+
 	return struct {
 		Used    int64   `json:"used"`
 		Total   int64   `json:"total"`
@@ -2945,7 +3103,7 @@ func getDiskUsage() struct {
 			Percent float64 `json:"percent"`
 		}{0, 0, 0.0}
 	}
-	
+
 	fields := strings.Fields(strings.TrimSpace(string(output)))
 	if len(fields) < 2 {
 		return struct {
@@ -2954,14 +3112,14 @@ func getDiskUsage() struct {
 			Percent float64 `json:"percent"`
 		}{0, 0, 0.0}
 	}
-	
+
 	total, _ := strconv.ParseInt(fields[0], 10, 64)
 	used, _ := strconv.ParseInt(fields[1], 10, 64)
 	percent := 0.0
 	if total > 0 {
 		percent = float64(used) / float64(total) * 100
 	}
-	
+
 	return struct {
 		Used    int64   `json:"used"`
 		Total   int64   `json:"total"`
@@ -2980,7 +3138,7 @@ func getPortUsage() struct {
 	if err == nil {
 		used, _ = strconv.Atoi(strings.TrimSpace(string(output)))
 	}
-	
+
 	// Typical ephemeral port range is 32768-65535
 	return struct {
 		Used  int `json:"used"`
@@ -3034,24 +3192,24 @@ func checkServiceDependencies() []ServiceHealth {
 		{"n8n", "localhost:5678"},
 		{"ollama", "localhost:11434"},
 	}
-	
+
 	var results []ServiceHealth
 	for _, service := range services {
 		status := "healthy"
 		latency := 0.0
-		
+
 		// Quick TCP connection test
 		start := time.Now()
-		cmd := exec.Command("timeout", "2", "bash", "-c", 
+		cmd := exec.Command("timeout", "2", "bash", "-c",
 			fmt.Sprintf("echo > /dev/tcp/%s", service.endpoint))
 		err := cmd.Run()
 		latency = float64(time.Since(start).Milliseconds())
-		
+
 		if err != nil {
 			status = "unhealthy"
 			latency = -1
 		}
-		
+
 		results = append(results, ServiceHealth{
 			Name:      service.name,
 			Status:    status,
@@ -3060,7 +3218,7 @@ func checkServiceDependencies() []ServiceHealth {
 			Endpoint:  service.endpoint,
 		})
 	}
-	
+
 	return results
 }
 
@@ -3082,14 +3240,14 @@ func getZombieProcesses() []ProcessInfo {
 	if err != nil {
 		return []ProcessInfo{}
 	}
-	
+
 	var zombies []ProcessInfo
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		fields := strings.Fields(line)
 		if len(fields) >= 2 {
 			pid, _ := strconv.Atoi(fields[0])
@@ -3100,7 +3258,7 @@ func getZombieProcesses() []ProcessInfo {
 			})
 		}
 	}
-	
+
 	return zombies
 }
 
@@ -3111,19 +3269,19 @@ func getHighThreadCountProcesses() []ProcessInfo {
 	if err != nil {
 		return []ProcessInfo{}
 	}
-	
+
 	var processes []ProcessInfo
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		
+
 		fields := strings.Fields(line)
 		if len(fields) >= 3 {
 			pid, _ := strconv.Atoi(fields[0])
 			threads, _ := strconv.Atoi(fields[2])
-			
+
 			if threads > 20 { // Only include processes with >20 threads
 				processes = append(processes, ProcessInfo{
 					PID:     pid,
@@ -3134,7 +3292,7 @@ func getHighThreadCountProcesses() []ProcessInfo {
 			}
 		}
 	}
-	
+
 	return processes
 }
 
@@ -3156,7 +3314,7 @@ func getTotalProcessCount() int {
 	if err != nil {
 		return 0
 	}
-	
+
 	count, _ := strconv.Atoi(strings.TrimSpace(string(output)))
 	return count
 }
@@ -3197,15 +3355,15 @@ func getRedisPubSubStats() struct {
 }
 
 func getBackgroundJobStats() struct {
-	Pending   int `json:"pending"`
-	Active    int `json:"active"`
-	Failed    int `json:"failed"`
+	Pending int `json:"pending"`
+	Active  int `json:"active"`
+	Failed  int `json:"failed"`
 } {
 	// Mock implementation
 	return struct {
-		Pending   int `json:"pending"`
-		Active    int `json:"active"`
-		Failed    int `json:"failed"`
+		Pending int `json:"pending"`
+		Active  int `json:"active"`
+		Failed  int `json:"failed"`
 	}{3, 1, 0}
 }
 
@@ -3222,7 +3380,7 @@ func getStorageIOStats() struct {
 	if err == nil {
 		iowait, _ = strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
 	}
-	
+
 	return struct {
 		DiskQueueDepth float64 `json:"disk_queue_depth"`
 		IOWaitPercent  float64 `json:"io_wait_percent"`

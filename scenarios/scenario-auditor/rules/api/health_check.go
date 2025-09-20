@@ -108,30 +108,30 @@ func healthCheck(c *gin.Context) {
 func CheckHealthCheckImplementation(content []byte, filePath string) []Violation {
 	var violations []Violation
 	contentStr := string(content)
-	
+
 	// Only check main API files or router files
 	if !strings.HasSuffix(filePath, ".go") || !isMainAPIFile(contentStr) {
 		return violations
 	}
-	
+
 	// Check for health endpoint registration
 	hasHealthEndpoint := strings.Contains(contentStr, "/health") &&
 		(strings.Contains(contentStr, "HandleFunc") ||
-		 strings.Contains(contentStr, "Handle(") ||
-		 strings.Contains(contentStr, ".Get(\"/health") ||
-		 strings.Contains(contentStr, ".GET(\"/health"))
-	
+			strings.Contains(contentStr, "Handle(") ||
+			strings.Contains(contentStr, ".Get(\"/health") ||
+			strings.Contains(contentStr, ".GET(\"/health"))
+
 	if !hasHealthEndpoint {
 		violations = append(violations, Violation{
-			Type:        "health_check",
-			Severity:    "high",
-			Title:       "Missing Health Check Endpoint",
-			Description: "Service lacks a health check endpoint",
-			FilePath:    filePath,
-			LineNumber:  1,
-			CodeSnippet: "// No health check endpoint found",
+			Type:           "health_check",
+			Severity:       "high",
+			Title:          "Missing Health Check Endpoint",
+			Description:    "Missing Health Check Endpoint",
+			FilePath:       filePath,
+			LineNumber:     1,
+			CodeSnippet:    "// No health check endpoint found",
 			Recommendation: "Implement a /health endpoint that returns service status",
-			Standard:    "service-reliability-v1",
+			Standard:       "service-reliability-v1",
 		})
 	} else {
 		// Check if health handler exists
@@ -139,22 +139,22 @@ func CheckHealthCheckImplementation(content []byte, filePath string) []Violation
 			strings.Contains(contentStr, "HealthHandler") ||
 			strings.Contains(contentStr, "healthCheck") ||
 			strings.Contains(contentStr, "HealthCheck")
-		
+
 		if !hasHealthHandler {
 			violations = append(violations, Violation{
-				Type:        "health_check",
-				Severity:    "medium",
-				Title:       "Health Check Handler Not Found",
-				Description: "Health endpoint registered but handler implementation not found",
-				FilePath:    filePath,
-				LineNumber:  1,
-				CodeSnippet: "// Health handler implementation missing",
+				Type:           "health_check",
+				Severity:       "medium",
+				Title:          "Health Check Handler Not Found",
+				Description:    "Health Check Handler Not Found",
+				FilePath:       filePath,
+				LineNumber:     1,
+				CodeSnippet:    "// Health handler implementation missing",
 				Recommendation: "Implement a proper health check handler that validates service dependencies",
-				Standard:    "service-reliability-v1",
+				Standard:       "service-reliability-v1",
 			})
 		}
 	}
-	
+
 	return violations
 }
 

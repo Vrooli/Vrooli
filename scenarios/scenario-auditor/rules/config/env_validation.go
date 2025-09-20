@@ -1,6 +1,7 @@
 package config
 
 import (
+	"regexp"
 	"strings"
 )
 
@@ -84,61 +85,70 @@ func (r *EnvValidationRule) Check(content string, filepath string) ([]Violation,
 	lines := strings.Split(content, "\n")
 
 	for i, line := range lines {
-		// Check for os.Getenv usage
-		if strings.Contains(line, "os.Getenv(") {
-			envVarLine := i
-			varName := extractEnvVarName(line)
+		if !strings.Contains(line, "os.Getenv(") {
+			continue
+		}
 
-			// Check if the variable is validated (simple heuristic)
-			hasValidation := false
-			sensitiveVar := isSensitiveVar(varName)
+		envVarLine := i
+		envVar := extractEnvVarName(line)
+		assignedVar := extractAssignedVarName(line)
+		if assignedVar == "" {
+			assignedVar = envVar
+		}
 
-			// Look ahead for validation (next 5 lines)
-			for j := i + 1; j < len(lines) && j < i+8; j++ {
-				nextLine := strings.TrimSpace(lines[j])
-				if nextLine == "" {
-					continue
+		sensitiveVar := isSensitiveVar(envVar)
+		hasValidation := false
+		loggedSensitive := false
+
+		for j := i + 1; j < len(lines) && j < i+8; j++ {
+			nextLine := strings.TrimSpace(lines[j])
+			if nextLine == "" {
+				continue
+			}
+
+			lower := strings.ToLower(nextLine)
+			containsVar := strings.Contains(nextLine, assignedVar) || strings.Contains(lower, strings.ToLower(assignedVar))
+			if strings.HasPrefix(lower, "if") && containsVar {
+				if strings.Contains(nextLine, `== ""`) || strings.Contains(nextLine, `== ''`) ||
+					strings.Contains(nextLine, "len("+assignedVar+") == 0") || strings.Contains(nextLine, "len("+strings.ToLower(assignedVar)+") == 0") {
+					hasValidation = true
+					break
 				}
+			}
 
-				lower := strings.ToLower(nextLine)
-				containsVar := strings.Contains(nextLine, varName) || strings.Contains(lower, strings.ToLower(varName))
-				if strings.HasPrefix(lower, "if") && containsVar {
-					if strings.Contains(nextLine, `== ""`) || strings.Contains(nextLine, `== ''`) || strings.Contains(nextLine, "len("+varName+") == 0") || strings.Contains(nextLine, "len("+strings.ToLower(varName)+") == 0") {
-						hasValidation = true
+			if (strings.Contains(nextLine, "log.Fatal") || strings.Contains(nextLine, "panic(") || strings.Contains(nextLine, "log.Fatalf")) && containsVar {
+				hasValidation = true
+				break
+			}
+		}
+
+		if sensitiveVar {
+			for j := i; j < len(lines) && j < i+10; j++ {
+				logLine := lines[j]
+				if strings.Contains(logLine, "log.") || strings.Contains(logLine, "fmt.Print") {
+					if strings.Contains(logLine, assignedVar) || strings.Contains(logLine, envVar) {
+						violations = append(violations, Violation{
+							RuleID:   "env_validation",
+							Severity: "high",
+							Message:  "Sensitive environment variable logged: " + envVar,
+							File:     filepath,
+							Line:     j + 1,
+						})
+						loggedSensitive = true
 						break
 					}
 				}
 			}
+		}
 
-			// Check if it's being logged (potential security issue)
-			if sensitiveVar {
-				for j := i; j < len(lines) && j < i+10; j++ {
-					if strings.Contains(lines[j], "log.") ||
-						strings.Contains(lines[j], "fmt.Print") {
-						if strings.Contains(lines[j], varName) ||
-							(j == i && strings.Contains(lines[j], "os.Getenv")) {
-							violations = append(violations, Violation{
-								RuleID:   "env_validation",
-								Severity: "high",
-								Message:  "Sensitive environment variable logged: " + varName,
-								File:     filepath,
-								Line:     j + 1,
-							})
-						}
-					}
-				}
-			}
-
-			// Check for missing validation
-			if !hasValidation {
-				violations = append(violations, Violation{
-					RuleID:   "env_validation",
-					Severity: "medium",
-					Message:  "Environment variable used without validation: " + varName,
-					File:     filepath,
-					Line:     envVarLine + 1,
-				})
-			}
+		if !hasValidation && !loggedSensitive {
+			violations = append(violations, Violation{
+				RuleID:   "env_validation",
+				Severity: "medium",
+				Message:  "Environment variable used without validation: " + envVar,
+				File:     filepath,
+				Line:     envVarLine + 1,
+			})
 		}
 	}
 
@@ -163,6 +173,16 @@ func extractEnvVarName(line string) string {
 	}
 
 	return line[start+1 : start+1+end]
+}
+
+var assignPattern = regexp.MustCompile(`(?i)([A-Za-z_][A-Za-z0-9_]*)\s*(?:,.*)?:=\s*os\.Getenv\(`)
+
+func extractAssignedVarName(line string) string {
+	matches := assignPattern.FindStringSubmatch(line)
+	if len(matches) > 1 {
+		return matches[1]
+	}
+	return ""
 }
 
 func isSensitiveVar(name string) bool {

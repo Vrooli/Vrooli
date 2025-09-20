@@ -139,9 +139,8 @@ function App() {
     }));
   };
 
-  const executeScript = async (scriptId: string, content: string) => {
+  const executeScript = async (scriptId: string, _content: string) => {
     try {
-      // Create execution object
       const execution: ScriptExecution = {
         script_id: scriptId,
         execution_id: `exec-${Date.now()}`,
@@ -149,7 +148,6 @@ function App() {
         started_at: new Date().toISOString()
       };
 
-      // Open results modal immediately
       setModalState(prev => ({
         ...prev,
         scriptResults: {
@@ -160,39 +158,52 @@ function App() {
         }
       }));
 
-      // Close script editor
       closeScriptEditor();
 
-      // TODO: Implement actual API call to execute script
-      // For now, simulate execution
-      setTimeout(() => {
-        const completedExecution: ScriptExecution = {
-          ...execution,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          exit_code: 0,
-          output: `[${new Date().toLocaleTimeString()}] Starting script execution...\n[${new Date().toLocaleTimeString()}] Script: ${scriptId}\n[${new Date().toLocaleTimeString()}] Content length: ${content.length} characters\n\n# Mock execution output\necho "System analysis starting..."\necho "CPU usage: $(grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$3+$4+$5)} END {print usage "%"}')"
-echo "Memory usage: $(free | grep Mem | awk '{printf("%.1f%%"), $3/$2 * 100.0}')"
-echo "Disk usage: $(df -h / | awk 'NR==2{printf "%s", $5}')"
-echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
+      const response = await fetch(`/api/investigations/scripts/${encodeURIComponent(scriptId)}/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+      });
 
-[${new Date().toLocaleTimeString()}] Script execution completed successfully.
-[${new Date().toLocaleTimeString()}] Exit code: 0`
-        };
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // ignore parse errors when no JSON body is returned
+      }
 
-        setModalState(prev => ({
-          ...prev,
-          scriptResults: {
-            ...prev.scriptResults,
-            execution: completedExecution
-          }
-        }));
-      }, 2000);
+      const stdout = data?.stdout ?? data?.output ?? '';
+      const stderr = data?.stderr ?? '';
+      const exitCode = typeof data?.exit_code === 'number' ? data.exit_code : (response.ok ? 0 : 1);
+      const timedOut = Boolean(data?.timed_out);
+      const completedAt = typeof data?.completed_at === 'string' ? data.completed_at : new Date().toISOString();
 
+      const completedExecution: ScriptExecution = {
+        ...execution,
+        status: response.ok && exitCode === 0 && !timedOut ? 'completed' : 'failed',
+        completed_at: completedAt,
+        exit_code: exitCode,
+        output: stdout,
+        stdout,
+        stderr,
+        error: stderr || data?.error || (!response.ok ? `Request failed with status ${response.status}` : undefined),
+        timed_out: timedOut,
+        duration_seconds: typeof data?.duration_seconds === 'number' ? data.duration_seconds : undefined
+      };
+
+      setModalState(prev => ({
+        ...prev,
+        scriptResults: {
+          ...prev.scriptResults,
+          execution: completedExecution
+        }
+      }));
     } catch (error) {
       console.error('Failed to execute script:', error);
-      
-      // Update with error
+
       setModalState(prev => ({
         ...prev,
         scriptResults: {

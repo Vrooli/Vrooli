@@ -30,21 +30,21 @@ func main() {
         log.Fatal(err)
     }
     defer db.Close()
-    
+
     // Create tables
     if err := createTables(db); err != nil {
         log.Fatal(err)
     }
-    
+
     // Setup routes
     mux := http.NewServeMux()
     mux.HandleFunc("/api/users", handleUsers)
     mux.HandleFunc("/api/products", handleProducts)
-    
+
     // Setup middleware
     handler := loggingMiddleware(mux)
     handler = authMiddleware(handler)
-    
+
     // Start server
     log.Println("Starting server on :8080")
     if err := http.ListenAndServe(":8080", handler); err != nil {
@@ -93,7 +93,7 @@ func main() {
         Usage: "Application description",
         Commands: setupCommands(),
     }
-    
+
     if err := app.Run(os.Args); err != nil {
         log.Fatal(err)
     }
@@ -128,39 +128,42 @@ func runApplication() error {
 func CheckLightweightMain(content []byte, filePath string) []Violation {
 	var violations []Violation
 	contentStr := string(content)
-	
+
 	// Only check main.go files
-	if !strings.HasSuffix(filePath, "main.go") || !strings.Contains(contentStr, "func main()") {
-		return violations
+	hasMainFunc := strings.Contains(contentStr, "func main()")
+	if !(strings.HasSuffix(filePath, "main.go") && hasMainFunc) {
+		if !(strings.Contains(contentStr, "package main") && hasMainFunc) {
+			return violations
+		}
 	}
-	
+
 	// Find main function
 	lines := strings.Split(contentStr, "\n")
 	mainStart := -1
 	mainEnd := -1
 	braceCount := 0
-	
+
 	for i, line := range lines {
 		if strings.Contains(line, "func main()") {
 			mainStart = i
 			braceCount = 1
 			continue
 		}
-		
+
 		if mainStart >= 0 {
 			braceCount += strings.Count(line, "{")
 			braceCount -= strings.Count(line, "}")
-			
+
 			if braceCount == 0 {
 				mainEnd = i
 				break
 			}
 		}
 	}
-	
+
 	if mainStart >= 0 && mainEnd >= 0 {
 		mainLines := mainEnd - mainStart
-		
+
 		// Check if main is too complex (more than 20 lines suggests it's doing too much)
 		if mainLines > 20 {
 			// Check if it's delegating to cmd.Execute or similar
@@ -168,29 +171,29 @@ func CheckLightweightMain(content []byte, filePath string) []Violation {
 			for i := mainStart; i <= mainEnd; i++ {
 				line := lines[i]
 				if strings.Contains(line, "cmd.Execute") ||
-				   strings.Contains(line, "app.Run") ||
-				   strings.Contains(line, "rootCmd.Execute") ||
-				   strings.Contains(line, "cli.Run") {
+					strings.Contains(line, "app.Run") ||
+					strings.Contains(line, "rootCmd.Execute") ||
+					strings.Contains(line, "cli.Run") {
 					hasCmdPattern = true
 					break
 				}
 			}
-			
+
 			if !hasCmdPattern {
 				violations = append(violations, Violation{
-					Type:        "lightweight_main",
-					Severity:    "medium",
-					Title:       "Complex Main Function",
-					Description: "Main function contains too much logic (>20 lines)",
-					FilePath:    filePath,
-					LineNumber:  mainStart + 1,
-					CodeSnippet: "func main() { ... " + strings.TrimSpace(lines[mainStart+1]) + " ... }",
+					Type:           "lightweight_main",
+					Severity:       "medium",
+					Title:          "Complex Main Function",
+					Description:    "Main function contains too much logic (>20 lines)",
+					FilePath:       filePath,
+					LineNumber:     mainStart + 1,
+					CodeSnippet:    "func main() { ... " + strings.TrimSpace(lines[mainStart+1]) + " ... }",
 					Recommendation: "Refactor to use cmd.Execute() pattern or extract logic to separate functions",
-					Standard:    "code-structure-v1",
+					Standard:       "code-structure-v1",
 				})
 			}
 		}
-		
+
 		// Check for direct business logic in main
 		businessLogicIndicators := []string{
 			"database",
@@ -198,30 +201,36 @@ func CheckLightweightMain(content []byte, filePath string) []Violation {
 			"http.ListenAndServe",
 			"gin.Run",
 			"fiber.Listen",
-			"for {", // Main loops
+			"for {",    // Main loops
 			"select {", // Channel operations
 		}
-		
+
+		businessLogicReported := false
 		for i := mainStart + 1; i < mainEnd; i++ {
 			line := lines[i]
 			for _, indicator := range businessLogicIndicators {
 				if strings.Contains(line, indicator) && !strings.Contains(line, "//") {
 					violations = append(violations, Violation{
-						Type:        "lightweight_main",
-						Severity:    "medium",
-						Title:       "Business Logic in Main",
-						Description: "Main function contains direct business logic",
-						FilePath:    filePath,
-						LineNumber:  i + 1,
-						CodeSnippet: line,
+						Type:           "lightweight_main",
+						Severity:       "medium",
+						Title:          "Business Logic in Main",
+						Description:    "Main function contains direct business logic",
+						FilePath:       filePath,
+						LineNumber:     i + 1,
+						CodeSnippet:    line,
 						Recommendation: "Move to a Run() or Execute() function called from main()",
-						Standard:    "code-structure-v1",
+						Standard:       "code-structure-v1",
 					})
+					businessLogicReported = true
 					break
 				}
 			}
+
+			if businessLogicReported {
+				break
+			}
 		}
 	}
-	
+
 	return violations
 }

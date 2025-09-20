@@ -111,13 +111,13 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 
 	patterns := []patternDef{
 		{
-			name:     "hardcoded_password",
-			re:       regexp.MustCompile(`(?i)(password|passwd|pwd|secret|token|key)\s*(?::=|=|:=)\s*"[^"]+"`),
+			name:     "hardcoded_api_key",
+			re:       regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*(?::=|=|:=)\s*"[^"]+"`),
 			severity: "critical",
 		},
 		{
-			name:     "hardcoded_api_key",
-			re:       regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*(?::=|=|:=)\s*"[^"]+"`),
+			name:     "hardcoded_password",
+			re:       regexp.MustCompile(`(?i)(password|passwd|pwd|secret|token)\s*(?::=|=|:=)\s*"[^"]+"`),
 			severity: "critical",
 		},
 		{
@@ -153,6 +153,7 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 			continue
 		}
 
+		matched := false
 		for _, pattern := range patterns {
 			if pattern.name == "hardcoded_port" && strings.Contains(line, "localhost:") {
 				continue
@@ -191,6 +192,12 @@ func CheckHardcodedValues(content []byte, filePath string) []Violation {
 				Recommendation: "Move to environment variable or configuration file",
 				Standard:       "configuration-v1",
 			})
+
+			matched = true
+			break
+		}
+		if matched {
+			continue
 		}
 	}
 

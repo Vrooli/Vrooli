@@ -58,7 +58,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
   <input language="go">
 func handleMultiFormat(w http.ResponseWriter, r *http.Request) {
     format := r.URL.Query().Get("format")
-    
+
     if format == "xml" {
         w.Header().Set("Content-Type", "application/xml")
         xml.NewEncoder(w).Encode(data)
@@ -75,79 +75,83 @@ func handleMultiFormat(w http.ResponseWriter, r *http.Request) {
 func CheckContentTypeHeaders(content []byte, filePath string) []Violation {
 	var violations []Violation
 	contentStr := string(content)
-	
+
 	// Only check Go API handler files
-	if !strings.HasSuffix(filePath, ".go") || !hasJSONResponse(contentStr) {
+	if !strings.HasSuffix(filePath, ".go") {
 		return violations
 	}
-	
+
 	lines := strings.Split(contentStr, "\n")
-	
+	hasJSON := hasJSONResponse(contentStr)
+
 	// Look for JSON encoding without Content-Type
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		
+
 		// Check for JSON encoding
-		if strings.Contains(line, "json.NewEncoder(w)") || 
-		   strings.Contains(line, "json.Marshal") {
+		if strings.Contains(line, "json.NewEncoder(w)") ||
+			strings.Contains(line, "json.Marshal") {
 			// Look backwards for Content-Type header
 			hasContentType := false
 			for j := max(0, i-10); j < i; j++ {
 				if strings.Contains(lines[j], "Content-Type") &&
-				   strings.Contains(lines[j], "application/json") {
+					strings.Contains(lines[j], "application/json") {
 					hasContentType = true
 					break
 				}
 			}
-			
+
 			if !hasContentType {
 				violations = append(violations, Violation{
-					Type:        "content_type_headers",
-					Severity:    "medium",
-					Title:       "Missing Content-Type Header",
-					Description: "JSON response without Content-Type header",
-					FilePath:    filePath,
-					LineNumber:  i + 1,
-					CodeSnippet: line,
+					Type:           "content_type_headers",
+					Severity:       "medium",
+					Title:          "Missing Content-Type Header",
+					Description:    "Incorrect Content-Type header",
+					FilePath:       filePath,
+					LineNumber:     i + 1,
+					CodeSnippet:    line,
 					Recommendation: "Add w.Header().Set(\"Content-Type\", \"application/json\") before writing response",
-					Standard:    "api-design-v1",
+					Standard:       "api-design-v1",
 				})
 			}
 		}
-		
+
 		// Check for Write without Content-Type
 		if strings.Contains(line, "w.Write(") && !strings.Contains(line, "//") {
-			hasContentType := false
-			for j := max(0, i-10); j < i; j++ {
-				if strings.Contains(lines[j], "Content-Type") {
-					hasContentType = true
-					break
+			if hasJSON || likelyJSONWrite(lines, i) {
+				hasContentType := false
+				for j := max(0, i-10); j < i; j++ {
+					if strings.Contains(lines[j], "Content-Type") &&
+						strings.Contains(lines[j], "application/json") {
+						hasContentType = true
+						break
+					}
 				}
-			}
-			
-			if !hasContentType {
-				violations = append(violations, Violation{
-					Type:        "content_type_headers",
-					Severity:    "medium",
-					Title:       "Missing Content-Type Header",
-					Description: "Response without Content-Type header",
-					FilePath:    filePath,
-					LineNumber:  i + 1,
-					CodeSnippet: line,
-					Recommendation: "Set appropriate Content-Type header before writing response",
-					Standard:    "api-design-v1",
-				})
+
+				if !hasContentType {
+					violations = append(violations, Violation{
+						Type:           "content_type_headers",
+						Severity:       "medium",
+						Title:          "Missing Content-Type Header",
+						Description:    "Missing Content-Type Header",
+						FilePath:       filePath,
+						LineNumber:     i + 1,
+						CodeSnippet:    line,
+						Recommendation: "Set appropriate Content-Type header before writing response",
+						Standard:       "api-design-v1",
+					})
+				}
 			}
 		}
 	}
-	
+
 	return violations
 }
 
 func hasJSONResponse(content string) bool {
 	return strings.Contains(content, "json.NewEncoder") ||
-	       strings.Contains(content, "json.Marshal") ||
-	       strings.Contains(content, "application/json")
+		strings.Contains(content, "json.Marshal") ||
+		strings.Contains(content, "application/json")
 }
 
 func max(a, b int) int {
@@ -155,4 +159,58 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func likelyJSONWrite(lines []string, index int) bool {
+	line := lines[index]
+	if strings.Contains(line, "{") || strings.Contains(line, "[") {
+		return true
+	}
+
+	target := extractWriteTarget(line)
+	if target == "" {
+		return false
+	}
+
+	for j := max(0, index-5); j < index; j++ {
+		assignLine := strings.TrimSpace(lines[j])
+		if strings.Contains(assignLine, target+" :=") || strings.Contains(assignLine, target+" =") {
+			if isLikelyJSONLiteral(assignLine) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func extractWriteTarget(line string) string {
+	start := strings.Index(line, "w.Write(")
+	if start == -1 {
+		return ""
+	}
+
+	rest := line[start+len("w.Write("):]
+	rest = strings.TrimSpace(rest)
+
+	if strings.HasPrefix(rest, "[]byte(") {
+		rest = rest[len("[]byte("):]
+	}
+
+	// Trim trailing characters after argument
+	for i := 0; i < len(rest); i++ {
+		if rest[i] == ')' || rest[i] == ',' {
+			rest = rest[:i]
+			break
+		}
+	}
+
+	rest = strings.TrimSpace(rest)
+	trimChars := "\"`')"
+	rest = strings.Trim(rest, trimChars)
+	return strings.TrimSpace(rest)
+}
+
+func isLikelyJSONLiteral(line string) bool {
+	return strings.Contains(line, "{") || strings.Contains(line, "[")
 }

@@ -55,14 +55,14 @@ func handleRequest(w http.ResponseWriter, r *http.Request) {
         json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
         return
     }
-    
+
     data, err := processData(r)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError)
         json.NewEncoder(w).Encode(map[string]string{"error": "Internal error"})
         return
     }
-    
+
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(data)
 }
@@ -78,13 +78,13 @@ func handleGinRequest(c *gin.Context) {
         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
         return
     }
-    
+
     result, err := processInput(input)
     if err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "Processing failed"})
         return
     }
-    
+
     c.JSON(http.StatusCreated, result)
 }
   </input>
@@ -95,64 +95,89 @@ func handleGinRequest(c *gin.Context) {
 func CheckHTTPStatusCodes(content []byte, filePath string) []Violation {
 	var violations []Violation
 	contentStr := string(content)
-	
+
 	// Only check Go API files
 	if !strings.HasSuffix(filePath, ".go") || !isAPIHandler(contentStr) {
 		return violations
 	}
-	
+
 	// Check for raw numeric status codes (anti-pattern)
 	rawStatusPattern := regexp.MustCompile(`\.WriteHeader\((\d{3})\)`)
-	statusWritePattern := regexp.MustCompile(`w\.WriteHeader\((\d{3})\)`)
-	
+
 	lines := strings.Split(contentStr, "\n")
-	
+	rawStatusLines := make(map[int]bool)
+	incorrectStatusLines := make(map[int]bool)
+	depth := 0
+	var errBlockDepths []int
+
 	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Adjust block depth for closing braces before evaluating the line
+		closeCount := strings.Count(line, "}")
+		if closeCount > 0 {
+			depth -= closeCount
+			if depth < 0 {
+				depth = 0
+			}
+			for len(errBlockDepths) > 0 && errBlockDepths[len(errBlockDepths)-1] > depth {
+				errBlockDepths = errBlockDepths[:len(errBlockDepths)-1]
+			}
+		}
+
 		// Check for raw numeric codes
 		if matches := rawStatusPattern.FindStringSubmatch(line); matches != nil {
-			violations = append(violations, Violation{
-				Type:        "http_status_codes",
-				Severity:    "low",
-				Title:       "Raw HTTP Status Code",
-				Description: "Using raw numeric HTTP status code instead of constant",
-				FilePath:    filePath,
-				LineNumber:  i + 1,
-				CodeSnippet: line,
-				Recommendation: "Use http.Status* constants (e.g., http.StatusOK, http.StatusNotFound)",
-				Standard:    "api-design-v1",
-			})
+			if !rawStatusLines[i] {
+				violations = append(violations, Violation{
+					Type:           "http_status_codes",
+					Severity:       "low",
+					Title:          "Raw HTTP Status Code",
+					Description:    "Raw HTTP Status Code",
+					FilePath:       filePath,
+					LineNumber:     i + 1,
+					CodeSnippet:    line,
+					Recommendation: "Use http.Status* constants (e.g., http.StatusOK, http.StatusNotFound)",
+					Standard:       "api-design-v1",
+				})
+				rawStatusLines[i] = true
+			}
 		}
-		
-		if matches := statusWritePattern.FindStringSubmatch(line); matches != nil {
-			violations = append(violations, Violation{
-				Type:        "http_status_codes",
-				Severity:    "low",
-				Title:       "Raw HTTP Status Code",
-				Description: "Using raw numeric HTTP status code instead of constant",
-				FilePath:    filePath,
-				LineNumber:  i + 1,
-				CodeSnippet: line,
-				Recommendation: "Use http.Status* constants (e.g., http.StatusOK, http.StatusNotFound)",
-				Standard:    "api-design-v1",
-			})
+
+		if strings.Contains(line, "http.StatusOK") {
+			inErrorBlock := len(errBlockDepths) > 0
+			containsErrorText := strings.Contains(line, "error")
+			if !containsErrorText {
+				for j := i; j < len(lines) && j <= i+3; j++ {
+					if strings.Contains(lines[j], "\"error\"") || strings.Contains(lines[j], "err") {
+						containsErrorText = true
+						break
+					}
+				}
+			}
+
+			if (inErrorBlock || containsErrorText) && !incorrectStatusLines[i] {
+				violations = append(violations, Violation{
+					Type:           "http_status_codes",
+					Severity:       "medium",
+					Title:          "Incorrect Status Code",
+					Description:    "Incorrect Status Code",
+					FilePath:       filePath,
+					LineNumber:     i + 1,
+					CodeSnippet:    line,
+					Recommendation: "Use appropriate error status codes (4xx/5xx) for errors",
+					Standard:       "api-design-v1",
+				})
+				incorrectStatusLines[i] = true
+			}
 		}
-		
-		// Check for incorrect status code usage
-		if strings.Contains(line, "http.StatusOK") && strings.Contains(line, "error") {
-			violations = append(violations, Violation{
-				Type:        "http_status_codes",
-				Severity:    "medium",
-				Title:       "Incorrect Status Code",
-				Description: "Returning StatusOK (200) with an error",
-				FilePath:    filePath,
-				LineNumber:  i + 1,
-				CodeSnippet: line,
-				Recommendation: "Use appropriate error status codes (4xx/5xx) for errors",
-				Standard:    "api-design-v1",
-			})
+
+		openCount := strings.Count(line, "{")
+		depth += openCount
+		if strings.Contains(trimmed, "if err != nil") {
+			errBlockDepths = append(errBlockDepths, depth)
 		}
 	}
-	
+
 	return violations
 }
 
@@ -164,7 +189,7 @@ func isAPIHandler(content string) bool {
 		"fiber.Ctx",
 		"echo.Context",
 	}
-	
+
 	for _, indicator := range handlerIndicators {
 		if strings.Contains(content, indicator) {
 			return true

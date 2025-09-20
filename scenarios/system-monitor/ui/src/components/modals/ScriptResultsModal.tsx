@@ -10,10 +10,13 @@ interface ScriptResultsModalProps {
 export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResultsModalProps) => {
   if (!isOpen || !execution) return null;
 
+  const stdoutContent = execution.stdout ?? execution.output ?? '';
+  const stderrContent = execution.stderr ?? execution.error ?? '';
+
   const getStatusIcon = () => {
     switch (execution.status) {
       case 'completed':
-        return execution.exit_code === 0 ? 
+        return execution.exit_code === 0 && !execution.timed_out ? 
           <CheckCircle size={20} style={{ color: 'var(--color-success)' }} /> :
           <XCircle size={20} style={{ color: 'var(--color-error)' }} />;
       case 'failed':
@@ -28,7 +31,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
   const getStatusColor = () => {
     switch (execution.status) {
       case 'completed':
-        return execution.exit_code === 0 ? 'var(--color-success)' : 'var(--color-error)';
+        return execution.exit_code === 0 && !execution.timed_out ? 'var(--color-success)' : 'var(--color-error)';
       case 'failed':
         return 'var(--color-error)';
       case 'running':
@@ -39,8 +42,16 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
   };
 
   const formatDuration = () => {
+    if (typeof execution.duration_seconds === 'number') {
+      const duration = Math.round(execution.duration_seconds);
+      if (duration < 1) return '< 1s';
+      if (duration < 60) return `${duration}s`;
+      if (duration < 3600) return `${Math.floor(duration / 60)}m ${duration % 60}s`;
+      return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
+    }
+
     if (!execution.started_at) return 'Unknown';
-    
+
     const start = new Date(execution.started_at);
     const end = execution.completed_at ? new Date(execution.completed_at) : new Date();
     const duration = Math.round((end.getTime() - start.getTime()) / 1000);
@@ -142,8 +153,8 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             <div className="summary-item">
               <span style={{ 
                 display: 'block',
-                color: 'var(--color-text-dim)', 
-                fontSize: 'var(--font-size-sm)',
+                color: 'var(--color-text-dim)',
+              fontSize: 'var(--font-size-sm)',
                 marginBottom: 'var(--spacing-xs)'
               }}>
                 Status:
@@ -186,18 +197,37 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
               }}>
                 Duration:
               </span>
-              <span style={{ 
-                color: 'var(--color-text-bright)',
-                fontFamily: 'var(--font-family-mono)'
-              }}>
-                {formatDuration()}
-              </span>
-            </div>
-            
+            <span style={{ 
+              color: 'var(--color-text-bright)',
+              fontFamily: 'var(--font-family-mono)'
+            }}>
+              {formatDuration()}
+            </span>
+          </div>
+
+          {execution.timed_out !== undefined && (
             <div className="summary-item">
               <span style={{ 
                 display: 'block',
                 color: 'var(--color-text-dim)', 
+                fontSize: 'var(--font-size-sm)',
+                marginBottom: 'var(--spacing-xs)'
+              }}>
+                Timed Out:
+              </span>
+              <span style={{ 
+                color: execution.timed_out ? 'var(--color-error)' : 'var(--color-text-bright)',
+                fontWeight: 'bold'
+              }}>
+                {execution.timed_out ? 'Yes' : 'No'}
+              </span>
+            </div>
+          )}
+
+          <div className="summary-item">
+            <span style={{ 
+              display: 'block',
+              color: 'var(--color-text-dim)', 
                 fontSize: 'var(--font-size-sm)',
                 marginBottom: 'var(--spacing-xs)'
               }}>
@@ -222,7 +252,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
         }}>
           
           {/* Output Section */}
-          {execution.output && (
+          {stdoutContent && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <div className="output-header" style={{
                 display: 'flex',
@@ -241,7 +271,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
                   color: 'var(--color-text-dim)',
                   fontSize: 'var(--font-size-xs)'
                 }}>
-                  {execution.output.split('\n').length} lines
+                  {stdoutContent.split('\n').length} lines
                 </span>
               </div>
               
@@ -249,22 +279,23 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
                 flex: 1,
                 padding: 'var(--spacing-md)',
                 background: 'rgba(0, 0, 0, 0.8)',
-                overflow: 'auto',
+                overflowY: 'auto',
+                maxHeight: '60vh',
                 fontFamily: 'var(--font-family-mono)',
                 fontSize: 'var(--font-size-sm)',
                 lineHeight: '1.4',
                 whiteSpace: 'pre-wrap',
                 color: 'var(--color-text)'
               }}>
-                {execution.output}
+                {stdoutContent}
               </div>
             </div>
           )}
-          
+
           {/* Error Section */}
-          {execution.error && (
+          {stderrContent && (
             <div style={{ 
-              borderTop: execution.output ? '1px solid rgba(255, 0, 64, 0.3)' : 'none',
+              borderTop: stdoutContent ? '1px solid rgba(255, 0, 64, 0.3)' : 'none',
               background: 'rgba(255, 0, 64, 0.05)'
             }}>
               <div className="error-header" style={{
@@ -291,13 +322,13 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
                 maxHeight: '200px',
                 overflow: 'auto'
               }}>
-                {execution.error}
+                {stderrContent}
               </div>
             </div>
           )}
           
           {/* No Output Message */}
-          {!execution.output && !execution.error && execution.status === 'running' && (
+          {!stdoutContent && !stderrContent && execution.status === 'running' && (
             <div style={{
               flex: 1,
               display: 'flex',
@@ -316,7 +347,7 @@ export const ScriptResultsModal = ({ isOpen, execution, onClose }: ScriptResults
             </div>
           )}
           
-          {!execution.output && !execution.error && execution.status !== 'running' && (
+          {!stdoutContent && !stderrContent && execution.status !== 'running' && (
             <div style={{
               flex: 1,
               display: 'flex',
