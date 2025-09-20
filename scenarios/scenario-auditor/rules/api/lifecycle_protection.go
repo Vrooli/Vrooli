@@ -50,7 +50,43 @@ import (
 )
 
 func main() {
-    // Protect against direct execution
+    // Protect against direct execution - must be run through lifecycle system
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start prompt-manager
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+        os.Exit(1)
+    }
+
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
+
+    fmt.Printf("Starting server on port %s\n", port)
+    http.ListenAndServe(":"+port, nil)
+}
+  </input>
+</test-case>
+
+<test-case id="incorrect-lifecycle-message" should-fail="true">
+  <description>lifecycle check present but message differs from required instructional text</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "net/http"
+    "os"
+)
+
+func main() {
+    // Protect against direct execution - must be run through lifecycle system
     if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
         fmt.Fprintln(os.Stderr, "Error: Direct execution not allowed")
         fmt.Fprintln(os.Stderr, "Use: vrooli scenario run <name>")
@@ -66,6 +102,8 @@ func main() {
     http.ListenAndServe(":"+port, nil)
 }
   </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing Lifecycle Protection</expected-message>
 </test-case>
 
 <test-case id="lifecycle-check-with-lookupenv" should-fail="false">
@@ -82,13 +120,49 @@ func main() {
     // Check lifecycle management
     managed, exists := os.LookupEnv("VROOLI_LIFECYCLE_MANAGED")
     if !exists || managed != "true" {
-        fmt.Fprintln(os.Stderr, "Error: Must be run through Vrooli lifecycle system")
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start prompt-manager
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
         os.Exit(1)
     }
 
     startApplication()
 }
   </input>
+</test-case>
+
+<test-case id="missing-lifecycle-check-condition" should-fail="true">
+  <description>instructional message present without enforcing lifecycle condition</description>
+  <input language="go">
+package main
+
+import (
+    "fmt"
+    "net/http"
+)
+
+func main() {
+    fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start prompt-manager
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+
+    port := "8080"
+    fmt.Printf("Starting server on port %s\n", port)
+    http.ListenAndServe(":"+port, nil)
+}
+  </input>
+  <expected-violations>1</expected-violations>
+  <expected-message>Missing Lifecycle Protection</expected-message>
 </test-case>
 */
 
@@ -106,10 +180,26 @@ func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 		}
 	}
 
-	// Check for lifecycle protection
+	// Check for lifecycle protection with required instructional message
+	requiredFragments := []string{
+		"fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.",
+		"🚀 Instead, use:",
+		"   vrooli scenario start prompt-manager",
+		"💡 The lifecycle system provides environment variables, port allocation,",
+		"   and dependency management automatically. Direct execution is not supported.",
+	}
+	hasInstructionalMessage := true
+	for _, fragment := range requiredFragments {
+		if !strings.Contains(contentStr, fragment) {
+			hasInstructionalMessage = false
+			break
+		}
+	}
+
 	hasLifecycleCheck := strings.Contains(contentStr, "VROOLI_LIFECYCLE_MANAGED") &&
 		(strings.Contains(contentStr, "os.Getenv(\"VROOLI_LIFECYCLE_MANAGED\")") ||
-			strings.Contains(contentStr, "os.LookupEnv(\"VROOLI_LIFECYCLE_MANAGED\")"))
+			strings.Contains(contentStr, "os.LookupEnv(\"VROOLI_LIFECYCLE_MANAGED\")")) &&
+		hasInstructionalMessage
 
 	if !hasLifecycleCheck {
 		return &Violation{
@@ -122,9 +212,14 @@ func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 			CodeSnippet: extractCodeSnippet(contentStr, "func main()"),
 			Recommendation: "Add lifecycle check at the start of main():\n" +
 				"if os.Getenv(\"VROOLI_LIFECYCLE_MANAGED\") != \"true\" {\n" +
-				"    fmt.Fprintln(os.Stderr, \"Error: Direct execution not allowed\")\n" +
+				"    fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.\n\n" +
+				"🚀 Instead, use:\n" +
+				"   vrooli scenario start prompt-manager\n\n" +
+				"💡 The lifecycle system provides environment variables, port allocation,\n" +
+				"   and dependency management automatically. Direct execution is not supported.\n" +
+				"`)\n" +
 				"    os.Exit(1)\n" +
-				"}",
+				"}\n",
 			Standard: "vrooli-lifecycle-v1",
 		}
 	}

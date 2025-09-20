@@ -229,6 +229,19 @@ class ApiService {
     })
   }
 
+  async triggerBulkFix(
+    fixType: 'standards' | 'vulnerabilities',
+    targets: Array<{ scenario: string; issue_ids?: string[] }>
+  ): Promise<FixAgentResponse> {
+    return this.fetch('/claude/fix', {
+      method: 'POST',
+      body: JSON.stringify({
+        fix_type: fixType,
+        targets,
+      }),
+    })
+  }
+
   async getClaudeFixStatus(fixId: string): Promise<{ success: boolean; status: string; agent: AgentInfo }> {
     return this.fetch(`/claude/fix/${fixId}/status`)
   }

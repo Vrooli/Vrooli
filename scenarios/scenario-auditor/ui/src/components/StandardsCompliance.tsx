@@ -53,6 +53,11 @@ export default function StandardsCompliance() {
   const [severityFilter, setSeverityFilter] = useState<string | null>(null)
   const [completedAgents, setCompletedAgents] = useState<Map<string, CompletedAgentStatus>>(new Map())
   const [launchingScenario, setLaunchingScenario] = useState<string | null>(null)
+  const [bulkFixOpen, setBulkFixOpen] = useState(false)
+  const [bulkFixCount, setBulkFixCount] = useState(1)
+  const [bulkFixSubmitting, setBulkFixSubmitting] = useState(false)
+  const [bulkFixError, setBulkFixError] = useState<string | null>(null)
+  const [bulkFixSuccess, setBulkFixSuccess] = useState<string | null>(null)
   const prevAgentsRef = useRef<Map<string, string>>(new Map())
   const queryClient = useQueryClient()
   const { data: activeAgentsData } = useQuery({
@@ -89,6 +94,58 @@ export default function StandardsCompliance() {
     }, 250)
     return () => window.clearTimeout(handle)
   }, [searchInput])
+
+  const triggerStandardsFix = useCallback(async (scenario: string, issueIds: string[]) => {
+    if (!scenario || issueIds.length === 0) {
+      return { success: false as const, message: 'No violations selected' }
+    }
+
+    setLaunchingScenario(scenario)
+    setCompletedAgents(prev => {
+      const updated = new Map(prev)
+      updated.delete(scenario)
+      return updated
+    })
+
+    try {
+      const result = await apiService.triggerClaudeFix(scenario, 'standards', issueIds)
+      if (!result.success || !result.agent) {
+        const message = result.error || result.message || 'Failed to start agent'
+        setCompletedAgents(prev => {
+          const updated = new Map(prev)
+          updated.set(scenario, {
+            agentId: result.fix_id || 'unknown',
+            scenario,
+            startTime: new Date(),
+            status: 'failed',
+            message,
+          })
+          return updated
+        })
+        setLaunchingScenario(null)
+        return { success: false as const, message }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+      setLaunchingScenario(null)
+      return { success: true as const }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to start agent'
+      setCompletedAgents(prev => {
+        const updated = new Map(prev)
+        updated.set(scenario, {
+          agentId: 'unknown',
+          scenario,
+          startTime: new Date(),
+          status: 'failed',
+          message,
+        })
+        return updated
+      })
+      setLaunchingScenario(null)
+      return { success: false as const, message }
+    }
+  }, [queryClient])
 
   const checkMutation = useMutation({
     mutationFn: (scenario: string) => apiService.checkStandards(scenario, { type: checkType }),
@@ -229,6 +286,30 @@ export default function StandardsCompliance() {
     Object.entries(groupedViolations).map(([scenario, violations]) => ({ scenario, violations })),
   [groupedViolations])
 
+  const maxBulkSelectable = Math.min(50, filteredViolations.length)
+
+  const bulkSelection = useMemo(() => {
+    if (filteredViolations.length === 0) {
+      return [] as StandardsViolation[]
+    }
+    const limit = Math.min(bulkFixCount, filteredViolations.length, 50)
+    return filteredViolations.slice(0, Math.max(0, limit))
+  }, [filteredViolations, bulkFixCount])
+
+  const bulkSelectionByScenario = useMemo(() => {
+    const map = new Map<string, StandardsViolation[]>()
+    bulkSelection.forEach(violation => {
+      if (!violation.scenario_name) {
+        return
+      }
+      if (!map.has(violation.scenario_name)) {
+        map.set(violation.scenario_name, [])
+      }
+      map.get(violation.scenario_name)!.push(violation)
+    })
+    return map
+  }, [bulkSelection])
+
   const stats = allViolations.reduce(
     (acc, violation) => {
       acc.total += 1
@@ -251,6 +332,75 @@ export default function StandardsCompliance() {
     }
     return `${secs}s`
   }
+
+  useEffect(() => {
+    if (!bulkFixOpen) {
+      return
+    }
+    if (maxBulkSelectable === 0) {
+      setBulkFixCount(1)
+      return
+    }
+    setBulkFixCount(prev => {
+      if (prev < 1) {
+        return 1
+      }
+      return Math.min(prev, maxBulkSelectable)
+    })
+  }, [bulkFixOpen, maxBulkSelectable])
+
+  const openBulkFixDialog = useCallback(() => {
+    if (filteredViolations.length === 0) {
+      return
+    }
+    const maxSelectable = Math.min(50, filteredViolations.length)
+    setBulkFixCount(Math.max(1, Math.min(5, maxSelectable)))
+    setBulkFixError(null)
+    setBulkFixSuccess(null)
+    setBulkFixOpen(true)
+  }, [filteredViolations])
+
+  const closeBulkFixDialog = useCallback(() => {
+    setBulkFixOpen(false)
+  }, [])
+
+  const handleBulkFixConfirm = useCallback(async () => {
+    if (bulkSelection.length === 0 || bulkSelectionByScenario.size === 0) {
+      setBulkFixError('Select at least one violation to fix')
+      return
+    }
+
+    setBulkFixSubmitting(true)
+    setBulkFixError(null)
+    setBulkFixSuccess(null)
+
+    const targets = Array.from(bulkSelectionByScenario.entries())
+      .map(([scenario, violations]) => ({
+        scenario,
+        issue_ids: violations.map(item => item.id).filter(Boolean),
+      }))
+      .filter(target => target.issue_ids.length > 0)
+
+    if (targets.length === 0) {
+      setBulkFixError('Unable to determine violations to fix for the current filter')
+      setBulkFixSubmitting(false)
+      return
+    }
+
+    try {
+      const response = await apiService.triggerBulkFix('standards', targets)
+      if (!response.success) {
+        setBulkFixError(response.error || response.message || 'Failed to start bulk standards fix agent')
+      } else {
+        setBulkFixSuccess(response.message || 'Started multi-scenario standards fix agent.')
+        await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+      }
+    } catch (error) {
+      setBulkFixError(error instanceof Error ? error.message : 'Failed to start bulk standards fix agent')
+    } finally {
+      setBulkFixSubmitting(false)
+    }
+  }, [apiService, bulkSelection, bulkSelectionByScenario, queryClient])
 
   const handleAgentCompletion = useCallback(async (agentId: string, scenario: string) => {
     try {
@@ -649,17 +799,28 @@ export default function StandardsCompliance() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="mb-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
               <h2 className="text-lg font-semibold text-dark-900">Standards Violations</h2>
-              {severityFilter && (
+              <div className="flex flex-wrap items-center gap-2 justify-end">
                 <button
-                  onClick={() => setSeverityFilter(null)}
-                  className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors text-sm"
+                  onClick={openBulkFixDialog}
+                  disabled={filteredViolations.length === 0 || maxBulkSelectable === 0}
+                  className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                  title="Trigger AI to fix the first matching violations across scenarios"
                 >
-                  <span>Filtering: {severityFilter}</span>
-                  <X className="h-3 w-3" />
+                  <Bot className="h-4 w-4" />
+                  Fix filtered with AI
                 </button>
-              )}
+                {severityFilter && (
+                  <button
+                    onClick={() => setSeverityFilter(null)}
+                    className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary-100 text-primary-700 hover:bg-primary-200 transition-colors text-sm"
+                  >
+                    <span>Filtering: {severityFilter}</span>
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
             
             {/* Search Bar */}
@@ -727,58 +888,16 @@ export default function StandardsCompliance() {
                           <span className="text-xs text-dark-500">
                             {scenarioViolations.length} violation{scenarioViolations.length !== 1 ? 's' : ''}
                           </span>
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`Trigger Claude agent to resolve ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
-                                return
-                              }
-
-                              setLaunchingScenario(scenario)
-                              setCompletedAgents(prev => {
-                                const updated = new Map(prev)
-                                updated.delete(scenario)
-                                return updated
-                              })
-
-                              try {
-                                const result = await apiService.triggerClaudeFix(
-                                  scenario,
-                                  'standards',
-                                  scenarioViolations.map(v => v.id)
-                                )
-
-                                if (!result.success || !result.agent) {
-                                  setCompletedAgents(prev => {
-                                    const updated = new Map(prev)
-                                    updated.set(scenario, {
-                                      agentId: result.fix_id || 'unknown',
-                                      scenario,
-                                      startTime: new Date(),
-                                      status: 'failed',
-                                      message: result.error || result.message || 'Failed to start agent',
-                                    })
-                                    return updated
-                                  })
-                                  setLaunchingScenario(null)
-                                  return
-                                }
-
-                                await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
-                              } catch (error) {
-                                setCompletedAgents(prev => {
-                                  const updated = new Map(prev)
-                                  updated.set(scenario, {
-                                    agentId: 'unknown',
-                                    scenario,
-                                    startTime: new Date(),
-                                    status: 'failed',
-                                    message: error instanceof Error ? error.message : 'Failed to trigger fix',
-                                  })
-                                  return updated
-                                })
-                                setLaunchingScenario(null)
-                              }
-                            }}
+                      <button
+                        onClick={async () => {
+                          if (!confirm(`Trigger Claude agent to resolve ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
+                            return
+                          }
+                          void triggerStandardsFix(
+                            scenario,
+                            scenarioViolations.map(v => v.id)
+                          )
+                        }}
                             disabled={hasActiveAgent || isLaunching}
                             className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
                             title="Fix violations with Claude agent"
@@ -968,6 +1087,95 @@ export default function StandardsCompliance() {
           )}
         </Card>
       </div>
+
+      <Dialog
+        open={bulkFixOpen}
+        onClose={closeBulkFixDialog}
+        title="Fix Filtered Standards Violations"
+        size="lg"
+      >
+        <div className="space-y-5">
+          <p className="text-sm text-dark-600">
+            Launch Claude agents to address the first <span className="font-medium text-dark-800">{bulkSelection.length}</span> matching violations across{' '}
+            <span className="font-medium text-dark-800">{bulkSelectionByScenario.size}</span> scenario{bulkSelectionByScenario.size === 1 ? '' : 's'}. Use the slider to cap the number of issues (maximum 50) so you can batch similar fixes safely.
+          </p>
+
+          <div>
+            <label htmlFor="standards-bulk-count" className="flex items-center justify-between text-sm font-medium text-dark-700">
+              <span>Select number of violations</span>
+              <span className="text-dark-500">{bulkSelection.length} selected</span>
+            </label>
+            <input
+              id="standards-bulk-count"
+              type="range"
+              min={1}
+              max={Math.max(1, maxBulkSelectable)}
+              value={Math.min(bulkFixCount, Math.max(1, maxBulkSelectable))}
+              onChange={(event) => setBulkFixCount(Number(event.target.value))}
+              className="mt-2 w-full"
+              disabled={bulkFixSubmitting || maxBulkSelectable <= 1}
+            />
+          </div>
+
+          <div className="rounded-lg border border-dark-200 bg-dark-50 p-3">
+            <p className="text-xs font-medium text-dark-600 mb-2">Preview ({Math.min(10, bulkSelection.length)} shown)</p>
+            <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {bulkSelection.slice(0, 10).map((violation, index) => (
+                <li key={`${violation.id}-${index}`} className="text-xs text-dark-600 flex flex-col">
+                  <span className="font-medium text-dark-800">{violation.scenario_name || 'Unknown scenario'}</span>
+                  <span>{violation.title}</span>
+                  <span className="text-[0.7rem] text-dark-400">
+                    {violation.file_path}:{violation.line_number} · {violation.standard || violation.type || 'standard'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {bulkSelection.length > 10 && (
+              <p className="mt-2 text-xs text-dark-500">…and {bulkSelection.length - 10} more will be included.</p>
+            )}
+          </div>
+
+          {bulkFixSuccess && (
+            <div className="rounded-md border border-success-200 bg-success-50 px-3 py-2 text-xs text-success-700">
+              {bulkFixSuccess}
+            </div>
+          )}
+          {bulkFixError && (
+            <div className="rounded-md border border-danger-200 bg-danger-50 px-3 py-2 text-xs text-danger-700">
+              {bulkFixError}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeBulkFixDialog}
+              className="px-4 py-2 text-sm rounded-md border border-dark-200 text-dark-600 hover:bg-dark-100 disabled:opacity-50"
+              disabled={bulkFixSubmitting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleBulkFixConfirm()}
+              className="px-4 py-2 text-sm rounded-md bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40"
+              disabled={bulkFixSubmitting || bulkSelection.length === 0}
+            >
+              {bulkFixSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Starting…
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Bot className="h-4 w-4" />
+                  Start AI Fix
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+      </Dialog>
 
       {/* Check Type Info Dialog */}
       <Dialog

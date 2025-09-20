@@ -13,9 +13,15 @@ import (
 )
 
 type claudeFixRequest struct {
-	ScenarioName string   `json:"scenario_name"`
-	FixType      string   `json:"fix_type"`
-	IssueIDs     []string `json:"issue_ids"`
+	ScenarioName string            `json:"scenario_name"`
+	FixType      string            `json:"fix_type"`
+	IssueIDs     []string          `json:"issue_ids"`
+	Targets      []claudeFixTarget `json:"targets"`
+}
+
+type claudeFixTarget struct {
+	Scenario string   `json:"scenario"`
+	IssueIDs []string `json:"issue_ids"`
 }
 
 func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,94 +33,163 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenarioName := strings.TrimSpace(req.ScenarioName)
-	if scenarioName == "" {
-		HTTPError(w, "scenario_name is required", http.StatusBadRequest, nil)
-		return
-	}
-
 	fixType := strings.TrimSpace(req.FixType)
 	if fixType == "" {
 		fixType = "standards"
 	}
 
-	scenarioPath := filepath.Clean(filepath.Join(getScenarioRoot(), "..", scenarioName))
-	if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
-		HTTPError(w, "Scenario not found", http.StatusNotFound, err)
-		return
-	}
-
 	issueIDs := normaliseIDs(req.IssueIDs)
 
 	var (
-		prompt   string
-		label    string
-		metadata map[string]string
-		action   string
-		err      error
-		finalIDs []string
+		prompt            string
+		label             string
+		metadata          map[string]string
+		action            string
+		err               error
+		finalIDs          []string
+		agentCfg          AgentStartConfig
+		responseMessage   string
+		responseScenarios []string
 	)
 
-	switch fixType {
-	case "standards":
-		violations := standardsStore.GetViolations(scenarioName)
-		selected, ids := selectStandardsViolations(violations, issueIDs)
-		if len(selected) == 0 {
-			HTTPError(w, "No matching standards violations found to fix", http.StatusBadRequest, nil)
-			return
-		}
-		if len(issueIDs) > 0 {
-			if missing := findMissingIDs(issueIDs, ids); len(missing) > 0 {
-				HTTPError(w, fmt.Sprintf("Unknown standards violation IDs: %s", strings.Join(missing, ", ")), http.StatusBadRequest, nil)
+	if len(req.Targets) > 0 {
+		switch fixType {
+		case "standards":
+			multiTargets, collectedIDs, err := prepareBulkStandardsTargets(req.Targets)
+			if err != nil {
+				HTTPError(w, err.Error(), http.StatusBadRequest, nil)
 				return
 			}
-		}
-		prompt, label, metadata, err = buildStandardsFixPrompt(scenarioName, scenarioPath, selected, ids)
-		finalIDs = ids
-		action = agentActionStandardsFix
-	case "vulnerabilities":
-		vulnerabilities := vulnStore.GetVulnerabilities(scenarioName)
-		selected, ids := selectStoredVulnerabilities(vulnerabilities, issueIDs)
-		if len(selected) == 0 {
-			HTTPError(w, "No matching vulnerabilities found to fix", http.StatusBadRequest, nil)
-			return
-		}
-		if len(issueIDs) > 0 {
-			if missing := findMissingIDs(issueIDs, ids); len(missing) > 0 {
-				HTTPError(w, fmt.Sprintf("Unknown vulnerability IDs: %s", strings.Join(missing, ", ")), http.StatusBadRequest, nil)
+			prompt, label, metadata, err = buildMultiStandardsFixPrompt(multiTargets)
+			if err != nil {
+				HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
 				return
 			}
+			metadata["fix_type"] = fixType
+			scenarioNames := extractStandardsScenarioNames(multiTargets)
+			metadata["scenarios"] = strings.Join(scenarioNames, ",")
+			action = agentActionStandardsFix
+			agentCfg = AgentStartConfig{
+				Label:    label,
+				Name:     fmt.Sprintf("%s (multi)", label),
+				Action:   action,
+				Scenario: "multi",
+				IssueIDs: collectedIDs,
+				Prompt:   prompt,
+				Model:    openRouterModel,
+				Metadata: metadata,
+			}
+			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(multiTargets))
+			responseScenarios = scenarioNames
+		case "vulnerabilities":
+			multiTargets, collectedIDs, err := prepareBulkVulnerabilityTargets(req.Targets)
+			if err != nil {
+				HTTPError(w, err.Error(), http.StatusBadRequest, nil)
+				return
+			}
+			prompt, label, metadata, err = buildMultiVulnerabilityFixPrompt(multiTargets)
+			if err != nil {
+				HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
+				return
+			}
+			metadata["fix_type"] = fixType
+			scenarioNames := extractVulnerabilityScenarioNames(multiTargets)
+			metadata["scenarios"] = strings.Join(scenarioNames, ",")
+			action = agentActionVulnerabilityFix
+			agentCfg = AgentStartConfig{
+				Label:    label,
+				Name:     fmt.Sprintf("%s (multi)", label),
+				Action:   action,
+				Scenario: "multi",
+				IssueIDs: collectedIDs,
+				Prompt:   prompt,
+				Model:    openRouterModel,
+				Metadata: metadata,
+			}
+			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(multiTargets))
+			responseScenarios = scenarioNames
+		default:
+			HTTPError(w, "Unsupported fix_type", http.StatusBadRequest, nil)
+			return
 		}
-		prompt, label, metadata, err = buildVulnerabilityFixPrompt(scenarioName, scenarioPath, selected, ids)
-		finalIDs = ids
-		action = agentActionVulnerabilityFix
-	default:
-		HTTPError(w, "Unsupported fix_type", http.StatusBadRequest, nil)
-		return
+	} else {
+		scenarioName := strings.TrimSpace(req.ScenarioName)
+		if scenarioName == "" {
+			HTTPError(w, "scenario_name is required", http.StatusBadRequest, nil)
+			return
+		}
+
+		scenarioPath := filepath.Clean(filepath.Join(getScenarioRoot(), "..", scenarioName))
+		if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
+			return
+		}
+
+		switch fixType {
+		case "standards":
+			violations := standardsStore.GetViolations(scenarioName)
+			selected, ids := selectStandardsViolations(violations, issueIDs)
+			if len(selected) == 0 {
+				HTTPError(w, "No matching standards violations found to fix", http.StatusBadRequest, nil)
+				return
+			}
+			if len(issueIDs) > 0 {
+				if missing := findMissingIDs(issueIDs, ids); len(missing) > 0 {
+					HTTPError(w, fmt.Sprintf("Unknown standards violation IDs: %s", strings.Join(missing, ", ")), http.StatusBadRequest, nil)
+					return
+				}
+			}
+			prompt, label, metadata, err = buildStandardsFixPrompt(scenarioName, scenarioPath, selected, ids)
+			finalIDs = ids
+			action = agentActionStandardsFix
+		case "vulnerabilities":
+			vulnerabilities := vulnStore.GetVulnerabilities(scenarioName)
+			selected, ids := selectStoredVulnerabilities(vulnerabilities, issueIDs)
+			if len(selected) == 0 {
+				HTTPError(w, "No matching vulnerabilities found to fix", http.StatusBadRequest, nil)
+				return
+			}
+			if len(issueIDs) > 0 {
+				if missing := findMissingIDs(issueIDs, ids); len(missing) > 0 {
+					HTTPError(w, fmt.Sprintf("Unknown vulnerability IDs: %s", strings.Join(missing, ", ")), http.StatusBadRequest, nil)
+					return
+				}
+			}
+			prompt, label, metadata, err = buildVulnerabilityFixPrompt(scenarioName, scenarioPath, selected, ids)
+			finalIDs = ids
+			action = agentActionVulnerabilityFix
+		default:
+			HTTPError(w, "Unsupported fix_type", http.StatusBadRequest, nil)
+			return
+		}
+
+		if err != nil {
+			HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
+			return
+		}
+
+		if metadata == nil {
+			metadata = make(map[string]string)
+		}
+		metadata["scenario"] = scenarioName
+		metadata["scenario_path"] = scenarioPath
+		metadata["fix_type"] = fixType
+
+		agentCfg = AgentStartConfig{
+			Label:    label,
+			Name:     fmt.Sprintf("%s (%s)", label, scenarioName),
+			Action:   action,
+			Scenario: scenarioName,
+			IssueIDs: finalIDs,
+			Prompt:   prompt,
+			Model:    openRouterModel,
+			Metadata: metadata,
+		}
+		responseMessage = fmt.Sprintf("Started %s for %s", label, scenarioName)
+		responseScenarios = []string{scenarioName}
 	}
 
-	if err != nil {
-		HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
-		return
-	}
-
-	if metadata == nil {
-		metadata = make(map[string]string)
-	}
-	metadata["scenario"] = scenarioName
-	metadata["scenario_path"] = scenarioPath
-	metadata["fix_type"] = fixType
-
-	agentInfo, err := agentManager.StartAgent(AgentStartConfig{
-		Label:    label,
-		Name:     fmt.Sprintf("%s (%s)", label, scenarioName),
-		Action:   action,
-		Scenario: scenarioName,
-		IssueIDs: finalIDs,
-		Prompt:   prompt,
-		Model:    openRouterModel,
-		Metadata: metadata,
-	})
+	agentInfo, err := agentManager.StartAgent(agentCfg)
 	if err != nil {
 		HTTPError(w, "Failed to start agent", http.StatusInternalServerError, err)
 		return
@@ -122,10 +197,11 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"success":    true,
-		"message":    fmt.Sprintf("Started %s for %s", label, scenarioName),
+		"message":    responseMessage,
 		"fix_id":     agentInfo.ID,
 		"started_at": agentInfo.StartedAt,
 		"agent":      agentInfo,
+		"scenarios":  responseScenarios,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -261,4 +337,143 @@ func selectStoredVulnerabilities(all []StoredVulnerability, ids []string) ([]Sto
 		}
 	}
 	return filtered, collected
+}
+
+func prepareBulkStandardsTargets(targets []claudeFixTarget) ([]standardsFixMultiScenario, []string, error) {
+	var result []standardsFixMultiScenario
+	seenIssues := make(map[string]struct{})
+	var collectedIDs []string
+
+	indexByScenario := make(map[string]int)
+
+	for _, target := range targets {
+		scenario := strings.TrimSpace(target.Scenario)
+		if scenario == "" {
+			continue
+		}
+
+		scenarioPath := filepath.Clean(filepath.Join(getScenarioRoot(), "..", scenario))
+		if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+			return nil, nil, fmt.Errorf("scenario %s not found", scenario)
+		}
+
+		available := standardsStore.GetViolations(scenario)
+		issueIDs := normaliseIDs(target.IssueIDs)
+		selected, ids := selectStandardsViolations(available, issueIDs)
+		if len(selected) == 0 {
+			continue
+		}
+
+		if idx, exists := indexByScenario[scenario]; exists {
+			existing := result[idx].Violations
+			existing = append(existing, selected...)
+			result[idx].Violations = existing
+		} else {
+			indexByScenario[scenario] = len(result)
+			result = append(result, standardsFixMultiScenario{
+				Scenario:     scenario,
+				ScenarioPath: scenarioPath,
+				Violations:   selected,
+			})
+		}
+
+		for _, id := range ids {
+			if id == "" {
+				continue
+			}
+			if _, exists := seenIssues[id]; !exists {
+				seenIssues[id] = struct{}{}
+				collectedIDs = append(collectedIDs, id)
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, nil, fmt.Errorf("no matching standards violations found for provided targets")
+	}
+
+	sort.Strings(collectedIDs)
+	return result, collectedIDs, nil
+}
+
+func prepareBulkVulnerabilityTargets(targets []claudeFixTarget) ([]vulnerabilityFixMultiScenario, []string, error) {
+	var result []vulnerabilityFixMultiScenario
+	seenIssues := make(map[string]struct{})
+	var collectedIDs []string
+
+	indexByScenario := make(map[string]int)
+
+	for _, target := range targets {
+		scenario := strings.TrimSpace(target.Scenario)
+		if scenario == "" {
+			continue
+		}
+
+		scenarioPath := filepath.Clean(filepath.Join(getScenarioRoot(), "..", scenario))
+		if _, err := os.Stat(scenarioPath); os.IsNotExist(err) {
+			return nil, nil, fmt.Errorf("scenario %s not found", scenario)
+		}
+
+		available := vulnStore.GetVulnerabilities(scenario)
+		issueIDs := normaliseIDs(target.IssueIDs)
+		selected, ids := selectStoredVulnerabilities(available, issueIDs)
+		if len(selected) == 0 {
+			continue
+		}
+
+		if idx, exists := indexByScenario[scenario]; exists {
+			existing := result[idx].Findings
+			existing = append(existing, selected...)
+			result[idx].Findings = existing
+		} else {
+			indexByScenario[scenario] = len(result)
+			result = append(result, vulnerabilityFixMultiScenario{
+				Scenario:     scenario,
+				ScenarioPath: scenarioPath,
+				Findings:     selected,
+			})
+		}
+
+		for _, id := range ids {
+			if id == "" {
+				continue
+			}
+			if _, exists := seenIssues[id]; !exists {
+				seenIssues[id] = struct{}{}
+				collectedIDs = append(collectedIDs, id)
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return nil, nil, fmt.Errorf("no matching vulnerabilities found for provided targets")
+	}
+
+	sort.Strings(collectedIDs)
+	return result, collectedIDs, nil
+}
+
+func extractStandardsScenarioNames(targets []standardsFixMultiScenario) []string {
+	set := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		set[target.Scenario] = struct{}{}
+	}
+	return sortedKeys(set)
+}
+
+func extractVulnerabilityScenarioNames(targets []vulnerabilityFixMultiScenario) []string {
+	set := make(map[string]struct{}, len(targets))
+	for _, target := range targets {
+		set[target.Scenario] = struct{}{}
+	}
+	return sortedKeys(set)
+}
+
+func sortedKeys(set map[string]struct{}) []string {
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
