@@ -39,7 +39,7 @@ func main() {
 	// Initialize logger
 	log := logrus.New()
 	log.SetFormatter(&logrus.JSONFormatter{})
-	
+
 	logLevel := os.Getenv("LOG_LEVEL")
 	switch logLevel {
 	case "debug":
@@ -103,13 +103,13 @@ func main() {
 			w.Header().Set("Access-Control-Expose-Headers", "Link")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
 			w.Header().Set("Access-Control-Max-Age", "300")
-			
+
 			// Handle preflight requests
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			
+
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -117,7 +117,7 @@ func main() {
 	// Routes
 	r.Get("/health", handler.Health)
 	r.Get("/ws", handler.HandleWebSocket) // WebSocket endpoint
-	
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Project routes
 		r.Post("/projects", handler.CreateProject)
@@ -127,38 +127,39 @@ func main() {
 		r.Delete("/projects/{id}", handler.DeleteProject)
 		r.Get("/projects/{id}/workflows", handler.GetProjectWorkflows)
 		r.Post("/projects/{id}/execute-all", handler.ExecuteAllProjectWorkflows)
-		
+
 		// Workflow routes
 		r.Post("/workflows/create", handler.CreateWorkflow)
 		r.Get("/workflows", handler.ListWorkflows)
 		r.Get("/workflows/{id}", handler.GetWorkflow)
 		r.Post("/workflows/{id}/execute", handler.ExecuteWorkflow)
-		
+		r.Post("/workflows/{id}/modify", handler.ModifyWorkflow)
+
 		// Execution routes
 		r.Get("/executions", handler.ListExecutions)
 		r.Get("/executions/{id}", handler.GetExecution)
 		r.Post("/executions/{id}/stop", handler.StopExecution)
 		r.Get("/executions/{id}/screenshots", handler.GetExecutionScreenshots)
-		
+
 		// Scenario routes
 		r.Get("/scenarios/{name}/port", handler.GetScenarioPort)
-		
+
 		// Screenshot serving routes
 		r.Get("/screenshots/*", handler.ServeScreenshot)
 		r.Get("/screenshots/thumbnail/*", handler.ServeThumbnail)
-		
+
 		// Preview route for taking screenshots of URLs
 		r.Post("/preview-screenshot", handler.TakePreviewScreenshot)
-		
+
 		// Element analysis route for intelligent selector detection
 		r.Post("/analyze-elements", handler.AnalyzeElements)
-		
+
 		// Element at coordinate route for click-based selector detection
 		r.Post("/element-at-coordinate", handler.GetElementAtCoordinate)
-		
+
 		// AI-powered element analysis route using Ollama text models with DOM
 		r.Post("/ai-analyze-elements", handler.AIAnalyzeElements)
-		
+
 		// DOM tree extraction for Browser Inspector tab
 		r.Post("/dom-tree", handler.GetDOMTree)
 	})
@@ -168,14 +169,14 @@ func main() {
 	if apiHost == "" {
 		apiHost = "localhost"
 	}
-	
+
 	log.WithFields(logrus.Fields{
-		"api_port": port,
-		"api_host": apiHost,
+		"api_port":    port,
+		"api_host":    apiHost,
 		"cors_policy": "allow_all",
 	}).Info("🚀 Browser Automation Studio API starting")
 	log.WithField("endpoint", fmt.Sprintf("http://%s:%s/api/v1", apiHost, port)).Info("📊 API endpoint ready")
-	
+
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.WithError(err).Fatal("❌ Server failed to start")
 	}

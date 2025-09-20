@@ -12,6 +12,7 @@ Reason: Prevents naming conflicts and clearly identifies application-specific co
 Category: config
 Severity: low
 Standard: configuration-v1
+Targets: api, cli, ui
 
 <test-case id="non-standard-env-vars" should-fail="true">
   <description>Custom environment variables without VROOLI_ prefix</description>

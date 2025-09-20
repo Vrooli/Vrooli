@@ -12,6 +12,7 @@ Reason: Improves security, flexibility, and deployment across different environm
 Category: config
 Severity: high
 Standard: configuration-v1
+Targets: api, cli, ui, test
 
 <test-case id="hardcoded-credentials" should-fail="true">
   <description>Hardcoded passwords and API keys</description>

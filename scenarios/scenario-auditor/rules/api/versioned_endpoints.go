@@ -12,6 +12,7 @@ Reason: Enables backward compatibility and smooth API evolution without breaking
 Category: api
 Severity: medium
 Standard: api-design-v1
+Targets: api
 
 <test-case id="unversioned-endpoints" should-fail="true">
   <description>API endpoints without version prefix</description>

@@ -35,6 +35,7 @@ type RuleInfo struct {
 	Standard       string                   `json:"standard"`
 	FilePath       string                   `json:"file_path"`
 	Enabled        bool                     `json:"enabled"`
+	Targets        []string                 `json:"targets"`
 	Implementation RuleImplementationStatus `json:"implementation"`
 	executor       ruleExecutor             `json:"-"`
 }
@@ -201,6 +202,14 @@ func parseCommentBlock(lines []string, rule RuleInfo) RuleInfo {
 			rule.Severity = strings.TrimSpace(strings.TrimPrefix(line, "Severity:"))
 		} else if strings.HasPrefix(line, "Standard:") {
 			rule.Standard = strings.TrimSpace(strings.TrimPrefix(line, "Standard:"))
+		} else if strings.HasPrefix(line, "Targets:") {
+			targets := strings.Split(strings.TrimSpace(strings.TrimPrefix(line, "Targets:")), ",")
+			for _, target := range targets {
+				t := strings.TrimSpace(target)
+				if t != "" {
+					rule.Targets = append(rule.Targets, strings.ToLower(t))
+				}
+			}
 		}
 	}
 
@@ -290,6 +299,7 @@ func ConvertRuleInfoToRule(info RuleInfo) Rule {
 		Severity:       info.Severity,
 		Enabled:        info.Enabled,
 		Standard:       info.Standard,
+		Targets:        info.Targets,
 		Implementation: info.Implementation,
 	}
 }

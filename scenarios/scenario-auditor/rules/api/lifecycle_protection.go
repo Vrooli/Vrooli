@@ -11,6 +11,7 @@ Reason: Prevents direct execution of services, enforcing proper process manageme
 Category: api
 Severity: critical
 Standard: vrooli-lifecycle-v1
+Targets: api, cli, main_go
 
 <test-case id="missing-lifecycle-check" should-fail="true">
   <description>main.go without lifecycle protection</description>

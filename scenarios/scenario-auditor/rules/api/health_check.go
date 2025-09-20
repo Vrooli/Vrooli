@@ -11,6 +11,7 @@ Reason: Required for proper service monitoring, orchestration, and lifecycle man
 Category: api
 Severity: high
 Standard: service-reliability-v1
+Targets: api, main_go
 
 <test-case id="missing-health-endpoint" should-fail="true">
   <description>API service without health check endpoint</description>

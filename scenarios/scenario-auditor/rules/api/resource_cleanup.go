@@ -12,6 +12,7 @@ Reason: Prevents resource leaks, port exhaustion, and memory issues in productio
 Category: api
 Severity: critical
 Standard: resource-management-v1
+Targets: api
 
 <test-case id="http-client-no-timeout" should-fail="true">
   <description>HTTP client without timeout</description>

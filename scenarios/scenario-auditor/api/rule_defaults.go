@@ -11,6 +11,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "critical",
 			Enabled:     true,
 			Standard:    "vrooli-lifecycle-v1",
+			Targets:     []string{targetAPI, targetCLI, targetMainGo},
 		},
 		"test_coverage": {
 			ID:          "test_coverage",
@@ -20,6 +21,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "medium",
 			Enabled:     true,
 			Standard:    "testing-standards-v1",
+			Targets:     []string{targetAPI, targetCLI},
 		},
 		"lightweight_main": {
 			ID:          "lightweight_main",
@@ -29,6 +31,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "medium",
 			Enabled:     true,
 			Standard:    "code-structure-v1",
+			Targets:     []string{targetCLI, targetMainGo},
 		},
 		"hardcoded_values": {
 			ID:          "hardcoded_values",
@@ -38,6 +41,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "high",
 			Enabled:     true,
 			Standard:    "configuration-v1",
+			Targets:     []string{targetAPI, targetCLI, targetUI, targetTest},
 		},
 		"versioned_endpoints": {
 			ID:          "versioned_endpoints",
@@ -47,6 +51,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "medium",
 			Enabled:     true,
 			Standard:    "api-design-v1",
+			Targets:     []string{targetAPI},
 		},
 		"http_status_codes": {
 			ID:          "http_status_codes",
@@ -56,6 +61,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "low",
 			Enabled:     true,
 			Standard:    "api-design-v1",
+			Targets:     []string{targetAPI},
 		},
 		"content_type_headers": {
 			ID:          "content_type_headers",
@@ -65,6 +71,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "medium",
 			Enabled:     true,
 			Standard:    "api-design-v1",
+			Targets:     []string{targetAPI},
 		},
 		"env_var_naming": {
 			ID:          "env_var_naming",
@@ -74,6 +81,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "low",
 			Enabled:     true,
 			Standard:    "configuration-v1",
+			Targets:     []string{targetAPI, targetCLI, targetUI},
 		},
 		"structured_logging": {
 			ID:          "structured_logging",
@@ -83,6 +91,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "medium",
 			Enabled:     true,
 			Standard:    "logging-v1",
+			Targets:     []string{targetCLI, targetAPI},
 		},
 		"resource_cleanup": {
 			ID:          "resource_cleanup",
@@ -92,6 +101,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "critical",
 			Enabled:     true,
 			Standard:    "resource-management-v1",
+			Targets:     []string{targetAPI},
 		},
 		"health_check": {
 			ID:          "health_check",
@@ -101,6 +111,7 @@ func getDefaultRules() map[string]RuleInfo {
 			Severity:    "high",
 			Enabled:     true,
 			Standard:    "service-reliability-v1",
+			Targets:     []string{targetAPI, targetMainGo},
 		},
 	}
 }

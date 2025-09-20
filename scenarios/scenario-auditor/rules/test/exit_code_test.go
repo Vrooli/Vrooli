@@ -7,6 +7,7 @@ Reason: Ensures proper test evaluation with exit codes
 Category: test
 Severity: medium
 Standard: testing-v1
+Targets: test
 
 <test-case id="clean-code-passes" should-fail="false">
   <description>Clean code that compiles and runs successfully</description>

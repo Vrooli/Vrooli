@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Node,
-  // Edge,
-  Controls,
+  Edge,
   MiniMap,
   Background,
   BackgroundVariant,
@@ -10,9 +9,9 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   Connection,
+  ConnectionMode,
   MarkerType,
   NodeTypes,
-  useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
 import { useWorkflowStore } from '../stores/workflowStore';
@@ -61,7 +60,18 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
   const { nodes: storeNodes, edges: storeEdges, updateWorkflow } = useWorkflowStore();
   const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes || []);
   const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges || []);
-  const { project, getIntersectingNodes } = useReactFlow();
+
+  useEffect(() => {
+    if (storeNodes) {
+      setNodes(storeNodes as Node[]);
+    }
+  }, [storeNodes, setNodes]);
+
+  useEffect(() => {
+    if (storeEdges) {
+      setEdges(storeEdges as Edge[]);
+    }
+  }, [storeEdges, setEdges]);
   const connectingNodeId = useRef<string | null>(null);
   
   // Toolbar state
@@ -275,7 +285,7 @@ function WorkflowBuilderInner({ projectId }: WorkflowBuilderProps) {
         fitView
         className="bg-flow-bg"
         connectOnClick={false}
-        connectionMode="loose"
+        connectionMode={ConnectionMode.Loose}
         connectionRadius={50}
         connectionLineComponent={CustomConnectionLine}
         nodesDraggable={!locked}

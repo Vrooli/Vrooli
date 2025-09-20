@@ -37,11 +37,16 @@ function AIPromptModal({ onClose, folder, projectId, onSwitchToManual }: AIPromp
 
     setIsGenerating(true);
     try {
-      await generateWorkflow(prompt, workflowName, folder, projectId);
+      const workflow = await generateWorkflow(prompt, workflowName, folder, projectId);
+      const nodeCount = Array.isArray(workflow?.nodes) ? workflow.nodes.length : 0;
+      if (nodeCount === 0) {
+        throw new Error('AI did not return any workflow steps. Please refine your prompt and try again.');
+      }
       toast.success('Workflow generated successfully!');
       onClose();
     } catch (error) {
-      toast.error('Failed to generate workflow');
+      const message = error instanceof Error ? error.message : 'Failed to generate workflow';
+      toast.error(message);
     } finally {
       setIsGenerating(false);
     }

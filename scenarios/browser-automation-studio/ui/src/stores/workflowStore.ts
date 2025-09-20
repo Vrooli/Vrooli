@@ -13,6 +13,44 @@ interface Workflow {
   updatedAt: Date;
 }
 
+const normalizeNodes = (nodes: any[] | undefined | null): Node[] => {
+  if (!Array.isArray(nodes)) return [];
+  return nodes.map((node, index) => {
+    const id = node?.id ? String(node.id) : `node-${index + 1}`;
+    const type = node?.type ? String(node.type) : 'navigate';
+    const position = {
+      x: Number(node?.position?.x ?? 100 + index * 200) || 0,
+      y: Number(node?.position?.y ?? 100 + index * 120) || 0,
+    };
+    const data = node?.data && typeof node.data === 'object' ? node.data : {};
+    return {
+      ...node,
+      id,
+      type,
+      position,
+      data,
+    } as Node;
+  });
+};
+
+const normalizeEdges = (edges: any[] | undefined | null): Edge[] => {
+  if (!Array.isArray(edges)) return [];
+  return edges
+    .map((edge, index) => {
+      const id = edge?.id ? String(edge.id) : `edge-${index + 1}`;
+      const source = edge?.source ? String(edge.source) : '';
+      const target = edge?.target ? String(edge.target) : '';
+      if (!source || !target) return null;
+      return {
+        ...edge,
+        id,
+        source,
+        target,
+      } as Edge;
+    })
+    .filter(Boolean) as Edge[];
+};
+
 interface WorkflowStore {
   workflows: Workflow[];
   currentWorkflow: Workflow | null;
@@ -21,11 +59,11 @@ interface WorkflowStore {
   
   loadWorkflows: (projectId?: string) => Promise<void>;
   loadWorkflow: (id: string) => Promise<void>;
-  createWorkflow: (name: string, folderPath: string, projectId?: string) => Promise<void>;
+  createWorkflow: (name: string, folderPath: string, projectId?: string) => Promise<Workflow>;
   saveWorkflow: () => Promise<void>;
   updateWorkflow: (updates: Partial<Workflow>) => void;
-  generateWorkflow: (prompt: string, name: string, folderPath: string, projectId?: string) => Promise<void>;
-  modifyWorkflow: (prompt: string) => Promise<void>;
+  generateWorkflow: (prompt: string, name: string, folderPath: string, projectId?: string) => Promise<Workflow>;
+  modifyWorkflow: (prompt: string) => Promise<Workflow>;
   deleteWorkflow: (id: string) => Promise<void>;
 }
 
@@ -34,6 +72,45 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   currentWorkflow: null,
   nodes: [],
   edges: [],
+
+  normalizeNodes: (nodes: any[] | undefined | null) => {
+    if (!Array.isArray(nodes)) return [];
+    return nodes
+      .map((node, index) => {
+        const id = node?.id ? String(node.id) : `node-${index + 1}`;
+        const type = node?.type ? String(node.type) : 'navigate';
+        const position = {
+          x: Number(node?.position?.x ?? 100 + index * 200) || 0,
+          y: Number(node?.position?.y ?? 100 + index * 120) || 0,
+        };
+        const data = node?.data && typeof node.data === 'object' ? node.data : {};
+        return {
+          ...node,
+          id,
+          type,
+          position,
+          data,
+        } as Node;
+      });
+  },
+
+  normalizeEdges: (edges: any[] | undefined | null) => {
+    if (!Array.isArray(edges)) return [];
+    return edges
+      .map((edge, index) => {
+        const id = edge?.id ? String(edge.id) : `edge-${index + 1}`;
+        const source = edge?.source ? String(edge.source) : '';
+        const target = edge?.target ? String(edge.target) : '';
+        if (!source || !target) return null;
+        return {
+          ...edge,
+          id,
+          source,
+          target,
+        } as Edge;
+      })
+      .filter(Boolean) as Edge[];
+  },
   
   loadWorkflows: async (projectId?: string) => {
     try {
@@ -63,8 +140,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       const workflow = await response.json();
       set({ 
         currentWorkflow: workflow,
-        nodes: workflow.nodes || [],
-        edges: workflow.edges || []
+        nodes: normalizeNodes(workflow.nodes),
+        edges: normalizeEdges(workflow.edges)
       });
     } catch (error) {
       console.error('Failed to load workflow:', error);
@@ -90,7 +167,8 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         }),
       });
       if (!response.ok) {
-        throw new Error(`Failed to create workflow: ${response.status}`);
+        const message = await response.text();
+        throw new Error(message || `Failed to create workflow: ${response.status}`);
       }
       const workflow = await response.json();
       set({ 
@@ -98,6 +176,7 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         nodes: [],
         edges: []
       });
+      return workflow;
     } catch (error) {
       console.error('Failed to create workflow:', error);
       throw error;
@@ -167,14 +246,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         }),
       });
       if (!response.ok) {
-        throw new Error(`Failed to generate workflow: ${response.status}`);
+        const message = await response.text();
+        throw new Error(message || `Failed to generate workflow: ${response.status}`);
       }
       const workflow = await response.json();
       set({ 
         currentWorkflow: workflow,
-        nodes: workflow.nodes || [],
-        edges: workflow.edges || []
+        nodes: normalizeNodes(workflow.nodes),
+        edges: normalizeEdges(workflow.edges)
       });
+      return workflow;
     } catch (error) {
       console.error('Failed to generate workflow:', error);
       throw error;
@@ -200,14 +281,16 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
         }),
       });
       if (!response.ok) {
-        throw new Error(`Failed to modify workflow: ${response.status}`);
+        const message = await response.text();
+        throw new Error(message || `Failed to modify workflow: ${response.status}`);
       }
       const modifiedWorkflow = await response.json();
       set({ 
         currentWorkflow: modifiedWorkflow,
-        nodes: modifiedWorkflow.nodes || [],
-        edges: modifiedWorkflow.edges || []
+        nodes: normalizeNodes(modifiedWorkflow.nodes),
+        edges: normalizeEdges(modifiedWorkflow.edges)
       });
+      return modifiedWorkflow;
     } catch (error) {
       console.error('Failed to modify workflow:', error);
       throw error;

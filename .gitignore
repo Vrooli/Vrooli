@@ -19,6 +19,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
+scenarios/system-monitor/investigations/results/
 
 # Source map analytics
 source-tree*.html
@@ -56,6 +57,7 @@ v8-compile-cache-*/
 # Other caches
 __test/cache/
 scenarios/**/test/artifacts/
+.lycheecache
 
 # Grunt intermediate storage (https://gruntjs.com/creating-plugins#storing-task-files)
 .grunt
@@ -242,6 +244,7 @@ node-red-flows-export-*.json
 *.dll
 *.so
 *.dylib
+*.gocache
 
 # Test binary, built with `go test -c`
 *.test

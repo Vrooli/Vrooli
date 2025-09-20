@@ -28,6 +28,7 @@ type Rule struct {
 	Severity       string                   `json:"severity"`
 	Enabled        bool                     `json:"enabled"`
 	Standard       string                   `json:"standard"`
+	Targets        []string                 `json:"targets,omitempty"`
 	TestStatus     *RuleTestStatus          `json:"test_status,omitempty"`
 	Implementation RuleImplementationStatus `json:"implementation"`
 }

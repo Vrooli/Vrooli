@@ -11,6 +11,7 @@ Reason: Ensures clients can properly parse responses and prevents security issue
 Category: api
 Severity: medium
 Standard: api-design-v1
+Targets: api
 
 <test-case id="json-without-content-type" should-fail="true">
   <description>JSON response without Content-Type header</description>

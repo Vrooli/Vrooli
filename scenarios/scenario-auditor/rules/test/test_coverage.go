@@ -14,6 +14,7 @@ Reason: Maintains code quality and prevents regressions through comprehensive te
 Category: test
 Severity: medium
 Standard: testing-standards-v1
+Targets: api, cli
 
 <test-case id="missing-test-file" should-fail="true">
   <description>Go source file without corresponding test file</description>

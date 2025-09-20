@@ -12,6 +12,7 @@ Reason: Unvalidated environment variables can lead to security issues and runtim
 Category: config
 Severity: medium
 Standard: OWASP
+Targets: api, cli
 
 <test-case id="missing-env-validation" should-fail="true">
   <description>Direct environment variable usage without validation</description>

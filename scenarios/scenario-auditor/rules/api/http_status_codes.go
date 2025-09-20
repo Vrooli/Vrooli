@@ -12,6 +12,7 @@ Reason: Ensures consistent API behavior and proper client error handling
 Category: api
 Severity: low
 Standard: api-design-v1
+Targets: api
 
 <test-case id="raw-numeric-status" should-fail="true">
   <description>Using raw numeric HTTP status codes</description>

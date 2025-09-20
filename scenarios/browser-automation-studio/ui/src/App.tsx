@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ReactFlowProvider } from 'reactflow';
 import WorkflowBuilder from './components/WorkflowBuilder';
 import ExecutionViewer from './components/ExecutionViewer';
@@ -27,38 +27,117 @@ function App() {
   const { loadWorkflow } = useWorkflowStore();
   const currentExecution = useExecutionStore((state) => state.currentExecution);
 
-  const handleProjectSelect = (project: Project) => {
+  const transformWorkflow = useCallback((workflow: any) => {
+    if (!workflow) return null;
+    return {
+      ...workflow,
+      folderPath: workflow.folder_path ?? workflow.folderPath ?? '/',
+      createdAt: workflow.created_at ? new Date(workflow.created_at) : workflow.createdAt ? new Date(workflow.createdAt) : new Date(),
+      updatedAt: workflow.updated_at ? new Date(workflow.updated_at) : workflow.updatedAt ? new Date(workflow.updatedAt) : new Date(),
+      projectId: workflow.project_id ?? workflow.projectId,
+    };
+  }, []);
+
+  const navigateToDashboard = useCallback((replace = false) => {
+    const url = '/';
+    const state = { view: 'dashboard' };
+    if (replace) {
+      window.history.replaceState(state, '', url);
+    } else {
+      window.history.pushState(state, '', url);
+    }
+    setShowAIModal(false);
+    setShowProjectModal(false);
+    setSelectedWorkflow(null);
+    setSelectedFolder('/');
+    setCurrentProject(null);
+    setCurrentView('dashboard');
+  }, [setCurrentProject]);
+
+  const openProject = useCallback((project: Project, options?: { replace?: boolean }) => {
+    if (!project) {
+      navigateToDashboard(options?.replace ?? false);
+      return;
+    }
+
+    const url = `/projects/${project.id}`;
+    const state = { view: 'project-detail', projectId: project.id };
+    if (options?.replace) {
+      window.history.replaceState(state, '', url);
+    } else {
+      window.history.pushState(state, '', url);
+    }
+
+    setShowAIModal(false);
+    setShowProjectModal(false);
     setCurrentProject(project);
-    setSelectedFolder(project.folder_path);
+    setSelectedFolder(project.folder_path ?? '/');
     setSelectedWorkflow(null);
     setCurrentView('project-detail');
+  }, [navigateToDashboard, setCurrentProject]);
+
+  const openWorkflow = useCallback(async (
+    project: Project,
+    workflowId: string,
+    options?: { replace?: boolean; workflowData?: any }
+  ) => {
+    if (!project || !workflowId) {
+      navigateToDashboard(options?.replace ?? false);
+      return;
+    }
+
+    const url = `/projects/${project.id}/workflows/${workflowId}`;
+    const state = { view: 'project-workflow', projectId: project.id, workflowId };
+    if (options?.replace) {
+      window.history.replaceState(state, '', url);
+    } else {
+      window.history.pushState(state, '', url);
+    }
+
+    setShowAIModal(false);
+    setShowProjectModal(false);
+    setCurrentProject(project);
+
+    const initialWorkflow = options?.workflowData ? transformWorkflow(options.workflowData) : null;
+    if (initialWorkflow) {
+      setSelectedWorkflow(initialWorkflow);
+      setSelectedFolder(initialWorkflow.folderPath || project.folder_path || '/');
+    } else {
+      setSelectedWorkflow(null);
+      setSelectedFolder(project.folder_path || '/');
+    }
+
+    await loadWorkflow(workflowId);
+    const loadedWorkflow = useWorkflowStore.getState().currentWorkflow;
+    if (loadedWorkflow) {
+      const normalized = transformWorkflow(loadedWorkflow);
+      if (normalized) {
+        setSelectedWorkflow(normalized);
+        setSelectedFolder(normalized.folderPath || project.folder_path || '/');
+      }
+    }
+    setCurrentView('project-workflow');
+  }, [loadWorkflow, navigateToDashboard, setCurrentProject, transformWorkflow]);
+
+  const handleProjectSelect = (project: Project) => {
+    openProject(project);
   };
 
   const handleWorkflowSelect = async (workflow: any) => {
-    // Convert to our format
-    const convertedWorkflow = {
-      ...workflow,
-      folderPath: workflow.folder_path,
-      createdAt: new Date(workflow.created_at),
-      updatedAt: new Date(workflow.updated_at),
-      projectId: workflow.project_id,
-    };
-    setSelectedWorkflow(convertedWorkflow);
-    setSelectedFolder(workflow.folder_path);
-    // Load the workflow into the workflow store
-    await loadWorkflow(workflow.id);
-    setCurrentView('project-workflow');
+    if (!currentProject) return;
+    await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
   };
 
   const handleBackToDashboard = () => {
-    setCurrentProject(null);
-    setSelectedWorkflow(null);
-    setCurrentView('dashboard');
+    navigateToDashboard();
   };
 
   const handleBackToProjectDetail = () => {
-    setSelectedWorkflow(null);
-    setCurrentView('project-detail');
+    if (currentProject) {
+      openProject(currentProject);
+    } else {
+      navigateToDashboard();
+    }
   };
 
   const handleCreateProject = () => {
@@ -67,7 +146,7 @@ function App() {
 
   const handleProjectCreated = (project: Project) => {
     // Automatically select the newly created project
-    handleProjectSelect(project);
+    openProject(project);
   };
 
   const handleCreateWorkflow = () => {
@@ -80,16 +159,71 @@ function App() {
     const workflowName = `new-workflow-${Date.now()}`;
     const folderPath = selectedFolder || '/';
     try {
-      await useWorkflowStore.getState().createWorkflow(
-        workflowName, 
+      const workflow = await useWorkflowStore.getState().createWorkflow(
+        workflowName,
         folderPath,
         currentProject?.id
       );
-      setCurrentView('project-workflow');
+      if (currentProject && workflow?.id) {
+        await openWorkflow(currentProject, workflow.id, { workflowData: workflow });
+      }
     } catch (error) {
       console.error('Failed to create workflow:', error);
     }
   };
+
+  useEffect(() => {
+    const resolvePath = async (path: string, replace = false) => {
+      const normalized = path.replace(/\/+/g, '/').replace(/\/$/, '') || '/';
+
+      if (normalized === '/') {
+        navigateToDashboard(replace);
+        return;
+      }
+
+      const segments = normalized.split('/').filter(Boolean);
+      if (segments[0] !== 'projects' || !segments[1]) {
+        navigateToDashboard(replace);
+        return;
+      }
+
+      const projectId = segments[1];
+      const projectState = useProjectStore.getState();
+      let project: Project | null | undefined = projectState.projects.find((p) => p.id === projectId);
+      if (!project) {
+        project = await projectState.getProject(projectId) as Project | null;
+        if (project) {
+          useProjectStore.setState((state) => ({
+            projects: state.projects.some((p) => p.id === project!.id)
+              ? state.projects
+              : [project!, ...state.projects],
+          }));
+        }
+      }
+
+      if (!project) {
+        navigateToDashboard(replace);
+        return;
+      }
+
+      if (segments.length >= 4 && segments[2] === 'workflows') {
+        const workflowId = segments[3];
+        await openWorkflow(project, workflowId, { replace });
+        return;
+      }
+
+      openProject(project, { replace });
+    };
+
+    resolvePath(window.location.pathname, true);
+
+    const popHandler = () => {
+      resolvePath(window.location.pathname, true);
+    };
+
+    window.addEventListener('popstate', popHandler);
+    return () => window.removeEventListener('popstate', popHandler);
+  }, [navigateToDashboard, openProject, openWorkflow]);
 
   // Dashboard View
   if (currentView === 'dashboard') {

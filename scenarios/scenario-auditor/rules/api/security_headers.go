@@ -12,6 +12,7 @@ Reason: Missing security headers can expose applications to various attacks
 Category: api
 Severity: high
 Standard: OWASP
+Targets: api
 
 <test-case id="missing-cors-headers" should-fail="true">
   <description>API endpoint missing CORS headers</description>

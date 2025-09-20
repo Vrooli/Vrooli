@@ -6,6 +6,26 @@ import { AgentInfo, RuleImplementationStatus, RuleTestStatus } from '@/types/api
 import { apiService } from '../services/api'
 import { CodeEditor } from '../components/CodeEditor'
 
+const TARGET_CATEGORY_CONFIG: Array<{ id: string; label: string; description: string }> = [
+  { id: 'api', label: 'API Files', description: 'Rules applied to files within the scenario\'s api/ directory.' },
+  { id: 'main_go', label: 'main.go', description: 'Rules evaluated specifically against api/main.go or other lifecycle entrypoints.' },
+  { id: 'ui', label: 'UI Files', description: 'Rules focused on assets within ui/ such as React components or static markup.' },
+  { id: 'cli', label: 'CLI Files', description: 'Rules covering the CLI implementation under cli/.' },
+  { id: 'test', label: 'Test Files', description: 'Rules that target files under test/ and other testing utilities.' },
+  { id: 'service_json', label: 'service.json', description: 'Rules that run against .vrooli/service.json lifecycle configuration.' },
+  { id: 'misc', label: 'Miscellaneous', description: 'Rules missing targets; update the rule metadata so it runs during scans.' },
+]
+
+const TARGET_BADGE_CLASSES: Record<string, string> = {
+  api: 'bg-blue-100 text-blue-800',
+  main_go: 'bg-indigo-100 text-indigo-800',
+  ui: 'bg-pink-100 text-pink-800',
+  cli: 'bg-green-100 text-green-800',
+  test: 'bg-yellow-100 text-yellow-800',
+  service_json: 'bg-purple-100 text-purple-800',
+  misc: 'bg-gray-100 text-gray-700 border border-gray-300',
+}
+
 // Code Block Component with syntax highlighting and line numbers
 function CodeBlock({ code }: { code: string }) {
   if (!code) return <div className="text-gray-500 italic">No code available</div>
@@ -51,11 +71,11 @@ function CodeBlock({ code }: { code: string }) {
 }
 
 // Rule Card Component
-function RuleCard({ rule, status, onViewRule, onToggleRule }: { 
+function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   rule: any,
   status?: RuleTestStatus,
   onViewRule: (ruleId: string) => void,
-  onToggleRule: (ruleId: string, enabled: boolean) => void 
+  onToggleRule: (ruleId: string, enabled: boolean) => void
 }) {
   const handleToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.stopPropagation()
@@ -80,8 +100,10 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
 
   const testStatus: RuleTestStatus | undefined = status || rule?.test_status
   const implementationStatus: RuleImplementationStatus | undefined = rule?.implementation
+  const displayTargets: string[] = Array.isArray(rule.displayTargets) ? rule.displayTargets : Array.isArray(rule.targets) ? rule.targets : []
+  const missingTargets = Boolean(rule.missingTargets)
   const implementationError = Boolean(implementationStatus && implementationStatus.valid === false)
-  const showWarning = Boolean(testStatus?.has_issues || implementationError)
+  const showWarning = Boolean(testStatus?.has_issues || implementationError || missingTargets)
   const tooltipLines: string[] = []
   if (testStatus?.warning) {
     tooltipLines.push(testStatus.warning)
@@ -97,6 +119,9 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
   }
   if (implementationError) {
     tooltipLines.push(implementationStatus?.error || 'Rule implementation failed to load')
+  }
+  if (missingTargets) {
+    tooltipLines.push('Rule has no targets and will not run during standards scans')
   }
 
   return (
@@ -147,17 +172,25 @@ function RuleCard({ rule, status, onViewRule, onToggleRule }: {
         </div>
 
         <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-              rule.category === 'api' ? 'bg-blue-100 text-blue-800' :
-              rule.category === 'cli' ? 'bg-green-100 text-green-800' :
-              rule.category === 'config' ? 'bg-purple-100 text-purple-800' :
-              rule.category === 'test' ? 'bg-yellow-100 text-yellow-800' :
-              rule.category === 'ui' ? 'bg-pink-100 text-pink-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
-              {rule.category}
-            </span>
+          <div className="flex flex-wrap items-center gap-2">
+            {displayTargets.length > 0 ? (
+              displayTargets.map(target => {
+                const badgeClass = TARGET_BADGE_CLASSES[target] || 'bg-gray-100 text-gray-700'
+                const category = TARGET_CATEGORY_CONFIG.find(cfg => cfg.id === target)
+                return (
+                  <span key={`${rule.id}-${target}`} className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}>
+                    {category?.label || target}
+                  </span>
+                )
+              })
+            ) : (
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${TARGET_BADGE_CLASSES.misc}`}>
+                No Targets
+              </span>
+            )}
+            {missingTargets && (
+              <span className="text-xs text-red-600">Add a Targets: metadata line to enable this rule.</span>
+            )}
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               rule.severity === 'critical' ? 'bg-red-100 text-red-800' :
               rule.severity === 'high' ? 'bg-orange-100 text-orange-800' :
@@ -254,8 +287,8 @@ export default function RulesManager() {
   const [executionInfoExpanded, setExecutionInfoExpanded] = useState(false)
 
   const { data: rulesData, isLoading, refetch } = useQuery({
-    queryKey: ['rules', selectedCategory],
-    queryFn: () => apiService.getRules(selectedCategory || undefined),
+    queryKey: ['rules'],
+    queryFn: () => apiService.getRules(),
   })
 
   const { data: ruleDetail, isLoading: ruleDetailLoading } = useQuery({
@@ -264,7 +297,7 @@ export default function RulesManager() {
     enabled: !!selectedRule,
   })
 
-  const categories = rulesData?.categories || {}
+  const apiCategories = rulesData?.categories || {}
   const executionInfo = ruleDetail?.execution_info
 
   useEffect(() => {
@@ -293,8 +326,8 @@ export default function RulesManager() {
     }
     return false
   }, [testResults, currentRuleStatus])
-  const categoryEntries = Object.keys(categories).length > 0
-    ? Object.entries(categories)
+  const createCategoryEntries = Object.keys(apiCategories).length > 0
+    ? Object.entries(apiCategories)
     : [
         ['api', { name: 'API Standards' }],
         ['config', { name: 'Configuration' }],
@@ -366,7 +399,7 @@ export default function RulesManager() {
   const severityOptions = ['critical', 'high', 'medium', 'low']
 
   const openCreateRuleModal = () => {
-    const availableCategories = categoryEntries.map(([key]) => key as string)
+    const availableCategories = createCategoryEntries.map(([key]) => key as string)
     const defaultCategory = availableCategories.includes('api')
       ? 'api'
       : (availableCategories[0] || 'api')
@@ -462,6 +495,58 @@ export default function RulesManager() {
     }
   }
 
+  const rules = localRules
+  const rulesArray = useMemo(() => Object.values(rules || {}), [rules])
+
+  const categorizedRules = useMemo(() => {
+    const base: Record<string, any[]> = {}
+    TARGET_CATEGORY_CONFIG.forEach(cfg => {
+      base[cfg.id] = []
+    })
+
+    rulesArray.forEach((rule: any) => {
+      const rawTargets = Array.isArray(rule?.targets) ? rule.targets : []
+      const normalizedTargets = Array.from(new Set(
+        rawTargets
+          .map((target: string) => (typeof target === 'string' ? target.toLowerCase().trim() : ''))
+          .filter(Boolean)
+      ))
+
+      const recognizedTargets = normalizedTargets.filter(target => target !== 'misc' && TARGET_CATEGORY_CONFIG.some(cfg => cfg.id === target && cfg.id !== 'misc'))
+      const hasRecognizedTargets = recognizedTargets.length > 0
+      const bucketTargets = hasRecognizedTargets ? recognizedTargets : ['misc']
+      const displayTargets = hasRecognizedTargets ? recognizedTargets : []
+      const missingTargets = !hasRecognizedTargets
+
+      bucketTargets.forEach(targetId => {
+        const categoryId = TARGET_CATEGORY_CONFIG.some(cfg => cfg.id === targetId) ? targetId : 'misc'
+        if (!base[categoryId]) {
+          base[categoryId] = []
+        }
+        base[categoryId].push({
+          ...rule,
+          displayTargets,
+          missingTargets,
+        })
+      })
+    })
+
+    Object.keys(base).forEach(categoryId => {
+      base[categoryId].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+    })
+
+    return base
+  }, [rulesArray])
+
+  const targetCategoryEntries = useMemo(() => (
+    TARGET_CATEGORY_CONFIG.map(config => [config.id, {
+      ...config,
+      rules: categorizedRules[config.id] || [],
+    }]) as [string, { label: string; description: string; rules: any[] }][]
+  ), [categorizedRules])
+
+  const selectedCategoryRules = selectedCategory ? (categorizedRules[selectedCategory] || []) : []
+
   if (isLoading) {
     return (
       <div className="px-6">
@@ -479,8 +564,6 @@ export default function RulesManager() {
       </div>
     )
   }
-
-  const rules = localRules
 
   return (
     <div className="px-6">
@@ -522,10 +605,10 @@ export default function RulesManager() {
           className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           data-testid="category-filter"
         >
-          <option value="">All Categories</option>
-          {categoryEntries.map(([key, category]: [string, any]) => (
+          <option value="">All Targets</option>
+          {targetCategoryEntries.map(([key, category]) => (
             <option key={key} value={key}>
-              {category.name || key}
+              {category.label}
             </option>
           ))}
         </select>
@@ -535,30 +618,36 @@ export default function RulesManager() {
       {selectedCategory ? (
         /* Single Category Grid */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Object.values(rules).map((rule: any) => (
-            <RuleCard 
-              key={rule.id} 
-              rule={rule}
-              status={ruleStatuses[rule.id]}
-              onViewRule={setSelectedRule} 
-              onToggleRule={handleToggleRule}
-            />
-          ))}
+          {selectedCategoryRules.length > 0 ? (
+            selectedCategoryRules.map((rule: any) => (
+              <RuleCard 
+                key={`${rule.id}-${selectedCategory}`} 
+                rule={rule}
+                status={ruleStatuses[rule.id]}
+                onViewRule={setSelectedRule} 
+                onToggleRule={handleToggleRule}
+              />
+            ))
+          ) : (
+            <div className="col-span-full rounded-md border border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
+              No rules currently run for this target. Add a <code className="font-mono text-xs">Targets:</code> line to a rule to include it.
+            </div>
+          )}
         </div>
       ) : (
         /* Grouped by Category */
         <div className="space-y-8">
-          {categoryEntries.map(([key, category]: [string, any]) => {
-            const displayName = category.name || key
-            const categoryRules = Object.values(rules).filter((rule: any) => rule.category === key)
-            
-            if (categoryRules.length === 0) return null
-            
+          {targetCategoryEntries.map(([key, category]) => {
+            const categoryRules = category.rules
+            if (!categoryRules || categoryRules.length === 0) {
+              return null
+            }
+
             return (
               <div key={key} className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">{displayName}</h2>
+                    <h2 className="text-xl font-semibold text-gray-900">{category.label}</h2>
                     <p className="text-sm text-gray-500">{category.description}</p>
                   </div>
                   <span className="text-sm text-gray-400">{categoryRules.length} rule{categoryRules.length !== 1 ? 's' : ''}</span>
@@ -567,7 +656,7 @@ export default function RulesManager() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {categoryRules.map((rule: any) => (
                     <RuleCard 
-                      key={rule.id} 
+                      key={`${rule.id}-${key}`} 
                       rule={rule}
                       status={ruleStatuses[rule.id]}
                       onViewRule={setSelectedRule} 
@@ -653,7 +742,7 @@ export default function RulesManager() {
                       value={createForm.category}
                       onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
                     >
-                      {categoryEntries.map(([key, value]: [string, any]) => (
+                      {createCategoryEntries.map(([key, value]: [string, any]) => (
                         <option key={key} value={key}>{value.name || key}</option>
                       ))}
                     </select>

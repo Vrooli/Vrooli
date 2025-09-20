@@ -12,6 +12,7 @@ Reason: Enables efficient log aggregation, searching, and monitoring in producti
 Category: cli
 Severity: medium
 Standard: logging-v1
+Targets: cli, api
 
 <test-case id="unstructured-logging" should-fail="true">
   <description>Using fmt.Print and basic log.Print for logging</description>

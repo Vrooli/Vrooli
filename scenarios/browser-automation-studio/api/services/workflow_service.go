@@ -2,6 +2,10 @@ package services
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,12 +15,18 @@ import (
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
+const (
+	workflowJSONStartMarker = "<WORKFLOW_JSON>"
+	workflowJSONEndMarker   = "</WORKFLOW_JSON>"
+)
+
 // WorkflowService handles workflow business logic
 type WorkflowService struct {
 	repo        database.Repository
 	browserless *browserless.Client
 	wsHub       *wsHub.Hub
 	log         *logrus.Logger
+	aiClient    *OpenRouterClient
 }
 
 // NewWorkflowService creates a new workflow service
@@ -26,19 +36,20 @@ func NewWorkflowService(repo database.Repository, browserless *browserless.Clien
 		browserless: browserless,
 		wsHub:       wsHub,
 		log:         log,
+		aiClient:    NewOpenRouterClient(log),
 	}
 }
 
 // CheckHealth checks the health of all dependencies
 func (s *WorkflowService) CheckHealth() string {
 	status := "healthy"
-	
+
 	// Check browserless health
 	if err := s.browserless.CheckBrowserlessHealth(); err != nil {
 		s.log.WithError(err).Warn("Browserless health check failed")
 		status = "degraded"
 	}
-	
+
 	return status
 }
 
@@ -107,8 +118,11 @@ func (s *WorkflowService) CreateWorkflow(ctx context.Context, name, folderPath s
 	}
 
 	if aiPrompt != "" {
-		// Generate workflow from AI prompt
-		workflow.FlowDefinition = s.generateWorkflowFromPrompt(aiPrompt)
+		generated, genErr := s.generateWorkflowFromPrompt(ctx, aiPrompt)
+		if genErr != nil {
+			return nil, fmt.Errorf("ai workflow generation failed: %w", genErr)
+		}
+		workflow.FlowDefinition = generated
 	} else if flowDefinition != nil {
 		workflow.FlowDefinition = database.JSONMap(flowDefinition)
 	} else {
@@ -139,8 +153,11 @@ func (s *WorkflowService) CreateWorkflowWithProject(ctx context.Context, project
 	}
 
 	if aiPrompt != "" {
-		// Generate workflow from AI prompt
-		workflow.FlowDefinition = s.generateWorkflowFromPrompt(aiPrompt)
+		generated, genErr := s.generateWorkflowFromPrompt(ctx, aiPrompt)
+		if genErr != nil {
+			return nil, fmt.Errorf("ai workflow generation failed: %w", genErr)
+		}
+		workflow.FlowDefinition = generated
 	} else if flowDefinition != nil {
 		workflow.FlowDefinition = database.JSONMap(flowDefinition)
 	} else {
@@ -257,25 +274,183 @@ func (s *WorkflowService) StopExecution(ctx context.Context, executionID uuid.UU
 	return nil
 }
 
-// generateWorkflowFromPrompt generates a workflow from an AI prompt
-func (s *WorkflowService) generateWorkflowFromPrompt(prompt string) database.JSONMap {
-	// Mock AI generation - in real implementation, call Ollama or Claude API
-	// TODO: Integrate with Ollama for actual AI workflow generation
-	s.log.WithField("prompt", prompt).Info("Generating workflow from AI prompt")
-	
+// generateWorkflowFromPrompt generates a workflow definition via OpenRouter.
+func (s *WorkflowService) generateWorkflowFromPrompt(ctx context.Context, prompt string) (database.JSONMap, error) {
+	if s.aiClient == nil {
+		return nil, errors.New("openrouter client not configured")
+	}
+
+	trimmed := strings.TrimSpace(prompt)
+	if trimmed == "" {
+		return nil, errors.New("empty AI prompt")
+	}
+
+	instruction := fmt.Sprintf(`You are a strict JSON generator. Produce exactly one JSON object with the following structure:
+{
+  "nodes": [
+    {
+      "id": "node-1",
+      "type": "navigate" | "click" | "type" | "wait" | "screenshot" | "extract" | "workflowCall",
+      "position": {"x": <number>, "y": <number>},
+      "data": { ... } // include all parameters needed for the step (url, selector, text, waitMs, etc.)
+    }
+  ],
+  "edges": [
+    {"id": "edge-1", "source": "node-1", "target": "node-2"}
+  ]
+}
+
+Rules:
+1. Tailor every node and selector to the user's request. Never use placeholders such as "https://example.com" or generic selectors.
+2. Provide only the fields needed to execute the step (e.g., url, selector, text, waitMs, timeoutMs, screenshot name). Keep the response concise.
+3. Arrange nodes with sensible coordinates (e.g., x increments by ~180 horizontally, y by ~120 vertically for branches).
+4. Include necessary wait/ensure steps before interactions to make the automation reliable. Use the "wait" type for waits/ensure conditions.
+5. Valid node types are limited to: navigate, click, type, wait, screenshot, extract, workflowCall. Do not invent new types.
+6. Wrap the JSON in markers exactly like this: <WORKFLOW_JSON>{...}</WORKFLOW_JSON>.
+7. The response MUST start with '<WORKFLOW_JSON>{' and end with '}</WORKFLOW_JSON>'. Output minified JSON on a single line (no spaces or newlines) and keep it under 1200 characters in total.
+8. If you cannot produce a valid workflow, respond with <WORKFLOW_JSON>{"error":"reason"}</WORKFLOW_JSON>.
+
+User prompt:
+%s`, trimmed)
+
+	start := time.Now()
+	response, err := s.aiClient.ExecutePrompt(ctx, instruction)
+	if err != nil {
+		return nil, fmt.Errorf("openrouter execution error: %w", err)
+	}
+	s.log.WithFields(logrus.Fields{
+		"model":            s.aiClient.model,
+		"duration_ms":      time.Since(start).Milliseconds(),
+		"response_preview": truncateForLog(response, 400),
+	}).Info("AI workflow generated via OpenRouter")
+
+	cleaned := extractJSONObject(stripJSONCodeFence(response))
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(cleaned), &payload); err != nil {
+		s.log.WithError(err).WithFields(logrus.Fields{
+			"raw_response": truncateForLog(response, 2000),
+			"cleaned":      truncateForLog(cleaned, 2000),
+		}).Error("Failed to parse workflow JSON returned by OpenRouter")
+		return nil, fmt.Errorf("failed to parse OpenRouter JSON: %w", err)
+	}
+
+	definition, err := normalizeFlowDefinition(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	return definition, nil
+}
+
+func stripJSONCodeFence(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if strings.HasPrefix(trimmed, "```") {
+		trimmed = strings.TrimPrefix(trimmed, "```json")
+		trimmed = strings.TrimPrefix(trimmed, "```")
+		if idx := strings.Index(trimmed, "\n"); idx != -1 {
+			trimmed = trimmed[idx+1:]
+		}
+		if idx := strings.LastIndex(trimmed, "```"); idx != -1 {
+			trimmed = trimmed[:idx]
+		}
+	}
+	return strings.TrimSpace(trimmed)
+}
+
+func extractJSONObject(raw string) string {
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start == -1 || end == -1 || end < start {
+		return strings.TrimSpace(raw)
+	}
+	return strings.TrimSpace(raw[start : end+1])
+}
+
+func normalizeFlowDefinition(payload map[string]interface{}) (database.JSONMap, error) {
+	candidate := payload
+	if workflow, ok := payload["workflow"].(map[string]interface{}); ok {
+		candidate = workflow
+	}
+
+	rawNodes, ok := candidate["nodes"]
+	if !ok {
+		if steps, ok := candidate["steps"].([]interface{}); ok {
+			candidate["nodes"] = steps
+			rawNodes = steps
+		}
+	}
+
+	nodes, ok := rawNodes.([]interface{})
+	if !ok || len(nodes) == 0 {
+		return nil, errors.New("AI response missing usable nodes array")
+	}
+
+	for i, rawNode := range nodes {
+		node, ok := rawNode.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("AI node payload is not an object")
+		}
+		if _, ok := node["id"].(string); !ok {
+			node["id"] = fmt.Sprintf("node-%d", i+1)
+		}
+		if _, ok := node["position"].(map[string]interface{}); !ok {
+			node["position"] = map[string]interface{}{
+				"x": float64(100 + i*200),
+				"y": float64(100 + i*120),
+			}
+		}
+		nodes[i] = node
+	}
+	candidate["nodes"] = nodes
+
+	edgesRaw, hasEdges := candidate["edges"]
+	edges, _ := edgesRaw.([]interface{})
+	if !hasEdges || edges == nil {
+		edges = []interface{}{}
+	}
+
+	if len(edges) == 0 && len(nodes) > 1 {
+		edges = make([]interface{}, 0, len(nodes)-1)
+		for i := 0; i < len(nodes)-1; i++ {
+			source := nodes[i].(map[string]interface{})["id"].(string)
+			target := nodes[i+1].(map[string]interface{})["id"].(string)
+			edges = append(edges, map[string]interface{}{
+				"id":     fmt.Sprintf("edge-%d", i+1),
+				"source": source,
+				"target": target,
+			})
+		}
+	}
+	candidate["edges"] = edges
+
+	return database.JSONMap(candidate), nil
+}
+
+func defaultWorkflowDefinition() database.JSONMap {
 	return database.JSONMap{
 		"nodes": []interface{}{
 			map[string]interface{}{
-				"id":       "node-1",
-				"type":     "navigate",
-				"position": map[string]int{"x": 100, "y": 100},
-				"data":     map[string]interface{}{"url": "https://example.com"},
+				"id":   "node-1",
+				"type": "navigate",
+				"position": map[string]interface{}{
+					"x": float64(100),
+					"y": float64(100),
+				},
+				"data": map[string]interface{}{
+					"url": "https://example.com",
+				},
 			},
 			map[string]interface{}{
-				"id":       "node-2",
-				"type":     "screenshot",
-				"position": map[string]int{"x": 100, "y": 200},
-				"data":     map[string]interface{}{"name": "homepage"},
+				"id":   "node-2",
+				"type": "screenshot",
+				"position": map[string]interface{}{
+					"x": float64(350),
+					"y": float64(220),
+				},
+				"data": map[string]interface{}{
+					"name": "homepage",
+				},
 			},
 		},
 		"edges": []interface{}{
@@ -286,6 +461,91 @@ func (s *WorkflowService) generateWorkflowFromPrompt(prompt string) database.JSO
 			},
 		},
 	}
+}
+
+// ModifyWorkflow applies an AI-driven modification to an existing workflow.
+func (s *WorkflowService) ModifyWorkflow(ctx context.Context, workflowID uuid.UUID, modificationPrompt string, overrideFlow map[string]interface{}) (*database.Workflow, error) {
+	if s.aiClient == nil {
+		return nil, errors.New("openrouter client not configured")
+	}
+	if strings.TrimSpace(modificationPrompt) == "" {
+		return nil, errors.New("modification prompt is required")
+	}
+
+	workflow, err := s.repo.GetWorkflow(ctx, workflowID)
+	if err != nil {
+		return nil, err
+	}
+
+	baseFlow := map[string]interface{}{}
+	if overrideFlow != nil {
+		baseFlow = overrideFlow
+	} else if workflow.FlowDefinition != nil {
+		bytes, err := json.Marshal(workflow.FlowDefinition)
+		if err == nil {
+			_ = json.Unmarshal(bytes, &baseFlow)
+		}
+	}
+
+	baseFlowJSON, err := json.MarshalIndent(baseFlow, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal base workflow: %w", err)
+	}
+
+	instruction := fmt.Sprintf(`You are a strict JSON generator. Update the existing workflow so it satisfies the user's request.
+
+Rules:
+1. Respond with a single JSON object that uses the same schema as the original workflow ("nodes" array + "edges" array).
+2. Preserve existing node IDs when the step remains applicable. Modify node types/data/positions only where necessary, and keep data concise (only the parameters required to execute the step).
+3. Keep the graph valid: edges must describe a reachable execution path.
+4. Fill in realistic selectors, URLs, filenames, waits, etc.—no placeholders. Only use the allowed node types: navigate, click, type, wait, screenshot, extract, workflowCall.
+5. Wrap the JSON in markers exactly like this: <WORKFLOW_JSON>{...}</WORKFLOW_JSON>.
+6. The response MUST start with '<WORKFLOW_JSON>{' and end with '}</WORKFLOW_JSON>'. Output minified JSON on a single line (no spaces or newlines) and keep it shorter than 1200 characters.
+7. If the request cannot be satisfied, respond with <WORKFLOW_JSON>{"error":"reason"}</WORKFLOW_JSON>.
+
+Original workflow JSON:
+%s
+
+User requested modifications:
+%s`, string(baseFlowJSON), strings.TrimSpace(modificationPrompt))
+
+	start := time.Now()
+	response, err := s.aiClient.ExecutePrompt(ctx, instruction)
+	if err != nil {
+		return nil, fmt.Errorf("openrouter execution error: %w", err)
+	}
+	s.log.WithFields(logrus.Fields{
+		"model":       s.aiClient.model,
+		"duration_ms": time.Since(start).Milliseconds(),
+		"workflow_id": workflowID,
+	}).Info("AI workflow modification generated via OpenRouter")
+
+	cleaned := extractJSONObject(stripJSONCodeFence(response))
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(cleaned), &payload); err != nil {
+		s.log.WithError(err).WithFields(logrus.Fields{
+			"raw_response": truncateForLog(response, 2000),
+			"cleaned":      truncateForLog(cleaned, 2000),
+			"workflow_id":  workflowID,
+		}).Error("Failed to parse modified workflow JSON returned by OpenRouter")
+		return nil, fmt.Errorf("failed to parse OpenRouter JSON: %w", err)
+	}
+
+	definition, err := normalizeFlowDefinition(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	workflow.FlowDefinition = definition
+	workflow.Version++
+	workflow.UpdatedAt = time.Now()
+
+	if err := s.repo.UpdateWorkflow(ctx, workflow); err != nil {
+		return nil, err
+	}
+
+	return workflow, nil
 }
 
 // executeWorkflowAsync executes a workflow asynchronously
@@ -316,13 +576,13 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 	// Use browserless client to execute the workflow
 	if err := s.browserless.ExecuteWorkflow(ctx, execution, workflow); err != nil {
 		s.log.WithError(err).Error("Workflow execution failed")
-		
+
 		// Mark execution as failed
 		execution.Status = "failed"
 		execution.Error = err.Error()
 		now := time.Now()
 		execution.CompletedAt = &now
-		
+
 		// Log the error
 		logEntry := &database.ExecutionLog{
 			ExecutionID: execution.ID,
@@ -352,7 +612,7 @@ func (s *WorkflowService) executeWorkflowAsync(execution *database.Execution, wo
 			"success": true,
 			"message": "Workflow completed successfully",
 		}
-		
+
 		s.log.WithField("execution_id", execution.ID).Info("Workflow execution completed successfully")
 
 		// Broadcast completion

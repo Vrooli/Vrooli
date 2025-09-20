@@ -11,6 +11,7 @@ Reason: Keeps main() testable and separates concerns between entry point and bus
 Category: cli
 Severity: medium
 Standard: code-structure-v1
+Targets: cli, main_go
 
 <test-case id="complex-main-function" should-fail="true">
   <description>Main function with too much business logic</description>

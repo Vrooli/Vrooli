@@ -107,6 +107,12 @@ type ExecuteWorkflowRequest struct {
 	WaitForCompletion bool                   `json:"wait_for_completion"`
 }
 
+// ModifyWorkflowRequest represents the request to modify a workflow with AI support
+type ModifyWorkflowRequest struct {
+	ModificationPrompt string                 `json:"modification_prompt"`
+	CurrentFlow        map[string]interface{} `json:"current_flow,omitempty"`
+}
+
 // ElementAnalysisRequest represents the request to analyze page elements
 type ElementAnalysisRequest struct {
 	URL string `json:"url"`
@@ -136,13 +142,13 @@ type SelectorOption struct {
 
 // ElementInfo represents information about a single interactive element
 type ElementInfo struct {
-	Text        string           `json:"text"`
-	TagName     string           `json:"tagName"`
-	Type        string           `json:"type"`        // "button", "input", "link", "form", etc.
-	Selectors   []SelectorOption `json:"selectors"`
-	BoundingBox Rectangle        `json:"boundingBox"`
-	Confidence  float64          `json:"confidence"`  // 0-1 confidence that user would interact with this
-	Category    string           `json:"category"`    // "authentication", "navigation", "data-entry", etc.
+	Text        string            `json:"text"`
+	TagName     string            `json:"tagName"`
+	Type        string            `json:"type"` // "button", "input", "link", "form", etc.
+	Selectors   []SelectorOption  `json:"selectors"`
+	BoundingBox Rectangle         `json:"boundingBox"`
+	Confidence  float64           `json:"confidence"` // 0-1 confidence that user would interact with this
+	Category    string            `json:"category"`   // "authentication", "navigation", "data-entry", etc.
 	Attributes  map[string]string `json:"attributes"` // relevant attributes like placeholder, aria-label, etc.
 }
 
@@ -189,21 +195,21 @@ type ElementAnalysisResponse struct {
 // Health handles GET /health
 func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	
+
 	// Check database health
 	var databaseHealthy bool
 	var databaseLatency float64
 	var databaseError map[string]interface{}
-	
+
 	start := time.Now()
 	if h.repo != nil {
 		// Try a simple database operation to check health
 		_, err := h.repo.ListProjects(ctx, 1, 0)
 		databaseLatency = float64(time.Since(start).Nanoseconds()) / 1e6 // Convert to milliseconds
-		
+
 		if err != nil {
 			databaseHealthy = false
 			databaseError = map[string]interface{}{
@@ -224,11 +230,11 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 			"retryable": false,
 		}
 	}
-	
+
 	// Check browserless health
 	var browserlessHealthy bool
 	var browserlessError map[string]interface{}
-	
+
 	if h.browserless != nil {
 		if err := h.browserless.CheckBrowserlessHealth(); err != nil {
 			browserlessHealthy = false
@@ -250,11 +256,11 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 			"retryable": false,
 		}
 	}
-	
+
 	// Overall service status
 	status := "healthy"
 	readiness := true
-	
+
 	if !databaseHealthy {
 		status = "unhealthy"
 		readiness = false
@@ -262,7 +268,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 		status = "degraded"
 		// Keep readiness true for degraded state - we can still serve some requests
 	}
-	
+
 	// Build dependencies map
 	dependencies := map[string]interface{}{
 		"database": map[string]interface{}{
@@ -278,7 +284,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 			},
 		},
 	}
-	
+
 	// Add errors if present
 	if databaseError != nil {
 		dependencies["database"].(map[string]interface{})["error"] = databaseError
@@ -286,7 +292,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	if browserlessError != nil {
 		dependencies["external_services"].([]map[string]interface{})[0]["error"] = browserlessError
 	}
-	
+
 	response := HealthResponse{
 		Status:       status,
 		Service:      "browser-automation-studio-api",
@@ -298,13 +304,13 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 			"goroutines": 0, // Could be populated with runtime.NumGoroutine() if needed
 		},
 	}
-	
+
 	// Set appropriate HTTP status code
 	statusCode := http.StatusOK
 	if status == "unhealthy" {
 		statusCode = http.StatusServiceUnavailable
 	}
-	
+
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(response)
 }
@@ -325,7 +331,7 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Name is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.FolderPath == "" {
 		http.Error(w, "Folder path is required", http.StatusBadRequest)
 		return
@@ -400,7 +406,7 @@ func (h *Handler) ListProjects(w http.ResponseWriter, r *http.Request) {
 			h.log.WithError(err).WithField("project_id", project.ID).Warn("Failed to get project stats")
 			stats = make(map[string]interface{})
 		}
-		
+
 		projectsWithStats[i] = &ProjectWithStats{
 			Project: project,
 			Stats:   stats,
@@ -576,28 +582,62 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Name is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.FolderPath == "" {
 		req.FolderPath = "/"
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	timeout := 5 * time.Second
+	if strings.TrimSpace(req.AIPrompt) != "" {
+		timeout = 45 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 
 	workflow, err := h.workflowService.CreateWorkflowWithProject(ctx, req.ProjectID, req.Name, req.FolderPath, req.FlowDefinition, req.AIPrompt)
 	if err != nil {
 		h.log.WithError(err).Error("Failed to create workflow")
-		http.Error(w, "Failed to create workflow", http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		message := "Failed to create workflow"
+		if strings.TrimSpace(req.AIPrompt) != "" {
+			status = http.StatusBadGateway
+			message = err.Error()
+		}
+		http.Error(w, message, status)
 		return
+	}
+
+	var nodes []interface{}
+	var edges []interface{}
+	if workflow.FlowDefinition != nil {
+		if rawNodes, ok := workflow.FlowDefinition["nodes"].([]interface{}); ok {
+			nodes = rawNodes
+		}
+		if rawEdges, ok := workflow.FlowDefinition["edges"].([]interface{}); ok {
+			edges = rawEdges
+		}
+	}
+	if nodes == nil {
+		nodes = []interface{}{}
+	}
+	if edges == nil {
+		edges = []interface{}{}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"workflow_id": workflow.ID,
-		"status":      "created",
-		"nodes":       workflow.FlowDefinition["nodes"],
-		"edges":       workflow.FlowDefinition["edges"],
+		"id":              workflow.ID,
+		"workflow_id":     workflow.ID,
+		"project_id":      workflow.ProjectID,
+		"name":            workflow.Name,
+		"folder_path":     workflow.FolderPath,
+		"version":         workflow.Version,
+		"flow_definition": workflow.FlowDefinition,
+		"nodes":           nodes,
+		"edges":           edges,
+		"created_at":      workflow.CreatedAt,
+		"updated_at":      workflow.UpdatedAt,
 	})
 }
 
@@ -605,7 +645,7 @@ func (h *Handler) CreateWorkflow(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ListWorkflows(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	folderPath := r.URL.Query().Get("folder_path")
-	
+
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
 
@@ -675,6 +715,70 @@ func (h *Handler) ExecuteWorkflow(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"execution_id": execution.ID,
 		"status":       execution.Status,
+	})
+}
+
+// ModifyWorkflow handles POST /api/v1/workflows/{id}/modify
+func (h *Handler) ModifyWorkflow(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	workflowID, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid workflow ID", http.StatusBadRequest)
+		return
+	}
+
+	var req ModifyWorkflowRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.log.WithError(err).Error("Failed to decode modify workflow request")
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if strings.TrimSpace(req.ModificationPrompt) == "" {
+		http.Error(w, "modification_prompt is required", http.StatusBadRequest)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+
+	workflow, err := h.workflowService.ModifyWorkflow(ctx, workflowID, req.ModificationPrompt, req.CurrentFlow)
+	if err != nil {
+		h.log.WithError(err).WithField("workflow_id", workflowID).Error("Failed to modify workflow via AI")
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	var nodes []interface{}
+	var edges []interface{}
+	if workflow.FlowDefinition != nil {
+		if rawNodes, ok := workflow.FlowDefinition["nodes"].([]interface{}); ok {
+			nodes = rawNodes
+		}
+		if rawEdges, ok := workflow.FlowDefinition["edges"].([]interface{}); ok {
+			edges = rawEdges
+		}
+	}
+	if nodes == nil {
+		nodes = []interface{}{}
+	}
+	if edges == nil {
+		edges = []interface{}{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"id":                workflow.ID,
+		"workflow_id":       workflow.ID,
+		"project_id":        workflow.ProjectID,
+		"name":              workflow.Name,
+		"folder_path":       workflow.FolderPath,
+		"version":           workflow.Version,
+		"flow_definition":   workflow.FlowDefinition,
+		"nodes":             nodes,
+		"edges":             edges,
+		"updated_at":        workflow.UpdatedAt,
+		"modification_note": "ai",
 	})
 }
 
@@ -893,7 +997,7 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 	if len(workflows) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"message": "No workflows found in project",
+			"message":    "No workflows found in project",
 			"executions": []interface{}{},
 		})
 		return
@@ -906,25 +1010,25 @@ func (h *Handler) ExecuteAllProjectWorkflows(w http.ResponseWriter, r *http.Requ
 		if err != nil {
 			h.log.WithError(err).WithField("workflow_id", workflow.ID).Warn("Failed to execute workflow in bulk operation")
 			executions = append(executions, map[string]interface{}{
-				"workflow_id": workflow.ID.String(),
+				"workflow_id":   workflow.ID.String(),
 				"workflow_name": workflow.Name,
-				"status": "failed",
-				"error": err.Error(),
+				"status":        "failed",
+				"error":         err.Error(),
 			})
 			continue
 		}
 
 		executions = append(executions, map[string]interface{}{
-			"workflow_id": workflow.ID.String(),
+			"workflow_id":   workflow.ID.String(),
 			"workflow_name": workflow.Name,
-			"execution_id": execution.ID.String(),
-			"status": execution.Status,
+			"execution_id":  execution.ID.String(),
+			"status":        execution.Status,
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": fmt.Sprintf("Started execution for %d workflows", len(executions)),
+		"message":    fmt.Sprintf("Started execution for %d workflows", len(executions)),
 		"executions": executions,
 	})
 }
@@ -942,21 +1046,21 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 	type PreviewRequest struct {
 		URL string `json:"url"`
 	}
-	
+
 	var req PreviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		h.log.WithError(err).Error("Failed to decode preview request")
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	
+
 	if req.URL == "" {
 		http.Error(w, "URL is required", http.StatusBadRequest)
 		return
 	}
-	
+
 	h.log.WithField("url", req.URL).Info("Taking preview screenshot and capturing console logs")
-	
+
 	// Create temporary files for screenshot and console logs
 	tmpScreenshotFile, err := os.CreateTemp("", "preview-*.png")
 	if err != nil {
@@ -966,7 +1070,7 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 	}
 	defer os.Remove(tmpScreenshotFile.Name())
 	defer tmpScreenshotFile.Close()
-	
+
 	tmpConsoleFile, err := os.CreateTemp("", "console-*.json")
 	if err != nil {
 		h.log.WithError(err).Error("Failed to create temp console file")
@@ -975,19 +1079,19 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 	}
 	defer os.Remove(tmpConsoleFile.Name())
 	defer tmpConsoleFile.Close()
-	
+
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second) // Increased timeout for both operations
 	defer cancel()
-	
+
 	// Take screenshot first with explicit viewport to match extract viewport
-	screenshotCmd := exec.CommandContext(ctx, "resource-browserless", "screenshot", 
+	screenshotCmd := exec.CommandContext(ctx, "resource-browserless", "screenshot",
 		"--url", req.URL,
 		"--output", tmpScreenshotFile.Name())
-	
+
 	screenshotOutput, err := screenshotCmd.CombinedOutput()
 	if err != nil {
 		h.log.WithError(err).WithField("output", string(screenshotOutput)).Error("Failed to take screenshot with resource-browserless")
-		
+
 		// Provide more helpful error messages
 		errorMsg := "Failed to take screenshot"
 		if strings.Contains(string(screenshotOutput), "HTTP 500") {
@@ -997,17 +1101,17 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 		} else if strings.Contains(string(screenshotOutput), "connection") {
 			errorMsg = "Cannot connect to the URL - please check if it's accessible"
 		}
-		
+
 		http.Error(w, errorMsg, http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Capture console logs
-	consoleCmd := exec.CommandContext(ctx, "resource-browserless", "console", 
+	consoleCmd := exec.CommandContext(ctx, "resource-browserless", "console",
 		req.URL,
 		"--output", tmpConsoleFile.Name(),
 		"--wait-ms", "3000") // Wait a bit longer for dynamic content
-	
+
 	consoleOutput, consoleErr := consoleCmd.CombinedOutput()
 	var consoleLogs interface{}
 	if consoleErr != nil {
@@ -1034,7 +1138,7 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 			}
 		}
 	}
-	
+
 	// Check if the screenshot file was actually created and is valid
 	fileInfo, err := os.Stat(tmpScreenshotFile.Name())
 	if err != nil {
@@ -1042,14 +1146,14 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Screenshot file was not created", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Check if file has content
 	if fileInfo.Size() == 0 {
 		h.log.Error("Screenshot file is empty")
 		http.Error(w, "Screenshot file is empty", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Read the screenshot file
 	screenshotData, err := os.ReadFile(tmpScreenshotFile.Name())
 	if err != nil {
@@ -1057,26 +1161,26 @@ func (h *Handler) TakePreviewScreenshot(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "Failed to read screenshot", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Validate that it's a PNG file by checking the magic bytes
 	if len(screenshotData) < 8 || !bytes.Equal(screenshotData[:8], []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}) {
 		h.log.Error("Generated file is not a valid PNG")
 		http.Error(w, "Generated file is not a valid PNG image", http.StatusInternalServerError)
 		return
 	}
-	
+
 	// Encode to base64
 	base64Data := base64.StdEncoding.EncodeToString(screenshotData)
-	
+
 	// Return both screenshot and console logs
 	response := map[string]interface{}{
-		"success": true,
-		"screenshot": fmt.Sprintf("data:image/png;base64,%s", base64Data),
+		"success":     true,
+		"screenshot":  fmt.Sprintf("data:image/png;base64,%s", base64Data),
 		"consoleLogs": consoleLogs,
-		"url": req.URL,
-		"timestamp": time.Now().Unix(),
+		"url":         req.URL,
+		"timestamp":   time.Now().Unix(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -1298,7 +1402,7 @@ return {
     'aria-label': element.getAttribute('aria-label') || '',
     title: element.title || ''
   }
-};`, x, y, x, y)
+};`, x, y)
 
 	// Try using navigate + extract approach to avoid bot detection
 	// First navigate to the page
@@ -1487,15 +1591,15 @@ func (h *Handler) analyzeElementsWithAI(ctx context.Context, url, intent string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract DOM tree: %w", err)
 	}
-	
+
 	// Log DOM extraction results
 	domPreview := domData
 	if len(domData) > 300 {
 		domPreview = domData[:300]
 	}
 	h.log.WithFields(logrus.Fields{
-		"url": url,
-		"dom_length": len(domData),
+		"url":         url,
+		"dom_length":  len(domData),
 		"dom_preview": domPreview,
 	}).Info("Extracted DOM tree")
 
@@ -1538,9 +1642,9 @@ Example format:
   }
 ]`, url, intent, domData)
 
-	// Call Ollama API directly using curl  
+	// Call Ollama API directly using curl
 	ollamaPayload := map[string]interface{}{
-		"model": "llama3.2:3b", // Use a fast text model
+		"model":  "llama3.2:3b", // Use a fast text model
 		"prompt": prompt,
 		"stream": false,
 		// Don't use format: json as it causes double-escaping issues
@@ -1579,16 +1683,16 @@ Example format:
 		previewLen = len(ollamaResp.Response)
 	}
 	h.log.WithFields(logrus.Fields{
-		"model": ollamaResp.Model,
-		"done": ollamaResp.Done,
-		"response_length": len(ollamaResp.Response),
+		"model":            ollamaResp.Model,
+		"done":             ollamaResp.Done,
+		"response_length":  len(ollamaResp.Response),
 		"response_preview": ollamaResp.Response[:previewLen],
 	}).Info("Received Ollama response")
 
 	// Parse the JSON response from the model
 	var suggestions []ElementInfo
 	responseText := ollamaResp.Response
-	
+
 	// First try direct parsing
 	if err := json.Unmarshal([]byte(responseText), &suggestions); err != nil {
 		// Clean up common issues in the response
@@ -1597,17 +1701,17 @@ Example format:
 		responseText = strings.ReplaceAll(responseText, "\\n", "\n")
 		responseText = strings.ReplaceAll(responseText, "\\\"", "\"")
 		responseText = strings.ReplaceAll(responseText, "\\\\", "\\")
-		
+
 		// Try to find and extract just the JSON array
 		startIdx := strings.Index(responseText, "[")
 		endIdx := strings.LastIndex(responseText, "]")
-		
+
 		if startIdx != -1 && endIdx != -1 && endIdx > startIdx {
 			jsonStr := responseText[startIdx : endIdx+1]
-			
+
 			// Clean up the extracted JSON
 			jsonStr = strings.TrimSpace(jsonStr)
-			
+
 			// Try parsing the cleaned JSON
 			if err := json.Unmarshal([]byte(jsonStr), &suggestions); err != nil {
 				origPreview := ollamaResp.Response
@@ -1620,9 +1724,9 @@ Example format:
 				}
 				h.log.WithError(err).WithFields(logrus.Fields{
 					"original_response": origPreview,
-					"cleaned_json": cleanedPreview,
+					"cleaned_json":      cleanedPreview,
 				}).Error("Failed to parse AI response as JSON after cleaning")
-				
+
 				// Return a single fallback suggestion
 				return []ElementInfo{{
 					Text:       "Search",
@@ -1897,7 +2001,7 @@ return {
 		Elements    []ElementInfo `json:"elements"`
 		PageContext PageContext   `json:"pageContext"`
 	}
-	
+
 	if err := json.Unmarshal(elementsData, &result); err != nil {
 		return nil, PageContext{}, "", fmt.Errorf("failed to parse elements JSON: %w", err)
 	}
@@ -2008,7 +2112,7 @@ Return only valid JSON without additional text.`, string(contextJSON), string(el
 // parseOllamaFallback attempts to extract suggestions from malformed Ollama response
 func (h *Handler) parseOllamaFallback(response string) ([]AISuggestion, error) {
 	h.log.WithField("response", response).Debug("Attempting fallback parsing of Ollama response")
-	
+
 	// For now, return empty suggestions if we can't parse
 	// In a real implementation, you might try regex extraction or other parsing strategies
 	return []AISuggestion{}, nil
@@ -2017,11 +2121,11 @@ func (h *Handler) parseOllamaFallback(response string) ([]AISuggestion, error) {
 func (h *Handler) getScenarioPortInfo(ctx context.Context, scenarioName string) (*ScenarioPortInfo, error) {
 	// For most scenarios, we'll try UI_PORT first, then API_PORT as fallback
 	portNames := []string{"UI_PORT", "API_PORT"}
-	
+
 	var port int
 	var portName string
 	var err error
-	
+
 	// Try each port name until we find one that works
 	for _, name := range portNames {
 		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, name)
@@ -2035,7 +2139,7 @@ func (h *Handler) getScenarioPortInfo(ctx context.Context, scenarioName string) 
 			}
 		}
 	}
-	
+
 	if err != nil || port == 0 {
 		h.log.WithError(err).WithField("scenario", scenarioName).Error("Failed to get any port for scenario")
 		return nil, fmt.Errorf("failed to get port for scenario %s: no valid ports found", scenarioName)
@@ -2059,10 +2163,10 @@ func (h *Handler) getScenarioPortInfo(ctx context.Context, scenarioName string) 
 	}
 
 	h.log.WithFields(logrus.Fields{
-		"scenario": scenarioName,
+		"scenario":  scenarioName,
 		"port_name": portName,
-		"port": port,
-		"status": status,
+		"port":      port,
+		"status":    status,
 	}).Info("Successfully retrieved scenario port info")
 
 	return &ScenarioPortInfo{

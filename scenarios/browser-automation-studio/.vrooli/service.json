@@ -158,7 +158,7 @@
       "steps": [
         {
           "name": "start-api",
-          "run": "cd api && VROOLI_LIFECYCLE_MANAGED=true ./browser-automation-studio-api",
+          "run": "cd api && OPENROUTER_TIMEOUT=120 VROOLI_LIFECYCLE_MANAGED=true ./browser-automation-studio-api",
           "description": "Start Go API server with workflow engine",
           "background": true,
           "condition": {
