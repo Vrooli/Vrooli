@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,6 +68,31 @@ type TriggerConfig struct {
 	Threshold   float64 `json:"threshold"`
 	Unit        string  `json:"unit"`
 	Condition   string  `json:"condition"`
+}
+
+type investigationScriptManifestEntry struct {
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	File         string `json:"file"`
+	Category     string `json:"category"`
+	Author       string `json:"author"`
+	Created      string `json:"created"`
+	LastModified string `json:"last_modified"`
+	SafetyLevel  string `json:"safety_level"`
+	Enabled      *bool  `json:"enabled,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+}
+
+type investigationScriptListItem struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Category    string `json:"category"`
+	Author      string `json:"author"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	Enabled     bool   `json:"enabled"`
+	Tags        []string `json:"tags,omitempty"`
 }
 
 type TCPConnectionStates struct {
@@ -706,6 +732,8 @@ func main() {
 	// Investigation endpoints
 	r.HandleFunc("/api/investigations/latest", getLatestInvestigationHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/trigger", triggerInvestigationHandler).Methods("POST")
+	r.HandleFunc("/api/investigations/scripts", listInvestigationScriptsHandler).Methods("GET")
+	r.HandleFunc("/api/investigations/scripts/{id}", getInvestigationScriptHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/agent/spawn", spawnAgentHandler).Methods("POST")
 	r.HandleFunc("/api/investigations/agent/{id}/status", getAgentStatusHandler).Methods("GET")
 	r.HandleFunc("/api/investigations/agent/current", getCurrentAgentHandler).Methods("GET")
@@ -731,9 +759,6 @@ func main() {
 	r.HandleFunc("/api/monitoring/investigate-anomaly", anomalyInvestigationHandler).Methods("POST")
 	r.HandleFunc("/api/monitoring/generate-report", systemReportHandler).Methods("POST")
 
-	// Investigation Scripts endpoints - TODO: Add back when investigation_endpoints.go is ready
-
-	
 	// Debug logs endpoint for UI troubleshooting
 	r.HandleFunc("/api/logs", getLogsHandler).Methods("GET")
 	
@@ -2338,6 +2363,204 @@ func addInvestigationStepHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "step_added"})
+}
+
+func listInvestigationScriptsHandler(w http.ResponseWriter, r *http.Request) {
+	scripts, _, err := loadInvestigationScripts()
+	if err != nil {
+		log.Printf("Failed to load investigation scripts: %v", err)
+		http.Error(w, "Failed to load investigation scripts", http.StatusInternalServerError)
+		return
+	}
+
+	ids := make([]string, 0, len(scripts))
+	for id := range scripts {
+		ids = append(ids, id)
+	}
+
+	sort.Slice(ids, func(i, j int) bool {
+		a := scripts[ids[i]]
+		b := scripts[ids[j]]
+		an := strings.ToLower(a.Name)
+		bn := strings.ToLower(b.Name)
+		if an == bn {
+			return ids[i] < ids[j]
+		}
+		return an < bn
+	})
+
+	result := make([]investigationScriptListItem, 0, len(ids))
+	for _, id := range ids {
+		result = append(result, manifestEntryToListItem(id, scripts[id]))
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"scripts": result})
+}
+
+func getInvestigationScriptHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	scriptID := vars["id"]
+
+	scripts, baseDir, err := loadInvestigationScripts()
+	if err != nil {
+		log.Printf("Failed to load investigation scripts: %v", err)
+		http.Error(w, "Failed to load investigation scripts", http.StatusInternalServerError)
+		return
+	}
+
+	entry, exists := scripts[scriptID]
+	if !exists {
+		http.Error(w, "Script not found", http.StatusNotFound)
+		return
+	}
+
+	scriptPath := filepath.Join(baseDir, filepath.Clean(entry.File))
+	absBase, err := filepath.Abs(baseDir)
+	if err != nil {
+		log.Printf("Failed to resolve investigation scripts directory: %v", err)
+		http.Error(w, "Failed to load script", http.StatusInternalServerError)
+		return
+	}
+	absScript, err := filepath.Abs(scriptPath)
+	if err != nil {
+		log.Printf("Failed to resolve script path for %s: %v", scriptID, err)
+		http.Error(w, "Failed to load script", http.StatusInternalServerError)
+		return
+	}
+
+	prefix := absBase
+	if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
+		prefix = prefix + string(os.PathSeparator)
+	}
+	if absScript != absBase && !strings.HasPrefix(absScript, prefix) {
+		http.Error(w, "Invalid script path", http.StatusBadRequest)
+		return
+	}
+
+	content, err := os.ReadFile(absScript)
+	if err != nil {
+		log.Printf("Failed to read script %s: %v", scriptID, err)
+		http.Error(w, "Failed to read script", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"script":  manifestEntryToListItem(scriptID, entry),
+		"content": string(content),
+	})
+}
+
+func manifestEntryToListItem(id string, entry investigationScriptManifestEntry) investigationScriptListItem {
+	enabled := true
+	if entry.Enabled != nil {
+		enabled = *entry.Enabled
+	} else if strings.EqualFold(entry.SafetyLevel, "deprecated") {
+		enabled = false
+	}
+
+	return investigationScriptListItem{
+		ID:          id,
+		Name:        entry.Name,
+		Description: entry.Description,
+		Category:    entry.Category,
+		Author:      entry.Author,
+		CreatedAt:   formatManifestTimestamp(entry.Created),
+		UpdatedAt:   formatManifestTimestamp(entry.LastModified),
+		Enabled:     enabled,
+		Tags:        entry.Tags,
+	}
+}
+
+func formatManifestTimestamp(value string) string {
+	if value == "" {
+		return ""
+	}
+	if _, err := time.Parse(time.RFC3339, value); err == nil {
+		return value
+	}
+	if _, err := time.Parse("2006-01-02", value); err == nil {
+		return value + "T00:00:00Z"
+	}
+	return value
+}
+
+func loadInvestigationScripts() (map[string]investigationScriptManifestEntry, string, error) {
+	manifestPath, err := findInvestigationManifest()
+	if err != nil {
+		return nil, "", err
+	}
+
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to read manifest: %w", err)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, "", fmt.Errorf("failed to parse manifest: %w", err)
+	}
+
+	scripts := make(map[string]investigationScriptManifestEntry)
+	if scriptsRaw, ok := raw["scripts"]; ok {
+		var manifestEntries map[string]investigationScriptManifestEntry
+		if err := json.Unmarshal(scriptsRaw, &manifestEntries); err != nil {
+			return nil, "", fmt.Errorf("failed to parse manifest scripts: %w", err)
+		}
+		for id, entry := range manifestEntries {
+			if entry.Name != "" && entry.File != "" {
+				scripts[id] = entry
+			}
+		}
+	}
+
+	for key, value := range raw {
+		if _, exists := scripts[key]; exists {
+			continue
+		}
+		switch key {
+		case "scripts", "categories", "templates", "settings", "version", "description", "last_updated":
+			continue
+		}
+		var entry investigationScriptManifestEntry
+		if err := json.Unmarshal(value, &entry); err == nil {
+			if entry.Name != "" && entry.File != "" {
+				scripts[key] = entry
+			}
+		}
+	}
+
+	if len(scripts) == 0 {
+		return nil, "", fmt.Errorf("no scripts found in manifest")
+	}
+
+	return scripts, filepath.Dir(manifestPath), nil
+}
+
+func findInvestigationManifest() (string, error) {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		homeDir := os.Getenv("HOME")
+		if homeDir == "" {
+			homeDir = "/root"
+		}
+		vrooliRoot = filepath.Join(homeDir, "Vrooli")
+	}
+
+	candidates := []string{
+		filepath.Join(vrooliRoot, "scenarios", "system-monitor", "investigations", "manifest.json"),
+		filepath.Join("investigations", "manifest.json"),
+	}
+
+	for _, path := range candidates {
+		info, err := os.Stat(path)
+		if err == nil && !info.IsDir() {
+			return path, nil
+		}
+	}
+
+	return "", fmt.Errorf("investigation scripts manifest not found")
 }
 
 // Log storage for debugging

@@ -6,14 +6,14 @@
     "metadata": {
         "config_version": "1.0.0",
         "created_at": "2025-09-11T00:00:00Z",
-        "last_modified": "2025-09-11T17:03:51-04:00"
+        "last_modified": "2025-09-11T17:58:26-04:00"
     },
     "triggers": [
         {
             "auto_fix": true,
             "condition": "above",
             "description": "Triggers when CPU usage exceeds threshold for sustained period",
-            "enabled": true,
+            "enabled": false,
             "icon": "cpu",
             "id": "high_cpu",
             "name": "High CPU Usage",
@@ -26,7 +26,7 @@
             "auto_fix": true,
             "condition": "below",
             "description": "Triggers when available memory falls below threshold",
-            "enabled": true,
+            "enabled": false,
             "icon": "database",
             "id": "memory_pressure",
             "name": "Memory Pressure",
@@ -39,7 +39,7 @@
             "auto_fix": true,
             "condition": "above",
             "description": "Triggers when disk usage exceeds threshold",
-            "enabled": true,
+            "enabled": false,
             "icon": "hard-drive",
             "id": "disk_space",
             "name": "Low Disk Space",
@@ -52,7 +52,7 @@
             "auto_fix": true,
             "condition": "above",
             "description": "Triggers when active connections exceed normal levels",
-            "enabled": true,
+            "enabled": false,
             "icon": "network",
             "id": "network_connections",
             "name": "Excessive Network Connections",
@@ -65,7 +65,7 @@
             "auto_fix": true,
             "condition": "above",
             "description": "Triggers when zombie or high-resource processes detected",
-            "enabled": true,
+            "enabled": false,
             "icon": "zap",
             "id": "process_anomaly",
             "name": "Process Anomaly",

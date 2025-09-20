@@ -15,6 +15,7 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
@@ -227,32 +228,35 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
+	for _, task := range inProgressTasks {
+		if qp.IsTaskRunning(task.ID) || qp.processManager.IsProcessActive(task.ID) {
+			continue
+		}
+
+		agentIdentifier := fmt.Sprintf("ecosystem-%s", task.ID)
+		qp.stopClaudeAgent(agentIdentifier, 0)
+		systemlog.Warnf("Detected orphan in-progress task %s; relocating to pending", task.ID)
+		if err := qp.storage.MoveTask(task.ID, "in-progress", "pending"); err != nil {
+			log.Printf("Failed to move orphan task %s back to pending: %v", task.ID, err)
+			systemlog.Errorf("Failed to move orphan task %s back to pending: %v", task.ID, err)
+		} else {
+			// Newly moved tasks will be picked up from pending in this or next iteration
+		}
+	}
+
 	// Count tasks that are actually executing (check the running processes registry)
 	qp.runningProcessesMutex.RLock()
 	executingCount := len(qp.runningProcesses)
 	qp.runningProcessesMutex.RUnlock()
 
-	var readyToExecute []tasks.TaskItem
-
-	for _, task := range inProgressTasks {
-		// Check if this task is actually running
-		if _, isRunning := qp.getRunningProcess(task.ID); !isRunning {
-			// Task was manually moved to in-progress but not started yet
-			readyToExecute = append(readyToExecute, task)
-		}
-	}
-
-	// Get pending tasks
+	// Get pending tasks (re-fetch if we moved any orphans)
 	pendingTasks, err := qp.storage.GetQueueItems("pending")
 	if err != nil {
 		log.Printf("Error getting pending tasks: %v", err)
 		return
 	}
 
-	// Combine pending and ready-to-execute in-progress tasks
-	allReadyTasks := append(pendingTasks, readyToExecute...)
-
-	if len(allReadyTasks) == 0 {
+	if len(pendingTasks) == 0 {
 		return // No tasks to process
 	}
 
@@ -275,20 +279,13 @@ func (qp *Processor) ProcessQueue() {
 
 	// Find highest priority task from all ready tasks
 	var selectedTask *tasks.TaskItem
-	var taskCurrentStatus string
 	highestPriority := 0
 
-	for i, task := range allReadyTasks {
+	for i, task := range pendingTasks {
 		priority := priorityOrder[task.Priority]
 		if priority > highestPriority {
 			highestPriority = priority
-			selectedTask = &allReadyTasks[i]
-			// Determine if task is from pending or already in-progress
-			if tasks.ContainsTask(pendingTasks, task) {
-				taskCurrentStatus = "pending"
-			} else {
-				taskCurrentStatus = "in-progress"
-			}
+			selectedTask = &pendingTasks[i]
 		}
 	}
 
@@ -296,24 +293,23 @@ func (qp *Processor) ProcessQueue() {
 		return
 	}
 
-	log.Printf("Processing task: %s - %s (from %s)", selectedTask.ID, selectedTask.Title, taskCurrentStatus)
+	log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
+	systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
 
 	// Move task to in-progress if it's not already there
-	if taskCurrentStatus == "pending" {
-		if err := qp.storage.MoveTask(selectedTask.ID, "pending", "in-progress"); err != nil {
-			log.Printf("Failed to move task to in-progress: %v", err)
-			return
-		}
-		// Broadcast that the task has moved to in-progress
-		selectedTask.Status = "in-progress"
-		selectedTask.CurrentPhase = "in-progress"
-		qp.broadcastUpdate("task_status_changed", map[string]interface{}{
-			"task_id":    selectedTask.ID,
-			"old_status": "pending",
-			"new_status": "in-progress",
-			"task":       selectedTask,
-		})
+	if err := qp.storage.MoveTask(selectedTask.ID, "pending", "in-progress"); err != nil {
+		log.Printf("Failed to move task to in-progress: %v", err)
+		return
 	}
+	// Broadcast that the task has moved to in-progress
+	selectedTask.Status = "in-progress"
+	selectedTask.CurrentPhase = "in-progress"
+	qp.broadcastUpdate("task_status_changed", map[string]interface{}{
+		"task_id":    selectedTask.ID,
+		"old_status": "pending",
+		"new_status": "in-progress",
+		"task":       selectedTask,
+	})
 
 	// Process the task asynchronously
 	go qp.executeTask(*selectedTask)
@@ -489,6 +485,46 @@ func (qp *Processor) cleanupClaudeAgentRegistry() {
 	cleanupCmd := exec.Command("resource-claude-code", "agents", "cleanup")
 	if err := cleanupCmd.Run(); err != nil {
 		log.Printf("Warning: Failed to cleanup claude-code agents: %v", err)
+	}
+}
+
+func (qp *Processor) finalizeTaskStatus(task tasks.TaskItem, fromStatus, toStatus string) {
+	if fromStatus != toStatus {
+		if err := qp.storage.MoveTask(task.ID, fromStatus, toStatus); err != nil {
+			log.Printf("Failed to move task %s from %s to %s: %v", task.ID, fromStatus, toStatus, err)
+			systemlog.Warnf("Failed to move task %s from %s to %s: %v", task.ID, fromStatus, toStatus, err)
+			if saveErr := qp.storage.SaveQueueItem(task, toStatus); saveErr != nil {
+				log.Printf("ERROR: Unable to finalize task %s in %s after move failure: %v", task.ID, toStatus, saveErr)
+				systemlog.Errorf("Unable to finalize task %s in %s after move failure: %v", task.ID, toStatus, saveErr)
+			} else {
+				if _, delErr := qp.storage.DeleteTask(task.ID); delErr != nil {
+					log.Printf("WARNING: Task %s may still exist in %s after fallback save: %v", task.ID, fromStatus, delErr)
+					systemlog.Warnf("Task %s may still exist in %s after fallback save: %v", task.ID, fromStatus, delErr)
+				}
+			}
+		} else {
+			systemlog.Debugf("Task %s moved from %s to %s", task.ID, fromStatus, toStatus)
+		}
+	} else {
+		if err := qp.storage.SaveQueueItem(task, toStatus); err != nil {
+			log.Printf("ERROR: Unable to finalize task %s in %s: %v", task.ID, toStatus, err)
+			systemlog.Errorf("Unable to finalize task %s in %s: %v", task.ID, toStatus, err)
+		}
+		systemlog.Debugf("Task %s state updated in %s without move", task.ID, toStatus)
+	}
+
+	systemlog.Debugf("Task %s finalized: %s -> %s", task.ID, fromStatus, toStatus)
+	qp.broadcastUpdate("task_status_changed", map[string]interface{}{
+		"task_id":    task.ID,
+		"old_status": fromStatus,
+		"new_status": toStatus,
+		"task":       task,
+	})
+
+	if status, err := qp.storage.CurrentStatus(task.ID); err == nil {
+		systemlog.Debugf("Task %s post-finalize location: %s", task.ID, status)
+	} else {
+		systemlog.Warnf("Task %s post-finalize location unknown: %v", task.ID, err)
 	}
 }
 

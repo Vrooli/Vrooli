@@ -812,6 +812,103 @@ body.dark-mode .task-delete-btn:hover {
     word-wrap: break-word;
 }
 
+.system-logs-toolbar {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0 1rem;
+    border-bottom: 1px solid var(--border-gray);
+}
+
+.logs-left-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logs-right-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.log-filter-label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.log-filter-select {
+    padding: 0.35rem 0.5rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-gray);
+    background: var(--light-gray);
+    color: var(--text-color);
+}
+
+.system-logs-content {
+    max-height: 70vh;
+    overflow-y: auto;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+}
+
+.system-logs-content .log-entry {
+    display: flex;
+    gap: 1rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    font-size: 0.85rem;
+}
+
+.system-logs-content .log-entry:last-child {
+    border-bottom: none;
+}
+
+.system-logs-content .log-timestamp {
+    width: 180px;
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.system-logs-content .log-level {
+    width: 70px;
+    text-transform: uppercase;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.system-logs-content .log-message {
+    flex: 1;
+}
+
+.system-logs-content .log-level.warn {
+    color: #fbbf24;
+}
+
+.system-logs-content .log-level.error {
+    color: #f87171;
+}
+
+.system-logs-content .log-level.info {
+    color: #38bdf8;
+}
+
+.system-logs-content .log-level.debug {
+    color: #a855f7;
+}
+
+.logs-empty {
+    color: var(--text-secondary);
+    text-align: center;
+    padding: 2rem 0;
+}
+
 .log-placeholder {
     display: flex;
     flex-direction: column;
@@ -1974,7 +2071,8 @@ body.dark-mode .queue-info {
 }
 
 /* Settings button styling - match refresh button style */
-.btn-icon.settings-btn {
+.btn-icon.settings-btn,
+.btn-icon.logs-btn {
     width: 2.25rem;
     height: 2.25rem;
     border-radius: 50%;
@@ -1989,7 +2087,8 @@ body.dark-mode .queue-info {
 }
 
 
-.btn-icon.settings-btn:hover {
+.btn-icon.settings-btn:hover,
+.btn-icon.logs-btn:hover {
     border-color: var(--primary-color);
     color: var(--primary-color);
     background: rgba(74, 144, 226, 0.05);

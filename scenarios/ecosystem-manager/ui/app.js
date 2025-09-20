@@ -31,6 +31,9 @@ class EcosystemManager {
         this.refreshCountdownInterval = null;
         this.lastRefreshTime = Date.now();
         this.refreshInterval = 30; // Default 30 seconds
+        this.systemLogs = [];
+        this.systemLogsFiltered = [];
+        this.systemLogLevelFilter = 'all';
         
         // Bind methods
         this.init = this.init.bind(this);
@@ -172,11 +175,6 @@ class EcosystemManager {
 
     setupEventListeners() {
         // Refresh button
-        const refreshBtn = document.getElementById('refresh-all-btn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', () => this.refreshAll());
-        }
-        
         // Create task button
         const createTaskBtn = document.getElementById('create-task-btn');
         if (createTaskBtn) {
@@ -1280,6 +1278,110 @@ class EcosystemManager {
             this.settingsManager.loadSettings().then(settings => {
                 this.settingsManager.applySettingsToUI(settings);
             });
+        }
+    }
+
+    async openLogsModal() {
+        const modal = document.getElementById('system-logs-modal');
+        if (!modal) return;
+
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        await this.refreshSystemLogs();
+    }
+
+    async refreshSystemLogs() {
+        const container = document.getElementById('system-logs-container');
+        if (container) {
+            container.innerHTML = '<div class="logs-empty">Loading logs...</div>';
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/logs?limit=500`);
+            if (!response.ok) {
+                throw new Error(`Failed to load logs: ${response.status} ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            this.systemLogs = data.entries || [];
+            this.systemLogsFiltered = this.systemLogs;
+            this.renderSystemLogs();
+        } catch (error) {
+            console.error('Failed to load system logs:', error);
+            if (container) {
+                container.innerHTML = `<div class="logs-empty">${this.escapeHtml(error.message || 'Failed to load logs')}</div>`;
+            }
+            this.showToast('Failed to load API logs', 'error');
+        }
+    }
+
+    renderSystemLogs() {
+        const container = document.getElementById('system-logs-container');
+        if (!container) return;
+
+        const logs = this.systemLogsFiltered || [];
+
+        if (logs.length === 0) {
+            container.innerHTML = '<div class="logs-empty">No logs available.</div>';
+            return;
+        }
+
+        const rows = logs.map(entry => {
+            const ts = entry.timestamp ? new Date(entry.timestamp).toLocaleString() : '';
+            const level = (entry.level || 'info').toLowerCase();
+            const message = this.escapeHtml(entry.message || '');
+            return `
+                <div class="log-entry">
+                    <span class="log-timestamp">${this.escapeHtml(ts)}</span>
+                    <span class="log-level ${level}">${this.escapeHtml(level)}</span>
+                    <span class="log-message">${message}</span>
+                </div>
+            `;
+        });
+
+        container.innerHTML = rows.join('');
+    }
+
+    filterSystemLogs() {
+        const select = document.getElementById('system-log-level');
+        if (select) {
+            this.systemLogLevelFilter = select.value || 'all';
+        }
+
+        if (!this.systemLogs || this.systemLogs.length === 0) {
+            this.systemLogsFiltered = [];
+            this.renderSystemLogs();
+            return;
+        }
+
+        if (this.systemLogLevelFilter === 'all') {
+            this.systemLogsFiltered = this.systemLogs;
+        } else {
+            const targetLevel = this.systemLogLevelFilter.toLowerCase();
+            this.systemLogsFiltered = this.systemLogs.filter(entry => {
+                const level = (entry.level || '').toLowerCase();
+                return level === targetLevel;
+            });
+        }
+
+        this.renderSystemLogs();
+    }
+
+    async copySystemLogs() {
+        try {
+            const lines = (this.systemLogsFiltered || []).map(entry => {
+                const ts = entry.timestamp ? new Date(entry.timestamp).toISOString() : '';
+                const level = entry.level || '';
+                const message = entry.message || '';
+                return `[${level}] ${ts} ${message}`;
+            });
+
+            const text = lines.join('\n');
+            await navigator.clipboard.writeText(text);
+            this.showToast('Logs copied to clipboard', 'success');
+        } catch (error) {
+            console.error('Failed to copy logs:', error);
+            this.showToast('Failed to copy logs', 'error');
         }
     }
 

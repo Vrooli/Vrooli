@@ -11,6 +11,7 @@ import (
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 	"github.com/gorilla/mux"
@@ -70,6 +71,7 @@ func (h *TaskHandlers) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Debug: Log what we're about to send
 	log.Printf("About to send %d filtered tasks", len(filteredItems))
+	systemlog.Debugf("Task list requested: status=%s count=%d", status, len(filteredItems))
 
 	// Encode and check for errors
 	if err := json.NewEncoder(w).Encode(filteredItems); err != nil {
@@ -322,29 +324,17 @@ func (h *TaskHandlers) UpdateTaskHandler(w http.ResponseWriter, r *http.Request)
 
 	// Save updated task
 	if newStatus != currentStatus {
-		// CRITICAL: Delete from old location FIRST before saving to new location
-		// This prevents duplicates if save succeeds but delete fails
-		oldStatus, deleteErr := h.storage.DeleteTask(taskID)
-		if deleteErr != nil {
-			log.Printf("ERROR: Failed to delete task %s from old location: %v", taskID, deleteErr)
-			http.Error(w, fmt.Sprintf("Failed to move task: %v", deleteErr), http.StatusInternalServerError)
+		if err := h.storage.MoveTask(taskID, currentStatus, newStatus); err != nil {
+			log.Printf("ERROR: Failed to move task %s from %s to %s via MoveTask: %v", taskID, currentStatus, newStatus, err)
+			http.Error(w, fmt.Sprintf("Failed to move task: %v", err), http.StatusInternalServerError)
 			return
 		}
-		log.Printf("Successfully deleted task %s from %s", taskID, oldStatus)
-
-		// Now save to new status
-		if err := h.storage.SaveQueueItem(updatedTask, newStatus); err != nil {
-			// Try to restore to old location if save fails
-			log.Printf("ERROR: Failed to save task %s to %s: %v", taskID, newStatus, err)
-			if restoreErr := h.storage.SaveQueueItem(updatedTask, currentStatus); restoreErr != nil {
-				log.Printf("CRITICAL: Failed to restore task %s to %s: %v", taskID, currentStatus, restoreErr)
-			}
-			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
-			return
+		// Reload updated task after move so we return the latest view
+		if reloaded, status, err := h.storage.GetTaskByID(taskID); err == nil {
+			updatedTask = *reloaded
+			currentStatus = status
 		}
-		log.Printf("Successfully saved task %s to %s", taskID, newStatus)
 	} else {
-		// Update in place
 		if err := h.storage.SaveQueueItem(updatedTask, currentStatus); err != nil {
 			http.Error(w, fmt.Sprintf("Error saving updated task: %v", err), http.StatusInternalServerError)
 			return

@@ -26,7 +26,6 @@ export class UIComponents {
                 </span>
             </div>
             <h3 class="task-title">${this.escapeHtml(task.title)}</h3>
-            ${task.current_phase ? `<div class="task-phase"><i class="fas ${this.getPhaseIcon(task.current_phase)}"></i> ${task.current_phase}</div>` : ''}
             ${task.category ? `<span class="task-category category-${task.category}">${task.category}</span>` : ''}
             ${isRunning ? `
                 <div class="task-execution-indicator">
@@ -39,18 +38,6 @@ export class UIComponents {
                     <button class="btn-stop-execution" onclick="event.stopPropagation(); ecosystemManager.stopTaskExecution('${task.id}')" title="Stop execution">
                         <i class="fas fa-stop"></i>
                     </button>
-                </div>
-            ` : ''}
-            ${task.results && task.status === 'completed' ? `
-                <div class="task-result-indicator success">
-                    <i class="fas fa-check-circle"></i>
-                    <span>Completed</span>
-                </div>
-            ` : ''}
-            ${task.results && task.status === 'failed' ? `
-                <div class="task-result-indicator error">
-                    <i class="fas fa-times-circle"></i>
-                    <span>${task.results.timeout_failure ? 'Timeout' : 'Failed'}</span>
                 </div>
             ` : ''}
             <button class="btn-icon task-delete-btn" data-task-id="${task.id}" data-task-status="${task.status}" title="Delete Task">
@@ -70,21 +57,6 @@ export class UIComponents {
             return task.operation === 'improver' ? 
                 { icon: 'fas fa-sync', label: 'Scenario Improver' } :
                 { icon: 'fas fa-project-diagram', label: 'Scenario Generator' };
-        }
-    }
-
-    static getPhaseIcon(phase) {
-        switch (phase) {
-            case 'pending':
-                return 'fa-clock';
-            case 'in-progress':
-                return 'fa-spinner';
-            case 'completed':
-                return 'fa-check-circle';
-            case 'failed':
-                return 'fa-times-circle';
-            default:
-                return 'fa-tasks';
         }
     }
 

@@ -16,12 +16,14 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/settings"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
 
 // executeTask executes a single task
 func (qp *Processor) executeTask(task tasks.TaskItem) {
 	log.Printf("Executing task %s: %s", task.ID, task.Title)
+	systemlog.Infof("Executing task %s (%s)", task.ID, task.Title)
 
 	// Track execution timing
 	executionStartTime := time.Now()
@@ -60,7 +62,9 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 	log.Printf("Task %s: Prompt size: %d characters (%.2f KB / %.2f MB)", task.ID, len(prompt), promptSizeKB, promptSizeMB)
 
 	// Call Claude Code resource
-	result, err := qp.callClaudeCode(prompt, task, executionStartTime, timeoutDuration)
+	result, cleanup, err := qp.callClaudeCode(prompt, task, executionStartTime, timeoutDuration)
+	defer cleanup()
+	defer cleanup()
 	executionTime := time.Since(executionStartTime)
 
 	if err != nil {
@@ -75,7 +79,9 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		task.ID, result.Success, result.RateLimited, result.Error)
 
 	if result.Success {
-		log.Printf("Task %s completed successfully in %v (timeout was %v)", task.ID, executionTime.Round(time.Second), timeoutDuration)
+		summary := fmt.Sprintf("Task %s completed successfully in %v (timeout %v)", task.ID, executionTime.Round(time.Second), timeoutDuration)
+		log.Println(summary)
+		systemlog.Info(summary)
 
 		// Update task with results including timing and prompt size
 		task.Results = map[string]interface{}{
@@ -98,10 +104,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 		}
 		qp.broadcastUpdate("task_completed", task)
 
-		// Move to completed
-		if err := qp.storage.MoveTask(task.ID, "in-progress", "completed"); err != nil {
-			log.Printf("Failed to move task %s to completed: %v", task.ID, err)
-		}
+		qp.finalizeTaskStatus(task, "in-progress", "completed")
 	} else {
 		// Check if this is a rate limit error
 		if result.RateLimited {
@@ -109,6 +112,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 
 			// Move task back to pending (don't mark as failed)
 			task.CurrentPhase = "rate_limited"
+			task.Status = "pending"
 			// Store rate limit info in results, NOT in notes (preserve user notes)
 			if task.Results == nil {
 				task.Results = make(map[string]interface{})
@@ -121,9 +125,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			qp.storage.SaveQueueItem(task, "in-progress")
 
 			// Move back to pending queue for retry
-			if err := qp.storage.MoveTask(task.ID, "in-progress", "pending"); err != nil {
-				log.Printf("Failed to move rate-limited task %s back to pending: %v", task.ID, err)
-			}
+			qp.finalizeTaskStatus(task, "in-progress", "pending")
 
 			// Trigger a pause of the queue processor
 			qp.handleRateLimitPause(result.RetryAfter)
@@ -136,6 +138,7 @@ func (qp *Processor) executeTask(task tasks.TaskItem) {
 			})
 		} else {
 			log.Printf("Task %s failed after %v: %s", task.ID, executionTime.Round(time.Second), result.Error)
+			systemlog.Warnf("Task %s failed: %s", task.ID, result.Error)
 			var extras map[string]interface{}
 			if result.MaxTurnsExceeded {
 				extras = map[string]interface{}{"max_turns_exceeded": true}
@@ -159,9 +162,7 @@ func (qp *Processor) handleTaskFailure(task tasks.TaskItem, errorMsg string) {
 	}
 	qp.broadcastUpdate("task_failed", task)
 
-	if err := qp.storage.MoveTask(task.ID, "in-progress", "failed"); err != nil {
-		log.Printf("Failed to move task %s to failed: %v", task.ID, err)
-	}
+	qp.finalizeTaskStatus(task, "in-progress", "failed")
 }
 
 // handleTaskFailureWithTiming handles a failed task with execution timing information
@@ -199,9 +200,7 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 	}
 	qp.broadcastUpdate("task_failed", task)
 
-	if err := qp.storage.MoveTask(task.ID, "in-progress", "failed"); err != nil {
-		log.Printf("Failed to move task %s to failed: %v", task.ID, err)
-	}
+	qp.finalizeTaskStatus(task, "in-progress", "failed")
 
 	// Log detailed timing information
 	if isTimeout {
@@ -214,7 +213,8 @@ func (qp *Processor) handleTaskFailureWithTiming(task tasks.TaskItem, errorMsg s
 }
 
 // callClaudeCode executes Claude Code while streaming logs for real-time monitoring
-func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTime time.Time, timeoutDuration time.Duration) (*tasks.ClaudeCodeResponse, error) {
+func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTime time.Time, timeoutDuration time.Duration) (*tasks.ClaudeCodeResponse, func(), error) {
+	cleanup := func() {}
 	log.Printf("Executing Claude Code for task %s (prompt length: %d characters, timeout: %v)", task.ID, len(prompt), timeoutDuration)
 
 	// Resolve Vrooli root to ensure resource CLI works no matter where binary runs
@@ -267,21 +267,21 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		log.Printf("Failed to obtain stdout pipe for task %s: %v", task.ID, err)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stdout pipe: %v", err)}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stdout pipe: %v", err)}, cleanup, nil
 	}
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
 		log.Printf("Failed to obtain stderr pipe for task %s: %v", task.ID, err)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stderr pipe: %v", err)}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code stderr pipe: %v", err)}, cleanup, nil
 	}
 
 	if err := cmd.Start(); err != nil {
 		log.Printf("Failed to start Claude Code for task %s: %v", task.ID, err)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code: %v", err)}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to start Claude Code: %v", err)}, cleanup, nil
 	}
 
 	qp.registerRunningProcess(task.ID, cmd, ctx, cancel, agentTag)
-	defer qp.unregisterRunningProcess(task.ID)
+	cleanup = func() { qp.unregisterRunningProcess(task.ID) }
 
 	qp.initTaskLogBuffer(task.ID, agentTag, cmd.Process.Pid)
 	defer qp.markTaskLogsCompleted(task.ID)
@@ -367,22 +367,33 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		actualRuntime := time.Since(startTime).Round(time.Second)
 		msg := fmt.Sprintf("⏰ TIMEOUT: Task execution exceeded %v limit (ran for %v)\n\nThe task was automatically terminated because it exceeded the configured timeout.\nConsider:\n- Increasing timeout in Settings if this is a complex task\n- Breaking the task into smaller parts\n- Checking for blocking steps in the prompt", timeoutDuration, actualRuntime)
 		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, cleanup, nil
 	}
 
 	// Detect manual termination (context cancelled) before evaluating generic errors
 	if ctx.Err() == context.Canceled {
 		qp.appendTaskLog(task.ID, agentTag, "stderr", "⛔ Task execution was cancelled")
-		return &tasks.ClaudeCodeResponse{Success: false, Error: "Task execution was cancelled", Output: combinedOutput}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: "Task execution was cancelled", Output: combinedOutput}, cleanup, nil
 	}
 
 	if waitErr != nil {
+		if detectMaxTurnsExceeded(combinedOutput) {
+			maxTurnsMsg := fmt.Sprintf("Claude reached the configured MAX_TURNS limit (%d). Consider simplifying the task or increasing the limit in Settings.", currentSettings.MaxTurns)
+			qp.appendTaskLog(task.ID, agentTag, "stderr", maxTurnsMsg)
+			return &tasks.ClaudeCodeResponse{
+				Success:          false,
+				Error:            maxTurnsMsg,
+				Output:           combinedOutput,
+				MaxTurnsExceeded: true,
+			}, cleanup, nil
+		}
+
 		if response, handled := qp.handleNonZeroExit(waitErr, combinedOutput, task, agentTag, currentSettings.MaxTurns); handled {
-			return response, nil
+			return response, cleanup, nil
 		}
 
 		log.Printf("Claude Code process errored for task %s: %v", task.ID, waitErr)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: fmt.Sprintf("Failed to execute Claude Code: %v", waitErr), Output: combinedOutput}, cleanup, nil
 	}
 
 	lowerOutput := strings.ToLower(combinedOutput)
@@ -404,7 +415,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			RateLimited: true,
 			RetryAfter:  retryAfter,
 			Output:      combinedOutput,
-		}, nil
+		}, cleanup, nil
 	}
 
 	if detectMaxTurnsExceeded(combinedOutput) {
@@ -415,13 +426,13 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 			Error:            maxTurnsMsg,
 			Output:           combinedOutput,
 			MaxTurnsExceeded: true,
-		}, nil
+		}, cleanup, nil
 	}
 
 	if strings.Contains(strings.ToLower(combinedOutput), "error:") {
 		msg := "Claude execution reported an error – review output for details."
 		qp.appendTaskLog(task.ID, agentTag, "stderr", msg)
-		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, nil
+		return &tasks.ClaudeCodeResponse{Success: false, Error: msg, Output: combinedOutput}, cleanup, nil
 	}
 
 	log.Printf("Claude Code completed successfully for task %s (output length: %d characters)", task.ID, len(combinedOutput))
@@ -438,7 +449,7 @@ func (qp *Processor) callClaudeCode(prompt string, task tasks.TaskItem, startTim
 		Success: true,
 		Message: "Task completed successfully",
 		Output:  combinedOutput,
-	}, nil
+	}, cleanup, nil
 }
 
 // extractRetryAfter attempts to extract retry-after duration from rate limit error messages

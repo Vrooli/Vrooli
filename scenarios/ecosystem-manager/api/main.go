@@ -15,6 +15,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/handlers"
 	"github.com/ecosystem-manager/api/pkg/prompts"
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
@@ -37,6 +38,8 @@ var (
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.Println("🚀 Starting Ecosystem Manager API...")
+	systemlog.Init()
+	systemlog.Info("API startup initiated")
 
 	// Initialize core components
 	if err := initializeComponents(); err != nil {
@@ -67,6 +70,7 @@ func main() {
 	log.Printf("🔗 WebSocket endpoint: ws://localhost:%s/ws", port)
 	log.Printf("🏥 Health check: http://localhost:%s/health", port)
 	log.Printf("📋 Queue status: http://localhost:%s/api/queue/status", port)
+	systemlog.Info(fmt.Sprintf("HTTP server listening on port %s", port))
 
 	// Start server
 	if err := http.ListenAndServe(":"+port, router); err != nil {
@@ -102,6 +106,7 @@ func initializeComponents() error {
 	// Initialize storage
 	storage = tasks.NewStorage(queueDir)
 	log.Println("✅ Task storage initialized")
+	systemlog.Info("Task storage initialized")
 
 	// Initialize prompts assembler
 	assembler, err = prompts.NewAssembler(promptsDir)
@@ -109,10 +114,12 @@ func initializeComponents() error {
 		return err
 	}
 	log.Println("✅ Prompt assembler initialized")
+	systemlog.Info("Prompt assembler initialized")
 
 	// Initialize WebSocket manager
 	wsManager = websocket.NewManager()
 	log.Println("✅ WebSocket manager initialized")
+	systemlog.Info("WebSocket manager initialized")
 
 	// Initialize queue processor
 	processor = queue.NewProcessor(
@@ -122,6 +129,7 @@ func initializeComponents() error {
 		wsManager.GetBroadcastChannel(),
 	)
 	log.Println("✅ Queue processor initialized")
+	systemlog.Info("Queue processor initialized")
 
 	// Initialize handlers
 	taskHandlers = handlers.NewTaskHandlers(storage, assembler, processor, wsManager)
@@ -167,6 +175,9 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/queue/status", queueHandlers.GetQueueStatusHandler).Methods("GET")
 	api.HandleFunc("/queue/trigger", queueHandlers.TriggerQueueProcessingHandler).Methods("POST")
 	api.HandleFunc("/queue/reset-rate-limit", queueHandlers.ResetRateLimitHandler).Methods("POST")
+
+	// System logs
+	api.HandleFunc("/logs", handlers.LogsHandler).Methods("GET")
 
 	// Process management (match original path)
 	api.HandleFunc("/processes/running", queueHandlers.GetRunningProcessesHandler).Methods("GET")

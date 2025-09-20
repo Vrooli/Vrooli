@@ -85,8 +85,8 @@
                             </button>
                             <div class="process-dropdown" id="process-monitor-dropdown"></div>
                         </div>
-                        <button class="btn-icon refresh-all-btn" onclick="ecosystemManager.refreshAll()" title="Refresh All">
-                            <i class="fas fa-sync-alt"></i>
+                        <button class="btn-icon logs-btn" onclick="ecosystemManager.openLogsModal()" title="View API Logs">
+                            <i class="fas fa-scroll"></i>
                         </button>
                         <button class="btn-icon settings-btn" onclick="ecosystemManager.openSettingsModal()" title="Settings">
                             <i class="fas fa-cog"></i>
@@ -562,6 +562,43 @@
                         <p class="log-hint">Logs will appear here when the task starts executing with Claude Code</p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs Modal -->
+    <div id="system-logs-modal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>API Logs</h3>
+                <button class="modal-close" onclick="ecosystemManager.closeModal('system-logs-modal')">&times;</button>
+            </div>
+            <div class="system-logs-toolbar">
+                <div class="logs-left-controls">
+                    <label for="system-log-level" class="log-filter-label">
+                        Level:
+                        <select id="system-log-level" class="log-filter-select" onchange="ecosystemManager.filterSystemLogs()">
+                            <option value="all">All</option>
+                            <option value="error">Error</option>
+                            <option value="warn">Warn</option>
+                            <option value="info">Info</option>
+                            <option value="debug">Debug</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="logs-right-controls">
+                    <button class="btn btn-secondary" onclick="ecosystemManager.copySystemLogs()">
+                        <i class="fas fa-copy"></i>
+                        Copy
+                    </button>
+                    <button class="btn btn-secondary" onclick="ecosystemManager.refreshSystemLogs()">
+                        <i class="fas fa-sync"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="system-logs-content" id="system-logs-container">
+                <div class="logs-empty">Loading logs...</div>
             </div>
         </div>
     </div>

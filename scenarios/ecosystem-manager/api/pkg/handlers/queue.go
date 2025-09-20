@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/queue"
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 	"github.com/ecosystem-manager/api/pkg/websocket"
 )
@@ -212,6 +213,7 @@ func (h *QueueHandlers) StopQueueProcessorHandler(w http.ResponseWriter, r *http
 	})
 
 	log.Println("Queue processor stopped via API")
+	systemlog.Info("Queue processor stopped via API request")
 }
 
 // StartQueueProcessorHandler starts the queue processor
@@ -226,6 +228,7 @@ func (h *QueueHandlers) StartQueueProcessorHandler(w http.ResponseWriter, r *htt
 	})
 
 	log.Println("Queue processor started via API")
+	systemlog.Info("Queue processor started via API request")
 }
 
 // ResetRateLimitHandler resets the rate limit pause manually

@@ -1,0 +1,10 @@
+{
+    "active": true,
+    "metric_collection_interval": 30,
+    "anomaly_detection_interval": 60,
+    "threshold_check_interval": 30,
+    "cooldown_period_seconds": 300,
+    "cpu_threshold": 80.0,
+    "memory_threshold": 90.0,
+    "disk_threshold": 95.0
+}

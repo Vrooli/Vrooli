@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
+	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"gopkg.in/yaml.v3"
 )
+
+var timestampSuffixPattern = regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
 
 // Storage handles file-based task persistence
 // DESIGN DECISION: File-based task storage is intentional and provides several benefits:
@@ -123,6 +125,66 @@ func (s *Storage) SaveQueueItem(item TaskItem, status string) error {
 	return s.atomicWriteFile(filePath, data, 0644)
 }
 
+// findTaskFile returns the path and contents for a task file within a specific status directory.
+func (s *Storage) findTaskFile(status, taskID string) (string, []byte, error) {
+	queuePath := filepath.Join(s.QueueDir, status)
+
+	candidate := filepath.Join(queuePath, fmt.Sprintf("%s.yaml", taskID))
+	if data, err := os.ReadFile(candidate); err == nil {
+		return candidate, data, nil
+	}
+
+	// Handle cases where filename omits timestamp suffixes
+	taskIDPrefix := taskID
+	if matches := timestampSuffixPattern.FindStringSubmatch(taskID); len(matches) > 0 {
+		taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
+	}
+
+	entries, err := os.ReadDir(queuePath)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to read %s queue: %w", status, err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, ".yaml") {
+			continue
+		}
+		nameWithoutExt := strings.TrimSuffix(name, ".yaml")
+		if nameWithoutExt != taskID && nameWithoutExt != taskIDPrefix {
+			continue
+		}
+
+		path := filepath.Join(queuePath, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to read task file %s: %w", path, err)
+		}
+
+		var task TaskItem
+		if err := yaml.Unmarshal(data, &task); err != nil {
+			continue
+		}
+		if task.ID == taskID {
+			return path, data, nil
+		}
+	}
+
+	return "", nil, fmt.Errorf("failed to find task file for ID %s in status %s", taskID, status)
+}
+
+// CurrentStatus returns the queue directory that currently holds the task, if any.
+func (s *Storage) CurrentStatus(taskID string) (string, error) {
+	_, status, err := s.GetTaskByID(taskID)
+	if err != nil {
+		return "", err
+	}
+	return status, nil
+}
+
 // atomicWriteFile writes data to a file atomically by writing to a temp file first
 func (s *Storage) atomicWriteFile(filePath string, data []byte, perm os.FileMode) error {
 	// Create temp file in same directory to ensure same filesystem
@@ -174,98 +236,36 @@ func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
 // MoveTask moves a task between queue states and updates timestamps
 // Uses atomic operations to prevent task loss
 func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
-	// CRITICAL FIX: Use GetTaskByID logic to find actual file
-	// Don't assume filename matches taskID exactly
-	var fromPath string
-	var data []byte
-	var err error
-	
-	// Strategy 1: Try exact filename match
-	fromPath = filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
-	data, err = os.ReadFile(fromPath)
-	if err != nil {
-		// Strategy 2: Use flexible file lookup like GetTaskByID does
-		found := false
-		taskIDPrefix := taskID
-		
-		// Handle timestamp mismatches (same pattern as GetTaskByID)
-		timestampPattern := regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
-		if matches := timestampPattern.FindStringSubmatch(taskID); len(matches) > 0 {
-			taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
-		}
-		
-		// Try to find file with the prefix
-		dirPath := filepath.Join(s.QueueDir, fromStatus)
-		entries, err := os.ReadDir(dirPath)
-		if err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() {
-					continue
-				}
-				filename := entry.Name()
-				if !strings.HasSuffix(filename, ".yaml") {
-					continue
-				}
-				nameWithoutExt := strings.TrimSuffix(filename, ".yaml")
-				if nameWithoutExt == taskIDPrefix || nameWithoutExt == taskID {
-					fromPath = filepath.Join(dirPath, filename)
-					data, err = os.ReadFile(fromPath)
-					if err == nil {
-						found = true
-						break
-					}
-				}
-			}
-		}
-		
-		if !found {
-			return fmt.Errorf("failed to find task file for ID %s in %s status", taskID, fromStatus)
-		}
+	if fromStatus == toStatus {
+		return nil
 	}
 
-	var task TaskItem
-	if err := yaml.Unmarshal(data, &task); err != nil {
-		return fmt.Errorf("failed to unmarshal task: %v", err)
+	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
+	toPath := filepath.Join(s.QueueDir, toStatus, fmt.Sprintf("%s.yaml", taskID))
+
+	systemlog.Debugf("MoveTask start: task=%s from=%s to=%s", taskID, fromStatus, toStatus)
+
+	if err := os.MkdirAll(filepath.Dir(toPath), 0755); err != nil {
+		return fmt.Errorf("failed to ensure destination directory: %w", err)
 	}
 
-	// Update timestamps based on status change
-	now := time.Now().Format(time.RFC3339)
-	task.UpdatedAt = now
-
-	switch toStatus {
-	case "in-progress":
-		task.StartedAt = now
-		task.Status = "in-progress"
-		task.CurrentPhase = "initialization"
-	case "completed":
-		task.CompletedAt = now
-		task.Status = "completed"
-		task.ProgressPercent = 100
-	case "failed":
-		task.CompletedAt = now
-		task.Status = "failed"
-	}
-
-	// SAFE APPROACH: Save to new location FIRST, then remove from old
-	// This ensures we never lose the task even if operations fail
-	if err := s.SaveQueueItem(task, toStatus); err != nil {
-		return fmt.Errorf("failed to save task to %s: %v", toStatus, err)
-	}
-	log.Printf("Saved task %s to %s", taskID, toStatus)
-
-	// Now remove from old location
-	// If this fails, we have a duplicate but haven't lost the task
-	if err := os.Remove(fromPath); err != nil {
-		// Try to clean up the duplicate we just created
-		toPath := filepath.Join(s.QueueDir, toStatus, fmt.Sprintf("%s.yaml", taskID))
-		if cleanupErr := os.Remove(toPath); cleanupErr != nil {
-			log.Printf("WARNING: Task %s exists in both %s and %s: %v", taskID, fromStatus, toStatus, err)
-			return fmt.Errorf("failed to remove task from %s (task now exists in both locations): %v", fromStatus, err)
+	if err := os.Rename(fromPath, toPath); err != nil {
+		data, readErr := os.ReadFile(fromPath)
+		if readErr != nil {
+			systemlog.Errorf("MoveTask fallback read failed: task=%s from=%s err=%v", taskID, fromStatus, readErr)
+			return fmt.Errorf("rename failed (%v) and read failed (%v)", err, readErr)
 		}
-		return fmt.Errorf("failed to remove task from %s (cleaned up duplicate): %v", fromStatus, err)
+		if writeErr := os.WriteFile(toPath, data, 0644); writeErr != nil {
+			systemlog.Errorf("MoveTask fallback write failed: task=%s to=%s err=%v", taskID, toStatus, writeErr)
+			return fmt.Errorf("rename failed (%v) and write failed (%v)", err, writeErr)
+		}
+		if delErr := os.Remove(fromPath); delErr != nil {
+			systemlog.Warnf("MoveTask fallback could not remove source: task=%s from=%s err=%v", taskID, fromStatus, delErr)
+		}
 	}
 
 	log.Printf("Successfully moved task %s from %s to %s", taskID, fromStatus, toStatus)
+	systemlog.Debugf("MoveTask completed: task=%s from=%s to=%s", taskID, fromStatus, toStatus)
 	return nil
 }
 
@@ -300,8 +300,7 @@ func (s *Storage) GetTaskByID(taskID string) (*TaskItem, string, error) {
 	// - 6 digits (HHMMSS format like 010900)
 	// - 8 digits (YYYYMMDD format like 20250110)
 	// - timestamp with dashes like 2025-01-10
-	timestampPattern := regexp.MustCompile(`-(\d{6}|\d{8}|\d{4}-\d{2}-\d{2})$`)
-	if matches := timestampPattern.FindStringSubmatch(taskID); len(matches) > 0 {
+	if matches := timestampSuffixPattern.FindStringSubmatch(taskID); len(matches) > 0 {
 		// Remove the timestamp suffix to get the base ID
 		taskIDPrefix = taskID[:len(taskID)-len(matches[0])]
 	}
