@@ -4,13 +4,16 @@ import {
   Scenario,
   Vulnerability,
   SecurityScan,
+  SecurityScanStatus,
   HealthAlert,
   PerformanceMetric,
   AutomatedFixConfig,
   AutomatedFix,
   BreakingChange,
   AgentInfo,
-  FixAgentResponse
+  FixAgentResponse,
+  StandardsViolation,
+  StandardsScanStatus,
 } from '@/types/api'
 
 const API_BASE = '/api/v1'
@@ -82,10 +85,23 @@ class ApiService {
   }
 
   // Vulnerabilities
-  async scanScenario(name: string, options?: { type?: string }): Promise<SecurityScan> {
+  async scanScenario(
+    name: string,
+    options?: { type?: string }
+  ): Promise<{ job_id: string; status: SecurityScanStatus }> {
     return this.fetch(`/scenarios/${name}/scan`, {
       method: 'POST',
       body: JSON.stringify(options || {}),
+    })
+  }
+
+  async getSecurityScanStatus(jobId: string): Promise<SecurityScanStatus> {
+    return this.fetch(`/scenarios/scan/jobs/${encodeURIComponent(jobId)}`)
+  }
+
+  async cancelSecurityScan(jobId: string): Promise<{ success: boolean; status: SecurityScanStatus; message?: string }> {
+    return this.fetch(`/scenarios/scan/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: 'POST',
     })
   }
 
@@ -169,16 +185,31 @@ class ApiService {
   }
 
   // Standards Compliance
-  async checkStandards(name: string, options?: { type?: string, standards?: string[] }): Promise<any> {
-    return this.fetch(`/standards/check/${name}`, {
+  async checkStandards(
+    name: string,
+    options?: { type?: string; standards?: string[] }
+  ): Promise<{ job_id: string; status: StandardsScanStatus }> {
+    return this.fetch(`/standards/check/${encodeURIComponent(name)}`, {
       method: 'POST',
       body: JSON.stringify(options || {}),
     })
   }
 
-  async getStandardsViolations(scenario?: string): Promise<any[]> {
-    const url = scenario ? `/standards/violations?scenario=${scenario}` : '/standards/violations'
-    const response = await this.fetch<{ violations: any[] }>(url)
+  async getStandardsCheckStatus(jobId: string): Promise<StandardsScanStatus> {
+    return this.fetch(`/standards/check/jobs/${encodeURIComponent(jobId)}`)
+  }
+
+  async cancelStandardsScan(jobId: string): Promise<{ success: boolean; status: StandardsScanStatus; message?: string }> {
+    return this.fetch(`/standards/check/jobs/${encodeURIComponent(jobId)}/cancel`, {
+      method: 'POST',
+    })
+  }
+
+  async getStandardsViolations(scenario?: string): Promise<StandardsViolation[]> {
+    const url = scenario
+      ? `/standards/violations?scenario=${encodeURIComponent(scenario)}`
+      : '/standards/violations'
+    const response = await this.fetch<{ violations: StandardsViolation[] }>(url)
     return response.violations || []
   }
 

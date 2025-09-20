@@ -43,6 +43,7 @@ type ScanOptions struct {
 	CustomRules     []CustomRule    `json:"custom_rules,omitempty"`
 	EnabledScanners []ScannerType   `json:"enabled_scanners,omitempty"`
 	Context         context.Context `json:"-"`
+	Progress        func(ScannerType, *ScanResult)
 }
 
 // CustomRule defines a custom security rule
@@ -174,6 +175,13 @@ func (so *ScanOrchestrator) Scan(opts ScanOptions) (*AggregatedScanResult, error
 
 	// Run each scanner
 	for _, scannerType := range scannersToUse {
+		if opts.Context != nil {
+			select {
+			case <-opts.Context.Done():
+				return nil, opts.Context.Err()
+			default:
+			}
+		}
 		scanner, exists := so.scanners[scannerType]
 		if !exists {
 			so.logger.Warn("Scanner %s not registered", scannerType)
@@ -181,6 +189,9 @@ func (so *ScanOrchestrator) Scan(opts ScanOptions) (*AggregatedScanResult, error
 		}
 
 		so.logger.Info("Running %s scanner...", scannerType)
+		if opts.Progress != nil {
+			opts.Progress(scannerType, nil)
+		}
 		result, err := scanner.Scan(opts)
 		if err != nil {
 			so.logger.Error("Scanner %s failed: %v", scannerType, err)
@@ -193,6 +204,9 @@ func (so *ScanOrchestrator) Scan(opts ScanOptions) (*AggregatedScanResult, error
 		totalLinesScanned += result.LinesScanned
 
 		so.logger.Info("%s found %d issues", scannerType, len(result.Findings))
+		if opts.Progress != nil {
+			opts.Progress(scannerType, result)
+		}
 	}
 
 	// Deduplicate findings

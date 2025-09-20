@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +55,49 @@ const (
 	targetServiceJSON = "service_json"
 )
 
+var (
+	errStandardsScanCancelled = errors.New("standards scan cancelled")
+	errStandardsScanNotFound  = errors.New("standards scan not found")
+	errStandardsScanFinished  = errors.New("standards scan already finished")
+)
+
+type standardsScanTarget struct {
+	Name string
+	Path string
+}
+
+type StandardsScanStatus struct {
+	ID                 string                `json:"id"`
+	Scenario           string                `json:"scenario"`
+	ScanType           string                `json:"scan_type"`
+	Status             string                `json:"status"`
+	StartedAt          time.Time             `json:"started_at"`
+	CompletedAt        *time.Time            `json:"completed_at,omitempty"`
+	ElapsedSeconds     float64               `json:"elapsed_seconds"`
+	TotalScenarios     int                   `json:"total_scenarios"`
+	ProcessedScenarios int                   `json:"processed_scenarios"`
+	ProcessedFiles     int                   `json:"processed_files"`
+	TotalFiles         int                   `json:"total_files"`
+	CurrentScenario    string                `json:"current_scenario,omitempty"`
+	CurrentFile        string                `json:"current_file,omitempty"`
+	Message            string                `json:"message,omitempty"`
+	Error              string                `json:"error,omitempty"`
+	Result             *StandardsCheckResult `json:"result,omitempty"`
+}
+
+type StandardsScanJob struct {
+	mu     sync.RWMutex
+	status StandardsScanStatus
+	cancel context.CancelFunc
+}
+
+type StandardsScanManager struct {
+	mu   sync.RWMutex
+	jobs map[string]*StandardsScanJob
+}
+
+var standardsScanManager = newStandardsScanManager()
+
 var allowedExtensions = map[string]struct{}{
 	".go":   {},
 	".ts":   {},
@@ -67,10 +114,332 @@ var allowedExtensions = map[string]struct{}{
 	".java": {},
 }
 
+func newStandardsScanManager() *StandardsScanManager {
+	return &StandardsScanManager{
+		jobs: make(map[string]*StandardsScanJob),
+	}
+}
+
+func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standards []string) (StandardsScanStatus, error) {
+	targets, err := buildStandardsScanTargets(scenarioName)
+	if err != nil {
+		return StandardsScanStatus{}, err
+	}
+	if len(targets) == 0 {
+		return StandardsScanStatus{}, fmt.Errorf("no scenarios available to scan")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	jobID := fmt.Sprintf("standards-%s", uuid.NewString())
+	started := time.Now()
+
+	job := &StandardsScanJob{
+		cancel: cancel,
+		status: StandardsScanStatus{
+			ID:             jobID,
+			Scenario:       scenarioName,
+			ScanType:       scanType,
+			Status:         "running",
+			StartedAt:      started,
+			ElapsedSeconds: 0,
+			TotalScenarios: len(targets),
+			Message:        "Standards scan started",
+		},
+	}
+
+	m.mu.Lock()
+	m.jobs[jobID] = job
+	m.mu.Unlock()
+
+	go job.run(ctx, targets, scenarioName, scanType, standards)
+
+	return job.snapshot(), nil
+}
+
+func (m *StandardsScanManager) Get(jobID string) (*StandardsScanJob, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	job, ok := m.jobs[jobID]
+	return job, ok
+}
+
+func (m *StandardsScanManager) Cancel(jobID string) (StandardsScanStatus, error) {
+	job, ok := m.Get(jobID)
+	if !ok {
+		return StandardsScanStatus{}, errStandardsScanNotFound
+	}
+
+	err := job.requestCancel()
+	return job.snapshot(), err
+}
+
+func (job *StandardsScanJob) update(fn func(*StandardsScanStatus)) {
+	job.mu.Lock()
+	defer job.mu.Unlock()
+	fn(&job.status)
+	if !job.status.StartedAt.IsZero() {
+		job.status.ElapsedSeconds = time.Since(job.status.StartedAt).Seconds()
+	}
+}
+
+func (job *StandardsScanJob) snapshot() StandardsScanStatus {
+	job.mu.RLock()
+	defer job.mu.RUnlock()
+	copy := job.status
+	if !copy.StartedAt.IsZero() && copy.Status != "pending" {
+		copy.ElapsedSeconds = time.Since(copy.StartedAt).Seconds()
+	}
+	return copy
+}
+
+func (job *StandardsScanJob) requestCancel() error {
+	job.mu.Lock()
+	status := job.status.Status
+	if status == "completed" || status == "failed" || status == "cancelled" {
+		job.mu.Unlock()
+		return errStandardsScanFinished
+	}
+	if status == "cancelling" {
+		job.mu.Unlock()
+		return nil
+	}
+	job.status.Status = "cancelling"
+	job.status.Message = "Cancellation requested"
+	if !job.status.StartedAt.IsZero() {
+		job.status.ElapsedSeconds = time.Since(job.status.StartedAt).Seconds()
+	}
+	cancel := job.cancel
+	job.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	return nil
+}
+
+func (job *StandardsScanJob) markCancelled() {
+	completedAt := time.Now()
+	job.update(func(status *StandardsScanStatus) {
+		status.Status = "cancelled"
+		status.CompletedAt = &completedAt
+		status.Message = "Standards scan cancelled"
+		status.CurrentScenario = ""
+		status.CurrentFile = ""
+	})
+}
+
+func (job *StandardsScanJob) markFailed(err error) {
+	completedAt := time.Now()
+	job.update(func(status *StandardsScanStatus) {
+		status.Status = "failed"
+		status.CompletedAt = &completedAt
+		status.Error = err.Error()
+		status.Message = "Standards scan failed"
+		status.CurrentScenario = ""
+		status.CurrentFile = ""
+	})
+}
+
+func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processedFiles int) {
+	completedAt := time.Now()
+	job.update(func(status *StandardsScanStatus) {
+		status.Status = "completed"
+		status.CompletedAt = &completedAt
+		status.Message = result.Message
+		status.Result = &result
+		status.ProcessedFiles = processedFiles
+		status.TotalFiles = processedFiles
+		status.CurrentScenario = ""
+		status.CurrentFile = ""
+	})
+}
+
+func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string) {
+	logger := NewLogger()
+	jobSnapshot := job.snapshot()
+	start := jobSnapshot.StartedAt
+	if start.IsZero() {
+		start = time.Now()
+		job.update(func(status *StandardsScanStatus) {
+			status.StartedAt = start
+		})
+	}
+
+	processedScenarios := 0
+	totalFiles := 0
+	var allViolations []StandardsViolation
+
+	for _, target := range targets {
+		select {
+		case <-ctx.Done():
+			job.markCancelled()
+			logger.Info(fmt.Sprintf("Standards scan %s cancelled", jobSnapshot.ID))
+			return
+		default:
+		}
+
+		job.update(func(status *StandardsScanStatus) {
+			status.CurrentScenario = target.Name
+		})
+
+		onFile := func(fileScenario, scenarioRelative string) {
+			scenarioForStatus := fileScenario
+			if scenarioForStatus == "" {
+				scenarioForStatus = target.Name
+			}
+			job.update(func(status *StandardsScanStatus) {
+				status.ProcessedFiles++
+				status.CurrentScenario = scenarioForStatus
+				status.CurrentFile = scenarioRelative
+			})
+		}
+
+		violations, filesScanned, err := performStandardsCheck(ctx, target.Path, scanType, specificStandards, onFile)
+		if err != nil {
+			if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
+				job.markCancelled()
+				logger.Info(fmt.Sprintf("Standards scan %s cancelled during processing", jobSnapshot.ID))
+				return
+			}
+			job.markFailed(err)
+			logger.Error(fmt.Sprintf("Standards scan %s failed", jobSnapshot.ID), err)
+			return
+		}
+
+		totalFiles += filesScanned
+		allViolations = append(allViolations, violations...)
+
+		processedScenarios++
+		job.update(func(status *StandardsScanStatus) {
+			status.ProcessedScenarios = processedScenarios
+			status.CurrentFile = ""
+		})
+	}
+
+	completedAt := time.Now()
+	duration := completedAt.Sub(start)
+
+	stats := computeViolationStats(allViolations)
+	message := buildScanCompletionMessage(scenarioName, len(targets), len(allViolations))
+	result := StandardsCheckResult{
+		CheckID:      jobSnapshot.ID,
+		Status:       "completed",
+		ScanType:     scanType,
+		StartedAt:    start.Format(time.RFC3339),
+		CompletedAt:  completedAt.Format(time.RFC3339),
+		Duration:     duration.Seconds(),
+		FilesScanned: totalFiles,
+		Violations:   allViolations,
+		Statistics:   stats,
+		Message:      message,
+	}
+	if scenarioName != "all" {
+		result.ScenarioName = scenarioName
+	}
+
+	standardsStore.StoreViolations(scenarioName, allViolations)
+	logger.Info(fmt.Sprintf("Stored %d standards violations for %s", len(allViolations), scenarioName))
+
+	job.markCompleted(result, totalFiles)
+	logger.Info(fmt.Sprintf("Standards scan %s completed", jobSnapshot.ID))
+}
+
+func getScenariosRoot() string {
+	vrooliRoot := os.Getenv("VROOLI_ROOT")
+	if vrooliRoot == "" {
+		vrooliRoot = filepath.Join(os.Getenv("HOME"), "Vrooli")
+	}
+	return filepath.Join(vrooliRoot, "scenarios")
+}
+
+func buildStandardsScanTargets(scenarioName string) ([]standardsScanTarget, error) {
+	root := getScenariosRoot()
+
+	if scenarioName == "" {
+		scenarioName = "all"
+	}
+
+	if strings.EqualFold(scenarioName, "all") {
+		entries, err := os.ReadDir(root)
+		if err != nil {
+			return nil, err
+		}
+		var targets []standardsScanTarget
+		for _, entry := range entries {
+			if !entry.IsDir() {
+				continue
+			}
+			targets = append(targets, standardsScanTarget{
+				Name: entry.Name(),
+				Path: filepath.Join(root, entry.Name()),
+			})
+		}
+		sort.Slice(targets, func(i, j int) bool {
+			return targets[i].Name < targets[j].Name
+		})
+		return targets, nil
+	}
+
+	scenarioPath := filepath.Join(root, scenarioName)
+	info, err := os.Stat(scenarioPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("scenario %s not found: %w", scenarioName, err)
+		}
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("scenario path %s is not a directory", scenarioPath)
+	}
+
+	return []standardsScanTarget{{
+		Name: scenarioName,
+		Path: scenarioPath,
+	}}, nil
+}
+
+func buildScanCompletionMessage(scenarioName string, scenarioCount, violations int) string {
+	if strings.EqualFold(scenarioName, "all") {
+		return fmt.Sprintf("Standards compliance check completed across %d scenarios. Found %d violations.", scenarioCount, violations)
+	}
+	return fmt.Sprintf("Standards compliance check completed for %s. Found %d violations.", scenarioName, violations)
+}
+
+func computeViolationStats(violations []StandardsViolation) map[string]int {
+	stats := map[string]int{
+		"total":    len(violations),
+		"critical": 0,
+		"high":     0,
+		"medium":   0,
+		"low":      0,
+	}
+
+	for _, violation := range violations {
+		switch strings.ToLower(violation.Severity) {
+		case "critical":
+			stats["critical"]++
+		case "high":
+			stats["high"]++
+		case "low":
+			stats["low"]++
+		default:
+			stats["medium"]++
+		}
+	}
+
+	return stats
+}
+
 // Standards compliance check handler
 func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	scenarioName := vars["name"]
+	scenarioName := strings.TrimSpace(vars["name"])
+	if scenarioName == "" {
+		scenarioName = "all"
+	} else if strings.EqualFold(scenarioName, "all") {
+		scenarioName = "all"
+	}
+
 	logger := NewLogger()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -87,76 +456,27 @@ func enhancedStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
 		checkRequest.Type = "full"
 	}
 
-	startTime := time.Now()
-
-	var scanPath string
-	scenarioCount := 1
-
-	if scenarioName == "all" {
-		scanPath = filepath.Join(os.Getenv("HOME"), "Vrooli", "scenarios")
-		scenarios, _ := getVrooliScenarios()
-		if scenarios != nil && scenarios.Scenarios != nil {
-			scenarioCount = len(scenarios.Scenarios)
-		}
-	} else {
-		scanPath = filepath.Join(os.Getenv("HOME"), "Vrooli", "scenarios", scenarioName)
-		if _, err := os.Stat(scanPath); os.IsNotExist(err) {
-			HTTPError(w, "Scenario not found", http.StatusNotFound, nil)
+	status, err := standardsScanManager.StartScan(scenarioName, checkRequest.Type, checkRequest.Standards)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			HTTPError(w, "Scenario not found", http.StatusNotFound, err)
 			return
 		}
-	}
-
-	logger.Info(fmt.Sprintf("Starting %s standards compliance check on %s", checkRequest.Type, scenarioName))
-
-	violations, filesScanned, err := performStandardsCheck(scanPath, checkRequest.Type, checkRequest.Standards)
-	if err != nil {
-		logger.Error("Standards compliance check failed", err)
-		HTTPError(w, "Standards check failed", http.StatusInternalServerError, err)
+		logger.Error("Failed to start standards compliance scan", err)
+		HTTPError(w, "Failed to start standards scan", http.StatusInternalServerError, err)
 		return
 	}
 
-	endTime := time.Now()
-	duration := endTime.Sub(startTime)
+	logger.Info(fmt.Sprintf("Started %s standards compliance scan %s for %s", checkRequest.Type, status.ID, scenarioName))
 
-	stats := map[string]int{
-		"total":    len(violations),
-		"critical": 0,
-		"high":     0,
-		"medium":   0,
-		"low":      0,
-	}
-
-	for _, violation := range violations {
-		stats[violation.Severity]++
-	}
-
-	response := StandardsCheckResult{
-		CheckID:      fmt.Sprintf("standards-%d", time.Now().Unix()),
-		Status:       "completed",
-		ScanType:     checkRequest.Type,
-		StartedAt:    startTime.Format(time.RFC3339),
-		CompletedAt:  endTime.Format(time.RFC3339),
-		Duration:     duration.Seconds(),
-		FilesScanned: filesScanned,
-		Violations:   violations,
-		Statistics:   stats,
-	}
-
-	if scenarioName == "all" {
-		response.Message = fmt.Sprintf("Standards compliance check completed across %d scenarios. Found %d violations.", scenarioCount, len(violations))
-	} else {
-		response.ScenarioName = scenarioName
-		response.Message = fmt.Sprintf("Standards compliance check completed for %s. Found %d violations.", scenarioName, len(violations))
-	}
-
-	standardsStore.StoreViolations(scenarioName, violations)
-	logger.Info(fmt.Sprintf("Stored %d standards violations in memory for %s", len(violations), scenarioName))
-
-	logger.Info(fmt.Sprintf("Standards compliance check completed: %d violations found", len(violations)))
-	json.NewEncoder(w).Encode(response)
+	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"job_id": status.ID,
+		"status": status,
+	})
 }
 
-func performStandardsCheck(scanPath, _ string, specificStandards []string) ([]StandardsViolation, int, error) {
+func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStandards []string, onFile func(string, string)) ([]StandardsViolation, int, error) {
 	logger := NewLogger()
 
 	ruleInfos, err := LoadRulesFromFiles()
@@ -172,9 +492,19 @@ func performStandardsCheck(scanPath, _ string, specificStandards []string) ([]St
 	var violations []StandardsViolation
 	filesScanned := 0
 
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	err = filepath.Walk(scanPath, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
 			return nil
+		}
+
+		select {
+		case <-ctx.Done():
+			return errStandardsScanCancelled
+		default:
 		}
 
 		if info.IsDir() {
@@ -195,12 +525,22 @@ func performStandardsCheck(scanPath, _ string, specificStandards []string) ([]St
 			return nil
 		}
 
+		if onFile != nil {
+			onFile(scenarioName, scenarioRelative)
+		}
+
 		filesScanned++
 		rulesForFile := collectRulesForTargets(targets, ruleBuckets)
 
 		for _, rule := range rulesForFile {
 			if rule.executor == nil || !rule.Implementation.Valid {
 				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				return errStandardsScanCancelled
+			default:
 			}
 
 			ruleViolations, execErr := rule.Check(string(content), path)
@@ -216,6 +556,10 @@ func performStandardsCheck(scanPath, _ string, specificStandards []string) ([]St
 
 		return nil
 	})
+
+	if errors.Is(err, errStandardsScanCancelled) || errors.Is(err, context.Canceled) {
+		return violations, filesScanned, errStandardsScanCancelled
+	}
 
 	return violations, filesScanned, err
 }
@@ -444,6 +788,59 @@ func extractScenarioName(path string) string {
 		return "unknown"
 	}
 	return name
+}
+
+func getStandardsCheckStatusHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	jobID := strings.TrimSpace(vars["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	job, ok := standardsScanManager.Get(jobID)
+	if !ok {
+		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
+		return
+	}
+
+	status := job.snapshot()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(status)
+}
+
+func cancelStandardsCheckHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	jobID := strings.TrimSpace(vars["jobId"])
+	if jobID == "" {
+		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
+		return
+	}
+
+	status, err := standardsScanManager.Cancel(jobID)
+	if err != nil {
+		if errors.Is(err, errStandardsScanNotFound) {
+			HTTPError(w, "Standards scan not found", http.StatusNotFound, err)
+			return
+		}
+		if errors.Is(err, errStandardsScanFinished) {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": false,
+				"status":  status,
+				"message": fmt.Sprintf("Scan already %s", status.Status),
+			})
+			return
+		}
+		HTTPError(w, "Failed to cancel standards scan", http.StatusInternalServerError, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"status":  status,
+	})
 }
 
 // getStandardsViolationsHandler returns cached violations for a scenario

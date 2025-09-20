@@ -29,22 +29,7 @@ import { apiService } from '../services/api'
 import { Card } from './common/Card'
 import { Badge } from './common/Badge'
 import { Dialog } from './common/Dialog'
-import { AgentInfo } from '@/types/api'
-
-interface StandardsViolation {
-  id: string
-  scenario_name: string
-  type: string
-  severity: string
-  title: string
-  description: string
-  file_path: string
-  line_number: number
-  code_snippet?: string
-  recommendation: string
-  standard: string
-  discovered_at: string
-}
+import { AgentInfo, StandardsScanStatus, StandardsViolation } from '@/types/api'
 
 interface CompletedAgentStatus {
   agentId: string
@@ -60,6 +45,8 @@ export default function StandardsCompliance() {
   const [selectedViolation, setSelectedViolation] = useState<StandardsViolation | null>(null)
   const [showCheckTypeInfo, setShowCheckTypeInfo] = useState(false)
   const [showDisabledTooltip, setShowDisabledTooltip] = useState(false)
+  const [activeScan, setActiveScan] = useState<{ id: string; scenario: string } | null>(null)
+  const [lastScanStatus, setLastScanStatus] = useState<StandardsScanStatus | null>(null)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [severityFilter, setSeverityFilter] = useState<string | null>(null)
   const [completedAgents, setCompletedAgents] = useState<Map<string, CompletedAgentStatus>>(new Map())
@@ -96,14 +83,37 @@ export default function StandardsCompliance() {
 
   const checkMutation = useMutation({
     mutationFn: (scenario: string) => apiService.checkStandards(scenario, { type: checkType }),
-    onSuccess: () => {
-      // Force refresh all standards-related queries
-      queryClient.invalidateQueries({ queryKey: ['standardsViolations'] })
-      queryClient.invalidateQueries({ queryKey: ['scenarios'] })
-      // Immediately refetch violations to show results
-      refetch()
+    onSuccess: (response, scenario) => {
+      setActiveScan({ id: response.job_id, scenario })
+      setLastScanStatus(null)
     },
   })
+
+  const scanStatusQuery = useQuery({
+    queryKey: ['standardsScanStatus', activeScan?.id],
+    queryFn: () => apiService.getStandardsCheckStatus(activeScan!.id),
+    enabled: !!activeScan,
+    refetchInterval: activeScan ? 1000 : false,
+  })
+
+  const cancelScanMutation = useMutation({
+    mutationFn: (jobId: string) => apiService.cancelStandardsScan(jobId),
+  })
+
+  const activeScanStatus = scanStatusQuery.data
+
+  useEffect(() => {
+    if (!activeScan || !activeScanStatus) {
+      return
+    }
+    if (['completed', 'failed', 'cancelled'].includes(activeScanStatus.status)) {
+      setLastScanStatus(activeScanStatus)
+      setActiveScan(null)
+      queryClient.invalidateQueries({ queryKey: ['standardsViolations'] })
+      queryClient.invalidateQueries({ queryKey: ['scenarios'] })
+      refetch()
+    }
+  }, [activeScan, activeScanStatus, queryClient, refetch])
 
   // Auto-refresh violations when agents complete successfully
   useEffect(() => {
@@ -172,7 +182,9 @@ export default function StandardsCompliance() {
   }
 
   // Filter violations based on search query and severity
-  const filteredViolations = violations?.filter(violation => {
+  const allViolations = violations ?? []
+
+  const filteredViolations = allViolations.filter(violation => {
     // Apply severity filter first
     if (severityFilter !== null && severityFilter !== undefined) {
       if (violation.severity !== severityFilter) {
@@ -196,25 +208,30 @@ export default function StandardsCompliance() {
     )
   })
 
-  const groupedViolations = filteredViolations?.reduce((acc, violation) => {
+  const groupedViolations = filteredViolations.reduce((acc, violation) => {
     const key = violation.scenario_name
     if (!acc[key]) acc[key] = []
     acc[key].push(violation)
     return acc
-  }, {} as Record<string, StandardsViolation[]>) as Record<string, StandardsViolation[]> | undefined
+  }, {} as Record<string, StandardsViolation[]>)
 
-  const stats = {
-    total: violations?.length || 0,
-    critical: violations?.filter(v => v.severity === 'critical').length || 0,
-    high: violations?.filter(v => v.severity === 'high').length || 0,
-    medium: violations?.filter(v => v.severity === 'medium').length || 0,
-    low: violations?.filter(v => v.severity === 'low').length || 0,
-  }
+  const stats = allViolations.reduce(
+    (acc, violation) => {
+      acc.total += 1
+      if (violation.severity === 'critical') acc.critical += 1
+      else if (violation.severity === 'high') acc.high += 1
+      else if (violation.severity === 'medium') acc.medium += 1
+      else if (violation.severity === 'low') acc.low += 1
+      return acc
+    },
+    { total: 0, critical: 0, high: 0, medium: 0, low: 0 }
+  )
 
   const formatDurationSeconds = (seconds?: number) => {
     if (!seconds || seconds <= 0) return '<1s'
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
+    const totalSeconds = Math.max(1, Math.round(seconds))
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
     if (mins > 0) {
       return `${mins}m ${secs}s`
     }
@@ -373,13 +390,18 @@ export default function StandardsCompliance() {
                     checkMutation.mutate(targetToCheck)
                   }
                 }}
-                disabled={(checkType === 'targeted' && !selectedScenario) || checkMutation.isPending}
+                disabled={(checkType === 'targeted' && !selectedScenario) || checkMutation.isPending || !!activeScan}
                 className="flex items-center gap-2 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {checkMutation.isPending ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    Checking...
+                    Starting...
+                  </>
+                ) : activeScan ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Scanning...
                   </>
                 ) : (
                   <>
@@ -390,7 +412,7 @@ export default function StandardsCompliance() {
               </button>
               
               {/* Tooltip for disabled state (only for targeted checks without selection) */}
-              {showDisabledTooltip && checkType === 'targeted' && !selectedScenario && !checkMutation.isPending && (
+              {showDisabledTooltip && checkType === 'targeted' && !selectedScenario && !checkMutation.isPending && !activeScan && (
                 <div className="absolute z-10 left-0 bottom-full mb-2 w-56 p-2 bg-dark-900 text-white text-xs rounded-lg shadow-lg">
                   <div className="absolute bottom-0 left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-dark-900 transform translate-y-full"></div>
                   Targeted checks require a specific scenario. Please select one from the dropdown.
@@ -398,7 +420,7 @@ export default function StandardsCompliance() {
               )}
               
               {/* Tooltip for checking state */}
-              {showDisabledTooltip && checkMutation.isPending && (
+              {showDisabledTooltip && (checkMutation.isPending || !!activeScan) && (
                 <div className="absolute z-10 left-0 bottom-full mb-2 w-40 p-2 bg-dark-900 text-white text-xs rounded-lg shadow-lg">
                   <div className="absolute bottom-0 left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-dark-900 transform translate-y-full"></div>
                   Standards check in progress...
@@ -415,17 +437,125 @@ export default function StandardsCompliance() {
             </button>
           </div>
         </div>
-        
-        {checkMutation.isSuccess && checkMutation.data && (
+
+        {checkMutation.isError && !activeScan && (
           <div className="mt-4">
-            {/* Success message */}
-            <div className="rounded-lg bg-success-50 p-3">
+            <div className="rounded-lg bg-danger-50 p-3 border border-danger-200">
               <div className="flex items-start gap-2">
-                <CheckCircle className="h-4 w-4 text-success-700 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-success-700">
-                    {checkMutation.data.message || 'Standards check completed successfully'}
+                <XCircle className="h-4 w-4 text-danger-600 mt-0.5" />
+                <p className="text-sm text-danger-700">
+                  {(checkMutation.error as Error)?.message || 'Failed to start standards check'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeScan && (
+          <div className="mt-4">
+            <div className="rounded-lg border border-primary-100 bg-primary-50/60 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-primary-700">
+                    {activeScanStatus?.status === 'cancelling' ? 'Cancelling standards scan...' : 'Standards scan in progress'}
                   </p>
+                  <p className="text-xs text-primary-600 mt-1">
+                    {activeScanStatus?.message || 'Analyzing scenarios for standards compliance'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => activeScan && cancelScanMutation.mutate(activeScan.id)}
+                  disabled={cancelScanMutation.isPending || activeScanStatus?.status === 'cancelling'}
+                  className="flex items-center gap-1 rounded-md border border-primary-300 px-3 py-1 text-xs font-medium text-primary-700 hover:bg-primary-100/70 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {cancelScanMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Canceling...
+                    </>
+                  ) : (
+                    <>
+                      <X className="h-3 w-3" />
+                      Cancel Scan
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3 text-sm text-primary-800">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary-600">Scenarios</p>
+                  <p className="font-semibold">
+                    {activeScanStatus?.processed_scenarios ?? 0}
+                    {activeScanStatus?.total_scenarios ? ` / ${activeScanStatus.total_scenarios}` : ''}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary-600">Files Processed</p>
+                  <p className="font-semibold">{activeScanStatus?.processed_files ?? 0}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary-600">Elapsed Time</p>
+                  <p className="font-semibold">{formatDurationSeconds(activeScanStatus?.elapsed_seconds)}</p>
+                </div>
+              </div>
+
+              {activeScanStatus?.current_scenario && (
+                <p className="mt-3 text-xs text-primary-600">
+                  <span className="font-medium text-primary-700">Current:</span> {activeScanStatus.current_scenario}
+                  {activeScanStatus.current_file ? ` / ${activeScanStatus.current_file}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {lastScanStatus && (
+          <div className="mt-4">
+            <div
+              className={clsx(
+                'rounded-lg p-3 border',
+                lastScanStatus.status === 'completed' && 'bg-success-50 border-success-200',
+                lastScanStatus.status === 'failed' && 'bg-danger-50 border-danger-200',
+                lastScanStatus.status === 'cancelled' && 'bg-dark-50 border-dark-200'
+              )}
+            >
+              <div className="flex items-start gap-2">
+                {lastScanStatus.status === 'completed' ? (
+                  <CheckCircle className="h-4 w-4 text-success-700 mt-0.5" />
+                ) : lastScanStatus.status === 'failed' ? (
+                  <XCircle className="h-4 w-4 text-danger-600 mt-0.5" />
+                ) : (
+                  <Info className="h-4 w-4 text-dark-500 mt-0.5" />
+                )}
+                <div className="flex-1 text-sm">
+                  <p
+                    className={clsx(
+                      lastScanStatus.status === 'completed' && 'text-success-700 font-medium',
+                      lastScanStatus.status === 'failed' && 'text-danger-700 font-medium',
+                      lastScanStatus.status === 'cancelled' && 'text-dark-700 font-medium'
+                    )}
+                  >
+                    {lastScanStatus.message || lastScanStatus.result?.message || 'Standards scan finished'}
+                  </p>
+                  <div className="mt-2 text-xs text-dark-500 space-y-1">
+                    <p>
+                      <span className="font-medium">Scenarios processed:</span> {lastScanStatus.processed_scenarios}
+                      {lastScanStatus.total_scenarios ? ` / ${lastScanStatus.total_scenarios}` : ''}
+                    </p>
+                    <p>
+                      <span className="font-medium">Files scanned:</span> {lastScanStatus.processed_files}
+                    </p>
+                    <p>
+                      <span className="font-medium">Duration:</span>{' '}
+                      {formatDurationSeconds(lastScanStatus.result?.duration_seconds ?? lastScanStatus.elapsed_seconds)}
+                    </p>
+                    {lastScanStatus.status === 'failed' && lastScanStatus.error && (
+                      <p className="text-danger-600">
+                        <span className="font-medium">Error:</span> {lastScanStatus.error}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -519,7 +649,7 @@ export default function StandardsCompliance() {
             </div>
             
             {/* Search Bar */}
-            {violations && violations.length > 0 && (
+            {allViolations.length > 0 && (
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-dark-400" />
                 <input
@@ -542,10 +672,10 @@ export default function StandardsCompliance() {
             )}
             
             {/* Filter/Search Results Info */}
-            {(searchQuery || severityFilter) && violations && violations.length > 0 && (
+            {(searchQuery || severityFilter) && allViolations.length > 0 && (
               <div className="mt-2 text-sm text-dark-600">
-                Showing {filteredViolations?.length || 0} of {violations.length} violations
-                {filteredViolations?.length === 0 && (
+                Showing {filteredViolations.length} of {allViolations.length} violations
+                {filteredViolations.length === 0 && (
                   <span className="text-warning-600 ml-2">No matches found. Try different filters.</span>
                 )}
               </div>
@@ -558,9 +688,9 @@ export default function StandardsCompliance() {
                 <div key={i} className="h-24 bg-dark-100 rounded-lg animate-pulse" />
               ))}
             </div>
-          ) : filteredViolations && filteredViolations.length > 0 ? (
+          ) : filteredViolations.length > 0 ? (
             <div className="space-y-4">
-              {Object.entries(groupedViolations || {}).map(([scenario, scenarioViolations]) => {
+              {Object.entries(groupedViolations).map(([scenario, scenarioViolations]) => {
                 const scenarioAgent = standardsAgents.get(scenario)
                 const isLaunching = launchingScenario === scenario
                 const hasActiveAgent = Boolean(scenarioAgent)

@@ -285,6 +285,8 @@ func main() {
 	api.HandleFunc("/scenarios", getScenariosHandler).Methods("GET")
 	api.HandleFunc("/scenarios/{name}", getScenarioHandler).Methods("GET")
 	// Use enhanced scanner with real vulnerability detection
+	api.HandleFunc("/scenarios/scan/jobs/{jobId}", getSecurityScanStatusHandler).Methods("GET")
+	api.HandleFunc("/scenarios/scan/jobs/{jobId}/cancel", cancelSecurityScanHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/scan", enhancedScanScenarioHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/security-audit", securityAuditHandler).Methods("POST")
 	api.HandleFunc("/scenarios/{name}/endpoints", getScenarioEndpointsHandler).Methods("GET")
@@ -324,6 +326,8 @@ func main() {
 	api.HandleFunc("/fix/rollback/{fixId}", rollbackAutomatedFixHandler).Methods("POST")
 
 	// Standards compliance endpoints
+	api.HandleFunc("/standards/check/jobs/{jobId}", getStandardsCheckStatusHandler).Methods("GET")
+	api.HandleFunc("/standards/check/jobs/{jobId}/cancel", cancelStandardsCheckHandler).Methods("POST")
 	api.HandleFunc("/standards/check/{name}", enhancedStandardsCheckHandler).Methods("POST")
 	api.HandleFunc("/standards/violations", getStandardsViolationsHandler).Methods("GET")
 

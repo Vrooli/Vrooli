@@ -95,6 +95,73 @@ export interface SecurityScan {
   scan_notes?: string
 }
 
+export interface SecurityScanStatus {
+  id: string
+  scenario: string
+  scan_type: 'quick' | 'full' | 'targeted'
+  status: 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'
+  started_at: string
+  completed_at?: string | null
+  elapsed_seconds: number
+  total_scenarios: number
+  processed_scenarios: number
+  processed_files: number
+  total_files: number
+  current_scenario?: string
+  current_scanner?: string
+  message?: string
+  error?: string
+  result?: SecurityScan
+}
+
+export interface StandardsViolation {
+  id: string
+  scenario_name: string
+  type: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  title: string
+  description: string
+  file_path: string
+  line_number: number
+  code_snippet?: string
+  recommendation: string
+  standard: string
+  discovered_at: string
+}
+
+export interface StandardsCheckResult {
+  check_id: string
+  status: 'completed' | 'failed' | 'cancelled' | 'running'
+  scan_type: 'full' | 'quick' | 'targeted'
+  started_at: string
+  completed_at?: string
+  duration_seconds: number
+  files_scanned: number
+  violations: StandardsViolation[]
+  statistics: Record<string, number>
+  message?: string
+  scenario_name?: string
+}
+
+export interface StandardsScanStatus {
+  id: string
+  scenario: string
+  scan_type: string
+  status: 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled'
+  started_at: string
+  completed_at?: string | null
+  elapsed_seconds: number
+  total_scenarios: number
+  processed_scenarios: number
+  processed_files: number
+  total_files: number
+  current_scenario?: string
+  current_file?: string
+  message?: string
+  error?: string
+  result?: StandardsCheckResult
+}
+
 export interface HealthAlert {
   id: string
   level: 'critical' | 'warning' | 'info'
