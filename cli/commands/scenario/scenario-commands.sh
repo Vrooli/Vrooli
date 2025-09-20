@@ -48,6 +48,7 @@ SUBCOMMANDS:
 
 OPTIONS FOR START:
     --clean-stale           Clean stale port locks before starting
+    --open                  Open scenario in browser after successful start
 
 OPTIONS FOR LOGS:
     --follow, -f            Follow log output (live view)
@@ -58,6 +59,7 @@ OPTIONS FOR LOGS:
 EXAMPLES:
     vrooli scenario start make-it-vegan         # Start a specific scenario
     vrooli scenario start make-it-vegan --clean-stale # Start with stale lock cleanup
+    vrooli scenario start app-monitor --open          # Start then open in browser
     vrooli scenario start picker-wheel invoice-generator # Start multiple scenarios
     vrooli scenario start-all                   # Start all scenarios
     vrooli scenario restart ecosystem-manager    # Restart a scenario

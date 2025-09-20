@@ -127,22 +127,69 @@ cli::register_command "agents" "Manage running Claude Code agents" "claude_code:
 # Arguments:
 #   $1 - Agent ID
 #######################################
+claude_code::kill_children() {
+    local signal="$1"
+    local child
+
+    [[ "$signal" != SIG* ]] && signal="SIG${signal}"
+
+    if [[ -r "/proc/$$/task/$$/children" ]]; then
+        while read -r child; do
+            [[ -n "$child" ]] || continue
+            kill "-$signal" "$child" 2>/dev/null || kill "-$signal" "-$child" 2>/dev/null || true
+        done < "/proc/$$/task/$$/children"
+    else
+        for child in $(pgrep -P $$ 2>/dev/null); do
+            kill "-$signal" "$child" 2>/dev/null || kill "-$signal" "-$child" 2>/dev/null || true
+        done
+    fi
+}
+
 claude_code::setup_agent_cleanup() {
     local agent_id="$1"
-    
+
     # Export the agent ID so trap can access it
     export CLAUDE_CODE_CURRENT_AGENT_ID="$agent_id"
-    
-    # Cleanup function that uses the exported variable
+
+    # Ensure we track the last known exit status
+    export CLAUDE_CODE_LAST_EXIT=${CLAUDE_CODE_LAST_EXIT:-1}
+
     claude_code::agent_cleanup() {
-        if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
-            agent_manager::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        local signal="${1:-EXIT}"
+        local exit_code=${CLAUDE_CODE_LAST_EXIT:-$?}
+
+        trap - EXIT SIGTERM SIGINT
+
+        # Forward the signal to child processes when invoked via signal traps
+        if [[ "$signal" != "EXIT" ]]; then
+            claude_code::kill_children "$signal"
+
+            local sig_name="$signal"
+            [[ "$sig_name" != SIG* ]] && sig_name="SIG${sig_name}"
+            local sig_number
+            sig_number=$(kill -l "$sig_name" 2>/dev/null || echo 0)
+            if [[ "$sig_number" =~ ^[0-9]+$ && "$sig_number" -gt 0 ]]; then
+                exit_code=$((128 + sig_number))
+            fi
+        else
+            claude_code::kill_children SIGTERM
         fi
-        exit 0
+
+        # Wait for children to exit quietly
+        wait 2>/dev/null || true
+
+        if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agent_manager::unregister &>/dev/null; then
+            agent_manager::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1 || true
+        fi
+
+        unset CLAUDE_CODE_CURRENT_AGENT_ID
+        exit "$exit_code"
     }
-    
-    # Register cleanup for common signals
-    trap 'claude_code::agent_cleanup' EXIT SIGTERM SIGINT
+
+    # Register cleanup handlers
+    trap 'claude_code::agent_cleanup EXIT' EXIT
+    trap 'claude_code::agent_cleanup SIGINT' SIGINT
+    trap 'claude_code::agent_cleanup SIGTERM' SIGTERM
 }
 
 ################################################################################
@@ -647,9 +694,12 @@ claude_code_run() {
     
     # Always use non-interactive mode for autonomous platform
     export CLAUDE_NON_INTERACTIVE="true"
-    
+
     local result=0
     local start_time=$(date +%s%3N)  # Milliseconds
+
+    # Default last-exit status in case of early termination
+    export CLAUDE_CODE_LAST_EXIT=1
     
     # Track operation start metrics
     if [[ -n "$agent_id" ]] && type -t agents::metrics::increment &>/dev/null; then
@@ -664,6 +714,7 @@ claude_code_run() {
         echo "$prompt" | claude --print --max-turns "${MAX_TURNS:-5}"
         result=$?
     fi
+    export CLAUDE_CODE_LAST_EXIT=$result
     
     # Track operation completion metrics
     if [[ -n "$agent_id" ]] && type -t agents::metrics::histogram &>/dev/null; then

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -167,7 +168,7 @@ func waitWithReapedFallback(cmd *exec.Cmd) error {
 	}
 
 	if cmd.Process == nil {
-		return err
+		return nil
 	}
 
 	if status, ok := ConsumeReapedStatus(cmd.Process.Pid); ok {
@@ -184,7 +185,7 @@ func waitWithReapedFallback(cmd *exec.Cmd) error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 func isNoChildError(err error) bool {
@@ -192,6 +193,15 @@ func isNoChildError(err error) bool {
 	if errors.As(err, &syscallErr) {
 		return syscallErr.Err == syscall.ECHILD
 	}
+
+	if errors.Is(err, syscall.ECHILD) {
+		return true
+	}
+
+	if strings.Contains(strings.ToLower(err.Error()), "no child processes") {
+		return true
+	}
+
 	return false
 }
 

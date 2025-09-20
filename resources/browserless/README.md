@@ -44,6 +44,25 @@ High-performance headless Chrome automation service for web scraping, screenshot
 - 🛡️ **Security Isolation** - Sandboxed Chrome instances with security profiles
 - 🔌 **Resource Adapters** - Provide UI automation fallbacks for other resources (NEW!)
 
+## Workflow Metadata (NEW!)
+
+The workflow interpreter now enforces descriptive metadata on every YAML definition:
+
+- Declare metadata inside the `workflow:` block (`name`, `description`, `version`, `tags`).
+- At runtime, the interpreter persists this metadata to `~/.vrooli/browserless/debug/<workflow>/YYYYMMDD_HHMMSS/metadata.json` alongside execution artifacts.
+- Missing names automatically fall back to the filename, and a `name_inferred` flag is recorded in the metadata file.
+- Downstream tools (scenarios, adapters, analytics) can parse this JSON to display friendly names, descriptions, and tags without re-reading the original YAML.
+
+**New CLI shortcuts**
+
+```bash
+# Inspect a single workflow definition
+resource-browserless workflow describe resources/browserless/examples/core/01-navigation.yaml
+
+# List every example workflow with metadata (JSON output)
+resource-browserless workflow catalog --json
+```
+
 ## When to Use
 
 ### Use Browserless When You Need:

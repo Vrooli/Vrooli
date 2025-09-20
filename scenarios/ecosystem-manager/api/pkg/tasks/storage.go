@@ -233,39 +233,54 @@ func (s *Storage) MoveQueueItem(itemID, fromStatus, toStatus string) error {
 	return os.Rename(fromPath, toPath)
 }
 
-// MoveTask moves a task between queue states and updates timestamps
-// Uses atomic operations to prevent task loss
-func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
-	if fromStatus == toStatus {
-		return nil
+// MoveTaskTo relocates a task file to the provided status directory.
+// It always inspects the filesystem to discover the current location first.
+func (s *Storage) MoveTaskTo(taskID, toStatus string) (*TaskItem, string, error) {
+	if toStatus == "" {
+		return nil, "", fmt.Errorf("destination status required")
 	}
 
-	fromPath := filepath.Join(s.QueueDir, fromStatus, fmt.Sprintf("%s.yaml", taskID))
+	task, currentStatus, err := s.GetTaskByID(taskID)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if currentStatus == toStatus {
+		systemlog.Debugf("MoveTaskTo noop: task=%s already in %s", taskID, toStatus)
+		return task, currentStatus, nil
+	}
+
+	fromPath := filepath.Join(s.QueueDir, currentStatus, fmt.Sprintf("%s.yaml", taskID))
 	toPath := filepath.Join(s.QueueDir, toStatus, fmt.Sprintf("%s.yaml", taskID))
 
-	systemlog.Debugf("MoveTask start: task=%s from=%s to=%s", taskID, fromStatus, toStatus)
+	systemlog.Debugf("MoveTaskTo start: task=%s from=%s to=%s", taskID, currentStatus, toStatus)
 
 	if err := os.MkdirAll(filepath.Dir(toPath), 0755); err != nil {
-		return fmt.Errorf("failed to ensure destination directory: %w", err)
+		return nil, "", fmt.Errorf("failed to ensure destination directory: %w", err)
 	}
 
 	if err := os.Rename(fromPath, toPath); err != nil {
-		data, readErr := os.ReadFile(fromPath)
-		if readErr != nil {
-			systemlog.Errorf("MoveTask fallback read failed: task=%s from=%s err=%v", taskID, fromStatus, readErr)
-			return fmt.Errorf("rename failed (%v) and read failed (%v)", err, readErr)
-		}
-		if writeErr := os.WriteFile(toPath, data, 0644); writeErr != nil {
-			systemlog.Errorf("MoveTask fallback write failed: task=%s to=%s err=%v", taskID, toStatus, writeErr)
-			return fmt.Errorf("rename failed (%v) and write failed (%v)", err, writeErr)
-		}
-		if delErr := os.Remove(fromPath); delErr != nil {
-			systemlog.Warnf("MoveTask fallback could not remove source: task=%s from=%s err=%v", taskID, fromStatus, delErr)
-		}
+		systemlog.Errorf("MoveTaskTo rename failed: task=%s from=%s to=%s err=%v", taskID, currentStatus, toStatus, err)
+		return nil, "", fmt.Errorf("failed to move task %s from %s to %s: %w", taskID, currentStatus, toStatus, err)
 	}
 
-	log.Printf("Successfully moved task %s from %s to %s", taskID, fromStatus, toStatus)
-	systemlog.Debugf("MoveTask completed: task=%s from=%s to=%s", taskID, fromStatus, toStatus)
+	log.Printf("Successfully moved task %s from %s to %s", taskID, currentStatus, toStatus)
+	systemlog.Debugf("MoveTaskTo completed: task=%s from=%s to=%s", taskID, currentStatus, toStatus)
+
+	return task, currentStatus, nil
+}
+
+// MoveTask moves a task between queue states and updates timestamps using filesystem discovery.
+func (s *Storage) MoveTask(taskID, fromStatus, toStatus string) error {
+	_, actualFrom, err := s.MoveTaskTo(taskID, toStatus)
+	if err != nil {
+		return err
+	}
+
+	if fromStatus != "" && fromStatus != actualFrom {
+		systemlog.Warnf("MoveTask requested from %s but task %s located in %s", fromStatus, taskID, actualFrom)
+	}
+
 	return nil
 }
 

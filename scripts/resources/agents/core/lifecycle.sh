@@ -9,6 +9,10 @@
 # Source common utilities
 APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+if ! declare -F agents::registry::create_temp_file >/dev/null 2>&1; then
+    source "${APP_ROOT}/scripts/resources/agents/core/registry.sh"
+fi
+
 
 #######################################
 # Check if process is still running
@@ -44,7 +48,7 @@ agents::lifecycle::cleanup() {
     
     [[ -f "$registry_file" ]] || return 0
     
-    temp_file="${registry_file}.tmp.$$"
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || return 0
     
     # Get list of all agents and check their PIDs
     local agent_ids

@@ -19,6 +19,22 @@ scenario::lifecycle::start() {
         return 1
     }
     
+    local open_after=false
+    local -a passthrough_args=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --open)
+                open_after=true
+                shift
+                ;;
+            *)
+                passthrough_args+=("$1")
+                shift
+                ;;
+        esac
+    done
+
     # Start each scenario
     local overall_result=0
     if [[ ${#scenario_names[@]} -gt 1 ]]; then
@@ -29,7 +45,23 @@ scenario::lifecycle::start() {
         if [[ ${#scenario_names[@]} -gt 1 ]]; then
             log::info "Starting scenario: $scenario_name"
         fi
-        scenario::run "$scenario_name" develop "$@" || overall_result=$?
+
+        if ! scenario::run "$scenario_name" develop "${passthrough_args[@]}"; then
+            local start_exit=$?
+            if [[ $overall_result -eq 0 ]]; then
+                overall_result=$start_exit
+            fi
+            continue
+        fi
+
+        if [[ "$open_after" == "true" ]]; then
+            if ! scenario::browser::open "$scenario_name"; then
+                local open_exit=$?
+                if [[ $overall_result -eq 0 ]]; then
+                    overall_result=$open_exit
+                fi
+            fi
+        fi
     done
     
     return $overall_result

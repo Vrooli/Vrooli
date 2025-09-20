@@ -1,7 +1,7 @@
 package queue
 
 import (
-	"context"
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -18,6 +19,20 @@ import (
 	"github.com/ecosystem-manager/api/pkg/systemlog"
 	"github.com/ecosystem-manager/api/pkg/tasks"
 )
+
+type taskExecution struct {
+	taskID   string
+	agentTag string
+	cmd      *exec.Cmd
+	started  time.Time
+}
+
+func (te *taskExecution) pid() int {
+	if te == nil || te.cmd == nil || te.cmd.Process == nil {
+		return 0
+	}
+	return te.cmd.Process.Pid
+}
 
 // Processor manages automated queue processing
 type Processor struct {
@@ -29,22 +44,21 @@ type Processor struct {
 	storage         *tasks.Storage
 	assembler       *prompts.Assembler
 
-	// Running processes registry (legacy - will be phased out)
-	runningProcesses      map[string]*tasks.RunningProcess
-	runningProcessesMutex sync.RWMutex
+	// Live task executions keyed by task ID
+	executions   map[string]*taskExecution
+	executionsMu sync.RWMutex
 
 	// New process manager for robust process lifecycle
 	processManager *ProcessManager
 
+	// Root of the Vrooli workspace for resource CLI commands
+	vrooliRoot string
+
+	// Folder where we persist per-task execution logs
+	taskLogsDir string
+
 	// Broadcast channel for WebSocket updates
 	broadcast chan<- interface{}
-
-	// Process persistence file
-	processFile string
-
-	// Process health monitoring
-	healthCheckInterval time.Duration
-	stopHealthCheck     chan bool
 
 	// Rate limit pause management
 	rateLimitPaused bool
@@ -63,27 +77,27 @@ type Processor struct {
 // NewProcessor creates a new queue processor
 func NewProcessor(interval time.Duration, storage *tasks.Storage, assembler *prompts.Assembler, broadcast chan<- interface{}) *Processor {
 	processor := &Processor{
-		processInterval:     interval,
-		stopChannel:         make(chan bool),
-		storage:             storage,
-		assembler:           assembler,
-		runningProcesses:    make(map[string]*tasks.RunningProcess),
-		processManager:      NewProcessManager(), // Initialize the new process manager
-		broadcast:           broadcast,
-		processFile:         filepath.Join(os.TempDir(), "ecosystem-manager-processes.json"),
-		healthCheckInterval: 30 * time.Second,
-		stopHealthCheck:     make(chan bool),
-		taskLogs:            make(map[string]*TaskLogBuffer),
+		processInterval: interval,
+		stopChannel:     make(chan bool),
+		storage:         storage,
+		assembler:       assembler,
+		executions:      make(map[string]*taskExecution),
+		processManager:  NewProcessManager(), // Initialize the new process manager
+		broadcast:       broadcast,
+		taskLogs:        make(map[string]*TaskLogBuffer),
 	}
 
-	// Load persisted processes on startup
-	processor.loadPersistedProcesses()
+	processor.vrooliRoot = detectVrooliRoot()
+	processor.taskLogsDir = filepath.Join(storage.QueueDir, "..", "logs", "task-runs")
+	if err := os.MkdirAll(processor.taskLogsDir, 0755); err != nil {
+		log.Printf("Warning: unable to create task logs directory %s: %v", processor.taskLogsDir, err)
+	}
 
 	// Clean up orphaned processes
 	processor.cleanupOrphanedProcesses()
 
-	// Start process health monitoring
-	go processor.processHealthMonitor()
+	// Reconcile any stale in-progress tasks left behind from previous runs
+	go processor.initialInProgressReconcile()
 
 	return processor
 }
@@ -111,14 +125,6 @@ func (qp *Processor) Stop() {
 	if !qp.isRunning {
 		return
 	}
-
-	// Stop health monitoring first
-	select {
-	case qp.stopHealthCheck <- true:
-	default:
-	}
-
-	// Stop queue processing
 	qp.stopChannel <- true
 	qp.isRunning = false
 	log.Println("Queue processor stopped")
@@ -128,9 +134,6 @@ func (qp *Processor) Stop() {
 		log.Println("Terminating all managed processes...")
 		qp.processManager.TerminateAll(10 * time.Second)
 	}
-
-	// Clean up process persistence file
-	qp.clearPersistedProcesses()
 }
 
 // Pause temporarily pauses queue processing (maintenance mode)
@@ -221,33 +224,16 @@ func (qp *Processor) ProcessQueue() {
 
 	qp.setLastProcessed(time.Now())
 
-	// Check current in-progress tasks
-	inProgressTasks, err := qp.storage.GetQueueItems("in-progress")
-	if err != nil {
-		log.Printf("Error checking in-progress tasks: %v", err)
-		return
-	}
+	externalActive := qp.getExternalActiveTaskIDs()
+	internalRunning := qp.getInternalRunningTaskIDs()
+	qp.reconcileInProgressTasks(externalActive, internalRunning)
 
-	for _, task := range inProgressTasks {
-		if qp.IsTaskRunning(task.ID) || qp.processManager.IsProcessActive(task.ID) {
-			continue
-		}
-
-		agentIdentifier := fmt.Sprintf("ecosystem-%s", task.ID)
-		qp.stopClaudeAgent(agentIdentifier, 0)
-		systemlog.Warnf("Detected orphan in-progress task %s; relocating to pending", task.ID)
-		if err := qp.storage.MoveTask(task.ID, "in-progress", "pending"); err != nil {
-			log.Printf("Failed to move orphan task %s back to pending: %v", task.ID, err)
-			systemlog.Errorf("Failed to move orphan task %s back to pending: %v", task.ID, err)
-		} else {
-			// Newly moved tasks will be picked up from pending in this or next iteration
+	executingCount := len(internalRunning)
+	for taskID := range externalActive {
+		if _, tracked := internalRunning[taskID]; !tracked {
+			executingCount++
 		}
 	}
-
-	// Count tasks that are actually executing (check the running processes registry)
-	qp.runningProcessesMutex.RLock()
-	executingCount := len(qp.runningProcesses)
-	qp.runningProcessesMutex.RUnlock()
 
 	// Get pending tasks (re-fetch if we moved any orphans)
 	pendingTasks, err := qp.storage.GetQueueItems("pending")
@@ -296,17 +282,43 @@ func (qp *Processor) ProcessQueue() {
 	log.Printf("Processing task: %s - %s (from pending)", selectedTask.ID, selectedTask.Title)
 	systemlog.Debugf("Queue selecting %s from pending (priority %s)", selectedTask.ID, selectedTask.Priority)
 
-	// Move task to in-progress if it's not already there
-	if err := qp.storage.MoveTask(selectedTask.ID, "pending", "in-progress"); err != nil {
-		log.Printf("Failed to move task to in-progress: %v", err)
+	movedTask, previousStatus, err := qp.storage.MoveTaskTo(selectedTask.ID, "in-progress")
+	if err != nil {
+		log.Printf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
+		systemlog.Errorf("Failed to move task %s to in-progress: %v", selectedTask.ID, err)
 		return
 	}
-	// Broadcast that the task has moved to in-progress
+	if movedTask != nil {
+		selectedTask = movedTask
+	}
+
 	selectedTask.Status = "in-progress"
 	selectedTask.CurrentPhase = "in-progress"
+	selectedTask.ProgressPercent = 0
+	selectedTask.Results = nil
+	selectedTask.CompletedAt = ""
+	if selectedTask.StartedAt == "" {
+		selectedTask.StartedAt = time.Now().Format(time.RFC3339)
+	}
+	selectedTask.UpdatedAt = time.Now().Format(time.RFC3339)
+
+	if err := qp.storage.SaveQueueItem(*selectedTask, "in-progress"); err != nil {
+		log.Printf("Failed to persist in-progress task %s: %v", selectedTask.ID, err)
+	}
+
+	agentIdentifier := fmt.Sprintf("ecosystem-%s", selectedTask.ID)
+	if _, active := externalActive[selectedTask.ID]; active {
+		log.Printf("Detected lingering Claude agent for task %s; attempting cleanup before restart", selectedTask.ID)
+		qp.stopClaudeAgent(agentIdentifier, 0)
+		delete(externalActive, selectedTask.ID)
+	}
+
+	// Reserve execution slot immediately so reconciliation won't recycle the task
+	qp.reserveExecution(selectedTask.ID, agentIdentifier, time.Now())
+
 	qp.broadcastUpdate("task_status_changed", map[string]interface{}{
 		"task_id":    selectedTask.ID,
-		"old_status": "pending",
+		"old_status": previousStatus,
 		"new_status": "in-progress",
 		"task":       selectedTask,
 	})
@@ -316,168 +328,129 @@ func (qp *Processor) ProcessQueue() {
 }
 
 // Process registry management
-func (qp *Processor) registerRunningProcess(taskID string, cmd *exec.Cmd, ctx context.Context, cancel context.CancelFunc, agentID string) {
-	qp.runningProcessesMutex.Lock()
-	defer qp.runningProcessesMutex.Unlock()
-
-	process := &tasks.RunningProcess{
-		TaskID:    taskID,
-		Cmd:       cmd,
-		Context:   ctx,
-		Cancel:    cancel,
-		StartTime: time.Now(),
-		ProcessID: cmd.Process.Pid,
-		AgentID:   agentID,
+func (qp *Processor) reserveExecution(taskID, agentID string, startedAt time.Time) {
+	if startedAt.IsZero() {
+		startedAt = time.Now()
 	}
 
-	qp.runningProcesses[taskID] = process
-	log.Printf("Registered process %d for task %s", process.ProcessID, taskID)
-
-	// Persist the updated process list
-	go qp.persistProcesses()
+	qp.executionsMu.Lock()
+	if existing, ok := qp.executions[taskID]; ok {
+		if agentID != "" {
+			existing.agentTag = agentID
+		}
+		if existing.started.IsZero() {
+			existing.started = startedAt
+		}
+	} else {
+		qp.executions[taskID] = &taskExecution{
+			taskID:   taskID,
+			agentTag: agentID,
+			started:  startedAt,
+		}
+	}
+	qp.executionsMu.Unlock()
 }
 
-func (qp *Processor) unregisterRunningProcess(taskID string) {
-	qp.runningProcessesMutex.Lock()
-	defer qp.runningProcessesMutex.Unlock()
+func (qp *Processor) registerExecution(taskID, agentID string, cmd *exec.Cmd, startedAt time.Time) {
+	if startedAt.IsZero() {
+		startedAt = time.Now()
+	}
 
-	if process, exists := qp.runningProcesses[taskID]; exists {
-		log.Printf("Unregistered process %d for task %s", process.ProcessID, taskID)
-		delete(qp.runningProcesses, taskID)
+	qp.executionsMu.Lock()
+	execState, exists := qp.executions[taskID]
+	if !exists {
+		execState = &taskExecution{taskID: taskID}
+		qp.executions[taskID] = execState
+	}
+	if agentID != "" {
+		execState.agentTag = agentID
+	}
+	execState.cmd = cmd
+	if execState.started.IsZero() {
+		execState.started = startedAt
+	}
+	qp.executionsMu.Unlock()
 
-		// Persist the updated process list
-		go qp.persistProcesses()
+	if cmd != nil && cmd.Process != nil {
+		log.Printf("Registered execution %d for task %s", cmd.Process.Pid, taskID)
+	} else {
+		log.Printf("Registered execution record for task %s (pid unknown)", taskID)
 	}
 }
 
-func (qp *Processor) getRunningProcess(taskID string) (*tasks.RunningProcess, bool) {
-	qp.runningProcessesMutex.RLock()
-	defer qp.runningProcessesMutex.RUnlock()
+func (qp *Processor) unregisterExecution(taskID string) {
+	qp.executionsMu.Lock()
+	if exec, exists := qp.executions[taskID]; exists {
+		log.Printf("Unregistered execution %d for task %s", exec.pid(), taskID)
+		delete(qp.executions, taskID)
+	}
+	qp.executionsMu.Unlock()
+}
 
-	process, exists := qp.runningProcesses[taskID]
-	return process, exists
+func (qp *Processor) getExecution(taskID string) (*taskExecution, bool) {
+	qp.executionsMu.RLock()
+	exec, exists := qp.executions[taskID]
+	qp.executionsMu.RUnlock()
+	return exec, exists
 }
 
 func (qp *Processor) TerminateRunningProcess(taskID string) error {
-	process, hasProcess := qp.getRunningProcess(taskID)
-
-	agentIdentifier := fmt.Sprintf("ecosystem-%s", taskID)
-	if hasProcess && process.AgentID != "" {
-		agentIdentifier = process.AgentID
+	exec, exists := qp.getExecution(taskID)
+	if !exists {
+		return fmt.Errorf("no running process found for task %s", taskID)
 	}
 
-	pid := 0
-	if hasProcess {
-		pid = process.ProcessID
+	agentIdentifier := exec.agentTag
+	if agentIdentifier == "" {
+		agentIdentifier = fmt.Sprintf("ecosystem-%s", taskID)
 	}
 
+	pid := exec.pid()
+	usedProcessManager := false
 	if qp.processManager != nil && qp.processManager.IsProcessActive(taskID) {
 		log.Printf("Using ProcessManager to terminate task %s", taskID)
 		if err := qp.processManager.TerminateProcess(taskID, 5*time.Second); err != nil {
 			log.Printf("ProcessManager termination failed for task %s: %v", taskID, err)
 		} else {
-			qp.stopClaudeAgent(agentIdentifier, pid)
-			qp.cleanupClaudeAgentRegistry()
-			qp.ResetTaskLogs(taskID)
-			qp.unregisterRunningProcess(taskID)
-			return nil
+			usedProcessManager = true
 		}
 	}
 
-	return qp.legacyTerminateRunningProcess(taskID, agentIdentifier, pid)
-}
-
-func (qp *Processor) legacyTerminateRunningProcess(taskID, agentIdentifier string, pid int) error {
-	qp.runningProcessesMutex.Lock()
-	process, exists := qp.runningProcesses[taskID]
-	if !exists {
-		qp.runningProcessesMutex.Unlock()
-		return fmt.Errorf("no running process found for task %s", taskID)
+	if !usedProcessManager {
+		qp.stopClaudeAgent(agentIdentifier, pid)
+		qp.cleanupClaudeAgentRegistry()
 	}
-
-	cmd, _ := process.Cmd.(*exec.Cmd)
-	var cancel context.CancelFunc
-	if c, ok := process.Cancel.(context.CancelFunc); ok {
-		cancel = c
-	}
-	var ctx context.Context
-	if c, ok := process.Context.(context.Context); ok {
-		ctx = c
-	}
-	if agentIdentifier == "" {
-		agentIdentifier = process.AgentID
-		if agentIdentifier == "" {
-			agentIdentifier = fmt.Sprintf("ecosystem-%s", taskID)
-		}
-	}
-	if pid == 0 {
-		pid = process.ProcessID
-	}
-	qp.runningProcessesMutex.Unlock()
-
-	log.Printf("Using legacy termination for process %d (task %s)", pid, taskID)
-
-	qp.stopClaudeAgent(agentIdentifier, pid)
-	time.Sleep(500 * time.Millisecond)
-
-	if cancel != nil {
-		cancel()
-	}
-
-	graceful := false
-	if ctx != nil {
-		select {
-		case <-ctx.Done():
-			log.Printf("Process %d for task %s terminated gracefully", pid, taskID)
-			graceful = true
-		case <-time.After(5 * time.Second):
-			log.Printf("Process %d for task %s did not terminate within grace period", pid, taskID)
-		}
-	}
-
-	if !graceful && cmd != nil && cmd.Process != nil {
-		if pid > 0 {
-			if err := KillProcessGroup(pid); err != nil {
-				log.Printf("Failed to kill process group -%d: %v", pid, err)
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
-
-		if qp.isProcessAlive(pid) {
-			log.Printf("Force killing process %d for task %s", pid, taskID)
-			if err := cmd.Process.Kill(); err != nil {
-				log.Printf("Error force killing process %d: %v", pid, err)
-			}
-		}
-	}
-
-	qp.cleanupClaudeAgentRegistry()
-
-	qp.runningProcessesMutex.Lock()
-	delete(qp.runningProcesses, taskID)
-	qp.runningProcessesMutex.Unlock()
-	go qp.persistProcesses()
-
 	qp.ResetTaskLogs(taskID)
+	qp.unregisterExecution(taskID)
+
 	return nil
 }
 
 func (qp *Processor) stopClaudeAgent(agentIdentifier string, pid int) {
 	if agentIdentifier != "" {
-		if err := exec.Command("resource-claude-code", "agents", "stop", agentIdentifier).Run(); err != nil {
-			log.Printf("Failed to stop claude-code agent %s: %v", agentIdentifier, err)
+		cmd := exec.Command("resource-claude-code", "agents", "stop", agentIdentifier)
+		if qp.vrooliRoot != "" {
+			cmd.Dir = qp.vrooliRoot
+		}
+		if err := cmd.Run(); err != nil {
+			log.Printf("Failed to stop claude-code agent %s via CLI: %v", agentIdentifier, err)
 		} else {
 			log.Printf("Successfully stopped claude-code agent %s", agentIdentifier)
 			return
 		}
 	}
 
-	if pid > 0 {
-		if err := exec.Command("resource-claude-code", "agents", "stop", strconv.Itoa(pid)).Run(); err != nil {
-			log.Printf("Failed to stop claude-code agent by PID %d: %v", pid, err)
-		} else {
-			log.Printf("Successfully stopped claude-code agent by PID %d", pid)
+	if pid == 0 && agentIdentifier != "" {
+		if pids := qp.agentProcessPIDs(agentIdentifier); len(pids) > 0 {
+			pid = pids[0]
+			for _, extra := range pids[1:] {
+				qp.terminateProcessByPID(extra)
+			}
 		}
+	}
+
+	if pid > 0 {
+		qp.terminateProcessByPID(pid)
 	}
 }
 
@@ -488,29 +461,102 @@ func (qp *Processor) cleanupClaudeAgentRegistry() {
 	}
 }
 
-func (qp *Processor) finalizeTaskStatus(task tasks.TaskItem, fromStatus, toStatus string) {
-	if fromStatus != toStatus {
-		if err := qp.storage.MoveTask(task.ID, fromStatus, toStatus); err != nil {
-			log.Printf("Failed to move task %s from %s to %s: %v", task.ID, fromStatus, toStatus, err)
-			systemlog.Warnf("Failed to move task %s from %s to %s: %v", task.ID, fromStatus, toStatus, err)
-			if saveErr := qp.storage.SaveQueueItem(task, toStatus); saveErr != nil {
-				log.Printf("ERROR: Unable to finalize task %s in %s after move failure: %v", task.ID, toStatus, saveErr)
-				systemlog.Errorf("Unable to finalize task %s in %s after move failure: %v", task.ID, toStatus, saveErr)
-			} else {
-				if _, delErr := qp.storage.DeleteTask(task.ID); delErr != nil {
-					log.Printf("WARNING: Task %s may still exist in %s after fallback save: %v", task.ID, fromStatus, delErr)
-					systemlog.Warnf("Task %s may still exist in %s after fallback save: %v", task.ID, fromStatus, delErr)
-				}
+func (qp *Processor) agentProcessPIDs(agentTag string) []int {
+	pattern := fmt.Sprintf("resource-claude-code run --tag %s", agentTag)
+	cmd := exec.Command("pgrep", "-f", pattern)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil
+	}
+
+	fields := strings.Fields(string(output))
+	var pids []int
+	for _, field := range fields {
+		if pid, err := strconv.Atoi(strings.TrimSpace(field)); err == nil {
+			pids = append(pids, pid)
+		}
+	}
+	return pids
+}
+
+func (qp *Processor) waitForAgentShutdown(agentTag string, primaryPID int) {
+	deadline := time.Now().Add(5 * time.Second)
+
+	for {
+		agentActive := qp.agentExists(agentTag)
+		primaryAlive := primaryPID > 0 && qp.isProcessAlive(primaryPID)
+
+		if !agentActive && !primaryAlive {
+			return
+		}
+
+		pids := qp.agentProcessPIDs(agentTag)
+		for _, pid := range pids {
+			if pid == primaryPID {
+				continue
 			}
-		} else {
-			systemlog.Debugf("Task %s moved from %s to %s", task.ID, fromStatus, toStatus)
+			if err := KillProcessGroup(pid); err != nil {
+				log.Printf("Warning: failed to terminate agent process group for %s (pid %d): %v", agentTag, pid, err)
+			}
+			_ = syscall.Kill(pid, syscall.SIGKILL)
 		}
-	} else {
-		if err := qp.storage.SaveQueueItem(task, toStatus); err != nil {
-			log.Printf("ERROR: Unable to finalize task %s in %s: %v", task.ID, toStatus, err)
-			systemlog.Errorf("Unable to finalize task %s in %s: %v", task.ID, toStatus, err)
+
+		if primaryAlive {
+			if err := KillProcessGroup(primaryPID); err != nil {
+				log.Printf("Warning: failed to terminate primary agent process group for %s (pid %d): %v", agentTag, primaryPID, err)
+			}
+			_ = syscall.Kill(primaryPID, syscall.SIGKILL)
 		}
-		systemlog.Debugf("Task %s state updated in %s without move", task.ID, toStatus)
+
+		if time.Now().After(deadline) {
+			log.Printf("Warning: agent %s still appears active after forced shutdown", agentTag)
+			return
+		}
+
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func (qp *Processor) agentExists(agentTag string) bool {
+	tags := qp.getExternalActiveTaskIDsInternal()
+	_, exists := tags[strings.TrimPrefix(agentTag, "ecosystem-")]
+	return exists
+}
+
+func (qp *Processor) terminateProcessByPID(pid int) {
+	if pid <= 0 {
+		return
+	}
+
+	if err := exec.Command("kill", "-TERM", strconv.Itoa(pid)).Run(); err != nil {
+		log.Printf("Failed to send TERM to PID %d: %v", pid, err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if qp.isProcessAlive(pid) {
+		if err := exec.Command("kill", "-KILL", strconv.Itoa(pid)).Run(); err != nil {
+			log.Printf("Failed to force kill PID %d: %v", pid, err)
+		}
+	}
+}
+
+func (qp *Processor) finalizeTaskStatus(task *tasks.TaskItem, toStatus string) {
+	movedTask, fromStatus, err := qp.storage.MoveTaskTo(task.ID, toStatus)
+	if err != nil {
+		log.Printf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
+		systemlog.Warnf("Failed to finalize task %s into %s: %v", task.ID, toStatus, err)
+		return
+	}
+
+	if movedTask != nil && fromStatus == toStatus {
+		systemlog.Debugf("Task %s already present in %s during finalize", task.ID, toStatus)
+	}
+
+	task.Status = toStatus
+	task.UpdatedAt = time.Now().Format(time.RFC3339)
+
+	if err := qp.storage.SaveQueueItem(*task, toStatus); err != nil {
+		log.Printf("ERROR: Unable to persist task %s in %s: %v", task.ID, toStatus, err)
+		systemlog.Errorf("Unable to persist task %s in %s: %v", task.ID, toStatus, err)
 	}
 
 	systemlog.Debugf("Task %s finalized: %s -> %s", task.ID, fromStatus, toStatus)
@@ -529,31 +575,31 @@ func (qp *Processor) finalizeTaskStatus(task tasks.TaskItem, fromStatus, toStatu
 }
 
 func (qp *Processor) ListRunningProcesses() []string {
-	qp.runningProcessesMutex.RLock()
-	defer qp.runningProcessesMutex.RUnlock()
+	qp.executionsMu.RLock()
+	defer qp.executionsMu.RUnlock()
 
-	var taskIDs []string
-	for taskID := range qp.runningProcesses {
+	taskIDs := make([]string, 0, len(qp.executions))
+	for taskID := range qp.executions {
 		taskIDs = append(taskIDs, taskID)
 	}
 	return taskIDs
 }
 
 func (qp *Processor) GetRunningProcessesInfo() []ProcessInfo {
-	qp.runningProcessesMutex.RLock()
-	defer qp.runningProcessesMutex.RUnlock()
+	qp.executionsMu.RLock()
+	defer qp.executionsMu.RUnlock()
 
-	var processes []ProcessInfo
+	processes := make([]ProcessInfo, 0, len(qp.executions))
 	now := time.Now()
 
-	for taskID, process := range qp.runningProcesses {
-		duration := now.Sub(process.StartTime)
+	for taskID, execState := range qp.executions {
+		duration := now.Sub(execState.started)
 		processes = append(processes, ProcessInfo{
 			TaskID:    taskID,
-			ProcessID: process.ProcessID,
-			StartTime: process.StartTime.Format(time.RFC3339),
+			ProcessID: execState.pid(),
+			StartTime: execState.started.Format(time.RFC3339),
 			Duration:  duration.Round(time.Second).String(),
-			AgentID:   process.AgentID,
+			AgentID:   execState.agentTag,
 		})
 	}
 
@@ -654,14 +700,25 @@ func (qp *Processor) appendTaskLog(taskID, agentID, stream, message string) LogE
 	return entry
 }
 
-// markTaskLogsCompleted flags the log buffer as finished while retaining the output
-func (qp *Processor) markTaskLogsCompleted(taskID string) {
+// finalizeTaskLogs writes the buffered log output to disk and annotates completion state
+func (qp *Processor) finalizeTaskLogs(taskID string, completed bool) {
+	var bufferCopy *TaskLogBuffer
+
 	qp.taskLogsMutex.Lock()
 	if buffer, exists := qp.taskLogs[taskID]; exists {
-		buffer.Completed = true
+		buffer.Completed = completed
 		buffer.UpdatedAt = time.Now()
+		tmp := *buffer
+		tmp.Entries = append([]LogEntry(nil), buffer.Entries...)
+		bufferCopy = &tmp
 	}
 	qp.taskLogsMutex.Unlock()
+
+	if bufferCopy != nil {
+		if err := qp.writeTaskLogsToFile(taskID, bufferCopy); err != nil {
+			log.Printf("Warning: failed to persist task logs for %s: %v", taskID, err)
+		}
+	}
 }
 
 // clearTaskLogs removes the log buffer for a task (used when resetting state)
@@ -674,6 +731,43 @@ func (qp *Processor) clearTaskLogs(taskID string) {
 // ResetTaskLogs removes any cached logs for a task (used when task is retried)
 func (qp *Processor) ResetTaskLogs(taskID string) {
 	qp.clearTaskLogs(taskID)
+}
+
+func (qp *Processor) writeTaskLogsToFile(taskID string, buffer *TaskLogBuffer) error {
+	if qp.taskLogsDir == "" || buffer == nil {
+		return nil
+	}
+
+	if err := os.MkdirAll(qp.taskLogsDir, 0755); err != nil {
+		return err
+	}
+
+	logPath := filepath.Join(qp.taskLogsDir, fmt.Sprintf("%s.log", taskID))
+	file, err := os.Create(logPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := bufio.NewWriter(file)
+	defer writer.Flush()
+
+	metadata := fmt.Sprintf("Task: %s\nAgent: %s\nProcessID: %d\nCompleted: %v\nCreatedAt: %s\nUpdatedAt: %s\n\n",
+		taskID, buffer.AgentID, buffer.ProcessID, buffer.Completed,
+		buffer.CreatedAt.Format(time.RFC3339), buffer.UpdatedAt.Format(time.RFC3339))
+	if _, err := writer.WriteString(metadata); err != nil {
+		return err
+	}
+
+	for _, entry := range buffer.Entries {
+		line := fmt.Sprintf("%s [%s] (%s) %s\n",
+			entry.Timestamp.Format(time.RFC3339Nano), entry.Stream, entry.Level, entry.Message)
+		if _, err := writer.WriteString(line); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetTaskLogs returns log entries newer than the requested sequence number
@@ -702,7 +796,7 @@ func (qp *Processor) IsTaskRunning(taskID string) bool {
 	if qp.processManager != nil && qp.processManager.IsProcessActive(taskID) {
 		return true
 	}
-	_, exists := qp.getRunningProcess(taskID)
+	_, exists := qp.getExecution(taskID)
 	return exists
 }
 
@@ -737,17 +831,29 @@ func (qp *Processor) GetQueueStatus() map[string]interface{} {
 	failedTasks, _ := qp.storage.GetQueueItems("failed")
 	reviewTasks, _ := qp.storage.GetQueueItems("review")
 
-	// Count actually executing tasks using process registry (more accurate)
-	qp.runningProcessesMutex.RLock()
-	executingCount := len(qp.runningProcesses)
-	qp.runningProcessesMutex.RUnlock()
+	internalRunning := qp.getInternalRunningTaskIDs()
+	externalActive := qp.getExternalActiveTaskIDs()
+
+	executingCount := len(internalRunning)
+	for taskID := range externalActive {
+		if _, tracked := internalRunning[taskID]; !tracked {
+			executingCount++
+		}
+	}
 
 	// Count ready-to-execute tasks in in-progress
 	readyInProgress := 0
 	for _, task := range inProgressTasks {
-		if _, isRunning := qp.getRunningProcess(task.ID); !isRunning {
-			readyInProgress++
+		if _, tracked := internalRunning[task.ID]; tracked {
+			continue
 		}
+		if _, active := externalActive[task.ID]; active {
+			continue
+		}
+		if qp.processManager != nil && qp.processManager.IsProcessActive(task.ID) {
+			continue
+		}
+		readyInProgress++
 	}
 
 	// Get maxConcurrent and refresh interval from settings
@@ -802,139 +908,253 @@ func (qp *Processor) getLastProcessed() time.Time {
 	return qp.lastProcessedAt
 }
 
-// Process persistence and health monitoring methods
+func (qp *Processor) getInternalRunningTaskIDs() map[string]struct{} {
+	qp.executionsMu.RLock()
+	defer qp.executionsMu.RUnlock()
 
-// PersistentProcess represents a process that can be serialized/deserialized
-type PersistentProcess struct {
-	TaskID    string    `json:"task_id"`
-	ProcessID int       `json:"process_id"`
-	StartTime time.Time `json:"start_time"`
+	ids := make(map[string]struct{}, len(qp.executions))
+	for taskID := range qp.executions {
+		ids[taskID] = struct{}{}
+	}
+	return ids
 }
 
-// loadPersistedProcesses loads running processes from disk on startup
-func (qp *Processor) loadPersistedProcesses() {
-	data, err := os.ReadFile(qp.processFile)
+func (qp *Processor) getExternalActiveTaskIDs() map[string]struct{} {
+	return qp.getExternalActiveTaskIDsInternal()
+}
+
+func (qp *Processor) getExternalActiveTaskIDsInternal() map[string]struct{} {
+	tags, err := qp.fetchActiveClaudeAgents()
 	if err != nil {
-		// File doesn't exist or can't be read - this is normal for first startup
-		return
+		log.Printf("Warning: failed to list claude-code agents: %v", err)
 	}
 
-	var persistedProcesses []PersistentProcess
-	if err := json.Unmarshal(data, &persistedProcesses); err != nil {
-		log.Printf("Error unmarshaling persisted processes: %v", err)
-		return
+	processTags := qp.detectAgentsViaProcesses()
+	for tag := range processTags {
+		tags[tag] = struct{}{}
 	}
 
-	log.Printf("Loaded %d persisted processes from %s", len(persistedProcesses), qp.processFile)
+	active := make(map[string]struct{}, len(tags))
+	for tag := range tags {
+		if !strings.HasPrefix(tag, "ecosystem-") {
+			continue
+		}
+		id := strings.TrimPrefix(tag, "ecosystem-")
+		if id != "" {
+			active[id] = struct{}{}
+		}
+	}
 
-	// Check which processes are still alive and clean up dead ones
-	aliveCount := 0
-	for _, pp := range persistedProcesses {
-		if qp.isProcessAlive(pp.ProcessID) {
-			log.Printf("Found alive orphaned process: TaskID=%s PID=%d (running since %v)",
-				pp.TaskID, pp.ProcessID, pp.StartTime.Format(time.RFC3339))
+	return active
+}
 
-			// Attempt to kill orphaned process
-			if err := qp.killProcess(pp.ProcessID); err != nil {
-				log.Printf("Failed to kill orphaned process %d: %v", pp.ProcessID, err)
-			} else {
-				log.Printf("Successfully killed orphaned process %d", pp.ProcessID)
+func (qp *Processor) fetchActiveClaudeAgents() (map[string]struct{}, error) {
+	cmd := exec.Command("resource-claude-code", "agents", "list")
+	if qp.vrooliRoot != "" {
+		cmd.Dir = qp.vrooliRoot
+	}
+
+	output, err := cmd.CombinedOutput()
+	trimmed := strings.TrimSpace(string(output))
+	if err != nil {
+		lower := strings.ToLower(trimmed)
+		if trimmed == "" || strings.Contains(lower, "no agents found") {
+			return map[string]struct{}{}, nil
+		}
+		return nil, fmt.Errorf("claude-code agents list failed: %w (output: %s)", err, trimmed)
+	}
+
+	if trimmed == "" {
+		return map[string]struct{}{}, nil
+	}
+
+	return parseClaudeAgentList(trimmed), nil
+}
+
+func parseClaudeAgentList(output string) map[string]struct{} {
+	result := make(map[string]struct{})
+
+	if strings.EqualFold(strings.TrimSpace(output), "no agents found") {
+		return result
+	}
+
+	var jsonAgents []map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &jsonAgents); err == nil {
+		for _, agent := range jsonAgents {
+			if id, ok := agent["id"].(string); ok && id != "" {
+				result[id] = struct{}{}
 			}
-			aliveCount++
+			if tag, ok := agent["tag"].(string); ok && tag != "" {
+				result[tag] = struct{}{}
+			}
+		}
+		return result
+	}
+
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if strings.EqualFold(line, "no agents found") {
+			continue
+		}
+		for _, field := range strings.Fields(line) {
+			if field == "" {
+				continue
+			}
+			result[field] = struct{}{}
 		}
 	}
 
-	if aliveCount > 0 {
-		log.Printf("Cleaned up %d orphaned processes from previous run", aliveCount)
-	}
-
-	// Clear the persistence file since we handled all processes
-	qp.clearPersistedProcesses()
+	return result
 }
 
-// persistProcesses saves current running processes to disk
-func (qp *Processor) persistProcesses() {
-	qp.runningProcessesMutex.RLock()
-	defer qp.runningProcessesMutex.RUnlock()
+func (qp *Processor) detectAgentsViaProcesses() map[string]struct{} {
+	result := make(map[string]struct{})
 
-	if len(qp.runningProcesses) == 0 {
-		// No processes to persist, remove file if it exists
-		qp.clearPersistedProcesses()
-		return
-	}
-
-	var persistedProcesses []PersistentProcess
-	for taskID, process := range qp.runningProcesses {
-		persistedProcesses = append(persistedProcesses, PersistentProcess{
-			TaskID:    taskID,
-			ProcessID: process.ProcessID,
-			StartTime: process.StartTime,
-		})
-	}
-
-	data, err := json.MarshalIndent(persistedProcesses, "", "  ")
+	cmd := exec.Command("pgrep", "-fl", "resource-claude-code run")
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error marshaling processes for persistence: %v", err)
-		return
+		return result
 	}
 
-	if err := os.WriteFile(qp.processFile, data, 0644); err != nil {
-		log.Printf("Error writing processes to persistence file: %v", err)
-		return
-	}
-
-	log.Printf("Persisted %d running processes to %s", len(persistedProcesses), qp.processFile)
-}
-
-// clearPersistedProcesses removes the persistence file
-func (qp *Processor) clearPersistedProcesses() {
-	if err := os.Remove(qp.processFile); err != nil && !os.IsNotExist(err) {
-		log.Printf("Error removing process persistence file: %v", err)
-	}
-}
-
-// processHealthMonitor runs in background to check process health
-func (qp *Processor) processHealthMonitor() {
-	ticker := time.NewTicker(qp.healthCheckInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ticker.C:
-			qp.checkProcessHealth()
-		case <-qp.stopHealthCheck:
-			log.Println("Process health monitor stopped")
-			return
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
 		}
-	}
-}
-
-// checkProcessHealth verifies all registered processes are still alive
-func (qp *Processor) checkProcessHealth() {
-	qp.runningProcessesMutex.Lock()
-	defer qp.runningProcessesMutex.Unlock()
-
-	deadProcesses := []string{}
-
-	for taskID, process := range qp.runningProcesses {
-		if !qp.isProcessAlive(process.ProcessID) {
-			log.Printf("Process %d for task %s is no longer alive - removing from registry",
-				process.ProcessID, taskID)
-			deadProcesses = append(deadProcesses, taskID)
+		fields := strings.Fields(line)
+		for idx, field := range fields {
+			if field == "--tag" && idx+1 < len(fields) {
+				tag := fields[idx+1]
+				result[tag] = struct{}{}
+				break
+			}
+			if strings.HasPrefix(field, "--tag=") {
+				tag := strings.TrimPrefix(field, "--tag=")
+				result[tag] = struct{}{}
+				break
+			}
 		}
 	}
 
-	// Remove dead processes from registry
-	for _, taskID := range deadProcesses {
-		delete(qp.runningProcesses, taskID)
+	return result
+}
+
+func (qp *Processor) initialInProgressReconcile() {
+	// Allow the system to finish startup before running reconciliation
+	time.Sleep(2 * time.Second)
+
+	external := qp.getExternalActiveTaskIDs()
+	internal := qp.getInternalRunningTaskIDs()
+	qp.reconcileInProgressTasks(external, internal)
+}
+
+func (qp *Processor) reconcileInProgressTasks(externalActive, internalRunning map[string]struct{}) {
+	inProgressTasks, err := qp.storage.GetQueueItems("in-progress")
+	if err != nil {
+		log.Printf("Error checking in-progress tasks: %v", err)
+		return
 	}
 
-	if len(deadProcesses) > 0 {
-		log.Printf("Cleaned up %d dead processes from registry", len(deadProcesses))
-		// Update persistence file
-		go qp.persistProcesses()
+	for _, task := range inProgressTasks {
+		if qp.IsTaskRunning(task.ID) {
+			continue
+		}
+		if _, active := externalActive[task.ID]; active {
+			continue
+		}
+
+		agentIdentifier := fmt.Sprintf("ecosystem-%s", task.ID)
+		qp.stopClaudeAgent(agentIdentifier, 0)
+		systemlog.Warnf("Detected orphan in-progress task %s; relocating to pending", task.ID)
+		if _, _, err := qp.storage.MoveTaskTo(task.ID, "pending"); err != nil {
+			log.Printf("Failed to move orphan task %s back to pending: %v", task.ID, err)
+			systemlog.Errorf("Failed to move orphan task %s back to pending: %v", task.ID, err)
+			continue
+		}
+
+		task.Status = "pending"
+		task.CurrentPhase = ""
+		task.ProgressPercent = 0
+		task.StartedAt = ""
+		task.CompletedAt = ""
+		task.Results = nil
+		task.UpdatedAt = time.Now().Format(time.RFC3339)
+		if err := qp.storage.SaveQueueItem(task, "pending"); err != nil {
+			log.Printf("Failed to persist orphan task %s after move: %v", task.ID, err)
+		} else {
+			qp.broadcastUpdate("task_status_changed", map[string]interface{}{
+				"task_id":    task.ID,
+				"old_status": "in-progress",
+				"new_status": "pending",
+				"task":       task,
+			})
+		}
+
+		// Clear any cached logs for this run since it will be retried
+		qp.ResetTaskLogs(task.ID)
 	}
 }
+
+func (qp *Processor) ensureAgentInactive(agentTag string) error {
+	if agentTag == "" {
+		return nil
+	}
+
+	tags, err := qp.fetchActiveClaudeAgents()
+	if err != nil {
+		return err
+	}
+
+	if _, exists := tags[agentTag]; !exists {
+		// Double-check with process list before returning success
+		if _, exists = qp.detectAgentsViaProcesses()[agentTag]; !exists {
+			return nil
+		}
+	}
+
+	qp.stopClaudeAgent(agentTag, 0)
+	time.Sleep(500 * time.Millisecond)
+
+	tags, err = qp.fetchActiveClaudeAgents()
+	if err != nil {
+		return err
+	}
+
+	if _, exists := tags[agentTag]; exists {
+		return fmt.Errorf("claude agent %s is still active", agentTag)
+	}
+
+	if _, exists := qp.detectAgentsViaProcesses()[agentTag]; exists {
+		return fmt.Errorf("claude agent %s process still active", agentTag)
+		return nil
+	}
+
+	qp.stopClaudeAgent(agentTag, 0)
+	time.Sleep(500 * time.Millisecond)
+
+	tags, err = qp.fetchActiveClaudeAgents()
+	if err != nil {
+		return err
+	}
+
+	if _, exists := tags[agentTag]; exists {
+		return fmt.Errorf("claude agent %s is still active", agentTag)
+	}
+
+	if _, exists := qp.detectAgentsViaProcesses()[agentTag]; exists {
+		return fmt.Errorf("claude agent %s process still active", agentTag)
+	}
+
+	return nil
+}
+
+// Process persistence and health monitoring methods removed in favor of
+// lightweight in-memory execution tracking. We still aggressively clean up
+// orphaned Claude agents discovered via process inspection on startup.
 
 // cleanupOrphanedProcesses kills any processes that match our pattern but aren't in registry
 func (qp *Processor) cleanupOrphanedProcesses() {
@@ -951,12 +1171,14 @@ func (qp *Processor) cleanupOrphanedProcesses() {
 	pids := strings.Split(strings.TrimSpace(string(output)), "\n")
 	orphanedCount := 0
 
-	qp.runningProcessesMutex.RLock()
+	qp.executionsMu.RLock()
 	knownPIDs := make(map[int]bool)
-	for _, process := range qp.runningProcesses {
-		knownPIDs[process.ProcessID] = true
+	for _, execState := range qp.executions {
+		if pid := execState.pid(); pid > 0 {
+			knownPIDs[pid] = true
+		}
 	}
-	qp.runningProcessesMutex.RUnlock()
+	qp.executionsMu.RUnlock()
 
 	for _, pidStr := range pids {
 		if pidStr == "" {
@@ -1084,4 +1306,22 @@ func (qp *Processor) ResetRateLimitPause() {
 			"manual": true,
 		})
 	}
+}
+
+func detectVrooliRoot() string {
+	if root := os.Getenv("VROOLI_ROOT"); root != "" {
+		return root
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		dir := wd
+		for dir != string(filepath.Separator) && dir != "." {
+			if _, statErr := os.Stat(filepath.Join(dir, ".vrooli")); statErr == nil {
+				return dir
+			}
+			dir = filepath.Dir(dir)
+		}
+	}
+
+	return "."
 }

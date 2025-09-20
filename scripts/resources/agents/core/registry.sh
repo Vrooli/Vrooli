@@ -45,6 +45,56 @@ EOF
 }
 
 #######################################
+# Remove orphaned temporary registry files
+# Arguments:
+#   $1 - Registry file path
+# Cleans up files left behind by interrupted writes
+#######################################
+agents::registry::cleanup_temp_files() {
+    local registry_file="$1"
+    local registry_dir
+    local registry_base
+    local temp_file
+    local pid_part
+    local pid
+
+    registry_dir=$(dirname "$registry_file")
+    registry_base=$(basename "$registry_file")
+
+    if [[ ! -d "$registry_dir" ]]; then
+        return 0
+    fi
+
+    shopt -s nullglob
+    for temp_file in "${registry_dir}/${registry_base}.tmp."*; do
+        [[ -f "$temp_file" ]] || continue
+        pid_part="${temp_file##*.tmp.}"
+        pid="${pid_part%%.*}"
+        if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
+            continue
+        fi
+        rm -f "$temp_file"
+    done
+    shopt -u nullglob
+}
+
+#######################################
+# Create temporary file for atomic updates
+# Arguments:
+#   $1 - Registry file path
+# Returns:
+#   Path to temporary file
+#######################################
+agents::registry::create_temp_file() {
+    local registry_file="$1"
+    local template
+
+    agents::registry::cleanup_temp_files "$registry_file"
+    template="${registry_file}.tmp.${BASHPID}.XXXXXX"
+    mktemp "$template"
+}
+
+#######################################
 # Generate unique agent ID
 # Arguments:
 #   $1 - Configuration array name (passed by reference)
@@ -83,39 +133,56 @@ agents::registry::register() {
     fi
     
     agents::registry::init "$registry_file" || return 1
-    
+
     start_time=$(date -Iseconds)
-    
-    # Create temporary file for atomic update
-    local temp_file="${registry_file}.tmp.$$"
-    
-    # Add agent to registry using jq
-    if ! jq --arg id "$agent_id" \
-            --arg pid "$pid" \
-            --arg cmd "$command" \
-            --arg start "$start_time" \
-            '.agents[$id] = {
-                "id": $id,
-                "pid": ($pid | tonumber),
-                "status": "running",
-                "start_time": $start,
-                "command": $cmd,
-                "last_seen": $start
-            }' "$registry_file" > "$temp_file"; then
-        log::error "Failed to update $resource_name agent registry"
-        rm -f "$temp_file"
+
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
+        log::error "Failed to lock $resource_name agent registry"
         return 1
     fi
-    
-    # Atomically replace registry file
-    if ! mv "$temp_file" "$registry_file"; then
-        log::error "Failed to save $resource_name agent registry"
-        rm -f "$temp_file"
-        return 1
+
+    local temp_file
+    local rc=0
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" \
+                --arg pid "$pid" \
+                --arg cmd "$command" \
+                --arg start "$start_time" \
+                '.agents[$id] = {
+                    "id": $id,
+                    "pid": ($pid | tonumber),
+                    "status": "running",
+                    "start_time": $start,
+                    "command": $cmd,
+                    "last_seen": $start
+                }' "$registry_file" > "$temp_file"; then
+            log::error "Failed to update $resource_name agent registry"
+            rc=1
+        fi
     fi
-    
-    log::debug "Registered $resource_name agent: $agent_id (PID: $pid)"
-    return 0
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            log::error "Failed to save $resource_name agent registry"
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    if [[ $rc -eq 0 ]]; then
+        log::debug "Registered $resource_name agent: $agent_id (PID: $pid)"
+    fi
+
+    return $rc
 }
 
 #######################################
@@ -139,25 +206,42 @@ agents::registry::unregister() {
     
     [[ -f "$registry_file" ]] || return 0
     
-    # Create temporary file for atomic update
-    local temp_file="${registry_file}.tmp.$$"
-    
-    # Remove agent from registry
-    if ! jq --arg id "$agent_id" 'del(.agents[$id])' "$registry_file" > "$temp_file"; then
-        log::error "Failed to update $resource_name agent registry"
-        rm -f "$temp_file"
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
+        log::error "Failed to lock $resource_name agent registry"
         return 1
     fi
-    
-    # Atomically replace registry file
-    if ! mv "$temp_file" "$registry_file"; then
-        log::error "Failed to save $resource_name agent registry"
-        rm -f "$temp_file"
-        return 1
+
+    local temp_file
+    local rc=0
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" 'del(.agents[$id])' "$registry_file" > "$temp_file"; then
+            log::error "Failed to update $resource_name agent registry"
+            rc=1
+        fi
     fi
-    
-    log::debug "Unregistered $resource_name agent: $agent_id"
-    return 0
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            log::error "Failed to save $resource_name agent registry"
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    if [[ $rc -eq 0 ]]; then
+        log::debug "Unregistered $resource_name agent: $agent_id"
+    fi
+
+    return $rc
 }
 
 #######################################
@@ -184,26 +268,40 @@ agents::registry::heartbeat() {
     
     current_time=$(date -Iseconds)
     
-    # Create temporary file for atomic update
-    local temp_file="${registry_file}.tmp.$$"
-    
-    # Update last_seen timestamp
-    if ! jq --arg id "$agent_id" \
-            --arg time "$current_time" \
-            '.agents[$id].last_seen = $time' "$registry_file" > "$temp_file"; then
-        log::error "Failed to update $resource_name agent registry"
-        rm -f "$temp_file"
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
+        log::error "Failed to lock $resource_name agent registry"
         return 1
     fi
-    
-    # Atomically replace registry file
-    if ! mv "$temp_file" "$registry_file"; then
-        log::error "Failed to save $resource_name agent registry" 
-        rm -f "$temp_file"
-        return 1
+
+    local temp_file
+    local rc=0
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" \
+                --arg time "$current_time" \
+                '.agents[$id].last_seen = $time' "$registry_file" > "$temp_file"; then
+            log::error "Failed to update $resource_name agent registry"
+            rc=1
+        fi
     fi
-    
-    return 0
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            log::error "Failed to save $resource_name agent registry"
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    return $rc
 }
 
 #######################################

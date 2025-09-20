@@ -1,7 +1,5 @@
 package tasks
 
-import "time"
-
 // TaskItem represents a unified task in the ecosystem
 type TaskItem struct {
 	ID                 string                 `json:"id" yaml:"id"`
@@ -66,24 +64,13 @@ type ClaudeCodeRequest struct {
 
 // ClaudeCodeResponse represents a response from Claude Code
 type ClaudeCodeResponse struct {
-	Success     bool   `json:"success"`
-	Message     string `json:"message"`
-	Output      string `json:"output"`
-	Error       string `json:"error,omitempty"`
-	RateLimited bool   `json:"rate_limited,omitempty"`
-	RetryAfter  int    `json:"retry_after,omitempty"` // Seconds to wait before retry
-	MaxTurnsExceeded bool `json:"max_turns_exceeded,omitempty"`
-}
-
-// RunningProcess tracks an executing claude-code process
-type RunningProcess struct {
-	TaskID    string
-	Cmd       interface{} // Will hold *exec.Cmd but avoid import here
-	Context   interface{} // Will hold context.Context
-	Cancel    interface{} // Will hold context.CancelFunc
-	StartTime time.Time
-	ProcessID int
-	AgentID   string
+	Success          bool   `json:"success"`
+	Message          string `json:"message"`
+	Output           string `json:"output"`
+	Error            string `json:"error,omitempty"`
+	RateLimited      bool   `json:"rate_limited,omitempty"`
+	RetryAfter       int    `json:"retry_after,omitempty"` // Seconds to wait before retry
+	MaxTurnsExceeded bool   `json:"max_turns_exceeded,omitempty"`
 }
 
 // ResourceInfo represents information about a discovered resource
@@ -100,17 +87,17 @@ type ResourceInfo struct {
 
 // ScenarioInfo represents information about a discovered scenario
 type ScenarioInfo struct {
-	Name           string `json:"name"`
-	Path           string `json:"path"`
-	Category       string `json:"category"`
-	Description    string `json:"description"`
-	Version        string `json:"version,omitempty"`
-	Status         string `json:"status,omitempty"` // e.g., "available", "running"
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
+	Version     string `json:"version,omitempty"`
+	Status      string `json:"status,omitempty"` // e.g., "available", "running"
 	// Legacy fields - kept for compatibility but not populated
-	PRDComplete    int    `json:"prd_completion_percentage,omitempty"`
-	Healthy        bool   `json:"healthy,omitempty"`
-	P0Requirements int    `json:"p0_requirements,omitempty"`
-	P0Completed    int    `json:"p0_completed,omitempty"`
+	PRDComplete    int  `json:"prd_completion_percentage,omitempty"`
+	Healthy        bool `json:"healthy,omitempty"`
+	P0Requirements int  `json:"p0_requirements,omitempty"`
+	P0Completed    int  `json:"p0_completed,omitempty"`
 }
 
 // PRDStatus represents the status of a scenario's PRD

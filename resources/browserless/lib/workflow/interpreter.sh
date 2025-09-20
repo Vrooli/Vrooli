@@ -52,18 +52,81 @@ declare SESSION_ID=""
 declare -A VARIABLES=()           # Store variables from evaluate actions
 declare LAST_EVAL_RESULT=""       # Store last evaluation result
 declare DEBUG_OUTPUT_DIR=""       # Directory for debug outputs
+declare WORKFLOW_METADATA_JSON="{}"
+declare WORKFLOW_NAME=""
+declare WORKFLOW_DESCRIPTION=""
+declare WORKFLOW_VERSION=""
+declare WORKFLOW_TAGS_JSON="[]"
+declare WORKFLOW_SOURCE_FILE=""
+declare WORKFLOW_NAME_INFERRED="false"
+declare WORKFLOW_SLUG=""
+declare WORKFLOW_STEP_COUNT=0
+
+workflow::sanitize_for_path() {
+    local raw="$1"
+    local sanitized
+    sanitized=$(echo "$raw" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g' | sed 's/-\{2,\}/-/g' | sed 's/^-//' | sed 's/-$//')
+    if [[ -z "$sanitized" ]]; then
+        sanitized="workflow"
+    fi
+    echo "$sanitized"
+}
+
+workflow::load_metadata() {
+    local yaml_file="$1"
+
+    local raw_metadata
+    raw_metadata=$(yq eval -o=json '.workflow // {}' "$yaml_file" 2>/dev/null || echo '{}')
+
+    if [[ -z "$raw_metadata" || "$raw_metadata" == "null" ]]; then
+        raw_metadata='{}'
+    fi
+
+    local name
+    name=$(echo "$raw_metadata" | jq -r '.name // empty' 2>/dev/null || echo "")
+
+    if [[ -z "$name" ]]; then
+        name=$(basename "$yaml_file")
+        name="${name%.*}"
+        WORKFLOW_NAME_INFERRED="true"
+        log::warn "Workflow metadata missing name in $yaml_file - defaulting to '$name'"
+    else
+        WORKFLOW_NAME_INFERRED="false"
+    fi
+
+    WORKFLOW_NAME="$name"
+    WORKFLOW_DESCRIPTION=$(echo "$raw_metadata" | jq -r '.description // empty' 2>/dev/null || echo "")
+    WORKFLOW_VERSION=$(echo "$raw_metadata" | jq -r '.version // empty' 2>/dev/null || echo "")
+    local tags_json
+    tags_json=$(echo "$raw_metadata" | jq '.tags // []' 2>/dev/null || echo '[]')
+    WORKFLOW_TAGS_JSON="$tags_json"
+    WORKFLOW_SLUG=$(workflow::sanitize_for_path "$WORKFLOW_NAME")
+
+    WORKFLOW_METADATA_JSON=$(jq -cn \
+        --arg name "$WORKFLOW_NAME" \
+        --arg description "$WORKFLOW_DESCRIPTION" \
+        --arg version "$WORKFLOW_VERSION" \
+        --argjson tags "$tags_json" \
+        '({name: $name, tags: $tags}
+          + (if ($description | length) > 0 then {description: $description} else {} end)
+          + (if ($version | length) > 0 then {version: $version} else {} end))')
+}
 
 ########################################
 # Parse YAML workflow into steps and sub-workflows
 ########################################
 workflow::parse_yaml() {
     local yaml_file="$1"
-    
+
+    WORKFLOW_STEPS=()
+    WORKFLOW_LABELS=()
+    SUB_WORKFLOWS=()
+
     if [[ ! -f "$yaml_file" ]]; then
         log::error "Workflow file not found: $yaml_file"
         return 1
     fi
-    
+
     log::info "Parsing workflow: $yaml_file"
     
     # Parse main workflow steps
@@ -90,7 +153,9 @@ workflow::parse_yaml() {
             log::debug "Registered label '$label' at step $i"
         fi
     done
-    
+
+    WORKFLOW_STEP_COUNT=${#WORKFLOW_STEPS[@]}
+
     # Parse sub-workflows
     local sub_workflows_json
     if sub_workflows_json=$(yq eval -o=json '.workflow.sub_workflows // .sub_workflows // {}' "$yaml_file" 2>/dev/null); then
@@ -108,6 +173,16 @@ workflow::parse_yaml() {
     fi
     
     log::info "Loaded ${#WORKFLOW_STEPS[@]} main steps and ${#SUB_WORKFLOWS[@]} sub-workflows"
+    
+    WORKFLOW_METADATA_JSON="{}"
+    WORKFLOW_NAME=""
+    WORKFLOW_DESCRIPTION=""
+    WORKFLOW_VERSION=""
+    WORKFLOW_TAGS_JSON="[]"
+    WORKFLOW_SLUG=""
+    WORKFLOW_SOURCE_FILE=""
+    WORKFLOW_NAME_INFERRED="false"
+    workflow::load_metadata "$yaml_file"
     return 0
 }
 
@@ -950,18 +1025,54 @@ workflow::run() {
     done
     
     log::info "Starting workflow with ${#WORKFLOW_PARAMS[@]} parameters"
-    
-    # Set up debug output directory
-    DEBUG_OUTPUT_DIR="${HOME}/.vrooli/browserless/debug/$(basename "$yaml_file" .yaml)/$(date +%Y%m%d_%H%M%S)"
-    mkdir -p "$DEBUG_OUTPUT_DIR"
-    WORKFLOW_CONTEXT["outputDir"]="$DEBUG_OUTPUT_DIR"
-    
-    log::info "Debug output directory: $DEBUG_OUTPUT_DIR"
-    
-    # Parse the workflow
+
+    # Parse the workflow and metadata
     if ! workflow::parse_yaml "$yaml_file"; then
         return 1
     fi
+
+    WORKFLOW_SOURCE_FILE=$(realpath "$yaml_file" 2>/dev/null || readlink -f "$yaml_file" 2>/dev/null || echo "$yaml_file")
+
+    if [[ -n "$WORKFLOW_NAME" ]]; then
+        log::info "Workflow name: $WORKFLOW_NAME"
+    fi
+    if [[ -n "$WORKFLOW_DESCRIPTION" ]]; then
+        log::info "Description: $WORKFLOW_DESCRIPTION"
+    fi
+    if [[ -n "$WORKFLOW_VERSION" ]]; then
+        log::info "Version: $WORKFLOW_VERSION"
+    fi
+
+    # Set up debug output directory using metadata slug when available
+    local workflow_dir_basename
+    if [[ -n "$WORKFLOW_SLUG" ]]; then
+        workflow_dir_basename="$WORKFLOW_SLUG"
+    else
+        workflow_dir_basename="$(basename "$yaml_file" .yaml)"
+    fi
+
+    DEBUG_OUTPUT_DIR="${HOME}/.vrooli/browserless/debug/${workflow_dir_basename}/$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$DEBUG_OUTPUT_DIR"
+    WORKFLOW_CONTEXT["outputDir"]="$DEBUG_OUTPUT_DIR"
+
+    # Emit metadata for downstream tooling
+    local metadata_output="${DEBUG_OUTPUT_DIR}/metadata.json"
+    echo "$WORKFLOW_METADATA_JSON" | jq \
+        --arg source_file "$WORKFLOW_SOURCE_FILE" \
+        --arg generated_at "$(date -Iseconds)" \
+        --arg yaml_basename "$(basename "$yaml_file")" \
+        --argjson step_count "$WORKFLOW_STEP_COUNT" \
+        --arg inferred "$WORKFLOW_NAME_INFERRED" \
+        '. + {
+            source_file: $source_file,
+            yaml_file: $yaml_basename,
+            generated_at: $generated_at,
+            step_count: $step_count,
+            name_inferred: ($inferred == "true")
+        }' > "$metadata_output"
+
+    log::info "Debug output directory: $DEBUG_OUTPUT_DIR"
+    log::info "Metadata written to: $metadata_output"
     
     # Create browser session
     SESSION_ID="$session_name"

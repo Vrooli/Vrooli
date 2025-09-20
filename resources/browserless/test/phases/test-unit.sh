@@ -32,7 +32,7 @@ browserless::test::unit() {
     local verbose="${BROWSERLESS_TEST_VERBOSE:-false}"
     
     # Test 1: Configuration validation
-    log::info "1/6 Testing configuration functions..."
+    log::info "1/7 Testing configuration functions..."
     local config_ok=true
     
     # Check required config variables
@@ -56,7 +56,7 @@ browserless::test::unit() {
     fi
     
     # Test 2: Common library functions
-    log::info "2/6 Testing common library functions..."
+    log::info "2/7 Testing common library functions..."
     local common_ok=true
     
     # Test is_running function
@@ -80,7 +80,7 @@ browserless::test::unit() {
     fi
     
     # Test 3: Health check functions
-    log::info "3/6 Testing health check functions..."
+    log::info "3/7 Testing health check functions..."
     local health_ok=true
     
     # Test health functions existence
@@ -99,7 +99,7 @@ browserless::test::unit() {
     fi
     
     # Test 4: API testing functions
-    log::info "4/6 Testing API library functions..."
+    log::info "4/7 Testing API library functions..."
     local api_ok=true
     
     # Test API functions existence
@@ -118,7 +118,7 @@ browserless::test::unit() {
     fi
     
     # Test 5: Directory creation and access
-    log::info "5/6 Testing directory operations..."
+    log::info "5/7 Testing directory operations..."
     local dir_ok=true
     local test_dir="/tmp/browserless-unit-test-$$"
     
@@ -146,7 +146,7 @@ browserless::test::unit() {
     fi
     
     # Test 6: Environment validation
-    log::info "6/6 Testing environment requirements..."
+    log::info "6/7 Testing environment requirements..."
     local env_ok=true
     
     # Test curl availability
@@ -176,7 +176,16 @@ browserless::test::unit() {
     if [[ "$env_ok" != "true" ]]; then
         overall_status=1
     fi
-    
+
+    # Test 7: Workflow metadata parsing
+    log::info "7/7 Testing workflow metadata parsing..."
+    if bash "${BROWSERLESS_CLI_DIR}/test/test-workflow-metadata.sh"; then
+        log::success "✓ Workflow metadata parsing emitted metadata.json"
+    else
+        log::error "✗ Workflow metadata parsing failed"
+        overall_status=1
+    fi
+
     echo ""
     if [[ $overall_status -eq 0 ]]; then
         log::success "🎉 Browserless resource unit test PASSED"

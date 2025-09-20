@@ -78,6 +78,13 @@ agents::health::monitor_loop() {
                     agents::health::check_agent "$registry_file" "$resource_name" "$agent_id"
                 done <<< "$agent_ids"
             fi
+
+            local remaining
+            remaining=$(jq -r '.agents | length' "$registry_file" 2>/dev/null || echo "0")
+            if [[ "$remaining" == "0" ]]; then
+                log::debug "No agents remaining for $resource_name health monitor; stopping"
+                return
+            fi
         fi
         
         sleep "$check_interval"
@@ -125,7 +132,12 @@ agents::health::check_agent() {
     else
         # Process is dead - mark as unhealthy
         agents::health::update_heartbeat "$registry_file" "$agent_id" "unhealthy"
-        log::warn "Agent $agent_id (PID: $pid) is not running"
+
+        local failures
+        failures=$(jq -r --arg id "$agent_id" '.agents[$id].health_checks.consecutive_failures // 0' "$registry_file" 2>/dev/null || echo "0")
+        if [[ "$failures" -le 1 ]]; then
+            log::warn "Agent $agent_id (PID: $pid) is not running"
+        fi
         
         return 1
     fi

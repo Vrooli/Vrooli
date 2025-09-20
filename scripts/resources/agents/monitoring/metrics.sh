@@ -9,6 +9,10 @@
 # Source common utilities
 APP_ROOT="${APP_ROOT:-$(builtin cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && builtin pwd)}"
 source "${APP_ROOT}/scripts/lib/utils/log.sh"
+if ! declare -F agents::registry::create_temp_file >/dev/null 2>&1; then
+    source "${APP_ROOT}/scripts/resources/agents/core/registry.sh"
+fi
+
 
 #######################################
 # Initialize metrics for an agent
@@ -24,48 +28,67 @@ agents::metrics::init() {
     
     [[ -f "$registry_file" ]] || return 1
     
-    local temp_file="${registry_file}.tmp.$$"
-    local current_time
-    current_time=$(date -Iseconds)
-    
-    # Initialize metrics structure
-    if ! jq --arg id "$agent_id" \
-            --arg time "$current_time" \
-            '
-            if .agents[$id] then
-                .agents[$id].metrics = {
-                    counters: {
-                        requests: 0,
-                        errors: 0,
-                        restarts: 0
-                    },
-                    gauges: {
-                        cpu_ticks: 0,
-                        memory_mb: 0,
-                        active_connections: 0
-                    },
-                    histograms: {
-                        request_duration_ms: {
-                            count: 0,
-                            sum: 0,
-                            min: null,
-                            max: null,
-                            samples: []
-                        }
-                    },
-                    window: {
-                        start: $time,
-                        last_reset: $time
-                    }
-                }
-            else . end
-            ' "$registry_file" > "$temp_file"; then
-        rm -f "$temp_file"
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
         return 1
     fi
-    
-    mv "$temp_file" "$registry_file" || rm -f "$temp_file"
-    return 0
+
+    local rc=0
+    local temp_file
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+    local current_time
+    current_time=$(date -Iseconds)
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" \
+                --arg time "$current_time" \
+                '
+                if .agents[$id] then
+                    .agents[$id].metrics = {
+                        counters: {
+                            requests: 0,
+                            errors: 0,
+                            restarts: 0
+                        },
+                        gauges: {
+                            cpu_ticks: 0,
+                            memory_mb: 0,
+                            active_connections: 0
+                        },
+                        histograms: {
+                            request_duration_ms: {
+                                count: 0,
+                                sum: 0,
+                                min: null,
+                                max: null,
+                                samples: []
+                            }
+                        },
+                        window: {
+                            start: $time,
+                            last_reset: $time
+                        }
+                    }
+                else . end
+                ' "$registry_file" > "$temp_file"; then
+            rc=1
+        fi
+    fi
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    return $rc
 }
 
 #######################################
@@ -86,25 +109,44 @@ agents::metrics::increment() {
     
     [[ -f "$registry_file" ]] || return 1
     
-    local temp_file="${registry_file}.tmp.$$"
-    
-    # Increment counter
-    if ! jq --arg id "$agent_id" \
-            --arg counter "$counter_name" \
-            --argjson inc "$increment" \
-            '
-            if .agents[$id].metrics.counters[$counter] then
-                .agents[$id].metrics.counters[$counter] += $inc
-            elif .agents[$id].metrics.counters then
-                .agents[$id].metrics.counters[$counter] = $inc
-            else . end
-            ' "$registry_file" > "$temp_file"; then
-        rm -f "$temp_file"
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
         return 1
     fi
-    
-    mv "$temp_file" "$registry_file" || rm -f "$temp_file"
-    return 0
+
+    local rc=0
+    local temp_file
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" \
+                --arg counter "$counter_name" \
+                --argjson inc "$increment" \
+                '
+                if .agents[$id].metrics.counters[$counter] then
+                    .agents[$id].metrics.counters[$counter] += $inc
+                elif .agents[$id].metrics.counters then
+                    .agents[$id].metrics.counters[$counter] = $inc
+                else . end
+                ' "$registry_file" > "$temp_file"; then
+            rc=1
+        fi
+    fi
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    return $rc
 }
 
 #######################################
@@ -125,25 +167,44 @@ agents::metrics::gauge() {
     
     [[ -f "$registry_file" ]] || return 1
     
-    local temp_file="${registry_file}.tmp.$$"
-    
-    # Set gauge value
-    if ! jq --arg id "$agent_id" \
-            --arg gauge "$gauge_name" \
-            --argjson val "$value" \
-            '
-            if .agents[$id].metrics.gauges then
-                .agents[$id].metrics.gauges[$gauge] = $val
-            elif .agents[$id].metrics then
-                .agents[$id].metrics.gauges = {($gauge): $val}
-            else . end
-            ' "$registry_file" > "$temp_file"; then
-        rm -f "$temp_file"
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
         return 1
     fi
-    
-    mv "$temp_file" "$registry_file" || rm -f "$temp_file"
-    return 0
+
+    local temp_file
+    local rc=0
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" \
+                --arg gauge "$gauge_name" \
+                --argjson val "$value" \
+                '
+                if .agents[$id].metrics.gauges then
+                    .agents[$id].metrics.gauges[$gauge] = $val
+                elif .agents[$id].metrics then
+                    .agents[$id].metrics.gauges = {($gauge): $val}
+                else . end
+                ' "$registry_file" > "$temp_file"; then
+            rc=1
+        fi
+    fi
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    return $rc
 }
 
 #######################################
@@ -164,45 +225,83 @@ agents::metrics::histogram() {
     
     [[ -f "$registry_file" ]] || return 1
     
-    local temp_file="${registry_file}.tmp.$$"
-    
-    # Add sample and update statistics
-    # Keep only last 100 samples for percentile calculation
-    if ! jq --arg id "$agent_id" \
-            --arg hist "$histogram_name" \
-            --argjson sample "$sample_value" \
-            '
-            if .agents[$id].metrics.histograms[$hist] then
-                .agents[$id].metrics.histograms[$hist].count += 1 |
-                .agents[$id].metrics.histograms[$hist].sum += $sample |
-                .agents[$id].metrics.histograms[$hist].samples = (
-                    (.agents[$id].metrics.histograms[$hist].samples + [$sample]) | .[-100:]
-                ) |
-                .agents[$id].metrics.histograms[$hist].min = (
-                    if .agents[$id].metrics.histograms[$hist].min == null then
-                        $sample
-                    else
-                        [.agents[$id].metrics.histograms[$hist].min, $sample] | min
-                    end
-                ) |
-                .agents[$id].metrics.histograms[$hist].max = (
-                    if .agents[$id].metrics.histograms[$hist].max == null then
-                        $sample
-                    else
-                        [.agents[$id].metrics.histograms[$hist].max, $sample] | max
-                    end
-                ) |
-                .agents[$id].metrics.histograms[$hist].avg = (
-                    .agents[$id].metrics.histograms[$hist].sum / .agents[$id].metrics.histograms[$hist].count
-                )
-            else . end
-            ' "$registry_file" > "$temp_file"; then
-        rm -f "$temp_file"
+    local lock_fd
+    exec {lock_fd}>"${registry_file}.lock" || return 1
+    if ! flock -w 5 "$lock_fd"; then
+        exec {lock_fd}>&-
         return 1
     fi
-    
-    mv "$temp_file" "$registry_file" || rm -f "$temp_file"
-    return 0
+
+    local temp_file
+    local rc=0
+    temp_file=$(agents::registry::create_temp_file "$registry_file") || rc=1
+
+    if [[ $rc -eq 0 ]]; then
+        if ! jq --arg id "$agent_id" \
+                --arg hist "$histogram_name" \
+                --argjson sample "$sample_value" \
+                '
+                if .agents[$id].metrics.histograms[$hist] then
+                    .agents[$id].metrics.histograms[$hist].count += 1 |
+                    .agents[$id].metrics.histograms[$hist].sum += $sample |
+                    .agents[$id].metrics.histograms[$hist].samples = (
+                        (.agents[$id].metrics.histograms[$hist].samples + [$sample]) | .[-100:]
+                    ) |
+                    .agents[$id].metrics.histograms[$hist].min = (
+                        if .agents[$id].metrics.histograms[$hist].min == null then
+                            $sample
+                        else
+                            [.agents[$id].metrics.histograms[$hist].min, $sample] | min
+                        end
+                    ) |
+                    .agents[$id].metrics.histograms[$hist].max = (
+                        if .agents[$id].metrics.histograms[$hist].max == null then
+                            $sample
+                        else
+                            [.agents[$id].metrics.histograms[$hist].max, $sample] | max
+                        end
+                    ) |
+                    .agents[$id].metrics.histograms[$hist].avg = (
+                        .agents[$id].metrics.histograms[$hist].sum / .agents[$id].metrics.histograms[$hist].count
+                    )
+                elif .agents[$id].metrics.histograms then
+                    .agents[$id].metrics.histograms[$hist] = {
+                        count: 1,
+                        sum: $sample,
+                        min: $sample,
+                        max: $sample,
+                        samples: [$sample],
+                        avg: $sample
+                    }
+                elif .agents[$id].metrics then
+                    .agents[$id].metrics.histograms = {
+                        ($hist): {
+                            count: 1,
+                            sum: $sample,
+                            min: $sample,
+                            max: $sample,
+                            samples: [$sample],
+                            avg: $sample
+                        }
+                    }
+                else . end
+                ' "$registry_file" > "$temp_file"; then
+            rc=1
+        fi
+    fi
+
+    if [[ $rc -eq 0 ]]; then
+        if ! mv "$temp_file" "$registry_file"; then
+            rc=1
+        fi
+    fi
+
+    [[ -n "$temp_file" && -f "$temp_file" ]] && rm -f "$temp_file"
+
+    flock -u "$lock_fd"
+    exec {lock_fd}>&-
+
+    return $rc
 }
 
 #######################################

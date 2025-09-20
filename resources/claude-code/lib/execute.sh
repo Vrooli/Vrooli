@@ -4,6 +4,24 @@
 
 APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pwd)}"
 
+claude_code::kill_children() {
+    local signal="$1"
+    local child
+
+    [[ "$signal" != SIG* ]] && signal="SIG${signal}"
+
+    if [[ -r "/proc/$$/task/$$/children" ]]; then
+        while read -r child; do
+            [[ -n "$child" ]] || continue
+            kill "-$signal" "$child" 2>/dev/null || kill "-$signal" "-$child" 2>/dev/null || true
+        done < "/proc/$$/task/$$/children"
+    else
+        for child in $(pgrep -P $$ 2>/dev/null); do
+            kill "-$signal" "$child" 2>/dev/null || kill "-$signal" "-$child" 2>/dev/null || true
+        done
+    fi
+}
+
 #######################################
 # Setup agent cleanup on signals
 # Arguments:
@@ -11,20 +29,43 @@ APP_ROOT="${APP_ROOT:-$(builtin cd "${BASH_SOURCE[0]%/*}/../../.." && builtin pw
 #######################################
 claude_code::setup_agent_cleanup() {
     local agent_id="$1"
-    
-    # Export the agent ID so trap can access it
+
     export CLAUDE_CODE_CURRENT_AGENT_ID="$agent_id"
-    
-    # Cleanup function that uses the exported variable
+    export CLAUDE_CODE_LAST_EXIT=${CLAUDE_CODE_LAST_EXIT:-1}
+
     claude_code::agent_cleanup() {
-        if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
-            agents::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1
+        local signal="${1:-EXIT}"
+        local exit_code=${CLAUDE_CODE_LAST_EXIT:-$?}
+
+        trap - EXIT SIGTERM SIGINT
+
+        if [[ "$signal" != "EXIT" ]]; then
+            claude_code::kill_children "$signal"
+
+            local sig_name="$signal"
+            [[ "$sig_name" != SIG* ]] && sig_name="SIG${sig_name}"
+            local sig_number
+            sig_number=$(kill -l "$sig_name" 2>/dev/null || echo 0)
+            if [[ "$sig_number" =~ ^[0-9]+$ && "$sig_number" -gt 0 ]]; then
+                exit_code=$((128 + sig_number))
+            fi
+        else
+            claude_code::kill_children SIGTERM
         fi
-        exit 0
+
+        wait 2>/dev/null || true
+
+        if [[ -n "${CLAUDE_CODE_CURRENT_AGENT_ID:-}" ]] && type -t agents::unregister &>/dev/null; then
+            agents::unregister "${CLAUDE_CODE_CURRENT_AGENT_ID}" >/dev/null 2>&1 || true
+        fi
+
+        unset CLAUDE_CODE_CURRENT_AGENT_ID
+        exit "$exit_code"
     }
-    
-    # Register cleanup for common signals
-    trap 'claude_code::agent_cleanup' EXIT SIGTERM SIGINT
+
+    trap 'claude_code::agent_cleanup EXIT' EXIT
+    trap 'claude_code::agent_cleanup SIGINT' SIGINT
+    trap 'claude_code::agent_cleanup SIGTERM' SIGTERM
 }
 
 #######################################
@@ -50,6 +91,8 @@ claude_code::run() {
             claude_code::setup_agent_cleanup "$agent_id"
         fi
     fi
+
+    export CLAUDE_CODE_LAST_EXIT=1
     
     # Read prompt from file or environment variable (file takes precedence for large prompts)
     if [[ -n "$PROMPT_FILE" ]] && [[ -f "$PROMPT_FILE" ]]; then
@@ -68,7 +111,8 @@ claude_code::run() {
             log::info "📡 Connected to LiteLLM backend - routing through adapter"
             # shellcheck disable=SC1090
             source "$adapter_dir/execute.sh"
-            if litellm::execute_with_fallback; then
+        if litellm::execute_with_fallback; then
+                export CLAUDE_CODE_LAST_EXIT=0
                 return 0
             else
                 log::warn "LiteLLM execution failed, falling back to native Claude"
@@ -410,16 +454,20 @@ claude_code::run() {
         
         # Cleanup temp files
         rm -f "$temp_out" "$temp_output_file" "${temp_output_file}.exit"
+        export CLAUDE_CODE_LAST_EXIT=$exit_code
         return $exit_code
     fi
-    
+
     # Cleanup temp files on success
     rm -f "$temp_output_file" "${temp_output_file}.exit"
-    
+
     # Unregister agent on success
     if [[ -n "$agent_id" ]] && type -t agents::unregister &>/dev/null; then
         agents::unregister "$agent_id" >/dev/null 2>&1
     fi
+
+    export CLAUDE_CODE_LAST_EXIT=0
+    return 0
 }
 
 #######################################
