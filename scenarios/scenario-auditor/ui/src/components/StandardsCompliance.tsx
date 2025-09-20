@@ -29,6 +29,7 @@ import { apiService } from '../services/api'
 import { Card } from './common/Card'
 import { Badge } from './common/Badge'
 import { Dialog } from './common/Dialog'
+import { VirtualizedList } from './common/VirtualizedList'
 import { AgentInfo, StandardsScanStatus, StandardsViolation } from '@/types/api'
 
 interface CompletedAgentStatus {
@@ -47,7 +48,8 @@ export default function StandardsCompliance() {
   const [showDisabledTooltip, setShowDisabledTooltip] = useState(false)
   const [activeScan, setActiveScan] = useState<{ id: string; scenario: string } | null>(null)
   const [lastScanStatus, setLastScanStatus] = useState<StandardsScanStatus | null>(null)
-  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [severityFilter, setSeverityFilter] = useState<string | null>(null)
   const [completedAgents, setCompletedAgents] = useState<Map<string, CompletedAgentStatus>>(new Map())
   const [launchingScenario, setLaunchingScenario] = useState<string | null>(null)
@@ -80,6 +82,13 @@ export default function StandardsCompliance() {
     queryKey: ['standardsViolations', selectedScenario],
     queryFn: () => apiService.getStandardsViolations(selectedScenario || undefined),
   })
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(searchInput.trim().toLowerCase())
+    }, 250)
+    return () => window.clearTimeout(handle)
+  }, [searchInput])
 
   const checkMutation = useMutation({
     mutationFn: (scenario: string) => apiService.checkStandards(scenario, { type: checkType }),
@@ -183,19 +192,20 @@ export default function StandardsCompliance() {
 
   // Filter violations based on search query and severity
   const allViolations = violations ?? []
+  const hasSearchTerm = debouncedSearch.length > 0
 
   const filteredViolations = allViolations.filter(violation => {
-    // Apply severity filter first
     if (severityFilter !== null && severityFilter !== undefined) {
       if (violation.severity !== severityFilter) {
         return false
       }
     }
-    
-    // Apply search filter
-    if (!searchQuery.trim()) return true
-    
-    const searchLower = searchQuery.toLowerCase()
+
+    if (!hasSearchTerm) {
+      return true
+    }
+
+    const searchLower = debouncedSearch
     return (
       violation.title?.toLowerCase().includes(searchLower) ||
       violation.description?.toLowerCase().includes(searchLower) ||
@@ -214,6 +224,10 @@ export default function StandardsCompliance() {
     acc[key].push(violation)
     return acc
   }, {} as Record<string, StandardsViolation[]>)
+
+  const scenarioEntries = useMemo(() =>
+    Object.entries(groupedViolations).map(([scenario, violations]) => ({ scenario, violations })),
+  [groupedViolations])
 
   const stats = allViolations.reduce(
     (acc, violation) => {
@@ -655,13 +669,16 @@ export default function StandardsCompliance() {
                 <input
                   type="text"
                   placeholder="Search violations by title, type, severity, file path, standard..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="w-full pl-10 pr-10 py-2 rounded-lg border border-dark-300 bg-white text-dark-900 placeholder-dark-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
-                {searchQuery && (
+                {searchInput && (
                   <button
-                    onClick={() => setSearchQuery('')}
+                    onClick={() => {
+                      setSearchInput('')
+                      setDebouncedSearch('')
+                    }}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-600 transition-colors"
                     aria-label="Clear search"
                   >
@@ -672,7 +689,7 @@ export default function StandardsCompliance() {
             )}
             
             {/* Filter/Search Results Info */}
-            {(searchQuery || severityFilter) && allViolations.length > 0 && (
+            {(searchInput || severityFilter) && allViolations.length > 0 && (
               <div className="mt-2 text-sm text-dark-600">
                 Showing {filteredViolations.length} of {allViolations.length} violations
                 {filteredViolations.length === 0 && (
@@ -689,160 +706,174 @@ export default function StandardsCompliance() {
               ))}
             </div>
           ) : filteredViolations.length > 0 ? (
-            <div className="space-y-4">
-              {Object.entries(groupedViolations).map(([scenario, scenarioViolations]) => {
+            <VirtualizedList
+              items={scenarioEntries}
+              getItemKey={(entry) => entry.scenario}
+              estimatedItemHeight={320}
+              overscan={4}
+              className="max-h-[65vh] pr-1"
+              renderItem={(entry) => {
+                const { scenario, violations: scenarioViolations } = entry
                 const scenarioAgent = standardsAgents.get(scenario)
                 const isLaunching = launchingScenario === scenario
                 const hasActiveAgent = Boolean(scenarioAgent)
+
                 return (
-                <div key={scenario} className="border border-dark-200 rounded-lg">
-                  <div className="bg-dark-50 px-4 py-2 border-b border-dark-200 flex items-center justify-between">
-                    <h3 className="font-medium text-dark-900">{scenario}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-dark-500">
-                        {scenarioViolations.length} violation{scenarioViolations.length !== 1 ? 's' : ''}
-                      </span>
-                      <button
-                        onClick={async () => {
-                          if (!confirm(`Trigger Claude agent to fix ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
-                            return
-                          }
+                  <div className="pb-4">
+                    <div className="border border-dark-200 rounded-lg bg-white">
+                      <div className="bg-dark-50 px-4 py-2 border-b border-dark-200 flex items-center justify-between">
+                        <h3 className="font-medium text-dark-900">{scenario}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-dark-500">
+                            {scenarioViolations.length} violation{scenarioViolations.length !== 1 ? 's' : ''}
+                          </span>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Trigger Claude agent to resolve ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
+                                return
+                              }
 
-                          setLaunchingScenario(scenario)
-                          setCompletedAgents(prev => {
-                            const updated = new Map(prev)
-                            updated.delete(scenario)
-                            return updated
-                          })
-
-                          try {
-                            const result = await apiService.triggerClaudeFix(
-                              scenario,
-                              'standards',
-                              scenarioViolations.map(v => v.id)
-                            )
-
-                            if (!result.success || !result.agent) {
+                              setLaunchingScenario(scenario)
                               setCompletedAgents(prev => {
                                 const updated = new Map(prev)
-                                updated.set(scenario, {
-                                  agentId: result.fix_id || 'unknown',
-                                  scenario,
-                                  startTime: new Date(),
-                                  status: 'failed',
-                                  message: result.error || result.message || 'Failed to start agent',
-                                })
+                                updated.delete(scenario)
                                 return updated
                               })
-                              setLaunchingScenario(null)
-                              return
-                            }
 
-                            await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
-                          } catch (error) {
-                            setCompletedAgents(prev => {
-                              const updated = new Map(prev)
-                              updated.set(scenario, {
-                                agentId: 'unknown',
-                                scenario,
-                                startTime: new Date(),
-                                status: 'failed',
-                                message: error instanceof Error ? error.message : 'Failed to trigger fix',
-                              })
-                              return updated
-                            })
-                            setLaunchingScenario(null)
-                          }
-                        }}
-                        disabled={hasActiveAgent || isLaunching}
-                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
-                        title="Fix violations with Claude agent"
-                      >
-                        {hasActiveAgent ? (
-                          <>
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Fixing... ({formatDurationSeconds(scenarioAgent?.duration_seconds)})
-                          </>
-                        ) : isLaunching ? (
-                          <>
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                            Starting...
-                          </>
-                        ) : (
-                          <>
-                            <Bot className="h-3 w-3" />
-                            Fix with AI
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  {completedAgents.get(scenario) && (
-                    <div className={clsx(
-                      "px-4 py-2 text-xs",
-                      completedAgents.get(scenario)?.status === 'completed' ? "bg-success-50 text-success-700" : "bg-danger-50 text-danger-700"
-                    )}>
-                      <div className="flex items-center justify-between">
-                        <span>{completedAgents.get(scenario)?.message}</span>
-                        <span className="text-xs opacity-75">
-                          Completed in {getElapsedTime(completedAgents.get(scenario)!.startTime)}
-                        </span>
+                              try {
+                                const result = await apiService.triggerClaudeFix(
+                                  scenario,
+                                  'standards',
+                                  scenarioViolations.map(v => v.id)
+                                )
+
+                                if (!result.success || !result.agent) {
+                                  setCompletedAgents(prev => {
+                                    const updated = new Map(prev)
+                                    updated.set(scenario, {
+                                      agentId: result.fix_id || 'unknown',
+                                      scenario,
+                                      startTime: new Date(),
+                                      status: 'failed',
+                                      message: result.error || result.message || 'Failed to start agent',
+                                    })
+                                    return updated
+                                  })
+                                  setLaunchingScenario(null)
+                                  return
+                                }
+
+                                await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
+                              } catch (error) {
+                                setCompletedAgents(prev => {
+                                  const updated = new Map(prev)
+                                  updated.set(scenario, {
+                                    agentId: 'unknown',
+                                    scenario,
+                                    startTime: new Date(),
+                                    status: 'failed',
+                                    message: error instanceof Error ? error.message : 'Failed to trigger fix',
+                                  })
+                                  return updated
+                                })
+                                setLaunchingScenario(null)
+                              }
+                            }}
+                            disabled={hasActiveAgent || isLaunching}
+                            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
+                            title="Fix violations with Claude agent"
+                          >
+                            {hasActiveAgent ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Resolving... ({formatDurationSeconds(scenarioAgent?.duration_seconds)})
+                              </>
+                            ) : isLaunching ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Starting...
+                              </>
+                            ) : (
+                              <>
+                                <Bot className="h-3 w-3" />
+                                Fix with AI
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  <div className="divide-y divide-dark-100">
-                    {scenarioViolations.map((violation, idx) => (
-                      <button
-                        key={`${violation.id}-${violation.scenario_name}-${violation.line_number}-${idx}`}
-                        onClick={() => setSelectedViolation(violation)}
-                        className="w-full px-4 py-3 hover:bg-dark-50 transition-colors text-left"
-                      >
-                        <div className="flex items-start gap-3">
-                          {getSeverityIcon(violation.severity)}
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <p className="font-medium text-dark-900">{violation.title}</p>
-                                <p className="text-sm text-dark-600 mt-1 line-clamp-2">
-                                  {violation.description}
-                                </p>
-                                <div className="flex items-center gap-4 mt-2">
-                                  <div className="flex items-center gap-1 text-xs text-dark-500">
-                                    <FileCode className="h-3 w-3" />
-                                    {violation.file_path}:{violation.line_number}
-                                  </div>
-                                  <div className="flex items-center gap-1 text-xs text-dark-500">
-                                    {getStandardIcon(violation.standard)}
-                                    {violation.standard}
-                                  </div>
-                                  <Badge variant={violation.severity === 'critical' ? 'danger' : violation.severity === 'high' ? 'warning' : 'default'} size="sm">
-                                    {violation.type}
-                                  </Badge>
-                                </div>
-                              </div>
-                              <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
-                            </div>
+                      {completedAgents.get(scenario) && (
+                        <div
+                          className={clsx(
+                            'px-4 py-2 text-xs',
+                            completedAgents.get(scenario)?.status === 'completed'
+                              ? 'bg-success-50 text-success-700'
+                              : 'bg-danger-50 text-danger-700'
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{completedAgents.get(scenario)?.message}</span>
+                            <span className="text-xs opacity-75">
+                              Completed in {getElapsedTime(completedAgents.get(scenario)!.startTime)}
+                            </span>
                           </div>
                         </div>
-                      </button>
-                    ))}
+                      )}
+                      <div className="divide-y divide-dark-100">
+                        {scenarioViolations.map((violation, idx) => (
+                          <button
+                            key={`${violation.id}-${violation.scenario_name}-${violation.line_number}-${idx}`}
+                            onClick={() => setSelectedViolation(violation)}
+                            className="w-full px-4 py-3 hover:bg-dark-50 transition-colors text-left"
+                          >
+                            <div className="flex items-start gap-3">
+                              {getSeverityIcon(violation.severity)}
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <p className="font-medium text-dark-900">{violation.title}</p>
+                                    <p className="text-sm text-dark-600 mt-1 line-clamp-2">
+                                      {violation.description}
+                                    </p>
+                                    <div className="flex items-center gap-4 mt-2">
+                                      <div className="flex items-center gap-1 text-xs text-dark-500">
+                                        <FileCode className="h-3 w-3" />
+                                        {violation.file_path}:{violation.line_number}
+                                      </div>
+                                      <div className="flex items-center gap-1 text-xs text-dark-500">
+                                        {getStandardIcon(violation.standard || violation.type || '')}
+                                        {violation.standard || violation.type || 'Standard'}
+                                      </div>
+                                      <Badge variant={violation.severity === 'critical' ? 'danger' : violation.severity === 'high' ? 'warning' : 'default'} size="sm">
+                                        {violation.type || violation.standard || 'Rule'}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <ChevronRight className="h-4 w-4 text-dark-400 flex-shrink-0" />
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
                 )
-              })}
-            </div>
+              }}
+            />
           ) : (
             <div className="text-center py-12">
-              {searchQuery || severityFilter ? (
+              {searchInput || severityFilter ? (
                 <>
                   <Search className="h-12 w-12 text-dark-400 mx-auto mb-3" />
                   <p className="text-dark-700 font-medium">No matching violations</p>
                   <p className="text-sm text-dark-500 mt-1">
-                    Try adjusting your {searchQuery ? 'search terms' : 'filters'} or clear them to see all violations
+                    Try adjusting your {searchInput ? 'search terms' : 'filters'} or clear them to see all violations
                   </p>
                   <button
                     onClick={() => {
-                      setSearchQuery('')
+                      setSearchInput('')
+                      setDebouncedSearch('')
                       setSeverityFilter(null)
                     }}
                     className="mt-3 px-4 py-2 text-sm bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"

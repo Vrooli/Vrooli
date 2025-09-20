@@ -575,12 +575,20 @@ func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string) (map[str
 
 	buckets := make(map[string][]RuleInfo)
 	active := make(map[string]RuleInfo)
+	states := ruleStateStore.GetAllStates()
 
 	for id, info := range ruleInfos {
 		if len(allowed) > 0 {
 			if _, ok := allowed[id]; !ok {
 				continue
 			}
+		}
+
+		if enabled, ok := states[id]; ok {
+			info.Enabled = enabled
+		}
+		if !info.Enabled {
+			continue
 		}
 
 		targets := info.Targets
