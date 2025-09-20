@@ -175,18 +175,20 @@ func describeFailingTests(results []TestResult) string {
 				builder.WriteString(fmt.Sprintf("    - [%s] %s\n", safeFallback(violation.Severity, "unknown"), violation.Message))
 			}
 		}
-		if result.ExecutionOutput.Method != "" {
+		if result.ExecutionOutput != nil && result.ExecutionOutput.Method != "" {
 			builder.WriteString(fmt.Sprintf("  Execution method: %s (exit_code=%d)\n", result.ExecutionOutput.Method, result.ExecutionOutput.ExitCode))
 		}
-		if trimmed := trimForPrompt(result.ExecutionOutput.Stdout); trimmed != "" {
-			builder.WriteString("  Stdout snippet:\n")
-			builder.WriteString(indentForPrompt(trimmed))
-			builder.WriteString("\n")
-		}
-		if trimmedErr := trimForPrompt(result.ExecutionOutput.Stderr); trimmedErr != "" {
-			builder.WriteString("  Stderr snippet:\n")
-			builder.WriteString(indentForPrompt(trimmedErr))
-			builder.WriteString("\n")
+		if result.ExecutionOutput != nil {
+			if trimmed := trimForPrompt(result.ExecutionOutput.Stdout); trimmed != "" {
+				builder.WriteString("  Stdout snippet:\n")
+				builder.WriteString(indentForPrompt(trimmed))
+				builder.WriteString("\n")
+			}
+			if trimmedErr := trimForPrompt(result.ExecutionOutput.Stderr); trimmedErr != "" {
+				builder.WriteString("  Stderr snippet:\n")
+				builder.WriteString(indentForPrompt(trimmedErr))
+				builder.WriteString("\n")
+			}
 		}
 		if result.Error != "" {
 			builder.WriteString(fmt.Sprintf("  Error: %s\n", result.Error))
