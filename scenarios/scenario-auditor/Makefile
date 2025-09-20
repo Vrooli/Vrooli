@@ -110,16 +110,7 @@ run:
 
 stop:
 	@echo "🛑 Stopping Scenario Auditor..."
-	@if [ -f api.pid ]; then \
-		kill `cat api.pid` 2>/dev/null || true; \
-		rm -f api.pid; \
-	fi
-	@if [ -f ui.pid ]; then \
-		kill `cat ui.pid` 2>/dev/null || true; \
-		rm -f ui.pid; \
-	fi
-	@pkill -f "scenario-auditor-api" 2>/dev/null || true
-	@pkill -f "vite.*scenario-auditor" 2>/dev/null || true
+	@vrooli scenario stop scenario-auditor || true
 	@echo "✅ Stopped"
 
 logs:

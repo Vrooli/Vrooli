@@ -11,6 +11,7 @@
 # VERSION: 1.0
 
 set -euo pipefail
+trap 'status=$?; if [[ $status -eq 141 ]]; then exit 0; fi' EXIT
 
 # Configuration
 SCRIPT_NAME="cpu-usage-comprehensive"

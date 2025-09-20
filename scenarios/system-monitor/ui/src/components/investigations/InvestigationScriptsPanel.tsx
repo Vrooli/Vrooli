@@ -12,9 +12,12 @@ interface InvestigationScriptsPanelProps {
 export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false, searchFilter = '' }: InvestigationScriptsPanelProps) => {
   const [scripts, setScripts] = useState<InvestigationScript[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const visibleScripts = scripts.filter(script => script.enabled !== false);
 
   // Filter scripts based on search
-  const filteredScripts = scripts.filter(script => {
+  const filteredScripts = visibleScripts.filter(script => {
     if (!searchFilter) return true;
     const searchLower = searchFilter.toLowerCase();
     return script.name.toLowerCase().includes(searchLower) ||
@@ -25,36 +28,21 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
 
   const loadScripts = async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
-      // TODO: Implement API call to load scripts
-      // For now, show placeholder data
-      setTimeout(() => {
-        setScripts([
-          {
-            id: 'high-cpu-analysis',
-            name: 'High CPU Analysis',
-            description: 'Analyzes processes consuming high CPU resources',
-            category: 'performance',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            author: 'system',
-            enabled: true
-          },
-          {
-            id: 'process-genealogy',
-            name: 'Process Genealogy',
-            description: 'Traces process parent-child relationships',
-            category: 'process-analysis',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            author: 'system',
-            enabled: true
-          }
-        ]);
-        setLoading(false);
-      }, 1000);
+      const response = await fetch('/api/investigations/scripts');
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const loadedScripts: InvestigationScript[] = Array.isArray(data.scripts) ? data.scripts : [];
+      setScripts(loadedScripts);
     } catch (error) {
       console.error('Failed to load scripts:', error);
+      setScripts([]);
+      setErrorMessage(error instanceof Error ? error.message : 'Unknown error');
+    } finally {
       setLoading(false);
     }
   };
@@ -67,94 +55,22 @@ export const InvestigationScriptsPanel = ({ onOpenScriptEditor, embedded = false
     onOpenScriptEditor(undefined, '', 'create');
   };
 
-  const getScriptContent = (scriptId: string): string => {
-    // Mock script content - in real implementation, this would come from API
-    const scriptContents: Record<string, string> = {
-      'high-cpu-analysis': `#!/bin/bash
-# High CPU Analysis Script
-# Analyzes processes consuming high CPU resources
-
-echo "=== High CPU Analysis Report ==="
-echo "Generated at: $(date)"
-echo ""
-
-echo "Top 10 CPU-consuming processes:"
-ps aux --sort=-%cpu | head -11
-
-echo ""
-echo "CPU usage by user:"
-ps -eo user,%cpu --no-headers | awk '{cpu[$1]+=$2} END {for (u in cpu) printf("%-15s %.1f%%\\n", u, cpu[u])}' | sort -k2 -nr
-
-echo ""
-echo "Load average:"
-uptime
-
-echo ""
-echo "CPU cores and current frequency:"
-lscpu | grep -E "(CPU\\(s\\)|Core\\(s\\)|Thread\\(s\\)|CPU MHz)"
-
-echo ""
-echo "Context switches per second:"
-grep ctxt /proc/stat
-
-echo ""
-echo "Interrupts per second:"
-grep intr /proc/stat
-
-echo ""
-echo "Analysis complete."`,
-
-      'process-genealogy': `#!/bin/bash
-# Process Genealogy Script
-# Traces process parent-child relationships
-
-echo "=== Process Genealogy Report ==="
-echo "Generated at: $(date)"
-echo ""
-
-echo "Process tree (showing all processes):"
-pstree -p
-
-echo ""
-echo "Process hierarchy with CPU and memory usage:"
-ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu | head -20
-
-echo ""
-echo "Processes by session ID:"
-ps -eo pid,sid,cmd | sort -k2 -n
-
-echo ""
-echo "Process groups:"
-ps -eo pid,pgid,cmd | sort -k2 -n
-
-echo ""
-echo "Orphaned processes (PPID = 1):"
-ps -eo pid,ppid,cmd | awk '$2 == 1 && $1 != 1 {print}'
-
-echo ""
-echo "Zombie processes:"
-ps aux | awk '$8 ~ /^Z/ {print}'
-
-echo ""
-echo "Analysis complete."`
-    };
-
-    return scriptContents[scriptId] || `#!/bin/bash
-# Investigation Script: ${scriptId}
-# Add your investigation logic here
-
-echo "Starting investigation..."
-echo "Script ID: ${scriptId}"
-echo "Timestamp: $(date)"
-
-# Add your commands here
-
-echo "Investigation complete."`;
-  };
-
   const openScript = async (script: InvestigationScript) => {
-    const content = getScriptContent(script.id);
-    onOpenScriptEditor(script, content, 'view');
+    try {
+      const response = await fetch(`/api/investigations/scripts/${encodeURIComponent(script.id)}`);
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const scriptContent = typeof data.content === 'string' ? data.content : '';
+      const scriptMetadata: InvestigationScript = data.script ?? script;
+
+      onOpenScriptEditor(scriptMetadata, scriptContent, 'view');
+    } catch (error) {
+      console.error('Failed to load script:', error);
+      alert(`Failed to load script: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   // If embedded, render without header
@@ -163,7 +79,18 @@ echo "Investigation complete."`;
       <div className="investigation-scripts-list">
         {loading ? (
           <LoadingSkeleton variant="list" count={3} />
-        ) : scripts.length === 0 ? (
+        ) : errorMessage ? (
+          <div style={{
+            textAlign: 'center',
+            color: 'var(--color-warning)',
+            padding: 'var(--spacing-lg)',
+            fontSize: 'var(--font-size-sm)'
+          }}>
+            FAILED TO LOAD SCRIPTS
+            <br />
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
+          </div>
+        ) : visibleScripts.length === 0 ? (
           <div style={{
             textAlign: 'center',
             color: 'var(--color-text-dim)',
@@ -281,7 +208,18 @@ echo "Investigation complete."`;
       <div className="investigation-scripts-list">
         {loading ? (
           <LoadingSkeleton variant="list" count={3} />
-        ) : scripts.length === 0 ? (
+        ) : errorMessage ? (
+          <div style={{
+            textAlign: 'center',
+            color: 'var(--color-warning)',
+            padding: 'var(--spacing-lg)',
+            fontSize: 'var(--font-size-sm)'
+          }}>
+            FAILED TO LOAD SCRIPTS
+            <br />
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-dim)' }}>{errorMessage}</span>
+          </div>
+        ) : visibleScripts.length === 0 ? (
           <div style={{
             textAlign: 'center',
             color: 'var(--color-text-dim)',

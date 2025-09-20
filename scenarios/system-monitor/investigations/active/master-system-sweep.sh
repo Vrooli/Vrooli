@@ -11,12 +11,14 @@
 # VERSION: 1.0
 # NOTE: Uses manifest tags to locate scripts tagged "core"
 
+QUIET_MODE=${MASTER_SWEEP_QUIET:-1}
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MANIFEST="$(cd "${SCRIPT_DIR}/.." && pwd)/manifest.json"
 RESULTS_ROOT="${SCRIPT_DIR}/../results"
 SWEEP_ID="$(date +%Y%m%d_%H%M%S)_master-system-sweep"
+export SWEEP_ID
 OUTPUT_DIR="${RESULTS_ROOT}/${SWEEP_ID}"
 SUMMARY_FILE="${OUTPUT_DIR}/summary.json"
 mkdir -p "${OUTPUT_DIR}"
@@ -33,7 +35,10 @@ if [[ -z "${DEFAULT_TIMEOUT}" || "${DEFAULT_TIMEOUT}" == "null" ]]; then
 fi
 
 # Collect scripts tagged as core and enabled
-mapfile -t CORE_SCRIPTS < <(jq -r '.scripts | to_entries[] | select((.value.tags // []) | index("core")) | select((.value.enabled // true) == true) | .key' "${MANIFEST}")
+mapfile -t CORE_SCRIPTS < <(jq -r '.scripts | to_entries[]
+  | select((.value.tags // []) | index("core"))
+  | select((.value | has("enabled") | not) or (.value.enabled == true))
+  | .key' "${MANIFEST}")
 
 if [[ ${#CORE_SCRIPTS[@]} -eq 0 ]]; then
   echo "No core scripts defined in manifest" >&2
@@ -47,6 +52,10 @@ jq -n '{
   failures: []
 }' > "${SUMMARY_FILE}"
 
+list_results_dirs() {
+  find "${RESULTS_ROOT}" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null | sort
+}
+
 run_script() {
   local script_id="$1"
   local script_meta_json
@@ -57,18 +66,15 @@ run_script() {
   fi
 
   local script_path="${SCRIPT_DIR}/${script_id}.sh"
-  if [[ ! -x "${script_path}" ]]; then
-    if [[ -f "${script_path}" ]]; then
-      chmod +x "${script_path}" 2>/dev/null || true
-    fi
-  fi
-  if [[ ! -x "${script_path}" ]]; then
-    echo "Script ${script_id} not executable" >&2
+  if [[ ! -f "${script_path}" ]]; then
+    echo "Script ${script_id} missing at ${script_path}" >&2
+    jq --arg id "${script_id}" \
+       '.failures += [{ id: $id, error: "missing_script" }]' "${SUMMARY_FILE}" > "${SUMMARY_FILE}.tmp" && mv "${SUMMARY_FILE}.tmp" "${SUMMARY_FILE}"
     return 1
   fi
 
   local timeout_override
-  timeout_override=$(jq -r '.execution_time_estimate' <<<"${script_meta}")
+  timeout_override=$(jq -r '.execution_time_estimate' <<<"${script_meta_json}")
   local timeout_seconds="${DEFAULT_TIMEOUT}"
   if [[ -n "${timeout_override}" && "${timeout_override}" != "null" ]]; then
     # Convert values like "45s" or "2m"
@@ -90,7 +96,12 @@ run_script() {
   local start_ts start_epoch
   start_ts=$(date -Iseconds)
   start_epoch=$(date +%s)
-  if timeout "${timeout_seconds}" bash "${script_path}" >"${stdout_log}" 2>"${stderr_log}"; then
+  mapfile -t before_dirs < <(list_results_dirs)
+  local run_exit=0
+  if (
+    cd "${SCRIPT_DIR}"
+    timeout "${timeout_seconds}" bash "./${script_id}.sh"
+  ) >"${stdout_log}" 2>"${stderr_log}"; then
     local end_ts end_epoch duration
     end_ts=$(date -Iseconds)
     end_epoch=$(date +%s)
@@ -98,7 +109,7 @@ run_script() {
     jq --arg id "${script_id}" \
        --arg start "${start_ts}" \
        --arg end "${end_ts}" \
-       --argjson duration ${duration:-0} \
+       --argjson duration "${duration:-0}" \
        --arg stdout "${stdout_log}" \
        --arg stderr "${stderr_log}" \
        --argjson meta "${script_meta_json}" \
@@ -113,7 +124,6 @@ run_script() {
           stderr_log: $stderr
         }]' "${SUMMARY_FILE}" > "${SUMMARY_FILE}.tmp" && mv "${SUMMARY_FILE}.tmp" "${SUMMARY_FILE}"
     echo "✓ ${script_id} completed"
-    return 0
   else
     local exit_code=$?
     local end_ts end_epoch duration
@@ -124,7 +134,7 @@ run_script() {
     jq --arg id "${script_id}" \
        --arg start "${start_ts}" \
        --arg end "${end_ts}" \
-       --argjson duration ${duration:-0} \
+       --argjson duration "${duration:-0}" \
        --arg exit_code "${exit_code}" \
        --arg stderr "${stderr_log}" \
        '.failures += [{
@@ -135,15 +145,30 @@ run_script() {
           exit_code: ($exit_code | tonumber?),
           stderr_log: $stderr
         }]' "${SUMMARY_FILE}" > "${SUMMARY_FILE}.tmp" && mv "${SUMMARY_FILE}.tmp" "${SUMMARY_FILE}"
-    return 1
+    run_exit=1
   fi
+
+  if [[ ${QUIET_MODE} -ne 0 ]]; then
+    mapfile -t after_dirs < <(list_results_dirs)
+    comm -13 <(printf '%s\n' "${before_dirs[@]}" | sort) <(printf '%s\n' "${after_dirs[@]}" | sort) | while read -r new_dir; do
+      [[ -n "${new_dir}" ]] && rm -rf "${RESULTS_ROOT}/${new_dir}" 2>/dev/null || true
+    done
+  fi
+
+  return ${run_exit}
 }
 
 for script_id in "${CORE_SCRIPTS[@]}"; do
   run_script "${script_id}" || true
   # Push stdout snippet to console for quick awareness
-  tail -n 10 "${OUTPUT_DIR}/${script_id}/stdout.log" 2>/dev/null || true
+  if [[ ${QUIET_MODE} -eq 0 ]]; then
+    tail -n 10 "${OUTPUT_DIR}/${script_id}/stdout.log" 2>/dev/null || true
+  fi
 done
 
 echo "📦 Sweep complete. Summary: ${SUMMARY_FILE}"
 cat "${SUMMARY_FILE}"
+
+if [[ ${QUIET_MODE} -ne 0 && -d "${OUTPUT_DIR}" ]]; then
+  rm -rf "${OUTPUT_DIR}"
+fi

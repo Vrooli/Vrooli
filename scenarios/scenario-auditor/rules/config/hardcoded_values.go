@@ -19,10 +19,10 @@ Standard: configuration-v1
 func connectDB() *sql.DB {
     password := "super_secret_password_123"
     apiKey := "sk-1234567890abcdef"
-    
+
     connStr := fmt.Sprintf("postgres://user:%s@localhost/db", password)
     headers["API_KEY"] = apiKey
-    
+
     return sql.Open("postgres", connStr)
 }
   </input>
@@ -37,7 +37,7 @@ func setupServer() {
     serverAddr := "localhost:8080"
     apiURL := "https://api.production.com/v1"
     dbHost := "192.168.1.100"
-    
+
     http.ListenAndServe(":3000", nil)
 }
   </input>
@@ -53,11 +53,11 @@ func setupConfig() {
     if port == "" {
         port = "8080" // Default fallback is acceptable
     }
-    
+
     dbPassword := os.Getenv("DB_PASSWORD")
     apiKey := os.Getenv("API_KEY")
     apiURL := os.Getenv("API_URL")
-    
+
     if dbPassword == "" || apiKey == "" {
         log.Fatal("Required environment variables not set")
     }
@@ -80,7 +80,7 @@ func loadConfig() (*Config, error) {
         return nil, err
     }
     defer file.Close()
-    
+
     var config Config
     decoder := json.NewDecoder(file)
     return &config, decoder.Decode(&config)
@@ -93,73 +93,106 @@ func loadConfig() (*Config, error) {
 func CheckHardcodedValues(content []byte, filePath string) []Violation {
 	var violations []Violation
 	contentStr := string(content)
-	
+
 	// Skip test files and migrations
-	if strings.HasSuffix(filePath, "_test.go") || 
-	   strings.Contains(filePath, "migration") {
+	if strings.HasSuffix(filePath, "_test.go") ||
+		strings.Contains(filePath, "migration") {
 		return violations
 	}
-	
+
 	lines := strings.Split(contentStr, "\n")
-	
+
 	// Patterns to detect hardcoded values
-	patterns := map[string]*regexp.Regexp{
-		"hardcoded_port":     regexp.MustCompile(`:(\d{4,5})["\s]`),
-		"hardcoded_localhost": regexp.MustCompile(`localhost:(\d+)`),
-		"hardcoded_ip":      regexp.MustCompile(`\d+\.\d+\.\d+\.\d+`),
-		"hardcoded_url":     regexp.MustCompile(`https?://[^\s"]+`),
-		"hardcoded_password": regexp.MustCompile(`(?i)(password|passwd|pwd|secret|token|key)\s*[:=]\s*"[^"]+"`),
-		"hardcoded_api_key": regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*[:=]\s*"[^"]+"`),
+	type patternDef struct {
+		name     string
+		re       *regexp.Regexp
+		severity string
 	}
-	
-	severityMap := map[string]string{
-		"hardcoded_password": "critical",
-		"hardcoded_api_key":  "critical",
-		"hardcoded_port":     "medium",
-		"hardcoded_localhost": "medium",
-		"hardcoded_ip":       "high",
-		"hardcoded_url":      "medium",
+
+	patterns := []patternDef{
+		{
+			name:     "hardcoded_password",
+			re:       regexp.MustCompile(`(?i)(password|passwd|pwd|secret|token|key)\s*(?::=|=|:=)\s*"[^"]+"`),
+			severity: "critical",
+		},
+		{
+			name:     "hardcoded_api_key",
+			re:       regexp.MustCompile(`(?i)(api[_-]?key|apikey)\s*(?::=|=|:=)\s*"[^"]+"`),
+			severity: "critical",
+		},
+		{
+			name:     "hardcoded_localhost",
+			re:       regexp.MustCompile(`localhost:\d+`),
+			severity: "medium",
+		},
+		{
+			name:     "hardcoded_port",
+			re:       regexp.MustCompile(`:\d{4,5}`),
+			severity: "medium",
+		},
+		{
+			name:     "hardcoded_ip",
+			re:       regexp.MustCompile(`\b\d{1,3}(?:\.\d{1,3}){3}\b`),
+			severity: "high",
+		},
+		{
+			name:     "hardcoded_url",
+			re:       regexp.MustCompile(`https?://[^\s"']+`),
+			severity: "medium",
+		},
 	}
-	
+
+	lineMatches := make(map[int]map[string]bool)
+
 	for i, line := range lines {
 		// Skip comments and strings in logs
-		if strings.TrimSpace(line) == "" || 
-		   strings.HasPrefix(strings.TrimSpace(line), "//") ||
-		   strings.Contains(line, "fmt.") ||
-		   strings.Contains(line, "log.") {
+		if strings.TrimSpace(line) == "" ||
+			strings.HasPrefix(strings.TrimSpace(line), "//") ||
+			strings.Contains(line, "fmt.") ||
+			strings.Contains(line, "log.") {
 			continue
 		}
-		
-		for patternName, pattern := range patterns {
-			if pattern.MatchString(line) {
-				// Special cases to ignore
-				if patternName == "hardcoded_ip" && strings.Contains(line, "127.0.0.1") {
-					continue // Localhost IP is often acceptable in examples
-				}
-				if patternName == "hardcoded_url" && 
-				   (strings.Contains(line, "example.com") || 
-				    strings.Contains(line, "localhost")) {
-					continue // Example URLs are acceptable
-				}
-				
-				severity := severityMap[patternName]
-				title := strings.ReplaceAll(patternName, "_", " ")
-				title = strings.Title(title)
-				
-				violations = append(violations, Violation{
-					Type:        "hardcoded_values",
-					Severity:    severity,
-					Title:       title,
-					Description: "Hardcoded value detected that should be configurable",
-					FilePath:    filePath,
-					LineNumber:  i + 1,
-					CodeSnippet: line,
-					Recommendation: "Move to environment variable or configuration file",
-					Standard:    "configuration-v1",
-				})
+
+		for _, pattern := range patterns {
+			if pattern.name == "hardcoded_port" && strings.Contains(line, "localhost:") {
+				continue
 			}
+			if !pattern.re.MatchString(line) {
+				continue
+			}
+
+			// Ignore benign examples
+			if pattern.name == "hardcoded_url" && (strings.Contains(line, "example.com") || strings.Contains(line, "localhost")) {
+				continue
+			}
+			if pattern.name == "hardcoded_ip" && strings.Contains(line, "127.0.0.1") {
+				continue
+			}
+
+			if _, ok := lineMatches[i]; !ok {
+				lineMatches[i] = make(map[string]bool)
+			}
+			if lineMatches[i][pattern.name] {
+				continue
+			}
+			lineMatches[i][pattern.name] = true
+
+			title := strings.ReplaceAll(pattern.name, "_", " ")
+			title = strings.Title(title)
+
+			violations = append(violations, Violation{
+				Type:           "hardcoded_values",
+				Severity:       pattern.severity,
+				Title:          title,
+				Description:    "Hardcoded value detected that should be configurable",
+				FilePath:       filePath,
+				LineNumber:     i + 1,
+				CodeSnippet:    line,
+				Recommendation: "Move to environment variable or configuration file",
+				Standard:       "configuration-v1",
+			})
 		}
 	}
-	
+
 	return violations
 }

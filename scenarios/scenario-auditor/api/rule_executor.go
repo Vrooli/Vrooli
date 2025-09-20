@@ -6,14 +6,16 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/traefik/yaegi/interp"
 	"github.com/traefik/yaegi/stdlib"
 )
+
+var errorType = reflect.TypeOf((*error)(nil)).Elem()
 
 // RuleImplementationStatus captures whether a rule implementation was loaded successfully.
 type RuleImplementationStatus struct {
@@ -49,6 +51,19 @@ func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string) ([]Viol
 		return nil, nil
 	}
 
+	var callErr error
+	if len(results) > 1 {
+		if last := results[1]; last.IsValid() && last.Type().Implements(errorType) {
+			if !last.IsNil() {
+				callErr = last.Interface().(error)
+			}
+		}
+	}
+
+	if callErr != nil {
+		return nil, callErr
+	}
+
 	return convertInterpreterResult(results[0], e.ruleID, e.category)
 }
 
@@ -63,9 +78,9 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 		return nil, status
 	}
 
-	fnName := discoverRuleFunction(file)
-	if fnName == "" {
-		status.Error = "no exported Check* function found"
+	symbol := discoverRuleSymbol(file)
+	if symbol.FuncName == "" {
+		status.Error = "no exported Check function found"
 		return nil, status
 	}
 
@@ -74,37 +89,48 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 	interpreter := interp.New(interp.Options{})
 	interpreter.Use(stdlib.Symbols)
 
-	dir := filepath.Dir(rule.FilePath)
-	matches, _ := filepath.Glob(filepath.Join(dir, "*.go"))
-	sort.Strings(matches)
-
-	for _, candidate := range matches {
-		if strings.HasSuffix(candidate, "_test.go") {
-			continue
-		}
-		if _, err := interpreter.EvalPath(candidate); err != nil {
-			status.Error = fmt.Sprintf("failed to load %s: %v", filepath.Base(candidate), err)
+	typesPath := filepath.Join(filepath.Dir(filepath.Dir(rule.FilePath)), "types.go")
+	if _, err := os.Stat(typesPath); err == nil {
+		if _, err := interpreter.EvalPath(typesPath); err != nil {
+			status.Error = fmt.Sprintf("failed to load types.go: %v", err)
 			return nil, status
 		}
 	}
 
-	symbolName := fmt.Sprintf("%s.%s", pkgName, fnName)
-	value, err := interpreter.Eval(symbolName)
-	if err != nil {
-		status.Error = fmt.Sprintf("failed to resolve %s: %v", symbolName, err)
+	candidate := filepath.Clean(rule.FilePath)
+	if _, err := interpreter.EvalPath(candidate); err != nil {
+		status.Error = fmt.Sprintf("failed to load %s: %v", filepath.Base(candidate), err)
 		return nil, status
 	}
 
-	if value.Kind() != reflect.Func {
-		status.Error = fmt.Sprintf("%s is not a function", symbolName)
+	wrapperName := fmt.Sprintf("__rule_wrapper_%s", rule.ID)
+	wrapperCode, err := buildWrapperCode(wrapperName, pkgName, symbol)
+	if err != nil {
+		status.Error = err.Error()
+		return nil, status
+	}
+
+	if _, err := interpreter.Eval(wrapperCode); err != nil {
+		status.Error = fmt.Sprintf("failed to build wrapper: %v", err)
+		return nil, status
+	}
+
+	callableValue, err := interpreter.Eval(wrapperName)
+	if err != nil {
+		status.Error = fmt.Sprintf("failed to resolve wrapper: %v", err)
+		return nil, status
+	}
+
+	if callableValue.Kind() != reflect.Func {
+		status.Error = fmt.Sprintf("wrapper for %s is not callable", symbol.FuncName)
 		return nil, status
 	}
 
 	status.Valid = true
-	status.Details = fmt.Sprintf("Loaded %s.%s", pkgName, fnName)
+	status.Details = fmt.Sprintf("Loaded %s.%s", pkgName, symbol.FuncName)
 
 	executor := &dynamicGoRuleExecutor{
-		fn:       value,
+		fn:       callableValue,
 		ruleID:   rule.ID,
 		category: rule.Category,
 	}
@@ -112,17 +138,163 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 	return executor, status
 }
 
-func discoverRuleFunction(file *ast.File) string {
+func buildWrapperCode(wrapperName, pkgName string, symbol ruleSymbol) (string, error) {
+	var setup []string
+	var callTarget string
+
+	if symbol.ReceiverName != "" {
+		constructor := fmt.Sprintf("%s.%s{}", pkgName, symbol.ReceiverName)
+		if symbol.PointerReceiver {
+			constructor = "&" + constructor
+		}
+		setup = append(setup, fmt.Sprintf("rule := %s", constructor))
+	}
+
+	args := []string{}
+	switch symbol.ContentParam {
+	case paramBytes:
+		args = append(args, "content")
+	case paramString:
+		args = append(args, "string(content)")
+	}
+	if symbol.HasPathParam {
+		args = append(args, "filepath")
+	}
+
+	if symbol.ReceiverName != "" {
+		callTarget = fmt.Sprintf("rule.%s(%s)", symbol.FuncName, strings.Join(args, ", "))
+	} else {
+		callTarget = fmt.Sprintf("%s.%s(%s)", pkgName, symbol.FuncName, strings.Join(args, ", "))
+	}
+
+	if symbol.ContentParam == paramNone {
+		setup = append(setup, "_ = content")
+	}
+	if !symbol.HasPathParam {
+		setup = append(setup, "_ = filepath")
+	}
+
+	var body []string
+	body = append(body, setup...)
+
+	if symbol.ReturnsValue {
+		if symbol.ReturnsError {
+			body = append(body, fmt.Sprintf("result, err := %s", callTarget))
+			body = append(body, "if err != nil {", "return nil, err", "}")
+			body = append(body, "return result, nil")
+		} else {
+			body = append(body, fmt.Sprintf("result := %s", callTarget))
+			body = append(body, "return result, nil")
+		}
+	} else {
+		if symbol.ReturnsError {
+			body = append(body, fmt.Sprintf("_, err := %s", callTarget))
+			body = append(body, "return nil, err")
+		} else {
+			body = append(body, callTarget)
+			body = append(body, "return nil, nil")
+		}
+	}
+
+	code := fmt.Sprintf("var %s = func(content []byte, filepath string) (interface{}, error) {\n%s\n}", wrapperName, strings.Join(body, "\n"))
+	return code, nil
+}
+
+type ruleSymbol struct {
+	FuncName        string
+	ReceiverName    string
+	PointerReceiver bool
+	ContentParam    paramKind
+	HasPathParam    bool
+	ReturnsValue    bool
+	ReturnsError    bool
+}
+
+type paramKind int
+
+const (
+	paramNone paramKind = iota
+	paramBytes
+	paramString
+)
+
+func discoverRuleSymbol(file *ast.File) ruleSymbol {
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Name == nil {
 			continue
 		}
-		if fn.Name.IsExported() && strings.HasPrefix(fn.Name.Name, "Check") {
-			return fn.Name.Name
+		if !fn.Name.IsExported() || !strings.HasPrefix(fn.Name.Name, "Check") {
+			continue
+		}
+
+		symbol := ruleSymbol{FuncName: fn.Name.Name}
+
+		if fn.Recv != nil && len(fn.Recv.List) > 0 {
+			receiver := fn.Recv.List[0]
+			switch expr := receiver.Type.(type) {
+			case *ast.StarExpr:
+				if ident, ok := expr.X.(*ast.Ident); ok {
+					symbol.ReceiverName = ident.Name
+					symbol.PointerReceiver = true
+				}
+			case *ast.Ident:
+				symbol.ReceiverName = expr.Name
+			}
+		}
+
+		if fn.Type.Params != nil && len(fn.Type.Params.List) > 0 {
+			params := fn.Type.Params.List
+			if len(params) >= 1 {
+				symbol.ContentParam = classifyParam(params[0])
+				if symbol.ContentParam == paramNone && len(params) == 1 {
+					// treat single string parameter as path argument
+					symbol.HasPathParam = true
+				}
+			}
+			if len(params) >= 2 {
+				if classifyParam(params[1]) == paramString {
+					symbol.HasPathParam = true
+				}
+			} else if len(params) == 1 && symbol.ContentParam != paramNone {
+				// only content parameter supplied, no filepath
+			}
+		}
+
+		if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
+			symbol.ReturnsValue = true
+			results := fn.Type.Results.List
+			last := results[len(results)-1]
+			if isErrorType(last.Type) {
+				symbol.ReturnsError = true
+				if len(results) == 1 {
+					symbol.ReturnsValue = false
+				}
+			}
+		}
+
+		return symbol
+	}
+	return ruleSymbol{}
+}
+
+func classifyParam(field *ast.Field) paramKind {
+	switch expr := field.Type.(type) {
+	case *ast.ArrayType:
+		if ident, ok := expr.Elt.(*ast.Ident); ok && ident.Name == "byte" {
+			return paramBytes
+		}
+	case *ast.Ident:
+		if expr.Name == "string" {
+			return paramString
 		}
 	}
-	return ""
+	return paramNone
+}
+
+func isErrorType(expr ast.Expr) bool {
+	ident, ok := expr.(*ast.Ident)
+	return ok && ident.Name == "error"
 }
 
 func convertInterpreterResult(value reflect.Value, ruleID, category string) ([]Violation, error) {

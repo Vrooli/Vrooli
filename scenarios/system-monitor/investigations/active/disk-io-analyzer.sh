@@ -9,6 +9,7 @@
 # CREATED: 2025-09-11
 # LAST_MODIFIED: 2025-09-11
 # VERSION: 1.0
+trap 'status=$?; if [[ $status -eq 141 ]]; then exit 0; fi' EXIT
 
 set -euo pipefail
 

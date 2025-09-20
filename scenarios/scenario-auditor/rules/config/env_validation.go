@@ -75,44 +75,48 @@ type EnvValidationRule struct{}
 // Check analyzes code for proper environment variable handling
 func (r *EnvValidationRule) Check(content string, filepath string) ([]Violation, error) {
 	var violations []Violation
-	
+
 	// Skip if no environment variable usage
 	if !strings.Contains(content, "os.Getenv") {
 		return violations, nil
 	}
-	
+
 	lines := strings.Split(content, "\n")
-	
+
 	for i, line := range lines {
 		// Check for os.Getenv usage
 		if strings.Contains(line, "os.Getenv(") {
 			envVarLine := i
 			varName := extractEnvVarName(line)
-			
+
 			// Check if the variable is validated (simple heuristic)
 			hasValidation := false
 			sensitiveVar := isSensitiveVar(varName)
-			
+
 			// Look ahead for validation (next 5 lines)
-			for j := i + 1; j < len(lines) && j < i+6; j++ {
-				nextLine := lines[j]
-				// Check for empty string validation
-				if strings.Contains(nextLine, `== ""`) || 
-				   strings.Contains(nextLine, `!= ""`) ||
-				   strings.Contains(nextLine, "log.Fatal") ||
-				   strings.Contains(nextLine, "panic") {
-					hasValidation = true
-					break
+			for j := i + 1; j < len(lines) && j < i+8; j++ {
+				nextLine := strings.TrimSpace(lines[j])
+				if nextLine == "" {
+					continue
+				}
+
+				lower := strings.ToLower(nextLine)
+				containsVar := strings.Contains(nextLine, varName) || strings.Contains(lower, strings.ToLower(varName))
+				if strings.HasPrefix(lower, "if") && containsVar {
+					if strings.Contains(nextLine, `== ""`) || strings.Contains(nextLine, `== ''`) || strings.Contains(nextLine, "len("+varName+") == 0") || strings.Contains(nextLine, "len("+strings.ToLower(varName)+") == 0") {
+						hasValidation = true
+						break
+					}
 				}
 			}
-			
+
 			// Check if it's being logged (potential security issue)
 			if sensitiveVar {
 				for j := i; j < len(lines) && j < i+10; j++ {
-					if strings.Contains(lines[j], "log.") || 
-					   strings.Contains(lines[j], "fmt.Print") {
-						if strings.Contains(lines[j], varName) || 
-						   (j == i && strings.Contains(lines[j], "os.Getenv")) {
+					if strings.Contains(lines[j], "log.") ||
+						strings.Contains(lines[j], "fmt.Print") {
+						if strings.Contains(lines[j], varName) ||
+							(j == i && strings.Contains(lines[j], "os.Getenv")) {
 							violations = append(violations, Violation{
 								RuleID:   "env_validation",
 								Severity: "high",
@@ -124,31 +128,20 @@ func (r *EnvValidationRule) Check(content string, filepath string) ([]Violation,
 					}
 				}
 			}
-			
+
 			// Check for missing validation
-			if !hasValidation && !strings.Contains(line, `if`) {
-				// Check if there's a default value pattern
-				hasDefault := false
-				for j := i; j < len(lines) && j < i+3; j++ {
-					if strings.Contains(lines[j], `if`) && strings.Contains(lines[j], `== ""`) {
-						hasDefault = true
-						break
-					}
-				}
-				
-				if !hasDefault {
-					violations = append(violations, Violation{
-						RuleID:   "env_validation",
-						Severity: "medium",
-						Message:  "Environment variable used without validation: " + varName,
-						File:     filepath,
-						Line:     envVarLine + 1,
-					})
-				}
+			if !hasValidation {
+				violations = append(violations, Violation{
+					RuleID:   "env_validation",
+					Severity: "medium",
+					Message:  "Environment variable used without validation: " + varName,
+					File:     filepath,
+					Line:     envVarLine + 1,
+				})
 			}
 		}
 	}
-	
+
 	return violations, nil
 }
 
@@ -160,7 +153,7 @@ func extractEnvVarName(line string) string {
 	if start == -1 {
 		return "UNKNOWN"
 	}
-	
+
 	end := strings.Index(line[start+1:], `"`)
 	if end == -1 {
 		end = strings.Index(line[start+1:], `'`)
@@ -168,7 +161,7 @@ func extractEnvVarName(line string) string {
 	if end == -1 {
 		return "UNKNOWN"
 	}
-	
+
 	return line[start+1 : start+1+end]
 }
 
@@ -177,14 +170,14 @@ func isSensitiveVar(name string) bool {
 		"PASSWORD", "SECRET", "KEY", "TOKEN", "API_KEY", "PRIVATE",
 		"CREDENTIAL", "AUTH", "CERTIFICATE", "CERT",
 	}
-	
+
 	upperName := strings.ToUpper(name)
 	for _, s := range sensitive {
 		if strings.Contains(upperName, s) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

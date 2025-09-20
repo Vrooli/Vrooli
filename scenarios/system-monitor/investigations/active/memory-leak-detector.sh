@@ -7,129 +7,149 @@
 # OUTPUTS: json
 # AUTHOR: claude-agent
 # CREATED: 2025-09-14
-# LAST_MODIFIED: 2025-09-14
-# VERSION: 1.0
+# LAST_MODIFIED: 2025-09-20
+# VERSION: 1.1
 
 set -euo pipefail
 
-# Configuration
 SCRIPT_NAME="memory-leak-detector"
 OUTPUT_DIR="../results/$(date +%Y%m%d_%H%M%S)_${SCRIPT_NAME}"
-TIMEOUT_SECONDS=60
-MEMORY_THRESHOLD=1000  # MB
-
-# Create output directory
+RESULTS_FILE="${OUTPUT_DIR}/results.json"
 mkdir -p "${OUTPUT_DIR}"
 
-# Initialize results
-RESULTS_FILE="${OUTPUT_DIR}/results.json"
-cat > "${RESULTS_FILE}" << 'EOF'
-{
-  "investigation": "memory-leak-detector",
-  "timestamp": "",
-  "memory_overview": {},
-  "high_memory_processes": [],
-  "long_running_processes": [],
-  "container_memory": [],
-  "python_processes": [],
-  "recommendations": []
-}
-EOF
+jq -n '{
+  investigation: "memory-leak-detector",
+  timestamp: "",
+  memory_overview: {},
+  high_memory_processes: [],
+  long_running_processes: [],
+  container_memory: [],
+  python_processes: [],
+  findings: [],
+  recommendations: []
+}' > "${RESULTS_FILE}"
 
-# Update timestamp
-jq ".timestamp = \"$(date -Iseconds)\"" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+update_json() {
+  local filter="$1"
+  jq "${filter}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+}
+
+update_json_value() {
+  local filter="$1"
+  local json_payload="$2"
+  jq --argjson value "${json_payload}" "${filter}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+}
+
+add_finding() {
+  local text="$1"
+  jq --arg text "${text}" '.findings += [$text]' "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+}
+
+add_recommendation() {
+  local text="$1"
+  jq --arg text "${text}" '.recommendations += [$text]' "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+}
 
 echo "🔍 Starting Memory Leak and Process Health Detection..."
+update_json ' .timestamp = (now | todateiso8601) '
 
-# Memory Overview
-echo "📊 Analyzing system memory..."
-TOTAL_MEM=$(free -m | awk 'NR==2{print $2}')
-USED_MEM=$(free -m | awk 'NR==2{print $3}')
-FREE_MEM=$(free -m | awk 'NR==2{print $4}')
-CACHE_MEM=$(free -m | awk 'NR==2{print $6}')
-MEM_PERCENT=$(awk "BEGIN {printf \"%.1f\", ($USED_MEM/$TOTAL_MEM)*100}")
-
-jq ".memory_overview = {
-  \"total_mb\": $TOTAL_MEM,
-  \"used_mb\": $USED_MEM,
-  \"free_mb\": $FREE_MEM,
-  \"cache_mb\": $CACHE_MEM,
-  \"usage_percent\": $MEM_PERCENT
-}" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-
-# High Memory Processes
-echo "🔥 Finding high memory processes..."
-HIGH_MEM_PROCS=$(ps aux --sort=-%mem | head -20 | awk 'NR>1{
-  printf "{\"pid\": %s, \"user\": \"%s\", \"mem_percent\": %.1f, \"rss_kb\": %s, \"command\": \"%s\"},\n", 
-  $2, $1, $4, $6, substr($0, index($0,$11))
-}' | sed 's/,$//' | jq -s '.')
-
-jq ".high_memory_processes = $HIGH_MEM_PROCS" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-
-# Long Running Processes (potential memory leaks)
-echo "⏱️ Analyzing long-running processes..."
-LONG_RUNNERS=$(ps aux --sort=-etime | head -20 | awk 'NR>1{
-  # Extract elapsed time in a readable format
-  etime=$10
-  printf "{\"pid\": %s, \"user\": \"%s\", \"mem_percent\": %.1f, \"cpu_percent\": %.1f, \"elapsed\": \"%s\", \"command\": \"%s\"},\n",
-  $2, $1, $4, $3, etime, substr($0, index($0,$11))
-}' | sed 's/,$//' | jq -s '.')
-
-jq ".long_running_processes = $LONG_RUNNERS" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-
-# Container Memory Analysis
-echo "🐳 Checking container memory usage..."
-if command -v docker &> /dev/null; then
-  CONTAINER_MEM=$(timeout 5 docker stats --no-stream --format "json" 2>/dev/null | jq -s '[.[] | {
-    "container": .Name,
-    "memory_usage": .MemUsage,
-    "memory_percent": .MemPerc,
-    "cpu_percent": .CPUPerc
-  }]' 2>/dev/null || echo "[]")
-  
-  jq ".container_memory = $CONTAINER_MEM" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
+# Memory overview
+if command -v free >/dev/null 2>&1; then
+  total_mem=$(free -m | awk 'NR==2{print $2}')
+  used_mem=$(free -m | awk 'NR==2{print $3}')
+  free_mem=$(free -m | awk 'NR==2{print $4}')
+  cache_mem=$(free -m | awk 'NR==2{print $6}')
+  if [[ -z "${total_mem}" || "${total_mem}" == "0" ]]; then
+    usage_percent=0
+  else
+    usage_percent=$(awk -v u="${used_mem}" -v t="${total_mem}" 'BEGIN{ if (t==0) {print 0} else {printf "%.1f", (u/t)*100} }')
+  fi
+  update_json_value '.memory_overview = $value' "$(jq -n --argjson total "${total_mem:-0}" --argjson used "${used_mem:-0}" --argjson free "${free_mem:-0}" --argjson cache "${cache_mem:-0}" --arg usage "${usage_percent}" '{total_mb: $total, used_mb: $used, free_mb: $free, cache_mb: $cache, usage_percent: ($usage | tonumber)}')"
+  mem_percent_numeric=$(printf '%.1f' "${usage_percent}")
+else
+  add_finding "free command unavailable - memory overview skipped"
+  mem_percent_numeric=0
 fi
 
-# Python Process Analysis (since we found many zombie Python processes)
-echo "🐍 Analyzing Python processes..."
-PYTHON_PROCS=$(ps aux | grep -E "python[0-9]*" | grep -v grep | awk '{
-  printf "{\"pid\": %s, \"user\": \"%s\", \"mem_percent\": %.1f, \"cpu_percent\": %.1f, \"state\": \"%s\", \"command\": \"%s\"},\n",
-  $2, $1, $4, $3, $8, substr($0, index($0,$11))
-}' | sed 's/,$//' | jq -s '.' 2>/dev/null || echo "[]")
-
-jq ".python_processes = $PYTHON_PROCS" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-
-# Generate Recommendations
-echo "💡 Generating recommendations..."
-RECOMMENDATIONS=[]
-
-# Check for memory pressure
-if (( $(echo "$MEM_PERCENT > 80" | bc -l) )); then
-  RECOMMENDATIONS+=("High memory usage ($MEM_PERCENT%) - investigate top memory consumers")
+echo "🔥 Gathering high-memory processes..."
+if command -v ps >/dev/null 2>&1; then
+  high_mem_raw=$(ps -eo pid=,user=,%mem=,rss=,comm= --sort=-%mem | head -n 10)
+  if [[ -n "${high_mem_raw}" ]]; then
+    high_mem_json=$(printf '%s
+' "${high_mem_raw}" | awk '{printf "%s\t%s\t%s\t%s\t%s\n", $1,$2,$3,$4,$5}' | jq -Rsc 'split("\n") | map(select(length>0)) | map(split("\t")) | map({pid:(.[0]|tonumber), user:.[1], mem_percent:(.[2]|tonumber), rss_kb:(.[3]|tonumber), command:(.[4] // "")})')
+  else
+    high_mem_json='[]'
+  fi
+  update_json_value '.high_memory_processes = $value' "${high_mem_json:-[]}" || true
+else
+  add_finding "ps command unavailable - high-memory process check skipped"
+  high_mem_json='[]'
 fi
 
-# Check for Python subprocess issues
-PYTHON_COUNT=$(echo "$PYTHON_PROCS" | jq 'length')
-if [ "$PYTHON_COUNT" -gt 20 ]; then
-  RECOMMENDATIONS+=("Many Python processes ($PYTHON_COUNT) detected - review subprocess management")
+echo "⏱️ Checking long-running processes..."
+if command -v ps >/dev/null 2>&1; then
+  long_runner_raw=$(ps -eo pid=,user=,%mem=,%cpu=,etime=,comm= --sort=-etime | head -n 10)
+  if [[ -n "${long_runner_raw}" ]]; then
+    long_runner_json=$(printf '%s
+' "${long_runner_raw}" | awk '{printf "%s\t%s\t%s\t%s\t%s\t%s\n", $1,$2,$3,$4,$5,$6}' | jq -Rsc 'split("\n") | map(select(length>0)) | map(split("\t")) | map({pid:(.[0]|tonumber), user:.[1], mem_percent:(.[2]|tonumber), cpu_percent:(.[3]|tonumber), elapsed: (.[4] // ""), command:(.[5] // "")})')
+  else
+    long_runner_json='[]'
+  fi
+  update_json_value '.long_running_processes = $value' "${long_runner_json:-[]}" || true
+else
+  add_finding "ps command unavailable - long-running process check skipped"
 fi
 
-# Check for container memory issues
-if [ -n "$CONTAINER_MEM" ] && [ "$CONTAINER_MEM" != "[]" ]; then
-  HIGH_CONTAINER_COUNT=$(echo "$CONTAINER_MEM" | jq '[.[] | select(.memory_percent | gsub("%";"") | tonumber > 50)] | length')
-  if [ "$HIGH_CONTAINER_COUNT" -gt 0 ]; then
-    RECOMMENDATIONS+=("$HIGH_CONTAINER_COUNT containers using >50% memory - review container limits")
+echo "🐳 Inspecting container memory..."
+container_mem_json='[]'
+if command -v docker >/dev/null 2>&1; then
+  if container_output=$(timeout 5 docker stats --no-stream --format '{{json .}}' 2>/dev/null || true); then
+    if [[ -n "${container_output}" ]]; then
+      container_mem_json=$(printf '%s
+' "${container_output}" | jq -s 'map({
+        container: .Name,
+        memory_usage: .MemUsage,
+        memory_percent: (.MemPerc | gsub("%";"") | tonumber? // 0),
+        cpu_percent: (.CPUPerc | gsub("%";"") | tonumber? // 0)
+      })')
+    fi
+  fi
+else
+  add_finding "Docker CLI not available - skipping container memory analysis"
+fi
+update_json_value '.container_memory = $value' "${container_mem_json}"
+
+echo "🐍 Reviewing Python processes..."
+python_json='[]'
+if command -v ps >/dev/null 2>&1; then
+  python_raw=$(ps -eo pid=,user=,%mem=,%cpu=,state=,comm= | awk 'tolower($6) ~ /python/' | head -n 25)
+  if [[ -n "${python_raw}" ]]; then
+    python_json=$(printf '%s
+' "${python_raw}" | awk '{printf "%s\t%s\t%s\t%s\t%s\t%s\n", $1,$2,$3,$4,$5,$6}' | jq -Rsc 'split("\n") | map(select(length>0)) | map(split("\t")) | map({pid:(.[0]|tonumber), user:.[1], mem_percent:(.[2]|tonumber), cpu_percent:(.[3]|tonumber), state:(.[4] // ""), command:(.[5] // "")})')
+  fi
+fi
+update_json_value '.python_processes = $value' "${python_json}"
+
+# Recommendations
+if (( $(printf '%.0f' "${mem_percent_numeric}") > 80 )); then
+  add_recommendation "High memory usage (${mem_percent_numeric}%) - investigate top memory consumers"
+fi
+
+python_count=$(jq 'length' <<<"${python_json}" 2>/dev/null || echo 0)
+if (( python_count > 20 )); then
+  add_recommendation "Many Python processes (${python_count}) detected - review subprocess management"
+fi
+
+if [[ "${container_mem_json}" != '[]' ]]; then
+  high_container_count=$(jq '[.[] | select(.memory_percent > 50)] | length' <<<"${container_mem_json}" 2>/dev/null || echo 0)
+  if (( high_container_count > 0 )); then
+    add_recommendation "${high_container_count} containers using >50% memory - review container limits"
   fi
 fi
 
-# Check for specific problematic processes
-if echo "$HIGH_MEM_PROCS" | jq -r '.[].command' | grep -q "sage"; then
-  RECOMMENDATIONS+=("SageMath process consuming significant memory - check for computation issues")
+if jq -e 'map(.command) | map(test("sage")) | any' <<<"${high_mem_json}" >/dev/null 2>&1; then
+  add_recommendation "SageMath process consuming significant memory - check for computation issues"
 fi
 
-# Convert recommendations to JSON
-RECS_JSON=$(printf '%s\n' "${RECOMMENDATIONS[@]}" | jq -R . | jq -s .)
-jq ".recommendations = $RECS_JSON" "${RESULTS_FILE}" > "${RESULTS_FILE}.tmp" && mv "${RESULTS_FILE}.tmp" "${RESULTS_FILE}"
-
-echo "✅ Memory leak detection complete! Results: ${OUTPUT_DIR}/results.json"
-cat "${RESULTS_FILE}" | jq '.'
+echo "✅ Memory leak detection complete! Results: ${RESULTS_FILE}"
+cat "${RESULTS_FILE}"

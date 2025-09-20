@@ -212,6 +212,29 @@
         "example"
       ]
     },
+    "test-spawn-detector": {
+      "name": "Test Spawn Detector",
+      "description": "Detects test harness processes, fork storms, and multiprocessing leaks",
+      "file": "active/test-spawn-detector.sh",
+      "category": "test",
+      "triggers": [
+        "test_spawn",
+        "fork_testing",
+        "process_debugging"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-11",
+      "last_modified": "2025-09-11",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "example",
+        "legacy"
+      ]
+    },
     "python-subprocess-health": {
       "name": "Python Subprocess Health Monitor",
       "description": "Detects Python processes with zombie children and poor subprocess management",
@@ -283,8 +306,9 @@
       "version": "1.0",
       "execution_time_estimate": "60s",
       "safety_level": "safe",
+      "enabled": false,
       "tags": [
-        "core"
+        "legacy"
       ]
     },
     "api-infinite-loop-detector": {
@@ -339,7 +363,11 @@
       "last_modified": "2025-09-14",
       "version": "1.0",
       "execution_time_estimate": "30s",
-      "safety_level": "safe"
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "aggressive"
+      ]
     },
     "memory-leak-detector": {
       "name": "Memory Leak and Process Health Detector",
@@ -406,6 +434,52 @@
         "judge0"
       ]
     },
+    "judge0-cpu-investigation": {
+      "name": "Judge0 High CPU Investigation",
+      "description": "Investigates high CPU usage from Judge0 worker containers and Redis interactions",
+      "file": "active/judge0-cpu-investigation.sh",
+      "category": "performance",
+      "triggers": [
+        "judge0_high_cpu",
+        "worker_cpu_overload",
+        "redis_high_cpu"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0",
+        "legacy"
+      ]
+    },
+    "judge0-memory-analyzer": {
+      "name": "Judge0 Memory Analyzer",
+      "description": "Analyzes Judge0 worker memory usage, swap pressure, and container tuning opportunities",
+      "file": "active/judge0-memory-analyzer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "judge0_memory_high",
+        "worker_memory_exhaustion",
+        "container_memory_near_limit"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-16",
+      "last_modified": "2025-09-16",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "enabled": false,
+      "tags": [
+        "judge0",
+        "legacy"
+      ]
+    },
     "service-health-monitor": {
       "name": "Service Health Monitor",
       "description": "Detects failed systemd services and provides recovery recommendations",
@@ -422,7 +496,10 @@
       "last_modified": "2025-09-15",
       "version": "1.0",
       "execution_time_estimate": "30s",
-      "safety_level": "safe"
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
     },
     "container-health-comprehensive": {
       "name": "Comprehensive Container Health Monitor",
@@ -440,6 +517,27 @@
       "last_modified": "2025-09-16",
       "version": "1.0",
       "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
+    "docker-health-analyzer": {
+      "name": "Docker Container Health Analyzer",
+      "description": "Analyzes Docker container health issues and provides detailed diagnostics",
+      "file": "active/docker-health-analyzer.sh",
+      "category": "resource-management",
+      "triggers": [
+        "container_unhealthy",
+        "docker_errors",
+        "health_check_failures"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-14",
+      "last_modified": "2025-09-14",
+      "version": "1.0",
+      "execution_time_estimate": "45s",
       "safety_level": "safe",
       "tags": [
         "core"
