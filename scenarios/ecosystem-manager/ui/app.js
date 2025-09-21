@@ -34,6 +34,9 @@ class EcosystemManager {
         this.systemLogs = [];
         this.systemLogsFiltered = [];
         this.systemLogLevelFilter = 'all';
+        this.promptOperations = null;
+        this.promptPreviewLoading = false;
+        this.lastPromptPreview = null;
         
         // Bind methods
         this.init = this.init.bind(this);
@@ -45,6 +48,9 @@ class EcosystemManager {
         
         // Initialize UI
         this.initializeUI();
+
+        // Pre-load prompt configuration metadata for the tester panel
+        this.loadPromptOperations().catch(err => console.error('Failed to load prompt operations:', err));
 
         // Prepare process monitor dropdown interactions
         this.processMonitor.initializeDropdown();
@@ -205,6 +211,30 @@ class EcosystemManager {
             processorToggle.addEventListener('change', async (e) => {
                 await this.toggleQueueProcessor(e.target.checked);
             });
+        }
+
+        // Prompt tester controls
+        const promptTypeSelect = document.getElementById('prompt-type');
+        if (promptTypeSelect) {
+            promptTypeSelect.addEventListener('change', () => {
+                const currentOperation = document.getElementById('prompt-operation')?.value;
+                this.updatePromptOperationOptions(currentOperation);
+            });
+        }
+
+        const promptOperationSelect = document.getElementById('prompt-operation');
+        if (promptOperationSelect) {
+            promptOperationSelect.addEventListener('change', () => this.updatePromptOperationSummary());
+        }
+
+        const promptPreviewBtn = document.getElementById('prompt-preview-btn');
+        if (promptPreviewBtn) {
+            promptPreviewBtn.addEventListener('click', () => this.handlePromptPreview());
+        }
+
+        const promptCopyBtn = document.getElementById('prompt-preview-copy-btn');
+        if (promptCopyBtn) {
+            promptCopyBtn.addEventListener('click', () => this.handlePromptCopy());
         }
     }
 
@@ -1277,6 +1307,9 @@ class EcosystemManager {
             // Load current settings into form
             this.settingsManager.loadSettings().then(settings => {
                 this.settingsManager.applySettingsToUI(settings);
+                this.updatePromptOperationOptions();
+                this.updatePromptOperationSummary();
+                this.setPromptPreviewStatus('');
             });
         }
     }
@@ -1382,6 +1415,380 @@ class EcosystemManager {
         } catch (error) {
             console.error('Failed to copy logs:', error);
             this.showToast('Failed to copy logs', 'error');
+        }
+    }
+
+    // Prompt Tester Methods
+    async loadPromptOperations() {
+        try {
+            const response = await fetch(`${this.apiBase}/operations`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            this.promptOperations = data || {};
+        } catch (error) {
+            console.warn('Prompt operations unavailable:', error);
+            this.promptOperations = null;
+        } finally {
+            this.updatePromptOperationOptions();
+        }
+    }
+
+    updatePromptOperationOptions(preservedValue) {
+        const typeSelect = document.getElementById('prompt-type');
+        const operationSelect = document.getElementById('prompt-operation');
+        if (!operationSelect) return;
+
+        const selectedType = (typeSelect && typeSelect.value) ? typeSelect.value : 'resource';
+        const previousValue = preservedValue || operationSelect.value || 'generator';
+
+        let availableOperations = ['generator', 'improver'];
+        if (this.promptOperations && typeof this.promptOperations === 'object') {
+            const combos = Object.keys(this.promptOperations)
+                .filter(key => key.startsWith(`${selectedType}-`))
+                .map(key => key.split('-')[1])
+                .filter(Boolean);
+
+            if (combos.length > 0) {
+                availableOperations = [...new Set(combos)];
+            }
+        }
+
+        const currentValue = operationSelect.value;
+        operationSelect.innerHTML = '';
+
+        availableOperations.forEach(op => {
+            const option = document.createElement('option');
+            option.value = op;
+            option.textContent = op.charAt(0).toUpperCase() + op.slice(1);
+            operationSelect.appendChild(option);
+        });
+
+        if (availableOperations.includes(previousValue)) {
+            operationSelect.value = previousValue;
+        } else if (availableOperations.includes(currentValue)) {
+            operationSelect.value = currentValue;
+        }
+
+        if (!operationSelect.value && availableOperations.length > 0) {
+            operationSelect.value = availableOperations[0];
+        }
+
+        this.updatePromptOperationSummary();
+    }
+
+    updatePromptOperationSummary() {
+        const summaryElement = document.getElementById('prompt-operation-summary');
+        if (!summaryElement) return;
+
+        const typeSelect = document.getElementById('prompt-type');
+        const operationSelect = document.getElementById('prompt-operation');
+        const taskType = typeSelect ? typeSelect.value : 'resource';
+        const operation = operationSelect ? operationSelect.value : '';
+
+        if (!this.promptOperations) {
+            summaryElement.innerHTML = '<div class="prompt-operation-empty">Prompt configuration metadata not available yet.</div>';
+            return;
+        }
+
+        if (!operation) {
+            summaryElement.innerHTML = '<div class="prompt-operation-empty">Select an operation to view configuration details.</div>';
+            return;
+        }
+
+        const key = `${taskType}-${operation}`;
+        const config = this.promptOperations[key];
+
+        if (!config) {
+            summaryElement.innerHTML = `<div class="prompt-operation-empty">No configuration found for <code>${this.escapeHtml(key)}</code>.</div>`;
+            return;
+        }
+
+        const description = config.description
+            ? `<p class="prompt-operation-description">${this.escapeHtml(config.description)}</p>`
+            : '';
+
+        const additionalSections = Array.isArray(config.additional_sections) && config.additional_sections.length
+            ? config.additional_sections.map(section => `<span class="prompt-chip">${this.escapeHtml(section)}</span>`).join(' ')
+            : '<span class="prompt-chip">Base sections only</span>';
+
+        let collapsibleHtml = `<div class="prompt-operation-subtitle"><strong>Additional Sections:</strong> ${additionalSections}</div>`;
+
+        if (config.effort_allocation && typeof config.effort_allocation === 'object') {
+            const items = Object.entries(config.effort_allocation).map(([section, share]) =>
+                `<li>${this.escapeHtml(section)}: ${this.escapeHtml(String(share))}</li>`
+            ).join('');
+            collapsibleHtml += `<div class="prompt-operation-list"><strong>Effort Allocation:</strong><ul>${items}</ul></div>`;
+        }
+
+        if (Array.isArray(config.success_criteria) && config.success_criteria.length) {
+            const items = config.success_criteria.map(item => `<li>${this.escapeHtml(item)}</li>`).join('');
+            collapsibleHtml += `<div class="prompt-operation-list"><strong>Success Criteria:</strong><ul>${items}</ul></div>`;
+        }
+
+        if (Array.isArray(config.principles) && config.principles.length) {
+            const items = config.principles.map(item => `<li>${this.escapeHtml(item)}</li>`).join('');
+            collapsibleHtml += `<div class="prompt-operation-list"><strong>Guiding Principles:</strong><ul>${items}</ul></div>`;
+        }
+
+        summaryElement.innerHTML = `
+            <div class="prompt-operation-summary-header">
+                <div>
+                    <div class="prompt-operation-header"><strong>${this.escapeHtml(config.name || key)}</strong></div>
+                    ${description}
+                </div>
+                <button type="button" class="prompt-operation-toggle" aria-expanded="false">
+                    <i class="fas fa-chevron-down"></i>
+                    Show Details
+                </button>
+            </div>
+            <div class="prompt-operation-details">${collapsibleHtml}</div>
+        `;
+
+        summaryElement.classList.add('collapsed');
+
+        const toggleButton = summaryElement.querySelector('.prompt-operation-toggle');
+        const detailsElement = summaryElement.querySelector('.prompt-operation-details');
+        if (toggleButton && detailsElement) {
+            toggleButton.addEventListener('click', () => {
+                const isCollapsed = summaryElement.classList.toggle('collapsed');
+                toggleButton.setAttribute('aria-expanded', (!isCollapsed).toString());
+                toggleButton.innerHTML = isCollapsed
+                    ? '<i class="fas fa-chevron-down"></i> Show Details'
+                    : '<i class="fas fa-chevron-up"></i> Hide Details';
+            });
+        }
+    }
+
+    setPromptPreviewStatus(message, type = 'info') {
+        const statusElement = document.getElementById('prompt-preview-status');
+        if (!statusElement) return;
+
+        statusElement.textContent = message || '';
+        statusElement.className = 'prompt-preview-status';
+
+        if (type) {
+            statusElement.classList.add(`status-${type}`);
+        }
+    }
+
+    togglePromptPreviewLoading(isLoading) {
+        const previewBtn = document.getElementById('prompt-preview-btn');
+        const copyBtn = document.getElementById('prompt-preview-copy-btn');
+
+        this.promptPreviewLoading = !!isLoading;
+
+        if (previewBtn) {
+            if (isLoading) {
+                if (!previewBtn.dataset.originalContent) {
+                    previewBtn.dataset.originalContent = previewBtn.innerHTML;
+                }
+                previewBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Assembling...';
+                previewBtn.disabled = true;
+            } else {
+                const original = previewBtn.dataset.originalContent;
+                if (original) {
+                    previewBtn.innerHTML = original;
+                }
+                previewBtn.disabled = false;
+            }
+        }
+
+        if (copyBtn) {
+            if (isLoading) {
+                copyBtn.disabled = true;
+            } else if (this.lastPromptPreview && this.lastPromptPreview.prompt) {
+                copyBtn.disabled = false;
+            }
+        }
+    }
+
+    async handlePromptPreview() {
+        const requirementsInput = document.getElementById('prompt-requirements');
+        if (requirementsInput) {
+            requirementsInput.classList.remove('input-error');
+        }
+
+        this.setPromptPreviewStatus('Assembling prompt...', 'loading');
+        this.togglePromptPreviewLoading(true);
+
+        const typeField = document.getElementById('prompt-type');
+        const operationField = document.getElementById('prompt-operation');
+        const titleField = document.getElementById('prompt-title');
+        const priorityField = document.getElementById('prompt-priority');
+        const notesField = document.getElementById('prompt-notes');
+        const requirementsField = document.getElementById('prompt-requirements');
+        const displayField = document.getElementById('prompt-display');
+
+        const payload = {
+            display: displayField ? displayField.value : 'preview',
+            task: {
+                type: typeField ? typeField.value : 'resource',
+                operation: operationField ? operationField.value : 'generator',
+                title: titleField ? titleField.value.trim() : '',
+                priority: priorityField ? priorityField.value : 'medium',
+                notes: notesField ? notesField.value.trim() : '',
+            }
+        };
+
+
+        if (requirementsField && requirementsField.value.trim()) {
+            try {
+                const parsed = JSON.parse(requirementsField.value.trim());
+                if (typeof parsed !== 'object' || Array.isArray(parsed)) {
+                    throw new Error('Requirements must be a JSON object');
+                }
+                payload.task.requirements = parsed;
+            } catch (error) {
+                this.setPromptPreviewStatus(`Requirements JSON invalid: ${error.message}`, 'error');
+                requirementsField.classList.add('input-error');
+                requirementsField.focus();
+                this.togglePromptPreviewLoading(false);
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/prompt-viewer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await this.parsePromptPreviewResponse(response);
+            this.lastPromptPreview = data;
+            this.renderPromptPreview(data);
+
+            const charCount = data.prompt_size || (data.prompt ? data.prompt.length : 0);
+            const operationLabel = data.operation || `${payload.task.type}-${payload.task.operation}`;
+            this.setPromptPreviewStatus(`Preview ready for ${operationLabel}. ${charCount.toLocaleString()} characters.`, 'success');
+        } catch (error) {
+            console.error('Prompt preview failed:', error);
+            this.setPromptPreviewStatus(error.message || 'Failed to assemble prompt', 'error');
+        } finally {
+            this.togglePromptPreviewLoading(false);
+        }
+    }
+
+    async parsePromptPreviewResponse(response) {
+        if (!response.ok) {
+            const errorText = await response.text();
+            const error = new Error(errorText || `Prompt preview failed with status ${response.status}`);
+            error.status = response.status;
+            throw error;
+        }
+        return await response.json();
+    }
+
+    renderPromptPreview(data) {
+        const placeholder = document.getElementById('prompt-preview-placeholder');
+        const metadataElement = document.getElementById('prompt-preview-metadata');
+        const sectionsElement = document.getElementById('prompt-preview-sections');
+        const outputElement = document.getElementById('prompt-preview-output');
+        const copyBtn = document.getElementById('prompt-preview-copy-btn');
+
+        if (!metadataElement || !sectionsElement || !outputElement) {
+            return;
+        }
+
+        if (placeholder) {
+            placeholder.hidden = true;
+        }
+
+        const task = data.task || {};
+        const taskTitle = task.title || data.title || 'Prompt Preview Task';
+        const taskType = task.type || data.task_type || 'resource';
+        const operation = task.operation || data.operation || 'generator';
+        const priority = task.priority || '—';
+        const notes = task.notes || '';
+        const category = task.category || '—';
+        const tags = Array.isArray(task.tags) ? task.tags : [];
+        const charCount = data.prompt_size || (data.prompt ? data.prompt.length : 0);
+        const promptSizeKb = data.prompt_size_kb || (charCount ? (charCount / 1024).toFixed(2) : '0.00');
+        const promptSizeMb = data.prompt_size_mb || (charCount ? (charCount / 1024 / 1024).toFixed(3) : '0.000');
+
+        const metadataItems = [
+            { label: 'Title', value: taskTitle },
+            { label: 'Type / Operation', value: `${taskType} / ${operation}` },
+            { label: 'Priority', value: priority },
+            { label: 'Category', value: category },
+            {
+                label: 'Prompt Size',
+                value: `${charCount.toLocaleString()} chars (${promptSizeKb} KB / ${promptSizeMb} MB)`
+            }
+        ];
+
+        if (tags.length > 0) {
+            const chips = tags
+                .map(tag => `<span class="prompt-chip">${this.escapeHtml(tag)}</span>`)
+                .join(' ');
+            metadataItems.push({ label: 'Tags', value: chips, allowHtml: true });
+        }
+
+        if (notes) {
+            const escapedNotes = this.escapeHtml(notes).replace(/\n/g, '<br>');
+            metadataItems.push({ label: 'Notes', value: escapedNotes, allowHtml: true });
+        }
+
+        if (task.requirements && typeof task.requirements === 'object' && Object.keys(task.requirements).length > 0) {
+            const pretty = this.escapeHtml(JSON.stringify(task.requirements, null, 2));
+            metadataItems.push({
+                label: 'Requirements',
+                value: `<pre class="prompt-meta-json">${pretty}</pre>`,
+                allowHtml: true
+            });
+        }
+
+        metadataElement.innerHTML = metadataItems.map(item => {
+            const label = this.escapeHtml(item.label);
+            const value = item.allowHtml ? item.value : this.escapeHtml(item.value);
+            return `
+                <div class="prompt-meta-row">
+                    <span class="prompt-meta-label">${label}</span>
+                    <span class="prompt-meta-value">${value}</span>
+                </div>
+            `;
+        }).join('');
+        metadataElement.hidden = false;
+
+        const sections = Array.isArray(data.sections) ? data.sections : [];
+        if (sections.length > 0) {
+            const items = sections.map(section => `<li>${this.escapeHtml(section)}</li>`).join('');
+            sectionsElement.innerHTML = `<h5>Prompt Sections (${sections.length})</h5><ul>${items}</ul>`;
+        } else {
+            sectionsElement.innerHTML = '<h5>Prompt Sections</h5><div class="prompt-operation-empty">No sections were resolved.</div>';
+        }
+        sectionsElement.hidden = false;
+
+        if (data.prompt && typeof data.prompt === 'string' && data.prompt.length > 0) {
+            outputElement.textContent = data.prompt;
+            outputElement.hidden = false;
+            if (copyBtn) {
+                copyBtn.disabled = false;
+            }
+        } else {
+            outputElement.textContent = '';
+            outputElement.hidden = true;
+            if (copyBtn) {
+                copyBtn.disabled = true;
+            }
+        }
+    }
+
+    async handlePromptCopy() {
+        if (!this.lastPromptPreview || !this.lastPromptPreview.prompt) {
+            this.showToast('No prompt available to copy', 'warning');
+            return;
+        }
+
+        try {
+            await navigator.clipboard.writeText(this.lastPromptPreview.prompt);
+            this.showToast('Prompt copied to clipboard', 'success');
+        } catch (error) {
+            console.error('Failed to copy prompt:', error);
+            this.showToast('Failed to copy prompt', 'error');
         }
     }
 

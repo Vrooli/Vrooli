@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ecosystem-manager/api/pkg/prompts"
@@ -551,76 +552,132 @@ func (h *TaskHandlers) UpdateTaskStatusHandler(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(*task)
 }
 
+// promptPreviewRequest captures optional data for assembling a preview task
+type promptPreviewRequest struct {
+	Task         *tasks.TaskItem        `json:"task,omitempty"`
+	Display      string                 `json:"display,omitempty"`
+	Type         string                 `json:"type,omitempty"`
+	Operation    string                 `json:"operation,omitempty"`
+	Title        string                 `json:"title,omitempty"`
+	Category     string                 `json:"category,omitempty"`
+	Priority     string                 `json:"priority,omitempty"`
+	Notes        string                 `json:"notes,omitempty"`
+	Requirements map[string]interface{} `json:"requirements,omitempty"`
+	Tags         []string               `json:"tags,omitempty"`
+}
+
+func (r promptPreviewRequest) buildTask(defaultID string) tasks.TaskItem {
+	var task tasks.TaskItem
+
+	if r.Task != nil {
+		task = *r.Task
+	}
+
+	if r.Type != "" {
+		task.Type = r.Type
+	}
+	if r.Operation != "" {
+		task.Operation = r.Operation
+	}
+	if r.Title != "" {
+		task.Title = r.Title
+	}
+	if r.Category != "" {
+		task.Category = r.Category
+	}
+	if r.Priority != "" {
+		task.Priority = r.Priority
+	}
+	if r.Notes != "" {
+		task.Notes = r.Notes
+	}
+	if r.Requirements != nil {
+		task.Requirements = r.Requirements
+	}
+	if len(r.Tags) > 0 {
+		task.Tags = r.Tags
+	}
+
+	if task.ID == "" {
+		task.ID = defaultID
+	}
+	if task.Type == "" {
+		task.Type = "resource"
+	}
+	if task.Operation == "" {
+		task.Operation = "generator"
+	}
+	if task.Title == "" {
+		task.Title = "Prompt Viewer Test"
+	}
+	if task.Category == "" {
+		task.Category = "test"
+	}
+	if task.Priority == "" {
+		task.Priority = "medium"
+	}
+	if task.Notes == "" {
+		task.Notes = "Temporary task for prompt viewing"
+	}
+	if task.CreatedAt == "" {
+		task.CreatedAt = time.Now().Format(time.RFC3339)
+	}
+	if task.Status == "" {
+		task.Status = "pending"
+	}
+
+	return task
+}
+
 // PromptViewerHandler creates a temporary task to view assembled prompts
 func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters
-	taskType := r.URL.Query().Get("type")
-	operation := r.URL.Query().Get("operation")
-	title := r.URL.Query().Get("title")
-	display := r.URL.Query().Get("display")
+	defaultID := fmt.Sprintf("temp-prompt-viewer-%d", time.Now().UnixNano())
 
-	// Set defaults
-	if taskType == "" {
-		taskType = "resource"
+	var req promptPreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid JSON: %v", err), http.StatusBadRequest)
+		return
 	}
-	if operation == "" {
-		operation = "generator"
-	}
-	if title == "" {
-		title = "Prompt Viewer Test"
-	}
+
+	display := strings.ToLower(strings.TrimSpace(req.Display))
 	if display == "" {
 		display = "preview"
 	}
 
-	// Validate operation combination
-	_, err := h.assembler.SelectPromptAssembly(taskType, operation)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Unsupported operation combination %s/%s: %v", taskType, operation, err), http.StatusBadRequest)
+	tempTask := req.buildTask(defaultID)
+
+	if _, err := h.assembler.SelectPromptAssembly(tempTask.Type, tempTask.Operation); err != nil {
+		http.Error(w, fmt.Sprintf("Unsupported operation combination %s/%s: %v", tempTask.Type, tempTask.Operation, err), http.StatusBadRequest)
 		return
 	}
 
-	// Create temporary task (don't save to storage)
-	tempTask := tasks.TaskItem{
-		ID:        fmt.Sprintf("temp-prompt-viewer-%d", time.Now().Unix()),
-		Title:     title,
-		Type:      taskType,
-		Operation: operation,
-		Category:  "test",
-		Priority:  "medium",
-		Notes:     "Temporary task for prompt viewing",
-	}
-
-	// Get sections that would be used
 	sections, err := h.assembler.GeneratePromptSections(tempTask)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get prompt sections: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Assemble the full prompt
 	prompt, err := h.assembler.AssemblePromptForTask(tempTask)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to assemble prompt: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Calculate size metrics
 	promptSize := len(prompt)
 	promptSizeKB := float64(promptSize) / 1024.0
 	promptSizeMB := promptSizeKB / 1024.0
 
-	// Prepare response based on display parameter
 	response := map[string]interface{}{
-		"task_type":      taskType,
-		"operation":      operation,
-		"title":          title,
+		"task_type":      tempTask.Type,
+		"operation":      tempTask.Operation,
+		"title":          tempTask.Title,
 		"sections":       sections,
 		"section_count":  len(sections),
 		"prompt_size":    promptSize,
 		"prompt_size_kb": fmt.Sprintf("%.2f", promptSizeKB),
 		"prompt_size_mb": fmt.Sprintf("%.3f", promptSizeMB),
 		"timestamp":      time.Now().Format(time.RFC3339),
+		"task":           tempTask,
 	}
 
 	switch display {
@@ -628,17 +685,14 @@ func (h *TaskHandlers) PromptViewerHandler(w http.ResponseWriter, r *http.Reques
 		response["prompt"] = prompt
 		response["display"] = "full"
 	case "first", "preview":
-		// Show full prompt for preview - no truncation
 		response["prompt"] = prompt
 		response["display"] = "preview"
 		response["truncated"] = false
 	case "size", "stats":
 		response["display"] = "size"
-		// Don't include prompt content, just metadata
 	default:
 		response["display"] = "summary"
 		response["available_displays"] = []string{"full", "preview", "size"}
-		// Don't include prompt content
 	}
 
 	w.Header().Set("Content-Type", "application/json")

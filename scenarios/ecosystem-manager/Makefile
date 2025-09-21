@@ -157,7 +157,10 @@ view-prompt: ## View assembled prompt sections
 		echo "❌ Failed to get API port from vrooli CLI"; \
 		exit 1; \
 	fi; \
-	curl -s "http://localhost:$$API_PORT/api/prompt-viewer?display=preview" | jq -r \
+	curl -s -X POST \
+		-H "Content-Type: application/json" \
+		-d '{"display":"preview","task":{"type":"resource","operation":"generator"}}' \
+		"http://localhost:$$API_PORT/api/prompt-viewer" | jq -r \
 		'if .error then "❌ Error: " + .error else ("📏 Size: " + (.prompt_size|tostring) + " chars (" + .prompt_size_kb + " KB)\n" + "📑 Sections: " + (.section_count|tostring) + "\n" + "🎯 Type/Operation: " + .task_type + "/" + .operation + "\n\n" + "=== PROMPT PREVIEW ===\n" + .prompt) end'
 
 install-deps: ## Install dependencies

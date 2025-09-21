@@ -1,168 +1,69 @@
-# Resource Leak Prevention Fixes
+# Resource Leak Controls (2025-02 refresh)
 
-## Problem Description
+The ecosystem-manager queue now relies on a single execution registry that mirrors the
+filesystem: if a task file lives in `queue/in-progress`, the registry must contain an active
+reservation for the same task ID. This section documents the safeguards that prevent orphaned
+Claude Code agents and mismatched task state after the February 2025 refactor.
 
-The ecosystem-manager had several resource leak vulnerabilities:
+## Previous issues
+- API restarts left behind unmanaged `resource-claude-code` processes.
+- Multiple tracking maps (`runningProcesses` + process manager) drifted out of sync.
+- Tasks could be moved back to `pending` while the agent was still assembling prompts,
+  causing duplicate launches or infinite "In Progress" loops.
 
-1. **API restart scenario**: When the API restarts, running Claude Code processes become orphaned
-2. **Stale process tracking**: Dead processes remained registered as "running"
-3. **Incomplete error handling**: Failed operations could leave processes running
-4. **No health monitoring**: No mechanism to detect when processes die unexpectedly
+## Current safeguards
 
-## Solution Implemented
+### 1. Single execution registry
+- `reserveExecution(...)` is called immediately after the task file is moved into
+  `queue/in-progress`. This ensures the reconciler and UI see the task as busy even while the
+  executor is still assembling prompts.
+- `registerExecution(...)` upgrades the reservation with the real `*exec.Cmd` once Claude starts.
+- `unregisterExecution(...)` runs exactly once via the coordinated cleanup path. Early failures
+  (prompt assembly errors, agent launch issues) are caught by a guard in `executeTask` that clears
+  the reservation before returning.
 
-### 1. Process Persistence (`/tmp/ecosystem-manager-processes.json`)
+### 2. Process manager integration
+- All agents run inside a managed process group via `ProcessManager`. `TerminateRunningProcess`
+  first asks the manager to cancel the context and send `SIGTERM`, falling back to direct
+  `resource-claude-code agents stop` only when the manager had nothing to do.
+- The process reaper in `queue/reaper.go` continues to reap zombies automatically.
 
-**What it does**: Saves running process information to disk so it survives API restarts.
+### 3. Startup hygiene
+- On boot the processor still calls `cleanupOrphanedProcesses()`, which scans `pgrep -f`
+  output for `resource-claude-code run` entries and kills any PID that is not represented in
+  the new execution registry. This catches leftovers from previous crashes or manual kills.
 
-**Structure**:
-```json
-[
-  {
-    "task_id": "resource-generator-example-20250110",
-    "process_id": 12345,
-    "start_time": "2025-01-10T12:34:56Z"
-  }
-]
-```
+### 4. Shutdown semantics
+- `Processor.Stop()` halts the queue loop and asks the process manager to terminate any
+  remaining executions with a 10-second grace window. As soon as a task is marked inactive
+  via the Settings toggle, the queue stops scheduling new work but existing agents are allowed
+  to finish naturally.
 
-**Lifecycle**:
-- **On startup**: Load persisted processes, kill any that are still alive (orphans)
-- **Process start**: Add to persistence file
-- **Process end**: Remove from persistence file  
-- **API shutdown**: Clear persistence file
+### 5. Log lifecycle
+- Every execution initializes a bounded log buffer; logs are flushed to
+  `queue/logs/task-runs/<task-id>.log` when the agent exits. Forced terminations call
+  `ResetTaskLogs` so retried tasks start with a clean slate.
 
-### 2. Health Monitoring (Every 30 seconds)
+## Removed components (and why)
+- The old persistence file (`/tmp/ecosystem-manager-processes.json`) and 30-second health monitor
+  were removed. With a single authoritative registry, we no longer need to continuously reconcile
+  auxiliary state, and avoiding disk I/O eliminates a source of stale data during rapid restarts.
 
-**What it does**: Periodically checks if registered processes are still alive using `kill -0 PID`.
+## Operational tips
+- To inspect active agents, use the API endpoint `GET /api/queue/processes` or
+  run `resource-claude-code agents list` and match tags of the form `ecosystem-<task-id>`.
+- If a task appears stuck, run `resource-claude-code agents stop ecosystem-<task-id>` and then
+  call the admin endpoint `POST /api/queue/processes/terminate` with the task ID to trigger the
+  cleanup path.
+- For audit trails, review the persisted task log files and the queue broadcast events emitted from
+  `appendTaskLog`.
 
-**Behavior**:
-- Scans all registered processes
-- Removes dead processes from registry
-- Updates persistence file
-- Logs cleanup activity
+## Testing checklist
+- Scenario restart with active agents → orphan cleanup removes leftover PIDs.
+- Rate-limit recovery → task moves back to `pending`, registry entry disappears, and logs are kept.
+- Manual termination via API → process manager cancels the agent, registry entry is cleared, file
+  moves back to `pending`.
+- Prompt assembly failure (before agent launch) → reservation is cleared by the early-exit guard.
 
-### 3. Orphan Process Cleanup
-
-**What it does**: On startup, scans for claude-code processes that aren't in our registry.
-
-**Process**:
-```bash
-pgrep -f "resource-claude-code"  # Find all claude-code processes
-```
-- Compare found PIDs with registered PIDs
-- Kill any unregistered processes (orphans)
-- Log cleanup activity
-
-### 4. Improved Error Handling
-
-**What it does**: Ensures processes are terminated even when operations fail.
-
-**Enhanced scenarios**:
-- If `io.ReadAll()` fails → Cancel context + kill process
-- Always use context cancellation before process kill
-- Graceful termination (SIGTERM) → Force kill (SIGKILL) → Verify death
-
-## New Configuration
-
-### Processor Settings
-```go
-processFile: "/tmp/ecosystem-manager-processes.json"
-healthCheckInterval: 30 * time.Second
-```
-
-### Process Termination Strategy
-1. **SIGTERM** (graceful shutdown)
-2. **Wait 100ms**  
-3. **SIGKILL** (force kill)
-4. **Verify process is dead**
-
-## API Changes
-
-### New Methods Added
-- `loadPersistedProcesses()` - Load processes on startup
-- `persistProcesses()` - Save processes to disk
-- `processHealthMonitor()` - Background health checking
-- `cleanupOrphanedProcesses()` - Kill orphaned processes
-- `isProcessAlive(pid)` - Check if PID exists
-- `killProcess(pid)` - Graceful then forceful termination
-
-### Modified Methods
-- `registerRunningProcess()` - Now persists after registration
-- `unregisterRunningProcess()` - Now persists after removal  
-- `Stop()` - Now stops health monitoring and clears persistence
-
-## Startup Sequence
-
-1. **Create processor** → Set up persistence file path
-2. **Load persisted processes** → Read previous process list  
-3. **Clean up orphaned processes** → Kill any alive processes from previous run
-4. **Start health monitor** → Begin background health checking
-5. **Start queue processing** → Begin normal operation
-
-## Shutdown Sequence
-
-1. **Stop health monitoring** → End background monitoring
-2. **Stop queue processing** → End task execution
-3. **Clear persistence file** → Remove process tracking file
-
-## Testing
-
-### Verification Commands
-```bash
-# Check for orphaned processes
-pgrep -f "resource-claude-code"
-
-# Check persistence file
-cat /tmp/ecosystem-manager-processes.json
-
-# Monitor health checking (check logs)
-tail -f /var/log/ecosystem-manager.log | grep "Process.*alive"
-```
-
-### Test Scenarios
-1. **Normal restart**: API stops/starts cleanly → No orphans
-2. **Crash restart**: API crashes → Orphans cleaned up on restart  
-3. **Process death**: Claude process dies → Detected and cleaned up within 30s
-4. **Failed operations**: I/O errors → Process properly terminated
-
-## Security Considerations
-
-- **Process file permissions**: 0644 (readable by owner and group)
-- **PID validation**: Only positive PIDs accepted
-- **Signal permissions**: Uses standard Unix signals (TERM/KILL)
-- **Cleanup bounds**: Only kills claude-code processes, not arbitrary PIDs
-
-## Monitoring
-
-### Log Messages to Watch For
-```
-INFO: Loaded N persisted processes from /tmp/ecosystem-manager-processes.json
-INFO: Cleaned up N orphaned processes from previous run  
-INFO: Process 12345 for task task-id is no longer alive - removing from registry
-INFO: Cleaned up N dead processes from registry
-```
-
-### Metrics Available
-- `executing_count`: Current registered processes
-- Health check frequency: Every 30 seconds
-- Persistence updates: On process start/stop
-
-## Benefits
-
-✅ **No orphaned processes** after API restarts  
-✅ **Accurate process tracking** with health monitoring  
-✅ **Robust error recovery** with proper process termination  
-✅ **Observable system** with detailed logging  
-✅ **Minimal overhead** with efficient process checking  
-
-## Potential Issues & Mitigations
-
-| Issue | Mitigation |
-|-------|------------|
-| Persistence file corruption | JSON parsing errors are logged, system continues |
-| High PID reuse | Health checks verify actual process, not just PID existence |
-| Signal permission denied | Errors are logged, system continues with other processes |
-| Disk space for persistence file | File is small (<1KB for typical use) and cleaned on shutdown |
-
-This implementation provides comprehensive protection against resource leaks while maintaining system stability and observability.
+These measures keep the filesystem, in-memory registry, and external agent state aligned, which is
+critical for preventing the "forever in progress" loops we experienced previously.

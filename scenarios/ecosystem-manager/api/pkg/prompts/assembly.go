@@ -316,7 +316,6 @@ func (a *Assembler) AssemblePromptForTask(task tasks.TaskItem) (string, error) {
 	taskContext.WriteString(fmt.Sprintf("**Title**: %s\n", task.Title))
 	taskContext.WriteString(fmt.Sprintf("**Type**: %s\n", task.Type))
 	taskContext.WriteString(fmt.Sprintf("**Operation**: %s\n", task.Operation))
-	taskContext.WriteString(fmt.Sprintf("**Category**: %s\n", task.Category))
 	taskContext.WriteString(fmt.Sprintf("**Priority**: %s\n", task.Priority))
 
 	if task.Requirements != nil && len(task.Requirements) > 0 {

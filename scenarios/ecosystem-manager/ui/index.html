@@ -351,6 +351,10 @@
                     <i class="fas fa-palette"></i>
                     <span>Display</span>
                 </button>
+                <button type="button" class="settings-tab-btn" data-tab="prompt" onclick="ecosystemManager.switchSettingsTab('prompt')">
+                    <i class="fas fa-flask"></i>
+                    <span>Prompt Tester</span>
+                </button>
                 <button type="button" class="settings-tab-btn" data-tab="limits" onclick="ecosystemManager.switchSettingsTab('limits')">
                     <i class="fas fa-hourglass-half"></i>
                     <span>Rate Limits</span>
@@ -466,6 +470,105 @@
                                     Condensed Task Cards
                                 </label>
                                 <small class="form-help">Show less information on task cards to fit more on screen</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Prompt Tester Tab -->
+                    <div class="settings-tab-content" data-tab="prompt">
+                        <div class="settings-section prompt-tester-section">
+                            <h4 class="settings-section-title">
+                                <i class="fas fa-flask"></i>
+                                Prompt Tester
+                            </h4>
+                            <p class="form-help prompt-tester-intro">
+                                Assemble prompts exactly how the agent would receive them by supplying task metadata and viewing the resulting sections, context, and token footprint.
+                            </p>
+
+                            <div class="prompt-tester-grid">
+                                <div class="prompt-tester-config">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="prompt-type">Task Type</label>
+                                            <select id="prompt-type" name="prompt_type">
+                                                <option value="resource">Resource</option>
+                                                <option value="scenario">Scenario</option>
+                                            </select>
+                                            <small class="form-help">Determines resource- vs scenario-specific prompt sections</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="prompt-operation">Operation</label>
+                                            <select id="prompt-operation" name="prompt_operation">
+                                                <option value="generator">Generator</option>
+                                                <option value="improver">Improver</option>
+                                            </select>
+                                            <small class="form-help">Filtered to operations available for the selected task type</small>
+                                        </div>
+                                    </div>
+
+                                    <div id="prompt-operation-summary" class="prompt-operation-summary"></div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-title">Task Title</label>
+                                        <input type="text" id="prompt-title" name="prompt_title" placeholder="Generate Ollama resource" value="Prompt Preview Task">
+                                        <small class="form-help">Used in task context appended to the assembled prompt</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-priority">Priority</label>
+                                        <select id="prompt-priority" name="prompt_priority">
+                                            <option value="critical">Critical</option>
+                                            <option value="high">High</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="low">Low</option>
+                                        </select>
+                                        <small class="form-help">Included in agent context for triage decisions</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-notes">Task Notes</label>
+                                        <textarea id="prompt-notes" name="prompt_notes" rows="3" placeholder="Key context or guardrails for the agent"></textarea>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="prompt-requirements">Requirements JSON</label>
+                                        <textarea id="prompt-requirements" name="prompt_requirements" rows="4" placeholder='{"deliverables": ["Dockerfile", "integration tests"]}'></textarea>
+                                        <small class="form-help">Optional structured data merged into the prompt; must be valid JSON object</small>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="prompt-display">Response Format</label>
+                                            <select id="prompt-display" name="prompt_display">
+                                                <option value="preview" selected>Preview (full prompt)</option>
+                                                <option value="full">Full Prompt</option>
+                                                <option value="size">Stats Only</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group prompt-tester-actions">
+                                            <button type="button" class="btn btn-primary" id="prompt-preview-btn">
+                                                <i class="fas fa-microscope"></i>
+                                                Preview Prompt
+                                            </button>
+                                            <button type="button" class="btn btn-secondary" id="prompt-preview-copy-btn" disabled>
+                                                <i class="fas fa-copy"></i>
+                                                Copy Prompt
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div id="prompt-preview-status" class="prompt-preview-status"></div>
+                                </div>
+
+                                <div class="prompt-tester-results" id="prompt-tester-results">
+                                    <div class="prompt-preview-placeholder" id="prompt-preview-placeholder">
+                                        <i class="fas fa-microscope"></i>
+                                        <p>Configure a task and select “Preview Prompt” to inspect the assembled output.</p>
+                                    </div>
+                                    <div class="prompt-preview-metadata" id="prompt-preview-metadata" hidden></div>
+                                    <div class="prompt-preview-sections" id="prompt-preview-sections" hidden></div>
+                                    <pre class="prompt-preview-output" id="prompt-preview-output" hidden></pre>
+                                </div>
                             </div>
                         </div>
                     </div>

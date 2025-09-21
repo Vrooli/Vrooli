@@ -169,7 +169,7 @@ func setupRoutes() http.Handler {
 	api.HandleFunc("/tasks/{id}/prompt/assembled", taskHandlers.GetAssembledPromptHandler).Methods("GET")
 
 	// Prompt viewer (no task ID required)
-	api.HandleFunc("/prompt-viewer", taskHandlers.PromptViewerHandler).Methods("GET")
+	api.HandleFunc("/prompt-viewer", taskHandlers.PromptViewerHandler).Methods("POST")
 
 	// Queue management routes
 	api.HandleFunc("/queue/status", queueHandlers.GetQueueStatusHandler).Methods("GET")
