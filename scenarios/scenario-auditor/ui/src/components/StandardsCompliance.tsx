@@ -55,6 +55,8 @@ export default function StandardsCompliance() {
   const [launchingScenario, setLaunchingScenario] = useState<string | null>(null)
   const [bulkFixOpen, setBulkFixOpen] = useState(false)
   const [bulkFixCount, setBulkFixCount] = useState(1)
+  const [agentSliderValue, setAgentSliderValue] = useState(1)
+  const MAX_VIOLATIONS_PER_AGENT = 50
   const [bulkFixSubmitting, setBulkFixSubmitting] = useState(false)
   const [bulkFixError, setBulkFixError] = useState<string | null>(null)
   const [bulkFixSuccess, setBulkFixSuccess] = useState<string | null>(null)
@@ -300,15 +302,48 @@ export default function StandardsCompliance() {
     Object.entries(groupedViolations).map(([scenario, violations]) => ({ scenario, violations })),
   [groupedViolations])
 
-  const maxBulkSelectable = Math.min(50, filteredViolations.length)
+  const maxBulkSelectable = Math.min(200, filteredViolations.length)
 
   const bulkSelection = useMemo(() => {
     if (filteredViolations.length === 0) {
       return [] as StandardsViolation[]
     }
-    const limit = Math.min(bulkFixCount, filteredViolations.length, 50)
+    const limit = Math.min(bulkFixCount, filteredViolations.length, 200)
     return filteredViolations.slice(0, Math.max(0, limit))
   }, [filteredViolations, bulkFixCount])
+
+  const maxBulkAgents = useMemo(() => {
+    if (bulkSelection.length === 0) {
+      return 1
+    }
+    return Math.max(1, Math.min(10, bulkSelection.length))
+  }, [bulkSelection.length])
+
+  const minAgentsForLoad = useMemo(() => {
+    if (bulkSelection.length === 0) {
+      return 1
+    }
+    const required = Math.ceil(bulkSelection.length / MAX_VIOLATIONS_PER_AGENT)
+    return Math.min(maxBulkAgents, Math.max(1, required))
+  }, [bulkSelection.length, maxBulkAgents])
+
+  const effectiveAgentCount = useMemo(() => {
+    const clamped = Math.max(1, Math.min(agentSliderValue, maxBulkAgents))
+    return Math.max(minAgentsForLoad, clamped)
+  }, [agentSliderValue, maxBulkAgents, minAgentsForLoad])
+
+  const projectedViolationsPerAgent = useMemo(() => {
+    if (bulkSelection.length === 0) {
+      return 0
+    }
+    return Math.ceil(bulkSelection.length / Math.max(1, effectiveAgentCount))
+  }, [bulkSelection.length, effectiveAgentCount])
+
+  const handleAgentSliderChange = useCallback((value: number) => {
+    const desired = Math.floor(Math.max(1, value))
+    const clamped = Math.min(desired, maxBulkAgents)
+    setAgentSliderValue(clamped)
+  }, [maxBulkAgents])
 
   const bulkSelectionByScenario = useMemo(() => {
     const map = new Map<string, StandardsViolation[]>()
@@ -363,12 +398,29 @@ export default function StandardsCompliance() {
     })
   }, [bulkFixOpen, maxBulkSelectable])
 
+  useEffect(() => {
+    setAgentSliderValue(prev => {
+      let next = prev
+      if (next > maxBulkAgents) {
+        next = maxBulkAgents
+      }
+      if (next < minAgentsForLoad) {
+        next = minAgentsForLoad
+      }
+      if (next < 1) {
+        next = 1
+      }
+      return next
+    })
+  }, [maxBulkAgents, minAgentsForLoad])
+
   const openBulkFixDialog = useCallback(() => {
     if (filteredViolations.length === 0) {
       return
     }
-    const maxSelectable = Math.min(50, filteredViolations.length)
+    const maxSelectable = Math.min(200, filteredViolations.length)
     setBulkFixCount(Math.max(1, Math.min(5, maxSelectable)))
+    setAgentSliderValue(1)
     setBulkFixError(null)
     setBulkFixSuccess(null)
     setBulkFixNotes('')
@@ -403,11 +455,21 @@ export default function StandardsCompliance() {
     }
 
     try {
-      const response = await apiService.triggerBulkFix('standards', targets, bulkFixNotes.trim() || undefined)
+        const response = await apiService.triggerBulkFix(
+          'standards',
+          targets,
+          bulkFixNotes.trim() || undefined,
+          effectiveAgentCount
+        )
       if (!response.success) {
         setBulkFixError(response.error || response.message || 'Failed to start bulk standards fix agent')
       } else {
-        setBulkFixSuccess(response.message || 'Started multi-scenario standards fix agent.')
+        const maxPerAgent = response.issues_per_agent_cap ?? MAX_VIOLATIONS_PER_AGENT
+        const successMessage = response.message
+          || (response.agent_count && response.issue_count
+            ? `Started ${response.agent_count} agent(s) for ${response.issue_count} standards violations (≤${maxPerAgent} per agent).`
+            : `Started ${response.agent_count ?? effectiveAgentCount} agent(s) for standards fixes.`)
+        setBulkFixSuccess(successMessage)
         await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
       }
     } catch (error) {
@@ -415,7 +477,7 @@ export default function StandardsCompliance() {
     } finally {
       setBulkFixSubmitting(false)
     }
-  }, [apiService, bulkSelection, bulkSelectionByScenario, bulkFixNotes, queryClient])
+  }, [apiService, effectiveAgentCount, bulkSelection, bulkSelectionByScenario, bulkFixNotes, queryClient])
 
   const handleAgentCompletion = useCallback(async (agentId: string, scenario: string) => {
     try {
@@ -1118,7 +1180,7 @@ export default function StandardsCompliance() {
         <div className="space-y-5">
           <p className="text-sm text-dark-600">
             Launch Claude agents to address the first <span className="font-medium text-dark-800">{bulkSelection.length}</span> matching violations across{' '}
-            <span className="font-medium text-dark-800">{bulkSelectionByScenario.size}</span> scenario{bulkSelectionByScenario.size === 1 ? '' : 's'}. Use the slider to cap the number of issues (maximum 50) so you can batch similar fixes safely.
+            <span className="font-medium text-dark-800">{bulkSelectionByScenario.size}</span> scenario{bulkSelectionByScenario.size === 1 ? '' : 's'}. Choose how many violations to include (maximum 200) and how many agents to spawn so you can balance throughput with the number of active workers.
           </p>
 
           <div>
@@ -1136,6 +1198,26 @@ export default function StandardsCompliance() {
               className="mt-2 w-full"
               disabled={bulkFixSubmitting || maxBulkSelectable <= 1}
             />
+          </div>
+
+          <div>
+            <label htmlFor="standards-agent-count" className="flex items-center justify-between text-sm font-medium text-dark-700">
+              <span>Select number of agents</span>
+              <span className="text-dark-500">{effectiveAgentCount} active</span>
+            </label>
+            <input
+              id="standards-agent-count"
+              type="range"
+              min={1}
+              max={Math.max(1, maxBulkAgents)}
+              value={agentSliderValue}
+              onChange={(event) => handleAgentSliderChange(Number(event.target.value))}
+              className="mt-2 w-full"
+              disabled={bulkFixSubmitting || maxBulkAgents <= 1}
+            />
+            <p className="mt-2 text-xs text-dark-500">
+              ≈{projectedViolationsPerAgent} violation{projectedViolationsPerAgent === 1 ? '' : 's'} per agent (capped at {MAX_VIOLATIONS_PER_AGENT})
+            </p>
           </div>
 
           <div className="rounded-lg border border-dark-200 bg-dark-50 p-3">

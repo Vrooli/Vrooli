@@ -18,12 +18,16 @@ type claudeFixRequest struct {
 	IssueIDs     []string          `json:"issue_ids"`
 	Targets      []claudeFixTarget `json:"targets"`
 	ExtraPrompt  string            `json:"extra_prompt"`
+	AgentCount   int               `json:"agent_count"`
 }
 
 type claudeFixTarget struct {
 	Scenario string   `json:"scenario"`
 	IssueIDs []string `json:"issue_ids"`
 }
+
+const maxBulkFixAgents = 10
+const maxIssuesPerAgent = 50
 
 func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 	logger := NewLogger()
@@ -52,69 +56,238 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		agentCfg          AgentStartConfig
 		responseMessage   string
 		responseScenarios []string
+		issueCount        int
 	)
 
 	if len(req.Targets) > 0 {
 		switch fixType {
 		case "standards":
-			multiTargets, collectedIDs, err := prepareBulkStandardsTargets(req.Targets)
+			multiTargets, _, err := prepareBulkStandardsTargets(req.Targets)
 			if err != nil {
 				HTTPError(w, err.Error(), http.StatusBadRequest, nil)
 				return
 			}
+			totalViolations := countStandardsViolations(multiTargets)
+			if totalViolations == 0 {
+				HTTPError(w, "No matching standards violations found to fix", http.StatusBadRequest, nil)
+				return
+			}
+			scenarioNames := extractStandardsScenarioNames(multiTargets)
+			issueCount = totalViolations
+			requestedAgents := clampAgentCount(req.AgentCount, totalViolations)
+			if requestedAgents > 1 {
+				groups := splitStandardsTargets(multiTargets, requestedAgents)
+				if len(groups) == 0 {
+					HTTPError(w, "Failed to partition standards violations for multi-agent fix", http.StatusInternalServerError, nil)
+					return
+				}
+				startedAgents := make([]*AgentInfo, 0, len(groups))
+				for idx, group := range groups {
+					prompt, groupLabel, metadata, err := buildMultiStandardsFixPrompt(group, extraPrompt)
+					if err != nil {
+						HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
+						return
+					}
+					if metadata == nil {
+						metadata = make(map[string]string)
+					}
+					metadata["fix_type"] = fixType
+					metadata["scenarios"] = strings.Join(extractStandardsScenarioNames(group), ",")
+					metadata["batch_index"] = fmt.Sprintf("%d/%d", idx+1, len(groups))
+					if extraPrompt != "" {
+						metadata["user_instructions"] = extraPrompt
+					}
+					batchIDs := collectStandardsIssueIDs(group)
+					metadata["issue_count"] = fmt.Sprintf("%d", len(batchIDs))
+					metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+					labelWithBatch := groupLabel
+					if len(groups) > 1 {
+						labelWithBatch = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
+					}
+					agentCfg := AgentStartConfig{
+						Label:    labelWithBatch,
+						Name:     labelWithBatch,
+						Action:   agentActionStandardsFix,
+						Scenario: "multi",
+						IssueIDs: batchIDs,
+						Prompt:   prompt,
+						Model:    openRouterModel,
+						Metadata: metadata,
+					}
+					agentInfo, startErr := agentManager.StartAgent(agentCfg)
+					if startErr != nil {
+						HTTPError(w, fmt.Sprintf("Failed to start agent batch %d", idx+1), http.StatusInternalServerError, startErr)
+						return
+					}
+					startedAgents = append(startedAgents, agentInfo)
+				}
+				fixIDs := make([]string, 0, len(startedAgents))
+				for _, info := range startedAgents {
+					fixIDs = append(fixIDs, info.ID)
+				}
+				message := fmt.Sprintf(
+					"Started %d agents to address %d violations across %d scenario(s)",
+					len(startedAgents), totalViolations, len(scenarioNames),
+				)
+				response := map[string]interface{}{
+					"success":              true,
+					"message":              message,
+					"fix_id":               fixIDs[0],
+					"fix_ids":              fixIDs,
+					"agent_count":          len(startedAgents),
+					"agents":               startedAgents,
+					"issue_count":          totalViolations,
+					"issues_per_agent_cap": maxIssuesPerAgent,
+					"scenarios":            scenarioNames,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if err := json.NewEncoder(w).Encode(response); err != nil {
+					logger.Error("Failed to encode trigger fix response", err)
+				}
+				return
+			}
+
 			prompt, label, metadata, err = buildMultiStandardsFixPrompt(multiTargets, extraPrompt)
 			if err != nil {
 				HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
 				return
 			}
+			if metadata == nil {
+				metadata = make(map[string]string)
+			}
 			metadata["fix_type"] = fixType
-			scenarioNames := extractStandardsScenarioNames(multiTargets)
 			metadata["scenarios"] = strings.Join(scenarioNames, ",")
 			if extraPrompt != "" {
 				metadata["user_instructions"] = extraPrompt
 			}
+			metadata["issue_count"] = fmt.Sprintf("%d", totalViolations)
+			metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
 			action = agentActionStandardsFix
 			agentCfg = AgentStartConfig{
 				Label:    label,
 				Name:     fmt.Sprintf("%s (multi)", label),
 				Action:   action,
 				Scenario: "multi",
-				IssueIDs: collectedIDs,
+				IssueIDs: collectStandardsIssueIDs(multiTargets),
 				Prompt:   prompt,
 				Model:    openRouterModel,
 				Metadata: metadata,
 			}
-			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(multiTargets))
+			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(scenarioNames))
 			responseScenarios = scenarioNames
 		case "vulnerabilities":
-			multiTargets, collectedIDs, err := prepareBulkVulnerabilityTargets(req.Targets)
+			multiTargets, _, err := prepareBulkVulnerabilityTargets(req.Targets)
 			if err != nil {
 				HTTPError(w, err.Error(), http.StatusBadRequest, nil)
 				return
 			}
+			totalFindings := countVulnerabilityFindings(multiTargets)
+			if totalFindings == 0 {
+				HTTPError(w, "No matching vulnerabilities found to fix", http.StatusBadRequest, nil)
+				return
+			}
+			scenarioNames := extractVulnerabilityScenarioNames(multiTargets)
+			issueCount = totalFindings
+			requestedAgents := clampAgentCount(req.AgentCount, totalFindings)
+			if requestedAgents > 1 {
+				groups := splitVulnerabilityTargets(multiTargets, requestedAgents)
+				if len(groups) == 0 {
+					HTTPError(w, "Failed to partition vulnerabilities for multi-agent fix", http.StatusInternalServerError, nil)
+					return
+				}
+				startedAgents := make([]*AgentInfo, 0, len(groups))
+				for idx, group := range groups {
+					prompt, groupLabel, metadata, err := buildMultiVulnerabilityFixPrompt(group, extraPrompt)
+					if err != nil {
+						HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
+						return
+					}
+					if metadata == nil {
+						metadata = make(map[string]string)
+					}
+					metadata["fix_type"] = fixType
+					metadata["scenarios"] = strings.Join(extractVulnerabilityScenarioNames(group), ",")
+					metadata["batch_index"] = fmt.Sprintf("%d/%d", idx+1, len(groups))
+					if extraPrompt != "" {
+						metadata["user_instructions"] = extraPrompt
+					}
+					batchIDs := collectVulnerabilityIssueIDs(group)
+					metadata["issue_count"] = fmt.Sprintf("%d", len(batchIDs))
+					metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+					labelWithBatch := groupLabel
+					if len(groups) > 1 {
+						labelWithBatch = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
+					}
+					agentCfg := AgentStartConfig{
+						Label:    labelWithBatch,
+						Name:     labelWithBatch,
+						Action:   agentActionVulnerabilityFix,
+						Scenario: "multi",
+						IssueIDs: batchIDs,
+						Prompt:   prompt,
+						Model:    openRouterModel,
+						Metadata: metadata,
+					}
+					agentInfo, startErr := agentManager.StartAgent(agentCfg)
+					if startErr != nil {
+						HTTPError(w, fmt.Sprintf("Failed to start agent batch %d", idx+1), http.StatusInternalServerError, startErr)
+						return
+					}
+					startedAgents = append(startedAgents, agentInfo)
+				}
+				fixIDs := make([]string, 0, len(startedAgents))
+				for _, info := range startedAgents {
+					fixIDs = append(fixIDs, info.ID)
+				}
+				message := fmt.Sprintf(
+					"Started %d agents to address %d vulnerabilities across %d scenario(s)",
+					len(startedAgents), totalFindings, len(scenarioNames),
+				)
+				response := map[string]interface{}{
+					"success":              true,
+					"message":              message,
+					"fix_id":               fixIDs[0],
+					"fix_ids":              fixIDs,
+					"agent_count":          len(startedAgents),
+					"agents":               startedAgents,
+					"issue_count":          totalFindings,
+					"issues_per_agent_cap": maxIssuesPerAgent,
+					"scenarios":            scenarioNames,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if err := json.NewEncoder(w).Encode(response); err != nil {
+					logger.Error("Failed to encode trigger fix response", err)
+				}
+				return
+			}
+
 			prompt, label, metadata, err = buildMultiVulnerabilityFixPrompt(multiTargets, extraPrompt)
 			if err != nil {
 				HTTPError(w, "Failed to build agent prompt", http.StatusInternalServerError, err)
 				return
 			}
+			if metadata == nil {
+				metadata = make(map[string]string)
+			}
 			metadata["fix_type"] = fixType
-			scenarioNames := extractVulnerabilityScenarioNames(multiTargets)
 			metadata["scenarios"] = strings.Join(scenarioNames, ",")
 			if extraPrompt != "" {
 				metadata["user_instructions"] = extraPrompt
 			}
+			metadata["issue_count"] = fmt.Sprintf("%d", totalFindings)
+			metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
 			action = agentActionVulnerabilityFix
 			agentCfg = AgentStartConfig{
 				Label:    label,
 				Name:     fmt.Sprintf("%s (multi)", label),
 				Action:   action,
 				Scenario: "multi",
-				IssueIDs: collectedIDs,
+				IssueIDs: collectVulnerabilityIssueIDs(multiTargets),
 				Prompt:   prompt,
 				Model:    openRouterModel,
 				Metadata: metadata,
 			}
-			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(multiTargets))
+			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(scenarioNames))
 			responseScenarios = scenarioNames
 		default:
 			HTTPError(w, "Unsupported fix_type", http.StatusBadRequest, nil)
@@ -149,6 +322,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			prompt, label, metadata, err = buildStandardsFixPrompt(scenarioName, scenarioPath, selected, ids)
 			finalIDs = ids
+			issueCount = len(finalIDs)
 			action = agentActionStandardsFix
 		case "vulnerabilities":
 			vulnerabilities := vulnStore.GetVulnerabilities(scenarioName)
@@ -165,6 +339,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			prompt, label, metadata, err = buildVulnerabilityFixPrompt(scenarioName, scenarioPath, selected, ids)
 			finalIDs = ids
+			issueCount = len(finalIDs)
 			action = agentActionVulnerabilityFix
 		default:
 			HTTPError(w, "Unsupported fix_type", http.StatusBadRequest, nil)
@@ -189,6 +364,10 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		if extraPrompt != "" {
 			metadata["user_instructions"] = extraPrompt
 		}
+		if issueCount > 0 {
+			metadata["issue_count"] = fmt.Sprintf("%d", issueCount)
+		}
+		metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
 
 		agentCfg = AgentStartConfig{
 			Label:    label,
@@ -211,16 +390,22 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"success":    true,
-		"message":    responseMessage,
-		"fix_id":     agentInfo.ID,
-		"started_at": agentInfo.StartedAt,
-		"agent":      agentInfo,
-		"scenarios":  responseScenarios,
+		"success":     true,
+		"message":     responseMessage,
+		"fix_id":      agentInfo.ID,
+		"started_at":  agentInfo.StartedAt,
+		"agent":       agentInfo,
+		"scenarios":   responseScenarios,
+		"agent_count": 1,
+		"fix_ids":     []string{agentInfo.ID},
 	}
 	if extraPrompt != "" {
 		response["user_instructions"] = extraPrompt
 	}
+	if issueCount > 0 {
+		response["issue_count"] = issueCount
+	}
+	response["issues_per_agent_cap"] = maxIssuesPerAgent
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -469,6 +654,250 @@ func prepareBulkVulnerabilityTargets(targets []claudeFixTarget) ([]vulnerability
 
 	sort.Strings(collectedIDs)
 	return result, collectedIDs, nil
+}
+
+func clampAgentCount(requested, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	minAgents := (total + maxIssuesPerAgent - 1) / maxIssuesPerAgent
+	if minAgents < 1 {
+		minAgents = 1
+	}
+	if requested < 1 {
+		requested = 1
+	}
+	if requested < minAgents {
+		requested = minAgents
+	}
+	if requested > total {
+		requested = total
+	}
+	if requested > maxBulkFixAgents {
+		requested = maxBulkFixAgents
+	}
+	if requested < minAgents {
+		requested = minAgents
+	}
+	return requested
+}
+
+func countStandardsViolations(targets []standardsFixMultiScenario) int {
+	total := 0
+	for _, target := range targets {
+		total += len(target.Violations)
+	}
+	return total
+}
+
+func collectStandardsIssueIDs(targets []standardsFixMultiScenario) []string {
+	seen := make(map[string]struct{})
+	var ids []string
+	for _, target := range targets {
+		for _, violation := range target.Violations {
+			if violation.ID == "" {
+				continue
+			}
+			if _, exists := seen[violation.ID]; exists {
+				continue
+			}
+			seen[violation.ID] = struct{}{}
+			ids = append(ids, violation.ID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func cloneStandardsTargets(targets []standardsFixMultiScenario) []standardsFixMultiScenario {
+	cloned := make([]standardsFixMultiScenario, 0, len(targets))
+	for _, target := range targets {
+		copyTarget := standardsFixMultiScenario{
+			Scenario:     target.Scenario,
+			ScenarioPath: target.ScenarioPath,
+			Violations:   append([]StandardsViolation(nil), target.Violations...),
+		}
+		cloned = append(cloned, copyTarget)
+	}
+	return cloned
+}
+
+func splitStandardsTargets(targets []standardsFixMultiScenario, agentCount int) [][]standardsFixMultiScenario {
+	total := countStandardsViolations(targets)
+	if total == 0 {
+		return nil
+	}
+	if agentCount <= 1 {
+		return [][]standardsFixMultiScenario{cloneStandardsTargets(targets)}
+	}
+	if agentCount > maxBulkFixAgents {
+		agentCount = maxBulkFixAgents
+	}
+	if agentCount > total {
+		agentCount = total
+	}
+	chunkSize := (total + agentCount - 1) / agentCount
+	if chunkSize < 1 {
+		chunkSize = 1
+	}
+	if chunkSize > maxIssuesPerAgent {
+		chunkSize = maxIssuesPerAgent
+	}
+
+	var groups [][]standardsFixMultiScenario
+	current := make(map[string]*standardsFixMultiScenario)
+	order := make([]string, 0)
+	countInGroup := 0
+
+	flushGroup := func() {
+		if len(current) == 0 {
+			return
+		}
+		group := make([]standardsFixMultiScenario, 0, len(order))
+		for _, scenario := range order {
+			entry := current[scenario]
+			group = append(group, standardsFixMultiScenario{
+				Scenario:     entry.Scenario,
+				ScenarioPath: entry.ScenarioPath,
+				Violations:   append([]StandardsViolation(nil), entry.Violations...),
+			})
+		}
+		groups = append(groups, group)
+		current = make(map[string]*standardsFixMultiScenario)
+		order = make([]string, 0)
+		countInGroup = 0
+	}
+
+	for _, target := range targets {
+		for _, violation := range target.Violations {
+			if countInGroup >= chunkSize && len(groups)+1 < agentCount {
+				flushGroup()
+			}
+			entry, exists := current[target.Scenario]
+			if !exists {
+				entry = &standardsFixMultiScenario{
+					Scenario:     target.Scenario,
+					ScenarioPath: target.ScenarioPath,
+					Violations:   []StandardsViolation{},
+				}
+				current[target.Scenario] = entry
+				order = append(order, target.Scenario)
+			}
+			entry.Violations = append(entry.Violations, violation)
+			countInGroup++
+		}
+	}
+	flushGroup()
+	return groups
+}
+
+func countVulnerabilityFindings(targets []vulnerabilityFixMultiScenario) int {
+	total := 0
+	for _, target := range targets {
+		total += len(target.Findings)
+	}
+	return total
+}
+
+func collectVulnerabilityIssueIDs(targets []vulnerabilityFixMultiScenario) []string {
+	seen := make(map[string]struct{})
+	var ids []string
+	for _, target := range targets {
+		for _, finding := range target.Findings {
+			if finding.ID == "" {
+				continue
+			}
+			if _, exists := seen[finding.ID]; exists {
+				continue
+			}
+			seen[finding.ID] = struct{}{}
+			ids = append(ids, finding.ID)
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func cloneVulnerabilityTargets(targets []vulnerabilityFixMultiScenario) []vulnerabilityFixMultiScenario {
+	cloned := make([]vulnerabilityFixMultiScenario, 0, len(targets))
+	for _, target := range targets {
+		copyTarget := vulnerabilityFixMultiScenario{
+			Scenario:     target.Scenario,
+			ScenarioPath: target.ScenarioPath,
+			Findings:     append([]StoredVulnerability(nil), target.Findings...),
+		}
+		cloned = append(cloned, copyTarget)
+	}
+	return cloned
+}
+
+func splitVulnerabilityTargets(targets []vulnerabilityFixMultiScenario, agentCount int) [][]vulnerabilityFixMultiScenario {
+	total := countVulnerabilityFindings(targets)
+	if total == 0 {
+		return nil
+	}
+	if agentCount <= 1 {
+		return [][]vulnerabilityFixMultiScenario{cloneVulnerabilityTargets(targets)}
+	}
+	if agentCount > maxBulkFixAgents {
+		agentCount = maxBulkFixAgents
+	}
+	if agentCount > total {
+		agentCount = total
+	}
+	chunkSize := (total + agentCount - 1) / agentCount
+	if chunkSize < 1 {
+		chunkSize = 1
+	}
+	if chunkSize > maxIssuesPerAgent {
+		chunkSize = maxIssuesPerAgent
+	}
+
+	var groups [][]vulnerabilityFixMultiScenario
+	current := make(map[string]*vulnerabilityFixMultiScenario)
+	order := make([]string, 0)
+	countInGroup := 0
+
+	flushGroup := func() {
+		if len(current) == 0 {
+			return
+		}
+		group := make([]vulnerabilityFixMultiScenario, 0, len(order))
+		for _, scenario := range order {
+			entry := current[scenario]
+			group = append(group, vulnerabilityFixMultiScenario{
+				Scenario:     entry.Scenario,
+				ScenarioPath: entry.ScenarioPath,
+				Findings:     append([]StoredVulnerability(nil), entry.Findings...),
+			})
+		}
+		groups = append(groups, group)
+		current = make(map[string]*vulnerabilityFixMultiScenario)
+		order = make([]string, 0)
+		countInGroup = 0
+	}
+
+	for _, target := range targets {
+		for _, finding := range target.Findings {
+			if countInGroup >= chunkSize && len(groups)+1 < agentCount {
+				flushGroup()
+			}
+			entry, exists := current[target.Scenario]
+			if !exists {
+				entry = &vulnerabilityFixMultiScenario{
+					Scenario:     target.Scenario,
+					ScenarioPath: target.ScenarioPath,
+					Findings:     []StoredVulnerability{},
+				}
+				current[target.Scenario] = entry
+				order = append(order, target.Scenario)
+			}
+			entry.Findings = append(entry.Findings, finding)
+			countInGroup++
+		}
+	}
+	flushGroup()
+	return groups
 }
 
 func extractStandardsScenarioNames(targets []standardsFixMultiScenario) []string {

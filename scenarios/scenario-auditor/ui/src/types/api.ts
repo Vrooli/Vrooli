@@ -270,4 +270,9 @@ export interface FixAgentResponse {
   scenarios?: string[]
   user_instructions?: string
   error?: string
+  fix_ids?: string[]
+  agents?: AgentInfo[]
+  agent_count?: number
+  issue_count?: number
+  issues_per_agent_cap?: number
 }

@@ -232,7 +232,8 @@ class ApiService {
   async triggerBulkFix(
     fixType: 'standards' | 'vulnerabilities',
     targets: Array<{ scenario: string; issue_ids?: string[] }>,
-    extraPrompt?: string
+    extraPrompt?: string,
+    agentCount?: number
   ): Promise<FixAgentResponse> {
     const payload: Record<string, unknown> = {
       fix_type: fixType,
@@ -240,6 +241,9 @@ class ApiService {
     }
     if (extraPrompt && extraPrompt.trim().length > 0) {
       payload.extra_prompt = extraPrompt.trim()
+    }
+    if (agentCount && agentCount > 0) {
+      payload.agent_count = agentCount
     }
 
     return this.fetch('/claude/fix', {
