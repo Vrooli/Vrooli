@@ -45,7 +45,7 @@ cli::init "opencode" "OpenCode AI CLI" "v2"
 
 CLI_COMMAND_HANDLERS["manage::install"]="opencode::install::execute"
 CLI_COMMAND_HANDLERS["manage::uninstall"]="opencode::install::uninstall"
-CLI_COMMAND_HANDLERS["manage::start"]="opencode::status"
+CLI_COMMAND_HANDLERS["manage::start"]="opencode::docker::start"
 CLI_COMMAND_HANDLERS["manage::stop"]="opencode::docker::stop"
 CLI_COMMAND_HANDLERS["manage::restart"]="opencode::docker::restart"
 
@@ -76,13 +76,38 @@ cli::register_command "status" "Show OpenCode status" "opencode::status"
 cli::register_command "run" "Execute raw OpenCode CLI commands" "opencode::cli::dispatch"
 cli::register_command "logs" "Show log directory" "opencode::docker::logs"
 
+opencode::agents::delegate() {
+    "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="opencode" "$@"
+}
+
 opencode::agents::command() {
-    if type -t agent_manager::load_config &>/dev/null; then
-        "${APP_ROOT}/scripts/resources/agents/agent-manager.sh" --config="opencode" "$@"
-    else
+    if ! type -t agent_manager::load_config &>/dev/null; then
         log::error "Agent management not available"
         return 1
     fi
+
+    if [[ $# -eq 0 ]]; then
+        opencode::agents::delegate list
+        return $?
+    fi
+
+    local subcommand="${1}"
+    shift
+
+    case "${subcommand}" in
+        run)
+            opencode::agents::run "$@"
+            ;;
+        session)
+            opencode::agents::session_command "$@"
+            ;;
+        help|-h|--help)
+            opencode::agents::usage
+            ;;
+        *)
+            opencode::agents::delegate "${subcommand}" "$@"
+            ;;
+    esac
 }
 export -f opencode::agents::command
 

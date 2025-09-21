@@ -52,6 +52,20 @@ opencode::test::integration() {
         failures=$((failures + 1))
     fi
 
+    log::info "Test 5: server lifecycle"
+    if opencode::docker::start; then
+        log::success "✅ OpenCode server started"
+        if opencode::docker::stop; then
+            log::success "✅ OpenCode server stopped"
+        else
+            log::warning "⚠️  Unable to stop OpenCode server cleanly"
+            failures=$((failures + 1))
+        fi
+    else
+        log::error "❌ Failed to start OpenCode server"
+        failures=$((failures + 1))
+    fi
+
     if [[ ${failures} -eq 0 ]]; then
         log::success "OpenCode integration tests passed"
         return 0

@@ -36,6 +36,15 @@ opencode::status() {
     [[ -n "${OPENROUTER_API_KEY:-}" ]] && has_openrouter="true"
     [[ -n "${CLOUDFLARE_API_TOKEN:-}" ]] && has_cloudflare="true"
 
+    local server_url
+    server_url="$(opencode::server::base_url)"
+    local server_status
+    if opencode::server::is_running; then
+        server_status="running (${server_url})"
+    else
+        server_status="stopped (${server_url})"
+    fi
+
     echo "OpenCode CLI Status"
     echo "===================="
     echo "Binary Path   : ${OPENCODE_BIN}"
@@ -43,6 +52,7 @@ opencode::status() {
     echo "Config Path   : ${OPENCODE_CONFIG_FILE}"
     echo "Model         : ${model}"
     echo "Small Model   : ${small_model}"
+    echo "Server        : ${server_status}"
     echo "Secrets       : { OPENROUTER_API_KEY: ${has_openrouter}, CLOUDFLARE_API_TOKEN: ${has_cloudflare} }"
     echo "Auth Storage  : ${OPENCODE_XDG_DATA_HOME}/opencode/auth.json"
     echo "Logs Directory: ${OPENCODE_LOG_DIR}"
