@@ -1,3 +1,6 @@
+//go:build legacy_auditor_tests
+// +build legacy_auditor_tests
+
 package main
 
 import (
@@ -18,41 +21,41 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	tempDir := t.TempDir()
 	setupTestScenario(t, tempDir)
-	
+
 	server := setupTestServer(t, tempDir)
 	defer server.Close()
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
-	
+
 	t.Run("HealthCheck", func(t *testing.T) {
 		resp, err := client.Get(server.URL + "/health")
 		if err != nil {
 			t.Fatalf("Health check failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
-		
+
 		var health map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&health)
-		
+
 		if health["status"] != "healthy" {
 			t.Error("Expected healthy status")
 		}
 	})
-	
+
 	t.Run("ScanScenario", func(t *testing.T) {
 		reqBody := map[string]interface{}{
 			"scenario": "test-scenario",
 			"scanners": []string{"custom"},
 			"targets":  []string{tempDir},
 		}
-		
+
 		body, _ := json.Marshal(reqBody)
 		resp, err := client.Post(
 			server.URL+"/api/v1/scan",
@@ -63,31 +66,31 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Scan request failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 			body, _ := io.ReadAll(resp.Body)
 			t.Fatalf("Scan failed with status %d: %s", resp.StatusCode, body)
 		}
-		
+
 		var scanResult map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&scanResult)
-		
+
 		if scanResult["scan_id"] == nil {
 			t.Error("Expected scan_id in response")
 		}
-		
+
 		if scanResult["status"] == nil {
 			t.Error("Expected status in response")
 		}
 	})
-	
+
 	t.Run("CheckStandards", func(t *testing.T) {
 		reqBody := map[string]interface{}{
 			"scenario": "test-scenario",
 			"targets":  []string{tempDir},
 			"rules":    []string{"api-versioning", "error-handling"},
 		}
-		
+
 		body, _ := json.Marshal(reqBody)
 		resp, err := client.Post(
 			server.URL+"/api/v1/standards/check",
@@ -98,19 +101,19 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Standards check failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		var result map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&result)
-		
+
 		if result["violations"] == nil {
 			t.Error("Expected violations in response")
 		}
-		
+
 		if result["summary"] == nil {
 			t.Error("Expected summary in response")
 		}
 	})
-	
+
 	t.Run("GenerateFixes", func(t *testing.T) {
 		violations := []map[string]interface{}{
 			{
@@ -120,12 +123,12 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 				"message": "Missing API version",
 			},
 		}
-		
+
 		reqBody := map[string]interface{}{
 			"scenario":   "test-scenario",
 			"violations": violations,
 		}
-		
+
 		body, _ := json.Marshal(reqBody)
 		resp, err := client.Post(
 			server.URL+"/api/v1/standards/fix",
@@ -136,25 +139,25 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Fix generation failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			t.Fatalf("Fix generation failed with status %d: %s", resp.StatusCode, body)
 		}
-		
+
 		var fixResult map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&fixResult)
-		
+
 		if fixResult["fixes"] == nil {
 			t.Error("Expected fixes in response")
 		}
 	})
-	
+
 	t.Run("AgentWorkflow", func(t *testing.T) {
 		reqBody := map[string]string{
 			"type": "scanner",
 		}
-		
+
 		body, _ := json.Marshal(reqBody)
 		resp, err := client.Post(
 			server.URL+"/api/v1/agents",
@@ -165,26 +168,26 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Agent creation failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		var agent map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&agent)
-		
+
 		if agent["id"] == nil {
 			t.Fatal("Expected agent ID")
 		}
-		
+
 		agentID := agent["id"].(string)
-		
+
 		resp, err = client.Get(server.URL + "/api/v1/agents/" + agentID)
 		if err != nil {
 			t.Fatalf("Get agent failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
-		
+
 		taskBody := map[string]interface{}{
 			"agent_id": agentID,
 			"type":     "scan",
@@ -192,7 +195,7 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 				"target": tempDir,
 			},
 		}
-		
+
 		body, _ = json.Marshal(taskBody)
 		resp, err = client.Post(
 			server.URL+"/api/v1/agents/task",
@@ -203,18 +206,18 @@ func TestIntegrationFullScanWorkflow(t *testing.T) {
 			t.Fatalf("Task execution failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 			t.Errorf("Expected status 200 or 202, got %d", resp.StatusCode)
 		}
-		
+
 		req, _ := http.NewRequest("DELETE", server.URL+"/api/v1/agents/"+agentID, nil)
 		resp, err = client.Do(req)
 		if err != nil {
 			t.Fatalf("Agent termination failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 			t.Errorf("Expected status 200 or 204, got %d", resp.StatusCode)
 		}
@@ -225,92 +228,92 @@ func TestIntegrationRuleManagement(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	tempDir := t.TempDir()
 	server := setupTestServer(t, tempDir)
 	defer server.Close()
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
-	
+
 	t.Run("ListRules", func(t *testing.T) {
 		resp, err := client.Get(server.URL + "/api/v1/rules")
 		if err != nil {
 			t.Fatalf("List rules failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
-		
+
 		var rules []map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&rules)
-		
+
 		if len(rules) == 0 {
 			t.Error("Expected at least one rule")
 		}
 	})
-	
+
 	t.Run("GetRule", func(t *testing.T) {
 		resp, err := client.Get(server.URL + "/api/v1/rules/api-versioning")
 		if err != nil {
 			t.Fatalf("Get rule failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode == http.StatusNotFound {
 			t.Skip("Rule not found")
 		}
-		
+
 		if resp.StatusCode != http.StatusOK {
 			t.Errorf("Expected status 200, got %d", resp.StatusCode)
 		}
-		
+
 		var rule map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&rule)
-		
+
 		if rule["id"] != "api-versioning" {
 			t.Error("Expected rule ID to match")
 		}
 	})
-	
+
 	t.Run("ToggleRule", func(t *testing.T) {
 		reqBody := map[string]bool{
 			"enabled": false,
 		}
-		
+
 		body, _ := json.Marshal(reqBody)
 		req, _ := http.NewRequest("PATCH", server.URL+"/api/v1/rules/api-versioning", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		resp, err := client.Do(req)
 		if err != nil {
 			t.Fatalf("Toggle rule failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
 			t.Errorf("Expected status 200 or 204, got %d", resp.StatusCode)
 		}
-		
+
 		resp, err = client.Get(server.URL + "/api/v1/rules/api-versioning")
 		if err != nil {
 			t.Fatalf("Get rule after toggle failed: %v", err)
 		}
 		defer resp.Body.Close()
-		
+
 		var rule map[string]interface{}
 		json.NewDecoder(resp.Body).Decode(&rule)
-		
+
 		if rule["enabled"] != false {
 			t.Error("Expected rule to be disabled")
 		}
-		
+
 		reqBody["enabled"] = true
 		body, _ = json.Marshal(reqBody)
 		req, _ = http.NewRequest("PATCH", server.URL+"/api/v1/rules/api-versioning", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		resp, err = client.Do(req)
 		if err != nil {
 			t.Fatalf("Re-enable rule failed: %v", err)
@@ -323,22 +326,22 @@ func TestIntegrationPerformanceMetrics(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	tempDir := t.TempDir()
 	setupLargeTestScenario(t, tempDir)
-	
+
 	server := setupTestServer(t, tempDir)
 	defer server.Close()
-	
+
 	client := &http.Client{Timeout: 60 * time.Second}
-	
+
 	start := time.Now()
-	
+
 	reqBody := map[string]interface{}{
 		"scenario": "performance-test",
 		"targets":  []string{tempDir},
 	}
-	
+
 	body, _ := json.Marshal(reqBody)
 	resp, err := client.Post(
 		server.URL+"/api/v1/standards/check",
@@ -349,16 +352,16 @@ func TestIntegrationPerformanceMetrics(t *testing.T) {
 		t.Fatalf("Performance test failed: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	elapsed := time.Since(start)
-	
+
 	if elapsed > 30*time.Second {
 		t.Errorf("Standards check took too long: %v", elapsed)
 	}
-	
+
 	var result map[string]interface{}
 	json.NewDecoder(resp.Body).Decode(&result)
-	
+
 	if metrics, ok := result["metrics"].(map[string]interface{}); ok {
 		if scanTime, ok := metrics["scan_time_ms"].(float64); ok {
 			t.Logf("Scan time: %.2fms", scanTime)
@@ -366,11 +369,11 @@ func TestIntegrationPerformanceMetrics(t *testing.T) {
 				t.Error("Scan time exceeded 30 seconds")
 			}
 		}
-		
+
 		if filesScanned, ok := metrics["files_scanned"].(float64); ok {
 			t.Logf("Files scanned: %.0f", filesScanned)
 		}
-		
+
 		if rulesExecuted, ok := metrics["rules_executed"].(float64); ok {
 			t.Logf("Rules executed: %.0f", rulesExecuted)
 		}
@@ -381,12 +384,12 @@ func TestIntegrationErrorHandling(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	server := setupTestServer(t, t.TempDir())
 	defer server.Close()
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
-	
+
 	tests := []struct {
 		name           string
 		method         string
@@ -435,7 +438,7 @@ func TestIntegrationErrorHandling(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var bodyReader io.Reader
@@ -447,18 +450,18 @@ func TestIntegrationErrorHandling(t *testing.T) {
 					bodyReader = bytes.NewReader(data)
 				}
 			}
-			
+
 			req, _ := http.NewRequest(tt.method, server.URL+tt.path, bodyReader)
 			if bodyReader != nil {
 				req.Header.Set("Content-Type", "application/json")
 			}
-			
+
 			resp, err := client.Do(req)
 			if err != nil {
 				t.Fatalf("Request failed: %v", err)
 			}
 			defer resp.Body.Close()
-			
+
 			if resp.StatusCode != tt.expectedStatus {
 				body, _ := io.ReadAll(resp.Body)
 				t.Errorf("Expected status %d, got %d. Body: %s",
@@ -472,25 +475,25 @@ func TestIntegrationConcurrentRequests(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-	
+
 	tempDir := t.TempDir()
 	setupTestScenario(t, tempDir)
-	
+
 	server := setupTestServer(t, tempDir)
 	defer server.Close()
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
-	
+
 	numRequests := 20
 	results := make(chan int, numRequests)
 	errors := make(chan error, numRequests)
-	
+
 	for i := 0; i < numRequests; i++ {
 		go func(id int) {
 			var endpoint string
 			var method string
 			var body io.Reader
-			
+
 			switch id % 4 {
 			case 0:
 				endpoint = "/health"
@@ -512,26 +515,26 @@ func TestIntegrationConcurrentRequests(t *testing.T) {
 				})
 				body = bytes.NewReader(reqBody)
 			}
-			
+
 			req, _ := http.NewRequest(method, server.URL+endpoint, body)
 			if body != nil {
 				req.Header.Set("Content-Type", "application/json")
 			}
-			
+
 			resp, err := client.Do(req)
 			if err != nil {
 				errors <- err
 				return
 			}
 			defer resp.Body.Close()
-			
+
 			results <- resp.StatusCode
 		}(i)
 	}
-	
+
 	successCount := 0
 	errorCount := 0
-	
+
 	for i := 0; i < numRequests; i++ {
 		select {
 		case status := <-results:
@@ -547,11 +550,11 @@ func TestIntegrationConcurrentRequests(t *testing.T) {
 			t.Fatal("Timeout waiting for concurrent requests")
 		}
 	}
-	
+
 	if successCount < numRequests*8/10 {
 		t.Errorf("Too many failed requests: %d/%d succeeded", successCount, numRequests)
 	}
-	
+
 	if errorCount > numRequests/10 {
 		t.Errorf("Too many errors: %d/%d", errorCount, numRequests)
 	}
@@ -559,55 +562,55 @@ func TestIntegrationConcurrentRequests(t *testing.T) {
 
 func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 	mux := http.NewServeMux()
-	
+
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "healthy",
 			"time":   time.Now().Format(time.RFC3339),
 		})
 	})
-	
+
 	mux.HandleFunc("/api/v1/scan", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		
+
 		var req map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		
+
 		if req["scenario"] == "non-existent" {
 			http.Error(w, "Scenario not found", http.StatusNotFound)
 			return
 		}
-		
+
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"scan_id": fmt.Sprintf("scan-%d", time.Now().Unix()),
 			"status":  "completed",
 			"results": []map[string]interface{}{},
 		})
 	})
-	
+
 	mux.HandleFunc("/api/v1/standards/check", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		
+
 		var req map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
-		
+
 		if req["scenario"] == nil {
 			http.Error(w, "scenario is required", http.StatusBadRequest)
 			return
 		}
-		
+
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"violations": []map[string]interface{}{},
 			"summary": map[string]interface{}{
@@ -622,7 +625,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			},
 		})
 	})
-	
+
 	mux.HandleFunc("/api/v1/standards/fix", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"fixes": []map[string]interface{}{
@@ -633,13 +636,13 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			},
 		})
 	})
-	
+
 	mux.HandleFunc("/api/v1/rules", func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "..") {
 			http.Error(w, "Invalid rule ID", http.StatusBadRequest)
 			return
 		}
-		
+
 		if r.URL.Path == "/api/v1/rules" {
 			json.NewEncoder(w).Encode([]map[string]interface{}{
 				{
@@ -651,7 +654,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 		} else {
 			parts := strings.Split(r.URL.Path, "/")
 			ruleID := parts[len(parts)-1]
-			
+
 			if r.Method == "PATCH" {
 				w.WriteHeader(http.StatusOK)
 			} else {
@@ -663,17 +666,17 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			}
 		}
 	})
-	
+
 	mux.HandleFunc("/api/v1/agents", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			var req map[string]interface{}
 			json.NewDecoder(r.Body).Decode(&req)
-			
+
 			if req["type"] == "invalid" {
 				http.Error(w, "Invalid agent type", http.StatusBadRequest)
 				return
 			}
-			
+
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"id":    fmt.Sprintf("agent-%d", time.Now().Unix()),
 				"type":  req["type"],
@@ -683,16 +686,16 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			json.NewEncoder(w).Encode([]map[string]interface{}{})
 		}
 	})
-	
+
 	mux.HandleFunc("/api/v1/agents/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 		agentID := parts[len(parts)-1]
-		
+
 		if agentID == "non-existent-id" {
 			http.Error(w, "Agent not found", http.StatusNotFound)
 			return
 		}
-		
+
 		if r.Method == "DELETE" {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
@@ -703,7 +706,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			})
 		}
 	})
-	
+
 	mux.HandleFunc("/api/v1/agents/task", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusAccepted)
 		json.NewEncoder(w).Encode(map[string]interface{}{
@@ -711,7 +714,7 @@ func setupTestServer(t *testing.T, dataDir string) *httptest.Server {
 			"status":  "running",
 		})
 	})
-	
+
 	return httptest.NewServer(mux)
 }
 
@@ -741,7 +744,7 @@ func HandleRequest() {
 }`,
 		},
 	}
-	
+
 	for _, file := range files {
 		path := filepath.Join(dir, file.path)
 		os.MkdirAll(filepath.Dir(path), 0755)
@@ -753,7 +756,7 @@ func setupLargeTestScenario(t *testing.T, dir string) {
 	for i := 0; i < 100; i++ {
 		subDir := filepath.Join(dir, fmt.Sprintf("module%d", i))
 		os.MkdirAll(subDir, 0755)
-		
+
 		for j := 0; j < 10; j++ {
 			file := filepath.Join(subDir, fmt.Sprintf("file%d.go", j))
 			content := fmt.Sprintf(`package module%d

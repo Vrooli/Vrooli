@@ -37,7 +37,7 @@ type DebugSession struct {
 // StartDebugSession initiates a debug session for an application
 func (dm *DebugManager) StartDebugSession(appName, debugType string) (*DebugSession, error) {
 	sessionID := fmt.Sprintf("debug_%s_%d", appName, time.Now().Unix())
-	
+
 	session := &DebugSession{
 		ID:        sessionID,
 		AppName:   appName,
@@ -47,14 +47,14 @@ func (dm *DebugManager) StartDebugSession(appName, debugType string) (*DebugSess
 		Context:   make(map[string]interface{}),
 		Results:   make(map[string]interface{}),
 	}
-	
+
 	dm.logger.Printf("Starting debug session %s for app %s (type: %s)", sessionID, appName, debugType)
-	
+
 	// Gather initial context
 	if err := dm.gatherDebugContext(session); err != nil {
 		dm.logger.Printf("Warning: Failed to gather debug context: %v", err)
 	}
-	
+
 	// Perform debug operation based on type
 	switch debugType {
 	case "performance":
@@ -78,7 +78,7 @@ func (dm *DebugManager) gatherDebugContext(session *DebugSession) error {
 	if err != nil {
 		return fmt.Errorf("failed to get app status: %w", err)
 	}
-	
+
 	var appStatus map[string]interface{}
 	if err := json.Unmarshal(output, &appStatus); err != nil {
 		// If JSON parsing fails, store raw output
@@ -86,20 +86,20 @@ func (dm *DebugManager) gatherDebugContext(session *DebugSession) error {
 	} else {
 		session.Context["app_status"] = appStatus
 	}
-	
+
 	// Get system information
 	session.Context["timestamp"] = time.Now().Format(time.RFC3339)
 	session.Context["debug_host"] = getHostname()
-	
+
 	return nil
 }
 
 // performanceDebug performs performance analysis
 func (dm *DebugManager) performanceDebug(session *DebugSession) (*DebugSession, error) {
 	dm.logger.Printf("Performing performance debug for %s", session.AppName)
-	
+
 	session.Status = "analyzing"
-	
+
 	// Check memory usage
 	memInfo, err := dm.getMemoryInfo(session.AppName)
 	if err != nil {
@@ -107,7 +107,7 @@ func (dm *DebugManager) performanceDebug(session *DebugSession) (*DebugSession, 
 	} else {
 		session.Results["memory"] = memInfo
 	}
-	
+
 	// Check CPU usage
 	cpuInfo, err := dm.getCPUInfo(session.AppName)
 	if err != nil {
@@ -115,7 +115,7 @@ func (dm *DebugManager) performanceDebug(session *DebugSession) (*DebugSession, 
 	} else {
 		session.Results["cpu"] = cpuInfo
 	}
-	
+
 	// Check disk usage
 	diskInfo, err := dm.getDiskInfo(session.AppName)
 	if err != nil {
@@ -123,10 +123,10 @@ func (dm *DebugManager) performanceDebug(session *DebugSession) (*DebugSession, 
 	} else {
 		session.Results["disk"] = diskInfo
 	}
-	
+
 	// Generate performance recommendations
 	session.Results["recommendations"] = dm.generatePerformanceRecommendations(session.Results)
-	
+
 	session.Status = "completed"
 	return session, nil
 }
@@ -134,24 +134,24 @@ func (dm *DebugManager) performanceDebug(session *DebugSession) (*DebugSession, 
 // errorAnalysis performs error analysis for an application
 func (dm *DebugManager) errorAnalysis(session *DebugSession) (*DebugSession, error) {
 	dm.logger.Printf("Performing error analysis for %s", session.AppName)
-	
+
 	session.Status = "analyzing"
-	
+
 	// Get recent logs
 	logs, err := dm.getRecentLogs(session.AppName)
 	if err != nil {
 		session.Results["log_error"] = err.Error()
 	} else {
 		session.Results["logs"] = logs
-		
+
 		// Analyze logs for errors
 		errorPatterns := dm.analyzeErrorPatterns(logs)
 		session.Results["error_patterns"] = errorPatterns
-		
+
 		// Generate fix suggestions
 		session.Results["fix_suggestions"] = dm.generateFixSuggestions(errorPatterns)
 	}
-	
+
 	session.Status = "completed"
 	return session, nil
 }
@@ -159,9 +159,9 @@ func (dm *DebugManager) errorAnalysis(session *DebugSession) (*DebugSession, err
 // logAnalysis performs log monitoring and analysis
 func (dm *DebugManager) logAnalysis(session *DebugSession) (*DebugSession, error) {
 	dm.logger.Printf("Performing log analysis for %s", session.AppName)
-	
+
 	session.Status = "analyzing"
-	
+
 	// Get log file paths
 	logPaths, err := dm.getLogPaths(session.AppName)
 	if err != nil {
@@ -169,9 +169,9 @@ func (dm *DebugManager) logAnalysis(session *DebugSession) (*DebugSession, error
 		session.Status = "failed"
 		return session, err
 	}
-	
+
 	session.Results["log_files"] = logPaths
-	
+
 	// Analyze each log file
 	var logAnalysis []map[string]interface{}
 	for _, logPath := range logPaths {
@@ -182,7 +182,7 @@ func (dm *DebugManager) logAnalysis(session *DebugSession) (*DebugSession, error
 		}
 		logAnalysis = append(logAnalysis, analysis)
 	}
-	
+
 	session.Results["log_analysis"] = logAnalysis
 	session.Status = "completed"
 	return session, nil
@@ -191,12 +191,12 @@ func (dm *DebugManager) logAnalysis(session *DebugSession) (*DebugSession, error
 // healthCheck performs comprehensive health check
 func (dm *DebugManager) healthCheck(session *DebugSession) (*DebugSession, error) {
 	dm.logger.Printf("Performing health check for %s", session.AppName)
-	
+
 	session.Status = "checking"
-	
+
 	var issues []string
 	var recommendations []string
-	
+
 	// Check if app is running
 	isRunning, err := dm.isAppRunning(session.AppName)
 	if err != nil {
@@ -205,7 +205,7 @@ func (dm *DebugManager) healthCheck(session *DebugSession) (*DebugSession, error
 		issues = append(issues, "Application is not running")
 		recommendations = append(recommendations, "Start the application using: vrooli scenario run "+session.AppName)
 	}
-	
+
 	// Check port availability
 	if ports, err := dm.getAppPorts(session.AppName); err == nil {
 		for _, port := range ports {
@@ -215,7 +215,7 @@ func (dm *DebugManager) healthCheck(session *DebugSession) (*DebugSession, error
 			}
 		}
 	}
-	
+
 	// Check dependencies
 	if deps, err := dm.getAppDependencies(session.AppName); err == nil {
 		for _, dep := range deps {
@@ -225,11 +225,11 @@ func (dm *DebugManager) healthCheck(session *DebugSession) (*DebugSession, error
 			}
 		}
 	}
-	
+
 	session.Results["issues"] = issues
 	session.Results["recommendations"] = recommendations
 	session.Results["health_score"] = dm.calculateHealthScore(issues)
-	
+
 	session.Status = "completed"
 	return session, nil
 }
@@ -237,9 +237,9 @@ func (dm *DebugManager) healthCheck(session *DebugSession) (*DebugSession, error
 // generalDebug performs general debugging
 func (dm *DebugManager) generalDebug(session *DebugSession) (*DebugSession, error) {
 	dm.logger.Printf("Performing general debug for %s", session.AppName)
-	
+
 	session.Status = "debugging"
-	
+
 	// Combine multiple debug approaches
 	session.Results["status_check"], _ = dm.getAppStatus(session.AppName)
 	session.Results["recent_errors"] = dm.getRecentErrors(session.AppName)
@@ -250,7 +250,7 @@ func (dm *DebugManager) generalDebug(session *DebugSession) (*DebugSession, erro
 		"Ensure all dependencies are running",
 		"Check network connectivity to external services",
 	}
-	
+
 	session.Status = "completed"
 	return session, nil
 }
@@ -264,7 +264,7 @@ func (dm *DebugManager) getMemoryInfo(appName string) (map[string]interface{}, e
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return map[string]interface{}{
 		"raw_output": string(output),
 		"status":     "checked",
@@ -277,7 +277,7 @@ func (dm *DebugManager) getCPUInfo(appName string) (map[string]interface{}, erro
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return map[string]interface{}{
 		"raw_output": string(output),
 		"status":     "checked",
@@ -292,7 +292,7 @@ func (dm *DebugManager) getDiskInfo(appName string) (map[string]interface{}, err
 	if err != nil {
 		return map[string]interface{}{"error": "app directory not found"}, nil
 	}
-	
+
 	return map[string]interface{}{
 		"disk_usage": strings.TrimSpace(string(output)),
 		"status":     "checked",
@@ -306,7 +306,7 @@ func (dm *DebugManager) generatePerformanceRecommendations(results map[string]in
 		"Review database query performance",
 		"Check for memory leaks in long-running processes",
 	}
-	
+
 	return recommendations
 }
 
@@ -317,18 +317,18 @@ func (dm *DebugManager) getRecentLogs(appName string) ([]string, error) {
 		fmt.Sprintf("../../../scenarios/%s/api/app.log", appName),
 		fmt.Sprintf("/var/log/vrooli/%s.log", appName),
 	}
-	
+
 	var logs []string
 	for _, logPath := range logPaths {
 		if content, err := dm.readLogFile(logPath, 50); err == nil {
 			logs = append(logs, fmt.Sprintf("=== %s ===\n%s", filepath.Base(logPath), content))
 		}
 	}
-	
+
 	if len(logs) == 0 {
 		return []string{"No log files found"}, nil
 	}
-	
+
 	return logs, nil
 }
 
@@ -343,13 +343,13 @@ func (dm *DebugManager) readLogFile(path string, lines int) (string, error) {
 
 func (dm *DebugManager) analyzeErrorPatterns(logs []string) []map[string]interface{} {
 	var patterns []map[string]interface{}
-	
+
 	errorKeywords := []string{"ERROR", "FATAL", "PANIC", "CRITICAL", "Exception", "Failed", "Error"}
-	
+
 	for _, log := range logs {
 		lines := strings.Split(log, "\n")
 		var errors []string
-		
+
 		for _, line := range lines {
 			for _, keyword := range errorKeywords {
 				if strings.Contains(line, keyword) {
@@ -358,7 +358,7 @@ func (dm *DebugManager) analyzeErrorPatterns(logs []string) []map[string]interfa
 				}
 			}
 		}
-		
+
 		if len(errors) > 0 {
 			patterns = append(patterns, map[string]interface{}{
 				"source": "log_analysis",
@@ -367,7 +367,7 @@ func (dm *DebugManager) analyzeErrorPatterns(logs []string) []map[string]interfa
 			})
 		}
 	}
-	
+
 	return patterns
 }
 
@@ -381,7 +381,7 @@ func (dm *DebugManager) generateFixSuggestions(errorPatterns []map[string]interf
 		"Verify database connections",
 		"Check file permissions",
 	}
-	
+
 	return suggestions
 }
 
@@ -391,14 +391,14 @@ func (dm *DebugManager) getLogPaths(appName string) ([]string, error) {
 		fmt.Sprintf("../../../scenarios/%s/logs/app.log", appName),
 		fmt.Sprintf("/var/log/vrooli/%s.log", appName),
 	}
-	
+
 	var validPaths []string
 	for _, path := range possiblePaths {
 		if _, err := os.Stat(path); err == nil {
 			validPaths = append(validPaths, path)
 		}
 	}
-	
+
 	return validPaths, nil
 }
 
@@ -407,9 +407,9 @@ func (dm *DebugManager) analyzeLogFile(path string) (map[string]interface{}, err
 	if err != nil {
 		return nil, err
 	}
-	
+
 	lines := strings.Split(content, "\n")
-	
+
 	return map[string]interface{}{
 		"file":        path,
 		"line_count":  len(lines),
@@ -431,7 +431,7 @@ func (dm *DebugManager) isAppRunning(appName string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	
+
 	return strings.Contains(string(output), "running"), nil
 }
 

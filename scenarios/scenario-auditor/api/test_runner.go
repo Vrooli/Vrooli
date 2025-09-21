@@ -21,6 +21,7 @@ type TestCase struct {
 	ShouldFail         bool   `json:"should_fail"`
 	ExpectedViolations int    `json:"expected_violations"`
 	ExpectedMessage    string `json:"expected_message"`
+	Scenario           string `json:"scenario,omitempty"`
 	FilePath           string `json:"file_path"`
 }
 
@@ -97,6 +98,8 @@ func (tr *TestRunner) ExtractTestCases(content string) ([]TestCase, error) {
 				testCase.ShouldFail = strings.EqualFold(value, "true")
 			case "path", "file", "filepath":
 				testCase.FilePath = value
+			case "scenario":
+				testCase.Scenario = value
 			}
 		}
 
@@ -213,7 +216,7 @@ func (tr *TestRunner) RunTest(testCase TestCase, rule RuleInfo) TestResult {
 		pathHint = testCase.FilePath
 	}
 
-	violations, err := rule.Check(testCase.Input, pathHint)
+	violations, err := rule.Check(testCase.Input, pathHint, testCase.Scenario)
 	if err != nil {
 		result.Error = err.Error()
 		result.Passed = false

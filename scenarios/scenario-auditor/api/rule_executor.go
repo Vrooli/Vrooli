@@ -26,7 +26,7 @@ type RuleImplementationStatus struct {
 
 // ruleExecutor defines the behaviour required to run a rule against supplied content.
 type ruleExecutor interface {
-	Execute(content string, pathHint string) ([]Violation, error)
+	Execute(content string, pathHint string, scenario string) ([]Violation, error)
 }
 
 // dynamicGoRuleExecutor executes Go-based rules interpreted at runtime.
@@ -36,7 +36,7 @@ type dynamicGoRuleExecutor struct {
 	category string
 }
 
-func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string) ([]Violation, error) {
+func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string, scenario string) ([]Violation, error) {
 	if !e.fn.IsValid() {
 		return nil, errors.New("rule function is not available")
 	}
@@ -44,6 +44,7 @@ func (e *dynamicGoRuleExecutor) Execute(content string, pathHint string) ([]Viol
 	args := []reflect.Value{
 		reflect.ValueOf([]byte(content)),
 		reflect.ValueOf(pathHint),
+		reflect.ValueOf(scenario),
 	}
 
 	results := e.fn.Call(args)
@@ -160,6 +161,9 @@ func buildWrapperCode(wrapperName, pkgName string, symbol ruleSymbol) (string, e
 	if symbol.HasPathParam {
 		args = append(args, "filepath")
 	}
+	if symbol.HasScenarioParam {
+		args = append(args, "scenario")
+	}
 
 	if symbol.ReceiverName != "" {
 		callTarget = fmt.Sprintf("rule.%s(%s)", symbol.FuncName, strings.Join(args, ", "))
@@ -172,6 +176,9 @@ func buildWrapperCode(wrapperName, pkgName string, symbol ruleSymbol) (string, e
 	}
 	if !symbol.HasPathParam {
 		setup = append(setup, "_ = filepath")
+	}
+	if !symbol.HasScenarioParam {
+		setup = append(setup, "_ = scenario")
 	}
 
 	var body []string
@@ -196,18 +203,19 @@ func buildWrapperCode(wrapperName, pkgName string, symbol ruleSymbol) (string, e
 		}
 	}
 
-	code := fmt.Sprintf("var %s = func(content []byte, filepath string) (interface{}, error) {\n%s\n}", wrapperName, strings.Join(body, "\n"))
+	code := fmt.Sprintf("var %s = func(content []byte, filepath string, scenario string) (interface{}, error) {\n%s\n}", wrapperName, strings.Join(body, "\n"))
 	return code, nil
 }
 
 type ruleSymbol struct {
-	FuncName        string
-	ReceiverName    string
-	PointerReceiver bool
-	ContentParam    paramKind
-	HasPathParam    bool
-	ReturnsValue    bool
-	ReturnsError    bool
+	FuncName         string
+	ReceiverName     string
+	PointerReceiver  bool
+	ContentParam     paramKind
+	HasPathParam     bool
+	HasScenarioParam bool
+	ReturnsValue     bool
+	ReturnsError     bool
 }
 
 type paramKind int
@@ -258,6 +266,11 @@ func discoverRuleSymbol(file *ast.File) ruleSymbol {
 				}
 			} else if len(params) == 1 && symbol.ContentParam != paramNone {
 				// only content parameter supplied, no filepath
+			}
+			if len(params) >= 3 {
+				if classifyParam(params[2]) == paramString {
+					symbol.HasScenarioParam = true
+				}
 			}
 		}
 

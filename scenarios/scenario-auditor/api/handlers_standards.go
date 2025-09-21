@@ -543,7 +543,7 @@ func performStandardsCheck(ctx context.Context, scanPath, _ string, specificStan
 			default:
 			}
 
-			ruleViolations, execErr := rule.Check(string(content), path)
+			ruleViolations, execErr := rule.Check(string(content), path, scenarioName)
 			if execErr != nil {
 				logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, path), execErr)
 				continue

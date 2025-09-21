@@ -27,15 +27,15 @@ const (
 	defaultPort = "8090"
 
 	// Timeouts
-	httpTimeout      = 30 * time.Second
-	discoveryDelay   = 5 * time.Second
-	brandGenTimeout  = 120 * time.Second
+	httpTimeout        = 30 * time.Second
+	discoveryDelay     = 5 * time.Second
+	brandGenTimeout    = 120 * time.Second
 	integrationTimeout = 300 * time.Second
 
 	// Database limits
-	maxDBConnections = 25
+	maxDBConnections   = 25
 	maxIdleConnections = 5
-	connMaxLifetime = 5 * time.Minute
+	connMaxLifetime    = 5 * time.Minute
 
 	// Defaults
 	defaultLimit = 20
@@ -101,16 +101,16 @@ type Brand struct {
 
 // IntegrationRequest represents a Claude Code integration request
 type IntegrationRequest struct {
-	ID             uuid.UUID              `json:"id"`
-	BrandID        uuid.UUID              `json:"brand_id"`
-	TargetAppPath  string                 `json:"target_app_path"`
-	IntegrationType string                `json:"integration_type"`
-	ClaudeSessionID string                `json:"claude_session_id,omitempty"`
-	Status         string                 `json:"status"`
-	RequestPayload map[string]interface{} `json:"request_payload"`
+	ID              uuid.UUID              `json:"id"`
+	BrandID         uuid.UUID              `json:"brand_id"`
+	TargetAppPath   string                 `json:"target_app_path"`
+	IntegrationType string                 `json:"integration_type"`
+	ClaudeSessionID string                 `json:"claude_session_id,omitempty"`
+	Status          string                 `json:"status"`
+	RequestPayload  map[string]interface{} `json:"request_payload"`
 	ResponsePayload map[string]interface{} `json:"response_payload,omitempty"`
-	CreatedAt      time.Time              `json:"created_at"`
-	CompletedAt    *time.Time             `json:"completed_at,omitempty"`
+	CreatedAt       time.Time              `json:"created_at"`
+	CompletedAt     *time.Time             `json:"completed_at,omitempty"`
 }
 
 // BrandManagerService handles brand management operations
@@ -204,12 +204,12 @@ func (bm *BrandManagerService) ListBrands(w http.ResponseWriter, r *http.Request
 // CreateBrand generates a new brand using n8n workflows
 func (bm *BrandManagerService) CreateBrand(w http.ResponseWriter, r *http.Request) {
 	var request struct {
-		BrandName    string `json:"brand_name"`
-		ShortName    string `json:"short_name,omitempty"`
-		Industry     string `json:"industry"`
-		Template     string `json:"template,omitempty"`
-		LogoStyle    string `json:"logo_style,omitempty"`
-		ColorScheme  string `json:"color_scheme,omitempty"`
+		BrandName   string `json:"brand_name"`
+		ShortName   string `json:"short_name,omitempty"`
+		Industry    string `json:"industry"`
+		Template    string `json:"template,omitempty"`
+		LogoStyle   string `json:"logo_style,omitempty"`
+		ColorScheme string `json:"color_scheme,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -254,7 +254,7 @@ func (bm *BrandManagerService) CreateBrand(w http.ResponseWriter, r *http.Reques
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		HTTPError(w, "Brand generation workflow failed", http.StatusInternalServerError, 
+		HTTPError(w, "Brand generation workflow failed", http.StatusInternalServerError,
 			fmt.Errorf("n8n returned status %d", resp.StatusCode))
 		return
 	}
@@ -267,10 +267,10 @@ func (bm *BrandManagerService) CreateBrand(w http.ResponseWriter, r *http.Reques
 
 	// Return workflow result with polling endpoint for status
 	response := map[string]interface{}{
-		"message":         "Brand generation started",
-		"workflow_result": workflowResult,
+		"message":          "Brand generation started",
+		"workflow_result":  workflowResult,
 		"polling_endpoint": fmt.Sprintf("/api/brands/status/%s", request.BrandName),
-		"estimated_time":  "45-60 seconds",
+		"estimated_time":   "45-60 seconds",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -334,8 +334,8 @@ func (bm *BrandManagerService) GetBrandStatus(w http.ResponseWriter, r *http.Req
 		if err == sql.ErrNoRows {
 			// Brand not found yet - generation might still be in progress
 			response := map[string]interface{}{
-				"status": "in_progress",
-				"message": "Brand generation in progress",
+				"status":     "in_progress",
+				"message":    "Brand generation in progress",
 				"brand_name": brandName,
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -353,7 +353,7 @@ func (bm *BrandManagerService) GetBrandStatus(w http.ResponseWriter, r *http.Req
 
 	response := map[string]interface{}{
 		"status": "completed",
-		"brand": brand,
+		"brand":  brand,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -451,7 +451,7 @@ func (bm *BrandManagerService) CreateIntegration(w http.ResponseWriter, r *http.
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		HTTPError(w, "Integration workflow failed", http.StatusInternalServerError, 
+		HTTPError(w, "Integration workflow failed", http.StatusInternalServerError,
 			fmt.Errorf("n8n returned status %d", resp.StatusCode))
 		return
 	}
@@ -476,15 +476,15 @@ func (bm *BrandManagerService) CreateIntegration(w http.ResponseWriter, r *http.
 func (bm *BrandManagerService) GetServiceURLs(w http.ResponseWriter, r *http.Request) {
 	urls := map[string]interface{}{
 		"services": map[string]string{
-			"n8n":       bm.n8nBaseURL,
-			"windmill":  bm.windmillURL,
-			"comfyui":   bm.comfyUIURL,
-			"minio":     fmt.Sprintf("http://%s", bm.minioEndpoint),
-			"vault":     bm.vaultAddr,
+			"n8n":      bm.n8nBaseURL,
+			"windmill": bm.windmillURL,
+			"comfyui":  bm.comfyUIURL,
+			"minio":    fmt.Sprintf("http://%s", bm.minioEndpoint),
+			"vault":    bm.vaultAddr,
 		},
 		"dashboards": map[string]string{
-			"brand_manager":        fmt.Sprintf("%s/apps/f/brand-manager/dashboard", bm.windmillURL),
-			"integration_monitor":  fmt.Sprintf("%s/apps/f/brand-manager/integration-dashboard", bm.windmillURL),
+			"brand_manager":       fmt.Sprintf("%s/apps/f/brand-manager/dashboard", bm.windmillURL),
+			"integration_monitor": fmt.Sprintf("%s/apps/f/brand-manager/integration-dashboard", bm.windmillURL),
 		},
 	}
 
@@ -519,6 +519,19 @@ func getResourcePort(resourceName string) string {
 }
 
 func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start brand-manager
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Port configuration - REQUIRED, no defaults
 	port := os.Getenv("API_PORT")
 	if port == "" {
@@ -570,11 +583,11 @@ func main() {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			log.Fatal("❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
@@ -597,43 +610,43 @@ func main() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("🎨 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		logger := NewLogger()
 		logger.Error(fmt.Sprintf("❌ Database connection failed after %d attempts", maxRetries), pingErr)
@@ -675,4 +688,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"path/filepath"
 	"strings"
 )
 
@@ -13,7 +14,7 @@ Severity: critical
 Standard: vrooli-lifecycle-v1
 Targets: main_go
 
-<test-case id="missing-lifecycle-check" should-fail="true" path="api/main.go">
+<test-case id="missing-lifecycle-check" should-fail="true" path="api/main.go" scenario="demo-app">
   <description>main.go without lifecycle protection</description>
   <input language="go">
 package main
@@ -38,7 +39,7 @@ func main() {
   <expected-message>Missing Lifecycle Protection</expected-message>
 </test-case>
 
-<test-case id="proper-lifecycle-check" should-fail="false" path="api/main.go">
+<test-case id="proper-lifecycle-check" should-fail="false" path="api/main.go" scenario="demo-app">
   <description>main.go with proper lifecycle protection</description>
   <input language="go">
 package main
@@ -55,7 +56,7 @@ func main() {
         fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
-   vrooli scenario start prompt-manager
+   vrooli scenario start demo-app
 
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
@@ -74,7 +75,7 @@ func main() {
   </input>
 </test-case>
 
-<test-case id="incorrect-lifecycle-message" should-fail="true" path="api/main.go">
+<test-case id="incorrect-lifecycle-message" should-fail="true" path="api/main.go" scenario="demo-app">
   <description>lifecycle check present but message differs from required instructional text</description>
   <input language="go">
 package main
@@ -89,7 +90,7 @@ func main() {
     // Protect against direct execution - must be run through lifecycle system
     if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
         fmt.Fprintln(os.Stderr, "Error: Direct execution not allowed")
-        fmt.Fprintln(os.Stderr, "Use: vrooli scenario run <name>")
+        fmt.Fprintln(os.Stderr, "Use: vrooli scenario start prompt-manager")
         os.Exit(1)
     }
 
@@ -106,7 +107,7 @@ func main() {
   <expected-message>Missing Lifecycle Protection</expected-message>
 </test-case>
 
-<test-case id="lifecycle-check-with-lookupenv" should-fail="false" path="api/main.go">
+<test-case id="lifecycle-check-with-lookupenv" should-fail="false" path="api/main.go" scenario="demo-app">
   <description>main.go using os.LookupEnv for lifecycle check</description>
   <input language="go">
 package main
@@ -123,7 +124,7 @@ func main() {
         fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
-   vrooli scenario start prompt-manager
+   vrooli scenario start demo-app
 
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
@@ -136,7 +137,7 @@ func main() {
   </input>
 </test-case>
 
-<test-case id="missing-lifecycle-check-condition" should-fail="true" path="api/main.go">
+<test-case id="missing-lifecycle-check-condition" should-fail="true" path="api/main.go" scenario="demo-app">
   <description>instructional message present without enforcing lifecycle condition</description>
   <input language="go">
 package main
@@ -150,7 +151,7 @@ func main() {
     fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
-   vrooli scenario start prompt-manager
+   vrooli scenario start demo-app
 
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
@@ -167,7 +168,7 @@ func main() {
 */
 
 // CheckLifecycleProtection validates that main functions include lifecycle protection
-func CheckLifecycleProtection(content []byte, filePath string) *Violation {
+func CheckLifecycleProtection(content []byte, filePath string, scenario string) *Violation {
 	contentStr := string(content)
 
 	// Only check Go entrypoints. During unit tests the runner feeds code snippets
@@ -181,10 +182,11 @@ func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 	}
 
 	// Check for lifecycle protection with required instructional message
+	scenarioName := resolveScenarioName(scenario, filePath)
 	requiredFragments := []string{
 		"fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.",
 		"🚀 Instead, use:",
-		"   vrooli scenario start prompt-manager",
+		"   vrooli scenario start " + scenarioName,
 		"💡 The lifecycle system provides environment variables, port allocation,",
 		"   and dependency management automatically. Direct execution is not supported.",
 	}
@@ -214,7 +216,7 @@ func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 				"if os.Getenv(\"VROOLI_LIFECYCLE_MANAGED\") != \"true\" {\n" +
 				"    fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.\n\n" +
 				"🚀 Instead, use:\n" +
-				"   vrooli scenario start prompt-manager\n\n" +
+				"   vrooli scenario start " + scenarioName + "\n\n" +
 				"💡 The lifecycle system provides environment variables, port allocation,\n" +
 				"   and dependency management automatically. Direct execution is not supported.\n" +
 				"`)\n" +
@@ -225,6 +227,28 @@ func CheckLifecycleProtection(content []byte, filePath string) *Violation {
 	}
 
 	return nil
+}
+
+func resolveScenarioName(provided string, filePath string) string {
+	scenario := strings.TrimSpace(provided)
+	if scenario != "" {
+		return scenario
+	}
+
+	clean := strings.ReplaceAll(filePath, "\\", "/")
+	parts := strings.Split(clean, "/")
+	for i := 0; i < len(parts); i++ {
+		if parts[i] == "scenarios" && i+1 < len(parts) {
+			return parts[i+1]
+		}
+	}
+
+	base := filepath.Base(filepath.Dir(filePath))
+	if base != "." && base != "" {
+		return base
+	}
+
+	return "your-scenario"
 }
 
 // Helper functions

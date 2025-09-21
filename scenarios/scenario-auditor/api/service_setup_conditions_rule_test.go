@@ -2,7 +2,6 @@ package main
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -67,7 +66,7 @@ func TestServiceSetupConditionsRule(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			violations, err := rule.Check(tc.content, tc.path)
+			violations, err := rule.Check(tc.content, tc.path, "")
 			if err != nil {
 				t.Fatalf("Check returned error: %v", err)
 			}
@@ -98,13 +97,4 @@ func loadSetupConditionsRule(t *testing.T) RuleInfo {
 	}
 	info.executor = exec
 	return info
-}
-
-func containsViolationSubstring(list []Violation, needle string) bool {
-	for _, v := range list {
-		if strings.Contains(v.Message, needle) || strings.Contains(v.Description, needle) {
-			return true
-		}
-	}
-	return false
 }

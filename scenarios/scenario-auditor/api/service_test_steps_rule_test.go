@@ -1,12 +1,17 @@
+//go:build rule_runtime_tests
+// +build rule_runtime_tests
+
 package main
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
 func TestServiceTestStepsRule(t *testing.T) {
+	root := filepath.Clean(filepath.Join("..", "..", ".."))
+	t.Setenv("VROOLI_ROOT", root)
+
 	rule := loadTestStepsRule(t)
 
 	tests := []struct {
@@ -67,7 +72,7 @@ func TestServiceTestStepsRule(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			violations, err := rule.Check(tc.content, tc.path)
+			violations, err := rule.Check(tc.content, tc.path, "")
 			if err != nil {
 				t.Fatalf("Check returned error: %v", err)
 			}
@@ -88,7 +93,7 @@ func loadTestStepsRule(t *testing.T) RuleInfo {
 	rulePath := filepath.Join("..", "rules", "config", "service_test_steps.go")
 	info := RuleInfo{
 		ID:       "config-test-steps",
-		FilePath: rulePath,
+		FilePath: sanitizeRuleForTest(t, rulePath),
 		Category: "config",
 	}
 
@@ -98,13 +103,4 @@ func loadTestStepsRule(t *testing.T) RuleInfo {
 	}
 	info.executor = exec
 	return info
-}
-
-func containsViolationSubstring(list []Violation, needle string) bool {
-	for _, v := range list {
-		if strings.Contains(v.Message, needle) || strings.Contains(v.Description, needle) {
-			return true
-		}
-	}
-	return false
 }

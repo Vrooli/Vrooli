@@ -60,7 +60,7 @@ type RuleExecutionCall struct {
 }
 
 // Check executes the underlying rule implementation if one is available.
-func (r RuleInfo) Check(content string, filepath string) ([]Violation, error) {
+func (r RuleInfo) Check(content string, filepath string, scenario string) ([]Violation, error) {
 	if r.executor == nil {
 		if !r.Implementation.Valid {
 			return nil, fmt.Errorf("rule implementation unavailable: %s", r.Implementation.Error)
@@ -68,7 +68,7 @@ func (r RuleInfo) Check(content string, filepath string) ([]Violation, error) {
 		return nil, fmt.Errorf("rule execution not configured for %s", r.ID)
 	}
 
-	return r.executor.Execute(content, filepath)
+	return r.executor.Execute(content, filepath, scenario)
 }
 
 // LoadRulesFromFiles scans the rules directory and extracts rule metadata
@@ -251,7 +251,7 @@ func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
 	_ = rule // reserved for future rule-specific detail
 
 	return RuleExecutionInfo{
-		Signature: "Check(content string, filepath string) ([]Violation, error)",
+		Signature: "Check(content string, filepath string, scenario string) ([]Violation, error)",
 		Arguments: []RuleArgumentInfo{
 			{
 				Name:        "content",
@@ -262,6 +262,11 @@ func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
 				Name:        "filepath",
 				Type:        "string",
 				Description: "Path hint for the content. Test executions synthesize names like `test_<case>.go`, while repository scans pass the relative file path.",
+			},
+			{
+				Name:        "scenario",
+				Type:        "string",
+				Description: "Scenario identifier when the rule runs as part of a scan. Rules can use this to tailor validation or messages per scenario; it is empty for ad-hoc playground runs.",
 			},
 		},
 		CallFlow: []RuleExecutionCall{

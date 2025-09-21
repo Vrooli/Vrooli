@@ -299,7 +299,7 @@ func buildRuleCreationPrompt(spec RuleCreationSpec) (string, string, map[string]
 
 	builder.WriteString("\n\n## Implementation Requirements\n")
 	builder.WriteString("- Create the Go file at the destination path above.\n")
-	builder.WriteString("- Define `type " + structName + " struct{}` and implement `func (r *" + structName + ") Check(content string, filepath string) ([]Violation, error)` since the runtime always calls this signature.\n")
+	builder.WriteString("- Define `type " + structName + " struct{}` and implement `func (r *" + structName + ") Check(content string, filepath string, scenario string) ([]Violation, error)` since the runtime always calls this signature. The `scenario` parameter will be empty for playground runs.\n")
 	builder.WriteString("- Register the rule ID in `api/rule_registry.go` so it is discoverable.\n")
 	builder.WriteString("- Include a metadata comment block and representative `<test-case>` sections like existing rules.\n")
 	builder.WriteString("- Behaviour must rely only on the provided `content` (raw file contents) and `filepath` hints. Do not expect additional context.\n")

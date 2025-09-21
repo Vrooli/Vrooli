@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"encoding/json"
-	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -48,38 +48,38 @@ type Task struct {
 
 // Agent represents an active agent
 type Agent struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	CurrentTaskID   *string   `json:"current_task_id"`
-	CurrentTaskTitle *string  `json:"current_task_title"`
-	Status          string    `json:"status"`
-	StartedAt       *time.Time `json:"started_at"`
-	LastHeartbeat   time.Time `json:"last_heartbeat"`
-	ResourceUsage   map[string]interface{} `json:"resource_usage"`
+	ID               string                 `json:"id"`
+	Name             string                 `json:"name"`
+	CurrentTaskID    *string                `json:"current_task_id"`
+	CurrentTaskTitle *string                `json:"current_task_title"`
+	Status           string                 `json:"status"`
+	StartedAt        *time.Time             `json:"started_at"`
+	LastHeartbeat    time.Time              `json:"last_heartbeat"`
+	ResourceUsage    map[string]interface{} `json:"resource_usage"`
 }
 
 // Problem represents a discovered system problem
 type Problem struct {
-	ID              string                 `json:"id"`
-	Title           string                 `json:"title"`
-	Description     string                 `json:"description"`
-	Severity        string                 `json:"severity"` // critical|high|medium|low
-	Frequency       string                 `json:"frequency"` // constant|frequent|occasional|rare
-	Impact          string                 `json:"impact"` // system_down|degraded_performance|user_impact|cosmetic
-	Status          string                 `json:"status"` // active|investigating|resolved|ignored
-	DiscoveredAt    time.Time              `json:"discovered_at"`
-	DiscoveredBy    string                 `json:"discovered_by"`
-	LastOccurrence  *time.Time             `json:"last_occurrence"`
-	SourceFile      string                 `json:"source_file"`
-	AffectedComponents []string            `json:"affected_components"`
-	Symptoms        []string               `json:"symptoms"`
-	Evidence        map[string]interface{} `json:"evidence"`
-	RelatedIssues   []string               `json:"related_issues"`
-	PriorityEstimates map[string]interface{} `json:"priority_estimates"`
-	Resolution      *string                `json:"resolution"`
-	ResolvedAt      *time.Time             `json:"resolved_at"`
-	ResolvedBy      *string                `json:"resolved_by"`
-	TasksCreated    []string               `json:"tasks_created"`
+	ID                 string                 `json:"id"`
+	Title              string                 `json:"title"`
+	Description        string                 `json:"description"`
+	Severity           string                 `json:"severity"`  // critical|high|medium|low
+	Frequency          string                 `json:"frequency"` // constant|frequent|occasional|rare
+	Impact             string                 `json:"impact"`    // system_down|degraded_performance|user_impact|cosmetic
+	Status             string                 `json:"status"`    // active|investigating|resolved|ignored
+	DiscoveredAt       time.Time              `json:"discovered_at"`
+	DiscoveredBy       string                 `json:"discovered_by"`
+	LastOccurrence     *time.Time             `json:"last_occurrence"`
+	SourceFile         string                 `json:"source_file"`
+	AffectedComponents []string               `json:"affected_components"`
+	Symptoms           []string               `json:"symptoms"`
+	Evidence           map[string]interface{} `json:"evidence"`
+	RelatedIssues      []string               `json:"related_issues"`
+	PriorityEstimates  map[string]interface{} `json:"priority_estimates"`
+	Resolution         *string                `json:"resolution"`
+	ResolvedAt         *time.Time             `json:"resolved_at"`
+	ResolvedBy         *string                `json:"resolved_by"`
+	TasksCreated       []string               `json:"tasks_created"`
 }
 
 // ProblemScanRequest represents a request to scan for problems
@@ -98,13 +98,13 @@ type ProblemScanResponse struct {
 
 // Config represents system configuration
 type Config struct {
-	MaxConcurrentTasks    int     `json:"max_concurrent_tasks"`
-	MinBacklogSize        int     `json:"min_backlog_size"`
-	TaskScanInterval      int     `json:"task_scan_interval"`
-	YoloMode              bool    `json:"yolo_mode"`
-	MaxCPUPercent         int     `json:"max_cpu_percent"`
-	MaxMemoryPercent      int     `json:"max_memory_percent"`
-	MaxClaudeCallsPerHour int     `json:"max_claude_calls_per_hour"`
+	MaxConcurrentTasks    int                `json:"max_concurrent_tasks"`
+	MinBacklogSize        int                `json:"min_backlog_size"`
+	TaskScanInterval      int                `json:"task_scan_interval"`
+	YoloMode              bool               `json:"yolo_mode"`
+	MaxCPUPercent         int                `json:"max_cpu_percent"`
+	MaxMemoryPercent      int                `json:"max_memory_percent"`
+	MaxClaudeCallsPerHour int                `json:"max_claude_calls_per_hour"`
 	PriorityWeights       map[string]float64 `json:"priority_weights"`
 }
 
@@ -130,14 +130,14 @@ func main() {
 
 	// Initialize paths
 	tasksDir = filepath.Join(getVrooliRoot(), "scenarios/swarm-manager/tasks")
-	
+
 	// Initialize database connection
 	initDB()
 	defer db.Close()
 
 	// Start agent system
 	startAgentSystem()
-	
+
 	// Start schedulers (replacing n8n workflows)
 	startSchedulers()
 
@@ -177,9 +177,9 @@ func initDB() {
 		log.Fatal("❌ Missing required database configuration. Please set: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 	}
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", 
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		dbHost, dbPort, dbUser, dbPassword, dbName)
-	
+
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -195,47 +195,47 @@ func initDB() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 }
 
@@ -278,14 +278,14 @@ func healthCheck(c *fiber.Ctx) error {
 	// Perform health checks
 	checks := make(map[string]interface{})
 	overallStatus := "healthy"
-	
+
 	// Check database connection
 	if db != nil {
 		err := db.Ping()
 		if err != nil {
 			checks["database"] = fiber.Map{
 				"status": "unhealthy",
-				"error": err.Error(),
+				"error":  err.Error(),
 			}
 			overallStatus = "unhealthy"
 		} else {
@@ -295,12 +295,12 @@ func healthCheck(c *fiber.Ctx) error {
 			if err != nil {
 				checks["database"] = fiber.Map{
 					"status": "degraded",
-					"error": "Cannot execute queries",
+					"error":  "Cannot execute queries",
 				}
 				overallStatus = "degraded"
 			} else {
 				checks["database"] = fiber.Map{
-					"status": "healthy",
+					"status":  "healthy",
 					"message": "Connected and responsive",
 				}
 			}
@@ -308,28 +308,28 @@ func healthCheck(c *fiber.Ctx) error {
 	} else {
 		checks["database"] = fiber.Map{
 			"status": "unhealthy",
-			"error": "Database connection not initialized",
+			"error":  "Database connection not initialized",
 		}
 		overallStatus = "unhealthy"
 	}
-	
+
 	// Check task directory access
 	if _, err := os.Stat(tasksDir); os.IsNotExist(err) {
 		checks["filesystem"] = fiber.Map{
 			"status": "unhealthy",
-			"error": "Tasks directory not accessible",
+			"error":  "Tasks directory not accessible",
 		}
 		overallStatus = "unhealthy"
 	} else {
 		checks["filesystem"] = fiber.Map{
-			"status": "healthy",
+			"status":  "healthy",
 			"message": "Tasks directory accessible",
 		}
 	}
-	
+
 	// Calculate uptime
 	uptime := time.Since(startTime).Seconds()
-	
+
 	return c.JSON(fiber.Map{
 		"status":    overallStatus,
 		"service":   "swarm-manager",
@@ -379,7 +379,7 @@ func getTasks(c *fiber.Ctx) error {
 
 func readTasksFromFolder(folderPath, status string) []Task {
 	tasks := []Task{}
-	
+
 	files, err := ioutil.ReadDir(folderPath)
 	if err != nil {
 		// Folder might not exist yet
@@ -427,7 +427,7 @@ func createTask(c *fiber.Ctx) error {
 	if task.CreatedBy == "" {
 		task.CreatedBy = "api"
 	}
-	
+
 	// Set default assigned agent if not provided
 	if task.AssignedAgent == "" {
 		task.AssignedAgent = "claude-code"
@@ -463,7 +463,7 @@ func createTask(c *fiber.Ctx) error {
 		(task_id, task_title, task_type, status, created_at)
 		VALUES ($1, $2, $3, 'pending', $4)`,
 		task.ID, task.Title, task.Type, task.CreatedAt)
-	
+
 	if err != nil {
 		log.Printf("Failed to log task creation: %v", err)
 	}
@@ -473,7 +473,7 @@ func createTask(c *fiber.Ctx) error {
 
 func updateTask(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	// Find task file
 	taskPath := findTaskFile(id)
 	if taskPath == "" {
@@ -535,7 +535,7 @@ func updateTask(c *fiber.Ctx) error {
 
 func deleteTask(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	// Find and delete task file
 	taskPath := findTaskFile(id)
 	if taskPath == "" {
@@ -552,13 +552,13 @@ func deleteTask(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Task deleted successfully",
-		"id": id,
+		"id":      id,
 	})
 }
 
 func executeTask(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	// Find task file
 	taskPath := findTaskFile(id)
 	if taskPath == "" {
@@ -580,13 +580,13 @@ func executeTask(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Task execution started",
-		"id": id,
+		"id":      id,
 	})
 }
 
 func analyzeTask(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	// Find task file
 	taskPath := findTaskFile(id)
 	if taskPath == "" {
@@ -600,7 +600,7 @@ func analyzeTask(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Task analysis started",
-		"id": id,
+		"id":      id,
 	})
 }
 
@@ -608,21 +608,21 @@ func getTaskLogs(c *fiber.Ctx) error {
 	id := c.Params("id")
 	limit := c.QueryInt("limit", 100)
 	offset := c.QueryInt("offset", 0)
-	
+
 	// Get task execution history from database
 	executions, err := getTaskExecutions(id, limit, offset)
 	if err != nil {
 		log.Printf("Failed to get task executions: %v", err)
 		executions = []TaskExecution{} // Continue with empty executions
 	}
-	
+
 	// Get events from events.ndjson
 	events, err := getTaskEvents(id, limit)
 	if err != nil {
 		log.Printf("Failed to get task events: %v", err)
 		events = []TaskEvent{} // Continue with empty events
 	}
-	
+
 	// Get task file contents if it exists
 	taskPath := findTaskFile(id)
 	var taskContent string
@@ -631,14 +631,14 @@ func getTaskLogs(c *fiber.Ctx) error {
 			taskContent = string(data)
 		}
 	}
-	
+
 	return c.JSON(fiber.Map{
-		"task_id": id,
-		"executions": executions,
-		"events": events,
-		"task_content": taskContent,
+		"task_id":          id,
+		"executions":       executions,
+		"events":           events,
+		"task_content":     taskContent,
 		"total_executions": len(executions),
-		"total_events": len(events),
+		"total_events":     len(events),
 	})
 }
 
@@ -649,7 +649,7 @@ func getAgents(c *fiber.Ctx) error {
 		FROM swarm_manager.agent_status
 		WHERE last_heartbeat > NOW() - INTERVAL '5 minutes'
 		ORDER BY agent_name`)
-	
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to query agents",
@@ -676,13 +676,13 @@ func getAgents(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"agents": agents,
-		"count": len(agents),
+		"count":  len(agents),
 	})
 }
 
 func agentHeartbeat(c *fiber.Ctx) error {
 	name := c.Params("name")
-	
+
 	var body map[string]interface{}
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -692,7 +692,7 @@ func agentHeartbeat(c *fiber.Ctx) error {
 
 	// Update or insert agent status
 	resourceJSON, _ := json.Marshal(body["resource_usage"])
-	
+
 	_, err := db.Exec(`
 		INSERT INTO swarm_manager.agent_status 
 		(id, agent_name, current_task_id, current_task_title, status, last_heartbeat, resource_usage)
@@ -710,7 +710,7 @@ func agentHeartbeat(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Heartbeat recorded",
-		"agent": name,
+		"agent":   name,
 	})
 }
 
@@ -723,13 +723,13 @@ func getMetrics(c *fiber.Ctx) error {
 		Status string `json:"status"`
 		Count  int    `json:"count"`
 	}
-	
+
 	rows, err := db.Query(`
 		SELECT status, COUNT(*) 
 		FROM swarm_manager.task_executions
 		WHERE created_at > NOW() - INTERVAL '7 days'
 		GROUP BY status`)
-	
+
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -776,7 +776,7 @@ func getSuccessRate(c *fiber.Ctx) error {
 			END
 		FROM swarm_manager.task_executions
 		WHERE completed_at > NOW() - INTERVAL '30 days'`).Scan(&successRate)
-	
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to calculate success rate",
@@ -785,7 +785,7 @@ func getSuccessRate(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success_rate": successRate,
-		"period": "30_days",
+		"period":       "30_days",
 	})
 }
 
@@ -798,7 +798,7 @@ func getConfig(c *fiber.Ctx) error {
 	rows, err := db.Query(`
 		SELECT setting_key, setting_value, setting_type
 		FROM swarm_manager.configuration`)
-	
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to query configuration",
@@ -832,7 +832,7 @@ func getConfig(c *fiber.Ctx) error {
 	rows, err = db.Query(`
 		SELECT weight_type, weight_value
 		FROM swarm_manager.priority_weights`)
-	
+
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -862,7 +862,7 @@ func updateConfig(c *fiber.Ctx) error {
 			SET setting_value = $1, updated_at = NOW()
 			WHERE setting_key = $2`,
 			valueStr, key)
-		
+
 		if err != nil {
 			log.Printf("Failed to update config %s: %v", key, err)
 		}
@@ -876,7 +876,7 @@ func updateConfig(c *fiber.Ctx) error {
 				SET weight_value = $1, updated_at = NOW()
 				WHERE weight_type = $2`,
 				weightValue, weightType)
-			
+
 			if err != nil {
 				log.Printf("Failed to update weight %s: %v", weightType, err)
 			}
@@ -902,7 +902,7 @@ func calculatePriority(c *fiber.Ctx) error {
 	rows, err := db.Query(`
 		SELECT weight_type, weight_value
 		FROM swarm_manager.priority_weights`)
-	
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to query weights",
@@ -941,7 +941,7 @@ func calculatePriority(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"priority_score": priority,
-		"weights_used": weights,
+		"weights_used":   weights,
 		"estimates_used": estimates,
 	})
 }
@@ -1006,22 +1006,22 @@ type TaskEvent struct {
 }
 
 type TaskExecution struct {
-	ID              string                 `json:"id"`
-	TaskID          string                 `json:"task_id"`
-	TaskTitle       string                 `json:"task_title"`
-	TaskType        string                 `json:"task_type"`
-	ScenarioUsed    *string                `json:"scenario_used"`
-	Status          string                 `json:"status"`
-	PriorityScore   *float64               `json:"priority_score"`
-	Estimates       map[string]interface{} `json:"estimates"`
-	StartedAt       *time.Time             `json:"started_at"`
-	CompletedAt     *time.Time             `json:"completed_at"`
-	DurationSeconds *int                   `json:"duration_seconds"`
-	CommandsExecuted []interface{}         `json:"commands_executed"`
-	OutputSummary   *string                `json:"output_summary"`
-	ErrorDetails    *string                `json:"error_details"`
-	CreatedAt       time.Time              `json:"created_at"`
-	UpdatedAt       time.Time              `json:"updated_at"`
+	ID               string                 `json:"id"`
+	TaskID           string                 `json:"task_id"`
+	TaskTitle        string                 `json:"task_title"`
+	TaskType         string                 `json:"task_type"`
+	ScenarioUsed     *string                `json:"scenario_used"`
+	Status           string                 `json:"status"`
+	PriorityScore    *float64               `json:"priority_score"`
+	Estimates        map[string]interface{} `json:"estimates"`
+	StartedAt        *time.Time             `json:"started_at"`
+	CompletedAt      *time.Time             `json:"completed_at"`
+	DurationSeconds  *int                   `json:"duration_seconds"`
+	CommandsExecuted []interface{}          `json:"commands_executed"`
+	OutputSummary    *string                `json:"output_summary"`
+	ErrorDetails     *string                `json:"error_details"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
 }
 
 type ScenarioRegistry struct {
@@ -1040,7 +1040,7 @@ type ScenarioRegistry struct {
 func executeTaskAsync(taskID, oldPath, activePath string) {
 	start := time.Now()
 	pid := os.Getpid()
-	
+
 	// Record start event
 	recordTaskEvent(TaskEvent{
 		Type:      "start",
@@ -1081,14 +1081,14 @@ func executeTaskAsync(taskID, oldPath, activePath string) {
 
 	// Select appropriate scenario
 	scenario := selectScenario(&task)
-	
+
 	// Build execution prompt
 	prompt := buildTaskPrompt(&task, scenario)
-	
+
 	// Execute via claude-code (following auto/ pattern)
 	var exitCode int
 	var execErr error
-	
+
 	if scenario == "claude-code" {
 		// Direct claude-code execution
 		exitCode, execErr = executeViaClaude(prompt)
@@ -1096,9 +1096,9 @@ func executeTaskAsync(taskID, oldPath, activePath string) {
 		// Execute via scenario CLI
 		exitCode, execErr = executeViaScenario(scenario, &task, prompt)
 	}
-	
+
 	duration := int64(time.Since(start).Seconds())
-	
+
 	// Record completion event
 	event := TaskEvent{
 		Type:      "finish",
@@ -1110,13 +1110,13 @@ func executeTaskAsync(taskID, oldPath, activePath string) {
 		Duration:  &duration,
 		Scenario:  scenario,
 	}
-	
+
 	if execErr != nil {
 		event.Error = execErr.Error()
 	}
-	
+
 	recordTaskEvent(event)
-	
+
 	// Move task based on result
 	if exitCode == 0 && execErr == nil {
 		moveTaskToCompleted(taskID, activePath)
@@ -1137,19 +1137,19 @@ func selectScenario(task *Task) string {
 		log.Printf("Failed to load scenario registry, using claude-code: %v", err)
 		return "resource-claude-code"
 	}
-	
+
 	var registry ScenarioRegistry
 	if err := yaml.Unmarshal(registryBytes, &registry); err != nil {
 		log.Printf("Failed to parse scenario registry, using claude-code: %v", err)
 		return "resource-claude-code"
 	}
-	
+
 	// Check selection rules
 	title := strings.ToLower(task.Title)
 	description := strings.ToLower(task.Description)
 	taskType := strings.ToLower(task.Type)
 	searchText := title + " " + description + " " + taskType
-	
+
 	var selectedScenario string
 	for _, rule := range registry.SelectionRules {
 		for _, keyword := range rule.IfContains {
@@ -1162,21 +1162,21 @@ func selectScenario(task *Task) string {
 			break
 		}
 	}
-	
+
 	if selectedScenario == "" {
 		selectedScenario = registry.DefaultScenario
 	}
-	
+
 	// Check if scenario actually exists (except for resource CLIs)
 	if strings.HasPrefix(selectedScenario, "resource-") {
 		return selectedScenario
 	}
-	
+
 	if !scenarioExists(selectedScenario) {
 		log.Printf("Scenario %s not found, falling back to claude-code", selectedScenario)
 		return "resource-claude-code"
 	}
-	
+
 	return selectedScenario
 }
 
@@ -1188,7 +1188,7 @@ func scenarioExists(name string) bool {
 		log.Printf("Failed to list scenarios: %v", err)
 		return false
 	}
-	
+
 	// Parse output to check if scenario exists
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
@@ -1196,7 +1196,7 @@ func scenarioExists(name string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -1208,7 +1208,7 @@ func buildTaskPrompt(task *Task, scenario string) string {
 	} else {
 		promptFile = "task-analyzer.md" // Use analyzer prompt for scenario selection
 	}
-	
+
 	promptPath := filepath.Join(getBasePath(), "prompts", promptFile)
 	promptTemplate, err := os.ReadFile(promptPath)
 	if err != nil {
@@ -1217,7 +1217,7 @@ func buildTaskPrompt(task *Task, scenario string) string {
 		return fmt.Sprintf("Please complete this task: %s\n\nDescription: %s\nType: %s\nTarget: %s",
 			task.Title, task.Description, task.Type, task.Target)
 	}
-	
+
 	// Replace template variables (following auto/ pattern)
 	prompt := string(promptTemplate)
 	prompt = strings.ReplaceAll(prompt, "{{TASK_ID}}", task.ID)
@@ -1225,7 +1225,7 @@ func buildTaskPrompt(task *Task, scenario string) string {
 	prompt = strings.ReplaceAll(prompt, "{{TASK_DESCRIPTION}}", task.Description)
 	prompt = strings.ReplaceAll(prompt, "{{TASK_TYPE}}", task.Type)
 	prompt = strings.ReplaceAll(prompt, "{{TASK_TARGET}}", task.Target)
-	
+
 	return prompt
 }
 
@@ -1237,10 +1237,10 @@ func executeViaClaude(prompt string) (int, error) {
 		"CLAUDE_TASK_MODE=true",
 		"CLAUDE_MAX_TOKENS=8192",
 	)
-	
+
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
-	
+
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.ExitCode()
@@ -1251,13 +1251,13 @@ func executeViaClaude(prompt string) (int, error) {
 	} else {
 		log.Printf("Claude execution completed successfully")
 	}
-	
+
 	return exitCode, err
 }
 
 func executeViaScenario(scenario string, task *Task, prompt string) (int, error) {
 	var cmd *exec.Cmd
-	
+
 	// Check if it's a resource CLI or a scenario
 	if strings.HasPrefix(scenario, "resource-") {
 		// Execute resource CLI directly
@@ -1271,19 +1271,19 @@ func executeViaScenario(scenario string, task *Task, prompt string) (int, error)
 			return 1, fmt.Errorf("failed to write prompt file: %v", err)
 		}
 		defer os.Remove(tmpFile)
-		
+
 		cmd = exec.Command("vrooli", "scenario", "run", scenario, "--input", tmpFile)
 	}
-	
+
 	cmd.Dir = getVrooliRoot()
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("TASK_ID=%s", task.ID),
 		fmt.Sprintf("TASK_TYPE=%s", task.Type),
 	)
-	
+
 	output, err := cmd.CombinedOutput()
 	exitCode := 0
-	
+
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			exitCode = exitError.ExitCode()
@@ -1294,34 +1294,34 @@ func executeViaScenario(scenario string, task *Task, prompt string) (int, error)
 	} else {
 		log.Printf("Scenario %s execution completed successfully", scenario)
 	}
-	
+
 	return exitCode, err
 }
 
 func recordTaskEvent(event TaskEvent) {
 	eventsPath := filepath.Join(getBasePath(), "logs", "events.ndjson")
-	
+
 	// Create logs directory if it doesn't exist
 	logsDir := filepath.Dir(eventsPath)
 	if err := os.MkdirAll(logsDir, 0755); err != nil {
 		log.Printf("Failed to create logs directory: %v", err)
 		return
 	}
-	
+
 	// Append event as JSON line
 	eventJSON, err := json.Marshal(event)
 	if err != nil {
 		log.Printf("Failed to marshal event: %v", err)
 		return
 	}
-	
+
 	f, err := os.OpenFile(eventsPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Printf("Failed to open events file: %v", err)
 		return
 	}
 	defer f.Close()
-	
+
 	if _, err := f.Write(append(eventJSON, '\n')); err != nil {
 		log.Printf("Failed to write event: %v", err)
 	}
@@ -1333,12 +1333,12 @@ func moveTaskToCompleted(taskID, activePath string) {
 		log.Printf("Failed to create completed directory: %v", err)
 		return
 	}
-	
+
 	completedPath := filepath.Join(completedDir, filepath.Base(activePath))
 	if err := os.Rename(activePath, completedPath); err != nil {
 		log.Printf("Failed to move task to completed: %v", err)
 	}
-	
+
 	// Update task with completion timestamp
 	updateTaskTimestamp(completedPath, "completed_at")
 }
@@ -1349,13 +1349,13 @@ func moveTaskToFailed(taskID, activePath, errorMsg string) {
 		log.Printf("Failed to create failed directory: %v", err)
 		return
 	}
-	
+
 	failedPath := filepath.Join(failedDir, filepath.Base(activePath))
 	if err := os.Rename(activePath, failedPath); err != nil {
 		log.Printf("Failed to move task to failed: %v", err)
 		return
 	}
-	
+
 	// Add error info to task
 	updateTaskWithError(failedPath, errorMsg)
 }
@@ -1365,19 +1365,19 @@ func updateTaskTimestamp(taskPath, field string) {
 	if err != nil {
 		return
 	}
-	
+
 	var task map[string]interface{}
 	if err := yaml.Unmarshal(taskBytes, &task); err != nil {
 		return
 	}
-	
+
 	task[field] = time.Now().Format(time.RFC3339)
-	
+
 	updatedBytes, err := yaml.Marshal(task)
 	if err != nil {
 		return
 	}
-	
+
 	os.WriteFile(taskPath, updatedBytes, 0644)
 }
 
@@ -1386,40 +1386,40 @@ func updateTaskWithError(taskPath, errorMsg string) {
 	if err != nil {
 		return
 	}
-	
+
 	var task map[string]interface{}
 	if err := yaml.Unmarshal(taskBytes, &task); err != nil {
 		return
 	}
-	
+
 	task["failed_at"] = time.Now().Format(time.RFC3339)
 	task["error"] = errorMsg
-	
+
 	// Add to attempts array
 	attempts, ok := task["attempts"].([]interface{})
 	if !ok {
 		attempts = []interface{}{}
 	}
-	
+
 	attempt := map[string]interface{}{
 		"timestamp": time.Now().Format(time.RFC3339),
 		"error":     errorMsg,
 	}
 	attempts = append(attempts, attempt)
 	task["attempts"] = attempts
-	
+
 	updatedBytes, err := yaml.Marshal(task)
 	if err != nil {
 		return
 	}
-	
+
 	os.WriteFile(taskPath, updatedBytes, 0644)
 }
 
 func analyzeTaskAsync(taskID, taskPath string) {
 	start := time.Now()
 	pid := os.Getpid()
-	
+
 	// Record start event
 	recordTaskEvent(TaskEvent{
 		Type:      "start",
@@ -1458,12 +1458,12 @@ func analyzeTaskAsync(taskID, taskPath string) {
 
 	// Build analysis prompt using the task-analyzer template
 	prompt := buildAnalysisPrompt(&task)
-	
+
 	// Execute via claude-code
 	exitCode, execErr := executeViaClaude(prompt)
-	
+
 	duration := int64(time.Since(start).Seconds())
-	
+
 	// Record completion event
 	event := TaskEvent{
 		Type:      "finish",
@@ -1475,18 +1475,18 @@ func analyzeTaskAsync(taskID, taskPath string) {
 		Duration:  &duration,
 		Scenario:  "claude-code",
 	}
-	
+
 	if execErr != nil {
 		event.Error = execErr.Error()
 	}
-	
+
 	recordTaskEvent(event)
-	
+
 	if exitCode == 0 && execErr == nil {
 		// Analysis succeeded - the task file should now have updated priority estimates
 		// Update the analyzed_at timestamp
 		updateTaskTimestamp(taskPath, "analyzed_at")
-		
+
 		// Calculate priority score based on the new estimates
 		updateTaskPriorityScore(taskPath)
 	}
@@ -1513,10 +1513,10 @@ Please provide estimates for:
 - Success Probability (0.0-1.0): Likelihood of successful completion
 - Resource Cost (minimal/moderate/heavy): Expected resource usage
 
-Update the task file with your estimates in YAML format.`, 
+Update the task file with your estimates in YAML format.`,
 			task.ID, task.Title, task.Description, task.Type, task.Target)
 	}
-	
+
 	// Replace template variables
 	prompt := string(promptTemplate)
 	prompt = strings.ReplaceAll(prompt, "{{TASK_ID}}", task.ID)
@@ -1524,11 +1524,11 @@ Update the task file with your estimates in YAML format.`,
 	prompt = strings.ReplaceAll(prompt, "{{TASK_DESCRIPTION}}", task.Description)
 	prompt = strings.ReplaceAll(prompt, "{{TASK_TYPE}}", task.Type)
 	prompt = strings.ReplaceAll(prompt, "{{TASK_TARGET}}", task.Target)
-	
+
 	// Add instruction to update the specific file
 	taskPath := filepath.Join(getBasePath(), "tasks", "backlog", "manual", task.ID+".yaml")
 	prompt += fmt.Sprintf("\n\nIMPORTANT: Please update the task file at %s with your priority estimates.", taskPath)
-	
+
 	return prompt
 }
 
@@ -1537,18 +1537,18 @@ func updateTaskPriorityScore(taskPath string) {
 	if err != nil {
 		return
 	}
-	
+
 	var task map[string]interface{}
 	if err := yaml.Unmarshal(taskBytes, &task); err != nil {
 		return
 	}
-	
+
 	// Get priority estimates
 	estimates, ok := task["priority_estimates"].(map[string]interface{})
 	if !ok {
 		return
 	}
-	
+
 	// Load priority weights from config
 	weightsPath := filepath.Join(getBasePath(), "config", "priority-weights.yaml")
 	weightsBytes, err := os.ReadFile(weightsPath)
@@ -1556,49 +1556,49 @@ func updateTaskPriorityScore(taskPath string) {
 		log.Printf("Failed to load priority weights: %v", err)
 		return
 	}
-	
+
 	var config map[string]interface{}
 	if err := yaml.Unmarshal(weightsBytes, &config); err != nil {
 		log.Printf("Failed to parse priority weights: %v", err)
 		return
 	}
-	
+
 	weights, ok := config["weights"].(map[string]interface{})
 	if !ok {
 		log.Printf("No weights found in priority config")
 		return
 	}
-	
+
 	// Calculate priority score: (Impact × Urgency × Success_Probability) / Resource_Cost
 	impact := getFloat(estimates["impact"], 5.0)
 	urgency := convertUrgencyToFloat(estimates["urgency"])
 	successProb := getFloat(estimates["success_prob"], 0.5)
 	resourceCost := convertResourceCostToFloat(estimates["resource_cost"])
-	
+
 	// Apply weights
 	impactWeight := getFloat(weights["impact"], 1.0)
 	urgencyWeight := getFloat(weights["urgency"], 0.8)
 	successWeight := getFloat(weights["success"], 0.6)
 	costWeight := getFloat(weights["cost"], 0.5)
-	
+
 	// Calculate weighted priority score
 	numerator := (impact * impactWeight) * (urgency * urgencyWeight) * (successProb * successWeight)
 	denominator := resourceCost * costWeight
-	
+
 	if denominator == 0 {
 		denominator = 1
 	}
-	
+
 	priorityScore := numerator / denominator
 	task["priority_score"] = priorityScore
-	
+
 	// Save updated task
 	updatedBytes, err := yaml.Marshal(task)
 	if err != nil {
 		log.Printf("Failed to marshal updated task: %v", err)
 		return
 	}
-	
+
 	if err := os.WriteFile(taskPath, updatedBytes, 0644); err != nil {
 		log.Printf("Failed to write updated task: %v", err)
 	}
@@ -1649,7 +1649,7 @@ var (
 
 func startAgentSystem() {
 	log.Println("Starting agent system...")
-	
+
 	// Start the configured number of agents
 	for i := 0; i < maxAgents; i++ {
 		agentID := fmt.Sprintf("agent-%d", i+1)
@@ -1662,31 +1662,31 @@ func startAgentSystem() {
 			LastHeartbeat: time.Now(),
 			ResourceUsage: map[string]interface{}{"level": "minimal"},
 		}
-		
+
 		// Register agent
 		agentsMutex.Lock()
 		activeAgents[agentID] = agent
 		agentsMutex.Unlock()
-		
+
 		// Start agent goroutine
 		go runAgent(agent)
 	}
-	
+
 	// Start agent monitor
 	go monitorAgents()
-	
+
 	log.Printf("Started %d agents", maxAgents)
 }
 
 func runAgent(agent *Agent) {
 	log.Printf("Agent %s started", agent.Name)
-	
+
 	for {
 		// Update heartbeat
 		agentsMutex.Lock()
 		agent.LastHeartbeat = time.Now()
 		agentsMutex.Unlock()
-		
+
 		// Look for work in staged tasks (following priority order)
 		taskPath := findHighestPriorityTask()
 		if taskPath != "" {
@@ -1696,7 +1696,7 @@ func runAgent(agent *Agent) {
 				executeTaskByAgent(agent, taskPath)
 			}
 		}
-		
+
 		// Wait before looking for more work (following auto/ pattern)
 		time.Sleep(10 * time.Second)
 	}
@@ -1704,38 +1704,38 @@ func runAgent(agent *Agent) {
 
 func findHighestPriorityTask() string {
 	stagedDir := filepath.Join(getBasePath(), "tasks", "staged")
-	
+
 	files, err := filepath.Glob(filepath.Join(stagedDir, "*.yaml"))
 	if err != nil {
 		return ""
 	}
-	
+
 	if len(files) == 0 {
 		return ""
 	}
-	
+
 	// Find task with highest priority score
 	var bestPath string
 	var highestPriority float64 = -1
-	
+
 	for _, file := range files {
 		taskBytes, err := os.ReadFile(file)
 		if err != nil {
 			continue
 		}
-		
+
 		var task map[string]interface{}
 		if err := yaml.Unmarshal(taskBytes, &task); err != nil {
 			continue
 		}
-		
+
 		priority := getFloat(task["priority_score"], 0)
 		if priority > highestPriority {
 			highestPriority = priority
 			bestPath = file
 		}
 	}
-	
+
 	return bestPath
 }
 
@@ -1746,20 +1746,20 @@ func claimTask(agent *Agent, taskPath string) bool {
 		log.Printf("Failed to create active directory: %v", err)
 		return false
 	}
-	
+
 	fileName := filepath.Base(taskPath)
 	activePath := filepath.Join(activeDir, fileName)
-	
+
 	// Attempt atomic move (acts as lock)
 	if err := os.Rename(taskPath, activePath); err != nil {
 		// Task was likely claimed by another agent
 		return false
 	}
-	
+
 	// Update agent status
 	agentsMutex.Lock()
 	agent.Status = "working"
-	
+
 	// Load task to get title
 	if taskBytes, err := os.ReadFile(activePath); err == nil {
 		var task Task
@@ -1769,7 +1769,7 @@ func claimTask(agent *Agent, taskPath string) bool {
 		}
 	}
 	agentsMutex.Unlock()
-	
+
 	log.Printf("Agent %s claimed task %s", agent.Name, fileName)
 	return true
 }
@@ -1777,17 +1777,17 @@ func claimTask(agent *Agent, taskPath string) bool {
 func executeTaskByAgent(agent *Agent, activePath string) {
 	fileName := filepath.Base(activePath)
 	taskID := strings.TrimSuffix(fileName, filepath.Ext(fileName))
-	
+
 	log.Printf("Agent %s executing task %s", agent.Name, taskID)
-	
+
 	// Update agent resource usage during execution
 	agentsMutex.Lock()
 	agent.ResourceUsage = map[string]interface{}{"level": "moderate"}
 	agentsMutex.Unlock()
-	
+
 	// Use the existing execution engine
 	executeTaskAsync(taskID, "", activePath)
-	
+
 	// Reset agent status
 	agentsMutex.Lock()
 	agent.Status = "idle"
@@ -1795,14 +1795,14 @@ func executeTaskByAgent(agent *Agent, activePath string) {
 	agent.CurrentTaskTitle = nil
 	agent.ResourceUsage = map[string]interface{}{"level": "minimal"}
 	agentsMutex.Unlock()
-	
+
 	log.Printf("Agent %s completed task %s", agent.Name, taskID)
 }
 
 func monitorAgents() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		agentsMutex.RLock()
 		for _, agent := range activeAgents {
@@ -1817,9 +1817,9 @@ func monitorAgents() {
 					status = EXCLUDED.status,
 					last_heartbeat = EXCLUDED.last_heartbeat,
 					resource_usage = EXCLUDED.resource_usage`,
-				agent.ID, agent.Name, agent.CurrentTaskID, agent.CurrentTaskTitle, 
+				agent.ID, agent.Name, agent.CurrentTaskID, agent.CurrentTaskTitle,
 				agent.Status, agent.StartedAt, agent.LastHeartbeat, agent.ResourceUsage)
-			
+
 			if err != nil {
 				log.Printf("Failed to update agent status: %v", err)
 			}
@@ -1838,29 +1838,29 @@ func stopAgentSystem() {
 
 func startSchedulers() {
 	log.Println("Starting schedulers...")
-	
+
 	// Start problem scanner (every 5 minutes)
 	go problemScanScheduler()
-	
+
 	// Start capacity checker (every minute)
 	go capacityCheckScheduler()
-	
+
 	// Start backlog generator (every 10 minutes)
 	go backlogGeneratorScheduler()
-	
+
 	// Start task mover (every 30 seconds)
 	go taskMoverScheduler()
-	
+
 	log.Println("Schedulers started")
 }
 
 func problemScanScheduler() {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	
+
 	// Run immediately on start
 	performProblemScan()
-	
+
 	for range ticker.C {
 		performProblemScan()
 	}
@@ -1868,27 +1868,27 @@ func problemScanScheduler() {
 
 func performProblemScan() {
 	log.Println("Performing problem scan...")
-	
+
 	vrooliRoot := getVrooliRoot()
 	scanPath := vrooliRoot
-	
+
 	// Find all PROBLEMS.md files
 	problemFiles, err := findProblemFiles(scanPath)
 	if err != nil {
 		log.Printf("Error scanning for problem files: %v", err)
 		return
 	}
-	
+
 	problemsFound := 0
 	tasksCreated := 0
-	
+
 	for _, file := range problemFiles {
 		problems, err := parseProblemsFromFile(file)
 		if err != nil {
 			log.Printf("Error parsing %s: %v", file, err)
 			continue
 		}
-		
+
 		for _, problem := range problems {
 			// Store problem in database
 			err := storeProblem(problem)
@@ -1896,7 +1896,7 @@ func performProblemScan() {
 				log.Printf("Error storing problem %s: %v", problem.ID, err)
 				continue
 			}
-			
+
 			// Create task for critical/high problems if yolo mode is on
 			config, _ := getCurrentConfig()
 			if config.YoloMode && (problem.Severity == "critical" || problem.Severity == "high") {
@@ -1907,14 +1907,14 @@ func performProblemScan() {
 			problemsFound++
 		}
 	}
-	
+
 	log.Printf("Problem scan complete: %d problems found, %d tasks created", problemsFound, tasksCreated)
 }
 
 func capacityCheckScheduler() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		checkSystemCapacity()
 	}
@@ -1926,19 +1926,19 @@ func checkSystemCapacity() {
 	stagedTasks := countTasksInFolder(filepath.Join(tasksDir, "staged"))
 	backlogManual := countTasksInFolder(filepath.Join(tasksDir, "backlog", "manual"))
 	backlogGenerated := countTasksInFolder(filepath.Join(tasksDir, "backlog", "generated"))
-	
+
 	config, _ := getCurrentConfig()
 	maxConcurrent := config.MaxConcurrentTasks
 	availableSlots := maxConcurrent - activeTasks
-	
+
 	log.Printf("Capacity check: %d/%d active, %d staged, %d in backlog, %d slots available",
 		activeTasks, maxConcurrent, stagedTasks, backlogManual+backlogGenerated, availableSlots)
-	
+
 	// Move tasks from staged to active if we have capacity
 	if availableSlots > 0 && stagedTasks > 0 {
 		moveTasksToActive(availableSlots)
 	}
-	
+
 	// Move tasks from backlog to staged if staged is low
 	if stagedTasks < 3 {
 		moveTasksToStaged(5 - stagedTasks)
@@ -1948,7 +1948,7 @@ func checkSystemCapacity() {
 func backlogGeneratorScheduler() {
 	ticker := time.NewTicker(10 * time.Minute)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		checkAndGenerateBacklog()
 	}
@@ -1958,10 +1958,10 @@ func checkAndGenerateBacklog() {
 	backlogManual := countTasksInFolder(filepath.Join(tasksDir, "backlog", "manual"))
 	backlogGenerated := countTasksInFolder(filepath.Join(tasksDir, "backlog", "generated"))
 	totalBacklog := backlogManual + backlogGenerated
-	
+
 	config, _ := getCurrentConfig()
 	minBacklog := config.MinBacklogSize
-	
+
 	if totalBacklog < minBacklog {
 		log.Printf("Backlog low (%d/%d), generating new tasks...", totalBacklog, minBacklog)
 		generateNewTasks(minBacklog - totalBacklog)
@@ -1971,7 +1971,7 @@ func checkAndGenerateBacklog() {
 func taskMoverScheduler() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		// Clean up completed/failed tasks older than 7 days
 		cleanupOldTasks()
@@ -1984,7 +1984,7 @@ func countTasksInFolder(folderPath string) int {
 	if err != nil {
 		return 0
 	}
-	
+
 	for _, file := range files {
 		if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
 			count++
@@ -1996,22 +1996,22 @@ func countTasksInFolder(folderPath string) int {
 func moveTasksToActive(slots int) {
 	stagedDir := filepath.Join(tasksDir, "staged")
 	activeDir := filepath.Join(tasksDir, "active")
-	
+
 	files, err := ioutil.ReadDir(stagedDir)
 	if err != nil {
 		return
 	}
-	
+
 	moved := 0
 	for _, file := range files {
 		if moved >= slots {
 			break
 		}
-		
+
 		if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
 			oldPath := filepath.Join(stagedDir, file.Name())
 			newPath := filepath.Join(activeDir, file.Name())
-			
+
 			if err := os.Rename(oldPath, newPath); err == nil {
 				moved++
 				log.Printf("Moved task %s to active", file.Name())
@@ -2023,19 +2023,19 @@ func moveTasksToActive(slots int) {
 func moveTasksToStaged(count int) {
 	backlogDir := filepath.Join(tasksDir, "backlog", "manual")
 	stagedDir := filepath.Join(tasksDir, "staged")
-	
+
 	// First try manual tasks
 	files, err := ioutil.ReadDir(backlogDir)
 	if err != nil {
 		return
 	}
-	
+
 	moved := 0
 	for _, file := range files {
 		if moved >= count {
 			break
 		}
-		
+
 		if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
 			// Analyze task before staging
 			taskPath := filepath.Join(backlogDir, file.Name())
@@ -2043,29 +2043,29 @@ func moveTasksToStaged(count int) {
 			if err != nil {
 				continue
 			}
-			
+
 			var task Task
 			if err := yaml.Unmarshal(taskBytes, &task); err != nil {
 				continue
 			}
-			
+
 			// Only stage tasks with priority scores
 			if task.PriorityScore == nil {
 				// Analyze task first
 				go analyzeTaskAsync(task.ID, taskPath)
 				continue
 			}
-			
+
 			oldPath := taskPath
 			newPath := filepath.Join(stagedDir, file.Name())
-			
+
 			if err := os.Rename(oldPath, newPath); err == nil {
 				moved++
 				log.Printf("Moved task %s to staged", file.Name())
 			}
 		}
 	}
-	
+
 	// If not enough manual tasks, try generated tasks
 	if moved < count {
 		backlogDir = filepath.Join(tasksDir, "backlog", "generated")
@@ -2073,16 +2073,16 @@ func moveTasksToStaged(count int) {
 		if err != nil {
 			return
 		}
-		
+
 		for _, file := range files {
 			if moved >= count {
 				break
 			}
-			
+
 			if filepath.Ext(file.Name()) == ".yaml" || filepath.Ext(file.Name()) == ".yml" {
 				oldPath := filepath.Join(backlogDir, file.Name())
 				newPath := filepath.Join(stagedDir, file.Name())
-				
+
 				if err := os.Rename(oldPath, newPath); err == nil {
 					moved++
 					log.Printf("Moved generated task %s to staged", file.Name())
@@ -2094,7 +2094,7 @@ func moveTasksToStaged(count int) {
 
 func generateNewTasks(count int) {
 	log.Printf("Generating %d new tasks...", count)
-	
+
 	// Use Claude to generate task suggestions
 	prompt := fmt.Sprintf(`Generate %d task suggestions for improving the Vrooli system.
 Consider:
@@ -2105,17 +2105,17 @@ Consider:
 - Test coverage gaps
 
 Return as YAML task entries with title, description, type, and priority_estimates.`, count)
-	
+
 	// Execute via claude-code
 	cmd := exec.Command("resource-claude-code", "run", prompt)
 	cmd.Dir = getVrooliRoot()
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Failed to generate tasks: %v", err)
 		return
 	}
-	
+
 	// Parse and save generated tasks
 	// This would need proper YAML parsing of the output
 	log.Printf("Generated tasks: %s", string(output))
@@ -2125,13 +2125,13 @@ func cleanupOldTasks() {
 	// Clean up completed tasks older than 7 days
 	completedDir := filepath.Join(tasksDir, "completed")
 	failedDir := filepath.Join(tasksDir, "failed")
-	
+
 	for _, dir := range []string{completedDir, failedDir} {
 		files, err := ioutil.ReadDir(dir)
 		if err != nil {
 			continue
 		}
-		
+
 		for _, file := range files {
 			if file.ModTime().Before(time.Now().AddDate(0, 0, -7)) {
 				filePath := filepath.Join(dir, file.Name())
@@ -2147,34 +2147,34 @@ func cleanupOldTasks() {
 
 func scanProblems(c *fiber.Ctx) error {
 	start := time.Now()
-	
+
 	var req ProblemScanRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	
+
 	if req.ScanPath == "" {
 		req.ScanPath = getVrooliRoot()
 	}
-	
+
 	log.Printf("Scanning for problems in: %s", req.ScanPath)
-	
+
 	// Find all PROBLEMS.md files
 	problemFiles, err := findProblemFiles(req.ScanPath)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to scan for problem files", "details": err.Error()})
 	}
-	
+
 	var allProblems []Problem
 	var tasksCreated int
-	
+
 	for _, file := range problemFiles {
 		problems, err := parseProblemsFromFile(file)
 		if err != nil {
 			log.Printf("Error parsing %s: %v", file, err)
 			continue
 		}
-		
+
 		for _, problem := range problems {
 			// Store problem in database
 			err := storeProblem(problem)
@@ -2182,7 +2182,7 @@ func scanProblems(c *fiber.Ctx) error {
 				log.Printf("Error storing problem %s: %v", problem.ID, err)
 				continue
 			}
-			
+
 			// Create task for critical/high problems if yolo mode is on
 			config, _ := getCurrentConfig()
 			if config.YoloMode && (problem.Severity == "critical" || problem.Severity == "high") {
@@ -2192,35 +2192,35 @@ func scanProblems(c *fiber.Ctx) error {
 				}
 			}
 		}
-		
+
 		allProblems = append(allProblems, problems...)
 	}
-	
+
 	scanTime := time.Since(start).Seconds()
-	
+
 	response := ProblemScanResponse{
 		ProblemsFound: len(allProblems),
 		TasksCreated:  tasksCreated,
 		ScanTime:      scanTime,
 		NewProblems:   extractProblemIDs(allProblems),
 	}
-	
+
 	return c.JSON(response)
 }
 
 func getProblems(c *fiber.Ctx) error {
 	filter := c.Query("filter", "all")
-	
+
 	var problems []Problem
 	var query string
 	var args []interface{}
-	
+
 	baseQuery := `SELECT id, title, description, severity, frequency, impact, status, 
 	                     discovered_at, discovered_by, last_occurrence, source_file,
 	                     affected_components, symptoms, evidence, related_issues,
 	                     priority_estimates, resolution, resolved_at, resolved_by, tasks_created
 	              FROM problems`
-	
+
 	switch filter {
 	case "active":
 		query = baseQuery + " WHERE status = 'active'"
@@ -2231,21 +2231,21 @@ func getProblems(c *fiber.Ctx) error {
 	default:
 		query = baseQuery
 	}
-	
+
 	query += " ORDER BY discovered_at DESC LIMIT 100"
-	
+
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch problems", "details": err.Error()})
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var problem Problem
 		var affectedComponentsJSON, symptomsJSON, evidenceJSON, relatedIssuesJSON, priorityEstimatesJSON, tasksCreatedJSON []byte
-		
+
 		err := rows.Scan(
-			&problem.ID, &problem.Title, &problem.Description, &problem.Severity, 
+			&problem.ID, &problem.Title, &problem.Description, &problem.Severity,
 			&problem.Frequency, &problem.Impact, &problem.Status,
 			&problem.DiscoveredAt, &problem.DiscoveredBy, &problem.LastOccurrence, &problem.SourceFile,
 			&affectedComponentsJSON, &symptomsJSON, &evidenceJSON, &relatedIssuesJSON,
@@ -2255,7 +2255,7 @@ func getProblems(c *fiber.Ctx) error {
 			log.Printf("Error scanning problem row: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		json.Unmarshal(affectedComponentsJSON, &problem.AffectedComponents)
 		json.Unmarshal(symptomsJSON, &problem.Symptoms)
@@ -2263,40 +2263,40 @@ func getProblems(c *fiber.Ctx) error {
 		json.Unmarshal(relatedIssuesJSON, &problem.RelatedIssues)
 		json.Unmarshal(priorityEstimatesJSON, &problem.PriorityEstimates)
 		json.Unmarshal(tasksCreatedJSON, &problem.TasksCreated)
-		
+
 		problems = append(problems, problem)
 	}
-	
+
 	return c.JSON(fiber.Map{"problems": problems})
 }
 
 func getProblem(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	var problem Problem
 	var affectedComponentsJSON, symptomsJSON, evidenceJSON, relatedIssuesJSON, priorityEstimatesJSON, tasksCreatedJSON []byte
-	
+
 	query := `SELECT id, title, description, severity, frequency, impact, status, 
 	                 discovered_at, discovered_by, last_occurrence, source_file,
 	                 affected_components, symptoms, evidence, related_issues,
 	                 priority_estimates, resolution, resolved_at, resolved_by, tasks_created
 	          FROM problems WHERE id = $1`
-	
+
 	err := db.QueryRow(query, id).Scan(
-		&problem.ID, &problem.Title, &problem.Description, &problem.Severity, 
+		&problem.ID, &problem.Title, &problem.Description, &problem.Severity,
 		&problem.Frequency, &problem.Impact, &problem.Status,
 		&problem.DiscoveredAt, &problem.DiscoveredBy, &problem.LastOccurrence, &problem.SourceFile,
 		&affectedComponentsJSON, &symptomsJSON, &evidenceJSON, &relatedIssuesJSON,
 		&priorityEstimatesJSON, &problem.Resolution, &problem.ResolvedAt, &problem.ResolvedBy, &tasksCreatedJSON,
 	)
-	
+
 	if err == sql.ErrNoRows {
 		return c.Status(404).JSON(fiber.Map{"error": "Problem not found"})
 	}
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Database error", "details": err.Error()})
 	}
-	
+
 	// Parse JSON fields
 	json.Unmarshal(affectedComponentsJSON, &problem.AffectedComponents)
 	json.Unmarshal(symptomsJSON, &problem.Symptoms)
@@ -2304,42 +2304,42 @@ func getProblem(c *fiber.Ctx) error {
 	json.Unmarshal(relatedIssuesJSON, &problem.RelatedIssues)
 	json.Unmarshal(priorityEstimatesJSON, &problem.PriorityEstimates)
 	json.Unmarshal(tasksCreatedJSON, &problem.TasksCreated)
-	
+
 	return c.JSON(problem)
 }
 
 func resolveProblem(c *fiber.Ctx) error {
 	id := c.Params("id")
-	
+
 	type ResolveRequest struct {
 		Resolution string `json:"resolution"`
 		ResolvedBy string `json:"resolved_by"`
 	}
-	
+
 	var req ResolveRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	
+
 	if req.ResolvedBy == "" {
 		req.ResolvedBy = "manual"
 	}
-	
+
 	now := time.Now()
 	query := `UPDATE problems 
 	          SET status = 'resolved', resolution = $1, resolved_at = $2, resolved_by = $3
 	          WHERE id = $4`
-	
+
 	result, err := db.Exec(query, req.Resolution, now, req.ResolvedBy, id)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Database error", "details": err.Error()})
 	}
-	
+
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		return c.Status(404).JSON(fiber.Map{"error": "Problem not found"})
 	}
-	
+
 	return c.JSON(fiber.Map{"message": "Problem resolved successfully"})
 }
 
@@ -2347,24 +2347,24 @@ func resolveProblem(c *fiber.Ctx) error {
 
 func findProblemFiles(scanPath string) ([]string, error) {
 	var problemFiles []string
-	
+
 	err := filepath.Walk(scanPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors, continue walking
 		}
-		
+
 		if info.Name() == "PROBLEMS.md" {
 			problemFiles = append(problemFiles, path)
 		}
-		
+
 		// Limit to prevent excessive scanning
 		if len(problemFiles) >= 50 {
 			return filepath.SkipDir
 		}
-		
+
 		return nil
 	})
-	
+
 	return problemFiles, err
 }
 
@@ -2373,17 +2373,17 @@ func parseProblemsFromFile(filename string) ([]Problem, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var problems []Problem
-	
+
 	// Simple parser - look for ACTIVEPROBLEM embedding markers
 	lines := strings.Split(string(content), "\n")
 	var currentProblem *Problem
 	var inActiveProblem bool
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		if strings.Contains(line, "<!-- EMBED:ACTIVEPROBLEM:START -->") {
 			inActiveProblem = true
 			currentProblem = &Problem{
@@ -2395,7 +2395,7 @@ func parseProblemsFromFile(filename string) ([]Problem, error) {
 			}
 			continue
 		}
-		
+
 		if strings.Contains(line, "<!-- EMBED:ACTIVEPROBLEM:END -->") {
 			if currentProblem != nil && currentProblem.Title != "" {
 				problems = append(problems, *currentProblem)
@@ -2404,7 +2404,7 @@ func parseProblemsFromFile(filename string) ([]Problem, error) {
 			currentProblem = nil
 			continue
 		}
-		
+
 		if inActiveProblem && currentProblem != nil {
 			// Parse problem fields
 			if strings.HasPrefix(line, "### ") {
@@ -2430,7 +2430,7 @@ func parseProblemsFromFile(filename string) ([]Problem, error) {
 			}
 		}
 	}
-	
+
 	return problems, nil
 }
 
@@ -2442,7 +2442,7 @@ func storeProblem(problem Problem) error {
 	relatedIssues, _ := json.Marshal(problem.RelatedIssues)
 	priorityEstimates, _ := json.Marshal(problem.PriorityEstimates)
 	tasksCreated, _ := json.Marshal(problem.TasksCreated)
-	
+
 	query := `INSERT INTO problems (
 		id, title, description, severity, frequency, impact, status,
 		discovered_at, discovered_by, last_occurrence, source_file,
@@ -2461,21 +2461,21 @@ func storeProblem(problem Problem) error {
 		evidence = EXCLUDED.evidence,
 		related_issues = EXCLUDED.related_issues,
 		priority_estimates = EXCLUDED.priority_estimates`
-	
+
 	_, err := db.Exec(query,
 		problem.ID, problem.Title, problem.Description, problem.Severity,
 		problem.Frequency, problem.Impact, problem.Status,
 		problem.DiscoveredAt, problem.DiscoveredBy, problem.LastOccurrence, problem.SourceFile,
 		string(affectedComponents), string(symptoms), string(evidence), string(relatedIssues),
 		string(priorityEstimates), string(tasksCreated))
-		
+
 	return err
 }
 
 func createTaskFromProblem(problem Problem) bool {
 	// Create a task based on the problem
 	taskID := fmt.Sprintf("task-prob-%s-%d", problem.Severity, time.Now().Unix())
-	
+
 	task := Task{
 		ID:          taskID,
 		Title:       fmt.Sprintf("Resolve %s problem: %s", problem.Severity, problem.Title),
@@ -2483,9 +2483,9 @@ func createTaskFromProblem(problem Problem) bool {
 		Type:        "problem-resolution",
 		Target:      problem.SourceFile,
 		PriorityEstimates: map[string]interface{}{
-			"impact":       severityToImpact(problem.Severity),
-			"urgency":      frequencyToUrgency(problem.Frequency),
-			"success_prob": 0.7, // Default assumption
+			"impact":        severityToImpact(problem.Severity),
+			"urgency":       frequencyToUrgency(problem.Frequency),
+			"success_prob":  0.7, // Default assumption
 			"resource_cost": impactToResourceCost(problem.Impact),
 		},
 		Dependencies: []string{},
@@ -2495,7 +2495,7 @@ func createTaskFromProblem(problem Problem) bool {
 		Attempts:     []interface{}{},
 		Notes:        fmt.Sprintf("Auto-generated from problem: %s", problem.ID),
 	}
-	
+
 	// Save task to appropriate directory
 	var taskDir string
 	if problem.Severity == "critical" || problem.Severity == "high" {
@@ -2503,17 +2503,17 @@ func createTaskFromProblem(problem Problem) bool {
 	} else {
 		taskDir = filepath.Join(tasksDir, "backlog", "manual")
 	}
-	
+
 	err := saveTaskToFile(task, taskDir)
 	if err != nil {
 		log.Printf("Failed to create task from problem %s: %v", problem.ID, err)
 		return false
 	}
-	
+
 	// Update problem with created task
 	problem.TasksCreated = append(problem.TasksCreated, taskID)
 	storeProblem(problem)
-	
+
 	log.Printf("Created task %s from problem %s", taskID, problem.ID)
 	return true
 }
@@ -2588,20 +2588,20 @@ func getCurrentConfig() (Config, error) {
 			"cost":    0.5,
 		},
 	}
-	
+
 	// Query database for actual config values
 	rows, err := db.Query(`SELECT setting_key, setting_value, setting_type FROM configuration`)
 	if err != nil {
 		return config, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var key, value, settingType string
 		if err := rows.Scan(&key, &value, &settingType); err != nil {
 			continue
 		}
-		
+
 		// Update config based on database values
 		switch key {
 		case "yolo_mode":
@@ -2616,7 +2616,7 @@ func getCurrentConfig() (Config, error) {
 			}
 		}
 	}
-	
+
 	return config, nil
 }
 
@@ -2625,17 +2625,17 @@ func saveTaskToFile(task Task, taskDir string) error {
 	if err := os.MkdirAll(taskDir, 0755); err != nil {
 		return err
 	}
-	
+
 	// Create task file path
 	filename := fmt.Sprintf("%s.yaml", task.ID)
 	filepath := filepath.Join(taskDir, filename)
-	
+
 	// Convert task to YAML
 	yamlData, err := yaml.Marshal(task)
 	if err != nil {
 		return err
 	}
-	
+
 	// Write to file
 	return ioutil.WriteFile(filepath, yamlData, 0644)
 }
@@ -2656,7 +2656,7 @@ func getVrooliRoot() string {
 
 func getTaskExecutions(taskID string, limit, offset int) ([]TaskExecution, error) {
 	var executions []TaskExecution
-	
+
 	query := `
 		SELECT id, task_id, task_title, task_type, scenario_used, status,
 		       priority_score, estimates, started_at, completed_at, duration_seconds,
@@ -2665,27 +2665,27 @@ func getTaskExecutions(taskID string, limit, offset int) ([]TaskExecution, error
 		WHERE task_id = $1 
 		ORDER BY created_at DESC 
 		LIMIT $2 OFFSET $3`
-	
+
 	rows, err := db.Query(query, taskID, limit, offset)
 	if err != nil {
 		return executions, err
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var exec TaskExecution
 		var estimatesJSON, commandsJSON []byte
-		
+
 		err := rows.Scan(
 			&exec.ID, &exec.TaskID, &exec.TaskTitle, &exec.TaskType, &exec.ScenarioUsed,
 			&exec.Status, &exec.PriorityScore, &estimatesJSON, &exec.StartedAt, &exec.CompletedAt,
 			&exec.DurationSeconds, &commandsJSON, &exec.OutputSummary, &exec.ErrorDetails,
 			&exec.CreatedAt, &exec.UpdatedAt)
-		
+
 		if err != nil {
 			continue
 		}
-		
+
 		// Parse JSON fields
 		if estimatesJSON != nil {
 			json.Unmarshal(estimatesJSON, &exec.Estimates)
@@ -2693,31 +2693,31 @@ func getTaskExecutions(taskID string, limit, offset int) ([]TaskExecution, error
 		if commandsJSON != nil {
 			json.Unmarshal(commandsJSON, &exec.CommandsExecuted)
 		}
-		
+
 		executions = append(executions, exec)
 	}
-	
+
 	return executions, nil
 }
 
 func getTaskEvents(taskID string, limit int) ([]TaskEvent, error) {
 	var events []TaskEvent
-	
+
 	eventsPath := filepath.Join(getBasePath(), "logs", "events.ndjson")
 	file, err := os.Open(eventsPath)
 	if err != nil {
 		return events, err
 	}
 	defer file.Close()
-	
+
 	scanner := bufio.NewScanner(file)
 	var allLines []string
-	
+
 	// Read all lines first
 	for scanner.Scan() {
 		allLines = append(allLines, scanner.Text())
 	}
-	
+
 	// Process lines in reverse order (newest first) and filter by task ID
 	count := 0
 	for i := len(allLines) - 1; i >= 0 && count < limit; i-- {
@@ -2725,19 +2725,19 @@ func getTaskEvents(taskID string, limit int) ([]TaskEvent, error) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		
+
 		var event TaskEvent
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
 			continue
 		}
-		
+
 		// Filter by task ID
 		if event.ID == taskID {
 			events = append(events, event)
 			count++
 		}
 	}
-	
+
 	return events, scanner.Err()
 }
 
@@ -2752,6 +2752,6 @@ func errorHandler(c *fiber.Ctx, err error) error {
 
 	return c.Status(code).JSON(fiber.Map{
 		"error": message,
-		"code": code,
+		"code":  code,
 	})
 }

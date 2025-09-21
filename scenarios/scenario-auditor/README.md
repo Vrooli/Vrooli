@@ -217,6 +217,8 @@ scenario-auditor/
 3. Test rule against sample scenarios
 4. Document rule purpose and usage
 
+Runtime signature: Go-based rules must expose an exported `Check` function with the shape `func (r *RuleStruct) Check(content string, filepath string, scenario string) ([]Violation, error)`. The `scenario` argument contains the scenario name during repository scans (and is empty for playground/unit tests), allowing rules to tailor messaging or behaviour per scenario while remaining deterministic.
+
 ### Rule Definition Format
 ```yaml
 - id: config-service-json-exists
@@ -244,7 +246,9 @@ scenario-auditor/
 ### Embedded Rule Tests
 - Use `<test-case ...>` blocks inside Go rule files to describe sample inputs.
 - Provide `path="relative/file.ext"` when a rule depends on filename or location (e.g., `.vrooli/service.json`, `api/main.go`). The test runner passes this path to the rule exactly as it would appear during a real scan.
-- Supported attributes: `id`, `should-fail`, `path`/`file`/`filepath`, plus the existing `<input>`, `<expected-violations>`, and `<expected-message>` sections.
+- Optional attributes:
+  - `scenario="name"` supplies the third argument to `Check`, letting rules verify scenario-specific logic.
+  - `id`, `should-fail`, and `path`/`file`/`filepath`, plus the existing `<input>`, `<expected-violations>`, and `<expected-message>` sections remain supported.
 
 ## 🔗 Integration
 

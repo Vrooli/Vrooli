@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 )
 
 // Configuration
@@ -60,14 +60,27 @@ type ProfileResponse struct {
 }
 
 type StatsResponse struct {
-	TotalBookmarks   int     `json:"total_bookmarks"`
-	CategoriesCount  int     `json:"categories_count"`
-	PendingActions   int     `json:"pending_actions"`
-	AccuracyRate     float64 `json:"accuracy_rate"`
-	LastSyncAt       *time.Time `json:"last_sync_at,omitempty"`
+	TotalBookmarks  int        `json:"total_bookmarks"`
+	CategoriesCount int        `json:"categories_count"`
+	PendingActions  int        `json:"pending_actions"`
+	AccuracyRate    float64    `json:"accuracy_rate"`
+	LastSyncAt      *time.Time `json:"last_sync_at,omitempty"`
 }
 
 func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start bookmark-intelligence-hub
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Load configuration
 	config, err := loadConfig()
 	if err != nil {
@@ -118,47 +131,47 @@ func NewServer(config *Config) (*Server, error) {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📊 Database URL configured")
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		return nil, fmt.Errorf("database connection failed after %d attempts: %w", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	server := &Server{
@@ -175,44 +188,44 @@ func NewServer(config *Config) (*Server, error) {
 // setupRoutes configures all API routes
 func (s *Server) setupRoutes() {
 	s.router = mux.NewRouter()
-	
+
 	// API versioning
 	api := s.router.PathPrefix("/api/v1").Subrouter()
-	
+
 	// Health check
 	s.router.HandleFunc("/health", s.handleHealth).Methods("GET")
-	
+
 	// Profile management
 	api.HandleFunc("/profiles", s.handleGetProfiles).Methods("GET")
 	api.HandleFunc("/profiles", s.handleCreateProfile).Methods("POST")
 	api.HandleFunc("/profiles/{id}", s.handleGetProfile).Methods("GET")
 	api.HandleFunc("/profiles/{id}", s.handleUpdateProfile).Methods("PUT")
 	api.HandleFunc("/profiles/{id}/stats", s.handleGetProfileStats).Methods("GET")
-	
+
 	// Bookmark management
 	api.HandleFunc("/bookmarks/process", s.handleProcessBookmarks).Methods("POST")
 	api.HandleFunc("/bookmarks/query", s.handleQueryBookmarks).Methods("GET")
 	api.HandleFunc("/bookmarks/sync", s.handleSyncBookmarks).Methods("POST")
-	
+
 	// Category management
 	api.HandleFunc("/categories", s.handleGetCategories).Methods("GET")
 	api.HandleFunc("/categories", s.handleCreateCategory).Methods("POST")
 	api.HandleFunc("/categories/{id}", s.handleUpdateCategory).Methods("PUT")
 	api.HandleFunc("/categories/{id}", s.handleDeleteCategory).Methods("DELETE")
-	
+
 	// Action management
 	api.HandleFunc("/actions", s.handleGetActions).Methods("GET")
 	api.HandleFunc("/actions/approve", s.handleApproveActions).Methods("POST")
 	api.HandleFunc("/actions/reject", s.handleRejectActions).Methods("POST")
-	
+
 	// Platform management
 	api.HandleFunc("/platforms", s.handleGetPlatforms).Methods("GET")
 	api.HandleFunc("/platforms/status", s.handleGetPlatformStatus).Methods("GET")
 	api.HandleFunc("/platforms/{platform}/sync", s.handleSyncPlatform).Methods("POST")
-	
+
 	// Analytics
 	api.HandleFunc("/analytics/metrics", s.handleGetMetrics).Methods("GET")
-	
+
 	// CORS middleware
 	c := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"}, // Configure appropriately for production
@@ -220,7 +233,7 @@ func (s *Server) setupRoutes() {
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
-	
+
 	s.router.Use(c.Handler)
 	s.router.Use(s.loggingMiddleware)
 	s.router.Use(s.authMiddleware)
@@ -272,7 +285,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	// Check Huginn connection (placeholder)
 	huginnStatus := "unknown"
-	
+
 	response := HealthResponse{
 		Status:    "healthy",
 		Timestamp: time.Now(),
@@ -297,7 +310,7 @@ func (s *Server) handleGetProfiles(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:   time.Now(),
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profiles)
 }
@@ -312,7 +325,7 @@ func (s *Server) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["id"]
-	
+
 	// TODO: Implement profile fetching by ID
 	profile := ProfileResponse{
 		ID:          profileID,
@@ -321,7 +334,7 @@ func (s *Server) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 		Settings:    map[string]interface{}{"auto_approve": true},
 		CreatedAt:   time.Now(),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(profile)
 }
@@ -336,17 +349,17 @@ func (s *Server) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetProfileStats(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	profileID := vars["id"]
-	
+
 	// TODO: Implement actual stats calculation from database
 	_ = profileID // Use profileID to query database
-	
+
 	stats := StatsResponse{
 		TotalBookmarks:  1247,
 		CategoriesCount: 8,
 		PendingActions:  3,
 		AccuracyRate:    92.5,
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
@@ -357,9 +370,9 @@ func (s *Server) handleProcessBookmarks(w http.ResponseWriter, r *http.Request) 
 	response := map[string]interface{}{
 		"success":         true,
 		"processed_count": 1,
-		"message":        "Bookmark processing endpoint - implementation pending",
+		"message":         "Bookmark processing endpoint - implementation pending",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -369,20 +382,20 @@ func (s *Server) handleQueryBookmarks(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement bookmark querying with filters
 	bookmarks := []map[string]interface{}{
 		{
-			"id":          "1",
-			"title":       "Sample Bookmark",
-			"platform":    "reddit",
-			"category":    "Programming",
-			"created_at":  time.Now(),
+			"id":         "1",
+			"title":      "Sample Bookmark",
+			"platform":   "reddit",
+			"category":   "Programming",
+			"created_at": time.Now(),
 		},
 	}
-	
+
 	response := map[string]interface{}{
 		"bookmarks":   bookmarks,
 		"total_count": len(bookmarks),
 		"categories":  []string{"Programming", "Recipes", "Fitness"},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -393,9 +406,9 @@ func (s *Server) handleSyncBookmarks(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"success":         true,
 		"processed_count": 5,
-		"message":        "Bookmark sync endpoint - implementation pending",
+		"message":         "Bookmark sync endpoint - implementation pending",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -409,7 +422,7 @@ func (s *Server) handleGetCategories(w http.ResponseWriter, r *http.Request) {
 		{"name": "Fitness", "count": 89},
 		{"name": "Travel", "count": 67},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(categories)
 }
@@ -443,7 +456,7 @@ func (s *Server) handleGetActions(w http.ResponseWriter, r *http.Request) {
 			"status":      "pending",
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(actions)
 }
@@ -454,9 +467,9 @@ func (s *Server) handleApproveActions(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"success":        true,
 		"approved_count": 1,
-		"message":       "Action approval endpoint - implementation pending",
+		"message":        "Action approval endpoint - implementation pending",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -465,11 +478,11 @@ func (s *Server) handleApproveActions(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRejectActions(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement action rejection
 	response := map[string]interface{}{
-		"success":       true,
+		"success":        true,
 		"rejected_count": 1,
-		"message":      "Action rejection endpoint - implementation pending",
+		"message":        "Action rejection endpoint - implementation pending",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -500,7 +513,7 @@ func (s *Server) handleGetPlatforms(w http.ResponseWriter, r *http.Request) {
 			"supported":    true,
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(platforms)
 }
@@ -525,7 +538,7 @@ func (s *Server) handleGetPlatformStatus(w http.ResponseWriter, r *http.Request)
 			"last_sync": nil,
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(statuses)
 }
@@ -534,15 +547,15 @@ func (s *Server) handleGetPlatformStatus(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleSyncPlatform(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	platform := vars["platform"]
-	
+
 	// TODO: Implement platform-specific sync
 	response := map[string]interface{}{
 		"success":         true,
 		"platform":        platform,
 		"processed_count": 10,
-		"message":        fmt.Sprintf("Platform %s sync endpoint - implementation pending", platform),
+		"message":         fmt.Sprintf("Platform %s sync endpoint - implementation pending", platform),
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -560,7 +573,7 @@ func (s *Server) handleGetMetrics(w http.ResponseWriter, r *http.Request) {
 			"tiktok":  155,
 		},
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(metrics)
 }
@@ -583,7 +596,7 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		
+
 		// TODO: Implement proper authentication
 		// For now, allow all requests
 		next.ServeHTTP(w, r)
@@ -595,20 +608,20 @@ func (s *Server) authMiddleware(next http.Handler) http.Handler {
 func (s *Server) sendError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	response := ErrorResponse{
 		Error:     http.StatusText(statusCode),
 		Message:   message,
 		Timestamp: time.Now(),
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
 // Configuration loading
 func loadConfig() (*Config, error) {
 	// ALL configuration MUST come from environment - no defaults
-	
+
 	// Get port from environment
 	portStr := os.Getenv("API_PORT")
 	if portStr == "" {
@@ -618,7 +631,7 @@ func loadConfig() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("❌ Invalid API_PORT: %v", err)
 	}
-	
+
 	// Get database URL - support both DATABASE_URL and individual components
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
@@ -628,20 +641,20 @@ func loadConfig() (*Config, error) {
 		dbUser := os.Getenv("POSTGRES_USER")
 		dbPassword := os.Getenv("POSTGRES_PASSWORD")
 		dbName := os.Getenv("POSTGRES_DB")
-		
+
 		if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" || dbName == "" {
 			return nil, fmt.Errorf("❌ Missing database configuration. Provide DATABASE_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB")
 		}
-		
+
 		databaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 			dbUser, dbPassword, dbHost, dbPort, dbName)
 	}
-	
+
 	// Optional URLs for integrations (not required for basic operation)
 	huginnURL := os.Getenv("HUGINN_URL")
 	browserlessURL := os.Getenv("BROWSERLESS_URL")
 	apiToken := os.Getenv("BOOKMARK_API_TOKEN")
-	
+
 	config := &Config{
 		Port:           port,
 		DatabaseURL:    databaseURL,
@@ -649,6 +662,6 @@ func loadConfig() (*Config, error) {
 		BrowserlessURL: browserlessURL,
 		APIToken:       apiToken,
 	}
-	
+
 	return config, nil
 }

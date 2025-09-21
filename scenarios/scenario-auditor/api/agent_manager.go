@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -94,6 +95,34 @@ func resolveOpenRouterModel() string {
 	return defaultOpenRouterModel
 }
 
+func estimateMaxTurns(issueCount int) int {
+	if issueCount < 1 {
+		issueCount = 1
+	}
+	base := 12
+	perIssue := 4
+	maxTurns := 100
+	estimate := base + perIssue*(issueCount-1)
+	if estimate > maxTurns {
+		estimate = maxTurns
+	}
+	return estimate
+}
+
+func estimateTaskTimeout(issueCount int) int {
+	if issueCount < 1 {
+		issueCount = 1
+	}
+	base := 300 // seconds
+	perIssue := 90
+	maxTimeout := 1800
+	estimate := base + perIssue*(issueCount-1)
+	if estimate > maxTimeout {
+		estimate = maxTimeout
+	}
+	return estimate
+}
+
 func cloneMetadata(input map[string]string) map[string]string {
 	if len(input) == 0 {
 		return map[string]string{}
@@ -132,8 +161,9 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	if cfg.Scenario != "" {
 		cfg.Metadata["scenario"] = cfg.Scenario
 	}
-	if len(cfg.IssueIDs) > 0 {
-		cfg.Metadata["issue_count"] = fmt.Sprintf("%d", len(cfg.IssueIDs))
+	issueCount := len(cfg.IssueIDs)
+	if issueCount > 0 {
+		cfg.Metadata["issue_count"] = fmt.Sprintf("%d", issueCount)
 	}
 
 	agentID := uuid.New().String()
@@ -142,20 +172,27 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		allowedTools = defaultAllowedTools
 	}
 
-	maxTurnsEnv := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MAX_TURNS"))
-	taskTimeoutEnv := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_TIMEOUT"))
+	maxTurnsValue := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MAX_TURNS"))
+	if maxTurnsValue == "" {
+		maxTurnsValue = strconv.Itoa(estimateMaxTurns(issueCount))
+	}
+
+	taskTimeoutValue := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_TIMEOUT"))
+	if taskTimeoutValue == "" {
+		taskTimeoutValue = strconv.Itoa(estimateTaskTimeout(issueCount))
+	}
 
 	command := []string{"agents", "run", "--model", cfg.Model, "--prompt", cfg.Prompt}
 	if allowedTools != "" {
 		command = append(command, "--allowed-tools", allowedTools)
 	}
 
-	if maxTurnsEnv != "" {
-		command = append(command, "--max-turns", maxTurnsEnv)
+	if maxTurnsValue != "" {
+		command = append(command, "--max-turns", maxTurnsValue)
 	}
 
-	if taskTimeoutEnv != "" {
-		command = append(command, "--task-timeout", taskTimeoutEnv)
+	if taskTimeoutValue != "" {
+		command = append(command, "--task-timeout", taskTimeoutValue)
 	}
 
 	scenarioRoot := getScenarioRoot()
@@ -200,11 +237,11 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	if allowedTools != "" {
 		metadata["allowed_tools"] = allowedTools
 	}
-	if maxTurnsEnv != "" {
-		metadata["max_turns"] = maxTurnsEnv
+	if maxTurnsValue != "" {
+		metadata["max_turns"] = maxTurnsValue
 	}
-	if taskTimeoutEnv != "" {
-		metadata["task_timeout"] = taskTimeoutEnv
+	if taskTimeoutValue != "" {
+		metadata["task_timeout"] = taskTimeoutValue
 	}
 
 	agentInfo := AgentInfo{
@@ -222,11 +259,11 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 			if allowedTools != "" {
 				base = append(base, "--allowed-tools", allowedTools)
 			}
-			if maxTurnsEnv != "" {
-				base = append(base, "--max-turns", maxTurnsEnv)
+			if maxTurnsValue != "" {
+				base = append(base, "--max-turns", maxTurnsValue)
 			}
-			if taskTimeoutEnv != "" {
-				base = append(base, "--task-timeout", taskTimeoutEnv)
+			if taskTimeoutValue != "" {
+				base = append(base, "--task-timeout", taskTimeoutValue)
 			}
 			return base
 		}(),
