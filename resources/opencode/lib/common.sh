@@ -1068,7 +1068,7 @@ Standard agent manager subcommands:
   list | stop | info | logs | monitor | metrics | cleanup | help
 
 Examples:
-  resource-opencode agents run --prompt "Fix the failing tests" --model openrouter/qwen3-coder
+  resource-opencode agents run --prompt "Fix the failing tests" --model openrouter/qwen/qwen3-coder
   resource-opencode agents session list
   resource-opencode agents list --json
 EOF

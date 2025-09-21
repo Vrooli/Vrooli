@@ -36,6 +36,10 @@ const (
 	// defaultOpenRouterModel must include the provider prefix so resource-opencode
 	// resolves it correctly via OpenRouter (provider/model syntax).
 	defaultOpenRouterModel = "openrouter/qwen/qwen3-coder"
+
+	// defaultAllowedTools ensures agents can inspect and edit files without
+	// prompting for permissions during automated runs.
+	defaultAllowedTools = "read,write,edit,bash"
 )
 
 var openRouterModel = resolveOpenRouterModel()
@@ -133,7 +137,26 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 	}
 
 	agentID := uuid.New().String()
-	command := []string{"run", "run", "--model", cfg.Model, cfg.Prompt}
+	allowedTools := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_ALLOWED_TOOLS"))
+	if allowedTools == "" {
+		allowedTools = defaultAllowedTools
+	}
+
+	maxTurnsEnv := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MAX_TURNS"))
+	taskTimeoutEnv := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_TIMEOUT"))
+
+	command := []string{"agents", "run", "--model", cfg.Model, "--prompt", cfg.Prompt}
+	if allowedTools != "" {
+		command = append(command, "--allowed-tools", allowedTools)
+	}
+
+	if maxTurnsEnv != "" {
+		command = append(command, "--max-turns", maxTurnsEnv)
+	}
+
+	if taskTimeoutEnv != "" {
+		command = append(command, "--task-timeout", taskTimeoutEnv)
+	}
 
 	scenarioRoot := getScenarioRoot()
 	logsDir := filepath.Join(scenarioRoot, "logs", "agents")
@@ -174,18 +197,39 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 
 	metadata := cloneMetadata(cfg.Metadata)
 	metadata["log_path"] = logPath
+	if allowedTools != "" {
+		metadata["allowed_tools"] = allowedTools
+	}
+	if maxTurnsEnv != "" {
+		metadata["max_turns"] = maxTurnsEnv
+	}
+	if taskTimeoutEnv != "" {
+		metadata["task_timeout"] = taskTimeoutEnv
+	}
 
 	agentInfo := AgentInfo{
-		ID:           agentID,
-		Name:         fallbackAgentName(cfg.Name, cfg.Label, cfg.Action, cfg.RuleID),
-		Label:        cfg.Label,
-		Action:       cfg.Action,
-		RuleID:       cfg.RuleID,
-		Scenario:     cfg.Scenario,
-		Model:        cfg.Model,
-		Status:       agentStatusRunning,
-		StartedAt:    time.Now().UTC(),
-		Command:      []string{"resource-opencode", "run", "run", "--model", cfg.Model},
+		ID:        agentID,
+		Name:      fallbackAgentName(cfg.Name, cfg.Label, cfg.Action, cfg.RuleID),
+		Label:     cfg.Label,
+		Action:    cfg.Action,
+		RuleID:    cfg.RuleID,
+		Scenario:  cfg.Scenario,
+		Model:     cfg.Model,
+		Status:    agentStatusRunning,
+		StartedAt: time.Now().UTC(),
+		Command: func() []string {
+			base := []string{"resource-opencode", "agents", "run", "--model", cfg.Model}
+			if allowedTools != "" {
+				base = append(base, "--allowed-tools", allowedTools)
+			}
+			if maxTurnsEnv != "" {
+				base = append(base, "--max-turns", maxTurnsEnv)
+			}
+			if taskTimeoutEnv != "" {
+				base = append(base, "--task-timeout", taskTimeoutEnv)
+			}
+			return base
+		}(),
 		PromptLength: len([]rune(cfg.Prompt)),
 		PID:          cmd.Process.Pid,
 		Metadata:     metadata,
