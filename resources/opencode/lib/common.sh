@@ -71,6 +71,25 @@ opencode::load_secrets() {
         fi
     fi
 
+    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]]; then
+        if ! declare -f secrets::resolve >/dev/null 2>&1; then
+            if [[ -f "${APP_ROOT}/scripts/lib/service/secrets.sh" ]]; then
+                # shellcheck disable=SC1091
+                source "${APP_ROOT}/scripts/lib/service/secrets.sh"
+            fi
+        fi
+        if declare -f secrets::resolve >/dev/null 2>&1; then
+            local resolved_key=""
+            resolved_key=$(secrets::resolve "OPENROUTER_API_KEY" 2>/dev/null || true)
+            if [[ -z "${resolved_key}" || "${resolved_key}" == auto-null-* ]]; then
+                resolved_key=$(secrets::resolve "openrouter_api_key" "resources/openrouter/api/main" 2>/dev/null || true)
+            fi
+            if [[ -n "${resolved_key}" && "${resolved_key}" != auto-null-* ]]; then
+                export OPENROUTER_API_KEY="${resolved_key}"
+            fi
+        fi
+    fi
+
     if command -v jq &>/dev/null; then
         local vrooli_root="${VROOLI_ROOT:-"$HOME/Vrooli"}"
         local secrets_file="${vrooli_root}/.vrooli/secrets.json"
@@ -93,8 +112,77 @@ opencode::load_secrets() {
         fi
     fi
 
+    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]]; then
+        local credentials_file="${var_ROOT_DIR:-${APP_ROOT}}/data/credentials/openrouter-credentials.json"
+        if [[ -f "${credentials_file}" ]]; then
+            local credential_key
+            credential_key=$(jq -r '.data.apiKey // empty' "${credentials_file}" 2>/dev/null || true)
+            if [[ -n "${credential_key}" && "${credential_key}" != "null" && "${credential_key}" != auto-null-* ]]; then
+                export OPENROUTER_API_KEY="${credential_key}"
+            fi
+        fi
+    fi
+
+    if [[ -z "${OPENROUTER_API_KEY:-}" || "${OPENROUTER_API_KEY}" == auto-null-* ]]; then
+        local openrouter_core="${APP_ROOT}/resources/openrouter/lib/core.sh"
+        if [[ -f "${openrouter_core}" ]]; then
+            # shellcheck disable=SC1090
+            source "${openrouter_core}" 2>/dev/null || true
+            if declare -f openrouter::get_api_key >/dev/null 2>&1; then
+                local derived_key
+                derived_key=$(openrouter::get_api_key 2>/dev/null || true)
+                if [[ -z "${derived_key}" || "${derived_key}" == auto-null-* ]]; then
+                    if openrouter::init >/dev/null 2>&1; then
+                        derived_key="${OPENROUTER_API_KEY:-}"
+                    fi
+                fi
+                if [[ -n "${derived_key}" && "${derived_key}" != auto-null-* ]]; then
+                    export OPENROUTER_API_KEY="${derived_key}"
+                fi
+            fi
+        fi
+    fi
+
+    opencode::auth::sync_openrouter
+
     OPENCODE_SECRETS_LOADED=1
     return 0
+}
+
+opencode::auth::sync_openrouter() {
+    local key="${OPENROUTER_API_KEY:-}"
+    if [[ -z "${key}" || "${key}" == auto-null-* ]]; then
+        return 0
+    fi
+
+    local auth_dir="${OPENCODE_XDG_DATA_HOME}/opencode"
+    local auth_file="${auth_dir}/auth.json"
+    mkdir -p "${auth_dir}"
+
+    local tmp
+    tmp=$(mktemp "${TMPDIR:-/tmp}/opencode-auth.XXXXXX")
+
+    if command -v jq >/dev/null 2>&1 && [[ -f "${auth_file}" ]]; then
+        if jq \
+            --arg key "${key}" \
+            '.openrouter = {"type":"api","key":$key}' \
+            "${auth_file}" >"${tmp}" 2>/dev/null; then
+            mv "${tmp}" "${auth_file}"
+            chmod 600 "${auth_file}" 2>/dev/null || true
+            return 0
+        fi
+    fi
+
+    cat <<EOF >"${tmp}"
+{
+  "openrouter": {
+    "type": "api",
+    "key": "${key}"
+  }
+}
+EOF
+    mv "${tmp}" "${auth_file}"
+    chmod 600 "${auth_file}" 2>/dev/null || true
 }
 
 opencode::supported_provider() {
