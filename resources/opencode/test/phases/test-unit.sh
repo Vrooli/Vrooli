@@ -40,6 +40,23 @@ assert_equals "allow" "$(opencode::permissions::decide "bash(ls *)" "" "bash" "$
 assert_equals "reject" "$(opencode::permissions::decide "bash(ls *)" "" "bash" $'rm *')" "Pattern allowlist rejects mismatched command"
 assert_equals "reject" "$(opencode::permissions::decide "edit" "" "write" "")" "Allowlist enforces edit-only"
 
+default_payload="$(opencode::default_config_payload)"
+assert_equals "1" "$(grep -c '"model": "openrouter/qwen/qwen3-coder"' <(printf '%s' "${default_payload}"))" "Default config uses updated chat model slug"
+assert_equals "1" "$(grep -c '"small_model": "openrouter/qwen/qwen3-coder"' <(printf '%s' "${default_payload}"))" "Default config uses updated completion model slug"
+
+tmp_config=$(mktemp)
+cat <<'EOF' >"${tmp_config}"
+{
+  "model": "openrouter/qwen3-coder",
+  "small_model": "openrouter/qwen3-coder"
+}
+EOF
+opencode::config::migrate_legacy_models "${tmp_config}"
+
+assert_equals "openrouter/qwen/qwen3-coder" "$(jq -r '.model' "${tmp_config}")" "Migrates legacy chat model slug"
+assert_equals "openrouter/qwen/qwen3-coder" "$(jq -r '.small_model' "${tmp_config}")" "Migrates legacy completion model slug"
+rm -f "${tmp_config}"
+
 if [[ ${fail_count} -gt 0 ]]; then
     log::error "OpenCode unit tests failed (${fail_count} failure(s))"
     exit 1

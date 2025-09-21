@@ -142,11 +142,58 @@ EOF
 
 opencode::ensure_config() {
     if [[ -f "${OPENCODE_CONFIG_FILE}" ]]; then
+        opencode::config::migrate_legacy_models "${OPENCODE_CONFIG_FILE}"
         return 0
     fi
     log::info "Creating default OpenCode config at ${OPENCODE_CONFIG_FILE}"
     mkdir -p "${OPENCODE_CONFIG_DIR}"
     opencode::default_config_payload >"${OPENCODE_CONFIG_FILE}"
+}
+
+opencode::config::migrate_legacy_models() {
+    local config_path="${1:-${OPENCODE_CONFIG_FILE}}"
+    if [[ ! -f "${config_path}" ]]; then
+        return 0
+    fi
+
+    local legacy_slug="openrouter/qwen3-coder"
+    local target_chat="openrouter/${OPENCODE_DEFAULT_CHAT_MODEL}"
+    local target_small="openrouter/${OPENCODE_DEFAULT_COMPLETION_MODEL}"
+    local updated=0
+
+    if command -v jq >/dev/null 2>&1; then
+        local tmp
+        tmp=$(mktemp "${TMPDIR:-/tmp}/opencode-config.XXXXXX")
+        if jq \
+            --arg legacy "${legacy_slug}" \
+            --arg chat "${target_chat}" \
+            --arg small "${target_small}" \
+            'if (.model // "") == $legacy then .model = $chat else . end
+             | if (.small_model // "") == $legacy then .small_model = $small else . end' \
+            "${config_path}" >"${tmp}" 2>/dev/null; then
+            if ! cmp -s "${config_path}" "${tmp}"; then
+                mv "${tmp}" "${config_path}"
+                updated=1
+            else
+                rm -f "${tmp}"
+            fi
+        else
+            rm -f "${tmp}"
+        fi
+    else
+        if grep -q "${legacy_slug}" "${config_path}"; then
+            local tmp
+            tmp=$(mktemp "${TMPDIR:-/tmp}/opencode-config.XXXXXX")
+            sed \
+                -e "s#\"model\"[[:space:]]*:[[:space:]]*\"${legacy_slug}\"#\"model\": \"${target_chat}\"#" \
+                -e "s#\"small_model\"[[:space:]]*:[[:space:]]*\"${legacy_slug}\"#\"small_model\": \"${target_small}\"#" \
+                "${config_path}" >"${tmp}" && mv "${tmp}" "${config_path}" && updated=1 || rm -f "${tmp}"
+        fi
+    fi
+
+    if [[ ${updated} -eq 1 ]]; then
+        log::info "Updated OpenCode default model slugs in ${config_path}"
+    fi
 }
 
 opencode::run_cli() {
