@@ -8,7 +8,7 @@
     "version": "1.0.0",
     "tags": [
       "standards-enforcement",
-      "quality-assurance", 
+      "quality-assurance",
       "security-audit",
       "configuration-validation",
       "ui-testing",
@@ -30,7 +30,7 @@
       "range": "15000-19999"
     },
     "ui": {
-      "env_var": "UI_PORT", 
+      "env_var": "UI_PORT",
       "description": "Auditing dashboard UI port",
       "range": "35000-39999"
     }
@@ -60,7 +60,7 @@
       },
       "checks": [
         {
-          "name": "api_endpoint", 
+          "name": "api_endpoint",
           "type": "http",
           "target": "http://localhost:${API_PORT}/api/v1/health",
           "critical": true,
@@ -69,7 +69,7 @@
         },
         {
           "name": "ui_endpoint",
-          "type": "http", 
+          "type": "http",
           "target": "http://localhost:${UI_PORT}",
           "critical": false,
           "timeout": 5000,
@@ -86,11 +86,15 @@
         "checks": [
           {
             "type": "binaries",
-            "targets": ["scenario-auditor-api"]
+            "targets": [
+              "scenario-auditor-api"
+            ]
           },
           {
-            "type": "cli", 
-            "targets": ["scenario-auditor"]
+            "type": "cli",
+            "targets": [
+              "scenario-auditor"
+            ]
           }
         ]
       },
@@ -126,7 +130,7 @@
           "description": "Start API server"
         },
         {
-          "name": "start-ui", 
+          "name": "start-ui",
           "run": "cd ui && npm run dev",
           "background": true,
           "description": "Start Vite dev server"
@@ -146,13 +150,13 @@
           "description": "Run unit tests"
         },
         {
-          "name": "test-integration", 
+          "name": "test-integration",
           "run": "cd test && ./phases/test-integration.sh",
           "description": "Run integration tests"
         },
         {
           "name": "test-rules-engine",
-          "run": "cd test && ./phases/test-rules-engine.sh", 
+          "run": "cd test && ./phases/test-rules-engine.sh",
           "description": "Test rule engine functionality"
         },
         {
@@ -177,7 +181,7 @@
         },
         {
           "name": "stop-ui",
-          "run": "pkill -f \"vite.*scenario-auditor\" || true; sleep 1; pkill -9 -f \"vite.*scenario-auditor\" 2>/dev/null || true", 
+          "run": "pkill -f \"vite.*scenario-auditor\" || true; sleep 1; pkill -9 -f \"vite.*scenario-auditor\" 2>/dev/null || true",
           "description": "Stop Vite dev server"
         }
       ]

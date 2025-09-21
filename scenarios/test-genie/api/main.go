@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
-	"github.com/gin-contrib/cors"
 )
 
 // Data Models
@@ -53,31 +53,31 @@ type TestCase struct {
 }
 
 type TestExecution struct {
-	ID                uuid.UUID           `json:"id"`
-	SuiteID           uuid.UUID           `json:"suite_id"`
-	ExecutionType     string              `json:"execution_type"`
-	StartTime         time.Time           `json:"start_time"`
-	EndTime           *time.Time          `json:"end_time,omitempty"`
-	Status            string              `json:"status"`
-	Results           []TestResult        `json:"results"`
+	ID                 uuid.UUID          `json:"id"`
+	SuiteID            uuid.UUID          `json:"suite_id"`
+	ExecutionType      string             `json:"execution_type"`
+	StartTime          time.Time          `json:"start_time"`
+	EndTime            *time.Time         `json:"end_time,omitempty"`
+	Status             string             `json:"status"`
+	Results            []TestResult       `json:"results"`
 	PerformanceMetrics PerformanceMetrics `json:"performance_metrics"`
-	Environment       string              `json:"environment"`
+	Environment        string             `json:"environment"`
 }
 
 type TestResult struct {
-	ID                  uuid.UUID         `json:"id"`
-	ExecutionID         uuid.UUID         `json:"execution_id"`
-	TestCaseID          uuid.UUID         `json:"test_case_id"`
-	Status              string            `json:"status"`
-	Duration            float64           `json:"duration"`
-	ErrorMessage        *string           `json:"error_message,omitempty"`
-	StackTrace          *string           `json:"stack_trace,omitempty"`
-	Assertions          []AssertionResult `json:"assertions"`
+	ID                  uuid.UUID              `json:"id"`
+	ExecutionID         uuid.UUID              `json:"execution_id"`
+	TestCaseID          uuid.UUID              `json:"test_case_id"`
+	Status              string                 `json:"status"`
+	Duration            float64                `json:"duration"`
+	ErrorMessage        *string                `json:"error_message,omitempty"`
+	StackTrace          *string                `json:"stack_trace,omitempty"`
+	Assertions          []AssertionResult      `json:"assertions"`
 	Artifacts           map[string]interface{} `json:"artifacts"`
-	StartedAt           time.Time         `json:"started_at"`
-	CompletedAt         time.Time         `json:"completed_at"`
-	TestCaseName        string            `json:"test_case_name,omitempty"`
-	TestCaseDescription string            `json:"test_case_description,omitempty"`
+	StartedAt           time.Time              `json:"started_at"`
+	CompletedAt         time.Time              `json:"completed_at"`
+	TestCaseName        string                 `json:"test_case_name,omitempty"`
+	TestCaseDescription string                 `json:"test_case_description,omitempty"`
 }
 
 type CoverageMetrics struct {
@@ -87,9 +87,9 @@ type CoverageMetrics struct {
 }
 
 type PerformanceMetrics struct {
-	ExecutionTime  float64                `json:"execution_time"`
-	ResourceUsage  map[string]interface{} `json:"resource_usage"`
-	ErrorCount     int                    `json:"error_count"`
+	ExecutionTime float64                `json:"execution_time"`
+	ResourceUsage map[string]interface{} `json:"resource_usage"`
+	ErrorCount    int                    `json:"error_count"`
 }
 
 type AssertionResult struct {
@@ -102,10 +102,10 @@ type AssertionResult struct {
 
 // Request/Response Models
 type GenerateTestSuiteRequest struct {
-	ScenarioName string   `json:"scenario_name" binding:"required"`
-	TestTypes    []string `json:"test_types" binding:"required"`
-	CoverageTarget float64 `json:"coverage_target"`
-	Options       TestGenerationOptions `json:"options"`
+	ScenarioName   string                `json:"scenario_name" binding:"required"`
+	TestTypes      []string              `json:"test_types" binding:"required"`
+	CoverageTarget float64               `json:"coverage_target"`
+	Options        TestGenerationOptions `json:"options"`
 }
 
 type TestGenerationOptions struct {
@@ -116,19 +116,19 @@ type TestGenerationOptions struct {
 }
 
 type GenerateTestSuiteResponse struct {
-	SuiteID           uuid.UUID            `json:"suite_id"`
-	GeneratedTests    int                  `json:"generated_tests"`
-	EstimatedCoverage float64              `json:"estimated_coverage"`
-	GenerationTime    float64              `json:"generation_time"`
-	TestFiles         map[string][]string  `json:"test_files"`
+	SuiteID           uuid.UUID           `json:"suite_id"`
+	GeneratedTests    int                 `json:"generated_tests"`
+	EstimatedCoverage float64             `json:"estimated_coverage"`
+	GenerationTime    float64             `json:"generation_time"`
+	TestFiles         map[string][]string `json:"test_files"`
 }
 
 type ExecuteTestSuiteRequest struct {
-	ExecutionType        string                      `json:"execution_type"`
-	Environment          string                      `json:"environment"`
-	ParallelExecution    bool                        `json:"parallel_execution"`
-	TimeoutSeconds       int                         `json:"timeout_seconds"`
-	NotificationSettings NotificationSettings       `json:"notification_settings"`
+	ExecutionType        string               `json:"execution_type"`
+	Environment          string               `json:"environment"`
+	ParallelExecution    bool                 `json:"parallel_execution"`
+	TimeoutSeconds       int                  `json:"timeout_seconds"`
+	NotificationSettings NotificationSettings `json:"notification_settings"`
 }
 
 type NotificationSettings struct {
@@ -146,13 +146,13 @@ type ExecuteTestSuiteResponse struct {
 }
 
 type TestExecutionResultsResponse struct {
-	ExecutionID         uuid.UUID                  `json:"execution_id"`
-	SuiteName          string                     `json:"suite_name"`
-	Status             string                     `json:"status"`
-	Summary            TestExecutionSummary       `json:"summary"`
-	FailedTests        []TestResult               `json:"failed_tests"`
-	PerformanceMetrics PerformanceMetrics         `json:"performance_metrics"`
-	Recommendations    []string                   `json:"recommendations"`
+	ExecutionID        uuid.UUID            `json:"execution_id"`
+	SuiteName          string               `json:"suite_name"`
+	Status             string               `json:"status"`
+	Summary            TestExecutionSummary `json:"summary"`
+	FailedTests        []TestResult         `json:"failed_tests"`
+	PerformanceMetrics PerformanceMetrics   `json:"performance_metrics"`
+	Recommendations    []string             `json:"recommendations"`
 }
 
 type TestExecutionSummary struct {
@@ -165,47 +165,47 @@ type TestExecutionSummary struct {
 }
 
 type CoverageAnalysisRequest struct {
-	ScenarioName     string   `json:"scenario_name" binding:"required"`
-	SourceCodePaths  []string `json:"source_code_paths"`
+	ScenarioName      string   `json:"scenario_name" binding:"required"`
+	SourceCodePaths   []string `json:"source_code_paths"`
 	ExistingTestPaths []string `json:"existing_test_paths"`
-	AnalysisDepth    string   `json:"analysis_depth"`
+	AnalysisDepth     string   `json:"analysis_depth"`
 }
 
 type CoverageAnalysisResponse struct {
-	OverallCoverage       float64                `json:"overall_coverage"`
-	CoverageByFile        map[string]float64     `json:"coverage_by_file"`
-	CoverageGaps          CoverageGaps           `json:"coverage_gaps"`
-	ImprovementSuggestions []string              `json:"improvement_suggestions"`
-	PriorityAreas         []string               `json:"priority_areas"`
+	OverallCoverage        float64            `json:"overall_coverage"`
+	CoverageByFile         map[string]float64 `json:"coverage_by_file"`
+	CoverageGaps           CoverageGaps       `json:"coverage_gaps"`
+	ImprovementSuggestions []string           `json:"improvement_suggestions"`
+	PriorityAreas          []string           `json:"priority_areas"`
 }
 
 type CoverageGaps struct {
-	UntestedFunctions  []string `json:"untested_functions"`
-	UntestedBranches   []string `json:"untested_branches"`
-	UntestedEdgeCases  []string `json:"untested_edge_cases"`
+	UntestedFunctions []string `json:"untested_functions"`
+	UntestedBranches  []string `json:"untested_branches"`
+	UntestedEdgeCases []string `json:"untested_edge_cases"`
 }
 
 // Vault Testing Types
 type TestVault struct {
-	ID                    uuid.UUID               `json:"id"`
-	ScenarioName          string                  `json:"scenario_name"`
-	VaultName             string                  `json:"vault_name"`
-	Phases                []string                `json:"phases"`
-	PhaseConfigurations   map[string]PhaseConfig  `json:"phase_configurations"`
-	SuccessCriteria       SuccessCriteria         `json:"success_criteria"`
-	TotalTimeout          int                     `json:"total_timeout"`
-	CreatedAt             time.Time               `json:"created_at"`
-	LastExecuted          *time.Time              `json:"last_executed,omitempty"`
-	Status                string                  `json:"status"`
+	ID                  uuid.UUID              `json:"id"`
+	ScenarioName        string                 `json:"scenario_name"`
+	VaultName           string                 `json:"vault_name"`
+	Phases              []string               `json:"phases"`
+	PhaseConfigurations map[string]PhaseConfig `json:"phase_configurations"`
+	SuccessCriteria     SuccessCriteria        `json:"success_criteria"`
+	TotalTimeout        int                    `json:"total_timeout"`
+	CreatedAt           time.Time              `json:"created_at"`
+	LastExecuted        *time.Time             `json:"last_executed,omitempty"`
+	Status              string                 `json:"status"`
 }
 
 type PhaseConfig struct {
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	Timeout      int               `json:"timeout"`
-	Tests        []PhaseTest       `json:"tests"`
-	Validation   PhaseValidation   `json:"validation"`
-	Dependencies []string          `json:"dependencies"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	Timeout      int             `json:"timeout"`
+	Tests        []PhaseTest     `json:"tests"`
+	Validation   PhaseValidation `json:"validation"`
+	Dependencies []string        `json:"dependencies"`
 }
 
 type PhaseTest struct {
@@ -228,35 +228,35 @@ type PhaseValidation struct {
 }
 
 type SuccessCriteria struct {
-	AllPhasesCompleted       bool    `json:"all_phases_completed"`
-	NoCriticalFailures       bool    `json:"no_critical_failures"`
-	CoverageThreshold        float64 `json:"coverage_threshold"`
-	PerformanceBaselineMet   bool    `json:"performance_baseline_met"`
+	AllPhasesCompleted     bool    `json:"all_phases_completed"`
+	NoCriticalFailures     bool    `json:"no_critical_failures"`
+	CoverageThreshold      float64 `json:"coverage_threshold"`
+	PerformanceBaselineMet bool    `json:"performance_baseline_met"`
 }
 
 type VaultExecution struct {
-	ID               uuid.UUID                `json:"id"`
-	VaultID          uuid.UUID                `json:"vault_id"`
-	ExecutionType    string                   `json:"execution_type"`
-	StartTime        time.Time                `json:"start_time"`
-	EndTime          *time.Time               `json:"end_time,omitempty"`
-	CurrentPhase     string                   `json:"current_phase"`
-	CompletedPhases  []string                 `json:"completed_phases"`
-	FailedPhases     []string                 `json:"failed_phases"`
-	Status           string                   `json:"status"`
-	PhaseResults     map[string]PhaseResult   `json:"phase_results"`
-	Environment      string                   `json:"environment"`
+	ID              uuid.UUID              `json:"id"`
+	VaultID         uuid.UUID              `json:"vault_id"`
+	ExecutionType   string                 `json:"execution_type"`
+	StartTime       time.Time              `json:"start_time"`
+	EndTime         *time.Time             `json:"end_time,omitempty"`
+	CurrentPhase    string                 `json:"current_phase"`
+	CompletedPhases []string               `json:"completed_phases"`
+	FailedPhases    []string               `json:"failed_phases"`
+	Status          string                 `json:"status"`
+	PhaseResults    map[string]PhaseResult `json:"phase_results"`
+	Environment     string                 `json:"environment"`
 }
 
 type PhaseResult struct {
-	Phase       string    `json:"phase"`
-	Status      string    `json:"status"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time"`
-	Duration    float64   `json:"duration"`
-	TestResults []TestResult `json:"test_results"`
-	ErrorMessage *string  `json:"error_message,omitempty"`
-	Artifacts   map[string]interface{} `json:"artifacts"`
+	Phase        string                 `json:"phase"`
+	Status       string                 `json:"status"`
+	StartTime    time.Time              `json:"start_time"`
+	EndTime      time.Time              `json:"end_time"`
+	Duration     float64                `json:"duration"`
+	TestResults  []TestResult           `json:"test_results"`
+	ErrorMessage *string                `json:"error_message,omitempty"`
+	Artifacts    map[string]interface{} `json:"artifacts"`
 }
 
 // Ollama Integration Types
@@ -330,47 +330,47 @@ func initDB() {
 	maxRetries := 10
 	baseDelay := 1 * time.Second
 	maxDelay := 30 * time.Second
-	
+
 	log.Println("🔄 Attempting database connection with exponential backoff...")
 	log.Printf("📊 Connecting to: %s:%s/%s as user %s", dbHost, dbPort, dbName, dbUser)
-	
+
 	var pingErr error
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		pingErr = db.Ping()
 		if pingErr == nil {
-			log.Printf("✅ Database connected successfully on attempt %d", attempt + 1)
+			log.Printf("✅ Database connected successfully on attempt %d", attempt+1)
 			break
 		}
-		
+
 		// Calculate exponential backoff delay
 		delay := time.Duration(math.Min(
-			float64(baseDelay) * math.Pow(2, float64(attempt)),
+			float64(baseDelay)*math.Pow(2, float64(attempt)),
 			float64(maxDelay),
 		))
-		
+
 		// Add progressive jitter to prevent thundering herd
 		jitterRange := float64(delay) * 0.25
 		jitter := time.Duration(jitterRange * (float64(attempt) / float64(maxRetries)))
 		actualDelay := delay + jitter
-		
-		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt + 1, maxRetries, pingErr)
+
+		log.Printf("⚠️  Connection attempt %d/%d failed: %v", attempt+1, maxRetries, pingErr)
 		log.Printf("⏳ Waiting %v before next attempt", actualDelay)
-		
+
 		// Provide detailed status every few attempts
-		if attempt > 0 && attempt % 3 == 0 {
+		if attempt > 0 && attempt%3 == 0 {
 			log.Printf("📈 Retry progress:")
-			log.Printf("   - Attempts made: %d/%d", attempt + 1, maxRetries)
-			log.Printf("   - Total wait time: ~%v", time.Duration(attempt * 2) * baseDelay)
+			log.Printf("   - Attempts made: %d/%d", attempt+1, maxRetries)
+			log.Printf("   - Total wait time: ~%v", time.Duration(attempt*2)*baseDelay)
 			log.Printf("   - Current delay: %v (with jitter: %v)", delay, jitter)
 		}
-		
+
 		time.Sleep(actualDelay)
 	}
-	
+
 	if pingErr != nil {
 		log.Fatalf("❌ Database connection failed after %d attempts: %v", maxRetries, pingErr)
 	}
-	
+
 	log.Println("🎉 Database connection pool established successfully!")
 
 	// Create tables if they don't exist
@@ -387,7 +387,7 @@ func setupHealthCheckers() {
 		return db.Ping()
 	}, dbCircuitBreaker)
 	serviceManager.RegisterService("database", dbChecker)
-	
+
 	// Ollama health checker
 	ollamaChecker := NewHealthChecker("ollama", func() error {
 		ollamaHost := os.Getenv("OLLAMA_HOST")
@@ -398,31 +398,31 @@ func setupHealthCheckers() {
 		if ollamaPort == "" {
 			ollamaPort = "11434"
 		}
-		
+
 		url := fmt.Sprintf("http://%s:%s/api/tags", ollamaHost, ollamaPort)
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
 			return err
 		}
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		req = req.WithContext(ctx)
-		
+
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			return fmt.Errorf("ollama API returned status %d", resp.StatusCode)
 		}
-		
+
 		return nil
 	}, ollamaCircuitBreaker)
 	serviceManager.RegisterService("ollama", ollamaChecker)
-	
+
 	log.Println("🔧 Health checkers initialized successfully")
 }
 
@@ -487,9 +487,9 @@ func initHTTPClient() {
 	httpClient = &http.Client{
 		Timeout: 60 * time.Second,
 		Transport: &http.Transport{
-			MaxIdleConns:        10,
-			IdleConnTimeout:     30 * time.Second,
-			DisableCompression:  false,
+			MaxIdleConns:       10,
+			IdleConnTimeout:    30 * time.Second,
+			DisableCompression: false,
 		},
 	}
 	log.Println("🤖 HTTP client initialized for AI services")
@@ -498,7 +498,7 @@ func initHTTPClient() {
 // Ollama AI Integration Functions
 func callOllama(prompt string, testType string) (*OllamaResponse, error) {
 	log.Printf("🤖 Calling Ollama API for %s test generation...", testType)
-	
+
 	// Create fallback handler with circuit breaker
 	fallback := NewFallbackHandler(
 		func() (interface{}, error) {
@@ -510,25 +510,25 @@ func callOllama(prompt string, testType string) (*OllamaResponse, error) {
 		},
 		func(err error) bool {
 			// Use fallback for circuit breaker errors or connection issues
-			return contains(err.Error(), "circuit breaker") || 
-				   contains(err.Error(), "connection refused") ||
-				   contains(err.Error(), "timeout")
+			return contains(err.Error(), "circuit breaker") ||
+				contains(err.Error(), "connection refused") ||
+				contains(err.Error(), "timeout")
 		},
 	)
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	
+
 	result, err := fallback.Execute(ctx)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	response, ok := result.(*OllamaResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type from Ollama call")
 	}
-	
+
 	log.Printf("✅ Successfully generated %s test content (%d characters)", testType, len(response.Response))
 	return response, nil
 }
@@ -536,20 +536,20 @@ func callOllama(prompt string, testType string) (*OllamaResponse, error) {
 func callOllamaWithCircuitBreaker(prompt string, testType string) (*OllamaResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	
+
 	result, err := ollamaCircuitBreaker.Execute(ctx, func() (interface{}, error) {
 		return executeOllamaCall(prompt, testType)
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	response, ok := result.(*OllamaResponse)
 	if !ok {
 		return nil, fmt.Errorf("invalid response type from Ollama circuit breaker")
 	}
-	
+
 	return response, nil
 }
 
@@ -562,25 +562,25 @@ func executeOllamaCall(prompt string, testType string) (interface{}, error) {
 	if ollamaPort == "" {
 		ollamaPort = "11434"
 	}
-	
+
 	ollamaModel := os.Getenv("OLLAMA_MODEL")
 	if ollamaModel == "" {
 		ollamaModel = "llama3.2"
 	}
-	
+
 	url := fmt.Sprintf("http://%s:%s/api/generate", ollamaHost, ollamaPort)
-	
+
 	request := OllamaRequest{
 		Model:  ollamaModel,
 		Prompt: prompt,
 		Stream: false,
 	}
-	
+
 	requestBody, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal Ollama request: %w", err)
 	}
-	
+
 	// Use retry logic for the HTTP call
 	retryConfig := RetryConfig{
 		MaxAttempts: 2,
@@ -588,52 +588,52 @@ func executeOllamaCall(prompt string, testType string) (interface{}, error) {
 		MaxDelay:    2 * time.Second,
 		BackoffFunc: ExponentialBackoff,
 		ShouldRetry: func(err error) bool {
-			return contains(err.Error(), "timeout") || 
-				   contains(err.Error(), "connection reset") ||
-				   contains(err.Error(), "temporary failure")
+			return contains(err.Error(), "timeout") ||
+				contains(err.Error(), "connection reset") ||
+				contains(err.Error(), "temporary failure")
 		},
 	}
-	
+
 	var response *OllamaResponse
 	err = RetryWithBackoff(context.Background(), retryConfig, func() error {
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(requestBody))
 		if err != nil {
 			return fmt.Errorf("failed to create HTTP request: %w", err)
 		}
-		
+
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("failed to call Ollama API: %w", err)
 		}
 		defer resp.Body.Close()
-		
+
 		if resp.StatusCode != http.StatusOK {
 			body, _ := io.ReadAll(resp.Body)
 			return fmt.Errorf("Ollama API returned status %d: %s", resp.StatusCode, string(body))
 		}
-		
+
 		var ollamaResp OllamaResponse
 		if err := json.NewDecoder(resp.Body).Decode(&ollamaResp); err != nil {
 			return fmt.Errorf("failed to decode Ollama response: %w", err)
 		}
-		
+
 		response = &ollamaResp
 		return nil
 	})
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return response, nil
 }
 
 // generateFallbackTest creates a basic test when AI is unavailable
 func generateFallbackTest(testType string, scenarioName string) (*OllamaResponse, error) {
 	var testContent string
-	
+
 	switch testType {
 	case "unit":
 		testContent = fmt.Sprintf(`// Unit test for %s scenario
@@ -700,7 +700,7 @@ func Test%sGeneric(t *testing.T) {
 	}
 }`, scenarioName, scenarioName)
 	}
-	
+
 	return &OllamaResponse{
 		Model:     "fallback",
 		CreatedAt: time.Now(),
@@ -711,7 +711,7 @@ func Test%sGeneric(t *testing.T) {
 
 func generateTestPrompt(scenarioName string, testType string, options TestGenerationOptions) string {
 	basePrompt := fmt.Sprintf("You are an expert software test engineer. Generate a comprehensive %s test for a scenario named '%s'.", testType, scenarioName)
-	
+
 	switch testType {
 	case "unit":
 		return basePrompt + `
@@ -825,11 +825,11 @@ func parseAITestResponse(response string, scenarioName string, testType string) 
 		// If JSON parsing fails, try to extract JSON from the response
 		jsonRegex := regexp.MustCompile(`\{[\s\S]*\}`)
 		matches := jsonRegex.FindAllString(response, -1)
-		
+
 		if len(matches) == 0 {
 			return nil, fmt.Errorf("no valid JSON found in AI response")
 		}
-		
+
 		// Try the largest JSON object found
 		var largestJSON string
 		for _, match := range matches {
@@ -837,12 +837,12 @@ func parseAITestResponse(response string, scenarioName string, testType string) 
 				largestJSON = match
 			}
 		}
-		
+
 		if err := json.Unmarshal([]byte(largestJSON), &aiTest); err != nil {
 			return nil, fmt.Errorf("failed to parse AI response as JSON: %w", err)
 		}
 	}
-	
+
 	// Validate and create test case
 	testCase := TestCase{
 		ID:             uuid.New(),
@@ -858,7 +858,7 @@ func parseAITestResponse(response string, scenarioName string, testType string) 
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
-	
+
 	// Set defaults if missing
 	if testCase.Name == "" {
 		testCase.Name = fmt.Sprintf("%s_%s_test", scenarioName, testType)
@@ -878,23 +878,23 @@ func parseAITestResponse(response string, scenarioName string, testType string) 
 	if testCase.Tags == nil {
 		testCase.Tags = []string{testType, "ai-generated"}
 	}
-	
+
 	return []TestCase{testCase}, nil
 }
 
 // AI Test Generation Service with real Ollama integration
 func generateTestsWithAI(scenarioName string, testTypes []string, options TestGenerationOptions) ([]TestCase, error) {
 	log.Printf("🧪 Starting AI test generation for scenario: %s with types: %v", scenarioName, testTypes)
-	
+
 	var allTestCases []TestCase
-	
+
 	for _, testType := range testTypes {
 		log.Printf("🤖 Generating %s tests using AI for scenario: %s", testType, scenarioName)
-		
+
 		// Try AI generation first
 		prompt := generateTestPrompt(scenarioName, testType, options)
 		aiResponse, err := callOllama(prompt, testType)
-		
+
 		if err != nil {
 			log.Printf("⚠️ AI generation failed for %s tests: %v. Falling back to rule-based generation.", testType, err)
 			// Fallback to rule-based generation
@@ -902,7 +902,7 @@ func generateTestsWithAI(scenarioName string, testTypes []string, options TestGe
 			allTestCases = append(allTestCases, fallbackTests...)
 			continue
 		}
-		
+
 		// Parse AI response
 		aiTestCases, err := parseAITestResponse(aiResponse.Response, scenarioName, testType)
 		if err != nil {
@@ -912,15 +912,15 @@ func generateTestsWithAI(scenarioName string, testTypes []string, options TestGe
 			allTestCases = append(allTestCases, fallbackTests...)
 			continue
 		}
-		
+
 		log.Printf("✅ Successfully generated %d %s test(s) using AI", len(aiTestCases), testType)
 		allTestCases = append(allTestCases, aiTestCases...)
 	}
-	
+
 	if len(allTestCases) == 0 {
 		return nil, fmt.Errorf("no tests could be generated for scenario %s", scenarioName)
 	}
-	
+
 	log.Printf("🎉 Total tests generated: %d", len(allTestCases))
 	return allTestCases, nil
 }
@@ -1307,7 +1307,7 @@ func generateTestSuiteHandler(c *gin.Context) {
 		INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, testSuite.ID, testSuite.ScenarioName, testSuite.SuiteType, coverageJSON, testSuite.GeneratedAt, testSuite.Status)
-	
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save test suite"})
 		return
@@ -1318,12 +1318,12 @@ func generateTestSuiteHandler(c *gin.Context) {
 		testCase.SuiteID = suiteID
 		tagsJSON, _ := json.Marshal(testCase.Tags)
 		depsJSON, _ := json.Marshal(testCase.Dependencies)
-		
+
 		_, err = db.Exec(`
 			INSERT INTO test_cases (id, suite_id, name, description, test_type, test_code, expected_result, execution_timeout, dependencies, tags, priority, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		`, testCase.ID, testCase.SuiteID, testCase.Name, testCase.Description, testCase.TestType, testCase.TestCode, testCase.ExpectedResult, testCase.Timeout, depsJSON, tagsJSON, testCase.Priority, testCase.CreatedAt, testCase.UpdatedAt)
-		
+
 		if err != nil {
 			log.Printf("Failed to save test case %s: %v", testCase.Name, err)
 		}
@@ -1351,7 +1351,7 @@ func generateTestSuiteHandler(c *gin.Context) {
 // Test execution functions
 func executeTestCase(testCase TestCase, environment string) TestResult {
 	log.Printf("🧪 Executing test case: %s", testCase.Name)
-	
+
 	result := TestResult{
 		ID:         uuid.New(),
 		TestCaseID: testCase.ID,
@@ -1360,7 +1360,7 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		Assertions: []AssertionResult{},
 		Artifacts:  make(map[string]interface{}),
 	}
-	
+
 	// Create temporary file for test script
 	tempDir := filepath.Join(os.TempDir(), "test-genie-execution")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
@@ -1371,10 +1371,10 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		result.Duration = float64(time.Since(result.StartedAt)) / float64(time.Second)
 		return result
 	}
-	
+
 	testFileName := fmt.Sprintf("test_%s_%s.sh", testCase.Name, uuid.New().String()[:8])
 	testFilePath := filepath.Join(tempDir, testFileName)
-	
+
 	// Write test script to file
 	if err := os.WriteFile(testFilePath, []byte(testCase.TestCode), 0755); err != nil {
 		result.Status = "error"
@@ -1384,14 +1384,14 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		result.Duration = float64(time.Since(result.StartedAt)) / float64(time.Second)
 		return result
 	}
-	
+
 	// Ensure cleanup happens
 	defer func() {
 		if err := os.Remove(testFilePath); err != nil {
 			log.Printf("⚠️ Failed to clean up test file %s: %v", testFilePath, err)
 		}
 	}()
-	
+
 	// Set up environment variables for test execution
 	cmd := exec.Command("/bin/bash", testFilePath)
 	cmd.Env = append(os.Environ(),
@@ -1405,32 +1405,32 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		fmt.Sprintf("OLLAMA_HOST=%s", os.Getenv("OLLAMA_HOST")),
 		fmt.Sprintf("OLLAMA_PORT=%s", os.Getenv("OLLAMA_PORT")),
 	)
-	
+
 	// Capture stdout and stderr
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	
+
 	// Execute with timeout
 	timeout := time.Duration(testCase.Timeout) * time.Second
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	
+
 	done := make(chan error, 1)
 	go func() {
 		done <- cmd.Run()
 	}()
-	
+
 	select {
 	case err := <-done:
 		// Test completed within timeout
 		result.CompletedAt = time.Now()
 		result.Duration = float64(time.Since(result.StartedAt)) / float64(time.Second)
-		
+
 		stdoutStr := stdout.String()
 		stderrStr := stderr.String()
-		
+
 		if err != nil {
 			// Test failed
 			result.Status = "failed"
@@ -1445,16 +1445,16 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 			// Test passed
 			result.Status = "passed"
 		}
-		
+
 		// Store output as artifacts
 		result.Artifacts["stdout"] = stdoutStr
 		result.Artifacts["stderr"] = stderrStr
-		
+
 		// Parse assertions from output (look for specific patterns)
 		result.Assertions = parseTestAssertions(stdoutStr)
-		
+
 		log.Printf("✅ Test case completed: %s (status: %s, duration: %.2fs)", testCase.Name, result.Status, result.Duration)
-		
+
 	case <-time.After(timeout):
 		// Test timed out
 		if cmd.Process != nil {
@@ -1466,21 +1466,21 @@ func executeTestCase(testCase TestCase, environment string) TestResult {
 		errorMsg := fmt.Sprintf("Test timed out after %v", timeout)
 		result.ErrorMessage = &errorMsg
 		result.Artifacts["timeout"] = true
-		
+
 		log.Printf("⏰ Test case timed out: %s (after %.2fs)", testCase.Name, result.Duration)
 	}
-	
+
 	return result
 }
 
 func parseTestAssertions(output string) []AssertionResult {
 	assertions := []AssertionResult{}
-	
+
 	// Look for common test assertion patterns
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		
+
 		// Pattern: ✓ or ✗ followed by description
 		if strings.Contains(line, "✓") {
 			assertions = append(assertions, AssertionResult{
@@ -1516,13 +1516,13 @@ func parseTestAssertions(output string) []AssertionResult {
 			})
 		}
 	}
-	
+
 	return assertions
 }
 
 func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType string, environment string, timeoutSeconds int) {
 	log.Printf("🚀 Starting test suite execution: %s", suiteID)
-	
+
 	// Get all test cases for this suite
 	rows, err := db.Query(`
 		SELECT id, suite_id, name, description, test_type, test_code, expected_result, execution_timeout, dependencies, tags, priority
@@ -1537,7 +1537,7 @@ func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType st
 				ELSE 5
 			END, created_at
 	`, suiteID)
-	
+
 	if err != nil {
 		log.Printf("❌ Failed to get test cases for suite %s: %v", suiteID, err)
 		if updateErr := updateExecutionStatus(executionID, "failed", err.Error()); updateErr != nil {
@@ -1546,12 +1546,12 @@ func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType st
 		return
 	}
 	defer rows.Close()
-	
+
 	var testCases []TestCase
 	for rows.Next() {
 		var testCase TestCase
 		var depsJSON, tagsJSON []byte
-		
+
 		err := rows.Scan(
 			&testCase.ID, &testCase.SuiteID, &testCase.Name, &testCase.Description,
 			&testCase.TestType, &testCase.TestCode, &testCase.ExpectedResult, &testCase.Timeout,
@@ -1561,14 +1561,14 @@ func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType st
 			log.Printf("⚠️ Failed to scan test case: %v", err)
 			continue
 		}
-		
+
 		// Parse JSON fields
 		json.Unmarshal(depsJSON, &testCase.Dependencies)
 		json.Unmarshal(tagsJSON, &testCase.Tags)
-		
+
 		testCases = append(testCases, testCase)
 	}
-	
+
 	if len(testCases) == 0 {
 		log.Printf("❌ No test cases found for suite %s", suiteID)
 		if updateErr := updateExecutionStatus(executionID, "failed", "No test cases found"); updateErr != nil {
@@ -1576,35 +1576,35 @@ func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType st
 		}
 		return
 	}
-	
+
 	log.Printf("📋 Found %d test cases to execute", len(testCases))
-	
+
 	// Execute tests
 	var results []TestResult
 	totalStartTime := time.Now()
-	
+
 	for i, testCase := range testCases {
 		log.Printf("🧪 Executing test %d/%d: %s", i+1, len(testCases), testCase.Name)
-		
+
 		result := executeTestCase(testCase, environment)
 		result.ExecutionID = executionID
-		
+
 		// Store result in database
 		if err := storeTestResult(result); err != nil {
 			log.Printf("⚠️ Failed to store test result for %s: %v", testCase.Name, err)
 			// Continue execution even if storage fails
 		}
 		results = append(results, result)
-		
+
 		// Check for early termination on critical failures
 		if result.Status == "failed" && testCase.Priority == "critical" {
 			log.Printf("🛑 Critical test failed, terminating execution: %s", testCase.Name)
 			break
 		}
 	}
-	
+
 	totalDuration := time.Since(totalStartTime)
-	
+
 	// Calculate summary statistics
 	var passed, failed, skipped int
 	for _, result := range results {
@@ -1617,27 +1617,27 @@ func executeTestSuite(suiteID uuid.UUID, executionID uuid.UUID, executionType st
 			skipped++
 		}
 	}
-	
+
 	// Update execution record with final results
 	status := "completed"
 	if failed > 0 {
 		status = "failed"
 	}
-	
+
 	_, err = db.Exec(`
 		UPDATE test_executions 
 		SET status = $1, end_time = $2, total_tests = $3, passed_tests = $4, failed_tests = $5, skipped_tests = $6,
 		    performance_metrics = $7
 		WHERE id = $8
-	`, status, time.Now(), len(results), passed, failed, skipped, 
-		fmt.Sprintf(`{"execution_time": %.2f, "tests_per_second": %.2f}`, 
+	`, status, time.Now(), len(results), passed, failed, skipped,
+		fmt.Sprintf(`{"execution_time": %.2f, "tests_per_second": %.2f}`,
 			totalDuration.Seconds(), float64(len(results))/totalDuration.Seconds()), executionID)
-	
+
 	if err != nil {
 		log.Printf("⚠️ Failed to update execution record: %v", err)
 	}
-	
-	log.Printf("🎉 Test suite execution completed: %d passed, %d failed, %d skipped (%.2fs total)", 
+
+	log.Printf("🎉 Test suite execution completed: %d passed, %d failed, %d skipped (%.2fs total)",
 		passed, failed, skipped, totalDuration.Seconds())
 }
 
@@ -1647,37 +1647,37 @@ func storeTestResult(result TestResult) error {
 		log.Printf("⚠️ Failed to marshal assertions for test result %s: %v", result.ID, err)
 		assertionsJSON = []byte("[]")
 	}
-	
+
 	artifactsJSON, err := json.Marshal(result.Artifacts)
 	if err != nil {
 		log.Printf("⚠️ Failed to marshal artifacts for test result %s: %v", result.ID, err)
 		artifactsJSON = []byte("{}")
 	}
-	
+
 	// Implement retry logic for database operations
 	maxRetries := 3
 	var lastErr error
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		_, lastErr = db.Exec(`
 			INSERT INTO test_results (id, execution_id, test_case_id, status, duration, error_message, stack_trace, assertions, artifacts, started_at, completed_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		`, result.ID, result.ExecutionID, result.TestCaseID, result.Status, result.Duration, 
+		`, result.ID, result.ExecutionID, result.TestCaseID, result.Status, result.Duration,
 			result.ErrorMessage, result.StackTrace, assertionsJSON, artifactsJSON, result.StartedAt, result.CompletedAt)
-		
+
 		if lastErr == nil {
 			log.Printf("✅ Successfully stored test result: %s (status: %s)", result.TestCaseID, result.Status)
 			return nil
 		}
-		
+
 		if attempt < maxRetries-1 {
 			backoffDelay := time.Duration(attempt+1) * time.Second
-			log.Printf("⚠️ Failed to store test result (attempt %d/%d): %v. Retrying in %v...", 
+			log.Printf("⚠️ Failed to store test result (attempt %d/%d): %v. Retrying in %v...",
 				attempt+1, maxRetries, lastErr, backoffDelay)
 			time.Sleep(backoffDelay)
 		}
 	}
-	
+
 	log.Printf("❌ Failed to store test result after %d attempts: %v", maxRetries, lastErr)
 	return lastErr
 }
@@ -1686,27 +1686,27 @@ func updateExecutionStatus(executionID uuid.UUID, status string, errorMessage st
 	// Implement retry logic for critical status updates
 	maxRetries := 3
 	var lastErr error
-	
+
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		_, lastErr = db.Exec(`
 			UPDATE test_executions 
 			SET status = $1, end_time = $2, execution_notes = $3
 			WHERE id = $4
 		`, status, time.Now(), errorMessage, executionID)
-		
+
 		if lastErr == nil {
 			log.Printf("✅ Successfully updated execution status: %s -> %s", executionID, status)
 			return nil
 		}
-		
+
 		if attempt < maxRetries-1 {
 			backoffDelay := time.Duration(attempt+1) * time.Second
-			log.Printf("⚠️ Failed to update execution status (attempt %d/%d): %v. Retrying in %v...", 
+			log.Printf("⚠️ Failed to update execution status (attempt %d/%d): %v. Retrying in %v...",
 				attempt+1, maxRetries, lastErr, backoffDelay)
 			time.Sleep(backoffDelay)
 		}
 	}
-	
+
 	log.Printf("❌ Failed to update execution status after %d attempts: %v", maxRetries, lastErr)
 	return lastErr
 }
@@ -1715,18 +1715,18 @@ func updateExecutionStatus(executionID uuid.UUID, status string, errorMessage st
 func checkDatabaseHealth() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if err := db.PingContext(ctx); err != nil {
 		return fmt.Errorf("database ping failed: %w", err)
 	}
-	
+
 	// Test a simple query
 	var count int
 	err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM test_suites").Scan(&count)
 	if err != nil {
 		return fmt.Errorf("database query test failed: %w", err)
 	}
-	
+
 	log.Printf("✅ Database health check passed (found %d test suites)", count)
 	return nil
 }
@@ -1737,7 +1737,7 @@ func storeTestSuiteWithTransaction(testSuite TestSuite) error {
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	
+
 	defer func() {
 		if err != nil {
 			tx.Rollback()
@@ -1745,35 +1745,35 @@ func storeTestSuiteWithTransaction(testSuite TestSuite) error {
 			tx.Commit()
 		}
 	}()
-	
+
 	// Store test suite
 	coverageJSON, _ := json.Marshal(testSuite.CoverageMetrics)
 	_, err = tx.Exec(`
 		INSERT INTO test_suites (id, scenario_name, suite_type, coverage_metrics, generated_at, status)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, testSuite.ID, testSuite.ScenarioName, testSuite.SuiteType, coverageJSON, testSuite.GeneratedAt, testSuite.Status)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to insert test suite: %w", err)
 	}
-	
+
 	// Store test cases
 	for _, testCase := range testSuite.TestCases {
 		dependenciesJSON, _ := json.Marshal(testCase.Dependencies)
 		tagsJSON, _ := json.Marshal(testCase.Tags)
-		
+
 		_, err = tx.Exec(`
 			INSERT INTO test_cases (id, suite_id, name, description, test_type, test_code, expected_result, execution_timeout, dependencies, tags, priority, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		`, testCase.ID, testCase.SuiteID, testCase.Name, testCase.Description, testCase.TestType, 
-			testCase.TestCode, testCase.ExpectedResult, testCase.Timeout, dependenciesJSON, tagsJSON, 
+		`, testCase.ID, testCase.SuiteID, testCase.Name, testCase.Description, testCase.TestType,
+			testCase.TestCode, testCase.ExpectedResult, testCase.Timeout, dependenciesJSON, tagsJSON,
 			testCase.Priority, testCase.CreatedAt, testCase.UpdatedAt)
-		
+
 		if err != nil {
 			return fmt.Errorf("failed to insert test case %s: %w", testCase.Name, err)
 		}
 	}
-	
+
 	log.Printf("✅ Successfully stored test suite with %d test cases in transaction", len(testSuite.TestCases))
 	return nil
 }
@@ -1781,7 +1781,7 @@ func storeTestSuiteWithTransaction(testSuite TestSuite) error {
 // Vault Execution Engine
 func executeVault(vaultID uuid.UUID, executionID uuid.UUID, environment string) {
 	log.Printf("🏗️ Starting vault execution: %s", vaultID)
-	
+
 	// Get vault configuration
 	vault, err := getVaultFromDatabase(vaultID)
 	if err != nil {
@@ -1789,39 +1789,39 @@ func executeVault(vaultID uuid.UUID, executionID uuid.UUID, environment string) 
 		updateVaultExecutionStatus(executionID, "failed", err.Error())
 		return
 	}
-	
+
 	log.Printf("📋 Executing vault '%s' with phases: %v", vault.VaultName, vault.Phases)
-	
+
 	execution := VaultExecution{
-		ID:               executionID,
-		VaultID:          vaultID,
-		ExecutionType:    "full",
-		StartTime:        time.Now(),
-		CurrentPhase:     "",
-		CompletedPhases:  []string{},
-		FailedPhases:     []string{},
-		Status:           "running",
-		PhaseResults:     make(map[string]PhaseResult),
-		Environment:      environment,
+		ID:              executionID,
+		VaultID:         vaultID,
+		ExecutionType:   "full",
+		StartTime:       time.Now(),
+		CurrentPhase:    "",
+		CompletedPhases: []string{},
+		FailedPhases:    []string{},
+		Status:          "running",
+		PhaseResults:    make(map[string]PhaseResult),
+		Environment:     environment,
 	}
-	
+
 	// Execute phases in sequence
 	for _, phase := range vault.Phases {
 		log.Printf("🚀 Starting phase: %s", phase)
-		
+
 		execution.CurrentPhase = phase
 		updateVaultExecutionInDatabase(execution)
-		
+
 		phaseResult := executeVaultPhase(vault, phase, environment)
 		execution.PhaseResults[phase] = phaseResult
-		
+
 		if phaseResult.Status == "passed" {
 			execution.CompletedPhases = append(execution.CompletedPhases, phase)
 			log.Printf("✅ Phase completed successfully: %s", phase)
 		} else {
 			execution.FailedPhases = append(execution.FailedPhases, phase)
 			log.Printf("❌ Phase failed: %s - %v", phase, phaseResult.ErrorMessage)
-			
+
 			// Check if we should stop on failure
 			if vault.SuccessCriteria.NoCriticalFailures {
 				execution.Status = "failed"
@@ -1832,7 +1832,7 @@ func executeVault(vaultID uuid.UUID, executionID uuid.UUID, environment string) 
 			}
 		}
 	}
-	
+
 	// Determine final status
 	if len(execution.FailedPhases) == 0 {
 		execution.Status = "completed"
@@ -1841,27 +1841,27 @@ func executeVault(vaultID uuid.UUID, executionID uuid.UUID, environment string) 
 	} else {
 		execution.Status = "failed"
 	}
-	
+
 	execution.EndTime = &[]time.Time{time.Now()}[0]
 	execution.CurrentPhase = ""
-	
+
 	updateVaultExecutionInDatabase(execution)
-	
-	log.Printf("🎉 Vault execution completed: %s (status: %s, completed: %d, failed: %d)", 
+
+	log.Printf("🎉 Vault execution completed: %s (status: %s, completed: %d, failed: %d)",
 		vault.VaultName, execution.Status, len(execution.CompletedPhases), len(execution.FailedPhases))
 }
 
 func executeVaultPhase(vault TestVault, phase string, environment string) PhaseResult {
 	phaseStart := time.Now()
-	
+
 	result := PhaseResult{
-		Phase:     phase,
-		Status:    "running",
-		StartTime: phaseStart,
+		Phase:       phase,
+		Status:      "running",
+		StartTime:   phaseStart,
 		TestResults: []TestResult{},
-		Artifacts: make(map[string]interface{}),
+		Artifacts:   make(map[string]interface{}),
 	}
-	
+
 	// Get phase configuration
 	phaseConfig, exists := vault.PhaseConfigurations[phase]
 	if !exists {
@@ -1869,7 +1869,7 @@ func executeVaultPhase(vault TestVault, phase string, environment string) PhaseR
 		phaseConfig = generateDefaultPhaseConfig(phase, vault.ScenarioName)
 		log.Printf("⚠️ No configuration found for phase %s, using defaults", phase)
 	}
-	
+
 	// Verify phase prerequisites
 	if err := verifyPhasePrerequisites(phaseConfig, environment); err != nil {
 		result.Status = "failed"
@@ -1879,12 +1879,12 @@ func executeVaultPhase(vault TestVault, phase string, environment string) PhaseR
 		result.ErrorMessage = &errorMsg
 		return result
 	}
-	
+
 	// Execute phase tests
 	for _, test := range phaseConfig.Tests {
 		testResult := executePhaseTest(test, vault.ScenarioName, phase, environment)
 		result.TestResults = append(result.TestResults, testResult)
-		
+
 		if testResult.Status == "failed" && phaseConfig.Name != "optional" {
 			result.Status = "failed"
 			result.EndTime = time.Now()
@@ -1894,7 +1894,7 @@ func executeVaultPhase(vault TestVault, phase string, environment string) PhaseR
 			return result
 		}
 	}
-	
+
 	// Verify phase completion
 	if err := verifyPhaseCompletion(phaseConfig, environment); err != nil {
 		result.Status = "failed"
@@ -1904,11 +1904,11 @@ func executeVaultPhase(vault TestVault, phase string, environment string) PhaseR
 		result.ErrorMessage = &errorMsg
 		return result
 	}
-	
+
 	result.Status = "passed"
 	result.EndTime = time.Now()
 	result.Duration = time.Since(phaseStart).Seconds()
-	
+
 	return result
 }
 
@@ -1931,7 +1931,7 @@ func generateDefaultPhaseConfig(phase string, scenarioName string) PhaseConfig {
 							Expected: "satisfied",
 						},
 						{
-							Action:  "execute_phase_tests", 
+							Action:  "execute_phase_tests",
 							Phase:   "setup",
 							Timeout: 300,
 						},
@@ -1958,7 +1958,7 @@ func generateDefaultPhaseConfig(phase string, scenarioName string) PhaseConfig {
 						},
 						{
 							Action:  "execute_phase_tests",
-							Phase:   "develop", 
+							Phase:   "develop",
 							Timeout: 600,
 						},
 					},
@@ -2023,7 +2023,7 @@ func generateDefaultPhaseConfig(phase string, scenarioName string) PhaseConfig {
 
 func executePhaseTest(test PhaseTest, scenarioName string, phase string, environment string) TestResult {
 	log.Printf("🧪 Executing phase test: %s.%s", phase, test.Name)
-	
+
 	result := TestResult{
 		ID:                  uuid.New(),
 		Status:              "running",
@@ -2033,11 +2033,11 @@ func executePhaseTest(test PhaseTest, scenarioName string, phase string, environ
 		Assertions:          []AssertionResult{},
 		Artifacts:           make(map[string]interface{}),
 	}
-	
+
 	// Execute each step in the test
 	for _, step := range test.Steps {
 		stepResult := executePhaseStep(step, scenarioName, phase, environment)
-		
+
 		result.Assertions = append(result.Assertions, AssertionResult{
 			Name:     fmt.Sprintf("%s_%s", step.Action, step.Phase),
 			Expected: step.Expected,
@@ -2045,7 +2045,7 @@ func executePhaseTest(test PhaseTest, scenarioName string, phase string, environ
 			Passed:   stepResult.Status == "success" || stepResult.Status == "satisfied",
 			Message:  stepResult.Message,
 		})
-		
+
 		if stepResult.Status == "failed" {
 			result.Status = "failed"
 			errorMsg := stepResult.Message
@@ -2053,14 +2053,14 @@ func executePhaseTest(test PhaseTest, scenarioName string, phase string, environ
 			break
 		}
 	}
-	
+
 	if result.Status == "running" {
 		result.Status = "passed"
 	}
-	
+
 	result.CompletedAt = time.Now()
 	result.Duration = time.Since(result.StartedAt).Seconds()
-	
+
 	return result
 }
 
@@ -2094,14 +2094,14 @@ func verifyPhasePrerequisitesStep(step PhaseStep, scenarioName string, phase str
 			return StepResult{Status: "failed", Message: fmt.Sprintf("Database not available: %v", err)}
 		}
 		return StepResult{Status: "satisfied", Message: "Setup prerequisites satisfied"}
-		
+
 	case "develop":
 		// Check if setup was completed and API is running
 		apiPort := os.Getenv("API_PORT")
 		if apiPort == "" {
 			return StepResult{Status: "failed", Message: "API_PORT not configured"}
 		}
-		
+
 		client := &http.Client{Timeout: 5 * time.Second}
 		resp, err := client.Get(fmt.Sprintf("http://localhost:%s/health", apiPort))
 		if err != nil || resp.StatusCode != 200 {
@@ -2109,11 +2109,11 @@ func verifyPhasePrerequisitesStep(step PhaseStep, scenarioName string, phase str
 		}
 		resp.Body.Close()
 		return StepResult{Status: "satisfied", Message: "Develop prerequisites satisfied"}
-		
+
 	case "test":
 		// Check if develop phase is complete and system is ready for testing
 		return StepResult{Status: "satisfied", Message: "Test prerequisites satisfied"}
-		
+
 	default:
 		return StepResult{Status: "satisfied", Message: fmt.Sprintf("%s prerequisites satisfied", phase)}
 	}
@@ -2122,29 +2122,29 @@ func verifyPhasePrerequisitesStep(step PhaseStep, scenarioName string, phase str
 func executePhaseTestsStep(step PhaseStep, scenarioName string, phase string, environment string) StepResult {
 	// Generate and execute tests appropriate for this phase
 	log.Printf("🔬 Executing %s phase tests for %s", phase, scenarioName)
-	
+
 	// Create a simple test based on the phase
 	testCode := generatePhaseTestCode(phase, scenarioName)
-	
+
 	// Execute the test
 	tempDir := filepath.Join(os.TempDir(), "test-genie-vault-execution")
 	os.MkdirAll(tempDir, 0755)
-	
+
 	testFileName := fmt.Sprintf("vault_%s_%s_test.sh", phase, uuid.New().String()[:8])
 	testFilePath := filepath.Join(tempDir, testFileName)
-	
+
 	if err := os.WriteFile(testFilePath, []byte(testCode), 0755); err != nil {
 		return StepResult{Status: "failed", Message: fmt.Sprintf("Failed to create test file: %v", err)}
 	}
-	
+
 	defer os.Remove(testFilePath)
-	
+
 	// Execute with timeout
 	timeout := time.Duration(step.Timeout) * time.Second
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	
+
 	cmd := exec.Command("/bin/bash", testFilePath)
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("TEST_ENVIRONMENT=%s", environment),
@@ -2152,12 +2152,12 @@ func executePhaseTestsStep(step PhaseStep, scenarioName string, phase string, en
 		fmt.Sprintf("SCENARIO_NAME=%s", scenarioName),
 		fmt.Sprintf("API_PORT=%s", os.Getenv("API_PORT")),
 	)
-	
+
 	done := make(chan error, 1)
 	go func() {
 		done <- cmd.Run()
 	}()
-	
+
 	select {
 	case err := <-done:
 		if err != nil {
@@ -2291,7 +2291,7 @@ echo "✅ %s phase tests completed successfully"
 func verifyPhaseCompletionStep(step PhaseStep, scenarioName string, phase string, environment string) StepResult {
 	// Verify that the phase completed successfully
 	log.Printf("✅ Verifying %s phase completion for %s", phase, scenarioName)
-	
+
 	// This would typically check specific completion criteria
 	// For now, we'll do basic validation
 	switch phase {
@@ -2328,10 +2328,10 @@ func verifyPhaseCompletion(config PhaseConfig, environment string) error {
 func getVaultFromDatabase(vaultID uuid.UUID) (TestVault, error) {
 	// For now, return a mock vault - in real implementation, query from database
 	vault := TestVault{
-		ID:           vaultID,
-		ScenarioName: "test-scenario",
-		VaultName:    "comprehensive-test-vault",
-		Phases:       []string{"setup", "develop", "test"},
+		ID:                  vaultID,
+		ScenarioName:        "test-scenario",
+		VaultName:           "comprehensive-test-vault",
+		Phases:              []string{"setup", "develop", "test"},
 		PhaseConfigurations: make(map[string]PhaseConfig),
 		SuccessCriteria: SuccessCriteria{
 			AllPhasesCompleted:     true,
@@ -2343,7 +2343,7 @@ func getVaultFromDatabase(vaultID uuid.UUID) (TestVault, error) {
 		CreatedAt:    time.Now(),
 		Status:       "active",
 	}
-	
+
 	return vault, nil
 }
 
@@ -2353,7 +2353,7 @@ func updateVaultExecutionStatus(executionID uuid.UUID, status string, errorMessa
 }
 
 func updateVaultExecutionInDatabase(execution VaultExecution) {
-	log.Printf("📝 Updating vault execution in database: %s (phase: %s, status: %s)", 
+	log.Printf("📝 Updating vault execution in database: %s (phase: %s, status: %s)",
 		execution.ID, execution.CurrentPhase, execution.Status)
 	// In real implementation, store execution state in database
 }
@@ -2420,7 +2420,7 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 	var execution TestExecution
 	var suiteID uuid.UUID
 	var scenarioName string
-	
+
 	err = db.QueryRow(`
 		SELECT te.id, te.suite_id, te.execution_type, te.start_time, te.end_time, te.status, te.environment, ts.scenario_name
 		FROM test_executions te
@@ -2439,7 +2439,7 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 		SELECT COALESCE(total_tests, 0), COALESCE(passed_tests, 0), COALESCE(failed_tests, 0), COALESCE(skipped_tests, 0)
 		FROM test_executions WHERE id = $1
 	`, executionID).Scan(&totalTests, &passedTests, &failedTestCount, &skippedTests)
-	
+
 	if err != nil {
 		log.Printf("⚠️ Failed to get execution summary: %v", err)
 		// If we can't get summary from execution table, calculate from test results
@@ -2448,7 +2448,7 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 		failedTestCount = 0
 		skippedTests = 0
 	}
-	
+
 	// Calculate duration
 	var duration float64
 	if execution.EndTime != nil && !execution.StartTime.IsZero() {
@@ -2456,7 +2456,7 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 	} else if execution.Status == "running" && !execution.StartTime.IsZero() {
 		duration = time.Since(execution.StartTime).Seconds()
 	}
-	
+
 	// Get failed test details
 	var failedTests []TestResult
 	rows, err := db.Query(`
@@ -2466,17 +2466,17 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 		WHERE tr.execution_id = $1 AND tr.status = 'failed'
 		ORDER BY tr.started_at
 	`, executionID)
-	
+
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
 			var result TestResult
 			var assertionsJSON, artifactsJSON []byte
-			
-			err := rows.Scan(&result.ID, &result.TestCaseID, &result.Status, &result.Duration, 
-				&result.ErrorMessage, &result.StackTrace, &assertionsJSON, &artifactsJSON, 
+
+			err := rows.Scan(&result.ID, &result.TestCaseID, &result.Status, &result.Duration,
+				&result.ErrorMessage, &result.StackTrace, &assertionsJSON, &artifactsJSON,
 				&result.TestCaseName, &result.TestCaseDescription)
-			
+
 			if err == nil {
 				json.Unmarshal(assertionsJSON, &result.Assertions)
 				json.Unmarshal(artifactsJSON, &result.Artifacts)
@@ -2484,13 +2484,13 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 			}
 		}
 	}
-	
+
 	// Calculate coverage (mock for now, would need actual analysis)
 	coverage := 0.0
 	if totalTests > 0 {
 		coverage = (float64(passedTests) / float64(totalTests)) * 100
 	}
-	
+
 	summary := TestExecutionSummary{
 		TotalTests: totalTests,
 		Passed:     passedTests,
@@ -2499,7 +2499,7 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 		Duration:   duration,
 		Coverage:   coverage,
 	}
-	
+
 	// Generate performance metrics
 	performanceMetrics := PerformanceMetrics{
 		ExecutionTime: duration,
@@ -2513,23 +2513,23 @@ func getTestExecutionResultsHandler(c *gin.Context) {
 		},
 		ErrorCount: failedTestCount,
 	}
-	
+
 	// Generate recommendations based on results
 	recommendations := []string{}
 	if failedTestCount > 0 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			fmt.Sprintf("Review and fix %d failed test(s)", failedTestCount))
 	}
 	if coverage < 80 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Consider adding more test cases to improve coverage")
 	}
 	if duration > 300 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"Consider optimizing slow tests or running them in parallel")
 	}
 	if len(recommendations) == 0 {
-		recommendations = append(recommendations, 
+		recommendations = append(recommendations,
 			"All tests passed successfully! Consider adding more edge case tests.")
 	}
 
@@ -2557,7 +2557,7 @@ func analyzeCoverageHandler(c *gin.Context) {
 	response := CoverageAnalysisResponse{
 		OverallCoverage: 87.3,
 		CoverageByFile: map[string]float64{
-			"main.go":    95.2,
+			"main.go":     95.2,
 			"handlers.go": 89.1,
 			"models.go":   76.5,
 			"utils.go":    92.8,
@@ -2598,23 +2598,23 @@ func analyzeCoverageHandler(c *gin.Context) {
 func healthHandler(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	// Get service degradation level
 	serviceLevel := serviceManager.GetServiceLevel(ctx)
-	
+
 	// Comprehensive health check with circuit breaker awareness
 	healthStatus := gin.H{
-		"status":         getHealthStatusString(serviceLevel),
-		"service_level":  serviceLevel.String(),
-		"timestamp":      time.Now().UTC(),
-		"version":        "1.0.0",
-		"checks":         make(map[string]interface{}),
+		"status":           getHealthStatusString(serviceLevel),
+		"service_level":    serviceLevel.String(),
+		"timestamp":        time.Now().UTC(),
+		"version":          "1.0.0",
+		"checks":           make(map[string]interface{}),
 		"circuit_breakers": make(map[string]interface{}),
 	}
-	
+
 	// Check individual services
 	serviceChecks := healthStatus["checks"].(map[string]interface{})
-	
+
 	// Database health check
 	if err := serviceManager.services["database"].Check(ctx); err != nil {
 		serviceChecks["database"] = map[string]interface{}{
@@ -2626,7 +2626,7 @@ func healthHandler(c *gin.Context) {
 			"status": "healthy",
 		}
 	}
-	
+
 	// Check Ollama AI service
 	if err := serviceManager.services["ollama"].Check(ctx); err != nil {
 		serviceChecks["ai_service"] = map[string]interface{}{
@@ -2639,26 +2639,26 @@ func healthHandler(c *gin.Context) {
 			"status": "healthy",
 		}
 	}
-	
+
 	// Circuit breaker status
 	circuitBreakers := healthStatus["circuit_breakers"].(map[string]interface{})
 	circuitBreakers["database"] = map[string]interface{}{
-		"state": stateToString(dbCircuitBreaker.state),
+		"state":    stateToString(dbCircuitBreaker.state),
 		"failures": dbCircuitBreaker.failures,
 	}
 	circuitBreakers["ollama"] = map[string]interface{}{
-		"state": stateToString(ollamaCircuitBreaker.state),
+		"state":    stateToString(ollamaCircuitBreaker.state),
 		"failures": ollamaCircuitBreaker.failures,
 	}
-	
+
 	// HTTP client status
 	serviceChecks["http_client"] = map[string]interface{}{
 		"status": "healthy",
 	}
-	
+
 	// System capabilities based on service level
 	healthStatus["capabilities"] = getSystemCapabilities(serviceLevel)
-	
+
 	// Set appropriate HTTP status code based on service level
 	statusCode := getHTTPStatusForServiceLevel(serviceLevel)
 	c.JSON(statusCode, healthStatus)
@@ -2759,7 +2759,7 @@ func getTestSuiteHandler(c *gin.Context) {
 func listTestSuitesHandler(c *gin.Context) {
 	scenario := c.Query("scenario")
 	status := c.Query("status")
-	
+
 	// Mock response for now - would query database with filters
 	testSuites := []TestSuite{
 		{
@@ -2777,7 +2777,7 @@ func listTestSuitesHandler(c *gin.Context) {
 			Status:       "active",
 		},
 	}
-	
+
 	// Apply filters
 	filteredSuites := []TestSuite{}
 	for _, suite := range testSuites {
@@ -2821,14 +2821,14 @@ func maintainTestSuiteHandler(c *gin.Context) {
 
 	// Perform maintenance operations
 	response := gin.H{
-		"suite_id":             suiteID,
+		"suite_id":              suiteID,
 		"maintenance_completed": true,
-		"operations_performed": []string{},
+		"operations_performed":  []string{},
 		"summary": gin.H{
-			"dependencies_updated":     req.UpdateDependencies,
-			"performance_optimized":    req.Optimize,
-			"redundant_tests_removed":  req.RemoveRedundant,
-			"estimated_improvement":    "15%",
+			"dependencies_updated":    req.UpdateDependencies,
+			"performance_optimized":   req.Optimize,
+			"redundant_tests_removed": req.RemoveRedundant,
+			"estimated_improvement":   "15%",
 		},
 	}
 
@@ -2844,34 +2844,34 @@ func maintainTestSuiteHandler(c *gin.Context) {
 	}
 
 	response["operations_performed"] = operations
-	
+
 	c.JSON(http.StatusOK, response)
 }
 
 func listTestExecutionsHandler(c *gin.Context) {
 	_ = c.Query("suite_id") // TODO: Implement filtering by suite_id
 	_ = c.Query("status")   // TODO: Implement filtering by status
-	
+
 	// Mock response - would query database with filters
 	executions := []gin.H{
 		{
-			"id":          uuid.New(),
-			"suite_id":    uuid.New(),
-			"status":      "completed",
-			"start_time":  time.Now().Add(-2 * time.Hour),
-			"end_time":    time.Now().Add(-1 * time.Hour),
-			"environment": "local",
-			"total_tests": 15,
+			"id":           uuid.New(),
+			"suite_id":     uuid.New(),
+			"status":       "completed",
+			"start_time":   time.Now().Add(-2 * time.Hour),
+			"end_time":     time.Now().Add(-1 * time.Hour),
+			"environment":  "local",
+			"total_tests":  15,
 			"passed_tests": 14,
 			"failed_tests": 1,
 		},
 		{
-			"id":          uuid.New(),
-			"suite_id":    uuid.New(),
-			"status":      "running",
-			"start_time":  time.Now().Add(-30 * time.Minute),
-			"environment": "staging",
-			"total_tests": 20,
+			"id":           uuid.New(),
+			"suite_id":     uuid.New(),
+			"status":       "running",
+			"start_time":   time.Now().Add(-30 * time.Minute),
+			"environment":  "staging",
+			"total_tests":  20,
 			"passed_tests": 10,
 			"failed_tests": 0,
 		},
@@ -2898,16 +2898,16 @@ func createTestVaultHandler(c *gin.Context) {
 	}
 
 	vaultID := uuid.New()
-	
+
 	vault := TestVault{
 		ID:                  vaultID,
 		ScenarioName:        req.ScenarioName,
-		VaultName:          req.VaultName,
-		Phases:             req.Phases,
+		VaultName:           req.VaultName,
+		Phases:              req.Phases,
 		PhaseConfigurations: make(map[string]PhaseConfig),
-		TotalTimeout:       req.Timeout,
-		CreatedAt:          time.Now(),
-		Status:             "active",
+		TotalTimeout:        req.Timeout,
+		CreatedAt:           time.Now(),
+		Status:              "active",
 		SuccessCriteria: SuccessCriteria{
 			AllPhasesCompleted:     true,
 			NoCriticalFailures:     true,
@@ -2953,7 +2953,7 @@ func getTestVaultHandler(c *gin.Context) {
 func listTestVaultsHandler(c *gin.Context) {
 	_ = c.Query("scenario") // TODO: Implement filtering by scenario
 	_ = c.Query("status")   // TODO: Implement filtering by status
-	
+
 	// Mock response - would query database with filters
 	vaults := []TestVault{
 		{
@@ -2991,7 +2991,7 @@ func executeTestVaultHandler(c *gin.Context) {
 	}
 
 	var req struct {
-		Environment string `json:"environment"`
+		Environment string   `json:"environment"`
 		Phases      []string `json:"phases"`
 	}
 
@@ -3001,7 +3001,7 @@ func executeTestVaultHandler(c *gin.Context) {
 	}
 
 	executionID := uuid.New()
-	
+
 	// Start vault execution in background
 	go func() {
 		log.Printf("🏗️ Starting background vault execution for vault %s", vaultID)
@@ -3009,11 +3009,11 @@ func executeTestVaultHandler(c *gin.Context) {
 	}()
 
 	response := gin.H{
-		"execution_id":       executionID,
-		"vault_id":          vaultID,
-		"status":            "started",
-		"environment":       req.Environment,
-		"tracking_url":      fmt.Sprintf("/api/v1/vault-execution/%s/results", executionID),
+		"execution_id": executionID,
+		"vault_id":     vaultID,
+		"status":       "started",
+		"environment":  req.Environment,
+		"tracking_url": fmt.Sprintf("/api/v1/vault-execution/%s/results", executionID),
 	}
 
 	c.JSON(http.StatusAccepted, response)
@@ -3029,30 +3029,30 @@ func getVaultExecutionResultsHandler(c *gin.Context) {
 
 	// Mock vault execution results - would query from database
 	response := gin.H{
-		"execution_id":       executionID,
-		"vault_name":        "comprehensive-test-vault",
-		"status":            "completed",
-		"start_time":        time.Now().Add(-30 * time.Minute),
-		"end_time":          time.Now().Add(-5 * time.Minute),
-		"duration":          1500, // seconds
-		"current_phase":     "",
-		"completed_phases":  []string{"setup", "develop", "test"},
-		"failed_phases":     []string{},
+		"execution_id":     executionID,
+		"vault_name":       "comprehensive-test-vault",
+		"status":           "completed",
+		"start_time":       time.Now().Add(-30 * time.Minute),
+		"end_time":         time.Now().Add(-5 * time.Minute),
+		"duration":         1500, // seconds
+		"current_phase":    "",
+		"completed_phases": []string{"setup", "develop", "test"},
+		"failed_phases":    []string{},
 		"phase_results": gin.H{
 			"setup": gin.H{
-				"status":      "passed",
-				"duration":    300,
-				"test_count":  3,
+				"status":     "passed",
+				"duration":   300,
+				"test_count": 3,
 			},
 			"develop": gin.H{
-				"status":      "passed",
-				"duration":    600,
-				"test_count":  5,
+				"status":     "passed",
+				"duration":   600,
+				"test_count": 5,
 			},
 			"test": gin.H{
-				"status":      "passed",
-				"duration":    600,
-				"test_count":  8,
+				"status":     "passed",
+				"duration":   600,
+				"test_count": 8,
 			},
 		},
 		"overall_success_rate": 100.0,
@@ -3068,7 +3068,7 @@ func getVaultExecutionResultsHandler(c *gin.Context) {
 func listVaultExecutionsHandler(c *gin.Context) {
 	_ = c.Query("vault_id") // TODO: Implement filtering by vault_id
 	_ = c.Query("status")   // TODO: Implement filtering by status
-	
+
 	// Mock response
 	executions := []gin.H{
 		{
@@ -3099,7 +3099,7 @@ func listVaultExecutionsHandler(c *gin.Context) {
 
 func getCoverageAnalysisHandler(c *gin.Context) {
 	_ = c.Param("scenario_name") // TODO: Use scenario name for filtering
-	
+
 	// Mock coverage analysis - would query from database
 	response := CoverageAnalysisResponse{
 		OverallCoverage: 87.3,
@@ -3148,19 +3148,19 @@ func systemStatusHandler(c *gin.Context) {
 		"uptime":    "2h 30m 45s", // Would calculate actual uptime
 		"services": gin.H{
 			"database": gin.H{
-				"status": "healthy",
+				"status":  "healthy",
 				"latency": "2.3ms",
 			},
 			"ai_service": gin.H{
-				"status": "healthy",
+				"status":  "healthy",
 				"latency": "150ms",
 			},
 		},
 		"metrics": gin.H{
-			"active_test_suites":     42,
-			"running_executions":     3,
-			"completed_executions":   156,
-			"active_vaults":          8,
+			"active_test_suites":    42,
+			"running_executions":    3,
+			"completed_executions":  156,
+			"active_vaults":         8,
 			"total_tests_generated": 1247,
 		},
 	}
@@ -3172,26 +3172,26 @@ func systemMetricsHandler(c *gin.Context) {
 	// System performance metrics
 	metrics := gin.H{
 		"performance": gin.H{
-			"avg_test_generation_time": 45.2,
-			"avg_test_execution_time":  123.7,
+			"avg_test_generation_time":   45.2,
+			"avg_test_execution_time":    123.7,
 			"avg_coverage_analysis_time": 28.1,
-			"api_response_time_p95":    125.0,
+			"api_response_time_p95":      125.0,
 		},
 		"throughput": gin.H{
-			"tests_generated_per_hour":  85,
-			"tests_executed_per_hour":   340,
-			"api_requests_per_minute":   42,
+			"tests_generated_per_hour": 85,
+			"tests_executed_per_hour":  340,
+			"api_requests_per_minute":  42,
 		},
 		"resource_usage": gin.H{
-			"cpu_usage":        "45%",
-			"memory_usage":     "1.2GB",
-			"disk_usage":       "15.3GB",
-			"database_size":    "245MB",
+			"cpu_usage":     "45%",
+			"memory_usage":  "1.2GB",
+			"disk_usage":    "15.3GB",
+			"database_size": "245MB",
 		},
 		"quality_metrics": gin.H{
-			"avg_test_success_rate":     94.2,
-			"avg_coverage_percentage":   87.8,
-			"vault_completion_rate":     89.3,
+			"avg_test_success_rate":   94.2,
+			"avg_coverage_percentage": 87.8,
+			"vault_completion_rate":   89.3,
 		},
 		"timestamp": time.Now().UTC(),
 	}
@@ -3201,13 +3201,27 @@ func systemMetricsHandler(c *gin.Context) {
 
 func main() {
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+	// Try loading environment configuration from multiple locations so running from the
+	// API directory still picks up the scenario-level settings generated by setup-env.sh.
+	envCandidates := []string{".env", "../.env", "../../.env"}
+	envLoaded := false
+	for _, candidate := range envCandidates {
+		if _, err := os.Stat(candidate); err == nil {
+			if loadErr := godotenv.Load(candidate); loadErr != nil {
+				log.Printf("Failed to load %s: %v\n", candidate, loadErr)
+			} else {
+				envLoaded = true
+				break
+			}
+		}
+	}
+	if !envLoaded {
+		log.Println("No .env file found; relying on existing environment variables")
 	}
 
 	// Initialize circuit breakers and error handling
 	InitializeCircuitBreakers()
-	
+
 	// Initialize service manager
 	serviceManager = NewServiceManager()
 
@@ -3217,7 +3231,7 @@ func main() {
 
 	// Initialize HTTP client for AI services
 	initHTTPClient()
-	
+
 	// Set up health checkers
 	setupHealthCheckers()
 
@@ -3244,11 +3258,11 @@ func main() {
 		api.GET("/test-suites", listTestSuitesHandler)
 		api.POST("/test-suite/:suite_id/execute", executeTestSuiteHandler)
 		api.POST("/test-suite/:suite_id/maintain", maintainTestSuiteHandler)
-		
+
 		// Test execution results
 		api.GET("/test-execution/:execution_id/results", getTestExecutionResultsHandler)
 		api.GET("/test-executions", listTestExecutionsHandler)
-		
+
 		// Test vault management
 		api.POST("/test-vault/create", createTestVaultHandler)
 		api.GET("/test-vault/:vault_id", getTestVaultHandler)
@@ -3256,11 +3270,11 @@ func main() {
 		api.POST("/test-vault/:vault_id/execute", executeTestVaultHandler)
 		api.GET("/vault-execution/:execution_id/results", getVaultExecutionResultsHandler)
 		api.GET("/vault-executions", listVaultExecutionsHandler)
-		
+
 		// Coverage analysis
 		api.POST("/test-analysis/coverage", analyzeCoverageHandler)
 		api.GET("/test-analysis/coverage/:scenario_name", getCoverageAnalysisHandler)
-		
+
 		// System information
 		api.GET("/system/status", systemStatusHandler)
 		api.GET("/system/metrics", systemMetricsHandler)

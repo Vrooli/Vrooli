@@ -154,23 +154,29 @@ class TestGenieApp {
     async loadDashboardData() {
         try {
             // Load system metrics from API
-            const [systemMetrics, testSuites, executions] = await Promise.all([
+            const [systemMetrics, testSuitesData, executionsData] = await Promise.all([
                 this.fetchWithErrorHandling('/system/metrics'),
-                this.fetchWithErrorHandling('/test-suite'),
-                this.fetchWithErrorHandling('/test-execution')
+                this.fetchWithErrorHandling('/test-suites'),
+                this.fetchWithErrorHandling('/test-executions')
             ]);
 
+            const suites = this.normalizeCollection(testSuitesData, 'test_suites');
+            const executions = this.normalizeCollection(executionsData, 'executions');
+
+            this.currentData.suites = suites;
+            this.currentData.executions = executions;
+
             // Calculate dashboard metrics from real data
-            const activeSuites = testSuites ? testSuites.filter(s => s.status === 'active').length : 0;
-            const runningExecutions = executions ? executions.filter(e => e.status === 'running').length : 0;
+            const activeSuites = suites.filter(s => (s.status || '').toLowerCase() === 'active').length;
+            const runningExecutions = executions.filter(e => (e.status || '').toLowerCase() === 'running').length;
             
             let avgCoverage = 0;
-            if (testSuites && testSuites.length > 0) {
-                const totalCoverage = testSuites.reduce((sum, suite) => {
-                    const coverage = suite.coverage_metrics?.code_coverage || 0;
-                    return sum + parseFloat(coverage);
+            if (suites.length > 0) {
+                const totalCoverage = suites.reduce((sum, suite) => {
+                    const coverage = suite.coverage_metrics?.code_coverage ?? suite.coverage ?? 0;
+                    return sum + Number(coverage);
                 }, 0);
-                avgCoverage = Math.round(totalCoverage / testSuites.length);
+                avgCoverage = Math.round(totalCoverage / suites.length);
             }
 
             // Update header stats with real data
@@ -181,9 +187,17 @@ class TestGenieApp {
             });
 
             // Calculate additional metrics
-            const totalSuites = testSuites ? testSuites.length : 0;
-            const totalTestCases = testSuites ? testSuites.reduce((sum, suite) => sum + (suite.total_tests || 0), 0) : 0;
-            const failedTests = executions ? executions.filter(e => e.status === 'failed').length : 0;
+            const totalSuites = suites.length;
+            const totalTestCases = suites.reduce((sum, suite) => {
+                if (typeof suite.total_tests === 'number') {
+                    return sum + suite.total_tests;
+                }
+                if (Array.isArray(suite.test_cases)) {
+                    return sum + suite.test_cases.length;
+                }
+                return sum;
+            }, 0);
+            const failedTests = executions.filter(e => (e.status || '').toLowerCase() === 'failed').length;
 
             this.updateDashboardMetrics({
                 totalSuites,
@@ -218,13 +232,14 @@ class TestGenieApp {
         const container = document.getElementById('recent-executions');
         
         try {
-            const executions = await this.fetchWithErrorHandling('/test-execution?limit=5&sort=desc');
-            
+            const executionsResponse = await this.fetchWithErrorHandling('/test-executions?limit=5&sort=desc');
+            const executions = this.normalizeCollection(executionsResponse, 'executions');
+
             if (executions && executions.length > 0) {
                 // Transform API data to match our display format
                 const formattedExecutions = executions.map(exec => ({
                     id: exec.id,
-                    suiteName: exec.suite_name || 'Unknown Suite',
+                    suiteName: this.lookupSuiteName(exec.suite_id) || exec.suite_name || 'Unknown Suite',
                     status: exec.status,
                     duration: this.calculateDuration(exec.start_time, exec.end_time),
                     passed: exec.passed_tests || 0,
@@ -325,17 +340,19 @@ class TestGenieApp {
         container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading test suites...</div>';
 
         try {
-            const suites = await this.fetchWithErrorHandling('/test-suite');
-            
+            const suitesResponse = await this.fetchWithErrorHandling('/test-suites');
+            const suites = this.normalizeCollection(suitesResponse, 'test_suites');
+            this.currentData.suites = suites;
+
             if (suites && suites.length > 0) {
                 // Transform API data to match our display format
                 const formattedSuites = suites.map(suite => ({
                     id: suite.id,
                     scenarioName: suite.scenario_name,
-                    suiteType: suite.test_types ? suite.test_types.join(',') : 'unknown',
-                    testsCount: suite.total_tests || 0,
-                    coverage: parseFloat(suite.coverage_metrics?.code_coverage || 0),
-                    status: suite.status,
+                    suiteType: Array.isArray(suite.test_types) ? suite.test_types.join(',') : (suite.suite_type || 'unknown'),
+                    testsCount: typeof suite.total_tests === 'number' ? suite.total_tests : (Array.isArray(suite.test_cases) ? suite.test_cases.length : 0),
+                    coverage: Number(suite.coverage_metrics?.code_coverage ?? suite.coverage ?? 0),
+                    status: suite.status || 'unknown',
                     createdAt: suite.generated_at || suite.created_at
                 }));
                 
@@ -401,13 +418,15 @@ class TestGenieApp {
         container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading test executions...</div>';
 
         try {
-            const executions = await this.fetchWithErrorHandling('/test-execution');
-            
+            const executionsResponse = await this.fetchWithErrorHandling('/test-executions');
+            const executions = this.normalizeCollection(executionsResponse, 'executions');
+            this.currentData.executions = executions;
+
             if (executions && executions.length > 0) {
                 // Transform API data to match our display format
                 const formattedExecutions = executions.map(exec => ({
                     id: exec.id,
-                    suiteName: exec.suite_name || 'Unknown Suite',
+                    suiteName: this.lookupSuiteName(exec.suite_id) || exec.suite_name || 'Unknown Suite',
                     status: exec.status,
                     duration: this.calculateDuration(exec.start_time, exec.end_time),
                     passed: exec.passed_tests || 0,
@@ -596,7 +615,7 @@ ${(result.improvement_suggestions || []).map(suggestion => `  • ${suggestion}`
                 total_timeout: timeout * phases.length
             };
 
-            const response = await fetch(`${this.apiBaseUrl}/test-vault`, {
+            const response = await fetch(`${this.apiBaseUrl}/test-vault/create`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -765,6 +784,31 @@ To execute the vault:
             console.error(`API call failed for ${endpoint}:`, error);
             return null;
         }
+    }
+
+    normalizeCollection(data, primaryKey) {
+        if (!data) return [];
+        if (Array.isArray(data)) {
+            return data;
+        }
+        if (primaryKey && Array.isArray(data[primaryKey])) {
+            return data[primaryKey];
+        }
+        if (Array.isArray(data.items)) {
+            return data.items;
+        }
+        if (Array.isArray(data.data)) {
+            return data.data;
+        }
+        return [];
+    }
+
+    lookupSuiteName(suiteId) {
+        if (!suiteId || !this.currentData.suites) {
+            return null;
+        }
+        const match = this.currentData.suites.find(suite => suite.id === suiteId);
+        return match ? match.scenario_name || match.name : null;
     }
 
     calculateDuration(startTime, endTime) {

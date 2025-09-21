@@ -92,7 +92,67 @@ app.get('/health', async (req, res) => {
   res.status(httpStatus).json(health);
 });
 
-// Remove this duplicate - the enhanced API proxy is below
+// Enhanced API proxy with WebSocket notifications (must live before SPA catch-all)
+app.use('/api', async (req, res) => {
+  try {
+    const fetch = (await import('node-fetch')).default;
+
+    // Preserve the full requested path (including /api prefix and query string)
+    const baseForJoin = apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`;
+    const targetUrl = new URL(req.originalUrl, baseForJoin);
+
+    const options = {
+      method: req.method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...req.headers,
+      },
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      options.body = JSON.stringify(req.body ?? {});
+    }
+
+    delete options.headers.host;
+    delete options.headers['content-length'];
+
+    const response = await fetch(targetUrl, options);
+    const data = await response.text();
+
+    try {
+      const jsonData = JSON.parse(data);
+
+      if (req.path.includes('/test-suite/') && req.path.includes('/execute') && req.method === 'POST') {
+        broadcastToSubscribers('executions', 'execution_started', {
+          execution_id: jsonData.execution_id,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (req.path.includes('/test-execution') && jsonData.status === 'completed') {
+        broadcastToSubscribers('executions', 'execution_update', {
+          execution_id: jsonData.execution_id,
+          status: jsonData.status,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (e) {
+      // Ignore JSON parsing failures for non-JSON responses
+    }
+
+    res.status(response.status);
+    response.headers.forEach((value, key) => {
+      if (!key.toLowerCase().includes('content-encoding')) {
+        res.setHeader(key, value);
+      }
+    });
+
+    res.send(data);
+  } catch (error) {
+    console.error('API proxy error:', error);
+    res.status(500).json({ error: 'API request failed' });
+  }
+});
 
 // Serve the main application
 app.get('/', (req, res) => {
@@ -216,69 +276,6 @@ function broadcastToSubscribers(topic, type, payload) {
     }
   });
 }
-
-// Enhanced API proxy with WebSocket notifications
-app.use('/api', async (req, res) => {
-  
-  try {
-    const fetch = (await import('node-fetch')).default;
-    const url = `${apiBaseUrl}${req.path}`;
-    
-    const options = {
-      method: req.method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...req.headers
-      }
-    };
-    
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      options.body = JSON.stringify(req.body);
-    }
-    
-    delete options.headers.host;
-    delete options.headers['content-length'];
-    
-    const response = await fetch(url, options);
-    const data = await response.text();
-    
-    // Parse response to potentially broadcast updates
-    try {
-      const jsonData = JSON.parse(data);
-      
-      // Broadcast execution updates
-      if (req.path.includes('/test-suite/') && req.path.includes('/execute') && req.method === 'POST') {
-        broadcastToSubscribers('executions', 'execution_started', {
-          execution_id: jsonData.execution_id,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Broadcast test completion
-      if (req.path.includes('/test-execution') && jsonData.status === 'completed') {
-        broadcastToSubscribers('executions', 'execution_update', {
-          execution_id: jsonData.execution_id,
-          status: jsonData.status,
-          timestamp: new Date().toISOString()
-        });
-      }
-    } catch (e) {
-      // Ignore JSON parsing errors for non-JSON responses
-    }
-    
-    res.status(response.status);
-    response.headers.forEach((value, key) => {
-      if (!key.toLowerCase().includes('content-encoding')) {
-        res.setHeader(key, value);
-      }
-    });
-    
-    res.send(data);
-  } catch (error) {
-    console.error('API proxy error:', error);
-    res.status(500).json({ error: 'API request failed' });
-  }
-});
 
 // Start server
 server.listen(port, () => {
