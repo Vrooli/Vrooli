@@ -122,7 +122,9 @@ scenario-auditor health
 - ✅ Binary naming conventions (`<scenario>-api`, `<scenario>`)
 - ✅ Health check configuration (API + UI endpoints)
 - ✅ Required step ordering and presence
+- ✅ Develop lifecycle includes start-api/start-ui/show-urls conventions
 - ✅ Ports configuration enforces API_PORT 15000-19999 and UI_PORT 35000-39999 ranges
+- ✅ Test lifecycle includes the shared run-tests step (test/run-tests.sh)
 - ✅ Setup steps cover install-cli, scenario-specific build-api, and show-urls finale
 - ✅ Setup conditions ensure binaries and CLI checks match the scenario name
 - ✅ Lifecycle.health config enforces /health endpoints and http checks
