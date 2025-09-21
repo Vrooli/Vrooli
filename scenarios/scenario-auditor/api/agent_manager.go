@@ -36,7 +36,7 @@ const (
 const (
 	// defaultOpenRouterModel must include the provider prefix so resource-opencode
 	// resolves it correctly via OpenRouter (provider/model syntax).
-	defaultOpenRouterModel = "openrouter/qwen/qwen3-coder"
+	defaultOpenRouterModel = "openrouter/x-ai/grok-code-fast-1"
 
 	// defaultAllowedTools ensures agents can inspect and edit files without
 	// prompting for permissions during automated runs.
@@ -90,9 +90,30 @@ func NewAgentManager() *AgentManager {
 
 func resolveOpenRouterModel() string {
 	if override := strings.TrimSpace(os.Getenv("SCENARIO_AUDITOR_AGENT_MODEL")); override != "" {
+		if strings.EqualFold(override, "default") {
+			return defaultOpenRouterModel
+		}
+		if strings.Contains(override, "/") && !strings.HasPrefix(strings.ToLower(override), "openrouter/") {
+			return "openrouter/" + override
+		}
 		return override
 	}
 	return defaultOpenRouterModel
+}
+
+func normalizeAgentModel(requested string) string {
+	trimmed := strings.TrimSpace(requested)
+	if trimmed == "" || strings.EqualFold(trimmed, "default") {
+		return openRouterModel
+	}
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "openrouter/") || strings.HasPrefix(lower, "opencode/") || strings.HasPrefix(lower, "openai/") || strings.HasPrefix(lower, "anthropic/") || strings.HasPrefix(lower, "google/") || strings.HasPrefix(lower, "x-ai/") || strings.HasPrefix(lower, "mistral/") || strings.HasPrefix(lower, "deepseek/") {
+		return trimmed
+	}
+	if strings.Contains(trimmed, "/") {
+		return "openrouter/" + trimmed
+	}
+	return trimmed
 }
 
 func estimateMaxTurns(issueCount int) int {
@@ -151,9 +172,7 @@ func (am *AgentManager) StartAgent(cfg AgentStartConfig) (*AgentInfo, error) {
 		return nil, fmt.Errorf("prompt is required")
 	}
 
-	if cfg.Model == "" {
-		cfg.Model = openRouterModel
-	}
+	cfg.Model = normalizeAgentModel(cfg.Model)
 
 	if cfg.Metadata == nil {
 		cfg.Metadata = make(map[string]string)

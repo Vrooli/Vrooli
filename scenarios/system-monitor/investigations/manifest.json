@@ -1,8 +1,29 @@
 {
   "version": "1.0.0",
   "description": "Investigation scripts registry for system-monitor scenario",
-  "last_updated": "2025-09-18T00:15:00Z",
+  "last_updated": "2025-09-21T17:58:00Z",
   "scripts": {
+    "swap-heavy-processes": {
+      "name": "Swap Heavy Process Detector",
+      "description": "Identifies processes consuming excessive swap memory and provides recommendations",
+      "file": "active/swap-heavy-processes.sh",
+      "category": "resource-management",
+      "triggers": [
+        "high_swap_usage",
+        "swap_thrashing",
+        "memory_pressure"
+      ],
+      "outputs": "json",
+      "author": "claude-agent",
+      "created": "2025-09-21",
+      "last_modified": "2025-09-21",
+      "version": "1.0",
+      "execution_time_estimate": "30s",
+      "safety_level": "safe",
+      "tags": [
+        "core"
+      ]
+    },
     "resource-exhaustion-detector": {
       "name": "Resource Exhaustion Pattern Detector",
       "description": "Detects resource exhaustion patterns including swap usage, memory pressure, and process limits",

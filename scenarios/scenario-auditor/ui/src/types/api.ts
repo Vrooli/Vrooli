@@ -275,4 +275,5 @@ export interface FixAgentResponse {
   agent_count?: number
   issue_count?: number
   issues_per_agent_cap?: number
+  model?: string
 }

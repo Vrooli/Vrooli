@@ -233,7 +233,8 @@ class ApiService {
     fixType: 'standards' | 'vulnerabilities',
     targets: Array<{ scenario: string; issue_ids?: string[] }>,
     extraPrompt?: string,
-    agentCount?: number
+    agentCount?: number,
+    model?: string
   ): Promise<FixAgentResponse> {
     const payload: Record<string, unknown> = {
       fix_type: fixType,
@@ -244,6 +245,9 @@ class ApiService {
     }
     if (agentCount && agentCount > 0) {
       payload.agent_count = agentCount
+    }
+    if (model && model.trim().length > 0 && model.trim().toLowerCase() !== 'default') {
+      payload.model = model.trim()
     }
 
     return this.fetch('/claude/fix', {

@@ -19,6 +19,7 @@ type claudeFixRequest struct {
 	Targets      []claudeFixTarget `json:"targets"`
 	ExtraPrompt  string            `json:"extra_prompt"`
 	AgentCount   int               `json:"agent_count"`
+	Model        string            `json:"model"`
 }
 
 type claudeFixTarget struct {
@@ -45,6 +46,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 
 	issueIDs := normaliseIDs(req.IssueIDs)
 	extraPrompt := strings.TrimSpace(req.ExtraPrompt)
+	selectedModel := normalizeAgentModel(req.Model)
 
 	var (
 		prompt            string
@@ -100,6 +102,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 					batchIDs := collectStandardsIssueIDs(group)
 					metadata["issue_count"] = fmt.Sprintf("%d", len(batchIDs))
 					metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+					metadata["model"] = selectedModel
 					labelWithBatch := groupLabel
 					if len(groups) > 1 {
 						labelWithBatch = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
@@ -111,7 +114,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 						Scenario: "multi",
 						IssueIDs: batchIDs,
 						Prompt:   prompt,
-						Model:    openRouterModel,
+						Model:    selectedModel,
 						Metadata: metadata,
 					}
 					agentInfo, startErr := agentManager.StartAgent(agentCfg)
@@ -139,6 +142,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 					"issue_count":          totalViolations,
 					"issues_per_agent_cap": maxIssuesPerAgent,
 					"scenarios":            scenarioNames,
+					"model":                selectedModel,
 				}
 				w.Header().Set("Content-Type", "application/json")
 				if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -162,6 +166,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			metadata["issue_count"] = fmt.Sprintf("%d", totalViolations)
 			metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+			metadata["model"] = selectedModel
 			action = agentActionStandardsFix
 			agentCfg = AgentStartConfig{
 				Label:    label,
@@ -170,7 +175,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 				Scenario: "multi",
 				IssueIDs: collectStandardsIssueIDs(multiTargets),
 				Prompt:   prompt,
-				Model:    openRouterModel,
+				Model:    selectedModel,
 				Metadata: metadata,
 			}
 			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(scenarioNames))
@@ -214,6 +219,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 					batchIDs := collectVulnerabilityIssueIDs(group)
 					metadata["issue_count"] = fmt.Sprintf("%d", len(batchIDs))
 					metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+					metadata["model"] = selectedModel
 					labelWithBatch := groupLabel
 					if len(groups) > 1 {
 						labelWithBatch = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
@@ -225,7 +231,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 						Scenario: "multi",
 						IssueIDs: batchIDs,
 						Prompt:   prompt,
-						Model:    openRouterModel,
+						Model:    selectedModel,
 						Metadata: metadata,
 					}
 					agentInfo, startErr := agentManager.StartAgent(agentCfg)
@@ -253,6 +259,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 					"issue_count":          totalFindings,
 					"issues_per_agent_cap": maxIssuesPerAgent,
 					"scenarios":            scenarioNames,
+					"model":                selectedModel,
 				}
 				w.Header().Set("Content-Type", "application/json")
 				if err := json.NewEncoder(w).Encode(response); err != nil {
@@ -276,6 +283,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			metadata["issue_count"] = fmt.Sprintf("%d", totalFindings)
 			metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+			metadata["model"] = selectedModel
 			action = agentActionVulnerabilityFix
 			agentCfg = AgentStartConfig{
 				Label:    label,
@@ -284,7 +292,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 				Scenario: "multi",
 				IssueIDs: collectVulnerabilityIssueIDs(multiTargets),
 				Prompt:   prompt,
-				Model:    openRouterModel,
+				Model:    selectedModel,
 				Metadata: metadata,
 			}
 			responseMessage = fmt.Sprintf("Started %s across %d scenario(s)", label, len(scenarioNames))
@@ -368,6 +376,8 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			metadata["issue_count"] = fmt.Sprintf("%d", issueCount)
 		}
 		metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
+		metadata["model"] = selectedModel
+		metadata["model"] = selectedModel
 
 		agentCfg = AgentStartConfig{
 			Label:    label,
@@ -376,7 +386,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 			Scenario: scenarioName,
 			IssueIDs: finalIDs,
 			Prompt:   prompt,
-			Model:    openRouterModel,
+			Model:    selectedModel,
 			Metadata: metadata,
 		}
 		responseMessage = fmt.Sprintf("Started %s for %s", label, scenarioName)
@@ -398,6 +408,7 @@ func triggerClaudeFixHandler(w http.ResponseWriter, r *http.Request) {
 		"scenarios":   responseScenarios,
 		"agent_count": 1,
 		"fix_ids":     []string{agentInfo.ID},
+		"model":       selectedModel,
 	}
 	if extraPrompt != "" {
 		response["user_instructions"] = extraPrompt

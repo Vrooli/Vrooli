@@ -40,6 +40,16 @@ interface CompletedAgentStatus {
   message?: string
 }
 
+const DEFAULT_MODEL_SLUG = 'openrouter/x-ai/grok-code-fast-1'
+
+const BULK_FIX_MODEL_OPTIONS = [
+  { value: 'default', label: 'Default (scenario setting)' },
+  { value: DEFAULT_MODEL_SLUG, label: 'x-ai/grok-code-fast-1' },
+  { value: 'openrouter/google/gemini-2.5-flash', label: 'google/gemini-2.5-flash' },
+  { value: 'openrouter/openai/gpt-5', label: 'openai/gpt-5' },
+  { value: 'openrouter/x-ai/grok-4-fast:free', label: 'x-ai/grok-4-fast:free' },
+]
+
 export default function StandardsCompliance() {
   const [selectedScenario, setSelectedScenario] = useState<string>('')
   const [checkType, setCheckType] = useState<'quick' | 'full' | 'targeted'>('full')
@@ -61,6 +71,7 @@ export default function StandardsCompliance() {
   const [bulkFixError, setBulkFixError] = useState<string | null>(null)
   const [bulkFixSuccess, setBulkFixSuccess] = useState<string | null>(null)
   const [bulkFixNotes, setBulkFixNotes] = useState('')
+  const [bulkFixModel, setBulkFixModel] = useState<string>('default')
   const prevAgentsRef = useRef<Map<string, string>>(new Map())
   const queryClient = useQueryClient()
   const { data: activeAgentsData } = useQuery({
@@ -424,11 +435,13 @@ export default function StandardsCompliance() {
     setBulkFixError(null)
     setBulkFixSuccess(null)
     setBulkFixNotes('')
+    setBulkFixModel('default')
     setBulkFixOpen(true)
   }, [filteredViolations])
 
   const closeBulkFixDialog = useCallback(() => {
     setBulkFixOpen(false)
+    setBulkFixModel('default')
   }, [])
 
   const handleBulkFixConfirm = useCallback(async () => {
@@ -455,12 +468,14 @@ export default function StandardsCompliance() {
     }
 
     try {
-        const response = await apiService.triggerBulkFix(
-          'standards',
-          targets,
-          bulkFixNotes.trim() || undefined,
-          effectiveAgentCount
-        )
+      const selectedModel = bulkFixModel === 'default' ? undefined : bulkFixModel
+      const response = await apiService.triggerBulkFix(
+        'standards',
+        targets,
+        bulkFixNotes.trim() || undefined,
+        effectiveAgentCount,
+        selectedModel
+      )
       if (!response.success) {
         setBulkFixError(response.error || response.message || 'Failed to start bulk standards fix agent')
       } else {
@@ -469,7 +484,11 @@ export default function StandardsCompliance() {
           || (response.agent_count && response.issue_count
             ? `Started ${response.agent_count} agent(s) for ${response.issue_count} standards violations (≤${maxPerAgent} per agent).`
             : `Started ${response.agent_count ?? effectiveAgentCount} agent(s) for standards fixes.`)
-        setBulkFixSuccess(successMessage)
+        const modelUsed = response.model || selectedModel || DEFAULT_MODEL_SLUG
+        const formattedMessage = modelUsed && modelUsed !== 'default'
+          ? `${successMessage} Model: ${modelUsed}.`
+          : successMessage
+        setBulkFixSuccess(formattedMessage)
         await queryClient.invalidateQueries({ queryKey: ['activeAgents'] })
       }
     } catch (error) {
@@ -477,7 +496,7 @@ export default function StandardsCompliance() {
     } finally {
       setBulkFixSubmitting(false)
     }
-  }, [apiService, effectiveAgentCount, bulkSelection, bulkSelectionByScenario, bulkFixNotes, queryClient])
+  }, [apiService, effectiveAgentCount, bulkSelection, bulkSelectionByScenario, bulkFixNotes, bulkFixModel, queryClient])
 
   const handleAgentCompletion = useCallback(async (agentId: string, scenario: string) => {
     try {
@@ -973,7 +992,7 @@ export default function StandardsCompliance() {
                           </span>
                       <button
                         onClick={async () => {
-                          if (!confirm(`Trigger Claude agent to resolve ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
+                        if (!confirm(`Start automated fixes for ${scenarioViolations.length} violation${scenarioViolations.length !== 1 ? 's' : ''} in ${scenario}?`)) {
                             return
                           }
                           void triggerStandardsFix(
@@ -983,7 +1002,7 @@ export default function StandardsCompliance() {
                         }}
                             disabled={hasActiveAgent || isLaunching}
                             className="flex items-center gap-1 px-3 py-1 rounded-lg bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs font-medium"
-                            title="Fix violations with Claude agent"
+                        title="Fix violations with AI agent"
                           >
                             {hasActiveAgent ? (
                               <>
@@ -1179,7 +1198,7 @@ export default function StandardsCompliance() {
       >
         <div className="space-y-5">
           <p className="text-sm text-dark-600">
-            Launch Claude agents to address the first <span className="font-medium text-dark-800">{bulkSelection.length}</span> matching violations across{' '}
+            Launch fix agents to address the first <span className="font-medium text-dark-800">{bulkSelection.length}</span> matching violations across{' '}
             <span className="font-medium text-dark-800">{bulkSelectionByScenario.size}</span> scenario{bulkSelectionByScenario.size === 1 ? '' : 's'}. Choose how many violations to include (maximum 200) and how many agents to spawn so you can balance throughput with the number of active workers.
           </p>
 
@@ -1217,6 +1236,28 @@ export default function StandardsCompliance() {
             />
             <p className="mt-2 text-xs text-dark-500">
               ≈{projectedViolationsPerAgent} violation{projectedViolationsPerAgent === 1 ? '' : 's'} per agent (capped at {MAX_VIOLATIONS_PER_AGENT})
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="standards-model" className="block text-sm font-medium text-dark-700">
+              AI model
+            </label>
+            <select
+              id="standards-model"
+              value={bulkFixModel}
+              onChange={(event) => setBulkFixModel(event.target.value)}
+              className="mt-2 w-full rounded-md border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+              disabled={bulkFixSubmitting}
+            >
+              {BULK_FIX_MODEL_OPTIONS.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-dark-500">
+              Determines which OpenRouter model each fix agent will use.
             </p>
           </div>
 
