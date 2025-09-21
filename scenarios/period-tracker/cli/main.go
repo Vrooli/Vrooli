@@ -470,6 +470,18 @@ func handlePatterns(args []string, config Config) {
 }
 
 func main() {
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start period-tracker
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	if len(os.Args) < 2 {
 		printUsage()
 		os.Exit(1)

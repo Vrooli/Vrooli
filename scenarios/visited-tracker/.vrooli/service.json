@@ -123,7 +123,7 @@
           }
         },
         {
-          "name": "show-running-services",
+          "name": "show-urls",
           "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${UI_PORT}\\n  API: http://localhost:${API_PORT}\\n  CLI: visited-tracker --help'",
           "description": "Display all running service URLs"
         }

@@ -95,22 +95,14 @@ type BroadcastMessage struct {
 }
 
 func main() {
-	// Protect against direct execution - must be run through lifecycle system
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
-🚀 Instead, use one of these commands:
+🚀 Instead, use:
    vrooli scenario start device-sync-hub
-   cd scenarios/device-sync-hub && make run
 
-💡 The lifecycle system provides:
-   - Automatic port allocation from configured ranges
-   - Environment variable management
-   - Resource dependency orchestration
-   - Health check monitoring
-   - Process lifecycle management
-
-Direct execution is not supported for security and consistency.
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
 `)
 		os.Exit(1)
 	}

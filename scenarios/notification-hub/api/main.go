@@ -118,6 +118,17 @@ type Server struct {
 var startTime time.Time
 
 func main() {
+    if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+        fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start notification-hub
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+        os.Exit(1)
+    }
 	startTime = time.Now()
 	server, err := NewServer()
 	if err != nil {

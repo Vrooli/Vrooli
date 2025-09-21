@@ -244,7 +244,8 @@ opencode::config::migrate_legacy_models() {
         return 0
     fi
 
-    local legacy_slug="openrouter/qwen3-coder"
+    local legacy_slug_short="openrouter/qwen3-coder"
+    local legacy_slug_full="openrouter/qwen/qwen3-coder"
     local target_chat="openrouter/${OPENCODE_DEFAULT_CHAT_MODEL}"
     local target_small="openrouter/${OPENCODE_DEFAULT_COMPLETION_MODEL}"
     local updated=0
@@ -253,11 +254,12 @@ opencode::config::migrate_legacy_models() {
         local tmp
         tmp=$(mktemp "${TMPDIR:-/tmp}/opencode-config.XXXXXX")
         if jq \
-            --arg legacy "${legacy_slug}" \
+            --arg legacy_short "${legacy_slug_short}" \
+            --arg legacy_full "${legacy_slug_full}" \
             --arg chat "${target_chat}" \
             --arg small "${target_small}" \
-            'if (.model // "") == $legacy then .model = $chat else . end
-             | if (.small_model // "") == $legacy then .small_model = $small else . end' \
+            'if (.model // "") == $legacy_short or (.model // "") == $legacy_full then .model = $chat else . end
+             | if (.small_model // "") == $legacy_short or (.small_model // "") == $legacy_full then .small_model = $small else . end' \
             "${config_path}" >"${tmp}" 2>/dev/null; then
             if ! cmp -s "${config_path}" "${tmp}"; then
                 mv "${tmp}" "${config_path}"
@@ -273,8 +275,10 @@ opencode::config::migrate_legacy_models() {
             local tmp
             tmp=$(mktemp "${TMPDIR:-/tmp}/opencode-config.XXXXXX")
             sed \
-                -e "s#\"model\"[[:space:]]*:[[:space:]]*\"${legacy_slug}\"#\"model\": \"${target_chat}\"#" \
-                -e "s#\"small_model\"[[:space:]]*:[[:space:]]*\"${legacy_slug}\"#\"small_model\": \"${target_small}\"#" \
+                -e "s#\"model\"[[:space:]]*:[[:space:]]*\"${legacy_slug_short}\"#\"model\": \"${target_chat}\"#" \
+                -e "s#\"small_model\"[[:space:]]*:[[:space:]]*\"${legacy_slug_short}\"#\"small_model\": \"${target_small}\"#" \
+                -e "s#\"model\"[[:space:]]*:[[:space:]]*\"${legacy_slug_full}\"#\"model\": \"${target_chat}\"#" \
+                -e "s#\"small_model\"[[:space:]]*:[[:space:]]*\"${legacy_slug_full}\"#\"small_model\": \"${target_small}\"#" \
                 "${config_path}" >"${tmp}" && mv "${tmp}" "${config_path}" && updated=1 || rm -f "${tmp}"
         fi
     fi
@@ -1068,7 +1072,7 @@ Standard agent manager subcommands:
   list | stop | info | logs | monitor | metrics | cleanup | help
 
 Examples:
-  resource-opencode agents run --prompt "Fix the failing tests" --model openrouter/qwen/qwen3-coder
+  resource-opencode agents run --prompt "Fix the failing tests" --model openrouter/x-ai/grok-code-fast-1
   resource-opencode agents session list
   resource-opencode agents list --json
 EOF

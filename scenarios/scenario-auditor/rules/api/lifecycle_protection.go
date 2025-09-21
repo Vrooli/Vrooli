@@ -171,6 +171,11 @@ func main() {
 func CheckLifecycleProtection(content []byte, filePath string, scenario string) *Violation {
 	contentStr := string(content)
 
+	// Skip rule definition files - they contain test cases, not actual code
+	if strings.Contains(filePath, "/rules/") {
+		return nil
+	}
+
 	// Only check Go entrypoints. During unit tests the runner feeds code snippets
 	// through synthetic filenames (e.g. test_<id>.go), so fall back to detecting
 	// package main + func main() when the real filename hint is absent.

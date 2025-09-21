@@ -10,6 +10,18 @@ import (
 )
 
 func main() {
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start roi-fit-analysis
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
     if len(os.Args) < 2 {
         fmt.Println("ROI Fit Analysis CLI")
         fmt.Println("Usage: roi-fit <command> [options]")

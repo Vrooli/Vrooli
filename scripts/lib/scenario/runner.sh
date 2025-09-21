@@ -120,10 +120,13 @@ scenario::run() {
     
     # Set up logging for the scenario lifecycle execution
     local lifecycle_log="${HOME}/.vrooli/logs/${scenario_name}.log"
-    mkdir -p "$(dirname "$lifecycle_log")"
-    
-    # Clear the log file for fresh execution (no confusion from old runs)
-    > "$lifecycle_log"
+    mkdir -p "$(dirname "$lifecycle_log")" 2>/dev/null || true
+
+    if ! ( : > "$lifecycle_log" ) 2>/dev/null; then
+        lifecycle_log="${scenario_path}/logs/${scenario_name}.lifecycle.log"
+        mkdir -p "$(dirname "$lifecycle_log")"
+        : > "$lifecycle_log"
+    fi
     
     # Call lifecycle.sh directly, capturing output to both console and log file
     log::info "Running scenario '$scenario_name' with direct lifecycle execution"

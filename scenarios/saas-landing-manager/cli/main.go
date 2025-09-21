@@ -637,6 +637,18 @@ func (cli *CLI) Run(args []string) error {
 }
 
 func main() {
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start saas-landing-manager
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	cli := NewCLI()
 	
 	if err := cli.Run(os.Args); err != nil {

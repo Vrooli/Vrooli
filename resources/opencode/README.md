@@ -14,7 +14,7 @@ resource-opencode status
 resource-opencode manage start
 
 # Send a prompt through the agent-aware workflow (creates a server session automatically)
-resource-opencode agents run --prompt "Fix the failing test" --model openrouter/qwen/qwen3-coder
+resource-opencode agents run --prompt "Fix the failing test" --model openrouter/x-ai/grok-code-fast-1
 
 # Inspect active sessions or running agents
 resource-opencode agents session list
@@ -35,7 +35,7 @@ resource-opencode run
 - The active config lives at `data/opencode/config/opencode.json`. Alternate profiles are stored as `config-*.json` in the same directory and can be activated via `resource-opencode content execute <name>`.
 - Environment secrets such as `OPENROUTER_API_KEY` or `CLOUDFLARE_API_TOKEN` are loaded automatically from Vault / `~/.vrooli/secrets.json` and exposed to the CLI. They can also be written into the CLI's auth store with `resource-opencode run auth login`.
 - Secrets remain declared in `config/secrets.yaml`, allowing the Secrets Manager scenario to prompt for and provision credentials.
-- Default model selection now targets OpenRouter's `qwen/qwen3-coder`; set `OPENROUTER_API_KEY` (or edit `opencode.json`) before running agents. Existing installations are auto-migrated the next time you invoke the resource.
+- Default model selection now targets OpenRouter's `x-ai/grok-code-fast-1`; set `OPENROUTER_API_KEY` (or edit `opencode.json`) before running agents. Existing installations are auto-migrated the next time you invoke the resource.
 - For edit workflows, allow both read and edit permissions (for example `--allowed-tools "edit,read"`) so the agent can inspect files before writing changes.
 - Permission and safety overrides mirror other automation agents:
   - `--allowed-tools` (or `OPENCODE_ALLOWED_TOOLS` / `ALLOWED_TOOLS`) to constrain tool usage.

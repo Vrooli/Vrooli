@@ -722,6 +722,19 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 // Main function
 func main() {
+	// Protect against direct execution - must be run through lifecycle system
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start scenario-to-desktop
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Get port from environment or use default
 	port := 3202
 	if portStr := os.Getenv("PORT"); portStr != "" {

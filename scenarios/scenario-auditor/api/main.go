@@ -226,22 +226,20 @@ func countScenarioEndpoints(scenarioPath string) int {
 }
 
 func main() {
-	// Log startup immediately
-	fmt.Fprintf(os.Stderr, "[STARTUP] scenario-auditor main() started at %s\n", time.Now().Format(time.RFC3339))
-
-	// Protect against direct execution - must be run through lifecycle system
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		fmt.Fprintf(os.Stderr, "[STARTUP] VROOLI_LIFECYCLE_MANAGED check failed: %s\n", os.Getenv("VROOLI_LIFECYCLE_MANAGED"))
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
-   vrooli scenario start <scenario-name>
+   vrooli scenario start scenario-auditor
 
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.
 `)
 		os.Exit(1)
 	}
+
+	// Log startup immediately
+	fmt.Fprintf(os.Stderr, "[STARTUP] scenario-auditor main() started at %s\n", time.Now().Format(time.RFC3339))
 	fmt.Fprintf(os.Stderr, "[STARTUP] VROOLI_LIFECYCLE_MANAGED check passed\n")
 
 	// Debug: Print all environment variables

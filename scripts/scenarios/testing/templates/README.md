@@ -19,6 +19,13 @@ Using `phase-helpers.sh` reduces test phase boilerplate by **80%** (from 40+ lin
 - Includes all available helper functions
 - Good starting point for any test phase
 
+### `phase-unit.sh.template`
+**Use for:** Unit test phases
+- Runs language-specific unit tests with coverage
+- Uses centralized testing library directly (no fallback)
+- Configurable coverage thresholds
+- Supports Go, Node.js, and Python tests
+
 ### `phase-structure.sh.template` 
 **Use for:** Structure validation phases
 - Validates files, directories, and configuration

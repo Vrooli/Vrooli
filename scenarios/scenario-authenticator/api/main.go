@@ -19,9 +19,15 @@ import (
 func main() {
 	// Enforce lifecycle management - prevent direct execution
 	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
-		log.Fatal("❌ This service must be started through the Vrooli lifecycle system.\n" +
-			"   Use: vrooli scenario start scenario-authenticator\n" +
-			"   Or:  cd scenarios/scenario-authenticator && make run")
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start scenario-authenticator
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
 	}
 
 	// Change to project root directory for consistent file operations

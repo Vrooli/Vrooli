@@ -13,7 +13,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
 
 🚀 Instead, use:
-   vrooli scenario start prompt-manager
+   vrooli scenario start ai-chatbot-manager
 
 💡 The lifecycle system provides environment variables, port allocation,
    and dependency management automatically. Direct execution is not supported.

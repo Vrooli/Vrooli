@@ -10,6 +10,18 @@ import (
 )
 
 func main() {
+	if os.Getenv("VROOLI_LIFECYCLE_MANAGED") != "true" {
+		fmt.Fprintf(os.Stderr, `❌ This binary must be run through the Vrooli lifecycle system.
+
+🚀 Instead, use:
+   vrooli scenario start graph-studio
+
+💡 The lifecycle system provides environment variables, port allocation,
+   and dependency management automatically. Direct execution is not supported.
+`)
+		os.Exit(1)
+	}
+
 	// Check if running through lifecycle (temporarily disabled for testing)
 	/*
 		if os.Getenv("VROOLI_LIFECYCLE") != "active" {
