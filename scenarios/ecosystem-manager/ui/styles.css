@@ -2309,7 +2309,8 @@ body.dark-mode .prompt-chip {
 .prompt-tester-actions {
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: flex-start;
+    align-items: flex-start;
     gap: 0.5rem;
     padding-top: 0.25rem;
 }
@@ -2349,6 +2350,100 @@ body.dark-mode .prompt-chip {
 body.dark-mode .prompt-preview-placeholder {
     color: var(--dark-medium-gray);
     border-color: var(--dark-border-gray);
+}
+
+.prompt-preview-details {
+    background: var(--white);
+    border: 1px solid var(--border-gray);
+    border-left: 3px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+body.dark-mode .prompt-preview-details {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border-gray);
+    border-left-color: var(--primary-color);
+    box-shadow: none;
+}
+
+.prompt-preview-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.prompt-preview-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.prompt-summary-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--medium-gray);
+}
+
+.prompt-summary-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+
+.prompt-summary-secondary {
+    font-size: 0.85rem;
+    color: var(--medium-gray);
+}
+
+body.dark-mode .prompt-summary-label,
+body.dark-mode .prompt-summary-secondary {
+    color: var(--dark-medium-gray);
+}
+
+body.dark-mode .prompt-summary-value {
+    color: var(--dark-text-color);
+}
+
+.prompt-preview-toggle {
+    border: none;
+    background: rgba(74, 144, 226, 0.12);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    box-shadow: var(--shadow);
+}
+
+.prompt-preview-toggle i {
+    font-size: 0.8rem;
+}
+
+body.dark-mode .prompt-preview-toggle {
+    background: rgba(91, 139, 255, 0.18);
+    color: var(--dark-text-color);
+    box-shadow: none;
+}
+
+.prompt-preview-details.collapsed .prompt-preview-details-content {
+    display: none;
+}
+
+.prompt-preview-details-content {
+    margin-top: 0.75rem;
 }
 
 .prompt-preview-metadata {
@@ -2413,12 +2508,71 @@ body.dark-mode .prompt-meta-json {
     line-height: 1.45;
 }
 
+.prompt-preview-output-wrapper {
+    position: relative;
+    margin-top: 0.75rem;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-gray);
+    background: var(--white);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.08));
+}
+
+.prompt-preview-copy-icon {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    border: none;
+    background: rgba(74, 144, 226, 0.12);
+    border-radius: 999px;
+    padding: 0.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--primary-color);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.prompt-preview-copy-icon i {
+    font-size: 0.85rem;
+}
+
+.prompt-preview-copy-icon:hover:not(:disabled) {
+    background: rgba(74, 144, 226, 0.2);
+}
+
+.prompt-preview-copy-icon:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    color: var(--medium-gray);
+}
+
+body.dark-mode .prompt-preview-copy-icon {
+    background: rgba(91, 139, 255, 0.24);
+    color: var(--dark-text-color);
+}
+
+body.dark-mode .prompt-preview-copy-icon:hover:not(:disabled) {
+    background: rgba(91, 139, 255, 0.32);
+}
+
+body.dark-mode .prompt-preview-copy-icon:disabled {
+    color: var(--dark-medium-gray);
+}
+
+body.dark-mode .prompt-preview-output-wrapper {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border-gray);
+}
+
 .prompt-preview-output {
     background: var(--light-gray);
     border-radius: var(--border-radius);
-    border: 1px solid var(--border-gray);
-    padding: 1rem;
-    max-height: 24rem;
+    border: none;
+    padding: 1.1rem;
+    padding-right: 3.25rem;
+    min-height: 20rem;
+    max-height: 34rem;
     overflow-y: auto;
     font-family: 'Fira Code', 'Source Code Pro', monospace;
     font-size: 0.85rem;
@@ -2428,7 +2582,6 @@ body.dark-mode .prompt-meta-json {
 
 body.dark-mode .prompt-preview-output {
     background: var(--dark-light-gray);
-    border-color: var(--dark-border-gray);
     color: var(--dark-text-color);
 }
 

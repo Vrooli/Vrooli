@@ -536,25 +536,11 @@
                                         <small class="form-help">Optional structured data merged into the prompt; must be valid JSON object</small>
                                     </div>
 
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label for="prompt-display">Response Format</label>
-                                            <select id="prompt-display" name="prompt_display">
-                                                <option value="preview" selected>Preview (full prompt)</option>
-                                                <option value="full">Full Prompt</option>
-                                                <option value="size">Stats Only</option>
-                                            </select>
-                                        </div>
-                                        <div class="form-group prompt-tester-actions">
-                                            <button type="button" class="btn btn-primary" id="prompt-preview-btn">
-                                                <i class="fas fa-microscope"></i>
-                                                Preview Prompt
-                                            </button>
-                                            <button type="button" class="btn btn-secondary" id="prompt-preview-copy-btn" disabled>
-                                                <i class="fas fa-copy"></i>
-                                                Copy Prompt
-                                            </button>
-                                        </div>
+                                    <div class="form-group prompt-tester-actions">
+                                        <button type="button" class="btn btn-primary" id="prompt-preview-btn">
+                                            <i class="fas fa-microscope"></i>
+                                            Preview Prompt
+                                        </button>
                                     </div>
 
                                     <div id="prompt-preview-status" class="prompt-preview-status"></div>
@@ -565,9 +551,25 @@
                                         <i class="fas fa-microscope"></i>
                                         <p>Configure a task and select “Preview Prompt” to inspect the assembled output.</p>
                                     </div>
-                                    <div class="prompt-preview-metadata" id="prompt-preview-metadata" hidden></div>
-                                    <div class="prompt-preview-sections" id="prompt-preview-sections" hidden></div>
-                                    <pre class="prompt-preview-output" id="prompt-preview-output" hidden></pre>
+                                    <div class="prompt-preview-details collapsed" id="prompt-preview-details" hidden>
+                                        <div class="prompt-preview-details-header">
+                                            <div class="prompt-preview-summary" id="prompt-preview-summary"></div>
+                                            <button type="button" class="prompt-preview-toggle" id="prompt-preview-toggle" aria-expanded="false">
+                                                <i class="fas fa-chevron-down"></i>
+                                                Show Details
+                                            </button>
+                                        </div>
+                                        <div class="prompt-preview-details-content">
+                                            <div class="prompt-preview-metadata" id="prompt-preview-metadata"></div>
+                                            <div class="prompt-preview-sections" id="prompt-preview-sections"></div>
+                                        </div>
+                                    </div>
+                                    <div class="prompt-preview-output-wrapper" id="prompt-preview-output-wrapper" hidden>
+                                        <button type="button" class="prompt-preview-copy-icon" id="prompt-preview-copy-icon" aria-label="Copy prompt" title="Copy prompt" disabled>
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                        <pre class="prompt-preview-output" id="prompt-preview-output" hidden></pre>
+                                    </div>
                                 </div>
                             </div>
                         </div>

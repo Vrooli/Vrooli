@@ -232,9 +232,14 @@ class EcosystemManager {
             promptPreviewBtn.addEventListener('click', () => this.handlePromptPreview());
         }
 
-        const promptCopyBtn = document.getElementById('prompt-preview-copy-btn');
-        if (promptCopyBtn) {
-            promptCopyBtn.addEventListener('click', () => this.handlePromptCopy());
+        const promptCopyIcon = document.getElementById('prompt-preview-copy-icon');
+        if (promptCopyIcon) {
+            promptCopyIcon.addEventListener('click', () => this.handlePromptCopy());
+        }
+
+        const promptDetailsToggle = document.getElementById('prompt-preview-toggle');
+        if (promptDetailsToggle) {
+            promptDetailsToggle.addEventListener('click', () => this.togglePromptDetails());
         }
     }
 
@@ -1576,7 +1581,7 @@ class EcosystemManager {
 
     togglePromptPreviewLoading(isLoading) {
         const previewBtn = document.getElementById('prompt-preview-btn');
-        const copyBtn = document.getElementById('prompt-preview-copy-btn');
+        const copyIcon = document.getElementById('prompt-preview-copy-icon');
 
         this.promptPreviewLoading = !!isLoading;
 
@@ -1596,11 +1601,11 @@ class EcosystemManager {
             }
         }
 
-        if (copyBtn) {
+        if (copyIcon) {
             if (isLoading) {
-                copyBtn.disabled = true;
+                copyIcon.disabled = true;
             } else if (this.lastPromptPreview && this.lastPromptPreview.prompt) {
-                copyBtn.disabled = false;
+                copyIcon.disabled = false;
             }
         }
     }
@@ -1620,10 +1625,9 @@ class EcosystemManager {
         const priorityField = document.getElementById('prompt-priority');
         const notesField = document.getElementById('prompt-notes');
         const requirementsField = document.getElementById('prompt-requirements');
-        const displayField = document.getElementById('prompt-display');
 
         const payload = {
-            display: displayField ? displayField.value : 'preview',
+            display: 'preview',
             task: {
                 type: typeField ? typeField.value : 'resource',
                 operation: operationField ? operationField.value : 'generator',
@@ -1684,12 +1688,15 @@ class EcosystemManager {
 
     renderPromptPreview(data) {
         const placeholder = document.getElementById('prompt-preview-placeholder');
+        const detailsContainer = document.getElementById('prompt-preview-details');
         const metadataElement = document.getElementById('prompt-preview-metadata');
         const sectionsElement = document.getElementById('prompt-preview-sections');
+        const summaryElement = document.getElementById('prompt-preview-summary');
+        const outputWrapper = document.getElementById('prompt-preview-output-wrapper');
         const outputElement = document.getElementById('prompt-preview-output');
-        const copyBtn = document.getElementById('prompt-preview-copy-btn');
+        const copyIcon = document.getElementById('prompt-preview-copy-icon');
 
-        if (!metadataElement || !sectionsElement || !outputElement) {
+        if (!detailsContainer || !metadataElement || !sectionsElement || !summaryElement || !outputElement || !outputWrapper) {
             return;
         }
 
@@ -1697,6 +1704,7 @@ class EcosystemManager {
             placeholder.hidden = true;
         }
 
+        detailsContainer.hidden = false;
         const task = data.task || {};
         const taskTitle = task.title || data.title || 'Prompt Preview Task';
         const taskType = task.type || data.task_type || 'resource';
@@ -1741,6 +1749,12 @@ class EcosystemManager {
             });
         }
 
+        summaryElement.innerHTML = `
+            <span class="prompt-summary-label">Prompt Size</span>
+            <span class="prompt-summary-value">${charCount.toLocaleString()} chars</span>
+            <span class="prompt-summary-secondary">${promptSizeKb} KB · ${promptSizeMb} MB</span>
+        `;
+
         metadataElement.innerHTML = metadataItems.map(item => {
             const label = this.escapeHtml(item.label);
             const value = item.allowHtml ? item.value : this.escapeHtml(item.value);
@@ -1762,17 +1776,21 @@ class EcosystemManager {
         }
         sectionsElement.hidden = false;
 
+        this.setPromptDetailsCollapsed(true);
+
         if (data.prompt && typeof data.prompt === 'string' && data.prompt.length > 0) {
             outputElement.textContent = data.prompt;
             outputElement.hidden = false;
-            if (copyBtn) {
-                copyBtn.disabled = false;
+            outputWrapper.hidden = false;
+            if (copyIcon) {
+                copyIcon.disabled = false;
             }
         } else {
             outputElement.textContent = '';
             outputElement.hidden = true;
-            if (copyBtn) {
-                copyBtn.disabled = true;
+            outputWrapper.hidden = true;
+            if (copyIcon) {
+                copyIcon.disabled = true;
             }
         }
     }
@@ -1790,6 +1808,30 @@ class EcosystemManager {
             console.error('Failed to copy prompt:', error);
             this.showToast('Failed to copy prompt', 'error');
         }
+    }
+
+    setPromptDetailsCollapsed(collapsed = true) {
+        const detailsContainer = document.getElementById('prompt-preview-details');
+        const toggleButton = document.getElementById('prompt-preview-toggle');
+        if (!detailsContainer || !toggleButton) {
+            return;
+        }
+
+        detailsContainer.classList.toggle('collapsed', collapsed);
+        toggleButton.setAttribute('aria-expanded', (!collapsed).toString());
+        toggleButton.innerHTML = collapsed
+            ? '<i class="fas fa-chevron-down"></i> Show Details'
+            : '<i class="fas fa-chevron-up"></i> Hide Details';
+    }
+
+    togglePromptDetails() {
+        const detailsContainer = document.getElementById('prompt-preview-details');
+        if (!detailsContainer) {
+            return;
+        }
+
+        const shouldCollapse = !detailsContainer.classList.contains('collapsed');
+        this.setPromptDetailsCollapsed(shouldCollapse);
     }
 
     previewTheme(theme) {
