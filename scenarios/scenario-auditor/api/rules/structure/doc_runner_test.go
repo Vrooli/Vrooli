@@ -1,0 +1,39 @@
+//go:build ruletests
+// +build ruletests
+
+package structure
+
+import (
+	"testing"
+
+	"scenario-auditor/rules/testkit"
+)
+
+func runDocTests(t *testing.T, filename, defaultPath string, fn func(string, string, string) ([]Violation, error)) {
+	t.Helper()
+	cases := testkit.LoadDocCases(t, filename)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.ID, func(t *testing.T) {
+			path := testkit.DefaultPath(tc, defaultPath)
+			violations, err := fn(tc.Input, path, "demo")
+			testkit.EvaluateDocCase(t, tc, len(violations), collectMessages(violations), err)
+		})
+	}
+}
+
+func collectMessages(vs []Violation) []string {
+	messages := make([]string, 0, len(vs))
+	for _, v := range vs {
+		if v.Message != "" {
+			messages = append(messages, v.Message)
+		}
+		if v.Description != "" {
+			messages = append(messages, v.Description)
+		}
+		if v.Title != "" {
+			messages = append(messages, v.Title)
+		}
+	}
+	return messages
+}

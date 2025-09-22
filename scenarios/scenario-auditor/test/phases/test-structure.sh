@@ -89,10 +89,10 @@ fi
 echo "Checking rule files..."
 
 rule_dirs=(
-    "rules/api"
-    "rules/config"
-    "rules/ui"
-    "rules/testing"
+    "api/rules/api"
+    "api/rules/config"
+    "api/rules/ui"
+    "api/rules/testing"
 )
 
 for dir in "${rule_dirs[@]}"; do

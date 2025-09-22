@@ -83,12 +83,12 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 		t.Fatalf("failed to create scenarios directory: %v", err)
 	}
 
-	rulesDir := filepath.Join(root, "scenarios", "scenario-auditor", "rules", "structure")
+	rulesDir := filepath.Join(root, "scenarios", "scenario-auditor", "api", "rules", "structure")
 	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
 		t.Fatalf("failed to create rules directory: %v", err)
 	}
 
-	sourceRulePath := filepath.Join("..", "rules", "structure", "required_layout.go")
+	sourceRulePath := filepath.Join("rules", "structure", "required_layout.go")
 	ruleContents, err := os.ReadFile(sourceRulePath)
 	if err != nil {
 		t.Fatalf("failed to load structure rule source: %v", err)
@@ -170,5 +170,42 @@ func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
 	}
 	if len(violations) != 0 {
 		t.Fatalf("expected no violations after adding Makefile, got %d", len(violations))
+	}
+}
+
+func TestResolveVrooliRootFromWorkingDirectory(t *testing.T) {
+	t.Setenv("VROOLI_ROOT", "")
+	t.Setenv("APP_ROOT", "")
+
+	tmp := t.TempDir()
+	repoRoot := filepath.Join(tmp, "repo")
+	scenarioRoot := filepath.Join(repoRoot, "scenarios", "scenario-auditor")
+	if err := os.MkdirAll(filepath.Join(scenarioRoot, "api", "rules"), 0o755); err != nil {
+		t.Fatalf("failed to create rule directory structure: %v", err)
+	}
+
+	workingDir := filepath.Join(scenarioRoot, "api")
+	if err := os.MkdirAll(workingDir, 0o755); err != nil {
+		t.Fatalf("failed to create working directory: %v", err)
+	}
+
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to capture working directory: %v", err)
+	}
+
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("failed to change working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(originalWD)
+	})
+
+	root, err := resolveVrooliRoot()
+	if err != nil {
+		t.Fatalf("resolveVrooliRoot returned error: %v", err)
+	}
+	if root != repoRoot {
+		t.Fatalf("expected root %s, got %s", repoRoot, root)
 	}
 }

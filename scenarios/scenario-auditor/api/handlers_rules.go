@@ -842,6 +842,11 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 		testPassRate = (float64(passingTests) / float64(totalTestsRun)) * 100
 	}
 
+	averageTestsPerRule := float64(0)
+	if totalRules > 0 {
+		averageTestsPerRule = float64(totalTestCases) / float64(totalRules)
+	}
+
 	// Build response
 	response := map[string]interface{}{
 		"coverage_metrics": map[string]interface{}{
@@ -850,7 +855,7 @@ func getTestCoverageHandler(w http.ResponseWriter, r *http.Request) {
 			"rules_without_tests":    totalRules - rulesWithTests,
 			"coverage_percentage":    coveragePercent,
 			"total_test_cases":       totalTestCases,
-			"average_tests_per_rule": float64(totalTestCases) / float64(totalRules),
+			"average_tests_per_rule": averageTestsPerRule,
 		},
 		"test_results": map[string]interface{}{
 			"total_run": totalTestsRun,

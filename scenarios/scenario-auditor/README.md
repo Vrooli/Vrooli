@@ -194,7 +194,7 @@ scenario-auditor/
 ├── api/                   # Go API server
 │   ├── main.go           # Server entry point
 │   ├── handlers_*.go     # API handlers
-│   ├── rules/            # Interpreted rule sources (organized by category)
+│   ├── rules/        # Interpreted rule sources (organized by category)
 │   │   ├── api/          # API standards
 │   │   ├── config/       # Configuration rules
 │   │   ├── ui/           # UI standards

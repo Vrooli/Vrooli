@@ -90,12 +90,27 @@ func compileGoRule(rule *RuleInfo) (ruleExecutor, RuleImplementationStatus) {
 	interpreter := interp.New(interp.Options{})
 	interpreter.Use(stdlib.Symbols)
 
-	typesPath := filepath.Join(filepath.Dir(filepath.Dir(rule.FilePath)), "types.go")
-	if _, err := os.Stat(typesPath); err == nil {
-		if _, err := interpreter.EvalPath(typesPath); err != nil {
-			status.Error = fmt.Sprintf("failed to load types.go: %v", err)
-			return nil, status
+	loadSupportFile := func(path string) error {
+		if _, err := os.Stat(path); err == nil {
+			if _, err := interpreter.EvalPath(path); err != nil {
+				return err
+			}
 		}
+		return nil
+	}
+
+	// Load shared rule framework types first (e.g. scenarios/.../api/rules/types.go)
+	sharedTypesPath := filepath.Join(filepath.Dir(filepath.Dir(rule.FilePath)), "types.go")
+	if err := loadSupportFile(sharedTypesPath); err != nil {
+		status.Error = fmt.Sprintf("failed to load types.go: %v", err)
+		return nil, status
+	}
+
+	// Load category-local helpers such as api/types.go when present
+	categoryTypesPath := filepath.Join(filepath.Dir(rule.FilePath), "types.go")
+	if err := loadSupportFile(categoryTypesPath); err != nil {
+		status.Error = fmt.Sprintf("failed to load category types.go: %v", err)
+		return nil, status
 	}
 
 	candidate := filepath.Clean(rule.FilePath)

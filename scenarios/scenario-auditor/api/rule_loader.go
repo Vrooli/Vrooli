@@ -75,21 +75,42 @@ func (r RuleInfo) Check(content string, filepath string, scenario string) ([]Vio
 func LoadRulesFromFiles() (map[string]RuleInfo, error) {
 	rules := make(map[string]RuleInfo)
 
-	// Get the rules directory path
-	vrooliRoot := os.Getenv("VROOLI_ROOT")
-	if vrooliRoot == "" {
-		vrooliRoot = os.Getenv("HOME") + "/Vrooli"
+	// Locate the Vrooli repository root so we can find rule directories even when
+	// the service is launched from a different working directory or with a
+	// different HOME (a common occurrence inside managed runtimes).
+	vrooliRoot, err := resolveVrooliRoot()
+	if err != nil {
+		return nil, err
 	}
-	rulesDir := filepath.Join(vrooliRoot, "scenarios", "scenario-auditor", "rules")
+
+	apiRulesDir := filepath.Join(vrooliRoot, "scenarios", "scenario-auditor", "api", "rules")
+	legacyRulesDir := filepath.Join(vrooliRoot, "scenarios", "scenario-auditor", "rules")
+
+	var rulesDirs []string
+	for _, candidate := range []string{apiRulesDir, legacyRulesDir} {
+		if info, statErr := os.Stat(candidate); statErr == nil && info.IsDir() {
+			rulesDirs = append(rulesDirs, candidate)
+		}
+	}
+
+	if len(rulesDirs) == 0 {
+		return nil, fmt.Errorf("no rule directories found under %s", vrooliRoot)
+	}
 
 	// Walk through all subdirectories
 	categories := []string{"api", "cli", "config", "test", "ui", "makefile", "structure"}
 
 	for _, category := range categories {
-		categoryDir := filepath.Join(rulesDir, category)
+		var categoryDir string
+		for _, base := range rulesDirs {
+			dir := filepath.Join(base, category)
+			if info, err := os.Stat(dir); err == nil && info.IsDir() {
+				categoryDir = dir
+				break
+			}
+		}
 
-		// Check if directory exists
-		if _, err := os.Stat(categoryDir); os.IsNotExist(err) {
+		if categoryDir == "" {
 			continue
 		}
 
@@ -245,6 +266,60 @@ func GetRuleCategories() map[string]RuleCategory {
 			Description: "Rules for UI components and frontend code",
 		},
 	}
+}
+
+// resolveVrooliRoot attempts to discover the repository root so rule files can
+// be located regardless of the process working directory.
+func resolveVrooliRoot() (string, error) {
+	candidates := []string{}
+	for _, env := range []string{"VROOLI_ROOT", "APP_ROOT"} {
+		if val := strings.TrimSpace(os.Getenv(env)); val != "" {
+			candidates = append(candidates, val)
+		}
+	}
+
+	if wd, err := os.Getwd(); err == nil {
+		candidates = append(candidates, wd)
+	}
+
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Dir(exe))
+	}
+
+	seen := make(map[string]struct{})
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+
+		path := candidate
+		for {
+			if _, alreadyChecked := seen[path]; alreadyChecked {
+				break
+			}
+			seen[path] = struct{}{}
+
+			probe := filepath.Join(path, "scenarios", "scenario-auditor")
+			if info, err := os.Stat(probe); err == nil && info.IsDir() {
+				return path, nil
+			}
+
+			parent := filepath.Dir(path)
+			if parent == path {
+				break
+			}
+			path = parent
+		}
+	}
+
+	if home := strings.TrimSpace(os.Getenv("HOME")); home != "" {
+		fallback := filepath.Join(home, "Vrooli")
+		if info, err := os.Stat(fallback); err == nil && info.IsDir() {
+			return fallback, nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to locate Vrooli root; set VROOLI_ROOT")
 }
 
 func buildRuleExecutionInfo(rule RuleInfo) RuleExecutionInfo {
